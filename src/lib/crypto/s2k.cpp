@@ -63,7 +63,7 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysi
     }
 
     if (pgp_s2k_iterated(s2k->hash_alg, key, keysize, password, saltptr, iterations)) {
-        (void) fprintf(stderr, "s2k_derive_key: s2k failed\n");
+        RNP_LOG("s2k failed");
         return false;
     }
 

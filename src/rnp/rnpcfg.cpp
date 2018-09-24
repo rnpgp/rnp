@@ -119,7 +119,7 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
 
     /* detecting keystore pathes and format */
     if (!rnp_cfg_get_ks_info(cfg, params)) {
-        fprintf(stderr, "rnp_cfg_apply: cannot obtain keystore path(es) \n");
+        RNP_LOG("cannot obtain keystore path(es)");
         return false;
     }
 
@@ -470,15 +470,15 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
         return false;
     } else if ((ret = stat(homedir, &st)) == 0 && !S_ISDIR(st.st_mode)) {
         /* file exists in place of homedir */
-        fprintf(stderr, "rnp: homedir \"%s\" is not a dir\n", homedir);
+        RNP_LOG("homedir \"%s\" is not a dir", homedir);
         return false;
     } else if (ret != 0 && errno == ENOENT) {
         /* If the path doesn't exist then fail. */
-        fprintf(stderr, "rnp: warning homedir \"%s\" not found\n", homedir);
+        RNP_LOG("warning homedir \"%s\" not found", homedir);
         return false;
     } else if (ret != 0) {
         /* If any other occurred then fail. */
-        fprintf(stderr, "rnp: an unspecified error occurred\n");
+        RNP_LOG("an unspecified error occurred");
         return false;
     }
 
@@ -501,7 +501,7 @@ conffile(const char *homedir, char *userid, size_t length)
     }
     (void) memset(&keyre, 0x0, sizeof(keyre));
     if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
-        (void) fprintf(stderr, "conffile: failed to compile regular expression");
+        RNP_LOG("failed to compile regular expression");
         fclose(fp);
         return false;
     }
@@ -654,7 +654,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
     if (defhomedir && subdir) {
         rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath));
         if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
-            fprintf(stderr, "cannot mkdir '%s' errno = %d \n", pubpath, errno);
+            RNP_LOG("cannot mkdir '%s' errno = %d", pubpath, errno);
             return false;
         }
     }
@@ -696,7 +696,7 @@ rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params)
         params->ks_pub_format = RNP_KEYSTORE_G10;
         params->ks_sec_format = RNP_KEYSTORE_G10;
     } else {
-        fprintf(stderr, "rnp: unsupported keystore format: \"%s\"\n", ks_format);
+        RNP_LOG("unsupported keystore format: \"%s\"", ks_format);
         return false;
     }
 
@@ -754,7 +754,7 @@ grabdate(const char *s, int64_t *t)
         if (regcomp(&r,
                     "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
                     REG_EXTENDED) != 0) {
-            fprintf(stderr, "grabdate: failed to compile regexp");
+            RNP_LOG("failed to compile regexp");
             return false;
         }
     }

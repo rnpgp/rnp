@@ -636,7 +636,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
         free(*dst);
     }
     if ((*dst = (uint8_t *) calloc(1, len + 1)) == NULL) {
-        (void) fprintf(stderr, "copy_userid: bad alloc\n");
+        RNP_LOG("bad alloc");
     } else {
         (void) memcpy(*dst, src, len);
     }
