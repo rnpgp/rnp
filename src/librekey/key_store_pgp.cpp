@@ -326,7 +326,6 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_key_t *                pkey)
 {
     pgp_key_t skey = {};
-    pgp_io_t  io = {.outs = stdout, .errs = stderr, .res = stdout};
 
     /* create subkey */
     if (!rnp_key_from_transferable_subkey(&skey, tskey, pkey)) {
@@ -335,7 +334,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
     }
 
     /* add it to the storage */
-    if (!rnp_key_store_add_key(&io, keyring, &skey)) {
+    if (!rnp_key_store_add_key(keyring, &skey)) {
         RNP_LOG("Failed to add subkey to key store.");
         goto error;
     }
@@ -380,7 +379,6 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 {
     pgp_key_t  key = {};
     pgp_key_t *addkey = NULL;
-    pgp_io_t   io = {.outs = stdout, .errs = stderr, .res = stdout};
 
     /* create key from transferable key */
     if (!rnp_key_from_transferable_key(&key, tkey)) {
@@ -389,7 +387,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     }
 
     /* add key to the storage before subkeys */
-    if (!(addkey = rnp_key_store_add_key(&io, keyring, &key))) {
+    if (!(addkey = rnp_key_store_add_key(keyring, &key))) {
         RNP_LOG("Failed to add key to key store.");
         goto error;
     }
@@ -406,7 +404,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 error:
     if (addkey) {
         /* during key addition all fields are copied so will be cleaned below */
-        rnp_key_store_remove_key(&io, keyring, addkey);
+        rnp_key_store_remove_key(keyring, addkey);
         pgp_key_free_data(addkey);
     } else {
         pgp_key_free_data(&key);
@@ -517,8 +515,7 @@ done:
 }
 
 bool
-rnp_key_store_pgp_read_from_mem(pgp_io_t *                io,
-                                rnp_key_store_t *         keyring,
+rnp_key_store_pgp_read_from_mem(rnp_key_store_t *         keyring,
                                 pgp_memory_t *            mem,
                                 const pgp_key_provider_t *key_provider)
 {
@@ -645,10 +642,7 @@ rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_
 }
 
 bool
-rnp_key_store_pgp_write_to_mem(pgp_io_t *       io,
-                               rnp_key_store_t *key_store,
-                               bool             armor,
-                               pgp_memory_t *   mem)
+rnp_key_store_pgp_write_to_mem(rnp_key_store_t *key_store, bool armor, pgp_memory_t *mem)
 {
     pgp_dest_t dst = {};
     bool       res = false;
