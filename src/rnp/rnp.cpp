@@ -242,7 +242,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     char             id[MAX_ID_LENGTH + 1];
     const pgp_key_t *key;
     const char *     title = "UNKNOWN signature";
-    pgp_io_t *       io = handler->ctx->rnp->io;
+    FILE *           resfp = handler->ctx->rnp->resfp;
 
     for (int i = 0; i < count; i++) {
         if (sigs[i].unknown || sigs[i].no_signer) {
@@ -270,17 +270,17 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
         expiry = signature_get_expiration(sigs[i].sig);
 
         if (create > 0) {
-            fprintf(io->res, "%s made %s", title, ctime(&create));
+            fprintf(resfp, "%s made %s", title, ctime(&create));
             if (expiry > 0) {
                 create += expiry;
-                fprintf(io->res, "Valid until %s\n", ctime(&create));
+                fprintf(resfp, "Valid until %s\n", ctime(&create));
             }
         } else {
-            fprintf(io->res, "%s\n", title);
+            fprintf(resfp, "%s\n", title);
         }
 
         signature_get_keyid(sigs[i].sig, keyid);
-        fprintf(io->res,
+        fprintf(resfp,
                 "using %s key %s\n",
                 pgp_show_pka(sigs[i].sig->palg),
                 userid_to_id(keyid, id));
@@ -292,15 +292,15 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     }
 
     if (count == 0) {
-        fprintf(stdout, "No signature(s) found - is this a signed file?\n");
+        fprintf(stderr, "No signature(s) found - is this a signed file?\n");
     } else if (invalidc > 0 || unknownc > 0) {
         fprintf(
-          stdout,
+          stderr,
           "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
           invalidc,
           unknownc);
     } else {
-        fprintf(stdout, "Signature(s) verified successfully\n");
+        fprintf(stderr, "Signature(s) verified successfully\n");
     }
 }
 

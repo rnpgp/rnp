@@ -775,9 +775,8 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
                  const char *              password,
                  const pgp_key_provider_t *key_provider)
 {
-    s_exp_t s_exp = {0};
-    bool    ret = false;
-    // pgp_io_t    io = {.outs = stdout, .errs = stderr, .res = stdout};
+    s_exp_t          s_exp = {0};
+    bool             ret = false;
     pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
     s_exp_t *        algorithm_s_exp = NULL;
 
