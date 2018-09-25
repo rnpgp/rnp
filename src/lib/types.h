@@ -68,12 +68,6 @@
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
 
-typedef struct pgp_io_t {
-    FILE *outs; /* output file stream */
-    FILE *errs; /* file stream to put error messages */
-    FILE *res;  /* file stream to put results */
-} pgp_io_t;
-
 /** pgp_map_t
  */
 typedef struct {
