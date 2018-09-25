@@ -66,8 +66,6 @@
 #define CFG_S2K_MSEC "s2k-msec"         /* number of milliseconds S2K should target */
 #define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */
 #define CFG_ENCRYPT_SK "encrypt_sk"     /* password encryption should be used */
-#define CFG_IO_OUTS "outs"              /* output stream */
-#define CFG_IO_ERRS "errs"              /* error stream */
 #define CFG_IO_RESS "ress"              /* results stream */
 #define CFG_NUMBITS "numbits"           /* number of bits in generated key */
 #define CFG_KEYFORMAT "format"          /* key format : "human" for human-readable or ... */

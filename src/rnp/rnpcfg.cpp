@@ -104,15 +104,6 @@ rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params)
         params->userinputfd = fd;
     }
 
-    /* stdout/stderr and results redirection */
-    if ((stream = rnp_cfg_getstr(cfg, CFG_IO_OUTS))) {
-        params->outs = stream;
-    }
-
-    if ((stream = rnp_cfg_getstr(cfg, CFG_IO_ERRS))) {
-        params->errs = stream;
-    }
-
     if ((stream = rnp_cfg_getstr(cfg, CFG_IO_RESS))) {
         params->ress = stream;
     }

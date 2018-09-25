@@ -339,69 +339,10 @@ set_pass_fd(rnp_t *rnp, int passfd)
 {
     rnp->passfp = fdopen(passfd, "r");
     if (!rnp->passfp) {
-        fprintf(rnp->io->errs, "cannot open fd %d for reading\n", passfd);
+        RNP_LOG("cannot open fd %d for reading", passfd);
         return false;
     }
     return true;
-}
-
-/* Initialize a RNP context's io stream handles with a user-supplied
- * io struct. Returns 1 on success and 0 on failure. It is the caller's
- * responsibility to de-allocate a dynamically allocated io struct
- * upon failure.
- */
-static bool
-init_io(rnp_t *rnp, pgp_io_t *io, const char *outs, const char *errs, const char *ress)
-{
-    /* TODO: I think refactoring can go even further here. */
-
-    /* Configure the output stream. */
-    io->outs = stdout;
-    if (outs && strcmp(outs, "<stderr>") == 0) {
-        io->outs = stderr;
-    }
-
-    /* Configure the error stream. */
-    io->errs = stderr;
-    if (errs && strcmp(errs, "<stdout>") == 0) {
-        io->errs = stdout;
-    }
-
-    /* Configure the results stream. */
-    if (ress == NULL) {
-        io->res = io->errs;
-    } else if (strcmp(ress, "<stdout>") == 0) {
-        io->res = stdout;
-    } else if (strcmp(ress, "<stderr>") == 0) {
-        io->res = stderr;
-    } else {
-        if ((io->res = fopen(ress, "w")) == NULL) {
-            fprintf(stderr, "cannot open results %s for writing\n", ress);
-            return false;
-        }
-    }
-
-    rnp->io = io;
-    return true;
-}
-
-/* Allocate a new io struct and initialize a rnp context with it.
- * Returns 1 on success and 0 on failure.
- *
- * TODO: Set errno with a suitable error code.
- */
-static bool
-init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
-{
-    pgp_io_t *io = (pgp_io_t *) calloc(1, sizeof(*io));
-
-    if (io != NULL) {
-        if (init_io(rnp, io, outs, errs, ress))
-            return true;
-        free((void *) io);
-    }
-
-    return false;
 }
 
 /*************************************************************************/
@@ -412,8 +353,7 @@ init_new_io(rnp_t *rnp, const char *outs, const char *errs, const char *ress)
 rnp_result_t
 rnp_init(rnp_t *rnp, const rnp_params_t *params)
 {
-    bool      coredumps = true;
-    pgp_io_t *io;
+    bool coredumps = true;
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
@@ -430,11 +370,15 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
           stderr);
     }
 
-    /* Initialize the context's io streams apparatus. */
-    if (!init_new_io(rnp, params->outs, params->errs, params->ress)) {
-        return RNP_ERROR_GENERIC;
+    /* Configure the results stream. */
+    if (!params->ress || !strcmp(params->ress, "<stderr>")) {
+        rnp->resfp = stderr;
+    } else if (strcmp(params->ress, "<stdout>") == 0) {
+        rnp->resfp = stdout;
+    } else if (!(rnp->resfp = fopen(params->ress, "w"))) {
+        fprintf(stderr, "cannot open results %s for writing\n", params->ress);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    io = rnp->io;
 
     // set the key provider
     rnp->key_provider.callback = rnp_key_provider_keyring;
@@ -470,14 +414,14 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     if (params->pubpath) {
         rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
         if (rnp->pubring == NULL) {
-            fputs("rnp: can't create empty pubring keystore\n", io->errs);
+            fprintf(stderr, "rnp: can't create empty pubring keystore\n");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
     if (params->secpath) {
         rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
         if (rnp->secring == NULL) {
-            fputs("rnp: can't create empty secring keystore\n", io->errs);
+            fprintf(stderr, "rnp: can't create empty secring keystore\n");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
@@ -504,7 +448,10 @@ rnp_end(rnp_t *rnp)
         free(rnp->defkey);
         rnp->defkey = NULL;
     }
-    free(rnp->io);
+    if (rnp->resfp && (rnp->resfp != stderr) && (rnp->resfp != stdout)) {
+        fclose(rnp->resfp);
+        rnp->resfp = NULL;
+    }
 }
 
 /* rnp_params_t : initialize and free internals */

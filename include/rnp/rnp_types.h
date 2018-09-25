@@ -54,7 +54,7 @@ typedef struct rnp_key_store_t rnp_key_store_t;
 typedef struct rnp_t {
     rnp_key_store_t *pubring;       /* public key ring */
     rnp_key_store_t *secring;       /* s3kr1t key ring */
-    pgp_io_t *       io;            /* the io struct for results/errs */
+    FILE *           resfp;         /* where to put result messages, defaults to stdout */
     FILE *           user_input_fp; /* file pointer for user input */
     FILE *           passfp;        /* file pointer for password input */
     char *           defkey;        /* default key id */
@@ -76,9 +76,6 @@ typedef struct rnp_params_t {
 
     int         passfd; /* password file descriptor */
     int         userinputfd;
-    const char *outs; /* output stream : may be <stderr> , most likel these are subject for
-                         refactoring  */
-    const char *errs; /* error stream : may be <stdout> */
     const char *ress; /* results stream : maye be <stdout>, <stderr> or file name/path */
 
     const char *ks_pub_format;     /* format of the public key store */
@@ -104,7 +101,7 @@ typedef enum rnp_operation_t {
 } rnp_operation_t;
 
 /** rnp operation context : contains configuration data about the currently ongoing operation.
- * 
+ *
  *  Common fields which make sense for every operation:
  *  - overwrite : silently overwrite output file if exists
  *  - armor : except cleartext signing, which outputs text in clear and always armor signature,
@@ -112,18 +109,18 @@ typedef enum rnp_operation_t {
  *    controls the direction of the conversion (true means enarmor, false - dearmor),
  *  - rng : random number generator
  *  - operation : current operation type
- * 
+ *
  *  For operations with OpenPGP embedded data (i.e. encrypted data and attached signatures):
  *  - filename, filemtime : to specify information about the contents of literal data packet
  *  - zalg, zlevel : compression algorithm and level, zlevel = 0 to disable compression
- * 
+ *
  *  For encryption operation (including encrypt-and-sign):
  *  - halg : hash algorithm used during key derivation for password-based encryption
  *  - ealg, aalg, abits : symmetric encryption algorithm and AEAD parameters if used
  *  - recipients : list of key ids used to encrypt data to
  *  - passwords : list of passwords used for password-based encryption
  *  - filename, filemtime, zalg, zlevel : see previous
- * 
+ *
  *  For signing of any kind (attached, detached, cleartext):
  *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
  *    If both are false then attached signing is used.
@@ -131,13 +128,13 @@ typedef enum rnp_operation_t {
  *  - signers : list of key pointers used to sign data
  *  - sigcreate, sigexpire : signature(s) creation and expiration times
  *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
- *  
+ *
  *  For data decryption and/or verification there is not much of fields:
  *  - on_signatures: callback, called when signature verification information is available.
  *    If we have just encrypted data then it will not be called.
  *  - sig_cb_param: parameter to be passed to on_signatures callback.
  *  - discard: dicard the output data (i.e. just decrypt and/or verify signatures)
- * 
+ *
  *  For enarmor/dearmor:
  *  - armortype: type of the armor headers (message, key, whatever else)
  */
