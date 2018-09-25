@@ -183,9 +183,12 @@ pgp_key_t *rnp_key_store_get_key_by_userid(pgp_io_t *,
 bool rnp_key_store_get_key_grip(const pgp_key_material_t *, uint8_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_grip(pgp_io_t *, const rnp_key_store_t *, const uint8_t *);
+
 pgp_key_t *rnp_key_store_get_key_by_fpr(pgp_io_t *,
                                         const rnp_key_store_t *,
                                         const pgp_fingerprint_t *fpr);
+
+pgp_key_t *rnp_key_store_get_primary_key(const rnp_key_store_t *, const pgp_key_t *);
 
 pgp_key_t *rnp_key_store_search(pgp_io_t *,
                                 const rnp_key_store_t *,

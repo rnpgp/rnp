@@ -1632,7 +1632,6 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     if (pgp_key_is_subkey(key)) {
         pgp_key_t *primary = rnp_key_store_get_key_by_grip(&io, keyring, key->primary_grip);
         if (!primary) {
-            RNP_LOG("no primary key for subkey");
             res = RNP_ERROR_BAD_STATE;
             goto done;
         }
