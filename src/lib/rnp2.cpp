@@ -58,7 +58,7 @@ struct rnp_key_handle_st {
 };
 
 struct rnp_ffi_st {
-    pgp_io_t                io;
+    FILE *                  errs;
     rnp_key_store_t *       pubring;
     rnp_key_store_t *       secring;
     rnp_get_key_cb          getkeycb;
@@ -166,8 +166,8 @@ typedef enum key_type_t {
 #define FFI_LOG(ffi, ...)            \
     do {                             \
         FILE *fp = stderr;           \
-        if (ffi && ffi->io.errs) {   \
-            fp = ffi->io.errs;       \
+        if (ffi && ffi->errs) {      \
+            fp = ffi->errs;          \
         }                            \
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
@@ -351,7 +351,7 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // default to all stderr
-    ob->io = {.outs = stdout, .errs = stderr, .res = stdout};
+    ob->errs = stderr;
     ob->pubring = rnp_key_store_new(pub_format, "");
     if (!ob->pubring) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -395,19 +395,11 @@ close_io_file(FILE **fp)
     *fp = NULL;
 }
 
-static void
-close_io(pgp_io_t *io)
-{
-    close_io_file(&io->outs);
-    close_io_file(&io->errs);
-    close_io_file(&io->res);
-}
-
 rnp_result_t
 rnp_ffi_destroy(rnp_ffi_t ffi)
 {
     if (ffi) {
-        close_io(&ffi->io);
+        close_io_file(&ffi->errs);
         rnp_key_store_free(ffi->pubring);
         rnp_key_store_free(ffi->secring);
         rng_destroy(&ffi->rng);
@@ -419,9 +411,7 @@ rnp_ffi_destroy(rnp_ffi_t ffi)
 rnp_result_t
 rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd)
 {
-    FILE *outs = NULL;
     FILE *errs = NULL;
-    FILE *res = NULL;
 
     // checks
     if (!ffi) {
@@ -429,22 +419,14 @@ rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd)
     }
 
     // open
-    outs = fdopen(fd, "a");
-    errs = fdopen(dup(fd), "a");
-    res = fdopen(dup(fd), "a");
-    if (!outs || !errs || !res) {
-        close_io_file(&outs);
+    errs = fdopen(fd, "a");
+    if (!errs) {
         close_io_file(&errs);
-        close_io_file(&res);
         return RNP_ERROR_ACCESS;
     }
     // close previous streams and replace them
-    close_io_file(&ffi->io.outs);
-    ffi->io.outs = outs;
-    close_io_file(&ffi->io.errs);
-    ffi->io.errs = errs;
-    close_io_file(&ffi->io.res);
-    ffi->io.res = res;
+    close_io_file(&ffi->errs);
+    ffi->errs = errs;
     return RNP_SUCCESS;
 }
 
