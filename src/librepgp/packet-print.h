@@ -56,7 +56,6 @@
 
 #include <rekey/rnp_key_store.h>
 
-typedef struct pgp_io_t  pgp_io_t;
 typedef struct pgp_key_t pgp_key_t;
 
 void repgp_print_key(const struct rnp_key_store_t *,
