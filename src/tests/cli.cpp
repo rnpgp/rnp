@@ -30,7 +30,7 @@
 
 int rnp_main(int argc, char **argv);
 
-int
+static int
 call_rnp(const char *cmd, ...)
 {
     int     argc = 0;
