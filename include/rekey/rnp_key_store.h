@@ -150,7 +150,7 @@ bool rnp_key_store_write_to_mem(rnp_key_store_t *, const unsigned, pgp_memory_t 
 void rnp_key_store_clear(rnp_key_store_t *);
 void rnp_key_store_free(rnp_key_store_t *);
 
-bool rnp_key_store_list(const rnp_key_store_t *, const int);
+bool rnp_key_store_list(FILE *fp, const rnp_key_store_t *, const int);
 bool rnp_key_store_json(const rnp_key_store_t *, json_object *, const int);
 
 pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *, pgp_key_t *);

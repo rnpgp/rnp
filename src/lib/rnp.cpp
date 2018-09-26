@@ -189,9 +189,7 @@ format_json_key(FILE *fp, json_object *obj, const int psigs)
     time_t  now;
     char    tbuf[32];
 
-    if (rnp_get_debug(__FILE__)) {
-        (void) fprintf(stderr, "formatobj: json is '%s'\n", json_object_to_json_string(obj));
-    }
+    RNP_DLOG("json is '%s'", json_object_to_json_string(obj));
 #if 0 //?
     if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
         strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
@@ -414,14 +412,14 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     if (params->pubpath) {
         rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
         if (rnp->pubring == NULL) {
-            fprintf(stderr, "rnp: can't create empty pubring keystore\n");
+            RNP_LOG("can't create empty pubring keystore");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
     if (params->secpath) {
         rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
         if (rnp->secring == NULL) {
-            fprintf(stderr, "rnp: can't create empty secring keystore\n");
+            RNP_LOG("can't create empty secring keystore");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
@@ -523,7 +521,7 @@ rnp_list_keys(rnp_t *rnp, const int psigs)
         RNP_LOG("No keyring");
         return false;
     }
-    return rnp_key_store_list(rnp->pubring, psigs);
+    return rnp_key_store_list(rnp->resfp, rnp->pubring, psigs);
 }
 
 /* list the keys in a keyring, returning a JSON encoded string */
@@ -789,7 +787,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         /* add secret key if there is one */
         if (!pgp_is_key_secret(imported)) {
             if (changed && print) {
-                repgp_print_key(rnp->pubring, exkey, "pub", 0);
+                repgp_print_key(rnp->resfp, rnp->pubring, exkey, "pub", 0);
             }
             continue;
         }
@@ -807,7 +805,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         }
 
         if (print && (changed || (exkey->packetc > expackets))) {
-            repgp_print_key(rnp->pubring, exkey, "sec", 0);
+            repgp_print_key(rnp->resfp, rnp->pubring, exkey, "sec", 0);
         }
     }
 
