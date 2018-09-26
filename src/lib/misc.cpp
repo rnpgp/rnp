@@ -461,6 +461,10 @@ rnp_get_debug(const char *f)
     const char *name;
     int         i;
 
+    if (!debugc) {
+        return 0;
+    }
+
     if ((name = strrchr(f, '/')) == NULL) {
         name = f;
     } else {

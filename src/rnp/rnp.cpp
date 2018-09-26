@@ -287,7 +287,7 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
 
         if (!sigs[i].no_signer) {
             key = rnp_key_store_get_key_by_id(handler->ctx->rnp->pubring, keyid, NULL);
-            repgp_print_key(handler->ctx->rnp->pubring, key, "signature ", 0);
+            repgp_print_key(resfp, handler->ctx->rnp->pubring, key, "signature ", 0);
         }
     }
 

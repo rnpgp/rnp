@@ -577,12 +577,8 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
         json_object_array_add(uid_arr, uidobj);
     } // for uidc
     json_object_object_add(keyjson, "user ids", uid_arr);
-    if (rnp_get_debug(__FILE__)) {
-        printf("%s,%d: The json object created: %s\n",
-               __FILE__,
-               __LINE__,
-               json_object_to_json_string_ext(keyjson, JSON_C_TO_STRING_PRETTY));
-    }
+    RNP_DLOG("The json object created: %s",
+             json_object_to_json_string_ext(keyjson, JSON_C_TO_STRING_PRETTY));
     return 1;
 }
 
@@ -670,7 +666,8 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
 
 /* print the key data for a pub or sec key */
 void
-repgp_print_key(const rnp_key_store_t *keyring,
+repgp_print_key(FILE *                 fp,
+                const rnp_key_store_t *keyring,
                 const pgp_key_t *      key,
                 const char *           header,
                 const int              psigs)
@@ -678,7 +675,7 @@ repgp_print_key(const rnp_key_store_t *keyring,
     char *cp;
 
     if (pgp_sprint_key(keyring, key, &cp, header, psigs) >= 0) {
-        (void) fprintf(stdout, "%s", cp);
+        (void) fprintf(fp, "%s", cp);
         free(cp);
     }
 }
