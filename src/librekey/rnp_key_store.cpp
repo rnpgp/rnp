@@ -173,9 +173,7 @@ rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
 
             memset(&mem, 0, sizeof(mem));
 
-            if (rnp_get_debug(__FILE__)) {
-                fprintf(stderr, "Loading G10 key from file '%s'\n", path);
-            }
+            RNP_DLOG("Loading G10 key from file '%s'", path);
 
             if (!pgp_mem_readfile(&mem, path)) {
                 RNP_LOG("Can't read file '%s' to memory", path);
@@ -424,11 +422,11 @@ rnp_key_store_free(rnp_key_store_t *keyring)
    \return none
 */
 bool
-rnp_key_store_list(const rnp_key_store_t *keyring, const int psigs)
+rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
 {
     unsigned keyc = (keyring != NULL) ? list_length(keyring->keys) : 0;
 
-    (void) fprintf(stdout, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
+    (void) fprintf(fp, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
 
     if (keyring == NULL) {
         return true;
@@ -438,11 +436,11 @@ rnp_key_store_list(const rnp_key_store_t *keyring, const int psigs)
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_is_key_secret(key)) {
-            repgp_print_key(keyring, key, "sec", 0);
+            repgp_print_key(fp, keyring, key, "sec", 0);
         } else {
-            repgp_print_key(keyring, key, "pub", psigs);
+            repgp_print_key(fp, keyring, key, "pub", psigs);
         }
-        (void) fputc('\n', stdout);
+        (void) fputc('\n', fp);
     }
     return true;
 }
@@ -643,9 +641,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     pgp_key_t *added_key = NULL;
 
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "rnp_key_store_add_key\n");
-    }
+    RNP_DLOG("rnp_key_store_add_key");
     assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
     added_key = rnp_key_store_get_key_by_grip(keyring, srckey->grip);
 
@@ -690,9 +686,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         return NULL;
     }
 
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "rnp_key_store_add_key: keyc %lu\n", list_length(keyring->keys));
-    }
+    RNP_DLOG("keyc %lu", list_length(keyring->keys));
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation) {
@@ -757,9 +751,7 @@ rnp_key_store_get_key_by_id(const rnp_key_store_t *keyring,
                             const uint8_t *        keyid,
                             pgp_key_t *            after)
 {
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "searching keyring %p\n", keyring);
-    }
+    RNP_DLOG("searching keyring %p", keyring);
 
     if (!keyring) {
         return NULL;
@@ -773,10 +765,8 @@ rnp_key_store_get_key_by_id(const rnp_key_store_t *keyring,
          key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "keyring keyid", key->keyid, PGP_KEY_ID_SIZE);
-            hexdump(stderr, "keyid", keyid, PGP_KEY_ID_SIZE);
-        }
+        RNP_DHEX("keyring keyid", key->keyid, PGP_KEY_ID_SIZE);
+        RNP_DHEX("keyid", keyid, PGP_KEY_ID_SIZE);
         if (memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE) == 0 ||
             memcmp(&key->keyid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
             return key;
@@ -813,9 +803,7 @@ rnp_key_store_get_key_by_userid(const rnp_key_store_t *keyring,
 pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *grip)
 {
-    if (rnp_get_debug(__FILE__)) {
-        fprintf(stderr, "looking keyring %p\n", keyring);
-    }
+    RNP_DLOG("looking keyring %p", keyring);
 
     if (!grip) {
         return NULL;
@@ -824,10 +812,9 @@ rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *gri
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stderr, "looking for grip", grip, PGP_FINGERPRINT_SIZE);
-            hexdump(stderr, "keyring grip", key->grip, PGP_FINGERPRINT_SIZE);
-        }
+        RNP_DHEX("looking for grip", grip, PGP_FINGERPRINT_SIZE);
+        RNP_DHEX("keyring grip", key->grip, PGP_FINGERPRINT_SIZE);
+
         if (memcmp(key->grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
             return key;
         }
@@ -992,15 +979,12 @@ get_key_by_name(const rnp_key_store_t *keyring,
     }
     assert(!after || list_is_member(keyring->keys, (list_item *) after));
     len = strlen(name);
-    if (rnp_get_debug(__FILE__)) {
-        RNP_LOG_FD(stdout, "[%p] name '%s', len %zu", after, name, len);
-    }
+    RNP_DLOG("[%p] name '%s', len %zu", after, name, len);
+
     /* first try name as a keyid */
     (void) memset(keyid, 0x0, sizeof(keyid));
     if (ishex(name, len) && hex2bin(name, len, keyid, sizeof(keyid), &binlen)) {
-        if (rnp_get_debug(__FILE__)) {
-            hexdump(stdout, "keyid", keyid, 4);
-        }
+        RNP_DHEX("keyid", keyid, 4);
 
         if (binlen <= PGP_KEY_ID_SIZE) {
             kp = rnp_key_store_get_key_by_id(keyring, keyid, after);
@@ -1018,9 +1002,8 @@ get_key_by_name(const rnp_key_store_t *keyring,
             return true;
         }
     }
-    if (rnp_get_debug(__FILE__)) {
-        RNP_LOG_FD(stdout, "regex match '%s' after %p", name, after);
-    }
+    RNP_DLOG("regex match '%s' after %p", name, after);
+
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
         RNP_LOG("Can't compile regex from string: '%s'", name);
@@ -1034,10 +1017,7 @@ get_key_by_name(const rnp_key_store_t *keyring,
         uidp = keyp->uids;
         for (i = 0; i < keyp->uidc; i++, uidp++) {
             if (regexec(&r, (char *) *uidp, 0, NULL, 0) == 0) {
-                if (rnp_get_debug(__FILE__)) {
-                    RNP_LOG_FD(
-                      stdout, "MATCHED keyid \"%s\" len %" PRIsize "u", (char *) *uidp, len);
-                }
+                RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u", (char *) *uidp, len);
                 regfree(&r);
                 *key = keyp;
                 return true;
