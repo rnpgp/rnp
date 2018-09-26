@@ -58,10 +58,8 @@
 
 typedef struct pgp_key_t pgp_key_t;
 
-void repgp_print_key(const struct rnp_key_store_t *,
-                     const pgp_key_t *,
-                     const char *,
-                     const int);
+void repgp_print_key(
+  FILE *fp, const struct rnp_key_store_t *, const pgp_key_t *, const char *, const int);
 
 int repgp_sprint_json(
   const struct rnp_key_store_t *, const pgp_key_t *, json_object *, const char *, const int);

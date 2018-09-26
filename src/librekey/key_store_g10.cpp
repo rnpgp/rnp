@@ -526,11 +526,9 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
         RNP_LOG("pgp_s2k_iterated failed");
         goto done;
     }
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "input iv", prot->iv, G10_CBC_IV_SIZE);
-        hexdump(stderr, "key", derived_key, keysize);
-        hexdump(stderr, "encrypted", encrypted_data, encrypted_data_len);
-    }
+    RNP_DHEX("input iv", prot->iv, G10_CBC_IV_SIZE);
+    RNP_DHEX("key", derived_key, keysize);
+    RNP_DHEX("encrypted", encrypted_data, encrypted_data_len);
 
     // decrypt
     decrypted_data = (uint8_t *) malloc(encrypted_data_len);
@@ -560,9 +558,7 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
     decrypted_data_len = output_written;
     s_exp_len = decrypted_data_len;
     decrypted_bytes = (const char *) decrypted_data;
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "decrypted data", decrypted_data, decrypted_data_len);
-    }
+    RNP_DHEX("decrypted data", decrypted_data, decrypted_data_len);
 
     // parse and validate the decrypted s-exp
     if (!parse_sexp(r_s_exp, &decrypted_bytes, &s_exp_len)) {
@@ -749,13 +745,10 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
             memcmp(checkhash,
                    decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
                    G10_SHA1_HASH_SIZE) != 0) {
-            if (rnp_get_debug(__FILE__)) {
-                hexdump(stderr, "Expected hash", checkhash, G10_SHA1_HASH_SIZE);
-                hexdump(stderr,
-                        "Has hash",
-                        decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
-                        decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.len);
-            }
+            RNP_DHEX("Expected hash", checkhash, G10_SHA1_HASH_SIZE);
+            RNP_DHEX("Has hash",
+                     decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.bytes,
+                     decrypted_s_exp.sub_elements[1].s_exp.sub_elements[2].block.len);
             RNP_LOG("Incorrect hash at encrypted private key.");
             goto done;
         }
@@ -780,9 +773,7 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
     pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
     s_exp_t *        algorithm_s_exp = NULL;
 
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "S-exp", (const uint8_t *) data, data_len);
-    }
+    RNP_DHEX("S-exp", (const uint8_t *) data, data_len);
 
     const char *bytes = (const char *) data;
     if (!parse_sexp(&s_exp, &bytes, &data_len)) {
@@ -1219,11 +1210,9 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
         goto done;
     }
 
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "input iv", prot->iv, G10_CBC_IV_SIZE);
-        hexdump(stderr, "key", derived_key, keysize);
-        hexdump(stderr, "raw data", raw.buf, raw.length);
-    }
+    RNP_DHEX("input iv", prot->iv, G10_CBC_IV_SIZE);
+    RNP_DHEX("key", derived_key, keysize);
+    RNP_DHEX("raw data", raw.buf, raw.length);
 
     if (botan_cipher_init(
           &encrypt, format->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_ENCRYPT) ||
@@ -1363,9 +1352,7 @@ g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t 
 
     destroy_s_exp(&s_exp);
 
-    if (rnp_get_debug(__FILE__)) {
-        hexdump(stderr, "data for hashing", mem.buf, mem.length);
-    }
+    RNP_DHEX("data for hashing", mem.buf, mem.length);
 
     pgp_hash_add(&hash, mem.buf, mem.length);
 

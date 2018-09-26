@@ -39,6 +39,16 @@
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
+#define RNP_DLOG(...)                    \
+    if (rnp_get_debug(__FILE__)) {       \
+        RNP_LOG_FD(stderr, __VA_ARGS__); \
+    }
+
+#define RNP_DHEX(msg, mem, len)         \
+    if (rnp_get_debug(__FILE__)) {      \
+        hexdump(stderr, msg, mem, len); \
+    }
+
 /* number of elements in an array */
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 
