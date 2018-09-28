@@ -1296,6 +1296,7 @@ rnp_dump_file(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     /* process source */
+    dumpctx.dump_grips = true;
     if ((result = stream_dump_packets(&dumpctx, &src, &dst))) {
         RNP_LOG("error 0x%x", result);
     }

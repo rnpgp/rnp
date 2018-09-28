@@ -981,6 +981,8 @@ test_stream_dumper(void **state)
     pgp_dest_t     dst;
     rnp_dump_ctx_t ctx = {0};
 
+    ctx.dump_mpi = false;
+    ctx.dump_grips = false;
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
     assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
@@ -999,6 +1001,16 @@ test_stream_dumper(void **state)
     src_close(&src);
     dst_close(&dst, false);
 
+    ctx.dump_mpi = true;
+    ctx.dump_grips = true;
+    assert_rnp_success(init_file_src(&src, "data/keyrings/4/rsav3-p.asc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
+
+    ctx.dump_mpi = true;
+    ctx.dump_grips = false;
     assert_rnp_success(init_file_src(&src, "data/keyrings/4/rsav3-s.asc"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
     assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
@@ -1017,6 +1029,8 @@ test_stream_dumper(void **state)
     src_close(&src);
     dst_close(&dst, false);
 
+    ctx.dump_mpi = true;
+    ctx.dump_grips = true;
     assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/dsa-eg-pub.asc"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
     assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
