@@ -18,6 +18,7 @@ print_usage(char *program_name)
             "\t%s [-d|-h] [input.pgp]\n"
             "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
             "\t  -m : dump mpi values\n"
+            "\t  -g : dump key fingerprints and grips\n"
             "\t  -h : prints help and exists\n",
             basename(program_name));
 }
@@ -35,16 +36,20 @@ main(int argc, char *const argv[])
         -i input_file [mandatory]: specifies name of the file with PGP packets
         -d : indicates wether to dump whole packet content
         -m : dump mpi contents
+        -g : dump key grips and fingerprints
         -h : prints help and exists
     */
     int opt = 0;
-    while ((opt = getopt(argc, argv, "dmh")) != -1) {
+    while ((opt = getopt(argc, argv, "dmgh")) != -1) {
         switch (opt) {
         case 'd':
             ctx.dump_packets = true;
             break;
         case 'm':
             ctx.dump_mpi = true;
+            break;
+        case 'g':
+            ctx.dump_grips = true;
             break;
         default:
             print_usage(argv[0]);

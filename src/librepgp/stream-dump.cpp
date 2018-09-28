@@ -725,8 +725,10 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 static rnp_result_t
 stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_key_pkt_t key;
-    rnp_result_t  ret;
+    pgp_key_pkt_t     key;
+    rnp_result_t      ret;
+    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_fingerprint_t keyfp = {};
 
     if ((ret = stream_parse_key(src, &key))) {
         return ret;
@@ -806,6 +808,28 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_printf(dst, "cleartext secret key data: %d bytes\n", (int) key.sec_len);
         }
         indent_dest_decrease(dst);
+    }
+
+    if (!pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key)) {
+        dst_print_hex(dst, "keyid", keyid, PGP_KEY_ID_SIZE, false);
+    } else {
+        dst_printf(dst, "keyid: failed to calculate");
+    }
+
+    if ((key.version > PGP_V3) && (ctx->dump_grips)) {
+        if (!pgp_fingerprint(&keyfp, &key)) {
+            dst_print_hex(dst, "fingerprint", keyfp.fingerprint, keyfp.length, false);
+        } else {
+            dst_printf(dst, "fingerprint: failed to calculate");
+        }
+    }
+
+    if (ctx->dump_grips) {
+        if (rnp_key_store_get_key_grip(&key.material, keyfp.fingerprint)) {
+            dst_print_hex(dst, "grip", keyfp.fingerprint, PGP_FINGERPRINT_SIZE, false);
+        } else {
+            dst_printf(dst, "grip: failed to calculate");
+        }
     }
 
     free_key_pkt(&key);
