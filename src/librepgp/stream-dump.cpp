@@ -414,8 +414,8 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
         dst_print_hex(dst, "s2k salt", s2k->salt, PGP_SALT_SIZE, false);
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        int real_iter = pgp_s2k_decode_iterations(s2k->iterations);
-        dst_printf(dst, "s2k iterations: %d (%d)\n", (int) s2k->iterations, real_iter);
+        size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
+        dst_printf(dst, "s2k iterations: %d (%zu)\n", (int) s2k->iterations, real_iter);
     }
 }
 
@@ -429,7 +429,7 @@ dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
     }
     strncpy(buf, ctime(&_time), sizeof(buf));
     buf[24] = '\0';
-    dst_printf(dst, "%s: %d (%s)\n", name, (int) time, buf);
+    dst_printf(dst, "%s: %zu (%s)\n", name, (size_t) time, buf);
 }
 
 static void
@@ -440,7 +440,7 @@ dst_print_expiration(pgp_dest_t *dst, const char *name, uint32_t seconds)
     }
     if (seconds) {
         int days = seconds / (24 * 60 * 60);
-        dst_printf(dst, "%s: %d seconds (%d days)\n", name, (int) seconds, days);
+        dst_printf(dst, "%s: %zu seconds (%d days)\n", name, (size_t) seconds, days);
     } else {
         dst_printf(dst, "%s: 0 (never)\n", name);
     }
