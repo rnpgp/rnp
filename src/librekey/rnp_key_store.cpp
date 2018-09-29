@@ -1039,25 +1039,41 @@ rnp_key_store_get_key_by_name(const rnp_key_store_t *keyring,
 }
 
 static void
-grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val)
+grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name)
 {
     size_t  len;
     size_t  idx;
-    uint8_t padbyte = 0;
+    char buf[20] = {0};
 
     len = mpi_bytes(val);
     for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
         ;
 
-    if (idx >= len) {
-        pgp_hash_add(hash, &padbyte, 1);
-        return;
+    if (name) {
+        size_t hlen = idx >= len ? 1 : len - idx;
+        if ((len > idx) && (val->mpi[idx] & 0x80)) {
+            hlen++;
+        }
+
+        snprintf(buf, sizeof(buf), "(1:%c%zu:", name, hlen);
+        pgp_hash_add(hash, buf, strlen(buf));
     }
 
-    if (val->mpi[idx] & 0x80) {
-        pgp_hash_add(hash, &padbyte, 1);
+    if (idx >= len) {
+        buf[0] = '\0';
+        pgp_hash_add(hash, buf, 1);
+    } else {
+        /* gcrypt prepends mpis with zero if hihger bit is set */
+        if (val->mpi[idx] & 0x80) {
+            buf[0] = '\0';
+            pgp_hash_add(hash, buf, 1);
+        }
+        pgp_hash_add(hash, val->mpi + idx, len - idx);
     }
-    pgp_hash_add(hash, val->mpi + idx, len - idx);
+
+    if (name) {
+        pgp_hash_add(hash, ")", 1);
+    }
 }
 
 /* keygrip is subjectKeyHash from pkcs#15. */
@@ -1075,27 +1091,27 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        grip_hash_mpi(&hash, &key->rsa.n);
+        grip_hash_mpi(&hash, &key->rsa.n, '\0');
         break;
 
     case PGP_PKA_DSA:
-        grip_hash_mpi(&hash, &key->dsa.p);
-        grip_hash_mpi(&hash, &key->dsa.q);
-        grip_hash_mpi(&hash, &key->dsa.g);
-        grip_hash_mpi(&hash, &key->dsa.y);
+        grip_hash_mpi(&hash, &key->dsa.p, 'p');
+        grip_hash_mpi(&hash, &key->dsa.q, 'q');
+        grip_hash_mpi(&hash, &key->dsa.g, 'g');
+        grip_hash_mpi(&hash, &key->dsa.y, 'y');
         break;
 
     case PGP_PKA_ELGAMAL:
-        grip_hash_mpi(&hash, &key->eg.p);
-        grip_hash_mpi(&hash, &key->eg.g);
-        grip_hash_mpi(&hash, &key->eg.y);
+        grip_hash_mpi(&hash, &key->eg.p, 'p');
+        grip_hash_mpi(&hash, &key->eg.g, 'g');
+        grip_hash_mpi(&hash, &key->eg.y, 'y');
         break;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        grip_hash_mpi(&hash, &key->ec.p);
+        grip_hash_mpi(&hash, &key->ec.p, 'p');
         break;
 
     default:
