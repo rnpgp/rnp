@@ -101,30 +101,6 @@ bn_free(bignum_t *a)
     }
 }
 
-/* copy, b = a */
-int
-bn_copy(bignum_t *to, const bignum_t *from)
-{
-    if (from == NULL || to == NULL) {
-        return -1;
-    }
-    return botan_mp_set_from_mp(to->mp, from->mp);
-}
-
-bignum_t *
-bn_dup(const bignum_t *a)
-{
-    bignum_t *ret;
-
-    if (a == NULL) {
-        return NULL;
-    }
-    if ((ret = bn_new()) != NULL) {
-        bn_copy(ret, a);
-    }
-    return ret;
-}
-
 void
 bn_clear(bignum_t *a)
 {
@@ -160,19 +136,6 @@ bn_num_bytes(const bignum_t *a, size_t *bits)
 }
 
 int
-bn_cmp(bignum_t *a, bignum_t *b)
-{
-    int cmp_result;
-
-    if (a == NULL || b == NULL) {
-        return -1;
-    }
-
-    botan_mp_cmp(&cmp_result, a->mp, b->mp);
-    return cmp_result;
-}
-
-int
 bn_print_fp(FILE *fp, const bignum_t *a)
 {
     int    ret;
@@ -195,81 +158,6 @@ bn_print_fp(FILE *fp, const bignum_t *a)
     ret = fprintf(fp, "%s", buf);
     free(buf);
     return ret;
-}
-
-char *
-bn_bn2hex(const bignum_t *a)
-{
-    char *       out;
-    size_t       out_len;
-    int          rc;
-    const size_t radix = 16;
-
-    /* TODO scale this based on magnitude of a */
-    const size_t initial_guess = 512;
-
-    out_len = initial_guess;
-    out = (char *) malloc(out_len);
-
-    rc = botan_mp_to_str(a->mp, radix, out, &out_len);
-
-    if (rc == 0) {
-        return out;
-    } else if (out_len != initial_guess) {
-        /* need to retry with longer buffer... */
-        out = (char *) realloc(out, out_len);
-        rc = botan_mp_to_str(a->mp, radix, out, &out_len);
-        if (rc == 0) {
-            return out;
-        }
-    }
-
-    // error case
-    free(out);
-    return NULL;
-}
-
-/* hash a bignum, possibly padded - first length, then string itself */
-size_t
-bn_hash(const bignum_t *bignum, pgp_hash_t *hash)
-{
-    uint8_t *bn;
-    size_t   len;
-    size_t   padbyte;
-
-    if (!bn_num_bytes(bignum, &len) || (len > UINT32_MAX)) {
-        RNP_LOG("Wrong input");
-        return 0;
-    }
-
-    if (len == 0) {
-        return pgp_hash_uint32(hash, 0) ? 4 : 0;
-    }
-
-    if ((bn = (uint8_t *) calloc(1, len + 1)) == NULL) {
-        RNP_LOG("bad bn alloc");
-        return 0;
-    }
-
-    bn_bn2bin(bignum, bn + 1);
-    bn[0] = 0x0;
-    padbyte = !!(bn[1] & 0x80);
-    len += padbyte;
-
-    bool ret = pgp_hash_uint32(hash, len);
-    ret &= !pgp_hash_add(hash, bn + 1 - padbyte, len);
-
-    free(bn);
-    return ret ? (4 + len + padbyte) : 0;
-}
-
-int
-bn_is_zero(const bignum_t *n)
-{
-    if (n == NULL) {
-        return -1;
-    }
-    return botan_mp_is_zero(n->mp);
 }
 
 int

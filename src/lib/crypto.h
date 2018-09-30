@@ -56,14 +56,10 @@
 #define CRYPTO_H_
 
 #include <limits.h>
-
 #include <librepgp/packet-print.h>
-
 #include "memory.h"
 #include "crypto/common.h"
 #include <rekey/rnp_key_store.h>
-
-#define PGP_MIN_HASH_SIZE 16
 
 /* raw key generation */
 bool pgp_generate_seckey(const rnp_keygen_crypto_params_t *params,
@@ -131,8 +127,6 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           pgp_key_t *                subkey_sec,
                           pgp_key_t *                subkey_pub,
                           key_store_format_t         secformat);
-
-bool read_pem_seckey(const char *, pgp_key_t *, const char *, int);
 
 /**
  * @brief Check two key material for equality. Only public part is checked, so this can be
