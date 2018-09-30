@@ -838,3 +838,90 @@ userid_to_id(const uint8_t *userid, char *id)
     id[8 * 2] = 0x0;
     return id;
 }
+
+/* check whether string is hex */
+bool
+ishex(const char *hexid, size_t hexlen)
+{
+    /* check for 0x prefix */
+    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
+        hexid += 2;
+        hexlen -= 2;
+    }
+
+    for (size_t i = 0; i < hexlen; i++) {
+        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
+            continue;
+        }
+        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
+            continue;
+        }
+        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
+            continue;
+        }
+        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+/* convert hex string, probably prefixes with 0x, to binary form */
+bool
+hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
+{
+    bool    haslow = false;
+    uint8_t low = 0;
+    size_t  binlen = 0;
+
+    *out = 0;
+    if (hexlen < 2) {
+        return false;
+    }
+
+    /* check for 0x prefix */
+    if ((hexlen >= 2) && (hex[0] == '0') && ((hex[1] == 'x') || (hex[1] == 'X'))) {
+        hex += 2;
+        hexlen -= 2;
+    }
+
+    for (size_t i = 0; i < hexlen; i++) {
+        bool digit = false;
+        if ((hex[i] == ' ') || (hex[i] == '\t')) {
+            continue;
+        }
+
+        if ((hex[i] >= '0') && (hex[i] <= '9')) {
+            low = (low << 4) | (hex[i] - '0');
+            digit = true;
+        }
+        if ((hex[i] >= 'a') && (hex[i] <= 'f')) {
+            low = (low << 4) | (hex[i] - ('a' - 10));
+            digit = true;
+        }
+        if ((hex[i] >= 'A') && (hex[i] <= 'F')) {
+            low = (low << 4) | (hex[i] - ('A' - 10));
+            digit = true;
+        }
+
+        if (!digit) {
+            return false;
+        }
+
+        /* we had low bits before - so have the whole byte now */
+        if (haslow) {
+            if (binlen < len) {
+                bin[binlen] = low;
+            }
+            binlen++;
+            low = 0;
+        }
+        haslow = !haslow;
+    }
+
+    if (haslow) {
+        return false;
+    }
+    *out = binlen;
+    return true;
+}
