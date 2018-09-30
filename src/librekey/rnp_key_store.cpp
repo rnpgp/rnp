@@ -695,8 +695,9 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 
         /* validate/re-validate all subkeys as well */
         if (pgp_key_is_primary_key(added_key)) {
-            for (list_item *grip = list_front(added_key->subkey_grips); grip; grip = list_next(grip)) {
-                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t*) grip);
+            for (list_item *grip = list_front(added_key->subkey_grips); grip;
+                 grip = list_next(grip)) {
+                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
                 if (subkey) {
                     subkey->valid = true;
                     subkey->valid = !validate_pgp_key(subkey, keyring);
@@ -868,93 +869,6 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
     return NULL;
 }
 
-/* check whether string is hex */
-static bool
-ishex(const char *hexid, size_t hexlen)
-{
-    /* check for 0x prefix */
-    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
-        hexid += 2;
-        hexlen -= 2;
-    }
-
-    for (size_t i = 0; i < hexlen; i++) {
-        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
-            continue;
-        }
-        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
-            continue;
-        }
-        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
-            continue;
-        }
-        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
-            continue;
-        }
-        return false;
-    }
-    return true;
-}
-/* convert hex string, probably prefixes with 0x, to binary form */
-static bool
-hex2bin(const char *hexid, size_t hexlen, uint8_t *keyid, size_t len, size_t *out)
-{
-    bool    haslow = false;
-    uint8_t low = 0;
-    size_t  binlen = 0;
-
-    *out = 0;
-    if (hexlen < 2) {
-        return false;
-    }
-
-    /* check for 0x prefix */
-    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
-        hexid += 2;
-        hexlen -= 2;
-    }
-
-    for (size_t i = 0; i < hexlen; i++) {
-        bool digit = false;
-        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
-            continue;
-        }
-
-        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
-            low = (low << 4) | (hexid[i] - '0');
-            digit = true;
-        }
-        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
-            low = (low << 4) | (hexid[i] - ('a' - 10));
-            digit = true;
-        }
-        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
-            low = (low << 4) | (hexid[i] - ('A' - 10));
-            digit = true;
-        }
-
-        if (!digit) {
-            return false;
-        }
-
-        /* we had low bits before - so have the whole byte now */
-        if (haslow) {
-            if (binlen < len) {
-                keyid[binlen] = low;
-            }
-            binlen++;
-            low = 0;
-        }
-        haslow = !haslow;
-    }
-
-    if (haslow) {
-        return false;
-    }
-    *out = binlen;
-    return true;
-}
-
 /* return the next key which matches, starting searching after *after */
 static bool
 get_key_by_name(const rnp_key_store_t *keyring,
@@ -1038,12 +952,12 @@ rnp_key_store_get_key_by_name(const rnp_key_store_t *keyring,
     return key;
 }
 
-static void
-grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name)
+static bool
+grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name, bool lzero)
 {
-    size_t  len;
-    size_t  idx;
-    char buf[20] = {0};
+    size_t len;
+    size_t idx;
+    char   buf[20] = {0};
 
     len = mpi_bytes(val);
     for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
@@ -1051,7 +965,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name)
 
     if (name) {
         size_t hlen = idx >= len ? 1 : len - idx;
-        if ((len > idx) && (val->mpi[idx] & 0x80)) {
+        if ((len > idx) && lzero && (val->mpi[idx] & 0x80)) {
             hlen++;
         }
 
@@ -1064,7 +978,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name)
         pgp_hash_add(hash, buf, 1);
     } else {
         /* gcrypt prepends mpis with zero if hihger bit is set */
-        if (val->mpi[idx] & 0x80) {
+        if (lzero && (val->mpi[idx] & 0x80)) {
             buf[0] = '\0';
             pgp_hash_add(hash, buf, 1);
         }
@@ -1074,9 +988,57 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name)
     if (name) {
         pgp_hash_add(hash, ")", 1);
     }
+
+    return true;
 }
 
-/* keygrip is subjectKeyHash from pkcs#15. */
+static bool
+grip_hash_ecc_hex(pgp_hash_t *hash, const char *hex, char name)
+{
+    pgp_mpi_t mpi = {};
+
+    if (!hex2bin(hex, strlen(hex), mpi.mpi, sizeof(mpi.mpi), &mpi.len)) {
+        RNP_LOG("wrong hex mpi");
+        return false;
+    }
+
+    /* libgcrypt doesn't add leading zero when hashes ecc mpis */
+    return grip_hash_mpi(hash, &mpi, name, false);
+}
+
+static bool
+grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
+{
+    const ec_curve_desc_t *desc = get_curve_desc(key->curve);
+    pgp_mpi_t              g = {};
+    size_t                 len = 0;
+
+    if (!desc) {
+        RNP_LOG("unknown curve %d", (int) key->curve);
+        return false;
+    }
+
+    /* build uncompressed point from gx and gy */
+    g.mpi[0] = 0x04;
+    g.len = 1;
+    if (!hex2bin(desc->gx, strlen(desc->gx), g.mpi + g.len, sizeof(g.mpi) - g.len, &len)) {
+        RNP_LOG("wrong x mpi");
+        return false;
+    }
+    g.len += len;
+    if (!hex2bin(desc->gy, strlen(desc->gy), g.mpi + g.len, sizeof(g.mpi) - g.len, &len)) {
+        RNP_LOG("wrong y mpi");
+        return false;
+    }
+    g.len += len;
+
+    /* p, a, b, g, n, q */
+    return grip_hash_ecc_hex(hash, desc->p, 'p') && grip_hash_ecc_hex(hash, desc->a, 'a') &&
+           grip_hash_ecc_hex(hash, desc->b, 'b') && grip_hash_mpi(hash, &g, 'g', false) &&
+           grip_hash_ecc_hex(hash, desc->n, 'n') && grip_hash_mpi(hash, &key->p, 'q', false);
+}
+
+/* keygrip is subjectKeyHash from pkcs#15 for RSA. */
 bool
 rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
 {
@@ -1091,27 +1053,30 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        grip_hash_mpi(&hash, &key->rsa.n, '\0');
+        grip_hash_mpi(&hash, &key->rsa.n, '\0', true);
         break;
 
     case PGP_PKA_DSA:
-        grip_hash_mpi(&hash, &key->dsa.p, 'p');
-        grip_hash_mpi(&hash, &key->dsa.q, 'q');
-        grip_hash_mpi(&hash, &key->dsa.g, 'g');
-        grip_hash_mpi(&hash, &key->dsa.y, 'y');
+        grip_hash_mpi(&hash, &key->dsa.p, 'p', true);
+        grip_hash_mpi(&hash, &key->dsa.q, 'q', true);
+        grip_hash_mpi(&hash, &key->dsa.g, 'g', true);
+        grip_hash_mpi(&hash, &key->dsa.y, 'y', true);
         break;
 
     case PGP_PKA_ELGAMAL:
-        grip_hash_mpi(&hash, &key->eg.p, 'p');
-        grip_hash_mpi(&hash, &key->eg.g, 'g');
-        grip_hash_mpi(&hash, &key->eg.y, 'y');
+        grip_hash_mpi(&hash, &key->eg.p, 'p', true);
+        grip_hash_mpi(&hash, &key->eg.g, 'g', true);
+        grip_hash_mpi(&hash, &key->eg.y, 'y', true);
         break;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        grip_hash_mpi(&hash, &key->ec.p, 'p');
+        if (!grip_hash_ec(&hash, &key->ec)) {
+            pgp_hash_finish(&hash, grip);
+            return false;
+        }
         break;
 
     default:
