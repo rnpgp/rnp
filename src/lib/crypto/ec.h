@@ -57,6 +57,14 @@ typedef struct ec_curve_desc_t {
     const size_t      OIDhex_len;
     const char *      botan_name;
     const char *      pgp_name;
+    /* Curve parameters below. Needed for grip calculation */
+    const char *p;
+    const char *a;
+    const char *b;
+    const char *n;
+    const char *gx;
+    const char *gy;
+    const char *h;
 } ec_curve_desc_t;
 
 typedef struct pgp_ec_key_t {
