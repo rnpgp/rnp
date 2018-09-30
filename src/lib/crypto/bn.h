@@ -31,7 +31,6 @@
 #include <stdbool.h>
 
 typedef struct botan_mp_struct *botan_mp_t;
-typedef struct pgp_hash_t       pgp_hash_t;
 
 /*
  * bignum_t struct
@@ -40,27 +39,12 @@ typedef struct bignum_t_st {
     botan_mp_t mp;
 } bignum_t;
 
-#define MP_LT -1
-#define MP_EQ 0
-#define MP_GT 1
-
-#define MP_ZPOS 0
-#define MP_NEG 1
-
-#define MP_OKAY 0
-#define MP_MEM -2
-#define MP_VAL -3
-#define MP_RANGE MP_VAL
-
 #define BN_HANDLE(x) ((x).mp)
 #define BN_HANDLE_PTR(x) ((x)->mp)
 
 /*********************************/
 
 bignum_t *bn_new(void);
-bignum_t *bn_dup(const bignum_t * /*a*/);
-int       bn_copy(bignum_t * /*b*/, const bignum_t * /*a*/);
-char *bn_bn2hex(const bignum_t *a);
 
 /*
  * @brief Initialize `a' with pointer to `b'. `a' is freed
@@ -76,14 +60,11 @@ void bn_free(bignum_t * /*a*/);
 void bn_clear(bignum_t * /*a*/);
 void bn_clear_free(bignum_t * /*a*/);
 
-int bn_cmp(bignum_t * /*a*/, bignum_t * /*b*/);
-
 bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
 int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
 int       bn_print_fp(FILE * /*fp*/, const bignum_t * /*a*/);
-int bn_is_zero(const bignum_t *n);
-int bn_set_word(bignum_t *a, uint32_t w);
-int bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P);
+int       bn_set_word(bignum_t *a, uint32_t w);
+int       bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P);
 
 /*
  * @param a Initialized bignum_t structure
@@ -99,15 +80,5 @@ bool bn_num_bits(const bignum_t *a, size_t *bits);
  * @returns true on success, otherwise false
  */
 bool bn_num_bytes(const bignum_t *a, size_t *bytes);
-
-/*
- * @brief Produces hash of any size bignum.
- *
- * @param bignum: Bignum to be hashed
- * @param hash: Initialized hash context
- *
- * @returns size of hashed data, or 0 on error
- */
-size_t bn_hash(const bignum_t *bignum, pgp_hash_t *hash);
 
 #endif
