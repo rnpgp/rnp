@@ -1,0 +1,33 @@
+Source: rnp
+Priority: optional
+Maintainer: Ribose Inc. <open.source@ribose.com>
+Build-Depends: debhelper (>= 10), cmake, libbz2-dev, libbotan-2-dev (>= 2.5), libcmocka-dev, libjson-c-dev (>= 0.11), zlib1g-dev
+Standards-Version: 4.1.2
+Section: utils
+Homepage: https://www.rnpgp.com/
+Vcs-Git: https://github.com/riboseinc/rnp.git
+Vcs-Browser: https://github.com/riboseinc/rnp
+
+Package: librnp
+Section: libs
+Architecture: any
+Multi-Arch: same
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Freely licensed PGP implementation (Shared Library)
+ <insert long description, indented with spaces>
+
+Package: librnp-dev
+Section: libdevel
+Architecture: any
+Multi-Arch: same
+Depends: librnp (= ${binary:Version}), ${misc:Depends}
+Suggests: rnp (= ${binary:Version})
+Description: Freely licensed PGP implementation (Development Headers)
+ <insert long description, indented with spaces>
+
+Package: rnp
+Architecture: any
+Multi-Arch: same
+Depends: librnp (= ${binary:Version}), ${misc:Depends}
+Description: Freely licensed PGP implementation
+ <insert long description, indented with spaces>
