@@ -862,8 +862,8 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
         alg = PGP_PKA_DSA;
     } else {
         RNP_LOG("Unsupported algorithm: '%.*s'",
-                (int) s_exp.sub_elements[0].block.len,
-                s_exp.sub_elements[0].block.bytes);
+                (int) algorithm_s_exp->sub_elements[0].block.len,
+                algorithm_s_exp->sub_elements[0].block.bytes);
         goto done;
     }
 
