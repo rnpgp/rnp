@@ -875,7 +875,7 @@ hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
     size_t  binlen = 0;
 
     *out = 0;
-    if (hexlen < 2) {
+    if (hexlen < 1) {
         return false;
     }
 
@@ -885,26 +885,19 @@ hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
         hexlen -= 2;
     }
 
+    haslow = hexlen % 2;
     for (size_t i = 0; i < hexlen; i++) {
-        bool digit = false;
         if ((hex[i] == ' ') || (hex[i] == '\t')) {
             continue;
         }
 
         if ((hex[i] >= '0') && (hex[i] <= '9')) {
             low = (low << 4) | (hex[i] - '0');
-            digit = true;
-        }
-        if ((hex[i] >= 'a') && (hex[i] <= 'f')) {
+        } else if ((hex[i] >= 'a') && (hex[i] <= 'f')) {
             low = (low << 4) | (hex[i] - ('a' - 10));
-            digit = true;
-        }
-        if ((hex[i] >= 'A') && (hex[i] <= 'F')) {
+        } else if ((hex[i] >= 'A') && (hex[i] <= 'F')) {
             low = (low << 4) | (hex[i] - ('A' - 10));
-            digit = true;
-        }
-
-        if (!digit) {
+        } else {
             return false;
         }
 
@@ -919,9 +912,6 @@ hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
         haslow = !haslow;
     }
 
-    if (haslow) {
-        return false;
-    }
     *out = binlen;
     return true;
 }
