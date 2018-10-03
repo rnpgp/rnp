@@ -1012,6 +1012,7 @@ grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
     const ec_curve_desc_t *desc = get_curve_desc(key->curve);
     pgp_mpi_t              g = {};
     size_t                 len = 0;
+    bool                   res = false;
 
     if (!desc) {
         RNP_LOG("unknown curve %d", (int) key->curve);
@@ -1033,9 +1034,22 @@ grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
     g.len += len;
 
     /* p, a, b, g, n, q */
-    return grip_hash_ecc_hex(hash, desc->p, 'p') && grip_hash_ecc_hex(hash, desc->a, 'a') &&
-           grip_hash_ecc_hex(hash, desc->b, 'b') && grip_hash_mpi(hash, &g, 'g', false) &&
-           grip_hash_ecc_hex(hash, desc->n, 'n') && grip_hash_mpi(hash, &key->p, 'q', false);
+    res = grip_hash_ecc_hex(hash, desc->p, 'p') && grip_hash_ecc_hex(hash, desc->a, 'a') &&
+          grip_hash_ecc_hex(hash, desc->b, 'b') && grip_hash_mpi(hash, &g, 'g', false) &&
+          grip_hash_ecc_hex(hash, desc->n, 'n');
+
+    if (key->curve == PGP_CURVE_ED25519) {
+        if (g.len < 1) {
+            RNP_LOG("wrong 25519 p");
+            return false;
+        }
+        g.len = key->p.len - 1;
+        memcpy(g.mpi, key->p.mpi + 1, g.len);
+        res &= grip_hash_mpi(hash, &g, 'q', false);
+    } else {
+        res &= grip_hash_mpi(hash, &key->p, 'q', false);
+    }
+    return res;
 }
 
 /* keygrip is subjectKeyHash from pkcs#15 for RSA. */
