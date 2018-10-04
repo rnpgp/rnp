@@ -223,8 +223,7 @@ done:
 }
 
 rnp_result_t
-rsa_verify_pkcs1(rng_t *                    rng,
-                 const pgp_rsa_signature_t *sig,
+rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
                  pgp_hash_alg_t             hash_alg,
                  const uint8_t *            hash,
                  size_t                     hash_len,

@@ -322,51 +322,18 @@ bool signature_hash_direct(const pgp_signature_t *sig,
                            const pgp_key_pkt_t *  key,
                            pgp_hash_t *           hash);
 
-/**
- * @brief Add signature fields to the hash context and finish it.
- * @param hash initialized hash context feeded with signed data (document, key, etc).
- *             It is finalized in this function.
- * @param sig populated or loaded signature
- * @param hbuf buffer to store the resulting hash. Must be large enough for hash output.
- * @param hlen on success will be filled with the hash size, otherwise zeroed
- * @return true on success or false otherwise
- */
-bool signature_hash_finish(const pgp_signature_t *sig,
-                           pgp_hash_t *           hash,
-                           uint8_t *              hbuf,
-                           size_t *               hlen);
-
-/**
- * @brief Validate a signature with pre-populated hash. This method just checks correspondence
- *        between the hash and signature material. Expiration time and other fields are not
- *        checked for validity.
- * @param sig signature to validate
- * @param key public key material of the verifying key
- * @param hash pre-populated with signed data hash context. It is finalized and destroyed
- *             during the execution. Signature fields and trailer are hashed in this function.
- * @param rng random number generator
- * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
- */
-rnp_result_t signature_validate(const pgp_signature_t *   sig,
-                                const pgp_key_material_t *key,
-                                pgp_hash_t *              hash,
-                                rng_t *                   rng);
-
 rnp_result_t signature_validate_certification(const pgp_signature_t *   sig,
                                               const pgp_key_pkt_t *     key,
                                               const pgp_userid_pkt_t *  uid,
-                                              const pgp_key_material_t *signer,
-                                              rng_t *                   rng);
+                                              const pgp_key_material_t *signer);
 
 rnp_result_t signature_validate_binding(const pgp_signature_t *sig,
                                         const pgp_key_pkt_t *  key,
-                                        const pgp_key_pkt_t *  subkey,
-                                        rng_t *                rng);
+                                        const pgp_key_pkt_t *  subkey);
 
 rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
                                        const pgp_key_pkt_t *     key,
-                                       const pgp_key_material_t *signer,
-                                       rng_t *                   rng);
+                                       const pgp_key_material_t *signer);
 
 /**
  * @brief Check signature, including the expiration time, key validity and so on.
@@ -374,40 +341,23 @@ rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
  * @param sinfo populated signature info structure. Method will set flags valid, no_signer,
  *              expired.
  * @param hash populated hash
- * @param rng random number generator
  * @return RNP_SUCCESS if all checks were passed, RNP_ERROR_SIGNATURE_INVALID for invalid sig,
  *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
  *         during the signature validation (out of memory, wrong parameters, etc).
  */
-rnp_result_t signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng);
+rnp_result_t signature_check(pgp_signature_info_t *sinfo,
+                             pgp_hash_t *hash);
 
 rnp_result_t signature_check_certification(pgp_signature_info_t *  sinfo,
                                            const pgp_key_pkt_t *   key,
-                                           const pgp_userid_pkt_t *uid,
-                                           rng_t *                 rng);
+                                           const pgp_userid_pkt_t *uid);
 
 rnp_result_t signature_check_binding(pgp_signature_info_t *sinfo,
                                      const pgp_key_pkt_t * key,
-                                     const pgp_key_pkt_t * subkey,
-                                     rng_t *               rng);
+                                     const pgp_key_pkt_t * subkey);
 
 rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo,
-                                    const pgp_key_pkt_t * key,
-                                    rng_t *               rng);
-
-/**
- * @brief Calculate signature with pre-populated hash
- * @param sig signature to calculate
- * @param seckey signing secret key material
- * @param hash pre-populated with signed data hash context. It is finalized and destroyed
- *             during the execution. Signature fields and trailer are hashed in this function.
- * @param rng random number generator
- * @return RNP_SUCCESS if signature was successfully calculated or error code otherwise
- */
-rnp_result_t signature_calculate(pgp_signature_t *         sig,
-                                 const pgp_key_material_t *seckey,
-                                 pgp_hash_t *              hash,
-                                 rng_t *                   rng);
+                                    const pgp_key_pkt_t * key);
 
 /**
  * @brief Check whether signatures info structure has all correct signatures.
