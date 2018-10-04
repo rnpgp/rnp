@@ -36,8 +36,9 @@
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "pgp-key.h"
-#include "crypto.h"
-#include "crypto/common.h"
+#include "crypto/signatures.h"
+
+#include <time.h>
 
 bool
 signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
@@ -988,94 +989,11 @@ signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_
     return res;
 }
 
-bool
-signature_hash_finish(const pgp_signature_t *sig,
-                      pgp_hash_t *           hash,
-                      uint8_t *              hbuf,
-                      size_t *               hlen)
-{
-    if (!hash || !sig || !hbuf || !hlen) {
-        goto error;
-    }
-    if (pgp_hash_add(hash, sig->hashed_data, sig->hashed_len)) {
-        RNP_LOG("failed to hash sig");
-        goto error;
-    }
-    if (sig->version > PGP_V3) {
-        uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
-        STORE32BE(&trailer[2], sig->hashed_len);
-        if (pgp_hash_add(hash, trailer, 6)) {
-            RNP_LOG("failed to add sig trailer");
-            goto error;
-        }
-    }
-
-    *hlen = pgp_hash_finish(hash, hbuf);
-    return true;
-error:
-    pgp_hash_finish(hash, NULL);
-    return false;
-}
-
-rnp_result_t
-signature_validate(const pgp_signature_t *   sig,
-                   const pgp_key_material_t *key,
-                   pgp_hash_t *              hash,
-                   rng_t *                   rng)
-{
-    uint8_t      hval[PGP_MAX_HASH_SIZE];
-    size_t       len;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
-
-    /* Finalize hash */
-    if (!signature_hash_finish(sig, hash, hval, &len)) {
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    if (!key) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-
-    /* compare lbits */
-    if (memcmp(hval, sig->lbits, 2)) {
-        RNP_LOG("wrong lbits");
-        return RNP_ERROR_SIGNATURE_INVALID;
-    }
-
-    /* validate signature */
-
-    switch (sig->palg) {
-    case PGP_PKA_DSA:
-        ret = dsa_verify(&sig->material.dsa, hval, len, &key->dsa);
-        break;
-    case PGP_PKA_EDDSA:
-        ret = eddsa_verify(&sig->material.ecc, hval, len, &key->ec);
-        break;
-    case PGP_PKA_SM2:
-        ret = sm2_verify(&sig->material.ecc, hval, len, &key->ec);
-        break;
-    case PGP_PKA_RSA:
-        ret = rsa_verify_pkcs1(rng, &sig->material.rsa, sig->halg, hval, len, &key->rsa);
-        break;
-    case PGP_PKA_ECDSA:
-        ret = ecdsa_verify(&sig->material.ecc, hash_alg, hval, len, &key->ec);
-        break;
-    default:
-        RNP_LOG("Unknown algorithm");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    return ret;
-}
-
 rnp_result_t
 signature_validate_certification(const pgp_signature_t *   sig,
                                  const pgp_key_pkt_t *     key,
                                  const pgp_userid_pkt_t *  uid,
-                                 const pgp_key_material_t *signer,
-                                 rng_t *                   rng)
+                                 const pgp_key_material_t *signer)
 {
     pgp_hash_t hash = {0};
 
@@ -1083,14 +1001,13 @@ signature_validate_certification(const pgp_signature_t *   sig,
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    return signature_validate(sig, signer, &hash, rng);
+    return signature_validate(sig, signer, &hash);
 }
 
 rnp_result_t
 signature_validate_binding(const pgp_signature_t *sig,
                            const pgp_key_pkt_t *  key,
-                           const pgp_key_pkt_t *  subkey,
-                           rng_t *                rng)
+                           const pgp_key_pkt_t *  subkey)
 {
     pgp_hash_t   hash = {};
     pgp_hash_t   hashcp = {};
@@ -1105,7 +1022,7 @@ signature_validate_binding(const pgp_signature_t *sig,
         return RNP_ERROR_BAD_STATE;
     }
 
-    res = signature_validate(sig, &key->material, &hash, rng);
+    res = signature_validate(sig, &key->material, &hash);
 
     /* check primary key binding signature if any */
     if (!res && (signature_get_key_flags(sig) & PGP_KF_SIGN)) {
@@ -1131,7 +1048,7 @@ signature_validate_binding(const pgp_signature_t *sig,
             res = RNP_ERROR_SIGNATURE_INVALID;
             goto finish;
         }
-        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp, rng);
+        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp);
     }
 finish:
     pgp_hash_finish(&hashcp, NULL);
@@ -1141,8 +1058,7 @@ finish:
 rnp_result_t
 signature_validate_direct(const pgp_signature_t *   sig,
                           const pgp_key_pkt_t *     key,
-                          const pgp_key_material_t *signer,
-                          rng_t *                   rng)
+                          const pgp_key_material_t *signer)
 {
     pgp_hash_t hash = {0};
 
@@ -1150,11 +1066,11 @@ signature_validate_direct(const pgp_signature_t *   sig,
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    return signature_validate(sig, signer, &hash, rng);
+    return signature_validate(sig, signer, &hash);
 }
 
 rnp_result_t
-signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng)
+signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
 {
     time_t            now;
     uint32_t          create, expiry, kcreate;
@@ -1178,7 +1094,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash, rng_t *rng)
     /* Validate signature itself */
     if (sinfo->signer->valid) {
         sinfo->valid =
-          !signature_validate(sinfo->sig, pgp_get_key_material(sinfo->signer), hash, rng);
+          !signature_validate(sinfo->sig, pgp_get_key_material(sinfo->signer), hash);
     } else {
         sinfo->valid = false;
         RNP_LOG("invalid or untrusted key");
@@ -1232,8 +1148,7 @@ finish:
 rnp_result_t
 signature_check_certification(pgp_signature_info_t *  sinfo,
                               const pgp_key_pkt_t *   key,
-                              const pgp_userid_pkt_t *uid,
-                              rng_t *                 rng)
+                              const pgp_userid_pkt_t *uid)
 {
     pgp_hash_t   hash = {};
     uint8_t      keyid[PGP_KEY_ID_SIZE];
@@ -1243,7 +1158,7 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    res = signature_check(sinfo, &hash, rng);
+    res = signature_check(sinfo, &hash);
 
     if (res) {
         return res;
@@ -1268,8 +1183,7 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
 rnp_result_t
 signature_check_binding(pgp_signature_info_t *sinfo,
                         const pgp_key_pkt_t * key,
-                        const pgp_key_pkt_t * subkey,
-                        rng_t *               rng)
+                        const pgp_key_pkt_t * subkey)
 {
     pgp_hash_t   hash = {};
     pgp_hash_t   hashcp = {};
@@ -1284,7 +1198,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
         return RNP_ERROR_BAD_STATE;
     }
 
-    res = signature_check(sinfo, &hash, rng);
+    res = signature_check(sinfo, &hash);
 
     /* check subkey expiration time. While sinfo->expired tells about the signature expiry,
        we'll use it for subkey expiration as well */
@@ -1321,7 +1235,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
             RNP_LOG("invalid primary key binding signature version");
             goto finish;
         }
-        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp, rng);
+        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp);
         sinfo->valid = !res;
     }
 finish:
@@ -1330,7 +1244,7 @@ finish:
 }
 
 rnp_result_t
-signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key, rng_t *rng)
+signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key)
 {
     pgp_hash_t hash = {};
 
@@ -1338,109 +1252,7 @@ signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key, rn
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    return signature_check(sinfo, &hash, rng);
-}
-
-rnp_result_t
-signature_calculate(pgp_signature_t *         sig,
-                    const pgp_key_material_t *seckey,
-                    pgp_hash_t *              hash,
-                    rng_t *                   rng)
-{
-    uint8_t      hval[PGP_MAX_HASH_SIZE];
-    size_t       hlen;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
-
-    /* Finalize hash first, since function is required to do this */
-    if (!signature_hash_finish(sig, hash, hval, &hlen)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (!seckey) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    if (!seckey->secret) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    /* copy left 16 bits to signature */
-    memcpy(sig->lbits, hval, 2);
-
-    /* sign */
-    switch (sig->palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_sign_pkcs1(rng, &sig->material.rsa, sig->halg, hval, hlen, &seckey->rsa);
-        if (ret) {
-            RNP_LOG("rsa signing failed");
-        }
-        break;
-    case PGP_PKA_EDDSA:
-        ret = eddsa_sign(rng, &sig->material.ecc, hval, hlen, &seckey->ec);
-        if (ret) {
-            RNP_LOG("eddsa signing failed");
-        }
-        break;
-    case PGP_PKA_SM2: {
-        const ec_curve_desc_t *curve = get_curve_desc(seckey->ec.curve);
-
-        if (!curve) {
-            RNP_LOG("Unknown curve");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-        /* "-2" because SM2 on P-521 must work with SHA-512 digest */
-        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
-            RNP_LOG("Message hash to small");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-        ret = sm2_sign(rng, &sig->material.ecc, hval, hlen, &seckey->ec);
-        if (ret) {
-            RNP_LOG("SM2 signing failed");
-        }
-        break;
-    }
-    case PGP_PKA_DSA:
-        ret = dsa_sign(rng, &sig->material.dsa, hval, hlen, &seckey->dsa);
-        if (ret != RNP_SUCCESS) {
-            RNP_LOG("DSA signing failed");
-        }
-        break;
-    /*
-     * ECDH is signed with ECDSA. This must be changed when ECDH will support
-     * X25519, but I need to check how it should be done exactly.
-     */
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA: {
-        const ec_curve_desc_t *curve = get_curve_desc(seckey->ec.curve);
-
-        if (!curve) {
-            RNP_LOG("Unknown curve");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-        /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
-        if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
-            RNP_LOG("Message hash to small");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
-        }
-        ret = ecdsa_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
-        if (ret) {
-            RNP_LOG("ECDSA signing failed");
-            break;
-        }
-        break;
-    }
-    default:
-        RNP_LOG("Unsupported algorithm %d", sig->palg);
-        break;
-    }
-
-    return ret;
+    return signature_check(sinfo, &hash);
 }
 
 bool

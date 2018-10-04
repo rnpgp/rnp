@@ -39,8 +39,8 @@
 #include "defs.h"
 #include "types.h"
 #include "crypto/s2k.h"
-#include "crypto/common.h"
 #include "crypto.h"
+#include "crypto/signatures.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
@@ -733,7 +733,7 @@ signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t
     }
 
     /* fill the signature info */
-    signature_check(sinfo, &shash, (rng_t *) rnp_ctx_rng_handle(param->ctx->handler.ctx));
+    signature_check(sinfo, &shash);
 }
 
 static void
