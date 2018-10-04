@@ -127,42 +127,36 @@ size_t key_bitlength(const pgp_key_material_t *key);
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
 /* Load little-endian 32-bit from y to x in portable fashion */
-#define LOAD32LE(x, y)                                                                  \
-    do {                                                                                \
-        x = (((uint8_t *) (y))[3] & 0xFF) << 24 | (((uint8_t *) (y))[2] & 0xFF) << 16 | \
-            (((uint8_t *) (y))[1] & 0xFF) << 8 | (((uint8_t *) (y))[0] & 0xFF) << 0;    \
-    } while (0)
+
+inline void LOAD32LE(uint32_t& x, uint8_t y[4])
+   {
+   x = (static_cast<uint32_t>(y[3]) << 24) |
+      (static_cast<uint32_t>(y[2]) << 16) |
+      (static_cast<uint32_t>(y[1]) << 8) |
+      (static_cast<uint32_t>(y[0]) << 0);
+   }
 
 /* Store big-endian 32-bit value x in y */
-#define STORE32BE(x, y)                                     \
-    do {                                                    \
-        ((uint8_t *) (x))[0] = (uint8_t)((y) >> 24) & 0xff; \
-        ((uint8_t *) (x))[1] = (uint8_t)((y) >> 16) & 0xff; \
-        ((uint8_t *) (x))[2] = (uint8_t)((y) >> 8) & 0xff;  \
-        ((uint8_t *) (x))[3] = (uint8_t)((y) >> 0) & 0xff;  \
-    } while (0)
+inline void STORE32BE(uint8_t x[4], uint32_t y)
+   {
+   x[0] = (uint8_t)(y >> 24) & 0xff;
+   x[1] = (uint8_t)(y >> 16) & 0xff;
+   x[2] = (uint8_t)(y >> 8) & 0xff;
+   x[3] = (uint8_t)(y >> 0) & 0xff;
+   }
 
 /* Store big-endian 64-bit value x in y */
-#define STORE64BE(x, y)                                     \
-    do {                                                    \
-        ((uint8_t *) (x))[0] = (uint8_t)((y) >> 56) & 0xff; \
-        ((uint8_t *) (x))[1] = (uint8_t)((y) >> 48) & 0xff; \
-        ((uint8_t *) (x))[2] = (uint8_t)((y) >> 40) & 0xff; \
-        ((uint8_t *) (x))[3] = (uint8_t)((y) >> 32) & 0xff; \
-        ((uint8_t *) (x))[4] = (uint8_t)((y) >> 24) & 0xff; \
-        ((uint8_t *) (x))[5] = (uint8_t)((y) >> 16) & 0xff; \
-        ((uint8_t *) (x))[6] = (uint8_t)((y) >> 8) & 0xff;  \
-        ((uint8_t *) (x))[7] = (uint8_t)((y) >> 0) & 0xff;  \
-    } while (0)
-
-/* Swap endianness of 32-bit value */
-#if defined(__GNUC__) || defined(__clang__)
-#define BSWAP32(x) __builtin_bswap32(x)
-#else
-#define BSWAP32(x)                                                            \
-    ((x & 0x000000FF) << 24 | (x & 0x0000FF00) << 8 | (x & 0x00FF0000) >> 8 | \
-     (x & 0xFF000000) >> 24)
-#endif
+inline void STORE64BE(uint8_t x[8], uint64_t y)
+   {
+   x[0] = (uint8_t)(y >> 56) & 0xff;
+   x[1] = (uint8_t)(y >> 48) & 0xff;
+   x[2] = (uint8_t)(y >> 40) & 0xff;
+   x[3] = (uint8_t)(y >> 32) & 0xff;
+   x[4] = (uint8_t)(y >> 24) & 0xff;
+   x[5] = (uint8_t)(y >> 16) & 0xff;
+   x[6] = (uint8_t)(y >> 8) & 0xff;
+   x[7] = (uint8_t)(y >> 0) & 0xff;
+   }
 
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
