@@ -43,7 +43,7 @@ signature_hash_finish(const pgp_signature_t *sig,
                       size_t *               hlen)
 {
     if (!hash || !sig || !hbuf || !hlen) {
-       return RNP_ERROR_NULL_POINTER;
+        return RNP_ERROR_NULL_POINTER;
     }
     if (pgp_hash_add(hash, sig->hashed_data, sig->hashed_len)) {
         RNP_LOG("failed to hash sig");
@@ -72,9 +72,9 @@ signature_calculate(pgp_signature_t *         sig,
                     pgp_hash_t *              hash,
                     rng_t *                   rng)
 {
-    uint8_t      hval[PGP_MAX_HASH_SIZE];
-    size_t       hlen = 0;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
+    uint8_t              hval[PGP_MAX_HASH_SIZE];
+    size_t               hlen = 0;
+    rnp_result_t         ret = RNP_ERROR_GENERIC;
     const pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
 
     /* Finalize hash first, since function is required to do this */
@@ -137,18 +137,17 @@ signature_calculate(pgp_signature_t *         sig,
             break;
         }
 
-        if(sig->palg == PGP_PKA_SM2) {
-           ret = sm2_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
-           if (ret) {
-               RNP_LOG("SM2 signing failed");
-           }
-        }
-        else {
-           ret = ecdsa_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
-           if (ret) {
-               RNP_LOG("ECDSA signing failed");
-               break;
-           }
+        if (sig->palg == PGP_PKA_SM2) {
+            ret = sm2_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
+            if (ret) {
+                RNP_LOG("SM2 signing failed");
+            }
+        } else {
+            ret = ecdsa_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
+            if (ret) {
+                RNP_LOG("ECDSA signing failed");
+                break;
+            }
         }
         break;
     }
@@ -161,11 +160,8 @@ signature_calculate(pgp_signature_t *         sig,
     return ret;
 }
 
-
 rnp_result_t
-signature_validate(const pgp_signature_t *   sig,
-                   const pgp_key_material_t *key,
-                   pgp_hash_t *              hash)
+signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pgp_hash_t *hash)
 {
     uint8_t      hval[PGP_MAX_HASH_SIZE];
     size_t       hlen = 0;
@@ -214,4 +210,3 @@ signature_validate(const pgp_signature_t *   sig,
 
     return ret;
 }
-
