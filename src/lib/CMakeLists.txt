@@ -116,6 +116,7 @@ add_library(librnp
   crypto/s2k.cpp
   crypto/sm2.cpp
   crypto/symmetric.cpp
+  crypto/signatures.cpp
   crypto.cpp
   fingerprint.cpp
   generate-key.cpp

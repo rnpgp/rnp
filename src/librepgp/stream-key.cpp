@@ -43,6 +43,7 @@
 #include "list.h"
 #include "utils.h"
 #include "crypto.h"
+#include "crypto/signatures.h"
 #include "../librekey/key_store_pgp.h"
 
 static void
@@ -1509,7 +1510,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
             res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-        res = signature_check_certification(&sinfo, info->key, info->uid, info->rng);
+        res = signature_check_certification(&sinfo, info->key, info->uid);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -1520,7 +1521,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
         }
 
         /* subkey binding always uses main key's material */
-        res = signature_check_binding(&sinfo, info->key, info->subkey, info->rng);
+        res = signature_check_binding(&sinfo, info->key, info->subkey);
         break;
     case PGP_SIG_DIRECT:
         if (!info->key || info->uid || info->subkey) {
@@ -1528,7 +1529,7 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
             res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
-        res = signature_check_direct(&sinfo, info->key, info->rng);
+        res = signature_check_direct(&sinfo, info->key);
         break;
     case PGP_SIG_STANDALONE:
     case PGP_SIG_PRIMARY:
