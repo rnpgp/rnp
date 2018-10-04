@@ -48,8 +48,8 @@
 #include "fingerprint.h"
 #include "defs.h"
 #include "types.h"
-#include "crypto/common.h"
-#include "crypto.h"
+#include "crypto/signatures.h"
+#include <time.h>
 
 /* 8192 bytes, as GnuPG */
 #define PGP_PARTIAL_PKT_SIZE_BITS (13)
