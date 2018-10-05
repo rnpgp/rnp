@@ -415,6 +415,13 @@ read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
         return false;
     }
 
+    /* strip leading zero */
+    if ((var->sub_elements[1].block.len > 1) && !var->sub_elements[1].block.bytes[0] &&
+        (var->sub_elements[1].block.bytes[1] & 0x80)) {
+        return mem2mpi(
+          val, var->sub_elements[1].block.bytes + 1, var->sub_elements[1].block.len - 1);
+    }
+
     return mem2mpi(val, var->sub_elements[1].block.bytes, var->sub_elements[1].block.len);
 }
 
