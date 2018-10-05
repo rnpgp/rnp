@@ -73,7 +73,14 @@ signature_init(const pgp_key_material_t *key, pgp_hash_alg_t hash_alg, pgp_hash_
         return RNP_ERROR_GENERIC;
     }
 
-    // TODO handle SM2 initialization
+    if (key->alg == PGP_PKA_SM2) {
+        rnp_result_t r = sm2_compute_za(&key->ec, hash);
+        if(r != RNP_SUCCESS)
+           {
+           RNP_LOG("failed to compute SM2 ZA field");
+           return r;
+           }
+    }
 
     return RNP_SUCCESS;
 }
@@ -100,6 +107,10 @@ signature_calculate(pgp_signature_t *         sig,
         return RNP_ERROR_NULL_POINTER;
     }
     if (!seckey->secret) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (sig->palg != seckey->alg) {
+        RNP_LOG("Signature and secret key do not agree on algorithm type");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -183,6 +194,11 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
 
     if (!key) {
         return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (sig->palg != key->alg) {
+        RNP_LOG("Signature and public key do not agree on algorithm type");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* Finalize hash */
