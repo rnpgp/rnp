@@ -107,6 +107,35 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE}};
 
+static const pgp_map_t g10_curve_aliases[] = {
+  {PGP_CURVE_NIST_P_256, "NIST P-256"},
+  {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
+  {PGP_CURVE_NIST_P_256, "prime256v1"},
+  {PGP_CURVE_NIST_P_256, "secp256r1"},
+  {PGP_CURVE_NIST_P_256, "nistp256"},
+
+  {PGP_CURVE_NIST_P_384, "NIST P-384"},
+  {PGP_CURVE_NIST_P_384, "secp384r1"},
+  {PGP_CURVE_NIST_P_384, "1.3.132.0.34"},
+  {PGP_CURVE_NIST_P_384, "nistp384"},
+
+  {PGP_CURVE_NIST_P_521, "NIST P-521"},
+  {PGP_CURVE_NIST_P_521, "secp521r1"},
+  {PGP_CURVE_NIST_P_521, "1.3.132.0.35"},
+  {PGP_CURVE_NIST_P_521, "nistp521"},
+
+  /* Ed25519 and Curve25519 are actually different curves with different usage, needs to be
+     re-checked */
+  {PGP_CURVE_ED25519, "Curve25519"},
+  {PGP_CURVE_ED25519, "1.3.6.1.4.1.3029.1.5.1"},
+  {PGP_CURVE_ED25519, "Ed25519"},
+  {PGP_CURVE_ED25519, "1.3.6.1.4.1.11591.15.1"}};
+
+static const pgp_map_t g10_curve_names[] = {{PGP_CURVE_NIST_P_256, "NIST P-256"},
+                                            {PGP_CURVE_NIST_P_384, "NIST P-384"},
+                                            {PGP_CURVE_NIST_P_521, "NIST P-521"},
+                                            {PGP_CURVE_ED25519, "Ed25519"}};
+
 static const format_info *
 find_format(pgp_symm_alg_t cipher, pgp_cipher_mode_t mode, pgp_hash_alg_t hash_alg)
 {
@@ -375,6 +404,37 @@ read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
 }
 
 static bool
+read_curve(s_exp_t *s_exp, const char *name, pgp_ec_key_t *key)
+{
+    s_exp_t *var = lookup_variable(s_exp, name);
+    if (!var) {
+        return false;
+    }
+
+    if (!var->sub_elements[1].is_block) {
+        RNP_LOG("Expected block value");
+        return false;
+    }
+
+    for (size_t i = 0; i < ARRAY_SIZE(g10_curve_aliases); i++) {
+        if (strlen(g10_curve_aliases[i].string) != var->sub_elements[1].block.len) {
+            continue;
+        }
+        if (!memcmp(g10_curve_aliases[i].string,
+                    var->sub_elements[1].block.bytes,
+                    var->sub_elements[1].block.len)) {
+            key->curve = (pgp_curve_t) g10_curve_aliases[i].type;
+            return true;
+        }
+    }
+
+    RNP_LOG("Unknown curve: %.*s",
+            (int) var->sub_elements[1].block.len,
+            var->sub_elements[1].block.bytes);
+    return false;
+}
+
+static bool
 write_mpi(s_exp_t *s_exp, const char *name, const pgp_mpi_t *val)
 {
     uint8_t  buf[PGP_MPINT_SIZE + 1] = {0};
@@ -407,6 +467,47 @@ write_mpi(s_exp_t *s_exp, const char *name, const pgp_mpi_t *val)
 }
 
 static bool
+write_curve(s_exp_t *s_exp, const char *name, const pgp_ec_key_t *key)
+{
+    const char *curve = NULL;
+    s_exp_t *   sub_s_exp;
+
+    ARRAY_LOOKUP_BY_ID(g10_curve_names, type, string, key->curve, curve);
+    if (!curve) {
+        RNP_LOG("unknown curve");
+        return false;
+    }
+
+    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, name)) {
+        return false;
+    }
+
+    if (!add_string_block_to_sexp(sub_s_exp, curve)) {
+        return false;
+    }
+
+    if (key->curve == PGP_CURVE_ED25519) {
+        if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
+            return false;
+        }
+
+        if (!add_string_block_to_sexp(sub_s_exp, "flags")) {
+            return false;
+        }
+
+        if (!add_string_block_to_sexp(sub_s_exp, "eddsa")) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+static bool
 parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 {
     pubkey->version = PGP_V4;
@@ -436,7 +537,14 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
             return false;
         }
         break;
-
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+        if (!read_curve(s_exp, "curve", &pubkey->material.ec) ||
+            !read_mpi(s_exp, "q", &pubkey->material.ec.p)) {
+            return false;
+        }
+        break;
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
         return false;
@@ -469,7 +577,13 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
             return false;
         }
         break;
-
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+        if (!read_mpi(s_exp, "d", &seckey->material.ec.x)) {
+            return false;
+        }
+        break;
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
         return false;
@@ -860,6 +974,22 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
                         (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
                         algorithm_s_exp->sub_elements[0].block.len)) {
         alg = PGP_PKA_DSA;
+    } else if (!strncmp("ecc",
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
+        alg = PGP_PKA_ECDSA;
+    } else if (!strncmp("ecdsa",
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
+        alg = PGP_PKA_ECDSA;
+    } else if (!strncmp("ecdh",
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
+        alg = PGP_PKA_ECDH;
+    } else if (!strncmp("eddsa",
+                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
+                        algorithm_s_exp->sub_elements[0].block.len)) {
+        alg = PGP_PKA_EDDSA;
     } else {
         RNP_LOG("Unsupported algorithm: '%.*s'",
                 (int) algorithm_s_exp->sub_elements[0].block.len,
@@ -1059,7 +1189,6 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
             return false;
         }
         break;
-
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
@@ -1071,19 +1200,27 @@ write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
             return false;
         }
         break;
-
     case PGP_PKA_ELGAMAL:
         if (!add_string_block_to_sexp(s_exp, "elg")) {
             return false;
         }
-
         if (!write_mpi(s_exp, "p", &kmaterial->eg.p) ||
             !write_mpi(s_exp, "g", &kmaterial->eg.g) ||
             !write_mpi(s_exp, "y", &kmaterial->eg.y)) {
             return false;
         }
         break;
-
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+        if (!add_string_block_to_sexp(s_exp, "ecc")) {
+            return false;
+        }
+        if (!write_curve(s_exp, "curve", &kmaterial->ec) ||
+            !write_mpi(s_exp, "q", &kmaterial->ec.p)) {
+            return false;
+        }
+        break;
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
         return false;
@@ -1100,9 +1237,7 @@ write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
         if (!write_mpi(s_exp, "x", &key->material.dsa.x)) {
             return false;
         }
-
         break;
-
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
@@ -1113,13 +1248,19 @@ write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
             return false;
         }
         break;
-
     case PGP_PKA_ELGAMAL:
         if (!write_mpi(s_exp, "x", &key->material.eg.x)) {
             return false;
         }
         break;
-
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA: {
+        if (!write_mpi(s_exp, "d", &key->material.ec.x)) {
+            return false;
+        }
+        break;
+    }
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
         return false;
