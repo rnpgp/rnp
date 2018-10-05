@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2017-2018 Ribose Inc.
  * Copyright (c) 2012 Alistair Crooks <agc@NetBSD.org>
  * All rights reserved.
  *
@@ -22,20 +23,13 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#include <stdlib.h>
-#include "config.h"
-#include <botan/ffi.h>
+
 #include "bn.h"
-#include "hash.h"
+#include <botan/ffi.h>
+#include <stdlib.h>
 #include "utils.h"
 
-#ifndef USE_ARG
-#define USE_ARG(x) /*LINTED*/ (void) &x
-#endif
-
 /**************************************************************************/
-
-/* OpenSSL bignum_t emulation layer */
 
 /* essentiually, these are just wrappers around the botan functions */
 /* usually the order of args changes */
@@ -84,36 +78,12 @@ bn_new(void)
 }
 
 void
-bn_init(bignum_t **a, bignum_t *b)
-{
-    if (*a) {
-        bn_free(*a);
-    }
-    *a = b;
-}
-
-void
 bn_free(bignum_t *a)
 {
     if (a != NULL) {
         botan_mp_destroy(a->mp);
         free(a);
     }
-}
-
-void
-bn_clear(bignum_t *a)
-{
-    if (a) {
-        botan_mp_clear(a->mp);
-    }
-}
-
-void
-bn_clear_free(bignum_t *a)
-{
-    /* Same as BN_free in Botan */
-    bn_free(a);
 }
 
 bool
@@ -158,23 +128,4 @@ bn_print_fp(FILE *fp, const bignum_t *a)
     ret = fprintf(fp, "%s", buf);
     free(buf);
     return ret;
-}
-
-int
-bn_set_word(bignum_t *a, uint32_t w)
-{
-    if (a == NULL) {
-        return -1;
-    }
-    /* FIXME: w is treated as signed int here */
-    return botan_mp_set_from_int(a->mp, w);
-}
-
-int
-bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P)
-{
-    if (Y == NULL || G == NULL || X == NULL || P == NULL) {
-        return -1;
-    }
-    return botan_mp_powmod(Y->mp, G->mp, X->mp, P->mp) == 0;
 }
