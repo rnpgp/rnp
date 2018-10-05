@@ -124,7 +124,11 @@ const char *pgp_str_from_map(int, pgp_map_t *);
 size_t key_bitlength(const pgp_key_material_t *key);
 
 /* Portable way to convert bits to bytes */
-#define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
+
+inline size_t BITS_TO_BYTES(size_t b)
+   {
+   return (b + CHAR_BIT - 1) / CHAR_BIT;
+   }
 
 /* Load little-endian 32-bit from y to x in portable fashion */
 
