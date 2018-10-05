@@ -31,6 +31,16 @@
 #include "crypto/hash.h"
 
 /**
+* Initialize a signature computation.
+* @param key the key that will be used to sign or verify
+* @param hash_alg the digest algo to be used
+* @param hash digest context that will be initialized
+*/
+rnp_result_t signature_init(const pgp_key_material_t *key,
+                            pgp_hash_alg_t            hash_alg,
+                            pgp_hash_t *              hash);
+
+/**
  * @brief Calculate signature with pre-populated hash
  * @param sig signature to calculate
  * @param seckey signing secret key material
