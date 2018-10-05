@@ -508,6 +508,7 @@ sm2_sm3_signature_test(void **state)
     hex2mpi(&sig.s, "62372BE4AC97DBE725AC0B279BB8FD15883858D814FD792DDB0A401DCC988E70");
     rnp_assert_int_equal(
       rstate, sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
+    rng_destroy(&rng);
 }
 
 void
@@ -569,6 +570,7 @@ sm2_sha256_signature_test(void **state)
     hex2mpi(&sig.s, "EE15AF8D455B728AB80E592FCB654BF5B05620B2F4D25749D263D5C01FAD365F");
     rnp_assert_int_equal(
       rstate, sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
+    rng_destroy(&rng);
 }
 
 void
