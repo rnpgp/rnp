@@ -1,4 +1,5 @@
 /*-
+ * Copyright (c) 2017-2018 Ribose Inc.
  * Copyright (c) 2012 Alistair Crooks <agc@NetBSD.org>
  * All rights reserved.
  *
@@ -22,13 +23,12 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef FAUXBN_H_
-#define FAUXBN_H_ 20100108
 
-#include <sys/types.h>
-#include <inttypes.h>
+#ifndef RNP_BN_H_
+#define RNP_BN_H_
+
 #include <stdio.h>
-#include <stdbool.h>
+#include <stdint.h>
 
 typedef struct botan_mp_struct *botan_mp_t;
 
@@ -45,26 +45,11 @@ typedef struct bignum_t_st {
 /*********************************/
 
 bignum_t *bn_new(void);
-
-/*
- * @brief Initialize `a' with pointer to `b'. `a' is freed
- *        if it was allocated before. After function returns
- *        `a' and `b' point to same destination.
- *
- * @param a pointer to bn to be initialized
- * @param b pointer to be used as initializer
- *
- */
-void bn_init(bignum_t **a, bignum_t *b);
 void bn_free(bignum_t * /*a*/);
-void bn_clear(bignum_t * /*a*/);
-void bn_clear_free(bignum_t * /*a*/);
 
 bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
 int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
 int       bn_print_fp(FILE * /*fp*/, const bignum_t * /*a*/);
-int       bn_set_word(bignum_t *a, uint32_t w);
-int       bn_mod_exp(bignum_t *Y, bignum_t *G, bignum_t *X, bignum_t *P);
 
 /*
  * @param a Initialized bignum_t structure
