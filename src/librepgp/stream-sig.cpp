@@ -937,7 +937,7 @@ signature_hash_certification(const pgp_signature_t * sig,
 {
     bool res = false;
 
-    if (!pgp_hash_create(hash, sig->halg)) {
+    if (signature_init(&key->material, sig->halg, hash) != RNP_SUCCESS) {
         return false;
     }
 
@@ -958,7 +958,7 @@ signature_hash_binding(const pgp_signature_t *sig,
 {
     bool res = false;
 
-    if (!pgp_hash_create(hash, sig->halg)) {
+    if (signature_init(&key->material, sig->halg, hash) != RNP_SUCCESS) {
         return false;
     }
 
@@ -976,7 +976,7 @@ signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_
 {
     bool res = false;
 
-    if (!pgp_hash_create(hash, sig->halg)) {
+    if (signature_init(&key->material, sig->halg, hash) != RNP_SUCCESS) {
         return false;
     }
 

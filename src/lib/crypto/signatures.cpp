@@ -67,6 +67,18 @@ error:
 }
 
 rnp_result_t
+signature_init(const pgp_key_material_t *key, pgp_hash_alg_t hash_alg, pgp_hash_t *hash)
+{
+    if (!pgp_hash_create(hash, hash_alg)) {
+        return RNP_ERROR_GENERIC;
+    }
+
+    // TODO handle SM2 initialization
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 signature_calculate(pgp_signature_t *         sig,
                     const pgp_key_material_t *seckey,
                     pgp_hash_t *              hash,
