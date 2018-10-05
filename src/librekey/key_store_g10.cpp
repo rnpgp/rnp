@@ -107,6 +107,21 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE}};
 
+static const pgp_map_t g10_alg_aliases[] = {{PGP_PKA_RSA, "rsa"},
+                                            {PGP_PKA_RSA, "openpgp-rsa"},
+                                            {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
+                                            {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
+                                            {PGP_PKA_ELGAMAL, "elg"},
+                                            {PGP_PKA_ELGAMAL, "elgamal"},
+                                            {PGP_PKA_ELGAMAL, "openpgp-elg"},
+                                            {PGP_PKA_ELGAMAL, "openpgp-elg-sig"},
+                                            {PGP_PKA_DSA, "dsa"},
+                                            {PGP_PKA_DSA, "openpgp-dsa"},
+                                            {PGP_PKA_ECDSA, "ecc"},
+                                            {PGP_PKA_ECDSA, "ecdsa"},
+                                            {PGP_PKA_ECDH, "ecdh"},
+                                            {PGP_PKA_EDDSA, "eddsa"}};
+
 static const pgp_map_t g10_curve_aliases[] = {
   {PGP_CURVE_NIST_P_256, "NIST P-256"},
   {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
@@ -938,59 +953,20 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
         goto done;
     }
 
-    if (!strncmp("rsa",
-                 (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                 algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_RSA;
-    } else if (!strncmp("openpgp-rsa",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_RSA;
-    } else if (!strncmp("oid.1.2.840.113549.1.1.1",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_RSA;
-    } else if (!strncmp("elg",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ELGAMAL;
-    } else if (!strncmp("elgamal",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ELGAMAL;
-    } else if (!strncmp("openpgp-elg",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ELGAMAL;
-    } else if (!strncmp("openpgp-elg-sig",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ELGAMAL;
-    } else if (!strncmp("dsa",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_DSA;
-    } else if (!strncmp("openpgp-dsa",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_DSA;
-    } else if (!strncmp("ecc",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ECDSA;
-    } else if (!strncmp("ecdsa",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ECDSA;
-    } else if (!strncmp("ecdh",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_ECDH;
-    } else if (!strncmp("eddsa",
-                        (const char *) algorithm_s_exp->sub_elements[0].block.bytes,
-                        algorithm_s_exp->sub_elements[0].block.len)) {
-        alg = PGP_PKA_EDDSA;
-    } else {
+    alg = PGP_PKA_NOTHING;
+    for (size_t i = 0; i < ARRAY_SIZE(g10_alg_aliases); i++) {
+        if (strlen(g10_alg_aliases[i].string) != algorithm_s_exp->sub_elements[0].block.len) {
+            continue;
+        }
+        if (!memcmp(g10_alg_aliases[i].string,
+                    algorithm_s_exp->sub_elements[0].block.bytes,
+                    algorithm_s_exp->sub_elements[0].block.len)) {
+            alg = (pgp_pubkey_alg_t) g10_alg_aliases[i].type;
+            break;
+        }
+    }
+
+    if (alg == PGP_PKA_NOTHING) {
         RNP_LOG("Unsupported algorithm: '%.*s'",
                 (int) algorithm_s_exp->sub_elements[0].block.len,
                 algorithm_s_exp->sub_elements[0].block.bytes);
