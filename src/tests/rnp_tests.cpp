@@ -159,6 +159,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(ecdh_roundtrip),
       cmocka_unit_test(ecdh_decryptionNegativeCases),
       cmocka_unit_test(sm2_roundtrip),
+      cmocka_unit_test(sm2_sm3_signature_test),
+      cmocka_unit_test(sm2_sha256_signature_test),
       cmocka_unit_test(test_dsa_roundtrip),
       cmocka_unit_test(test_dsa_verify_negative),
       cmocka_unit_test(test_load_v3_keyring_pgp),

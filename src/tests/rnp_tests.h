@@ -86,6 +86,8 @@ void ecdh_roundtrip(void **state);
 void ecdh_decryptionNegativeCases(void **state);
 
 void sm2_roundtrip(void **state);
+void sm2_sm3_signature_test(void **state);
+void sm2_sha256_signature_test(void **state);
 
 void test_load_v3_keyring_pgp(void **state);
 
