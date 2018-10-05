@@ -59,8 +59,6 @@ void cipher_test_success(void **state);
 
 void pkcs1_rsa_test_success(void **state);
 
-void raw_elgamal_fixed_512bit_key_test_success(void **state);
-
 void raw_elgamal_random_key_test_success(void **state);
 
 void ecdsa_signverify_success(void **state);

@@ -135,7 +135,6 @@ main(int argc, char *argv[])
       cmocka_unit_test(hash_test_success),
       cmocka_unit_test(cipher_test_success),
       cmocka_unit_test(pkcs1_rsa_test_success),
-      cmocka_unit_test(raw_elgamal_fixed_512bit_key_test_success),
       cmocka_unit_test(raw_elgamal_random_key_test_success),
       cmocka_unit_test(rnp_test_eddsa),
       cmocka_unit_test(ecdsa_signverify_success),
