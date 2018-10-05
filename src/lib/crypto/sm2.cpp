@@ -82,6 +82,53 @@ sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata, bool e
 }
 
 rnp_result_t
+sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_field)
+{
+    uint8_t *      digest_buf = NULL;
+    size_t         digest_len = 0;
+    rnp_result_t   result = RNP_ERROR_GENERIC;
+    botan_pubkey_t sm2_key = NULL;
+    int            rc;
+    const pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+
+    const char *hash_algo = pgp_hash_name_botan(hash_alg);
+    digest_len = pgp_digest_length(hash_alg);
+
+    digest_buf = (uint8_t *) malloc(digest_len);
+
+    if (digest_buf == NULL) {
+        result = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    if (!sm2_load_public_key(&sm2_key, key, false)) {
+        RNP_LOG("Failed to load SM2 key");
+        goto done;
+    }
+
+    if (ident_field == NULL)
+        ident_field = "1234567812345678";
+
+    rc = botan_pubkey_sm2_compute_za(digest_buf, &digest_len, ident_field, hash_algo, sm2_key);
+
+    if (rc != 0)
+       {
+       printf("compute_za failed %d\n", rc);
+        goto done;
+       }
+
+    pgp_hash_add(hash, digest_buf, digest_len);
+
+    result = RNP_SUCCESS;
+
+done:
+    free(digest_buf);
+    botan_pubkey_destroy(sm2_key);
+
+    return result;
+}
+
+rnp_result_t
 sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
@@ -112,6 +159,7 @@ done:
 rnp_result_t
 sm2_sign(rng_t *             rng,
          pgp_ec_signature_t *sig,
+         pgp_hash_alg_t      hash_alg,
          const uint8_t *     hash,
          size_t              hash_len,
          const pgp_ec_key_t *key)
@@ -123,6 +171,15 @@ sm2_sign(rng_t *             rng,
     size_t                 sign_half_len = 0;
     size_t                 sig_len = 0;
     rnp_result_t           ret = RNP_ERROR_SIGNING_FAILED;
+
+    if (botan_ffi_supports_api(20180713) != 0) {
+        RNP_LOG("SM2 signatures requires Botan 2.8 or higher");
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+
+    if (hash_len != pgp_digest_length(hash_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     if (!(curve = get_curve_desc(key->curve))) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -136,7 +193,7 @@ sm2_sign(rng_t *             rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_create(&signer, b_key, "", 0)) {
+    if (botan_pk_op_sign_create(&signer, b_key, ",Raw", 0)) {
         goto end;
     }
 
@@ -163,6 +220,7 @@ end:
 
 rnp_result_t
 sm2_verify(const pgp_ec_signature_t *sig,
+           pgp_hash_alg_t            hash_alg,
            const uint8_t *           hash,
            size_t                    hash_len,
            const pgp_ec_key_t *      key)
@@ -173,6 +231,15 @@ sm2_verify(const pgp_ec_signature_t *sig,
     rnp_result_t           ret = RNP_ERROR_SIGNATURE_INVALID;
     uint8_t                sign_buf[2 * MAX_CURVE_BYTELEN] = {0};
     size_t                 r_blen, s_blen, sign_half_len;
+
+    if (botan_ffi_supports_api(20180713) != 0) {
+        RNP_LOG("SM2 signatures requires Botan 2.8 or higher");
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
+
+    if (hash_len != pgp_digest_length(hash_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     curve = get_curve_desc(key->curve);
     if (curve == NULL) {
@@ -185,7 +252,7 @@ sm2_verify(const pgp_ec_signature_t *sig,
         goto end;
     }
 
-    if (botan_pk_op_verify_create(&verifier, pub, "", 0)) {
+    if (botan_pk_op_verify_create(&verifier, pub, ",Raw", 0)) {
         goto end;
     }
 
