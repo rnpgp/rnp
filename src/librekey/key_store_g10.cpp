@@ -566,6 +566,11 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
             !read_mpi(s_exp, "q", &pubkey->material.ec.p)) {
             return false;
         }
+        if (pubkey->material.ec.curve == PGP_CURVE_ED25519) {
+            /* need to adjust it here since 'ecc' key type defaults to ECDSA */
+            pubkey->alg = PGP_PKA_EDDSA;
+            pubkey->material.alg = PGP_PKA_EDDSA;
+        }
         break;
     default:
         RNP_LOG("Unsupported public key algorithm: %d", (int) alg);
