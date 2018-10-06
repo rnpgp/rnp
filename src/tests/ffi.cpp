@@ -2201,7 +2201,9 @@ test_ffi_key_to_json(void **state)
     assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "fingerprint")),
                                     "B6B5E497A177551ECB8862200E33FD46FF10F19C"),
                      0);
-    // TODO: check grip (GH #540)
+    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
+                                    "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"),
+                     0);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), FALSE);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
@@ -2219,7 +2221,10 @@ test_ffi_key_to_json(void **state)
     assert_null(get_json_obj(jso, "primary key grip"));
     // subkey grips
     assert_int_equal(json_object_array_length(get_json_obj(jso, "subkey grips")), 1);
-    // TODO: check subkey grips array values (GH #540)
+    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
+                                      get_json_obj(jso, "subkey grips"), 0)),
+                                    "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
+                     0);
     // public key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), TRUE);
     assert_int_equal(
@@ -2282,7 +2287,9 @@ test_ffi_key_to_json(void **state)
     assert_int_equal(
       rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "key wrap cipher")), "AES128"),
       0);
-    // TODO: check grip (GH #540)
+    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
+                                    "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
+                     0);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), FALSE);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
@@ -2293,11 +2300,12 @@ test_ffi_key_to_json(void **state)
                                     "encrypt"),
                      0);
     // primary key grip
-    assert_non_null(get_json_obj(jso, "primary key grip"));
-    // TODO: check grip (GH #540)
+    assert_int_equal(
+      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "primary key grip")),
+                     "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"),
+      0);
     // subkey grips
     assert_null(get_json_obj(jso, "subkey grips"));
-    // TODO: check subkey grips array values (GH #540)
     // public key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), TRUE);
     assert_int_equal(
@@ -2468,7 +2476,32 @@ test_ffi_key_iter(void **state)
     }
 
     // grip
-    // TODO: add test once key grip calculation for all algs is fixed
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_create(ffi, &it, "grip"));
+        assert_non_null(it);
+        {
+            static const char *expected[] = {"66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA",
+                                             "D9839D61EDAF0B3974E0A4A341D6E95F3479B9B7",
+                                             "B1CC352FEF9A6BD4E885B5351840EF9306D635F0",
+                                             "E7C8860B70DC727BED6DB64C633683B41221BB40",
+                                             "B2A7F6C34AA2C15484783E9380671869A977A187",
+                                             "43C01D6D96BE98C3C87FE0F175870ED92DE7BE45",
+                                             "8082FE753013923972632550838A5F13D81F43B9"};
+            size_t             i = 0;
+            const char *       ident = NULL;
+            do {
+                ident = NULL;
+                assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_next(it, &ident));
+                if (ident) {
+                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    i++;
+                }
+            } while (ident);
+            assert_int_equal(i, ARRAY_SIZE(expected));
+        }
+        assert_int_equal(RNP_SUCCESS, rnp_identifier_iterator_destroy(it));
+    }
 
     // userid
     {
@@ -2593,7 +2626,35 @@ test_ffi_locate_key(void **state)
     }
 
     // grip
-    // TODO: add test once key grip calculation for all algs is fixed
+    {
+        static const char *ids[] = {"66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA",
+                                    "D9839D61EDAF0B3974E0A4A341D6E95F3479B9B7",
+                                    "B1CC352FEF9A6BD4E885B5351840EF9306D635F0",
+                                    "E7C8860B70DC727BED6DB64C633683B41221BB40",
+                                    "B2A7F6C34AA2C15484783E9380671869A977A187",
+                                    "43C01D6D96BE98C3C87FE0F175870ED92DE7BE45",
+                                    "8082FE753013923972632550838A5F13D81F43B9"};
+        for (size_t i = 0; i < ARRAY_SIZE(ids); i++) {
+            const char *     id = ids[i];
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "grip", id, &key));
+            assert_non_null(key);
+            rnp_key_handle_destroy(key);
+        }
+        // invalid
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_failure(rnp_locate_key(ffi, "grip", "invalid-fpr", &key));
+            assert_null(key);
+        }
+        // valid but non-existent
+        {
+            rnp_key_handle_t key = NULL;
+            assert_rnp_success(
+              rnp_locate_key(ffi, "grip", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &key));
+            assert_null(key);
+        }
+    }
 
     // cleanup
     rnp_ffi_destroy(ffi);
