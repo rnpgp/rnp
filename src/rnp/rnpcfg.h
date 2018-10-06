@@ -151,6 +151,14 @@ bool rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str);
  **/
 bool rnp_cfg_unset(rnp_cfg_t *cfg, const char *key);
 
+/** @brief return true if key is set in the configuration
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return if the key exists within the configuration or not
+ **/
+bool rnp_cfg_hasval(const rnp_cfg_t *cfg, const char *key);
+
 /** @brief return string value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
