@@ -74,7 +74,6 @@ rnp_cfg_load_defaults(rnp_cfg_t *cfg)
 {
     rnp_cfg_setbool(cfg, CFG_OVERWRITE, false);
     rnp_cfg_setstr(cfg, CFG_OUTFILE, NULL);
-    rnp_cfg_setstr(cfg, CFG_HASH, DEFAULT_HASH_ALG);
     rnp_cfg_setint(cfg, CFG_ZALG, DEFAULT_Z_ALG);
     rnp_cfg_setint(cfg, CFG_ZLEVEL, DEFAULT_Z_LEVEL);
     rnp_cfg_setstr(cfg, CFG_CIPHER, DEFAULT_SYMM_ALG);
@@ -247,6 +246,12 @@ rnp_cfg_unset(rnp_cfg_t *cfg, const char *key)
 }
 
 bool
+rnp_cfg_hasval(const rnp_cfg_t *cfg, const char *key)
+{
+    return rnp_cfg_find(cfg, key) != NULL;
+}
+
+bool
 rnp_cfg_setint(rnp_cfg_t *cfg, const char *key, int val)
 {
     rnp_cfg_val_t _val = {.type = RNP_CFG_VAL_INT, .val = {._int = val}};
@@ -317,6 +322,10 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
 
     if (it && (it->val.type == RNP_CFG_VAL_STRING)) {
         return it->val.val._string;
+    }
+
+    if (strcmp(key, CFG_HASH) == 0) {
+        return DEFAULT_HASH_ALG;
     }
 
     return NULL;
