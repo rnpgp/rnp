@@ -171,7 +171,7 @@ ask_dsa_bitlen(FILE *input_fp)
  *
 -------------------------------------------------------------------------------- */
 rnp_result_t
-rnp_generate_key_expert_mode(rnp_t *rnp)
+rnp_generate_key_expert_mode(rnp_t *rnp, rnp_cfg_t* cfg)
 {
     FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
     rnp_action_keygen_t *       action = &rnp->action.generate_key_ctx;
@@ -207,7 +207,10 @@ rnp_generate_key_expert_mode(rnp_t *rnp)
         break;
 
     case PGP_PKA_SM2:
-        crypto->hash_alg = PGP_HASH_SM3;
+        if(rnp_cfg_hasval(cfg, CFG_HASH) == false) {
+            crypto->hash_alg = PGP_HASH_SM3;
+        }
+
         crypto->ecc.curve = PGP_CURVE_SM2_P_256;
         action->subkey.keygen.crypto = *crypto;
         break;
