@@ -232,7 +232,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             // copy keygen crypto and protection from primary to subkey
             action->subkey.keygen.crypto = primary_desc->crypto;
             action->subkey.protection = *protection;
-        } else if (rnp_generate_key_expert_mode(rnp) != RNP_SUCCESS) {
+        } else if (rnp_generate_key_expert_mode(rnp, cfg) != RNP_SUCCESS) {
             RNP_LOG("Critical error: Key generation failed");
             return false;
         }
