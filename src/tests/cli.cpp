@@ -55,6 +55,7 @@ call_rnp(const char *cmd, ...)
 #define KEYS "data/keyrings"
 #define MKEYS "data/test_stream_key_merge/"
 #define FILES "data/test_cli"
+#define G10KEYS "data/test_stream_key_load/g10"
 
 void
 test_cli_rnp_keyfile(void **state)
@@ -162,6 +163,128 @@ test_cli_rnp_keyfile(void **state)
                    NULL);
     assert_int_equal(ret, 0);
     assert_int_equal(unlink(FILES "/hello.txt.asc"), 0);
+}
+
+static bool
+test_cli_g10_key_sign(const char *userid)
+{
+    int ret;
+
+    /* check signature */
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   G10KEYS,
+                   "--password",
+                   "password",
+                   "-u",
+                   userid,
+                   "-s",
+                   FILES "/hello.txt",
+                   NULL);
+    if (ret) {
+        return false;
+    }
+
+    /* verify back */
+    ret = call_rnp("rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", NULL);
+    if (ret) {
+        return false;
+    }
+    unlink(FILES "/hello.txt.pgp");
+    return true;
+}
+
+static bool
+test_cli_g10_key_encrypt(const char *userid)
+{
+    int ret;
+
+    /* encrypt */
+    ret = call_rnp("rnp", "--homedir", G10KEYS, "-r", userid, "-e", FILES "/hello.txt", NULL);
+    if (ret) {
+        return false;
+    }
+
+    /* decrypt it back */
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   G10KEYS,
+                   "--password",
+                   "password",
+                   "-d",
+                   FILES "/hello.txt.pgp",
+                   NULL);
+    if (ret) {
+        return false;
+    }
+    unlink(FILES "/hello.txt.pgp");
+    return true;
+}
+
+void
+test_cli_g10_operations(void **state)
+{
+    int ret;
+
+    /* sign with default g10 key */
+    ret = call_rnp(
+      "rnp", "--homedir", G10KEYS, "--password", "password", "-s", FILES "/hello.txt", NULL);
+    assert_int_equal(ret, 0);
+
+    /* verify back */
+    ret = call_rnp("rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", NULL);
+    assert_int_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+
+    /* encrypt with default g10 key */
+    ret = call_rnp("rnp", "--homedir", G10KEYS, "-e", FILES "/hello.txt", NULL);
+    assert_int_equal(ret, 0);
+
+    /* decrypt it back */
+    ret = call_rnp("rnp",
+                   "--homedir",
+                   G10KEYS,
+                   "--password",
+                   "password",
+                   "-d",
+                   FILES "/hello.txt.pgp",
+                   NULL);
+    assert_int_equal(ret, 0);
+    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+
+    /* check dsa/eg key */
+    assert_true(test_cli_g10_key_sign("c8a10a7d78273e10"));    // signing key
+    assert_true(test_cli_g10_key_encrypt("c8a10a7d78273e10")); // will find subkey
+    assert_false(test_cli_g10_key_sign("02a5715c3537717e"));   // fail - encrypting subkey
+    assert_true(test_cli_g10_key_encrypt("02a5715c3537717e")); // success
+
+    /* check rsa/rsa key, both key and subkey are SCE */
+    assert_true(test_cli_g10_key_sign("2fb9179118898e8b"));
+    assert_true(test_cli_g10_key_encrypt("2fb9179118898e8b"));
+    assert_true(test_cli_g10_key_sign("6e2f73008f8b8d6e"));
+    assert_true(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
+
+    /* check ed25519 key */
+    assert_true(test_cli_g10_key_sign("cc786278981b0728"));
+    assert_false(test_cli_g10_key_encrypt("cc786278981b0728"));
+
+    /* check p256 key */
+    assert_true(test_cli_g10_key_sign("23674f21b2441527"));
+    assert_true(test_cli_g10_key_encrypt("23674f21b2441527"));
+    assert_false(test_cli_g10_key_sign("37e285e9e9851491"));
+    assert_true(test_cli_g10_key_encrypt("37e285e9e9851491"));
+
+    /* check p384 key */
+    assert_true(test_cli_g10_key_sign("242a3aa5ea85f44a"));
+    assert_true(test_cli_g10_key_encrypt("242a3aa5ea85f44a"));
+    assert_false(test_cli_g10_key_sign("e210e3d554a4fad9"));
+    assert_true(test_cli_g10_key_encrypt("e210e3d554a4fad9"));
+
+    /* check p521 key */
+    assert_true(test_cli_g10_key_sign("2092ca8324263b6a"));
+    assert_true(test_cli_g10_key_encrypt("2092ca8324263b6a"));
+    assert_false(test_cli_g10_key_sign("9853df2f6d297442"));
+    assert_true(test_cli_g10_key_encrypt("9853df2f6d297442"));
 }
 
 void
