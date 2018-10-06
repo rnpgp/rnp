@@ -51,49 +51,60 @@ test_key_grip(void **state)
     assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
 
     // dsa-eg public/secret key
-    assert_true(rnp_hex_decode("552286BEB2999F0A9E26A50385B90D9724001187", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("552286BEB2999F0A9E26A50385B90D9724001187", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
-    assert_true(rnp_hex_decode("A5E4CD2CBBE44A16E4D6EC05C2E3C3A599DC763C", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("A5E4CD2CBBE44A16E4D6EC05C2E3C3A599DC763C", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // rsa/rsa public/secret key
-    assert_true(rnp_hex_decode("D148210FAF36468055B83D0F5A6DEB83FBC8E864", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("D148210FAF36468055B83D0F5A6DEB83FBC8E864", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
-    assert_true(rnp_hex_decode("CED7034A8EB5F4CE90DF99147EC33D86FCD3296C", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("CED7034A8EB5F4CE90DF99147EC33D86FCD3296C", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
-    // ed25519 : only public key
-    assert_true(rnp_hex_decode("940D97D75C306D737A59A98EAFF1272832CEDC0B", grip, sizeof(grip)));
+    // ed25519 : public/secret key
+    assert_true(
+      rnp_hex_decode("940D97D75C306D737A59A98EAFF1272832CEDC0B", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp256 : only public key/subkey
-    assert_true(rnp_hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
-    assert_true(rnp_hex_decode("A56DC8DB8355747A809037459B4258B8A743EAB5", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("A56DC8DB8355747A809037459B4258B8A743EAB5", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp384 : only public key/subkey
-    assert_true(rnp_hex_decode("A1338230AED1C9C125663518470B49056C9D1733", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("A1338230AED1C9C125663518470B49056C9D1733", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
-    assert_true(rnp_hex_decode("797A83FE041FFE06A7F4B1D32C6F4AE0F6D87ADF", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("797A83FE041FFE06A7F4B1D32C6F4AE0F6D87ADF", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp521 : only public key/subkey
-    assert_true(rnp_hex_decode("D91B789603EC9138AA20342A2B6DC86C81B70F5D", grip, sizeof(grip)));
+    assert_true(
+      rnp_hex_decode("D91B789603EC9138AA20342A2B6DC86C81B70F5D", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
-    assert_true(rnp_hex_decode("FD048B2CA1919CB241DC8A2C7FA3E742EF343DCA", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("FD048B2CA1919CB241DC8A2C7FA3E742EF343DCA", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
-    assert_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // cleanup
     rnp_key_store_free(pub_store);
