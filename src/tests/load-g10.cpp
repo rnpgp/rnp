@@ -33,8 +33,8 @@
 static bool
 test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
 {
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-    pgp_key_t *        key = NULL;
+    uint8_t                 keyid[PGP_KEY_ID_SIZE];
+    pgp_key_t *             key = NULL;
     pgp_password_provider_t pswd_prov = {.callback = string_copy_password_callback,
                                          .userdata = (void *) "password"};
 
@@ -56,8 +56,6 @@ test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
 void
 test_load_g10(void **state)
 {
-    uint8_t            keyid[PGP_KEY_ID_SIZE];
-    pgp_key_t *        key = NULL;
     rnp_key_store_t *  pub_store = NULL;
     rnp_key_store_t *  sec_store = NULL;
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store, .userdata = NULL};
