@@ -76,7 +76,7 @@ test_key_grip(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
-    // nistp256 : only public key/subkey
+    // nistp256 : public/secret key/subkey
     assert_true(
       rnp_hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
@@ -86,7 +86,7 @@ test_key_grip(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
-    // nistp384 : only public key/subkey
+    // nistp384 : public/secret key/subkey
     assert_true(
       rnp_hex_decode("A1338230AED1C9C125663518470B49056C9D1733", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
@@ -96,13 +96,43 @@ test_key_grip(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
-    // nistp521 : only public key/subkey
+    // nistp521 : public/secret key/subkey
     assert_true(
       rnp_hex_decode("D91B789603EC9138AA20342A2B6DC86C81B70F5D", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
       rnp_hex_decode("FD048B2CA1919CB241DC8A2C7FA3E742EF343DCA", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+
+    // brainpool256 : public/secret key/subkey
+    assert_true(
+      rnp_hex_decode("A01BAA22A72F09A0FF0A1D4CBCE70844DD52DDD7", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("C1678B7DE5F144C93B89468D5F9764ACE182ED36", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+
+    // brainpool384 : public/secret key/subkey
+    assert_true(
+      rnp_hex_decode("2F25DB025DEBF3EA2715350209B985829B04F50A", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("B6BD8B81F75AF914163D97DF8DE8F6FC64C283F8", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+
+    // brainpool512 : public/secret key/subkey
+    assert_true(
+      rnp_hex_decode("5A484F56AB4B8B6583B6365034999F6543FAE1AE", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("9133E4A7E8FC8515518DF444C3F2F247EEBBADEC", grip, sizeof(grip)));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
