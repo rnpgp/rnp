@@ -32,7 +32,7 @@
 #include "types.h"
 #include "utils.h"
 
-#define MAX_SP800_56A_OTHER_INFO 54
+#define MAX_SP800_56A_OTHER_INFO 56
 // Keys up to 312 bits (+1 bytes of PKCS5 padding)
 #define MAX_SESSION_KEY_SIZE 40
 
@@ -48,7 +48,10 @@ static const struct ecdh_params_t {
 } ecdh_params[] = {
   {.curve = PGP_CURVE_NIST_P_256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
   {.curve = PGP_CURVE_NIST_P_384, .hash = PGP_HASH_SHA384, .wrap_alg = PGP_SA_AES_192},
-  {.curve = PGP_CURVE_NIST_P_521, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256}};
+  {.curve = PGP_CURVE_NIST_P_521, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
+  {.curve = PGP_CURVE_BP256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
+  {.curve = PGP_CURVE_BP512, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
+};
 
 // "Anonymous Sender " in hex
 static const unsigned char ANONYMOUS_SENDER[] = {0x41, 0x6E, 0x6F, 0x6E, 0x79, 0x6D, 0x6F,
@@ -224,7 +227,7 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    const size_t other_info_size = (key->curve == PGP_CURVE_NIST_P_256) ? 54 : 51;
+    const size_t other_info_size = curve_desc->OIDhex_len + 46;
     const size_t kek_len = pgp_key_size(key->key_wrap_alg);
     size_t       tmp_len = kdf_other_info_serialize(
       other_info, curve_desc, fingerprint, key->kdf_hash_alg, key->key_wrap_alg);
@@ -311,8 +314,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     }
 
     // See 13.5 of RFC 4880 for definition of other_info_size
-    const size_t other_info_size =
-      (curve_desc->rnp_curve_id == PGP_CURVE_NIST_P_256) ? 54 : 51;
+    const size_t other_info_size = curve_desc->OIDhex_len + 46;
     const size_t tmp_len =
       kdf_other_info_serialize(other_info, curve_desc, fingerprint, kdf_hash, wrap_alg);
 
