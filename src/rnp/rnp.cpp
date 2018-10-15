@@ -336,7 +336,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 
         /* setting signing parameters if needed */
         if (rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
-            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
+            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_gethashalg(cfg));
 
             if (ctx->halg == PGP_HASH_UNKNOWN) {
                 fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));

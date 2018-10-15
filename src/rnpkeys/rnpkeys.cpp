@@ -213,7 +213,13 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         if (key) {
             strcpy((char *) primary_desc->cert.userid, key);
         }
-        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
+        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_gethashalg(cfg));
+
+        if (primary_desc->crypto.hash_alg == PGP_HASH_UNKNOWN) {
+           fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
+           return false;
+        }
+
         primary_desc->crypto.rng = &rnp->rng;
         protection->hash_alg = primary_desc->crypto.hash_alg;
         protection->symm_alg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
