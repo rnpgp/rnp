@@ -324,11 +324,16 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
         return it->val.val._string;
     }
 
-    if (strcmp(key, CFG_HASH) == 0) {
-        return DEFAULT_HASH_ALG;
-    }
-
     return NULL;
+}
+
+const char* rnp_cfg_gethashalg(rnp_cfg_t* cfg)
+{
+    const char* hash_alg = rnp_cfg_getstr(cfg, CFG_HASH);
+    if(hash_alg) {
+        return hash_alg;
+    }
+    return DEFAULT_HASH_ALG;
 }
 
 int
