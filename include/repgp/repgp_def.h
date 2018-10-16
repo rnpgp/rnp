@@ -79,13 +79,6 @@
  */
 #define PGP_PTAG_OF_LENGTH_TYPE_MASK 0x03
 
-/**
- * Maximal length of the OID in hex representation.
- *
- * \see RFC4880 bis01 - 9.2 ECC Curve OID
- */
-#define MAX_CURVE_OID_HEX_LEN 9U
-
 /* Maximum block size for symmetric crypto */
 #define PGP_MAX_BLOCK_SIZE 16
 
@@ -237,6 +230,7 @@ typedef enum {
     PGP_CURVE_NIST_P_384,
     PGP_CURVE_NIST_P_521,
     PGP_CURVE_ED25519,
+    PGP_CURVE_25519,
     PGP_CURVE_BP256,
     PGP_CURVE_BP384,
     PGP_CURVE_BP512,
