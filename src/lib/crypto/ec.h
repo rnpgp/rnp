@@ -45,7 +45,7 @@
  *
  * \see RFC4880 bis01 - 9.2 ECC Curve OID
  */
-#define MAX_CURVE_OID_HEX_LEN 9U
+#define MAX_CURVE_OID_HEX_LEN 10U
 
 /**
  * Structure holds description of elliptic curve
