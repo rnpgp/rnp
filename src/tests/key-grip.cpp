@@ -76,6 +76,16 @@ test_key_grip(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
+    // x25519 : public/secret key/subkey
+    assert_true(
+      rnp_hex_decode("A77DC8173DA6BEE126F5BD6F5A14E01200B52FCE", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("636C983EDB558527BA82780B52CB5DAE011BE46B", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+
     // nistp256 : public/secret key/subkey
     assert_true(
       rnp_hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip, sizeof(grip)));
