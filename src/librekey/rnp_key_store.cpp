@@ -1038,7 +1038,7 @@ grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
           grip_hash_ecc_hex(hash, desc->b, 'b') && grip_hash_mpi(hash, &g, 'g', false) &&
           grip_hash_ecc_hex(hash, desc->n, 'n');
 
-    if (key->curve == PGP_CURVE_ED25519) {
+    if ((key->curve == PGP_CURVE_ED25519) || (key->curve == PGP_CURVE_25519)) {
         if (g.len < 1) {
             RNP_LOG("wrong 25519 p");
             return false;

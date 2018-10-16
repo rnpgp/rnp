@@ -123,40 +123,28 @@ static const pgp_map_t g10_alg_aliases[] = {{PGP_PKA_RSA, "rsa"},
                                             {PGP_PKA_EDDSA, "eddsa"}};
 
 static const pgp_map_t g10_curve_aliases[] = {
-  {PGP_CURVE_NIST_P_256, "NIST P-256"},
-  {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
-  {PGP_CURVE_NIST_P_256, "prime256v1"},
-  {PGP_CURVE_NIST_P_256, "secp256r1"},
+  {PGP_CURVE_NIST_P_256, "NIST P-256"},   {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
+  {PGP_CURVE_NIST_P_256, "prime256v1"},   {PGP_CURVE_NIST_P_256, "secp256r1"},
   {PGP_CURVE_NIST_P_256, "nistp256"},
 
-  {PGP_CURVE_NIST_P_384, "NIST P-384"},
-  {PGP_CURVE_NIST_P_384, "secp384r1"},
-  {PGP_CURVE_NIST_P_384, "1.3.132.0.34"},
-  {PGP_CURVE_NIST_P_384, "nistp384"},
+  {PGP_CURVE_NIST_P_384, "NIST P-384"},   {PGP_CURVE_NIST_P_384, "secp384r1"},
+  {PGP_CURVE_NIST_P_384, "1.3.132.0.34"}, {PGP_CURVE_NIST_P_384, "nistp384"},
 
-  {PGP_CURVE_NIST_P_521, "NIST P-521"},
-  {PGP_CURVE_NIST_P_521, "secp521r1"},
-  {PGP_CURVE_NIST_P_521, "1.3.132.0.35"},
-  {PGP_CURVE_NIST_P_521, "nistp521"},
+  {PGP_CURVE_NIST_P_521, "NIST P-521"},   {PGP_CURVE_NIST_P_521, "secp521r1"},
+  {PGP_CURVE_NIST_P_521, "1.3.132.0.35"}, {PGP_CURVE_NIST_P_521, "nistp521"},
 
-  /* Ed25519 and Curve25519 are actually different curves with different usage, needs to be
-     re-checked */
-  {PGP_CURVE_ED25519, "Curve25519"},
-  {PGP_CURVE_ED25519, "1.3.6.1.4.1.3029.1.5.1"},
-  {PGP_CURVE_ED25519, "Ed25519"},
-  {PGP_CURVE_ED25519, "1.3.6.1.4.1.11591.15.1"},
+  {PGP_CURVE_25519, "Curve25519"},        {PGP_CURVE_25519, "1.3.6.1.4.1.3029.1.5.1"},
+  {PGP_CURVE_ED25519, "Ed25519"},         {PGP_CURVE_ED25519, "1.3.6.1.4.1.11591.15.1"},
 
-  {PGP_CURVE_BP256, "brainpoolP256r1"},
-  {PGP_CURVE_BP256, "1.3.36.3.3.2.8.1.1.7"},
-  {PGP_CURVE_BP384, "brainpoolP384r1"},
-  {PGP_CURVE_BP384, "1.3.36.3.3.2.8.1.1.11"},
-  {PGP_CURVE_BP512, "brainpoolP512r1"},
-  {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"}};
+  {PGP_CURVE_BP256, "brainpoolP256r1"},   {PGP_CURVE_BP256, "1.3.36.3.3.2.8.1.1.7"},
+  {PGP_CURVE_BP384, "brainpoolP384r1"},   {PGP_CURVE_BP384, "1.3.36.3.3.2.8.1.1.11"},
+  {PGP_CURVE_BP512, "brainpoolP512r1"},   {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"}};
 
 static const pgp_map_t g10_curve_names[] = {{PGP_CURVE_NIST_P_256, "NIST P-256"},
                                             {PGP_CURVE_NIST_P_384, "NIST P-384"},
                                             {PGP_CURVE_NIST_P_521, "NIST P-521"},
                                             {PGP_CURVE_ED25519, "Ed25519"},
+                                            {PGP_CURVE_25519, "Curve25519"},
                                             {PGP_CURVE_BP256, "brainpoolP256r1"},
                                             {PGP_CURVE_BP384, "brainpoolP384r1"},
                                             {PGP_CURVE_BP512, "brainpoolP512r1"}};

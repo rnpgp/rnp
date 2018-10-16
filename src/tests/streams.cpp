@@ -346,6 +346,29 @@ test_stream_key_load(void **state)
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
+    /* eddsa/x25519 ecc public key */
+    assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-pub.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "4C9738A6F2BE4E1A796C9B7B941822A0FC1B30A5"));
+    assert_int_equal(list_length(key->subkeys), 1);
+    assert_non_null(skey = (pgp_transferable_subkey_t *) list_front(key->subkeys));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &skey->subkey));
+    assert_true(cmp_keyid(keyid, "C711187E594376AF"));
+    src_close(&keysrc);
+
+    /* eddsa/x25519 ecc secret key */
+    assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-sec.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_int_equal(list_length(key->subkeys), 1);
+    assert_non_null(list_front(key->subkeys));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
+
     /* p-256 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256-pub.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
@@ -555,6 +578,8 @@ test_stream_key_load_errors(void **state)
                                "data/test_stream_key_load/dsa-eg-sec.asc",
                                "data/test_stream_key_load/ecc-25519-pub.asc",
                                "data/test_stream_key_load/ecc-25519-sec.asc",
+                               "data/test_stream_key_load/ecc-x25519-pub.asc",
+                               "data/test_stream_key_load/ecc-x25519-sec.asc",
                                "data/test_stream_key_load/ecc-p256-pub.asc",
                                "data/test_stream_key_load/ecc-p256-sec.asc",
                                "data/test_stream_key_load/ecc-p384-pub.asc",
@@ -637,11 +662,21 @@ test_stream_key_decrypt(void **state)
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
-    /* curve 25519 ecc secret key */
+    /* curve 25519 eddsa ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-sec.asc"));
     assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
     assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
+
+    /* x25519 ecc secret key */
+    assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-sec.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(decrypt_secret_key(&key->key, "password"));
+    assert_non_null(subkey = (pgp_transferable_subkey_t *) list_front(key->subkeys));
+    assert_rnp_success(decrypt_secret_key(&subkey->subkey, "password"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
@@ -921,6 +956,8 @@ test_stream_key_signature_validate(void **state)
                                "data/test_stream_key_load/dsa-eg-sec.asc",
                                "data/test_stream_key_load/ecc-25519-pub.asc",
                                "data/test_stream_key_load/ecc-25519-sec.asc",
+                               "data/test_stream_key_load/ecc-x25519-pub.asc",
+                               "data/test_stream_key_load/ecc-x25519-sec.asc",
                                "data/test_stream_key_load/ecc-p256-pub.asc",
                                "data/test_stream_key_load/ecc-p256-sec.asc",
                                "data/test_stream_key_load/ecc-p384-pub.asc",
@@ -1044,6 +1081,8 @@ test_stream_dumper(void **state)
     assert_true(check_dump_file("data/test_stream_key_load/dsa-eg-sec.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-25519-pub.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-25519-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-x25519-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-x25519-sec.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-p256-pub.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-p256-sec.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-p384-pub.asc", true, true));
