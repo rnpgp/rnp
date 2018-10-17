@@ -151,7 +151,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(rnpkeys_generatekey_testExpertMode),
       cmocka_unit_test(generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
       cmocka_unit_test(generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
-      cmocka_unit_test(generatekeyECDSA_explicitlySetWrongDigest_ShouldSuceed),
+      cmocka_unit_test(generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail),
       cmocka_unit_test(test_utils_list),
       cmocka_unit_test(test_rnpcfg),
       cmocka_unit_test(test_load_user_prefs),
