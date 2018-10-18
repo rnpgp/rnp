@@ -86,27 +86,31 @@ test_load_g10(void **state)
     assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
 
     /* dsa/eg key */
-    test_load_g10_check_key(pub_store, sec_store, "C8A10A7D78273E10");
-    test_load_g10_check_key(pub_store, sec_store, "02A5715C3537717E");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "C8A10A7D78273E10"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "02A5715C3537717E"));
 
     /* rsa/rsa key */
-    test_load_g10_check_key(pub_store, sec_store, "2FB9179118898E8B");
-    test_load_g10_check_key(pub_store, sec_store, "6E2F73008F8B8D6E");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "2FB9179118898E8B"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "6E2F73008F8B8D6E"));
 
     /* ed25519 key */
-    test_load_g10_check_key(pub_store, sec_store, "CC786278981B0728");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "CC786278981B0728"));
+
+    /* ed25519/x25519 key */
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "941822A0FC1B30A5"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "C711187E594376AF"));
 
     /* p-256/p-256 key */
-    test_load_g10_check_key(pub_store, sec_store, "23674F21B2441527");
-    test_load_g10_check_key(pub_store, sec_store, "37E285E9E9851491");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "23674F21B2441527"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "37E285E9E9851491"));
 
     /* p-384/p-384 key */
-    test_load_g10_check_key(pub_store, sec_store, "242A3AA5EA85F44A");
-    test_load_g10_check_key(pub_store, sec_store, "E210E3D554A4FAD9");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "242A3AA5EA85F44A"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "E210E3D554A4FAD9"));
 
     /* p-521/p-521 key */
-    test_load_g10_check_key(pub_store, sec_store, "2092CA8324263B6A");
-    test_load_g10_check_key(pub_store, sec_store, "9853DF2F6D297442");
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "2092CA8324263B6A"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "9853DF2F6D297442"));
 
     rnp_key_store_free(pub_store);
     rnp_key_store_free(sec_store);
