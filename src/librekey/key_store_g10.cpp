@@ -510,7 +510,7 @@ write_curve(s_exp_t *s_exp, const char *name, const pgp_ec_key_t *key)
         return false;
     }
 
-    if (key->curve == PGP_CURVE_ED25519) {
+    if ((key->curve == PGP_CURVE_ED25519) || (key->curve == PGP_CURVE_25519)) {
         if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
             return false;
         }
@@ -519,7 +519,8 @@ write_curve(s_exp_t *s_exp, const char *name, const pgp_ec_key_t *key)
             return false;
         }
 
-        if (!add_string_block_to_sexp(sub_s_exp, "eddsa")) {
+        if (!add_string_block_to_sexp(
+              sub_s_exp, key->curve == PGP_CURVE_ED25519 ? "eddsa" : "djb-tweak")) {
             return false;
         }
     }
