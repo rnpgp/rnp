@@ -51,6 +51,7 @@ static const struct ecdh_params_t {
   {.curve = PGP_CURVE_NIST_P_521, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
   {.curve = PGP_CURVE_BP256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
   {.curve = PGP_CURVE_BP512, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
+  {.curve = PGP_CURVE_25519, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
 };
 
 // "Anonymous Sender " in hex
@@ -154,17 +155,26 @@ compute_kek(uint8_t *              kek,
     char             kdf_name[32] = {0};
     uint8_t          s[MAX_CURVE_BYTELEN * 2 + 1] = {0};
     size_t           s_len = sizeof(s);
+    const uint8_t *  p = ec_pubkey->mpi;
+    uint8_t          p_len = ec_pubkey->len;
+
+    if (curve_desc->rnp_curve_id == PGP_CURVE_25519) {
+        if ((p_len != 33) || (p[0] != 0x40)) {
+            goto end;
+        }
+        p++;
+        p_len--;
+    }
 
     if (botan_pk_op_key_agreement_create(&op_key_agreement, ec_prvkey, "Raw", 0) ||
-        botan_pk_op_key_agreement(
-          op_key_agreement, s, &s_len, ec_pubkey->mpi, mpi_bytes(ec_pubkey), NULL, 0)) {
+        botan_pk_op_key_agreement(op_key_agreement, s, &s_len, p, p_len, NULL, 0)) {
         goto end;
     }
 
     snprintf(kdf_name, sizeof(kdf_name), "SP800-56A(%s)", pgp_hash_name_botan(hash_alg));
     ret = !botan_kdf(kdf_name, kek, kek_len, s, s_len, NULL, 0, other_info, other_info_size);
-
 end:
+    pgp_forget(&s, sizeof(s));
     ret &= !botan_pk_op_key_agreement_destroy(op_key_agreement);
     return ret;
 }
@@ -264,9 +274,20 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
         goto end;
     }
 
-    out->p.len = sizeof(out->p.mpi);
-    if (botan_pk_op_key_agreement_export_public(eph_prv_key, out->p.mpi, &out->p.len)) {
-        goto end;
+    /* we need to prepend 0x40 for the x25519 */
+    if (key->curve == PGP_CURVE_25519) {
+        out->p.len = sizeof(out->p.mpi) - 1;
+        if (botan_pk_op_key_agreement_export_public(
+              eph_prv_key, out->p.mpi + 1, &out->p.len)) {
+            goto end;
+        }
+        out->p.mpi[0] = 0x40;
+        out->p.len++;
+    } else {
+        out->p.len = sizeof(out->p.mpi);
+        if (botan_pk_op_key_agreement_export_public(eph_prv_key, out->p.mpi, &out->p.len)) {
+            goto end;
+        }
     }
 
     // All OK
@@ -290,9 +311,9 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     botan_privkey_t prv_key = NULL;
     uint8_t         deckey[MAX_SESSION_KEY_SIZE] = {0};
     size_t          deckey_len = sizeof(deckey);
-    bignum_t *      x = NULL;
     size_t          offset = 0;
     size_t          kek_len = 0;
+    int             loadres = 0;
 
     if (!out_len || !in || !key || !mpi_bytes(&key->x)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -323,11 +344,27 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         goto end;
     }
 
-    if (!(x = mpi2bn(&key->x))) {
-        goto end;
+    if (key->curve == PGP_CURVE_25519) {
+        uint8_t prkey[32] = {};
+        if (key->x.len != 32) {
+            RNP_LOG("wrong x25519 key");
+            goto end;
+        }
+        /* need to reverse byte order since in mpi we have big-endian */
+        for (int i = 0; i < 32; i++) {
+            prkey[i] = key->x.mpi[31 - i];
+        }
+        loadres = botan_privkey_load_x25519(&prv_key, prkey);
+        pgp_forget(prkey, sizeof(prkey));
+    } else {
+        bignum_t *x = NULL;
+        if (!(x = mpi2bn(&key->x))) {
+            goto end;
+        }
+        loadres = botan_privkey_load_ecdh(&prv_key, BN_HANDLE_PTR(x), curve_desc->botan_name);
+        bn_free(x);
     }
-
-    if (botan_privkey_load_ecdh(&prv_key, BN_HANDLE_PTR(x), curve_desc->botan_name)) {
+    if (loadres) {
         goto end;
     }
 
@@ -358,7 +395,6 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     pgp_forget(deckey, sizeof(deckey));
     ret = RNP_SUCCESS;
 end:
-    bn_free(x);
     botan_privkey_destroy(prv_key);
     return ret;
 }

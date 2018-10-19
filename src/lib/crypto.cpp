@@ -130,7 +130,15 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
             RNP_LOG("Unsupported curve [ID=%d]", crypto->ecc.curve);
             goto end;
         }
-    /* FALLTHROUGH */
+        if (crypto->ecc.curve == PGP_CURVE_25519) {
+            if (x25519_generate(rng, &seckey->material.ec)) {
+                RNP_LOG("failed to generate x25519 key");
+                goto end;
+            }
+            seckey->material.ec.curve = crypto->ecc.curve;
+            break;
+        }
+    /* FALLTHROUGH for non-x25519 curves */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
         if (ec_generate(rng, &seckey->material.ec, seckey->alg, crypto->ecc.curve)) {
