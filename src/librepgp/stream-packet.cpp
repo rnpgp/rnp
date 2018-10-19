@@ -676,12 +676,19 @@ stream_skip_packet(pgp_source_t *src)
     }
 
     if (stream_partial_pkt_len(src)) {
+        src_skip(src, 1);
         partlen = stream_read_partial_chunk_len(src, &last);
-        while (!last && (partlen > 0)) {
+        while (partlen > 0) {
             if (src_skip(src, partlen) != partlen) {
                 return RNP_ERROR_READ;
             }
+            if (last) {
+                break;
+            }
             partlen = stream_read_partial_chunk_len(src, &last);
+            if (partlen < 0) {
+                return RNP_ERROR_BAD_FORMAT;
+            }
         }
         return RNP_SUCCESS;
     }
