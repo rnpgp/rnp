@@ -807,15 +807,13 @@ test_stream_key_signatures(void **state)
                   sig, &key->key, &uid->uid, pgp_get_key_material(pkey)));
                 /* low level check */
                 assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
-                assert_rnp_success(
-                  signature_validate(sig, pgp_get_key_material(pkey), &hash));
+                assert_rnp_success(signature_validate(sig, pgp_get_key_material(pkey), &hash));
                 /* modify userid and check signature */
                 uid->uid.uid[2] = '?';
                 assert_rnp_failure(signature_validate_certification(
                   sig, &key->key, &uid->uid, pgp_get_key_material(pkey)));
                 assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
-                assert_rnp_failure(
-                  signature_validate(sig, pgp_get_key_material(pkey), &hash));
+                assert_rnp_failure(signature_validate(sig, pgp_get_key_material(pkey), &hash));
             }
         }
 
@@ -827,12 +825,10 @@ test_stream_key_signatures(void **state)
             assert_true(signature_get_keyid(sig, keyid));
             assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
             /* high level interface */
-            assert_rnp_success(
-              signature_validate_binding(sig, &key->key, &subkey->subkey));
+            assert_rnp_success(signature_validate_binding(sig, &key->key, &subkey->subkey));
             /* low level check */
             assert_true(signature_hash_binding(sig, &key->key, &subkey->subkey, &hash));
-            assert_rnp_success(
-              signature_validate(sig, pgp_get_key_material(pkey), &hash));
+            assert_rnp_success(signature_validate(sig, pgp_get_key_material(pkey), &hash));
         }
     }
 
@@ -975,6 +971,30 @@ test_stream_verify_no_key(void **state)
     free(data);
 }
 
+static bool
+check_dump_file(const char *file, bool mpi, bool grip)
+{
+    pgp_source_t   src;
+    pgp_dest_t     dst;
+    rnp_dump_ctx_t ctx = {0};
+
+    ctx.dump_mpi = mpi;
+    ctx.dump_grips = grip;
+
+    if (init_file_src(&src, file)) {
+        return false;
+    }
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+    if (stream_dump_packets(&ctx, &src, &dst)) {
+        return false;
+    }
+    src_close(&src);
+    dst_close(&dst, false);
+    return true;
+}
+
 void
 test_stream_dumper(void **state)
 {
@@ -982,132 +1002,32 @@ test_stream_dumper(void **state)
     pgp_dest_t     dst;
     rnp_dump_ctx_t ctx = {0};
 
-    ctx.dump_mpi = false;
-    ctx.dump_grips = false;
-    assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
+    assert_true(check_dump_file("data/keyrings/1/pubring.gpg", false, false));
+    assert_true(check_dump_file("data/keyrings/1/secring.gpg", false, false));
+    assert_true(check_dump_file("data/keyrings/4/rsav3-p.asc", false, false));
+    assert_true(check_dump_file("data/keyrings/4/rsav3-p.asc", true, true));
+    assert_true(check_dump_file("data/keyrings/4/rsav3-s.asc", true, false));
+    assert_true(check_dump_file("data/test_repgp/encrypted_text.gpg", true, false));
+    assert_true(check_dump_file("data/test_repgp/signed.gpg", true, false));
+    assert_true(check_dump_file("data/test_repgp/encrypted_key.gpg", true, false));
+    assert_true(check_dump_file("data/test_stream_key_load/dsa-eg-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/dsa-eg-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-25519-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-25519-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p256-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p256-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p384-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p384-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p521-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p521-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_signatures/source.txt.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_signatures/source.txt.asc.asc", true, true));
+    assert_true(check_dump_file(
+      "data/test_stream_verification/verify_encrypted_no_key.pgp", true, true));
 
-    assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt"));
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/keyrings/4/rsav3-p.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    ctx.dump_mpi = true;
-    ctx.dump_grips = true;
-    assert_rnp_success(init_file_src(&src, "data/keyrings/4/rsav3-p.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    ctx.dump_mpi = true;
-    ctx.dump_grips = false;
-    assert_rnp_success(init_file_src(&src, "data/keyrings/4/rsav3-s.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_repgp/encrypted_text.gpg"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_repgp/signed.gpg"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    ctx.dump_mpi = true;
-    ctx.dump_grips = true;
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/dsa-eg-pub.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/dsa-eg-sec.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-25519-pub.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-25519-sec.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p256-pub.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p256-sec.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p384-pub.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p384-sec.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p521-pub.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_key_load/ecc-p521-sec.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(init_file_src(&src, "data/test_stream_signatures/source.txt.asc.asc"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
-    src_close(&src);
-    dst_close(&dst, false);
-
-    assert_rnp_success(
-      init_file_src(&src, "data/test_stream_verification/verify_encrypted_no_key.pgp"));
-    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, false);
 }
