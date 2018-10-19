@@ -109,8 +109,8 @@ static const ec_curve_desc_t ec_curves[] = {
    255,
    {0x2b, 0x06, 0x01, 0x04, 0x01, 0x97, 0x55, 0x01, 0x05, 0x01},
    10,
-   "25519",
-   "25519",
+   "curve25519",
+   "Curve25519",
    "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
    "0x01db41",
    "0x01",
@@ -220,6 +220,46 @@ const ec_curve_desc_t *
 get_curve_desc(const pgp_curve_t curve_id)
 {
     return (curve_id < PGP_CURVE_MAX && curve_id > 0) ? &ec_curves[curve_id] : NULL;
+}
+
+rnp_result_t
+x25519_generate(rng_t *rng, pgp_ec_key_t *key)
+{
+    botan_privkey_t pr_key = NULL;
+    botan_pubkey_t  pu_key = NULL;
+    rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
+    uint8_t         keyle[32] = {0};
+
+    // at this point it must succeed
+    if (botan_privkey_create(&pr_key, "Curve25519", "", rng_handle(rng))) {
+        goto end;
+    }
+
+    if (botan_privkey_export_pubkey(&pu_key, pr_key)) {
+        goto end;
+    }
+
+    /* botan returns key in little-endian, while mpi is big-endian */
+    if (botan_privkey_x25519_get_privkey(pr_key, keyle)) {
+        goto end;
+    }
+    for (int i = 0; i < 32; i++) {
+        key->x.mpi[31 - i] = keyle[i];
+    }
+    key->x.len = 32;
+
+    if (botan_pubkey_x25519_get_pubkey(pu_key, &key->p.mpi[1])) {
+        goto end;
+    }
+    key->p.len = 33;
+    key->p.mpi[0] = 0x40;
+
+    ret = RNP_SUCCESS;
+end:
+    pgp_forget(&keyle, sizeof(keyle));
+    botan_privkey_destroy(pr_key);
+    botan_pubkey_destroy(pu_key);
+    return ret;
 }
 
 rnp_result_t

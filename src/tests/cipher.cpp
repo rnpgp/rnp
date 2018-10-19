@@ -218,6 +218,51 @@ rnp_test_eddsa(void **state)
     free_key_pkt(&seckey);
 }
 
+void
+rnp_test_x25519(void **state)
+{
+    rnp_keygen_crypto_params_t key_desc = {};
+    pgp_key_pkt_t              seckey = {};
+    pgp_ecdh_encrypted_t       enc = {};
+    uint8_t           in[16] = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16};
+    uint8_t           out[16] = {};
+    size_t            outlen = 0;
+    pgp_fingerprint_t fp = {};
+
+    key_desc.key_alg = PGP_PKA_ECDH;
+    key_desc.hash_alg = PGP_HASH_SHA256;
+    key_desc.rng = &global_rng;
+    key_desc.ecc.curve = PGP_CURVE_25519;
+
+    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    assert_rnp_success(pgp_fingerprint(&fp, &seckey));
+    assert_rnp_success(
+      ecdh_encrypt_pkcs5(&global_rng, &enc, in, sizeof(in), &seckey.material.ec, &fp));
+    assert_true(enc.mlen > 16);
+    assert_true((enc.p.mpi[0] == 0x40) && (enc.p.len == 33));
+    outlen = sizeof(out);
+    assert_rnp_success(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_true(outlen == 16);
+    assert_true(memcmp(in, out, 16) == 0);
+
+    /* negative cases */
+    enc.p.mpi[16] ^= 0xff;
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+
+    enc.p.mpi[16] ^= 0xff;
+    enc.p.mpi[0] = 0x04;
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+
+    enc.p.mpi[0] = 0x40;
+    enc.mlen--;
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+
+    enc.mlen += 2;
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+
+    free_key_pkt(&seckey);
+}
+
 static void
 elgamal_roundtrip(rnp_test_state_t *state, pgp_eg_key_t *key)
 {
@@ -470,8 +515,9 @@ sm2_sm3_signature_test(void **state)
 
     sm2_key.curve = PGP_CURVE_NIST_P_256;
 
-    hex2mpi(&sm2_key.p, "04d9a2025f1ab59bc44e35fc53aeb8e87a79787d30cd70a1f7c49e064b8b8a2fb24d8"
-                        "c82f49ee0a5b11df22cb0c3c6d9d5526d9e24d02ff8c83c06a859c26565f1");
+    hex2mpi(&sm2_key.p,
+            "04d9a2025f1ab59bc44e35fc53aeb8e87a79787d30cd70a1f7c49e064b8b8a2fb24d8"
+            "c82f49ee0a5b11df22cb0c3c6d9d5526d9e24d02ff8c83c06a859c26565f1");
     hex2mpi(&sm2_key.x, "110E7973206F68C19EE5F7328C036F26911C8C73B4E4F36AE3291097F8984FFC");
 
     rnp_assert_int_equal(rstate, sm2_validate_key(&rng, &sm2_key, true), RNP_SUCCESS);
@@ -532,8 +578,9 @@ sm2_sha256_signature_test(void **state)
 
     sm2_key.curve = PGP_CURVE_SM2_P_256;
 
-    hex2mpi(&sm2_key.p, "04d03d30dd01ca3422aeaccf9b88043b554659d3092b0a9e8cce3e8c4530a98cb79d7"
-                        "05e6213eee145b748e36e274e5f101dc10d7bbc9dab9a04022e73b76e02cd");
+    hex2mpi(&sm2_key.p,
+            "04d03d30dd01ca3422aeaccf9b88043b554659d3092b0a9e8cce3e8c4530a98cb79d7"
+            "05e6213eee145b748e36e274e5f101dc10d7bbc9dab9a04022e73b76e02cd");
     hex2mpi(&sm2_key.x, "110E7973206F68C19EE5F7328C036F26911C8C73B4E4F36AE3291097F8984FFC");
 
     rnp_assert_int_equal(rstate, sm2_validate_key(&rng, &sm2_key, true), RNP_SUCCESS);
