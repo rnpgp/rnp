@@ -126,4 +126,14 @@ rnp_result_t ec_generate(rng_t *                rng,
                          const pgp_pubkey_alg_t alg_id,
                          const pgp_curve_t      curve);
 
+/*
+ * @brief   Generates x25519 ECDH key in x25519-specific format
+ *
+ * @param   rng initialized rng_t context*
+ * @param   key key data to be generated
+ *
+ * @returns RNP_ERROR_KEY_GENERATION implementation error
+ */
+rnp_result_t x25519_generate(rng_t *rng, pgp_ec_key_t *key);
+
 #endif
