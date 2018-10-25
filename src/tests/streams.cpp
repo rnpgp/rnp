@@ -357,6 +357,7 @@ test_stream_key_load(void **state)
     assert_non_null(skey = (pgp_transferable_subkey_t *) list_front(key->subkeys));
     assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &skey->subkey));
     assert_true(cmp_keyid(keyid, "C711187E594376AF"));
+    key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
     /* eddsa/x25519 ecc secret key */
