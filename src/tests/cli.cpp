@@ -268,6 +268,12 @@ test_cli_g10_operations(void **state)
     assert_true(test_cli_g10_key_sign("cc786278981b0728"));
     assert_false(test_cli_g10_key_encrypt("cc786278981b0728"));
 
+    /* check ed25519/x25519 key */
+    assert_true(test_cli_g10_key_sign("941822a0fc1b30a5"));
+    assert_true(test_cli_g10_key_encrypt("941822a0fc1b30a5"));
+    assert_false(test_cli_g10_key_sign("c711187e594376af"));
+    assert_true(test_cli_g10_key_encrypt("c711187e594376af"));
+
     /* check p256 key */
     assert_true(test_cli_g10_key_sign("23674f21b2441527"));
     assert_true(test_cli_g10_key_encrypt("23674f21b2441527"));
