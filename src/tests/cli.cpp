@@ -309,6 +309,12 @@ test_cli_g10_operations(void **state)
     assert_true(test_cli_g10_key_encrypt("aa5c58d14f7b8f48"));
     assert_false(test_cli_g10_key_sign("20cdaa1482ba79ce"));
     assert_true(test_cli_g10_key_encrypt("20cdaa1482ba79ce"));
+
+    /* check secp256k1 key */
+    assert_true(test_cli_g10_key_sign("3ea5bb6f9692c1a0"));
+    assert_true(test_cli_g10_key_encrypt("3ea5bb6f9692c1a0"));
+    assert_false(test_cli_g10_key_sign("7635401f90d3e533"));
+    assert_true(test_cli_g10_key_encrypt("7635401f90d3e533"));
 }
 
 void

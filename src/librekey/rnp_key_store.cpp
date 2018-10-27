@@ -964,7 +964,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name, bool lzer
         ;
 
     if (name) {
-        size_t hlen = idx >= len ? 1 : len - idx;
+        size_t hlen = idx >= len ? 0 : len - idx;
         if ((len > idx) && lzero && (val->mpi[idx] & 0x80)) {
             hlen++;
         }
@@ -973,10 +973,7 @@ grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name, bool lzer
         pgp_hash_add(hash, buf, strlen(buf));
     }
 
-    if (idx >= len) {
-        buf[0] = '\0';
-        pgp_hash_add(hash, buf, 1);
-    } else {
+    if (idx < len) {
         /* gcrypt prepends mpis with zero if hihger bit is set */
         if (lzero && (val->mpi[idx] & 0x80)) {
             buf[0] = '\0';
