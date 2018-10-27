@@ -234,6 +234,7 @@ typedef enum {
     PGP_CURVE_BP256,
     PGP_CURVE_BP384,
     PGP_CURVE_BP512,
+    PGP_CURVE_P256K1,
 
     PGP_CURVE_SM2_P_256,
 

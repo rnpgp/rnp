@@ -146,6 +146,16 @@ test_key_grip(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
+    // secp256k1 : public/secret key/subkey
+    assert_true(
+      rnp_hex_decode("498B89C485489BA16B40755C0EBA580166393074", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+    assert_true(
+      rnp_hex_decode("48FFED40D018747363BDEFFDD404D1F4870F8064", grip, sizeof(grip)));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
+    assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
+
     // cleanup
     rnp_key_store_free(pub_store);
     rnp_key_store_free(sec_store);

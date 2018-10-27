@@ -510,17 +510,24 @@ test_stream_key_load(void **state)
 
     /* secp256k1 ecc public key, not supported now */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256k1-pub.asc"));
-    assert_rnp_failure(process_pgp_keys(&keysrc, &keyseq));
-    assert_int_equal(list_length(keyseq.keys), 0);
-    assert_null(list_front(keyseq.keys));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(cmp_keyfp(&keyfp, "81F772B57D4EBFE7000A66233EA5BB6F9692C1A0"));
+    assert_non_null(skey = (pgp_transferable_subkey_t *) list_front(key->subkeys));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &skey->subkey));
+    assert_true(cmp_keyid(keyid, "7635401F90D3E533"));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 
     /* secp256k1 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256k1-sec.asc"));
-    assert_rnp_failure(process_pgp_keys(&keysrc, &keyseq));
-    assert_int_equal(list_length(keyseq.keys), 0);
-    assert_null(list_front(keyseq.keys));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_int_equal(list_length(key->subkeys), 1);
+    assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
 }
@@ -592,7 +599,9 @@ test_stream_key_load_errors(void **state)
                                "data/test_stream_key_load/ecc-bp384-pub.asc",
                                "data/test_stream_key_load/ecc-bp384-sec.asc",
                                "data/test_stream_key_load/ecc-bp512-pub.asc",
-                               "data/test_stream_key_load/ecc-bp512-sec.asc"};
+                               "data/test_stream_key_load/ecc-bp512-sec.asc",
+                               "data/test_stream_key_load/ecc-p256k1-pub.asc",
+                               "data/test_stream_key_load/ecc-p256k1-sec.asc"};
 
     for (size_t i = 0; i < sizeof(key_files) / sizeof(char *); i++) {
         assert_rnp_success(init_file_src(&fsrc, key_files[i]));
@@ -970,7 +979,9 @@ test_stream_key_signature_validate(void **state)
                                "data/test_stream_key_load/ecc-bp384-pub.asc",
                                "data/test_stream_key_load/ecc-bp384-sec.asc",
                                "data/test_stream_key_load/ecc-bp512-pub.asc",
-                               "data/test_stream_key_load/ecc-bp512-sec.asc"};
+                               "data/test_stream_key_load/ecc-bp512-sec.asc",
+                               "data/test_stream_key_load/ecc-p256k1-pub.asc",
+                               "data/test_stream_key_load/ecc-p256k1-sec.asc"};
 
     for (size_t i = 0; i < sizeof(key_files) / sizeof(char *); i++) {
         validate_key_sigs(key_files[i]);
@@ -1096,6 +1107,8 @@ test_stream_dumper(void **state)
     assert_true(check_dump_file("data/test_stream_key_load/ecc-bp384-sec.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-bp512-pub.asc", true, true));
     assert_true(check_dump_file("data/test_stream_key_load/ecc-bp512-sec.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p256k1-pub.asc", true, true));
+    assert_true(check_dump_file("data/test_stream_key_load/ecc-p256k1-sec.asc", true, true));
     assert_true(check_dump_file("data/test_stream_signatures/source.txt.asc", true, true));
     assert_true(check_dump_file("data/test_stream_signatures/source.txt.asc.asc", true, true));
     assert_true(check_dump_file(
