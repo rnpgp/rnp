@@ -52,6 +52,7 @@ static const struct ecdh_params_t {
   {.curve = PGP_CURVE_BP256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
   {.curve = PGP_CURVE_BP512, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
   {.curve = PGP_CURVE_25519, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
+  {.curve = PGP_CURVE_P256K1, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
 };
 
 // "Anonymous Sender " in hex
