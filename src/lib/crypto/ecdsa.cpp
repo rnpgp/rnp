@@ -251,6 +251,7 @@ ecdsa_get_min_hash(pgp_curve_t curve)
     switch (curve) {
     case PGP_CURVE_NIST_P_256:
     case PGP_CURVE_BP256:
+    case PGP_CURVE_P256K1:
         return PGP_HASH_SHA256;
     case PGP_CURVE_NIST_P_384:
     case PGP_CURVE_BP384:

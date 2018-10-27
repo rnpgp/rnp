@@ -112,6 +112,10 @@ test_load_g10(void **state)
     assert_true(test_load_g10_check_key(pub_store, sec_store, "2092CA8324263B6A"));
     assert_true(test_load_g10_check_key(pub_store, sec_store, "9853DF2F6D297442"));
 
+    /* p256k1/p156k1 key */
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "3EA5BB6F9692C1A0"));
+    assert_true(test_load_g10_check_key(pub_store, sec_store, "7635401F90D3E533"));
+
     rnp_key_store_free(pub_store);
     rnp_key_store_free(sec_store);
 }

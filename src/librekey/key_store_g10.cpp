@@ -138,7 +138,8 @@ static const pgp_map_t g10_curve_aliases[] = {
 
   {PGP_CURVE_BP256, "brainpoolP256r1"},   {PGP_CURVE_BP256, "1.3.36.3.3.2.8.1.1.7"},
   {PGP_CURVE_BP384, "brainpoolP384r1"},   {PGP_CURVE_BP384, "1.3.36.3.3.2.8.1.1.11"},
-  {PGP_CURVE_BP512, "brainpoolP512r1"},   {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"}};
+  {PGP_CURVE_BP512, "brainpoolP512r1"},   {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"},
+  {PGP_CURVE_P256K1, "secp256k1"},        {PGP_CURVE_P256K1, "1.3.132.0.10"}};
 
 static const pgp_map_t g10_curve_names[] = {{PGP_CURVE_NIST_P_256, "NIST P-256"},
                                             {PGP_CURVE_NIST_P_384, "NIST P-384"},
@@ -147,7 +148,8 @@ static const pgp_map_t g10_curve_names[] = {{PGP_CURVE_NIST_P_256, "NIST P-256"}
                                             {PGP_CURVE_25519, "Curve25519"},
                                             {PGP_CURVE_BP256, "brainpoolP256r1"},
                                             {PGP_CURVE_BP384, "brainpoolP384r1"},
-                                            {PGP_CURVE_BP512, "brainpoolP512r1"}};
+                                            {PGP_CURVE_BP512, "brainpoolP512r1"},
+                                            {PGP_CURVE_P256K1, "secp256k1"}};
 
 static const format_info *
 find_format(pgp_symm_alg_t cipher, pgp_cipher_mode_t mode, pgp_hash_alg_t hash_alg)
