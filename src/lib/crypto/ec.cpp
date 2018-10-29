@@ -243,7 +243,6 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
     rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
     uint8_t         keyle[32] = {0};
 
-    // at this point it must succeed
     if (botan_privkey_create(&pr_key, "Curve25519", "", rng_handle(rng))) {
         goto end;
     }

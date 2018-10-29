@@ -1342,7 +1342,7 @@ class EncryptEcdh(Encrypt):
         Preferences: twofish sha256 sha384 sha512 sha1 zlib
         Name-Email: {1}"""
 
-    RNP_GENERATE_ECDH_ECDSA_PATTERN = "18\n{0}\n"
+    RNP_GENERATE_ECDH_ECDSA_PATTERN = "19\n{0}\n"
 
     def test_encrypt_nistP256(self):
         self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format("nistp256", self.rnp.userid)
