@@ -81,23 +81,32 @@ is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
 static pgp_curve_t
 ask_curve(FILE *input_fp)
 {
-    pgp_curve_t result = PGP_CURVE_MAX;
-    long        val = 0;
-    bool        ok = false;
+    pgp_curve_t       result = PGP_CURVE_MAX;
+    long              val = 0;
+    bool              ok = false;
+    const pgp_curve_t curves[] = {PGP_CURVE_NIST_P_256,
+                                  PGP_CURVE_NIST_P_384,
+                                  PGP_CURVE_NIST_P_521,
+                                  PGP_CURVE_BP256,
+                                  PGP_CURVE_BP384,
+                                  PGP_CURVE_BP512,
+                                  PGP_CURVE_P256K1};
+    size_t            ccount = ARRAY_SIZE(curves);
+
     do {
         printf("Please select which elliptic curve you want:\n");
-        for (int i = 1; (i < PGP_CURVE_MAX) && (i != PGP_CURVE_ED25519); i++) {
-            printf("\t(%u) %s\n", i, get_curve_desc((const pgp_curve_t) i)->pgp_name);
+        for (size_t i = 1; i <= ccount; i++) {
+            printf(
+              "\t(%zu) %s\n", i, get_curve_desc((const pgp_curve_t)(curves[i - 1]))->pgp_name);
         }
         printf("(default %s)> ", get_curve_desc(DEFAULT_CURVE)->pgp_name);
-        val = DEFAULT_CURVE;
-        ok = rnp_secure_get_long_from_fd(input_fp, &val, true);
-        ok &= (val > 0) && (val < PGP_CURVE_MAX);
+        result = DEFAULT_CURVE;
+        ok = rnp_secure_get_long_from_fd(input_fp, &val, true) && (val > 0) &&
+             (val <= (long) ccount);
+        if (ok) {
+            result = curves[val - 1];
+        }
     } while (!ok);
-
-    if (ok) {
-        result = (pgp_curve_t)(val);
-    }
 
     return result;
 }
@@ -111,9 +120,8 @@ ask_algorithm(FILE *input_fp)
                "\t(1)  RSA (Encrypt or Sign)\n"
                "\t(16) DSA + ElGamal\n"
                "\t(17) DSA + RSA\n" // TODO: See #584
-               "\t(18) ECDH\n"
-               "\t(19) ECDSA\n"
-               "\t(22) EDDSA\n"
+               "\t(19) ECDSA + ECDH\n"
+               "\t(22) EDDSA + X25519\n"
                "\t(99) SM2\n"
                "> ");
 
@@ -171,7 +179,7 @@ ask_dsa_bitlen(FILE *input_fp)
  *
 -------------------------------------------------------------------------------- */
 rnp_result_t
-rnp_generate_key_expert_mode(rnp_t *rnp, rnp_cfg_t* cfg)
+rnp_generate_key_expert_mode(rnp_t *rnp, rnp_cfg_t *cfg)
 {
     FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
     rnp_action_keygen_t *       action = &rnp->action.generate_key_ctx;
@@ -189,25 +197,25 @@ rnp_generate_key_expert_mode(rnp_t *rnp, rnp_cfg_t* cfg)
         crypto->rsa.modulus_bit_len = ask_rsa_bitlen(input_fd);
         action->subkey.keygen.crypto = *crypto;
         break;
-
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
+        /* Generate ECDH as a subkey of ECDSA */
         action->primary.keygen.crypto.key_alg = PGP_PKA_ECDSA;
         action->primary.keygen.crypto.ecc.curve = ask_curve(input_fd);
-        if (key_alg == PGP_PKA_ECDH) {
-            /* Generate ECDH as a subkey of ECDSA */
-            action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
-            action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
-            action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
-        }
+        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
+        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
+        action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
         break;
 
     case PGP_PKA_EDDSA:
         crypto->ecc.curve = PGP_CURVE_ED25519;
+        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
+        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
+        action->subkey.keygen.crypto.ecc.curve = PGP_CURVE_25519;
         break;
 
     case PGP_PKA_SM2:
-        if(rnp_cfg_hasval(cfg, CFG_HASH) == false) {
+        if (rnp_cfg_hasval(cfg, CFG_HASH) == false) {
             crypto->hash_alg = PGP_HASH_SM3;
         }
 
