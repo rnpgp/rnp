@@ -355,6 +355,204 @@ pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
     return pgp_key_copy_subkey(dst, src, pubonly);
 }
 
+static rnp_result_t
+pgp_userprefs_copy(pgp_user_prefs_t *dst, const pgp_user_prefs_t *src)
+{
+    rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
+
+    memset(dst, 0, sizeof(*dst));
+    if (src->symm_algc) {
+        EXPAND_ARRAY_EX(dst, symm_alg, src->symm_algc);
+        if (!dst->symm_algs) {
+            return ret;
+        }
+        memcpy(dst->symm_algs, src->symm_algs, src->symm_algc);
+        dst->symm_algc = src->symm_algc;
+    }
+
+    if (src->hash_algc) {
+        EXPAND_ARRAY_EX(dst, hash_alg, src->hash_algc);
+        if (!dst->hash_algs) {
+            goto error;
+        }
+        memcpy(dst->hash_algs, src->hash_algs, src->hash_algc);
+        dst->hash_algc = src->hash_algc;
+    }
+
+    if (src->compress_algc) {
+        EXPAND_ARRAY_EX(dst, compress_alg, src->compress_algc);
+        if (!dst->compress_algs) {
+            goto error;
+        }
+        memcpy(dst->compress_algs, src->compress_algs, src->compress_algc);
+        dst->compress_algc = src->compress_algc;
+    }
+
+    if (src->key_server_prefc) {
+        EXPAND_ARRAY_EX(dst, key_server_pref, src->key_server_prefc);
+        if (!dst->key_server_prefs) {
+            goto error;
+        }
+        memcpy(dst->key_server_prefs, src->key_server_prefs, src->key_server_prefc);
+        dst->key_server_prefc = src->key_server_prefc;
+    }
+
+    if (src->key_server) {
+        size_t len = strlen((char *) src->key_server) + 1;
+        dst->key_server = (uint8_t *) malloc(len);
+        if (!dst->key_server) {
+            goto error;
+        }
+        memcpy(dst->key_server, src->key_server, len);
+    }
+
+    return RNP_SUCCESS;
+error:
+    pgp_free_user_prefs(dst);
+    return ret;
+}
+
+static rnp_result_t
+pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src)
+{
+    memcpy(dst, src, sizeof(*dst));
+    /* signature packet */
+    if (!copy_signature_packet(&dst->sig, &src->sig)) {
+        memset(dst, 0, sizeof(*dst));
+        return RNP_ERROR_GENERIC;
+    }
+    /* user prefs */
+    if (pgp_userprefs_copy(&dst->prefs, &src->prefs)) {
+        free_signature(&dst->sig);
+        memset(dst, 0, sizeof(*dst));
+        return RNP_ERROR_GENERIC;
+    }
+
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+pgp_revoke_copy(pgp_revoke_t *dst, const pgp_revoke_t *src)
+{
+    memcpy(dst, src, sizeof(*dst));
+    if (src->reason) {
+        size_t len = strlen(src->reason) + 1;
+        dst->reason = (char *) malloc(len);
+        if (!dst->reason) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        memcpy(dst->reason, src->reason, len);
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
+{
+    rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
+    rnp_result_t tmpret;
+
+    memset(dst, 0, sizeof(*dst));
+
+    /* uids */
+    if (src->uidc) {
+        EXPAND_ARRAY_EX(dst, uid, src->uidc);
+        if (!dst->uids) {
+            goto error;
+        }
+        for (size_t i = 0; i < src->uidc; i++) {
+            size_t len = strlen((char *) src->uids[i]) + 1;
+            dst->uids[i] = (uint8_t *) malloc(len);
+            if (!dst->uids[i]) {
+                goto error;
+            }
+            memcpy(dst->uids[i], src->uids[i], len);
+            dst->uidc++;
+        }
+    }
+
+    /* signatures */
+    if (src->subsigs) {
+        EXPAND_ARRAY_EX(dst, subsig, src->subsigc);
+        if (!dst->subsigs) {
+            goto error;
+        }
+        for (size_t i = 0; i < src->subsigc; i++) {
+            tmpret = pgp_subsig_copy(&dst->subsigs[i], &src->subsigs[i]);
+            if (tmpret) {
+                ret = tmpret;
+                goto error;
+            }
+            dst->subsigc++;
+        }
+    }
+
+    /* revocations */
+    if (src->revokes) {
+        EXPAND_ARRAY_EX(dst, revoke, src->revokec);
+        if (!dst->revokes) {
+            goto error;
+        }
+        for (size_t i = 0; i < src->revokec; i++) {
+            tmpret = pgp_revoke_copy(&dst->revokes[i], &src->revokes[i]);
+            if (tmpret) {
+                ret = tmpret;
+                goto error;
+            }
+            dst->revokec++;
+        }
+    }
+
+    /* subkey grips */
+    for (list_item *grip = list_front(src->subkey_grips); grip; grip = list_next(grip)) {
+        if (!list_append(&dst->subkey_grips, grip, PGP_FINGERPRINT_SIZE)) {
+            goto error;
+        }
+    }
+
+    /* primary grip */
+    if (src->primary_grip) {
+        dst->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+        if (!dst->primary_grip) {
+            goto error;
+        }
+        memcpy(dst->primary_grip, src->primary_grip, PGP_FINGERPRINT_SIZE);
+    }
+
+    /* expiration */
+    dst->expiration = src->expiration;
+
+    /* key_flags */
+    dst->key_flags = src->key_flags;
+
+    /* key id / fingerprint / grip */
+    memcpy(dst->keyid, src->keyid, PGP_KEY_ID_SIZE);
+    memcpy(&dst->fingerprint, &src->fingerprint, sizeof(dst->fingerprint));
+    memcpy(&dst->grip, &src->grip, sizeof(dst->grip));
+
+    /* primary uid */
+    dst->uid0 = src->uid0;
+    dst->uid0_set = src->uid0_set;
+
+    /* revocation */
+    dst->revoked = src->revoked;
+    tmpret = pgp_revoke_copy(&dst->revocation, &src->revocation);
+    if (tmpret) {
+        goto error;
+    }
+
+    /* key store format */
+    dst->format = src->format;
+
+    /* key validity */
+    dst->valid = src->valid;
+
+    return RNP_SUCCESS;
+error:
+    pgp_key_free_data(dst);
+    return ret;
+}
+
 /**
  \ingroup HighLevel_KeyGeneral
 
@@ -638,6 +836,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
     if ((*dst = (uint8_t *) calloc(1, len + 1)) == NULL) {
         RNP_LOG("bad alloc");
     } else {
+        /* this is correct - trailing 0 is set by calloc */
         (void) memcpy(*dst, src, len);
     }
     return *dst;
