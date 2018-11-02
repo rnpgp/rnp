@@ -904,11 +904,10 @@ done:
 }
 
 static bool
-g10_parse_seckey(pgp_key_pkt_t *           seckey,
-                 const uint8_t *           data,
-                 size_t                    data_len,
-                 const char *              password,
-                 const pgp_key_provider_t *key_provider)
+g10_parse_seckey(pgp_key_pkt_t *seckey,
+                 const uint8_t *data,
+                 size_t         data_len,
+                 const char *   password)
 {
     s_exp_t          s_exp = {0};
     bool             ret = false;
@@ -991,28 +990,6 @@ g10_parse_seckey(pgp_key_pkt_t *           seckey,
         goto done;
     }
 
-    if (key_provider) {
-        pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-        if (!rnp_key_store_get_key_grip(&seckey->material, search.by.grip)) {
-            goto done;
-        }
-        pgp_key_t *pubkey = NULL;
-
-        pgp_key_request_ctx_t req_ctx;
-        memset(&req_ctx, 0, sizeof(req_ctx));
-        req_ctx.op = PGP_OP_MERGE_INFO;
-        req_ctx.secret = false;
-        req_ctx.search = search;
-
-        if (!(pubkey = pgp_request_key(key_provider, &req_ctx))) {
-            goto done;
-        }
-
-        if (!copy_key_pkt(seckey, pgp_get_key_pkt(pubkey), false)) {
-            goto done;
-        }
-    }
-
     if (is_protected) {
         if (!parse_protected_seckey(seckey, algorithm_s_exp, password)) {
             goto done;
@@ -1062,7 +1039,7 @@ g10_decrypt_seckey(const uint8_t *      data,
     if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
         goto done;
     }
-    if (!g10_parse_seckey(seckey, data, data_len, password, NULL)) {
+    if (!g10_parse_seckey(seckey, data, data_len, password)) {
         goto done;
     }
     ok = true;
@@ -1075,23 +1052,90 @@ done:
     return seckey;
 }
 
+static bool
+copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
+{
+    switch (src->alg) {
+    case PGP_PKA_DSA:
+        dst->material.dsa.x = src->material.dsa.x;
+        break;
+    case PGP_PKA_RSA:
+        dst->material.rsa.d = src->material.rsa.d;
+        dst->material.rsa.p = src->material.rsa.p;
+        dst->material.rsa.q = src->material.rsa.q;
+        dst->material.rsa.u = src->material.rsa.u;
+        break;
+    case PGP_PKA_ELGAMAL:
+        dst->material.eg.x = src->material.eg.x;
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_EDDSA:
+        dst->material.ec.x = src->material.ec.x;
+        break;
+    default:
+        RNP_LOG("Unsupported public key algorithm: %d", (int) src->alg);
+        return false;
+    }
+
+    dst->material.secret = src->material.secret;
+    dst->sec_protection = src->sec_protection;
+    dst->tag = pgp_is_subkey_tag((pgp_content_enum) dst->tag) ? PGP_PTAG_CT_SECRET_SUBKEY :
+                                                                PGP_PTAG_CT_SECRET_KEY;
+
+    return true;
+}
+
 bool
 rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
                            pgp_memory_t *            memory,
                            const pgp_key_provider_t *key_provider)
 {
-    pgp_key_t     key = {0};
-    pgp_key_pkt_t keypkt = {0};
-    bool          ret = false;
+    const pgp_key_t *pubkey = NULL;
+    pgp_key_t        key = {0};
+    pgp_key_pkt_t    seckey = {0};
+    bool             ret = false;
 
-    if (!g10_parse_seckey(&keypkt, memory->buf, memory->length, NULL, key_provider)) {
+    /* parse secret key: fills material and sec_protection only */
+    if (!g10_parse_seckey(&seckey, memory->buf, memory->length, NULL)) {
         goto done;
     }
-    if (!pgp_key_from_keypkt(&key, &keypkt, PGP_PTAG_CT_SECRET_KEY)) {
-        goto done;
+
+    /* copy public key fields if any */
+    if (key_provider) {
+        pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
+        if (!rnp_key_store_get_key_grip(&seckey.material, search.by.grip)) {
+            goto done;
+        }
+
+        pgp_key_request_ctx_t req_ctx;
+        memset(&req_ctx, 0, sizeof(req_ctx));
+        req_ctx.op = PGP_OP_MERGE_INFO;
+        req_ctx.secret = false;
+        req_ctx.search = search;
+
+        if (!(pubkey = pgp_request_key(key_provider, &req_ctx))) {
+            goto done;
+        }
+
+        if (pgp_key_copy_fields(&key, pubkey)) {
+            RNP_LOG("failed to copy key fields");
+            goto done;
+        }
+
+        /* public key packet has some more info then the secret part */
+        if (!copy_key_pkt(&key.pkt, pgp_get_key_pkt(pubkey), false)) {
+            goto done;
+        }
+
+        if (!copy_secret_fields(&key.pkt, &seckey)) {
+            goto done;
+        }
+    } else {
+        key.pkt = seckey;
+        memset(&seckey, 0, sizeof(seckey));
     }
-    // this data belongs to the key now
-    keypkt = (pgp_key_pkt_t){0};
+
     EXPAND_ARRAY((&key), packet);
     if (!key.packets) {
         goto done;
@@ -1108,10 +1152,9 @@ rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
         goto done;
     }
     ret = true;
-
 done:
     if (!ret) {
-        free_key_pkt(&keypkt);
+        free_key_pkt(&seckey);
         pgp_key_free_data(&key);
     }
     return ret;

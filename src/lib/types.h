@@ -358,14 +358,14 @@ typedef struct pgp_user_prefs_t {
     uint8_t *key_server;
 } pgp_user_prefs_t;
 
-/** signature subpackets */
+/** information about the signature */
 typedef struct pgp_subsig_t {
-    uint32_t         uid;         /* index in userid array in key */
-    pgp_signature_t  sig;         /* trust signature */
+    uint32_t         uid;         /* index in userid array in key for certification sig */
+    pgp_signature_t  sig;         /* signature packet */
     uint8_t          trustlevel;  /* level of trust */
     uint8_t          trustamount; /* amount of trust */
-    uint8_t          key_flags;   /* key flags */
-    pgp_user_prefs_t prefs;       /* user preferences */
+    uint8_t          key_flags;   /* key flags for certification/direct key sig */
+    pgp_user_prefs_t prefs;       /* user preferences for certification sig */
 } pgp_subsig_t;
 
 struct rnp_keygen_ecc_params_t {
