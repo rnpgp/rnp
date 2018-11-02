@@ -66,7 +66,7 @@
 struct pgp_key_t {
     DYNARRAY(uint8_t *, uid);          /* array of user ids */
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
-    DYNARRAY(pgp_subsig_t, subsig);    /* array of signature subkeys */
+    DYNARRAY(pgp_subsig_t, subsig);    /* array of signatures */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
     list               subkey_grips;   /* list of subkey grips (for primary keys) */
     uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
@@ -117,6 +117,16 @@ void pgp_key_free_data(pgp_key_t *);
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
 rnp_result_t pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly);
+
+/**
+ * @brief Copy calculated key fields (grip, userid list, etc). Does not copy key packet/raw
+ *        packets. Zeroes dst so should not be used with pre-filled objects.
+ *
+ * @param dst destination of copying
+ * @param src source key
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise
+ */
+rnp_result_t pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src);
 
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 

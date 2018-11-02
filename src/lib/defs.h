@@ -136,24 +136,24 @@
         }                                                                            \
     } while (/*CONSTCOND*/ 0)
 
-#define EXPAND_ARRAY_EX(str, arr, num)                                                \
-    do {                                                                              \
-        if (str->arr##c == str->arr##vsize) {                                         \
-            void *   __newarr;                                                        \
-            char *   __newarrc;                                                       \
-            unsigned __newsize;                                                       \
-            __newsize = str->arr##vsize + num;                                        \
-            if ((__newarrc = __newarr =                                               \
-                   realloc(str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) { \
-                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");               \
-            } else {                                                                  \
-                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],     \
-                              0x0,                                                    \
-                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s));  \
-                str->arr##s = __newarr;                                               \
-                str->arr##vsize = __newsize;                                          \
-            }                                                                         \
-        }                                                                             \
+#define EXPAND_ARRAY_EX(str, arr, num)                                               \
+    do {                                                                             \
+        if (str->arr##c == str->arr##vsize) {                                        \
+            void *   __newarr;                                                       \
+            char *   __newarrc;                                                      \
+            unsigned __newsize;                                                      \
+            __newsize = str->arr##vsize + num;                                       \
+            if ((__newarr = __newarrc = (char *) realloc(                            \
+                   str->arr##s, __newsize * sizeof(*str->arr##s))) == NULL) {        \
+                (void) fprintf(stderr, "EXPAND_ARRAY - bad realloc\n");              \
+            } else {                                                                 \
+                (void) memset(&__newarrc[str->arr##vsize * sizeof(*str->arr##s)],    \
+                              0x0,                                                   \
+                              (__newsize - str->arr##vsize) * sizeof(*str->arr##s)); \
+                str->arr##s = static_cast<decltype(str->arr##s)>(__newarr);          \
+                str->arr##vsize = __newsize;                                         \
+            }                                                                        \
+        }                                                                            \
     } while (/*CONSTCOND*/ 0)
 
 #define FREE_ARRAY(str, arr) \
