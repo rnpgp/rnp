@@ -92,7 +92,30 @@ rnp_key_add_stream_rawpacket(pgp_key_t *key, int tag, pgp_dest_t *memdst)
     return true;
 }
 
-static bool
+bool
+rnp_key_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
+{
+    pgp_rawpacket_t rawpkt = {};
+    EXPAND_ARRAY(key, packet);
+    if (!key->packets) {
+        RNP_LOG("Failed to expand packet array.");
+        return false;
+    }
+
+    rawpkt.tag = packet->tag;
+    rawpkt.length = packet->length;
+    rawpkt.raw = (uint8_t *) malloc(packet->length);
+    if (!rawpkt.raw) {
+        RNP_LOG("alloc failed");
+        return false;
+    }
+    memcpy(rawpkt.raw, packet->raw, packet->length);
+    key->packets[key->packetc++] = rawpkt;
+
+    return true;
+}
+
+bool
 rnp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
 {
     pgp_dest_t dst = {};
