@@ -217,6 +217,30 @@ pgp_key_free(pgp_key_t *key)
     free(key);
 }
 
+/**
+ * @brief Copy key's raw packets. If pubonly is true then dst->pkt must be populated
+ */
+static rnp_result_t
+pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
+{
+    size_t start = 0;
+
+    if (pubonly) {
+        if (!rnp_key_add_key_rawpacket(dst, &dst->pkt)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        start = 1;
+    }
+
+    for (size_t i = start; i < src->packetc; i++) {
+        if (!rnp_key_add_rawpacket(dst, &src->packets[i])) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
 static rnp_result_t
 pgp_key_copy_primary(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
@@ -294,7 +318,6 @@ done:
 static rnp_result_t
 pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
-    pgp_key_pkt_t pktcp = {};
     rnp_result_t  ret = RNP_ERROR_GENERIC;
 
     if (pubonly) {
@@ -302,38 +325,32 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    memset(dst, 0, sizeof(*dst));
+
     if (src->packetc != 1) {
         RNP_LOG("wrong g10 key packets");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!copy_key_pkt(&pktcp, &src->pkt, false)) {
+    if (!copy_key_pkt(&dst->pkt, &src->pkt, false)) {
         RNP_LOG("failed to copy key pkt");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!pgp_key_from_keypkt(dst, &pktcp, (pgp_content_enum) src->pkt.tag)) {
+    if (pgp_key_copy_fields(dst, src)) {
+        RNP_LOG("failed to copy key fields");
         goto done;
     }
-    // this data belongs to the key now
-    pktcp = {};
 
-    EXPAND_ARRAY((dst), packet);
-    if (!dst->packets) {
+    if (pgp_key_copy_raw_packets(dst, src, false)) {
+        RNP_LOG("failed to copy raw packets");
         goto done;
     }
-    dst->packets[0].raw = (uint8_t *) malloc(src->packets[0].length);
-    if (!dst->packets[0].raw) {
-        goto done;
-    }
-    dst->packets[0].length = src->packets[0].length;
-    memcpy(dst->packets[0].raw, src->packets[0].raw, src->packets[0].length);
-    dst->packetc++;
+
     dst->format = G10_KEY_STORE;
     ret = RNP_SUCCESS;
 done:
     if (ret) {
-        free_key_pkt(&pktcp);
         pgp_key_free_data(dst);
     }
     return ret;
@@ -451,8 +468,6 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 {
     rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
     rnp_result_t tmpret;
-
-    memset(dst, 0, sizeof(*dst));
 
     /* uids */
     if (src->uidc) {
