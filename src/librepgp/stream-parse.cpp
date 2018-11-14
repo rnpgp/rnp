@@ -438,7 +438,11 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
         param->aead_params.adlen += 8;
     }
 
-    pgp_cipher_aead_set_ad(&param->decrypt, param->aead_params.ad, param->aead_params.adlen);
+    if (!pgp_cipher_aead_set_ad(
+          &param->decrypt, param->aead_params.ad, param->aead_params.adlen)) {
+        RNP_LOG("failed to set ad");
+        return false;
+    }
 
     /* setup chunk */
     param->chunkidx = idx;
@@ -1332,7 +1336,7 @@ finish:
     return res;
 }
 
-static void
+static bool
 encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
     /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
@@ -1344,7 +1348,7 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     ad_data[3] = skey->aalg;
 
     RNP_DHEX("sesk ad: ", ad_data, 4);
-    pgp_cipher_aead_set_ad(crypt, ad_data, 4);
+    return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 
 static int
@@ -1412,7 +1416,10 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             }
 
             /* set additional data */
-            encrypted_sesk_set_ad(&crypt, skey);
+            if (!encrypted_sesk_set_ad(&crypt, skey)) {
+                RNP_LOG("failed to set ad");
+                continue;
+            }
 
             /* calculate nonce */
             noncelen = pgp_cipher_aead_nonce(skey->aalg, skey->iv, nonce, 0);

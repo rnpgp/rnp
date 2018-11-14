@@ -615,15 +615,7 @@ pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 void
 pgp_cipher_aead_reset(pgp_crypt_t *crypt)
 {
-    uint32_t flags = BOTAN_CIPHER_UPDATE_FLAG_FINAL;
-    uint8_t  tag[PGP_AEAD_EAX_OCB_TAG_LEN] = {0};
-    size_t   in = 0, out = 0;
-    size_t   len = crypt->aead.decrypt ? crypt->aead.taglen : 0;
-    size_t   dlen = crypt->aead.decrypt ? 0 : crypt->aead.taglen;
-
-    /* botan_cipher_clear will not work since it resets scheduled key as well
-       so we just finishing operation and ignoring the result */
-    botan_cipher_update(crypt->aead.obj, flags, tag, dlen, &out, tag, len, &in);
+    botan_cipher_reset(crypt->aead.obj);
 }
 
 bool
@@ -665,6 +657,7 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         }
     }
 
+    pgp_cipher_aead_reset(crypt);
     return true;
 }
 
