@@ -345,7 +345,10 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
         STORE64BE(param->ad + param->adlen, total);
         param->adlen += 8;
     }
-    pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen);
+    if (!pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen)) {
+        RNP_LOG("failed to set ad");
+        return RNP_ERROR_BAD_STATE;
+    }
 
     /* set chunk index for nonce */
     nlen = pgp_cipher_aead_nonce(param->aalg, param->iv, nonce, idx);
@@ -599,7 +602,7 @@ finish:
     return ret;
 }
 
-static void
+static bool
 encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
     uint8_t ad_data[4];
@@ -609,7 +612,7 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     ad_data[2] = skey->alg;
     ad_data[3] = skey->aalg;
 
-    pgp_cipher_aead_set_ad(crypt, ad_data, 4);
+    return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 
 static rnp_result_t
@@ -676,7 +679,9 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         }
 
         /* set additional data */
-        encrypted_sesk_set_ad(&kcrypt, &skey);
+        if (!encrypted_sesk_set_ad(&kcrypt, &skey)) {
+            return RNP_ERROR_BAD_STATE;
+        }
 
         /* calculate nonce */
         size_t nlen = pgp_cipher_aead_nonce(skey.aalg, skey.iv, nonce, 0);
