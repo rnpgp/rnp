@@ -372,27 +372,25 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 void
 rnp_key_store_clear(rnp_key_store_t *keyring)
 {
-    unsigned i;
-
     for (list_item *key = list_front(keyring->keys); key; key = list_next(key)) {
         pgp_key_free_data((pgp_key_t *) key);
     }
     list_destroy(&keyring->keys);
 
-    if (keyring->blobs != NULL) {
-        for (i = 0; i < keyring->blobc; i++) {
-            if (keyring->blobs[i]->type == KBX_PGP_BLOB) {
-                FREE_ARRAY(((kbx_pgp_blob_t *) (keyring->blobs[i])), key);
-                if (((kbx_pgp_blob_t *) (keyring->blobs[i]))->sn_size > 0) {
-                    free(((kbx_pgp_blob_t *) (keyring->blobs[i]))->sn);
-                }
-                FREE_ARRAY(((kbx_pgp_blob_t *) (keyring->blobs[i])), uid);
-                FREE_ARRAY(((kbx_pgp_blob_t *) (keyring->blobs[i])), sig);
+    for (list_item *item = list_front(keyring->blobs); item; item = list_next(item)) {
+        kbx_blob_t *blob = *((kbx_blob_t **) item);
+        if (blob->type == KBX_PGP_BLOB) {
+            kbx_pgp_blob_t *pgpblob = (kbx_pgp_blob_t *) blob;
+            list_destroy(&pgpblob->keys);
+            if (pgpblob->sn_size > 0) {
+                free(pgpblob->sn);
             }
-            free(keyring->blobs[i]);
+            list_destroy(&pgpblob->uids);
+            list_destroy(&pgpblob->sigs);
         }
-        keyring->blobc = 0;
+        free(blob);
     }
+    list_destroy(&keyring->blobs);
 }
 
 void
@@ -403,12 +401,8 @@ rnp_key_store_free(rnp_key_store_t *keyring)
     }
 
     rnp_key_store_clear(keyring);
-
-    FREE_ARRAY(keyring, blob);
-
     free((void *) keyring->path);
     free((void *) keyring->format_label);
-
     free(keyring);
 }
 
