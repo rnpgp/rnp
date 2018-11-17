@@ -2554,8 +2554,9 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (hash_alg == PGP_HASH_UNKNOWN) {
                     return false;
                 }
-                EXPAND_ARRAY(prefs, hash_alg);
-                prefs->hash_algs[prefs->hash_algc++] = hash_alg;
+                if (!pgp_user_prefs_add_hash_alg(prefs, hash_alg)) {
+                    return false;
+                }
             }
         } else if (!rnp_strcasecmp(key, "ciphers")) {
             int length = json_object_array_length(value);
@@ -2570,10 +2571,10 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (symm_alg == PGP_SA_UNKNOWN) {
                     return false;
                 }
-                EXPAND_ARRAY(prefs, symm_alg);
-                prefs->symm_algs[prefs->symm_algc++] = symm_alg;
+                if (!pgp_user_prefs_add_symm_alg(prefs, symm_alg)) {
+                    return false;
+                }
             }
-
         } else if (!rnp_strcasecmp(key, "compression")) {
             int length = json_object_array_length(value);
             for (int i = 0; i < length; i++) {
@@ -2581,14 +2582,15 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                 if (!json_object_is_type(item, json_type_string)) {
                     return false;
                 }
-                pgp_compression_type_t compression = PGP_C_UNKNOWN;
+                pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
                 ARRAY_LOOKUP_BY_STRCASE(
-                  compress_alg_map, string, type, json_object_get_string(item), compression);
-                if (compression == PGP_C_UNKNOWN) {
+                  compress_alg_map, string, type, json_object_get_string(item), z_alg);
+                if (z_alg == PGP_C_UNKNOWN) {
                     return false;
                 }
-                EXPAND_ARRAY(prefs, compress_alg);
-                prefs->compress_algs[prefs->compress_algc++] = compression;
+                if (!pgp_user_prefs_add_z_alg(prefs, z_alg)) {
+                    return false;
+                }
             }
         } else if (!rnp_strcasecmp(key, "key server")) {
             prefs->key_server = (uint8_t *) strdup(json_object_get_string(value));
@@ -3778,15 +3780,15 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
 {
     // TODO: instead of using a string "Unknown" as a fallback for these,
     // we could add a string of hex/dec (or even an int)
-    if (prefs->symm_algc) {
+    if (prefs->symm_alg_count) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "ciphers", jsoarr);
-        for (unsigned i = 0; i < prefs->symm_algc; i++) {
-            const char *         name = "Unknown";
-            const pgp_symm_alg_t alg = (pgp_symm_alg_t) prefs->symm_algs[i];
+        for (unsigned i = 0; i < prefs->symm_alg_count; i++) {
+            const char *   name = "Unknown";
+            pgp_symm_alg_t alg = (pgp_symm_alg_t) prefs->symm_algs[i];
             ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3794,15 +3796,15 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->hash_algc) {
+    if (prefs->hash_alg_count) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "hashes", jsoarr);
-        for (unsigned i = 0; i < prefs->hash_algc; i++) {
-            const char *         name = "Unknown";
-            const pgp_hash_alg_t alg = (pgp_hash_alg_t) prefs->hash_algs[i];
+        for (unsigned i = 0; i < prefs->hash_alg_count; i++) {
+            const char *   name = "Unknown";
+            pgp_hash_alg_t alg = (pgp_hash_alg_t) prefs->hash_algs[i];
             ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3810,16 +3812,15 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->compress_algc) {
+    if (prefs->z_alg_count) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "compression", jsoarr);
-        for (unsigned i = 0; i < prefs->compress_algc; i++) {
-            const char *                 name = "Unknown";
-            const pgp_compression_type_t alg =
-              (pgp_compression_type_t) prefs->compress_algs[i];
+        for (unsigned i = 0; i < prefs->z_alg_count; i++) {
+            const char *           name = "Unknown";
+            pgp_compression_type_t alg = (pgp_compression_type_t) prefs->z_algs[i];
             ARRAY_LOOKUP_BY_ID(compress_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3827,15 +3828,15 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->key_server_prefc) {
+    if (prefs->ks_pref_count) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "key server preferences", jsoarr);
-        for (unsigned i = 0; i < prefs->key_server_prefc; i++) {
-            const char *  name = "Unknown";
-            const uint8_t flag = prefs->key_server_prefs[i];
+        for (unsigned i = 0; i < prefs->ks_pref_count; i++) {
+            const char *           name = "Unknown";
+            pgp_key_server_prefs_t flag = (pgp_key_server_prefs_t) prefs->ks_prefs[i];
             ARRAY_LOOKUP_BY_ID(key_server_prefs_map, type, string, flag, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -3890,8 +3891,8 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     }
     // preferences
     const pgp_user_prefs_t *prefs = &subsig->prefs;
-    if (prefs->symm_algc || prefs->hash_algc || prefs->compress_algc ||
-        prefs->key_server_prefc || prefs->key_server) {
+    if (prefs->symm_alg_count || prefs->hash_alg_count || prefs->z_alg_count ||
+        prefs->ks_pref_count || prefs->key_server) {
         json_object *jsoprefs = json_object_new_object();
         if (!jsoprefs) {
             return RNP_ERROR_OUT_OF_MEMORY;
