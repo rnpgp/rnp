@@ -243,51 +243,31 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     size_t            count = 0;
     pgp_user_prefs_t *prefs = &subsig->prefs;
 
-    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count)) {
-        for (size_t i = 0; i < count; i++) {
-            EXPAND_ARRAY(prefs, symm_alg);
-            if (!prefs->symm_algs) {
-                RNP_LOG("Failed to expand symm array.");
-                return false;
-            }
-            prefs->symm_algs[i] = algs[i];
-            prefs->symm_algc++;
-        }
+    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_symm_algs(prefs, algs, count)) {
+        RNP_LOG("failed to alloc symm algs");
+        return false;
     }
-    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count)) {
-        for (size_t i = 0; i < count; i++) {
-            EXPAND_ARRAY(prefs, hash_alg);
-            if (!prefs->hash_algs) {
-                RNP_LOG("Failed to expand hash array.");
-                return false;
-            }
-            prefs->hash_algs[i] = algs[i];
-            prefs->hash_algc++;
-        }
+    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_hash_algs(prefs, algs, count)) {
+        RNP_LOG("failed to alloc hash algs");
+        return false;
     }
-    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count)) {
-        for (size_t i = 0; i < count; i++) {
-            EXPAND_ARRAY(prefs, compress_alg);
-            if (!prefs->compress_algs) {
-                RNP_LOG("Failed to expand z array.");
-                return false;
-            }
-            prefs->compress_algs[i] = algs[i];
-            prefs->compress_algc++;
-        }
+    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_z_algs(prefs, algs, count)) {
+        RNP_LOG("failed to alloc z algs");
+        return false;
     }
     if (signature_has_key_flags(&subsig->sig)) {
         subsig->key_flags = signature_get_key_flags(&subsig->sig);
         key->key_flags = subsig->key_flags;
     }
     if (signature_has_key_server_prefs(&subsig->sig)) {
-        EXPAND_ARRAY(prefs, key_server_pref);
-        if (!prefs->key_server_prefs) {
-            RNP_LOG("Failed to expand key serv prefs array.");
+        uint8_t ks_pref = signature_get_key_server_prefs(&subsig->sig);
+        if (!pgp_user_prefs_set_ks_prefs(prefs, &ks_pref, 1)) {
+            RNP_LOG("failed to alloc ks prefs");
             return false;
         }
-        subsig->prefs.key_server_prefs[0] = signature_get_key_server_prefs(&subsig->sig);
-        subsig->prefs.key_server_prefc++;
     }
     if (signature_has_key_server(&subsig->sig)) {
         subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
