@@ -90,26 +90,26 @@ test_load_user_prefs(void **state)
         // symm algs
         {
             static const uint8_t expected[] = {PGP_SA_AES_192, PGP_SA_CAST5};
-            assert_int_equal(prefs->symm_algc, ARRAY_SIZE(expected));
+            assert_int_equal(prefs->symm_alg_count, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->symm_algs, expected, sizeof(expected)));
         }
         // hash algs
         {
             static const uint8_t expected[] = {PGP_HASH_SHA1, PGP_HASH_SHA224};
-            assert_int_equal(prefs->hash_algc, ARRAY_SIZE(expected));
+            assert_int_equal(prefs->hash_alg_count, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->hash_algs, expected, sizeof(expected)));
         }
         // compression algs
         {
             static const uint8_t expected[] = {PGP_C_ZIP, PGP_C_NONE};
-            assert_int_equal(prefs->compress_algc, ARRAY_SIZE(expected));
-            assert_int_equal(0, memcmp(prefs->compress_algs, expected, sizeof(expected)));
+            assert_int_equal(prefs->z_alg_count, ARRAY_SIZE(expected));
+            assert_int_equal(0, memcmp(prefs->z_algs, expected, sizeof(expected)));
         }
         // key server prefs
         {
             static const uint8_t expected[] = {PGP_KEY_SERVER_NO_MODIFY};
-            assert_int_equal(prefs->key_server_prefc, ARRAY_SIZE(expected));
-            assert_int_equal(0, memcmp(prefs->key_server_prefs, expected, sizeof(expected)));
+            assert_int_equal(prefs->ks_pref_count, ARRAY_SIZE(expected));
+            assert_int_equal(0, memcmp(prefs->ks_prefs, expected, sizeof(expected)));
         }
         // preferred key server
         {
@@ -141,7 +141,7 @@ test_load_user_prefs(void **state)
                                                PGP_SA_CAST5,
                                                PGP_SA_TRIPLEDES,
                                                PGP_SA_IDEA};
-            assert_int_equal(prefs->symm_algc, ARRAY_SIZE(expected));
+            assert_int_equal(prefs->symm_alg_count, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->symm_algs, expected, sizeof(expected)));
         }
         // hash algs
@@ -151,20 +151,20 @@ test_load_user_prefs(void **state)
                                                PGP_HASH_SHA384,
                                                PGP_HASH_SHA512,
                                                PGP_HASH_SHA224};
-            assert_int_equal(prefs->hash_algc, ARRAY_SIZE(expected));
+            assert_int_equal(prefs->hash_alg_count, ARRAY_SIZE(expected));
             assert_int_equal(0, memcmp(prefs->hash_algs, expected, sizeof(expected)));
         }
         // compression algs
         {
             static const uint8_t expected[] = {PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP};
-            assert_int_equal(prefs->compress_algc, ARRAY_SIZE(expected));
-            assert_int_equal(0, memcmp(prefs->compress_algs, expected, sizeof(expected)));
+            assert_int_equal(prefs->z_alg_count, ARRAY_SIZE(expected));
+            assert_int_equal(0, memcmp(prefs->z_algs, expected, sizeof(expected)));
         }
         // key server prefs
         {
             static const uint8_t expected[] = {PGP_KEY_SERVER_NO_MODIFY};
-            assert_int_equal(prefs->key_server_prefc, ARRAY_SIZE(expected));
-            assert_int_equal(0, memcmp(prefs->key_server_prefs, expected, sizeof(expected)));
+            assert_int_equal(prefs->ks_pref_count, ARRAY_SIZE(expected));
+            assert_int_equal(0, memcmp(prefs->ks_prefs, expected, sizeof(expected)));
         }
         // preferred key server
         {
