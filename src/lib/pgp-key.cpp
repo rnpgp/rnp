@@ -69,18 +69,96 @@
 #include <assert.h>
 #include "defaults.h"
 
+static bool
+pgp_user_prefs_set_arr(uint8_t **arr, size_t *arrlen, const uint8_t *val, size_t len)
+{
+    uint8_t *newarr = (uint8_t *) malloc(len);
+
+    if (len && !newarr) {
+        return false;
+    }
+
+    free(*arr);
+    memcpy(newarr, val, len);
+    *arrlen = len;
+    *arr = newarr;
+    return true;
+}
+
+static bool
+pgp_user_prefs_add_val(uint8_t **arr, size_t *arrlen, uint8_t val)
+{
+    uint8_t *newarr = (uint8_t *) realloc(*arr, *arrlen + 1);
+
+    if (!newarr) {
+        return false;
+    }
+
+    newarr[*arrlen++] = val;
+    *arr = newarr;
+    return true;
+}
+
+bool
+pgp_user_prefs_set_symm_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len)
+{
+    return pgp_user_prefs_set_arr(&prefs->symm_algs, &prefs->symm_alg_count, algs, len);
+}
+
+bool
+pgp_user_prefs_set_hash_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len)
+{
+    return pgp_user_prefs_set_arr(&prefs->hash_algs, &prefs->hash_alg_count, algs, len);
+}
+
+bool
+pgp_user_prefs_set_z_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len)
+{
+    return pgp_user_prefs_set_arr(&prefs->z_algs, &prefs->z_alg_count, algs, len);
+}
+
+bool
+pgp_user_prefs_set_ks_prefs(pgp_user_prefs_t *prefs, const uint8_t *vals, size_t len)
+{
+    return pgp_user_prefs_set_arr(&prefs->ks_prefs, &prefs->ks_pref_count, vals, len);
+}
+
+bool
+pgp_user_prefs_add_symm_alg(pgp_user_prefs_t *prefs, pgp_symm_alg_t alg)
+{
+    return pgp_user_prefs_add_val(&prefs->symm_algs, &prefs->symm_alg_count, alg);
+}
+
+bool
+pgp_user_prefs_add_hash_alg(pgp_user_prefs_t *prefs, pgp_hash_alg_t alg)
+{
+    return pgp_user_prefs_add_val(&prefs->hash_algs, &prefs->hash_alg_count, alg);
+}
+
+bool
+pgp_user_prefs_add_z_alg(pgp_user_prefs_t *prefs, pgp_compression_type_t alg)
+{
+    return pgp_user_prefs_add_val(&prefs->z_algs, &prefs->z_alg_count, alg);
+}
+
+bool
+pgp_user_prefs_add_ks_pref(pgp_user_prefs_t *prefs, pgp_key_server_prefs_t val)
+{
+    return pgp_user_prefs_add_val(&prefs->ks_prefs, &prefs->ks_pref_count, val);
+}
+
 void
 pgp_free_user_prefs(pgp_user_prefs_t *prefs)
 {
     if (!prefs) {
         return;
     }
-    FREE_ARRAY(prefs, symm_alg);
-    FREE_ARRAY(prefs, hash_alg);
-    FREE_ARRAY(prefs, compress_alg);
-    FREE_ARRAY(prefs, key_server_pref);
+    free(prefs->symm_algs);
+    free(prefs->hash_algs);
+    free(prefs->z_algs);
+    free(prefs->ks_prefs);
     free(prefs->key_server);
-    prefs->key_server = NULL;
+    memset(prefs, 0, sizeof(*prefs));
 }
 
 static void
@@ -244,7 +322,7 @@ pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 static rnp_result_t
 pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     if (pubonly) {
         RNP_LOG("attempt to copy public part from g10 key");
@@ -320,40 +398,23 @@ pgp_userprefs_copy(pgp_user_prefs_t *dst, const pgp_user_prefs_t *src)
     rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
 
     memset(dst, 0, sizeof(*dst));
-    if (src->symm_algc) {
-        EXPAND_ARRAY_EX(dst, symm_alg, src->symm_algc);
-        if (!dst->symm_algs) {
-            return ret;
-        }
-        memcpy(dst->symm_algs, src->symm_algs, src->symm_algc);
-        dst->symm_algc = src->symm_algc;
+    if (src->symm_alg_count &&
+        !pgp_user_prefs_set_symm_algs(dst, src->symm_algs, src->symm_alg_count)) {
+        return ret;
     }
 
-    if (src->hash_algc) {
-        EXPAND_ARRAY_EX(dst, hash_alg, src->hash_algc);
-        if (!dst->hash_algs) {
-            goto error;
-        }
-        memcpy(dst->hash_algs, src->hash_algs, src->hash_algc);
-        dst->hash_algc = src->hash_algc;
+    if (src->hash_alg_count &&
+        !pgp_user_prefs_set_hash_algs(dst, src->hash_algs, src->hash_alg_count)) {
+        goto error;
     }
 
-    if (src->compress_algc) {
-        EXPAND_ARRAY_EX(dst, compress_alg, src->compress_algc);
-        if (!dst->compress_algs) {
-            goto error;
-        }
-        memcpy(dst->compress_algs, src->compress_algs, src->compress_algc);
-        dst->compress_algc = src->compress_algc;
+    if (src->z_alg_count && !pgp_user_prefs_set_z_algs(dst, src->z_algs, src->z_alg_count)) {
+        goto error;
     }
 
-    if (src->key_server_prefc) {
-        EXPAND_ARRAY_EX(dst, key_server_pref, src->key_server_prefc);
-        if (!dst->key_server_prefs) {
-            goto error;
-        }
-        memcpy(dst->key_server_prefs, src->key_server_prefs, src->key_server_prefc);
-        dst->key_server_prefc = src->key_server_prefc;
+    if (src->ks_pref_count &&
+        !pgp_user_prefs_set_ks_prefs(dst, src->ks_prefs, src->ks_pref_count)) {
+        goto error;
     }
 
     if (src->key_server) {

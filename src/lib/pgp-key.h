@@ -130,6 +130,22 @@ rnp_result_t pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src);
 
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 
+bool pgp_user_prefs_set_symm_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
+
+bool pgp_user_prefs_add_symm_alg(pgp_user_prefs_t *prefs, pgp_symm_alg_t alg);
+
+bool pgp_user_prefs_set_hash_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
+
+bool pgp_user_prefs_add_hash_alg(pgp_user_prefs_t *prefs, pgp_hash_alg_t alg);
+
+bool pgp_user_prefs_set_z_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
+
+bool pgp_user_prefs_add_z_alg(pgp_user_prefs_t *prefs, pgp_compression_type_t alg);
+
+bool pgp_user_prefs_set_ks_prefs(pgp_user_prefs_t *prefs, const uint8_t *vals, size_t len);
+
+bool pgp_user_prefs_add_ks_pref(pgp_user_prefs_t *prefs, pgp_key_server_prefs_t val);
+
 const pgp_key_pkt_t *pgp_get_key_pkt(const pgp_key_t *);
 
 const pgp_key_material_t *pgp_get_key_material(const pgp_key_t *key);
