@@ -64,7 +64,7 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    DYNARRAY(uint8_t *, uid);          /* array of user ids */
+    list uids;                         /* array of user ids */
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signatures */
     DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
@@ -183,9 +183,13 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
 
 const unsigned char *pgp_get_key_id(const pgp_key_t *);
 
-unsigned pgp_get_userid_count(const pgp_key_t *);
+size_t pgp_get_userid_count(const pgp_key_t *);
 
-const unsigned char *pgp_get_userid(const pgp_key_t *, unsigned);
+const char *pgp_get_userid(const pgp_key_t *, size_t);
+
+const char *pgp_get_primary_userid(const pgp_key_t *);
+
+bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
 unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
 

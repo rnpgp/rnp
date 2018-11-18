@@ -210,6 +210,8 @@ static bool
 rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
 {
     pgp_subsig_t *subsig = NULL;
+    uint8_t *     algs = NULL;
+    size_t        count = 0;
 
     EXPAND_ARRAY(key, subsig);
     if (key->subsigs == NULL) {
@@ -223,7 +225,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     }
 
     subsig = &key->subsigs[key->subsigc++];
-    subsig->uid = key->uidc - 1;
+    subsig->uid = pgp_get_userid_count(key) - 1;
     if (!copy_signature_packet(&subsig->sig, sig)) {
         return false;
     }
@@ -235,26 +237,22 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
     }
     if (signature_get_primary_uid(&subsig->sig)) {
-        key->uid0 = key->uidc - 1;
+        key->uid0 = pgp_get_userid_count(key) - 1;
         key->uid0_set = 1;
     }
 
-    uint8_t *         algs = NULL;
-    size_t            count = 0;
-    pgp_user_prefs_t *prefs = &subsig->prefs;
-
     if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_symm_algs(prefs, algs, count)) {
+        !pgp_user_prefs_set_symm_algs(&subsig->prefs, algs, count)) {
         RNP_LOG("failed to alloc symm algs");
         return false;
     }
     if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_hash_algs(prefs, algs, count)) {
+        !pgp_user_prefs_set_hash_algs(&subsig->prefs, algs, count)) {
         RNP_LOG("failed to alloc hash algs");
         return false;
     }
     if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_z_algs(prefs, algs, count)) {
+        !pgp_user_prefs_set_z_algs(&subsig->prefs, algs, count)) {
         RNP_LOG("failed to alloc z algs");
         return false;
     }
@@ -264,7 +262,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     }
     if (signature_has_key_server_prefs(&subsig->sig)) {
         uint8_t ks_pref = signature_get_key_server_prefs(&subsig->sig);
-        if (!pgp_user_prefs_set_ks_prefs(prefs, &ks_pref, 1)) {
+        if (!pgp_user_prefs_set_ks_prefs(&subsig->prefs, &ks_pref, 1)) {
             RNP_LOG("failed to alloc ks prefs");
             return false;
         }
@@ -275,7 +273,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     if (signature_has_revocation_reason(&subsig->sig)) {
         /* not sure whether this logic is correct - we should check signature type? */
         pgp_revoke_t *revocation = NULL;
-        if (key->uidc == 0) {
+        if (!pgp_get_userid_count(key)) {
             /* revoke whole key */
             key->revoked = 1;
             revocation = &key->revocation;
@@ -287,7 +285,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
                 return false;
             }
             revocation = &key->revokes[key->revokec];
-            key->revokes[key->revokec].uid = key->uidc - 1;
+            key->revokes[key->revokec].uid = pgp_get_userid_count(key) - 1;
             key->revokec += 1;
         }
         signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);

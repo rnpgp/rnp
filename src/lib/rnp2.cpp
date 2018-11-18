@@ -3154,15 +3154,16 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
     if (!key || !uid) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (idx >= key->uidc || DYNARRAY_IS_EMPTY(key, uid)) {
+    if (idx >= pgp_get_userid_count(key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    size_t len = strlen((const char *) key->uids[idx]);
+    const char *keyuid = pgp_get_userid(key, idx);
+    size_t      len = strlen(keyuid);
     *uid = (char *) calloc(1, len + 1);
     if (!*uid) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    memcpy(*uid, key->uids[idx], len);
+    memcpy(*uid, keyuid, len);
     return RNP_SUCCESS;
 }
 
@@ -3248,11 +3249,12 @@ rnp_key_get_primary_uid(rnp_key_handle_t handle, char **uid)
 rnp_result_t
 rnp_key_get_uid_count(rnp_key_handle_t handle, size_t *count)
 {
-    if (handle == NULL || count == NULL)
+    if (handle == NULL || count == NULL) {
         return RNP_ERROR_NULL_POINTER;
+    }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    *count = key->uidc;
+    *count = pgp_get_userid_count(key);
     return RNP_SUCCESS;
 }
 
@@ -4193,8 +4195,8 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "userids", jsouids_arr);
-        for (unsigned i = 0; i < key->uidc; i++) {
-            json_object *jsouid = json_object_new_string((const char *) key->uids[i]);
+        for (unsigned i = 0; i < pgp_get_userid_count(key); i++) {
+            json_object *jsouid = json_object_new_string(pgp_get_userid(key, i));
             if (!jsouid || json_object_array_add(jsouids_arr, jsouid)) {
                 json_object_put(jsouid);
                 return RNP_ERROR_OUT_OF_MEMORY;
@@ -4290,7 +4292,7 @@ key_iter_next_item(rnp_identifier_iterator_t it)
     case PGP_KEY_SEARCH_USERID:
         it->uididx++;
         if (it->keyp) {
-            while (it->uididx >= it->keyp->uidc) {
+            while (it->uididx >= pgp_get_userid_count(it->keyp)) {
                 if (!key_iter_next_key(it)) {
                     return false;
                 }
@@ -4333,7 +4335,7 @@ key_iter_first_item(rnp_identifier_iterator_t it)
         if (!key_iter_first_key(it)) {
             return false;
         }
-        while (it->uididx >= it->keyp->uidc) {
+        while (it->uididx >= pgp_get_userid_count(it->keyp)) {
             if (!key_iter_next_key(it)) {
                 it->store = NULL;
                 return false;
@@ -4373,7 +4375,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_USERID: {
-        const char *userid = (const char *) key->uids[it->uididx];
+        const char *userid = pgp_get_userid(key, it->uididx);
         if (strlen(userid) >= buf_len) {
             return false;
         }
