@@ -840,7 +840,7 @@ test_generated_key_sigs(void **state)
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
 
         // validate the userid self-sig
-        uid.uid = pub.uids[0];
+        uid.uid = (uint8_t *) pgp_get_userid(&pub, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
           &pub.subsigs[0].sig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub)));
@@ -859,7 +859,7 @@ test_generated_key_sigs(void **state)
         assert_true(subpkt->hashed);
         assert_true(subpkt->fields.create <= time(NULL));
 
-        uid.uid = sec.uids[0];
+        uid.uid = (uint8_t *) pgp_get_userid(&sec, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
           &sec.subsigs[0].sig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec)));
@@ -870,11 +870,11 @@ test_generated_key_sigs(void **state)
         pub.subsigs[0].sig.hashed_data[32] ^= 0xff;
         sec.subsigs[0].sig.hashed_data[32] ^= 0xff;
         // ensure validation fails
-        uid.uid = pub.uids[0];
+        uid.uid = (uint8_t *) pgp_get_userid(&pub, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_failure(signature_validate_certification(
           &pub.subsigs[0].sig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub)));
-        uid.uid = sec.uids[0];
+        uid.uid = (uint8_t *) pgp_get_userid(&sec, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_failure(signature_validate_certification(
           &sec.subsigs[0].sig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec)));

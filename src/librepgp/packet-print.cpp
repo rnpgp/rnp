@@ -230,7 +230,7 @@ format_pubkey_expiration_notice(char *buffer, const pgp_key_t *key, time_t time,
 }
 
 static int
-format_uid_line(char *buffer, uint8_t *uid, size_t size, int flags)
+format_uid_line(char *buffer, const char *uid, size_t size, int flags)
 {
     return snprintf(buffer,
                     size,
@@ -259,7 +259,8 @@ format_sig_line(char *                 buffer,
                     "sig        %s  %s  %s\n",
                     rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
                     time,
-                    trustkey != NULL ? (char *) trustkey->uids[trustkey->uid0] : "[unknown]");
+                    trustkey != NULL ? (char *) pgp_get_primary_userid(trustkey) :
+                                       "[unknown]");
 }
 
 static int
@@ -302,7 +303,7 @@ format_uid_notice(char *                 buffer,
     if (isrevoked(key, uid) >= 0)
         flags |= F_REVOKED;
 
-    n += format_uid_line(buffer, key->uids[uid], size, flags);
+    n += format_uid_line(buffer, pgp_get_userid(key, uid), size, flags);
 
     for (unsigned i = 0; i < key->subsigc; i++) {
         pgp_subsig_t *   subsig = &key->subsigs[i];
@@ -319,7 +320,7 @@ format_uid_notice(char *                 buffer,
 
             /* TODO: I'm also unsure about this one. */
         } else if (!(subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY &&
-                     uid == key->uidc - 1)) {
+                     uid == pgp_get_userid_count(key) - 1)) {
             continue;
         }
 
@@ -428,7 +429,7 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
     /* TODO: Perhaps this should index key->uids instead of using the
      *       iterator index.
      */
-    for (i = 0; i < key->uidc; i++) {
+    for (i = 0; i < pgp_get_userid_count(key); i++) {
         int flags = 0;
 
         if (iscompromised(key, i)) {
@@ -530,7 +531,7 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
 
     // iterating through the uids
     json_object *uid_arr = json_object_new_array();
-    for (i = 0; i < key->uidc; i++) {
+    for (i = 0; i < pgp_get_userid_count(key); i++) {
         if ((r = isrevoked(key, i)) >= 0 &&
             key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
             continue;
@@ -539,7 +540,7 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
         // indicate it as well)
         json_object *uidobj = json_object_new_object();
         json_object_object_add(
-          uidobj, "user id", json_object_new_string((char *) key->uids[i]));
+          uidobj, "user id", json_object_new_string((char *) pgp_get_userid(key, i)));
         json_object_object_add(
           uidobj, "revoked", json_object_new_boolean((r >= 0) ? TRUE : FALSE));
         for (j = 0; j < key->subsigc; j++) {
@@ -549,7 +550,8 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
                 }
             } else {
                 if (!(key->subsigs[j].sig.version == 4 &&
-                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY &&
+                      i == pgp_get_userid_count(key) - 1)) {
                     continue;
                 }
             }
@@ -570,7 +572,7 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
             json_object_object_add(
               subsigc,
               "user id",
-              json_object_new_string((trustkey) ? (char *) trustkey->uids[trustkey->uid0] :
+              json_object_new_string((trustkey) ? (char *) pgp_get_primary_userid(trustkey) :
                                                   "[unknown]"));
             json_object_object_add(uidobj, "signature", subsigc);
         }
@@ -599,13 +601,13 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
     if (key->revoked) {
         return -1;
     }
-    for (i = 0, n = 0; i < key->uidc; i++) {
+    for (i = 0, n = 0; i < pgp_get_userid_count(key); i++) {
         n += snprintf(&uidbuf[n],
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
                       (long long) pgp_get_key_pkt(key)->creation_time,
                       (long long) key->expiration,
-                      key->uids[i]);
+                      pgp_get_userid(key, i));
         for (j = 0; j < key->subsigc; j++) {
             if (psigs) {
                 if (key->subsigs[j].uid != i) {
@@ -613,7 +615,8 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
                 }
             } else {
                 if (!(key->subsigs[j].sig.version == 4 &&
-                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY && i == key->uidc - 1)) {
+                      key->subsigs[j].sig.type == PGP_SIG_SUBKEY &&
+                      i == pgp_get_userid_count(key) - 1)) {
                     continue;
                 }
             }
@@ -636,7 +639,7 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
                               "sig:%s:%lld:%s\n",
                               rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
                               (long long) signature_get_creation(&key->subsigs[j].sig),
-                              (trustkey) ? (char *) trustkey->uids[trustkey->uid0] : "");
+                              (trustkey) ? (char *) pgp_get_primary_userid(trustkey) : "");
             }
         }
     }
@@ -692,7 +695,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
                   outsize,
                   "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
                   rnp_strhexdump(fp, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-                  key->uids[key->uid0],
+                  pgp_get_primary_userid(key),
                   (long long) pkt->creation_time,
                   (long long) pkt->v3_days,
                   pkt->version,
