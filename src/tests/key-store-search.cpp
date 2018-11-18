@@ -126,8 +126,8 @@ test_key_store_search(void **state)
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
-                for (unsigned j = 0; j < key->uidc; j++) {
-                    if (!strcmp((char *) key->uids[j], userid)) {
+                for (unsigned j = 0; j < pgp_get_userid_count(key); j++) {
+                    if (!strcmp(pgp_get_userid(key, j), userid)) {
                         found = true;
                     }
                 }

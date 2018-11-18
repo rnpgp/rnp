@@ -207,16 +207,6 @@ pgp_rawpacket_free(pgp_rawpacket_t *packet)
     packet->raw = NULL;
 }
 
-static void
-pgp_userid_free(uint8_t **id)
-{
-    if (!id) {
-        return;
-    }
-    free(*id);
-    *id = NULL;
-}
-
 bool
 pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag)
 {
@@ -244,12 +234,10 @@ pgp_key_free_data(pgp_key_t *key)
     }
 
     if (key->uids != NULL) {
-        for (n = 0; n < key->uidc; ++n) {
-            pgp_userid_free(&key->uids[n]);
+        for (n = 0; n < pgp_get_userid_count(key); ++n) {
+            free((void *) pgp_get_userid(key, n));
         }
-        free(key->uids);
-        key->uids = NULL;
-        key->uidc = 0;
+        list_destroy(&key->uids);
     }
 
     if (key->packets != NULL) {
@@ -473,19 +461,9 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     rnp_result_t tmpret;
 
     /* uids */
-    if (src->uidc) {
-        EXPAND_ARRAY_EX(dst, uid, src->uidc);
-        if (!dst->uids) {
+    for (size_t i = 0; i < pgp_get_userid_count(src); i++) {
+        if (!pgp_add_userid(dst, (const uint8_t *) pgp_get_userid(src, i))) {
             goto error;
-        }
-        for (size_t i = 0; i < src->uidc; i++) {
-            size_t len = strlen((char *) src->uids[i]) + 1;
-            dst->uids[i] = (uint8_t *) malloc(len);
-            if (!dst->uids[i]) {
-                goto error;
-            }
-            memcpy(dst->uids[i], src->uids[i], len);
-            dst->uidc++;
         }
     }
 
@@ -815,10 +793,10 @@ pgp_get_key_id(const pgp_key_t *key)
 \param key Key to check
 \return Num of user ids
 */
-unsigned
+size_t
 pgp_get_userid_count(const pgp_key_t *key)
 {
-    return key->uidc;
+    return list_length(key->uids);
 }
 
 /**
@@ -828,10 +806,35 @@ pgp_get_userid_count(const pgp_key_t *key)
 \param index Which key to get
 \return Pointer to requested user id
 */
-const uint8_t *
-pgp_get_userid(const pgp_key_t *key, unsigned subscript)
+const char *
+pgp_get_userid(const pgp_key_t *key, size_t idx)
 {
-    return key->uids[subscript];
+    list_item *uid = list_at(key->uids, idx);
+    return uid ? *((char **) uid) : NULL;
+}
+
+const char *
+pgp_get_primary_userid(const pgp_key_t *key)
+{
+    if (key->uid0_set) {
+        return pgp_get_userid(key, key->uid0);
+    }
+    if (list_length(key->uids)) {
+        return pgp_get_userid(key, 0);
+    }
+    return NULL;
+}
+
+bool
+pgp_key_has_userid(const pgp_key_t *key, const char *uid)
+{
+    for (list_item *li = list_front(key->uids); li; li = list_next(li)) {
+        if (!strcmp(uid, *((char **) li))) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /* \todo check where userid pointers are copied */
@@ -870,17 +873,12 @@ copy_userid(uint8_t **dst, const uint8_t *src)
 uint8_t *
 pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
 {
-    uint8_t **uidp;
-
-    EXPAND_ARRAY(key, uid);
-    if (key->uids == NULL) {
+    list_item *uidp = list_append(&key->uids, NULL, sizeof(userid));
+    if (!(uidp)) {
         return NULL;
     }
-    /* initialise new entry in array */
-    uidp = &key->uids[key->uidc++];
-    *uidp = NULL;
     /* now copy it */
-    return copy_userid(uidp, userid);
+    return copy_userid((uint8_t **) uidp, userid);
 }
 
 char *
@@ -1228,17 +1226,6 @@ pgp_key_is_protected(const pgp_key_t *key)
     return key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
 }
 
-static bool
-key_has_userid(const pgp_key_t *key, const uint8_t *userid)
-{
-    for (unsigned i = 0; i < key->uidc; i++) {
-        if (strcmp((char *) key->uids[i], (char *) userid) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 bool
 pgp_key_add_userid(pgp_key_t *              key,
                    const pgp_key_pkt_t *    seckey,
@@ -1259,7 +1246,7 @@ pgp_key_add_userid(pgp_key_t *              key,
         goto done;
     }
     // see if the key already has this userid
-    if (key_has_userid(key, cert->userid)) {
+    if (pgp_key_has_userid(key, (const char *) cert->userid)) {
         RNP_LOG("key already has this userid");
         goto done;
     }
