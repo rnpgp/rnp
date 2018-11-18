@@ -531,7 +531,7 @@ test_load_merge(void **state)
     assert_int_equal(list_length(key_store->keys), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_false(key->valid);
-    assert_int_equal(key->uidc, 1);
+    assert_int_equal(pgp_get_userid_count(key), 1);
     assert_int_equal(key->packetc, 2);
     assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
@@ -544,7 +544,7 @@ test_load_merge(void **state)
     assert_int_equal(list_length(key_store->keys), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
-    assert_int_equal(key->uidc, 1);
+    assert_int_equal(pgp_get_userid_count(key), 1);
     assert_int_equal(key->packetc, 3);
     assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
@@ -560,7 +560,7 @@ test_load_merge(void **state)
     assert_int_equal(list_length(key_store->keys), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(key->packetc, 5);
     assert_int_equal(key->packets[0].tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_int_equal(key->packets[1].tag, PGP_PTAG_CT_USER_ID);
@@ -579,7 +579,7 @@ test_load_merge(void **state)
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(key->valid);
     assert_false(skey1->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(list_length(key->subkey_grips), 1);
     assert_false(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_int_equal(key->packetc, 5);
@@ -588,7 +588,7 @@ test_load_merge(void **state)
     assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey1), 0);
     assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey1->packetc, 1);
     assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
@@ -604,7 +604,7 @@ test_load_merge(void **state)
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(key->valid);
     assert_true(skey1->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(list_length(key->subkey_grips), 1);
     assert_false(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_int_equal(key->packetc, 5);
@@ -613,7 +613,7 @@ test_load_merge(void **state)
     assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey1), 0);
     assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey1->packetc, 2);
     assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
@@ -632,7 +632,7 @@ test_load_merge(void **state)
     assert_true(key->valid);
     assert_true(skey1->valid);
     assert_true(skey2->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(list_length(key->subkey_grips), 2);
     assert_false(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(list_back(key->subkey_grips), skey2->grip, PGP_FINGERPRINT_SIZE));
@@ -642,12 +642,12 @@ test_load_merge(void **state)
     assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey1), 0);
     assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey1->packetc, 2);
     assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
     assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey2), 0);
     assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey2->packetc, 2);
     assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
@@ -666,7 +666,7 @@ test_load_merge(void **state)
     assert_true(key->valid);
     assert_true(skey1->valid);
     assert_true(skey2->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(list_length(key->subkey_grips), 2);
     assert_false(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(list_back(key->subkey_grips), skey2->grip, PGP_FINGERPRINT_SIZE));
@@ -676,12 +676,12 @@ test_load_merge(void **state)
     assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey1), 0);
     assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey1->packetc, 2);
     assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
     assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey2), 0);
     assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey2->packetc, 2);
     assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
@@ -705,7 +705,7 @@ test_load_merge(void **state)
     assert_true(key->valid);
     assert_true(skey1->valid);
     assert_true(skey2->valid);
-    assert_int_equal(key->uidc, 2);
+    assert_int_equal(pgp_get_userid_count(key), 2);
     assert_int_equal(list_length(key->subkey_grips), 2);
     assert_false(memcmp(list_front(key->subkey_grips), skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(list_back(key->subkey_grips), skey2->grip, PGP_FINGERPRINT_SIZE));
@@ -715,12 +715,12 @@ test_load_merge(void **state)
     assert_int_equal(key->packets[2].tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(key->packets[3].tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(key->packets[4].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey1->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey1), 0);
     assert_int_equal(memcmp(key->grip, skey1->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey1->packetc, 2);
     assert_int_equal(skey1->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
     assert_int_equal(skey1->packets[1].tag, PGP_PTAG_CT_SIGNATURE);
-    assert_int_equal(skey2->uidc, 0);
+    assert_int_equal(pgp_get_userid_count(skey2), 0);
     assert_int_equal(memcmp(key->grip, skey2->primary_grip, PGP_FINGERPRINT_SIZE), 0);
     assert_int_equal(skey2->packetc, 2);
     assert_int_equal(skey2->packets[0].tag, PGP_PTAG_CT_SECRET_SUBKEY);
