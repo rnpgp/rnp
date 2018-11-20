@@ -40,6 +40,12 @@ validate_int_list(list l, const int *expected, size_t count)
 
     // check length
     assert_int_equal(list_length(l), count);
+    // check list_at
+    for (size_t i = 0; i < count; i++) {
+        int *value = (int *) list_at(l, i);
+        assert_int_equal(*value, expected[i]);
+    }
+    // iterate through list
     size_t length = 0;
     while (item) {
         int *value = (int *) item;
@@ -219,6 +225,12 @@ test_utils_list(void **state)
         }
         list_destroy(&list2);
     }
+
+    // list_at edge cases
+    assert_null(list_at(NULL, 0));
+    assert_null(list_at(NULL, 1));
+    assert_null(list_at(l, 0xffffff));
+    assert_null(list_at(l, list_length(l)));
 
     // remove all
     {
