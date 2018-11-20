@@ -4210,15 +4210,15 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "signatures", jsosigs_arr);
-        for (unsigned i = 0; i < key->subsigc; i++) {
+        for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
             json_object *jsosig = json_object_new_object();
             if (!jsosig || json_object_array_add(jsosigs_arr, jsosig)) {
                 json_object_put(jsosig);
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
             rnp_result_t tmpret;
-            if ((tmpret =
-                   add_json_subsig(jsosig, pgp_key_is_subkey(key), flags, &key->subsigs[i]))) {
+            if ((tmpret = add_json_subsig(
+                   jsosig, pgp_key_is_subkey(key), flags, pgp_key_get_subsig(key, i)))) {
                 return tmpret;
             }
         }
