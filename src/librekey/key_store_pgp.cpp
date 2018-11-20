@@ -213,9 +213,8 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     uint8_t *     algs = NULL;
     size_t        count = 0;
 
-    EXPAND_ARRAY(key, subsig);
-    if (key->subsigs == NULL) {
-        RNP_LOG("Failed to expand signature array.");
+    if (!(subsig = pgp_key_add_subsig(key))) {
+        RNP_LOG("Failed to add subsig");
         return false;
     }
 
@@ -224,7 +223,6 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         return false;
     }
 
-    subsig = &key->subsigs[key->subsigc++];
     subsig->uid = pgp_get_userid_count(key) - 1;
     if (!copy_signature_packet(&subsig->sig, sig)) {
         return false;

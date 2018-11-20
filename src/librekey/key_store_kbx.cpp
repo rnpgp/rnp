@@ -570,12 +570,12 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_memo
 
     // TODO: add subkey subsigc too, or leave this field zero
     // since it seems to be deprecated in GnuPG
-    if (!pu16(m, key->subsigc) || !pu16(m, 4)) {
+    if (!pu16(m, pgp_key_get_subsig_count(key)) || !pu16(m, 4)) {
         return false;
     }
 
-    for (i = 0; i < key->subsigc; i++) {
-        if (!pu32(m, signature_get_key_expiration(&key->subsigs[i].sig))) {
+    for (i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        if (!pu32(m, signature_get_key_expiration(&pgp_key_get_subsig(key, i)->sig))) {
             return false;
         }
     }

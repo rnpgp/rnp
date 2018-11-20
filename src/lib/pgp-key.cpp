@@ -247,14 +247,10 @@ pgp_key_free_data(pgp_key_t *key)
         key->packetc = 0;
     }
 
-    if (key->subsigs) {
-        for (n = 0; n < key->subsigc; ++n) {
-            subsig_free(&key->subsigs[n]);
-        }
-        free(key->subsigs);
-        key->subsigs = NULL;
-        key->subsigc = 0;
+    for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
+        subsig_free(pgp_key_get_subsig(key, n));
     }
+    list_destroy(&key->subsigs);
 
     list_destroy(&key->revokes);
     revoke_free(&key->revocation);
@@ -456,18 +452,14 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* signatures */
-    if (src->subsigs) {
-        EXPAND_ARRAY_EX(dst, subsig, src->subsigc);
-        if (!dst->subsigs) {
+    for (size_t i = 0; i < pgp_key_get_subsig_count(src); i++) {
+        pgp_subsig_t *subsig = pgp_key_add_subsig(dst);
+        if (!subsig) {
             goto error;
         }
-        for (size_t i = 0; i < src->subsigc; i++) {
-            tmpret = pgp_subsig_copy(&dst->subsigs[i], &src->subsigs[i]);
-            if (tmpret) {
-                ret = tmpret;
-                goto error;
-            }
-            dst->subsigc++;
+        if ((tmpret = pgp_subsig_copy(subsig, pgp_key_get_subsig(src, i)))) {
+            ret = tmpret;
+            goto error;
         }
     }
 
@@ -880,7 +872,25 @@ pgp_key_get_revoke_count(const pgp_key_t *key)
 pgp_revoke_t *
 pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
 {
-    return (pgp_revoke_t*) list_at(key->revokes, idx);
+    return (pgp_revoke_t *) list_at(key->revokes, idx);
+}
+
+pgp_subsig_t *
+pgp_key_add_subsig(pgp_key_t *key)
+{
+    return (pgp_subsig_t *) list_append(&key->subsigs, NULL, sizeof(pgp_subsig_t));
+}
+
+size_t
+pgp_key_get_subsig_count(const pgp_key_t *key)
+{
+    return list_length(key->subsigs);
+}
+
+pgp_subsig_t *
+pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
+{
+    return (pgp_subsig_t *) list_at(key->subsigs, idx);
 }
 
 char *
@@ -1339,9 +1349,8 @@ static const pgp_signature_t *
 get_subkey_binding(const pgp_key_t *subkey)
 {
     // find the subkey binding signature
-    for (unsigned i = 0; i < subkey->subsigc; i++) {
-        const pgp_signature_t *sig = &subkey->subsigs[i].sig;
-
+    for (size_t i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
+        const pgp_signature_t *sig = &pgp_key_get_subsig(subkey, i)->sig;
         if (sig->type == PGP_SIG_SUBKEY) {
             return sig;
         }
