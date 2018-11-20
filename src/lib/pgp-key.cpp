@@ -233,12 +233,10 @@ pgp_key_free_data(pgp_key_t *key)
         return;
     }
 
-    if (key->uids != NULL) {
-        for (n = 0; n < pgp_get_userid_count(key); ++n) {
-            free((void *) pgp_get_userid(key, n));
-        }
-        list_destroy(&key->uids);
+    for (n = 0; n < pgp_get_userid_count(key); ++n) {
+        free((void *) pgp_get_userid(key, n));
     }
+    list_destroy(&key->uids);
 
     if (key->packets != NULL) {
         for (n = 0; n < key->packetc; ++n) {
@@ -258,21 +256,11 @@ pgp_key_free_data(pgp_key_t *key)
         key->subsigc = 0;
     }
 
-    if (key->revokes) {
-        for (n = 0; n < key->revokec; ++n) {
-            revoke_free(&key->revokes[n]);
-        }
-        free(key->revokes);
-        key->revokes = NULL;
-        key->revokec = 0;
-    }
+    list_destroy(&key->revokes);
     revoke_free(&key->revocation);
-
     free(key->primary_grip);
     key->primary_grip = NULL;
-
     list_destroy(&key->subkey_grips);
-
     free_key_pkt(&key->pkt);
 }
 
@@ -484,18 +472,14 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* revocations */
-    if (src->revokes) {
-        EXPAND_ARRAY_EX(dst, revoke, src->revokec);
-        if (!dst->revokes) {
+    for (size_t i = 0; i < pgp_key_get_revoke_count(src); i++) {
+        pgp_revoke_t *revoke = pgp_key_add_revoke(dst);
+        if (!revoke) {
             goto error;
         }
-        for (size_t i = 0; i < src->revokec; i++) {
-            tmpret = pgp_revoke_copy(&dst->revokes[i], &src->revokes[i]);
-            if (tmpret) {
-                ret = tmpret;
-                goto error;
-            }
-            dst->revokec++;
+        if ((tmpret = pgp_revoke_copy(revoke, pgp_key_get_revoke(src, i)))) {
+            ret = tmpret;
+            goto error;
         }
     }
 
@@ -879,6 +863,24 @@ pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
     }
     /* now copy it */
     return copy_userid((uint8_t **) uidp, userid);
+}
+
+pgp_revoke_t *
+pgp_key_add_revoke(pgp_key_t *key)
+{
+    return (pgp_revoke_t *) list_append(&key->revokes, NULL, sizeof(pgp_revoke_t));
+}
+
+size_t
+pgp_key_get_revoke_count(const pgp_key_t *key)
+{
+    return list_length(key->revokes);
+}
+
+pgp_revoke_t *
+pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
+{
+    return (pgp_revoke_t*) list_at(key->revokes, idx);
 }
 
 char *

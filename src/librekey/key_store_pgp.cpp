@@ -279,14 +279,11 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
             revocation = &key->revocation;
         } else {
             /* revoke the user id */
-            EXPAND_ARRAY(key, revoke);
-            if (key->revokes == NULL) {
-                RNP_LOG("Failed to expand revoke array.");
+            if (!(revocation = pgp_key_add_revoke(key))) {
+                RNP_LOG("failed to add revoke");
                 return false;
             }
-            revocation = &key->revokes[key->revokec];
-            key->revokes[key->revokec].uid = pgp_get_userid_count(key) - 1;
-            key->revokec += 1;
+            revocation->uid = pgp_get_userid_count(key) - 1;
         }
         signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
         if (!strlen(revocation->reason)) {
