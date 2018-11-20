@@ -67,7 +67,7 @@ struct pgp_key_t {
     list uids;                         /* array of user ids */
     DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
     DYNARRAY(pgp_subsig_t, subsig);    /* array of signatures */
-    DYNARRAY(pgp_revoke_t, revoke);    /* array of signature revocations */
+    list               revokes;        /* array of signature revocations */
     list               subkey_grips;   /* list of subkey grips (for primary keys) */
     uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
     time_t             expiration;     /* key expiration time, if available */
@@ -192,6 +192,12 @@ const char *pgp_get_primary_userid(const pgp_key_t *);
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
 unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
+
+pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
+
+size_t pgp_key_get_revoke_count(const pgp_key_t *);
+
+pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 

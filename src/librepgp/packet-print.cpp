@@ -170,11 +170,10 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
 static int
 isrevoked(const pgp_key_t *key, unsigned uid)
 {
-    unsigned i;
-
-    for (i = 0; i < key->revokec; i++) {
-        if (key->revokes[i].uid == uid)
+    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
+        if (pgp_key_get_revoke(key, i)->uid == uid) {
             return i;
+        }
     }
     return -1;
 }
@@ -184,7 +183,7 @@ iscompromised(const pgp_key_t *key, unsigned uid)
 {
     int r = isrevoked(key, uid);
 
-    return r >= 0 && key->revokes[r].code == PGP_REVOCATION_COMPROMISED;
+    return (r >= 0) && (pgp_key_get_revoke(key, r)->code == PGP_REVOCATION_COMPROMISED);
 }
 
 /* Formats a public key expiration notice. Assumes that the public key
@@ -532,8 +531,8 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
     // iterating through the uids
     json_object *uid_arr = json_object_new_array();
     for (i = 0; i < pgp_get_userid_count(key); i++) {
-        if ((r = isrevoked(key, i)) >= 0 &&
-            key->revokes[r].code == PGP_REVOCATION_COMPROMISED) {
+        if (((r = isrevoked(key, i)) >= 0) &&
+            (pgp_key_get_revoke(key, r)->code == PGP_REVOCATION_COMPROMISED)) {
             continue;
         }
         // add an array of the uids (and checking whether is REVOKED and
