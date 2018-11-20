@@ -45,18 +45,14 @@ find_subsig(const pgp_key_t *key, const char *userid)
     if (uididx == -1) {
         return NULL;
     }
-    int subsigidx = -1;
     // find the subsig index
-    for (unsigned i = 0; i < key->subsigc; i++) {
-        if ((int) key->subsigs[i].uid == uididx) {
-            subsigidx = i;
-            break;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
+        if ((int) subsig->uid == uididx) {
+            return subsig;
         }
     }
-    if (subsigidx == -1) {
-        return NULL;
-    }
-    return &key->subsigs[subsigidx];
+    return NULL;
 }
 
 void
