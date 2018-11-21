@@ -3544,8 +3544,8 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 {
     // get a total byte size
     *buf_len = 0;
-    for (size_t i = 0; i < key->packetc; i++) {
-        const pgp_rawpacket_t *pkt = &key->packets[i];
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         *buf_len += pkt->length;
     }
     // allocate our buffer
@@ -3556,8 +3556,8 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
     }
     // copy each packet
     *buf_len = 0;
-    for (size_t i = 0; i < key->packetc; i++) {
-        const pgp_rawpacket_t *pkt = &key->packets[i];
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         memcpy(*buf + *buf_len, pkt->raw, pkt->length);
         *buf_len += pkt->length;
     }

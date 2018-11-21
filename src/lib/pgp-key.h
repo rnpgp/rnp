@@ -64,15 +64,15 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    list uids;                         /* array of user ids */
-    DYNARRAY(pgp_rawpacket_t, packet); /* array of raw packets */
-    list               subsigs;        /* array of signatures */
-    list               revokes;        /* array of signature revocations */
-    list               subkey_grips;   /* list of subkey grips (for primary keys) */
-    uint8_t *          primary_grip;   /* grip of primary key (for subkeys) */
-    time_t             expiration;     /* key expiration time, if available */
-    pgp_key_pkt_t      pkt;            /* pubkey/seckey data packet */
-    uint8_t            key_flags;      /* key flags */
+    list               uids;         /* array of user ids */
+    list               packets;      /* array of raw packets */
+    list               subsigs;      /* array of signatures */
+    list               revokes;      /* array of signature revocations */
+    list               subkey_grips; /* list of subkey grips (for primary keys) */
+    uint8_t *          primary_grip; /* grip of primary key (for subkeys) */
+    time_t             expiration;   /* key expiration time, if available */
+    pgp_key_pkt_t      pkt;          /* pubkey/seckey data packet */
+    uint8_t            key_flags;    /* key flags */
     uint8_t            keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
     uint8_t            grip[PGP_FINGERPRINT_SIZE];
@@ -204,6 +204,12 @@ pgp_subsig_t *pgp_key_add_subsig(pgp_key_t *);
 size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
 pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
+
+pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_content_enum);
+
+size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
+
+pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 

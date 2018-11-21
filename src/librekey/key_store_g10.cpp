@@ -1150,17 +1150,10 @@ rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
         memset(&seckey, 0, sizeof(seckey));
     }
 
-    EXPAND_ARRAY((&key), packet);
-    if (!key.packets) {
+    if (!pgp_key_add_rawpacket(&key, memory->buf, memory->length, PGP_PTAG_CT_RESERVED)) {
+        RNP_LOG("failed to add packet");
         goto done;
     }
-    key.packets[0].raw = (uint8_t *) malloc(memory->length);
-    if (!key.packets[0].raw) {
-        goto done;
-    }
-    key.packets[0].length = memory->length;
-    memcpy(key.packets[0].raw, memory->buf, memory->length);
-    key.packetc++;
     key.format = G10_KEY_STORE;
     if (!rnp_key_store_add_key(key_store, &key)) {
         goto done;
@@ -1561,12 +1554,14 @@ error:
 bool
 rnp_key_store_g10_key_to_mem(pgp_key_t *key, pgp_memory_t *memory)
 {
-    if (DYNARRAY_IS_EMPTY(key, packet)) {
+    pgp_rawpacket_t *packet = NULL;
+    if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
     if (key->format != G10_KEY_STORE) {
         RNP_LOG("incorrect format: %d", key->format);
         return false;
     }
-    return pgp_memory_add(memory, key->packets[0].raw, key->packets[0].length);
+    packet = pgp_key_get_rawpacket(key, 0);
+    return pgp_memory_add(memory, packet->raw, packet->length);
 }
