@@ -120,8 +120,9 @@ test_key_add_userid(void **state)
 
     // save the raw packets for the key (to reload later)
     mem = (pgp_memory_t){0};
-    for (unsigned i = 0; i < key->packetc; i++) {
-        pgp_memory_add(&mem, key->packets[i].raw, key->packets[i].length);
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
+        pgp_memory_add(&mem, pkt->raw, pkt->length);
     }
     // cleanup
     rnp_key_store_free(ks);

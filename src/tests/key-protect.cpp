@@ -143,9 +143,10 @@ test_key_protect_load_pgp(void **state)
         rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
         assert_non_null(ks);
 
-        pgp_memory_t mem = {0};
-        mem.buf = key->packets[0].raw;
-        mem.length = key->packets[0].length;
+        pgp_memory_t     mem = {0};
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, 0);
+        mem.buf = pkt->raw;
+        mem.length = pkt->length;
         assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
 
         // grab the first key

@@ -238,14 +238,10 @@ pgp_key_free_data(pgp_key_t *key)
     }
     list_destroy(&key->uids);
 
-    if (key->packets != NULL) {
-        for (n = 0; n < key->packetc; ++n) {
-            pgp_rawpacket_free(&key->packets[n]);
-        }
-        free(key->packets);
-        key->packets = NULL;
-        key->packetc = 0;
+    for (n = 0; n < pgp_key_get_rawpacket_count(key); ++n) {
+        pgp_rawpacket_free(pgp_key_get_rawpacket(key, n));
     }
+    list_destroy(&key->packets);
 
     for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
         subsig_free(pgp_key_get_subsig(key, n));
@@ -282,8 +278,9 @@ pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
         start = 1;
     }
 
-    for (size_t i = start; i < src->packetc; i++) {
-        if (!rnp_key_add_rawpacket(dst, &src->packets[i])) {
+    for (size_t i = start; i < pgp_key_get_rawpacket_count(src); i++) {
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(src, i);
+        if (!pgp_key_add_rawpacket(dst, pkt->raw, pkt->length, pkt->tag)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -303,7 +300,7 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 
     memset(dst, 0, sizeof(*dst));
 
-    if (src->packetc != 1) {
+    if (pgp_key_get_rawpacket_count(src) != 1) {
         RNP_LOG("wrong g10 key packets");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -711,6 +708,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     typedef struct pgp_key_pkt_t *pgp_seckey_decrypt_t(
       const uint8_t *data, size_t data_len, const pgp_key_pkt_t *pubkey, const char *password);
     pgp_seckey_decrypt_t *decryptor = NULL;
+    pgp_rawpacket_t *     packet = NULL;
     char                  password[MAX_PASSWORD_LENGTH] = {0};
 
     // sanity checks
@@ -743,8 +741,8 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
         }
     }
     // attempt to decrypt with the provided password
-    decrypted_seckey =
-      decryptor(key->packets[0].raw, key->packets[0].length, pgp_get_key_pkt(key), password);
+    packet = pgp_key_get_rawpacket(key, 0);
+    decrypted_seckey = decryptor(packet->raw, packet->length, pgp_get_key_pkt(key), password);
 
 done:
     pgp_forget(password, sizeof(password));
@@ -891,6 +889,37 @@ pgp_subsig_t *
 pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
 {
     return (pgp_subsig_t *) list_at(key->subsigs, idx);
+}
+
+pgp_rawpacket_t *
+pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_content_enum tag)
+{
+    pgp_rawpacket_t *packet;
+    if (!(packet = (pgp_rawpacket_t *) list_append(&key->packets, NULL, sizeof(*packet)))) {
+        return NULL;
+    }
+    if (data) {
+        if (!(packet->raw = (uint8_t *) malloc(len))) {
+            list_remove((list_item *) packet);
+            return NULL;
+        }
+        memcpy(packet->raw, data, len);
+    }
+    packet->length = len;
+    packet->tag = tag;
+    return packet;
+}
+
+size_t
+pgp_key_get_rawpacket_count(const pgp_key_t *key)
+{
+    return list_length(key->packets);
+}
+
+pgp_rawpacket_t *
+pgp_key_get_rawpacket(const pgp_key_t *key, size_t idx)
+{
+    return (pgp_rawpacket_t *) list_at(key->packets, idx);
 }
 
 char *
@@ -1161,7 +1190,7 @@ pgp_key_protect(pgp_key_t *                  key,
 
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(decrypted_seckey,
-                                &key->packets[0],
+                                pgp_key_get_rawpacket(key, 0),
                                 (pgp_content_enum) pgp_get_key_type(key),
                                 format,
                                 new_password)) {
@@ -1208,7 +1237,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(seckey,
-                                &key->packets[0],
+                                pgp_key_get_rawpacket(key, 0),
                                 (pgp_content_enum) pgp_get_key_type(key),
                                 key->format,
                                 NULL)) {
@@ -1302,11 +1331,11 @@ done:
 bool
 pgp_key_write_packets(const pgp_key_t *key, pgp_memory_t *mem)
 {
-    if (DYNARRAY_IS_EMPTY(key, packet)) {
+    if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
-    for (unsigned i = 0; i < key->packetc; i++) {
-        pgp_rawpacket_t *pkt = &key->packets[i];
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         if (!pkt->raw || !pkt->length) {
             return false;
         }

@@ -776,13 +776,13 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             continue;
         }
         exkey = rnp_key_store_get_key_by_grip(rnp->pubring, imported->grip);
-        expackets = exkey ? exkey->packetc : 0;
+        expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
         if (!(exkey = rnp_key_store_add_key(rnp->pubring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");
             pgp_key_free_data(&keycp);
             continue;
         }
-        changed = exkey->packetc > expackets;
+        changed = pgp_key_get_rawpacket_count(exkey) > expackets;
 
         /* add secret key if there is one */
         if (!pgp_is_key_secret(imported)) {
@@ -797,14 +797,14 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             continue;
         }
         exkey = rnp_key_store_get_key_by_grip(rnp->secring, imported->grip);
-        expackets = exkey ? exkey->packetc : 0;
+        expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
         if (!(exkey = rnp_key_store_add_key(rnp->secring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");
             pgp_key_free_data(&keycp);
             continue;
         }
 
-        if (print && (changed || (exkey->packetc > expackets))) {
+        if (print && (changed || (pgp_key_get_rawpacket_count(exkey) > expackets))) {
             repgp_print_key(rnp->resfp, rnp->pubring, exkey, "sec", 0);
         }
     }
