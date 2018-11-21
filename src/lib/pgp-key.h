@@ -60,7 +60,6 @@
 #include "crypto/symmetric.h"
 #include "memory.h"
 #include "types.h"
-#include "defs.h"
 
 /* describes a user's key */
 struct pgp_key_t {
