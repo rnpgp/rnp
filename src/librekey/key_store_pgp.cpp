@@ -73,45 +73,15 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 void print_packet_hex(const pgp_rawpacket_t *pkt);
 
 static bool
-rnp_key_add_stream_rawpacket(pgp_key_t *key, int tag, pgp_dest_t *memdst)
+rnp_key_add_stream_rawpacket(pgp_key_t *key, pgp_content_enum tag, pgp_dest_t *memdst)
 {
-    pgp_rawpacket_t rawpkt = {};
-    EXPAND_ARRAY(key, packet);
-    if (!key->packets) {
-        RNP_LOG("Failed to expand packet array.");
+    if (!pgp_key_add_rawpacket(key, mem_dest_get_memory(memdst), memdst->writeb, tag)) {
+        RNP_LOG("Failed to add packet");
         dst_close(memdst, true);
         return false;
     }
 
-    rawpkt.tag = (pgp_content_enum) tag;
-    rawpkt.length = memdst->writeb;
-    rawpkt.raw = (uint8_t *) mem_dest_own_memory(memdst);
-    key->packets[key->packetc++] = rawpkt;
-
     dst_close(memdst, false);
-    return true;
-}
-
-bool
-rnp_key_add_rawpacket(pgp_key_t *key, const pgp_rawpacket_t *packet)
-{
-    pgp_rawpacket_t rawpkt = {};
-    EXPAND_ARRAY(key, packet);
-    if (!key->packets) {
-        RNP_LOG("Failed to expand packet array.");
-        return false;
-    }
-
-    rawpkt.tag = packet->tag;
-    rawpkt.length = packet->length;
-    rawpkt.raw = (uint8_t *) malloc(packet->length);
-    if (!rawpkt.raw) {
-        RNP_LOG("alloc failed");
-        return false;
-    }
-    memcpy(rawpkt.raw, packet->raw, packet->length);
-    key->packets[key->packetc++] = rawpkt;
-
     return true;
 }
 
@@ -129,7 +99,7 @@ rnp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
         return false;
     }
 
-    return rnp_key_add_stream_rawpacket(key, pkt->tag, &dst);
+    return rnp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
 }
 
 static bool
@@ -163,7 +133,7 @@ rnp_key_add_uid_rawpacket(pgp_key_t *key, pgp_userid_pkt_t *pkt)
         return false;
     }
 
-    return rnp_key_add_stream_rawpacket(key, pkt->tag, &dst);
+    return rnp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
 }
 
 static bool
@@ -531,11 +501,11 @@ rnp_key_store_pgp_read_from_mem(rnp_key_store_t *         keyring,
 bool
 rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
 {
-    if (DYNARRAY_IS_EMPTY(key, packet)) {
+    if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
-    for (unsigned i = 0; i < key->packetc; i++) {
-        pgp_rawpacket_t *pkt = &key->packets[i];
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         if (!pkt->raw || !pkt->length) {
             return false;
         }

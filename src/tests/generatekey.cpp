@@ -830,8 +830,8 @@ test_generated_key_sigs(void **state)
         assert_non_null(primary_sec);
 
         // check packet and subsig counts
-        assert_int_equal(3, pub.packetc);
-        assert_int_equal(3, sec.packetc);
+        assert_int_equal(3, pgp_key_get_rawpacket_count(&pub));
+        assert_int_equal(3, pgp_key_get_rawpacket_count(&sec));
         assert_int_equal(1, pgp_key_get_subsig_count(&pub));
         assert_int_equal(1, pgp_key_get_subsig_count(&sec));
         psig = &pgp_key_get_subsig(&pub, 0)->sig;
@@ -840,8 +840,8 @@ test_generated_key_sigs(void **state)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[2].tag);
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[2].tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&pub, 2)->tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&sec, 2)->tag);
 
         // validate the userid self-sig
         uid.uid = (uint8_t *) pgp_get_userid(&pub, 0);
@@ -914,13 +914,13 @@ test_generated_key_sigs(void **state)
 
         // do at least one modification test for validate_pgp_key_signatures too
         // modify a hashed portion of the sig packet, offset may change in future
-        primary_pub->packets[2].raw[37] ^= 0xff;
+        pgp_key_get_rawpacket(primary_pub, 2)->raw[37] ^= 0xff;
         // ensure validation fails
         assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
         assert_false(check_signatures_info(&result));
         free_signatures_info(&result);
         // restore the original data
-        primary_pub->packets[2].raw[37] ^= 0xff;
+        pgp_key_get_rawpacket(primary_pub, 2)->raw[37] ^= 0xff;
     }
 
     // sub
@@ -943,8 +943,8 @@ test_generated_key_sigs(void **state)
           &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, GPG_KEY_STORE));
 
         // check packet and subsig counts
-        assert_int_equal(2, pub.packetc);
-        assert_int_equal(2, sec.packetc);
+        assert_int_equal(2, pgp_key_get_rawpacket_count(&pub));
+        assert_int_equal(2, pgp_key_get_rawpacket_count(&sec));
         assert_int_equal(1, pgp_key_get_subsig_count(&pub));
         assert_int_equal(1, pgp_key_get_subsig_count(&sec));
         psig = &pgp_key_get_subsig(&pub, 0)->sig;
@@ -953,8 +953,8 @@ test_generated_key_sigs(void **state)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pub.packets[1].tag);
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, sec.packets[1].tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&pub, 1)->tag);
+        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&sec, 1)->tag);
         // validate the binding sig
         assert_rnp_success(signature_validate_binding(
           psig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&pub)));
@@ -1002,22 +1002,21 @@ test_generated_key_sigs(void **state)
 
         // TODO: validate_pgp_key_signatures expects key->packets[] to contain
         // both the primary and sub, so we have to fake it.
-        pgp_key_t  fake = {0};
-        pgp_key_t *pfake = &fake;
-        for (unsigned i = 0; i < primary_pub->packetc; i++) {
-            EXPAND_ARRAY(pfake, packet);
-            fake.packets[fake.packetc++] = primary_pub->packets[i];
+        pgp_key_t fake = {0};
+        for (size_t i = 0; i < pgp_key_get_rawpacket_count(primary_pub); i++) {
+            pgp_rawpacket_t *packet = pgp_key_get_rawpacket(primary_pub, i);
+            pgp_key_add_rawpacket(&fake, packet->raw, packet->length, packet->tag);
         }
-        for (unsigned i = 0; i < sub_pub->packetc; i++) {
-            EXPAND_ARRAY(pfake, packet);
-            fake.packets[fake.packetc++] = sub_pub->packets[i];
+        for (size_t i = 0; i < pgp_key_get_rawpacket_count(sub_pub); i++) {
+            pgp_rawpacket_t *packet = pgp_key_get_rawpacket(sub_pub, i);
+            pgp_key_add_rawpacket(&fake, packet->raw, packet->length, packet->tag);
         }
         // validate via an alternative method
         pgp_signatures_info_t result = {0};
         assert_rnp_success(validate_pgp_key_signatures(&result, &fake, pubring));
         assert_true(check_signatures_info(&result));
         free_signatures_info(&result);
-        FREE_ARRAY(pfake, packet);
+        pgp_key_free_data(&fake);
     }
 
     rnp_key_store_free(pubring);
