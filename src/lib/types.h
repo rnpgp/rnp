@@ -54,8 +54,6 @@
 #include <stdint.h>
 #include <rnp/rnp_def.h>
 #include "memory.h"
-#include "defs.h"
-#include "memory.h"
 #include "list.h"
 #include "crypto/common.h"
 
