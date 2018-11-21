@@ -25,7 +25,7 @@
  */
 
 #include <assert.h>
-
+#include <string.h>
 #include "key-provider.h"
 #include "pgp-key.h"
 #include "fingerprint.h"
