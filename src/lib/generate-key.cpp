@@ -25,6 +25,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <assert.h>
+#include <string.h>
 
 #include <rekey/rnp_key_store.h>
 #include <librekey/key_store_pgp.h>
