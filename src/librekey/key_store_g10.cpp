@@ -56,7 +56,7 @@ typedef struct {
 typedef struct sub_element_t sub_element_t;
 
 typedef struct {
-    list sub_elements;
+    list sub_elements; // list of sub_element_t
 } s_exp_t;
 
 struct sub_element_t {
