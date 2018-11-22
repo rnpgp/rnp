@@ -63,16 +63,16 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    list               uids;         /* array of user ids */
-    list               packets;      /* array of raw packets */
-    list               subsigs;      /* array of signatures */
-    list               revokes;      /* array of signature revocations */
-    list               subkey_grips; /* list of subkey grips (for primary keys) */
-    uint8_t *          primary_grip; /* grip of primary key (for subkeys) */
-    time_t             expiration;   /* key expiration time, if available */
-    pgp_key_pkt_t      pkt;          /* pubkey/seckey data packet */
-    uint8_t            key_flags;    /* key flags */
-    uint8_t            keyid[PGP_KEY_ID_SIZE];
+    list          uids;         /* list of user ids as (char*) */
+    list          packets;      /* list of raw packets as pgp_rawpacket_t */
+    list          subsigs;      /* list of signatures as pgp_subsig_t */
+    list          revokes;      /* list of signature revocations pgp_revoke_t */
+    list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
+    uint8_t *     primary_grip; /* grip of primary key (for subkeys) */
+    time_t        expiration;   /* key expiration time, if available */
+    pgp_key_pkt_t pkt;          /* pubkey/seckey data packet */
+    uint8_t       key_flags;    /* key flags */
+    uint8_t       keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
     uint8_t            grip[PGP_FINGERPRINT_SIZE];
     uint32_t           uid0;         /* primary uid index in uids array */
