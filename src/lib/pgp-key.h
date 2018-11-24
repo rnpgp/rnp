@@ -210,6 +210,33 @@ size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
 pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
 
+/**
+ * @brief Get the number of pgp key's subkeys.
+ * 
+ * @param key pointer to the primary key
+ * @return number of the subkeys
+ */
+size_t pgp_key_get_subkey_count(const pgp_key_t *key);
+
+/**
+ * @brief Get the pgp key's subkey grip
+ * 
+ * @param key key pointer to the primary key
+ * @param idx index of the subkey
+ * @return pointer to the grip data or NULL if subkey not found
+ */
+uint8_t *pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
+
+/**
+ * @brief Get the key's subkey by it's index
+ * 
+ * @param key primary key
+ * @param store key store wich will be searched for subkeys
+ * @param idx index of the subkey
+ * @return pointer to the subkey or NULL if subkey not found
+ */
+pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store, size_t idx);
+
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
 /**
