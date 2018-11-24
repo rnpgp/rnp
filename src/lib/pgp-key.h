@@ -212,7 +212,15 @@ pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-char *pgp_export_key(rnp_t *, const pgp_key_t *);
+/**
+ * @brief Export and armor OpenPGP key, writing it to the NULL-terminated string.
+ *
+ * @param keyring where key belongs to. Needed to fetch all subkeys as well, not NULL.
+ * @param key pointer to the key, cannot be NULL.
+ * @return allocated string with armored key, or NULL on failure. Resulting string must be
+ *         released by caller.
+ */
+char *pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key);
 
 /** check if a key is currently locked
  *
