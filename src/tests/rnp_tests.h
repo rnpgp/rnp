@@ -28,6 +28,7 @@
 #define RNP_TESTS_H
 
 typedef struct {
+    char *original_dir;
     char *home;
     char *data_dir;
     int   not_fatal;
@@ -214,6 +215,8 @@ void test_cli_rnp(void **state);
 void test_cli_rnp_keyfile(void **state);
 
 void test_cli_g10_operations(void **state);
+
+void test_cli_examples(void **state);
 
 #define rnp_assert_int_equal(state, a, b)           \
     do {                                            \
