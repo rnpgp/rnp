@@ -376,3 +376,17 @@ test_cli_rnp(void **state)
                    NULL);
     assert_int_equal(ret, 0);
 }
+
+void
+test_cli_examples(void **state)
+{
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
+    char *examples_path = rnp_compose_path(rstate->original_dir, "../examples", NULL);
+    /* key generation example */
+    char *example_path = rnp_compose_path(examples_path, "generate", NULL);
+    assert_non_null(example_path);
+    assert_int_equal(system(example_path), 0);
+
+    free(example_path);
+    free(examples_path);
+}
