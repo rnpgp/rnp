@@ -703,18 +703,19 @@ rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
 char *
 rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
 {
-    const pgp_key_t *key;
+    const pgp_key_t *      key;
+    const rnp_key_store_t *keyring;
 
     if (!rnp) {
         return NULL;
     }
 
-    key = secret_key ? resolve_userid(rnp, rnp->secring, name) :
-                       resolve_userid(rnp, rnp->pubring, name);
+    keyring = secret_key ? rnp->secring : rnp->pubring;
+    key = resolve_userid(rnp, keyring, name);
     if (!key) {
         return NULL;
     }
-    return pgp_export_key(rnp, key);
+    return pgp_export_key(keyring, key);
 }
 
 bool
