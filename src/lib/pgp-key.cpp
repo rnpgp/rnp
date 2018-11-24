@@ -923,14 +923,14 @@ pgp_key_get_rawpacket(const pgp_key_t *key, size_t idx)
 }
 
 char *
-pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
+pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key)
 {
     pgp_dest_t memdst = {};
     pgp_dest_t armordst = {};
     char *     cp = NULL;
     bool       res = false;
 
-    if (!rnp || !key) {
+    if (!keyring || !key) {
         return NULL;
     }
 
@@ -944,9 +944,9 @@ pgp_export_key(rnp_t *rnp, const pgp_key_t *key)
         return NULL;
     }
     if (is_public) {
-        res = pgp_write_xfer_pubkey(&armordst, key, rnp->pubring);
+        res = pgp_write_xfer_pubkey(&armordst, key, keyring);
     } else {
-        res = pgp_write_xfer_seckey(&armordst, key, rnp->secring);
+        res = pgp_write_xfer_seckey(&armordst, key, keyring);
     }
     if (res && !dst_finish(&armordst)) {
         dst_write(&memdst, "\0", 1);
