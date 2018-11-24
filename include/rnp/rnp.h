@@ -76,7 +76,13 @@ char * rnp_get_key(rnp_t *, const char *, const char *);
 char * rnp_export_key(rnp_t *, const char *, bool);
 bool   rnp_add_key(rnp_t *rnp, const char *path, bool print);
 bool   rnp_import_key(rnp_t *, const char *);
-bool   rnp_generate_key(rnp_t *);
+/**
+ * @brief Generate key, based on information passed in rnp->action.generate_key_ctx
+ * 
+ * @param rnp initialized and filled rnp_t structure.
+ * @return generated secret key or NULL in case of generation error.
+ */
+pgp_key_t *rnp_generate_key(rnp_t *rnp);
 size_t rnp_secret_count(rnp_t *);
 size_t rnp_public_count(rnp_t *);
 
