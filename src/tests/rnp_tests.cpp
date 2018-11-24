@@ -86,6 +86,7 @@ setup_test(void **state)
     if (!rstate->data_dir) {
         return -1;
     }
+    rstate->original_dir = original_dir;
     if (getenv("RNP_TEST_NOT_FATAL")) {
         rstate->not_fatal = 1;
     } else {
@@ -221,7 +222,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_key_export),
       cmocka_unit_test(test_cli_rnp),
       cmocka_unit_test(test_cli_rnp_keyfile),
-      cmocka_unit_test(test_cli_g10_operations)};
+      cmocka_unit_test(test_cli_g10_operations),
+      cmocka_unit_test(test_cli_examples)};
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
