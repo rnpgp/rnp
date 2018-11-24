@@ -76,7 +76,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 userId,
                 sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
         rnp.action.generate_key_ctx.primary.protection.iterations = 1;
-        rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+        rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
         /* Load the newly generated rnp key */
         rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -186,7 +186,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
             userId,
             sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+    rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Load keyring */
     rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -293,7 +293,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
                                      PGP_HASH_UNKNOWN);
 
             /* Generate key with specified parameters */
-            rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+            rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
             /* Load the newly generated rnp key */
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -359,7 +359,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
                     userId,
                     sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
             /* Generate the key with corresponding userId */
-            rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+            rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
             /*Load the newly generated rnp key*/
             rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
@@ -398,7 +398,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
 
     /* Ensure the key was generated. */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+    rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Pubring and secring should now exist */
     rnp_assert_true(rstate, path_file_exists(ourdir, ".rnp/pubring.gpg", NULL));
@@ -432,7 +432,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
             "newhomekey",
             sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+    rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Pubring and secring should now exist */
     rnp_assert_true(rstate, path_file_exists(newhome, "pubring.gpg", NULL));
@@ -471,7 +471,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
 
     /* Ensure the key was generated. */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+    rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Pubring and secring should now exist, but only for the KBX */
     rnp_assert_true(rstate, path_file_exists(ourdir, ".rnp/pubring.kbx", NULL));
@@ -506,7 +506,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     strncpy((char *) rnp.action.generate_key_ctx.primary.keygen.cert.userid,
             "newhomekey",
             sizeof(rnp.action.generate_key_ctx.primary.keygen.cert.userid));
-    rnp_assert_ok(rstate, rnp_generate_key(&rnp));
+    rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Pubring and secring should now exist, but only for the KBX */
     rnp_assert_true(rstate, path_file_exists(newhome, "pubring.kbx", NULL));
@@ -548,7 +548,7 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 
     /* Try to generate key in the directory and make sure generation fails */
     set_default_rsa_key_desc(&rnp.action.generate_key_ctx, PGP_HASH_SHA256);
-    rnp_assert_fail(rstate, rnp_generate_key(&rnp));
+    rnp_assert_null(rstate, rnp_generate_key(&rnp));
 
     close(pipefd[0]);
     rnp_end(&rnp);

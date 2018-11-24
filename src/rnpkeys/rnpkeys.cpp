@@ -36,6 +36,7 @@
 #include <rnp/rnp.h>
 #include "crypto.h"
 #include <rnp/rnp_def.h>
+#include "pgp-key.h"
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include <librepgp/stream-common.h>
@@ -209,7 +210,12 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
         rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
         rnp_key_protection_params_t *protection = &action->primary.protection;
+        pgp_key_t *primary_key = NULL;
+        pgp_key_t *subkey = NULL;
+        char *key_info = NULL;
+
         memset(action, 0, sizeof(*action));
+        /* setup key generation and key protection parameters */
         if (key) {
             strcpy((char *) primary_desc->cert.userid, key);
         }
@@ -242,7 +248,35 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             RNP_LOG("Critical error: Key generation failed");
             return false;
         }
-        return rnp_generate_key(rnp);
+
+        /* generate key with/without subkey */
+        RNP_MSG("Generating a new key...\n");
+        if (!(primary_key = rnp_generate_key(rnp))) {
+            return false;
+        }
+        /* show the primary key, use public key part */
+        primary_key = rnp_key_store_get_key_by_fpr(rnp->pubring, &primary_key->fingerprint);
+        if (!primary_key) {
+            RNP_LOG("Cannot get public key part");
+            return false;
+        }
+        pgp_sprint_key(NULL, primary_key, &key_info, "pub", 0);
+        (void) fprintf(stdout, "%s", key_info);
+        free(key_info);
+
+        /* show the subkey if any */
+        if (pgp_key_get_subkey_count(primary_key)) {
+            subkey = pgp_key_get_subkey(primary_key, rnp->pubring, 0);
+            if (!subkey) {
+                RNP_LOG("Cannot find generated subkey");
+                return false;
+            }
+            pgp_sprint_key(NULL, subkey, &key_info, "sub", 0);
+            (void) fprintf(stdout, "%s", key_info);
+            free(key_info);
+        }
+
+        return true;
     }
     case CMD_GET_KEY: {
         char *keydesc = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
