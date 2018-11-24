@@ -922,6 +922,28 @@ pgp_key_get_rawpacket(const pgp_key_t *key, size_t idx)
     return (pgp_rawpacket_t *) list_at(key->packets, idx);
 }
 
+size_t
+pgp_key_get_subkey_count(const pgp_key_t *key)
+{
+    return list_length(key->subkey_grips);
+}
+
+uint8_t *
+pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx)
+{
+    return (uint8_t *) list_at(key->subkey_grips, idx);
+}
+
+pgp_key_t *
+pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store, size_t idx)
+{
+    uint8_t *grip = (uint8_t*) list_at(key->subkey_grips, idx);
+    if (!grip) {
+        return NULL;
+    }
+    return rnp_key_store_get_key_by_grip(store, grip);
+}
+
 char *
 pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key)
 {
