@@ -5,7 +5,9 @@ Following sample applications are available:
 
 * generate : includes code which shows how to generate keys, load and save keyrings, export keys.
 
-* encrypt : includes which shows how to encrypt file, using the password and/or key. 
+* encrypt : includes code which shows how to encrypt file, using the password and/or key.
+
+* decrypt : this one shows how to decrypt OpenPGP data, using the key or password
 
 Examples are built together with rnp library, and are available in `src/examples` directory of your build folder.
 
@@ -26,3 +28,9 @@ It is printed to stdout and saved to the file `encrypted.asc` in current directo
 
 You can investigate it via the `rnp --list-packets encrypted.asc` command.
 Also you may want to decrypt saved file via `rnp --keyfile secring.pgp -d encrypted.asc`.
+
+## decrypt
+
+This example uses keyrings, generated in `generate` sample to decrypt messages, encrypted by `encrypt` sample.
+It shows how to configure `rnp_t` and `rnp_ctx_t` structures to decrypt message with key or password, also custom password provider is implemented.
+Resulting message is printed to the stdout.
