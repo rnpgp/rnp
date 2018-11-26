@@ -111,7 +111,7 @@ typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
  *           later without need to decrypt
  *         - "protect": encrypt secret key fields
  *         - "unprotect": decrypt secret key fields, leaving those in a raw format
- *         - "decrypt (symmetric): decrypt data, using the password
+ *         - "decrypt (symmetric)": decrypt data, using the password
  *         - "encrypt (symmetric)": encrypt data, using the password
  * @param buf to which the callback should write the returned password, NULL terminated.
  * @param buf_len the size of buf
