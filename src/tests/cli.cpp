@@ -395,5 +395,11 @@ test_cli_examples(void **state)
     assert_int_equal(system(example_path), 0);
     free(example_path);
 
+    /* decryption sample */
+    example_path = rnp_compose_path(examples_path, "decrypt", NULL);
+    assert_non_null(example_path);
+    assert_int_equal(system(example_path), 0);
+    free(example_path);
+
     free(examples_path);
 }
