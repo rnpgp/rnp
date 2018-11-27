@@ -1153,6 +1153,7 @@ signed_dst_finish(pgp_dest_t *dst)
         pgp_key_t *         seckey = *(pgp_key_t **) key;
 
         if ((ret = signed_write_signature(param, onepass, seckey, param->writedst))) {
+            RNP_LOG("failed to calculate signature");
             return ret;
         }
     }
@@ -1242,6 +1243,11 @@ signed_add_signer(pgp_dest_signed_param_t *param, pgp_key_t *key, bool last)
 {
     pgp_one_pass_sig_t onepass = {0};
     pgp_hash_alg_t     halg;
+
+    if (!is_secret_key_pkt(key->pkt.tag)) {
+        RNP_LOG("secret key required for signing");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     /* Add hash to the list */
     halg = pgp_hash_adjust_alg_to_key(param->ctx->halg, pgp_get_key_pkt(key));
