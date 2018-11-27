@@ -64,3 +64,17 @@ target_link_libraries(decrypt
     librnp
     JSON-C::JSON-C
 )
+
+add_executable(sign sign.cpp)
+
+target_include_directories(sign
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(sign
+  PRIVATE
+    librnp
+    JSON-C::JSON-C
+)
