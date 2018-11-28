@@ -917,7 +917,7 @@ validate_key_sigs(const char *path)
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, path);
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_file(pubring, NULL));
-    assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
+    assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
     assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
     assert_true(check_signatures_info(&info));
     free_signatures_info(&info);
@@ -935,8 +935,8 @@ test_stream_key_signature_validate(void **state)
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_file(pubring, NULL));
-    assert_int_equal(list_length(pubring->keys), 1);
-    assert_non_null(pkey = (pgp_key_t *) list_front(pubring->keys));
+    assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
+    assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
     assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
     assert_true(check_signatures_info(&info));
     free_signatures_info(&info);
@@ -947,9 +947,9 @@ test_stream_key_signature_validate(void **state)
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_file(pubring, NULL));
-    assert_true(list_length(pubring->keys) > 0);
-    for (list_item *k = list_front(pubring->keys); k; k = list_next(k)) {
-        pkey = (pgp_key_t *) k;
+    assert_true(rnp_key_store_get_key_count(pubring) > 0);
+    for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
+        pkey = rnp_key_store_get_key(pubring, i);
         if (!pgp_is_primary_key_tag(pgp_get_key_pkt(pkey)->tag)) {
             continue;
         }
