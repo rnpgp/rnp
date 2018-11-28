@@ -534,7 +534,7 @@ static bool
 do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
     pgp_key_search_t search;
-    for (list_item *key_item = list_front(key_store->keys); key_item;
+    for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_is_key_secret(key) != secret) {
@@ -557,7 +557,8 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             search.type = PGP_KEY_SEARCH_GRIP;
             memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_FINGERPRINT_SIZE);
             pgp_key_t *subkey = NULL;
-            for (list_item *subkey_item = list_front(key_store->keys); subkey_item;
+            for (list_item *subkey_item = list_front(rnp_key_store_get_keys(key_store));
+                 subkey_item;
                  subkey_item = list_next(subkey_item)) {
                 pgp_key_t *candidate = (pgp_key_t *) subkey_item;
                 if (pgp_is_key_secret(candidate) != secret) {
@@ -588,8 +589,8 @@ rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_
 
     if (armor) {
         pgp_armored_msg_t type = PGP_ARMORED_PUBLIC_KEY;
-        if (list_length(key_store->keys) &&
-            pgp_is_key_secret((pgp_key_t *) list_front(key_store->keys))) {
+        if (rnp_key_store_get_key_count(key_store) &&
+            pgp_is_key_secret(rnp_key_store_get_key(key_store, 0))) {
             type = PGP_ARMORED_SECRET_KEY;
         }
         if (init_armored_dst(&armordst, dst, type)) {

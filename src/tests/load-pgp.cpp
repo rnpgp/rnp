@@ -51,7 +51,7 @@ test_load_v3_keyring_pgp(void **state)
 
     // load it in to the key store
     assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
-    assert_int_equal(1, list_length(key_store->keys));
+    assert_int_equal(1, rnp_key_store_get_key_count(key_store));
 
     // find the key by keyid
     static const uint8_t keyid[] = {0xDC, 0x70, 0xC1, 0x24, 0xA5, 0x02, 0x83, 0xF1};
@@ -74,7 +74,7 @@ test_load_v3_keyring_pgp(void **state)
     assert_non_null(key_store);
 
     assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
-    assert_int_equal(1, list_length(key_store->keys));
+    assert_int_equal(1, rnp_key_store_get_key_count(key_store));
 
     static const uint8_t keyid2[] = {0x7D, 0x0B, 0xC1, 0x0E, 0x93, 0x34, 0x04, 0xC9};
     key = rnp_key_store_get_key_by_id(key_store, keyid2, NULL);
@@ -121,7 +121,7 @@ test_load_v4_keyring_pgp(void **state)
 
     // load it in to the key store
     assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
-    assert_int_equal(7, list_length(key_store->keys));
+    assert_int_equal(7, rnp_key_store_get_key_count(key_store));
 
     // find the key by keyid
     static const uint8_t keyid[] = {0x8a, 0x05, 0xb8, 0x9f, 0xad, 0x5a, 0xde, 0xd1};
@@ -155,10 +155,8 @@ check_pgp_keyring_counts(const char *   path,
 
     // count primary keys first
     unsigned total_primary_count = 0;
-    for (list_item *key_item = list_front(key_store->keys); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_key_is_primary_key(key)) {
+    for (size_t i = 0; i < rnp_key_store_get_key_count(key_store); i++) {
+        if (pgp_key_is_primary_key(rnp_key_store_get_key(key_store, i))) {
             total_primary_count++;
         }
     }
@@ -167,9 +165,8 @@ check_pgp_keyring_counts(const char *   path,
     // now count subkeys in each primary key
     unsigned total_subkey_count = 0;
     unsigned primary = 0;
-    for (list_item *key_item = list_front(key_store->keys); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
+    for (size_t i = 0; i < rnp_key_store_get_key_count(key_store); i++) {
+        pgp_key_t *key = rnp_key_store_get_key(key_store, i);
         if (pgp_key_is_primary_key(key)) {
             // check the subkey count for this primary key
             assert_int_equal(pgp_key_get_subkey_count(key), subkey_counts[primary++]);
@@ -179,7 +176,8 @@ check_pgp_keyring_counts(const char *   path,
     }
 
     // check the total (not really needed)
-    assert_int_equal(list_length(key_store->keys), total_primary_count + total_subkey_count);
+    assert_int_equal(rnp_key_store_get_key_count(key_store),
+                     total_primary_count + total_subkey_count);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -432,7 +430,7 @@ test_load_armored_pub_sec(void **state)
     assert_true(rnp_key_store_load_from_file(key_store, NULL));
 
     /* we must have 1 main key and 2 subkeys */
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
 
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
@@ -521,7 +519,7 @@ test_load_merge(void **state)
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-just-key.pgp"));
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 1);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_false(key->valid);
     assert_int_equal(pgp_key_get_rawpacket_count(key), 1);
@@ -531,7 +529,7 @@ test_load_merge(void **state)
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1-no-sigs.pgp"));
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 1);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_false(key->valid);
     assert_int_equal(pgp_get_userid_count(key), 1);
@@ -544,7 +542,7 @@ test_load_merge(void **state)
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1.pgp"));
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 1);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_int_equal(pgp_get_userid_count(key), 1);
@@ -560,7 +558,7 @@ test_load_merge(void **state)
     /* try to add it twice */
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 1);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_int_equal(pgp_get_userid_count(key), 2);
@@ -577,7 +575,7 @@ test_load_merge(void **state)
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-subkey-1-no-sigs.pgp"));
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 2);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(key->valid);
@@ -602,7 +600,7 @@ test_load_merge(void **state)
     /* try to add it twice */
     assert_true(rnp_key_store_add_transferable_subkey(key_store, &tskey, key));
     transferable_subkey_destroy(&tskey);
-    assert_int_equal(list_length(key_store->keys), 2);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(key->valid);
@@ -628,7 +626,7 @@ test_load_merge(void **state)
     /* try to add it twice */
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
@@ -662,7 +660,7 @@ test_load_merge(void **state)
     /* try to add it twice */
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
@@ -701,7 +699,7 @@ test_load_merge(void **state)
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-sec.asc"));
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     transferable_key_destroy(&tkey);
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
@@ -759,8 +757,10 @@ test_load_public_from_secret(void **state)
     assert_rnp_success(pgp_key_copy(&keycp, key, false));
     assert_true(pgp_is_key_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
-    assert_false(memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
-    assert_false(memcmp(pgp_key_get_subkey_grip(&keycp, 1), skey2->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(
+      memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(
+      memcmp(pgp_key_get_subkey_grip(&keycp, 1), skey2->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_SECRET_KEY);
     pgp_key_free_data(&keycp);
@@ -769,8 +769,10 @@ test_load_public_from_secret(void **state)
     assert_rnp_success(pgp_key_copy(&keycp, key, true));
     assert_false(pgp_is_key_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
-    assert_false(memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
-    assert_false(memcmp(pgp_key_get_subkey_grip(&keycp, 1), skey2->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(
+      memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
+    assert_false(
+      memcmp(pgp_key_get_subkey_grip(&keycp, 1), skey2->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_null(pgp_get_key_pkt(&keycp)->sec_data);
@@ -995,7 +997,7 @@ test_load_subkey(void **state)
 
     /* load first subkey with signature */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-1.pgp"));
-    assert_int_equal(list_length(key_store->keys), 1);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_false(skey1->valid);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
@@ -1005,7 +1007,7 @@ test_load_subkey(void **state)
 
     /* load second subkey, without signature */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-2-no-sigs.pgp"));
-    assert_int_equal(list_length(key_store->keys), 2);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
     assert_false(skey2->valid);
     assert_int_equal(pgp_key_get_rawpacket_count(skey2), 1);
@@ -1015,7 +1017,7 @@ test_load_subkey(void **state)
 
     /* load primary key without subkey signatures */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-uid-1.pgp"));
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_int_equal(pgp_key_get_rawpacket_count(key), 3);
@@ -1033,7 +1035,7 @@ test_load_subkey(void **state)
 
     /* load second subkey with signature */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-2.pgp"));
-    assert_int_equal(list_length(key_store->keys), 3);
+    assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_true(key == rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(skey1 == rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(skey2 == rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
