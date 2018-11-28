@@ -137,62 +137,28 @@ write_matching_packets(pgp_dest_t *           dst,
     return !dst->werr;
 }
 
-/**
-   \ingroup HighLevel_KeyWrite
-
-   \brief Writes a transferable PGP public key to the given output stream.
-
-   \param key Key to be written
-   \param armored Flag is set for armored output
-   \param output Output stream
-
-*/
-
 bool
-pgp_write_xfer_pubkey(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
+pgp_write_xfer_key(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
 {
-    static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
-                                                 PGP_PTAG_CT_PUBLIC_SUBKEY,
-                                                 PGP_PTAG_CT_USER_ID,
-                                                 PGP_PTAG_CT_SIGNATURE};
-
-    bool res = false;
+    static const pgp_content_enum pub_tags[] = {PGP_PTAG_CT_PUBLIC_KEY,
+                                                PGP_PTAG_CT_PUBLIC_SUBKEY,
+                                                PGP_PTAG_CT_USER_ID,
+                                                PGP_PTAG_CT_SIGNATURE};
+    static const pgp_content_enum sec_tags[] = {PGP_PTAG_CT_SECRET_KEY,
+                                                PGP_PTAG_CT_SECRET_SUBKEY,
+                                                PGP_PTAG_CT_USER_ID,
+                                                PGP_PTAG_CT_SIGNATURE};
+    bool                          res = false;
 
     if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
-    res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
-    return res;
-}
-
-/**
-   \ingroup HighLevel_KeyWrite
-
-   \brief Writes a transferable PGP secret key to the given output stream.
-
-   \param key Key to be written
-   \param password
-   \param pplen
-   \param armored Flag is set for armored output
-   \param output Output stream
-
-*/
-
-bool
-pgp_write_xfer_seckey(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
-{
-    static const pgp_content_enum perm_tags[] = {PGP_PTAG_CT_SECRET_KEY,
-                                                 PGP_PTAG_CT_SECRET_SUBKEY,
-                                                 PGP_PTAG_CT_USER_ID,
-                                                 PGP_PTAG_CT_SIGNATURE};
-
-    bool res = false;
-
-    if (!pgp_key_get_rawpacket_count(key)) {
-        return false;
+    if (pgp_is_key_public(key)) {
+        res = write_matching_packets(dst, key, keyring, pub_tags, ARRAY_SIZE(pub_tags));
+    } else {
+        res = write_matching_packets(dst, key, keyring, sec_tags, ARRAY_SIZE(sec_tags));
     }
 
-    res = write_matching_packets(dst, key, keyring, perm_tags, ARRAY_SIZE(perm_tags));
     return res;
 }
 
