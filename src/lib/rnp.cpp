@@ -755,13 +755,14 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         RNP_LOG("failed to load key from file %s", path);
         goto done;
     }
-    if (!list_length(tmp_keystore->keys)) {
+    if (!rnp_key_store_get_key_count(tmp_keystore)) {
         RNP_LOG("failed to load any keys");
         goto done;
     }
 
     // loop through each key
-    for (list_item *ki = list_front(tmp_keystore->keys); ki; ki = list_next(ki)) {
+    for (list_item *ki = list_front(rnp_key_store_get_keys(tmp_keystore)); ki;
+         ki = list_next(ki)) {
         pgp_key_t  keycp = {};
         pgp_key_t *imported = (pgp_key_t *) ki;
         pgp_key_t *exkey = NULL;
@@ -838,13 +839,13 @@ rnp_import_key(rnp_t *rnp, const char *f)
 size_t
 rnp_secret_count(rnp_t *rnp)
 {
-    return rnp->secring ? list_length(rnp->secring->keys) : 0;
+    return rnp->secring ? rnp_key_store_get_key_count(rnp->secring) : 0;
 }
 
 size_t
 rnp_public_count(rnp_t *rnp)
 {
-    return rnp->pubring ? list_length(rnp->pubring->keys) : 0;
+    return rnp->pubring ? rnp_key_store_get_key_count(rnp->pubring) : 0;
 }
 
 pgp_key_t *

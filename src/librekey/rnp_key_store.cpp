@@ -110,7 +110,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
         return false;
     }
 
-    if (list_length(pubring->keys) < 1) {
+    if (rnp_key_store_get_key_count(pubring) < 1) {
         RNP_LOG("pub keyring '%s' is empty", ((rnp_key_store_t *) pubring)->path);
         return false;
     }
@@ -123,7 +123,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
             return false;
         }
 
-        if (list_length(secring->keys) < 1) {
+        if (rnp_key_store_get_key_count(secring) < 1) {
             RNP_LOG("sec keyring '%s' is empty", ((rnp_key_store_t *) secring)->path);
             return false;
         }
@@ -246,7 +246,7 @@ rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
             }
         }
 
-        for (list_item *key_item = list_front(key_store->keys); key_item;
+        for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
              key_item = list_next(key_item)) {
             pgp_key_t *key = (pgp_key_t *) key_item;
             snprintf(path,
@@ -355,14 +355,15 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 
     errno = 0;
 
-    if (ring == NULL || list_length(ring->keys) < 1) {
+    if (ring == NULL || rnp_key_store_get_key_count(ring) < 1) {
         errno = EINVAL;
         return false;
     }
 
     memset(id, 0x0, len);
 
-    list_item *key_item = last ? list_back(ring->keys) : list_front(ring->keys);
+    list_item *key_item = last ? list_back(rnp_key_store_get_keys(ring)) :
+                                 list_front(rnp_key_store_get_keys(ring));
     src = (uint8_t *) ((pgp_key_t *) key_item)->keyid;
     rnp_key_store_format_key(id, src, len);
 
@@ -406,6 +407,24 @@ rnp_key_store_free(rnp_key_store_t *keyring)
     free(keyring);
 }
 
+size_t
+rnp_key_store_get_key_count(const rnp_key_store_t *keyring)
+{
+    return list_length(keyring->keys);
+}
+
+pgp_key_t *
+rnp_key_store_get_key(const rnp_key_store_t *keyring, size_t idx)
+{
+    return (pgp_key_t *) list_at(keyring->keys, idx);
+}
+
+list
+rnp_key_store_get_keys(const rnp_key_store_t *keyring)
+{
+    return keyring->keys;
+}
+
 /**
    \ingroup HighLevel_KeyringList
 
@@ -418,7 +437,7 @@ rnp_key_store_free(rnp_key_store_t *keyring)
 bool
 rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
 {
-    unsigned keyc = (keyring != NULL) ? list_length(keyring->keys) : 0;
+    unsigned keyc = (keyring != NULL) ? rnp_key_store_get_key_count(keyring) : 0;
 
     (void) fprintf(fp, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
 
@@ -426,7 +445,7 @@ rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
         return true;
     }
 
-    for (list_item *key_item = list_front(keyring->keys); key_item;
+    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (pgp_is_key_secret(key)) {
@@ -442,7 +461,7 @@ rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
 bool
 rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int psigs)
 {
-    for (list_item *key_item = list_front(keyring->keys); key_item;
+    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *  key = (pgp_key_t *) key_item;
         json_object *jso = json_object_new_object();
@@ -582,7 +601,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         return false;
     }
 
-    for (list_item *ki = list_front(keyring->keys); ki; ki = list_next(ki)) {
+    for (list_item *ki = list_front(rnp_key_store_get_keys(keyring)); ki; ki = list_next(ki)) {
         pgp_key_t *skey = (pgp_key_t *) ki;
         bool       found = false;
 
@@ -680,7 +699,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         return NULL;
     }
 
-    RNP_DLOG("keyc %lu", list_length(keyring->keys));
+    RNP_DLOG("keyc %lu", rnp_key_store_get_key_count(keyring));
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation) {
