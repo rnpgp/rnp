@@ -61,7 +61,15 @@
 #include "types.h"
 
 bool pgp_write_struct_seckey(pgp_dest_t *, pgp_content_enum, pgp_key_pkt_t *, const char *);
-bool pgp_write_xfer_pubkey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *);
-bool pgp_write_xfer_seckey(pgp_dest_t *, const pgp_key_t *, const rnp_key_store_t *);
+
+/**
+ * @brief Write OpenPGP key packets (including subkeys) to the specified stream
+ *
+ * @param dst stream to write packets
+ * @param key key
+ * @param keyring keyring, which will be searched for subkeys
+ * @return true on success or false otherwise
+ */
+bool pgp_write_xfer_key(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring);
 
 #endif /* CREATE_H_ */

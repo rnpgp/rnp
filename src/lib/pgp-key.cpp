@@ -937,7 +937,7 @@ pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx)
 pgp_key_t *
 pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store, size_t idx)
 {
-    uint8_t *grip = (uint8_t*) list_at(key->subkey_grips, idx);
+    uint8_t *grip = (uint8_t *) list_at(key->subkey_grips, idx);
     if (!grip) {
         return NULL;
     }
@@ -965,11 +965,7 @@ pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key)
         dst_close(&memdst, true);
         return NULL;
     }
-    if (is_public) {
-        res = pgp_write_xfer_pubkey(&armordst, key, keyring);
-    } else {
-        res = pgp_write_xfer_seckey(&armordst, key, keyring);
-    }
+    res = pgp_write_xfer_key(&armordst, key, keyring);
     if (res && !dst_finish(&armordst)) {
         dst_write(&memdst, "\0", 1);
         dst_finish(&memdst);
