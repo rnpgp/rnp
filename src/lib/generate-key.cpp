@@ -101,14 +101,15 @@ load_generated_g10_key(pgp_key_t *    dst,
         goto end;
     }
     // if a primary key is provided, it should match the sub with regards to type
-    assert(!primary_key || (pgp_is_key_secret(primary_key) ==
-                            pgp_is_key_secret((pgp_key_t *) list_back(key_store->keys))));
-    if (list_length(key_store->keys) != 1) {
+    assert(!primary_key ||
+           (pgp_is_key_secret(primary_key) ==
+            pgp_is_key_secret((pgp_key_t *) list_back(rnp_key_store_get_keys(key_store)))));
+    if (rnp_key_store_get_key_count(key_store) != 1) {
         goto end;
     }
-    memcpy(dst, (pgp_key_t *) list_front(key_store->keys), sizeof(*dst));
+    memcpy(dst, rnp_key_store_get_key(key_store, 0), sizeof(*dst));
     // we don't want the key store to free the internal key data
-    rnp_key_store_remove_key(key_store, (pgp_key_t *) list_front(key_store->keys));
+    rnp_key_store_remove_key(key_store, (pgp_key_t *) rnp_key_store_get_key(key_store, 0));
     ok = true;
 
 end:

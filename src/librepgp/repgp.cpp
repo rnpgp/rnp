@@ -324,7 +324,8 @@ repgp_validate_pubkeys_signatures(void *ctx)
     rnp_result_t           ret;
     bool                   valid = true;
 
-    for (list_item *key = list_front(ring->keys); key; key = list_next(key)) {
+    for (list_item *key = list_front(rnp_key_store_get_keys(ring)); key;
+         key = list_next(key)) {
         ret = validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
         valid &= check_signatures_info(&result);
         free_signatures_info(&result);
