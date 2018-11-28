@@ -37,8 +37,8 @@ all_keys_valid(const rnp_key_store_t *keyring)
 {
     char keyid[PGP_KEY_ID_SIZE * 2 + 3] = {0};
 
-    for (list_item *ki = list_front(keyring->keys); ki; ki = list_next(ki)) {
-        pgp_key_t *key = (pgp_key_t *) ki;
+    for (size_t i = 0; i < rnp_key_store_get_key_count(keyring); i++) {
+        pgp_key_t *key = rnp_key_store_get_key(keyring, i);
         if (!key->valid) {
             assert_true(rnp_hex_encode(
               key->keyid, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_LOWERCASE));

@@ -691,7 +691,7 @@ rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
         return false;
     }
 
-    for (list_item *key_item = list_front(key_store->keys); key_item;
+    for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
         if (!pgp_key_is_primary_key(key)) {
