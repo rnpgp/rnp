@@ -182,6 +182,11 @@ rnp --decrypt --homedir=${keyringdir} ${filename}.gpg
 Creates: `${filename}`
 
 
+# For developers
+
+You may wish to use librnp library in your projects as well.
+See the [`src/examples/README.md`](./src/examples/README.md) for the usage details and sample code.
+
 
 # Install
 
