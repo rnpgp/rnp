@@ -2664,13 +2664,72 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
 }
 
 static bool
-parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
+parse_protection(json_object *jso, rnp_key_protection_params_t *protection)
+{
+    static const struct {
+        const char *   key;
+        enum json_type type;
+    } properties[] = {{"cipher", json_type_string},
+                      {"mode", json_type_string},
+                      {"iterations", json_type_int},
+                      {"hash", json_type_string}};
+
+    for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
+        json_object *value = NULL;
+        const char * key = properties[i].key;
+
+        if (!json_object_object_get_ex(jso, key, &value)) {
+            continue;
+        }
+
+        if (!json_object_is_type(value, properties[i].type)) {
+            return false;
+        }
+        // TODO: make sure there are no duplicate keys in the JSON
+        if (!rnp_strcasecmp(key, "cipher")) {
+            protection->symm_alg = PGP_SA_UNKNOWN;
+            ARRAY_LOOKUP_BY_STRCASE(
+              symm_alg_map, string, type, json_object_get_string(value), protection->symm_alg);
+            if (protection->symm_alg == PGP_SA_UNKNOWN) {
+                return false;
+            }
+        } else if (!rnp_strcasecmp(key, "mode")) {
+            protection->cipher_mode = PGP_CIPHER_MODE_NONE;
+            ARRAY_LOOKUP_BY_STRCASE(cipher_mode_map,
+                                    string,
+                                    type,
+                                    json_object_get_string(value),
+                                    protection->cipher_mode);
+            if (protection->cipher_mode == PGP_CIPHER_MODE_NONE) {
+                return false;
+            }
+        } else if (!rnp_strcasecmp(key, "iterations")) {
+            protection->iterations = json_object_get_int(value);
+        } else if (!rnp_strcasecmp(key, "hash")) {
+            protection->hash_alg = PGP_HASH_UNKNOWN;
+            ARRAY_LOOKUP_BY_STRCASE(
+              hash_alg_map, string, type, json_object_get_string(value), protection->hash_alg);
+            if (protection->hash_alg == PGP_HASH_UNKNOWN) {
+                return false;
+            }
+        } else {
+            // shouldn't happen
+            return false;
+        }
+        // delete this field since it has been handled
+        json_object_object_del(jso, key);
+    }
+    return true;
+}
+
+static bool
+parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
 {
     static const char *properties[] = {
       "userid", "usage", "expiration", "preferences", "protection"};
-    rnp_selfsig_cert_info_t *cert = &desc->cert;
+    rnp_selfsig_cert_info_t *cert = &desc->primary.keygen.cert;
 
-    if (!parse_keygen_crypto(jso, &desc->crypto)) {
+    if (!parse_keygen_crypto(jso, &desc->primary.keygen.crypto)) {
         return false;
     }
     for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
@@ -2738,7 +2797,15 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "protection")) {
-            // TODO
+            if (!json_object_is_type(value, json_type_object)) {
+                return false;
+            }
+            if (!parse_protection(value, &desc->primary.protection)) {
+                return false;
+            }
+            if (json_object_object_length(value) != 0) {
+                return false;
+            }
         }
         // delete this field since it has been handled
         json_object_object_del(jso, key);
@@ -2747,12 +2814,12 @@ parse_keygen_primary(json_object *jso, rnp_keygen_primary_desc_t *desc)
 }
 
 static bool
-parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
+parse_keygen_sub(json_object *jso, rnp_action_keygen_t *desc)
 {
-    static const char *         properties[] = {"usage", "expiration"};
-    rnp_selfsig_binding_info_t *binding = &desc->binding;
+    static const char *         properties[] = {"usage", "expiration", "protection"};
+    rnp_selfsig_binding_info_t *binding = &desc->subkey.keygen.binding;
 
-    if (!parse_keygen_crypto(jso, &desc->crypto)) {
+    if (!parse_keygen_crypto(jso, &desc->subkey.keygen.crypto)) {
         return false;
     }
     for (size_t i = 0; i < ARRAY_SIZE(properties); i++) {
@@ -2799,6 +2866,16 @@ parse_keygen_sub(json_object *jso, rnp_keygen_subkey_desc_t *desc)
                 return false;
             }
             binding->key_expiration = json_object_get_int(value);
+        } else if (!rnp_strcasecmp(key, "protection")) {
+            if (!json_object_is_type(value, json_type_object)) {
+                return false;
+            }
+            if (!parse_protection(value, &desc->subkey.protection)) {
+                return false;
+            }
+            if (json_object_object_length(value) != 0) {
+                return false;
+            }
         }
         // delete this field since it has been handled
         json_object_object_del(jso, key);
@@ -2865,18 +2942,18 @@ done:
 rnp_result_t
 rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
 {
-    rnp_result_t              ret = RNP_ERROR_GENERIC;
-    json_object *             jso = NULL;
-    rnp_keygen_primary_desc_t primary_desc = {{(pgp_pubkey_alg_t) 0}};
-    rnp_keygen_subkey_desc_t  sub_desc = {{(pgp_pubkey_alg_t) 0}};
-    char *                    identifier_type = NULL;
-    char *                    identifier = NULL;
-    pgp_key_t                 primary_pub = {0};
-    pgp_key_t                 primary_sec = {0};
-    pgp_key_t                 sub_pub = {0};
-    pgp_key_t                 sub_sec = {0};
-    json_object *             jsoprimary = NULL;
-    json_object *             jsosub = NULL;
+    rnp_result_t        ret = RNP_ERROR_GENERIC;
+    json_object *       jso = NULL;
+    rnp_action_keygen_t keygen_desc = {};
+    char *              identifier_type = NULL;
+    char *              identifier = NULL;
+    pgp_key_t           primary_pub = {0};
+    pgp_key_t           primary_sec = {0};
+    pgp_key_t           sub_pub = {0};
+    pgp_key_t           sub_sec = {0};
+    json_object *       jsoprimary = NULL;
+    json_object *       jsosub = NULL;
+    json_tokener_error  error;
 
     // checks
     if (!ffi || (!ffi->pubring && !ffi->secring) || !json) {
@@ -2884,10 +2961,10 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     }
 
     // parse the JSON
-    jso = json_tokener_parse(json);
+    jso = json_tokener_parse_verbose(json, &error);
     if (!jso) {
         // syntax error or some other issue
-        FFI_LOG(ffi, "Invalid JSON");
+        FFI_LOG(ffi, "Invalid JSON: %s", json_tokener_error_desc(error));
         ret = RNP_ERROR_BAD_FORMAT;
         goto done;
     }
@@ -2919,14 +2996,14 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     }
 
     if (jsoprimary && jsosub) { // generating primary+sub
-        if (!parse_keygen_primary(jsoprimary, &primary_desc) ||
-            !parse_keygen_sub(jsosub, &sub_desc)) {
+        if (!parse_keygen_primary(jsoprimary, &keygen_desc) ||
+            !parse_keygen_sub(jsosub, &keygen_desc)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         if (!pgp_generate_keypair(&ffi->rng,
-                                  &primary_desc,
-                                  &sub_desc,
+                                  &keygen_desc.primary.keygen,
+                                  &keygen_desc.subkey.keygen,
                                   true,
                                   &primary_sec,
                                   &primary_pub,
@@ -2952,6 +3029,25 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
+            /* add key/subkey protection */
+            if (keygen_desc.primary.protection.symm_alg &&
+                !rnp_key_add_protection(&primary_sec,
+                                        ffi->secring->format,
+                                        &keygen_desc.primary.protection,
+                                        &ffi->pass_provider)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+
+            if (keygen_desc.subkey.protection.symm_alg &&
+                !rnp_key_add_protection(&sub_sec,
+                                        ffi->secring->format,
+                                        &keygen_desc.subkey.protection,
+                                        &ffi->pass_provider)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+
             if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
@@ -2964,13 +3060,16 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             sub_sec = (pgp_key_t){0};
         }
     } else if (jsoprimary && !jsosub) { // generating primary only
-        primary_desc.crypto.rng = &ffi->rng;
-        if (!parse_keygen_primary(jsoprimary, &primary_desc)) {
+        keygen_desc.primary.keygen.crypto.rng = &ffi->rng;
+        if (!parse_keygen_primary(jsoprimary, &keygen_desc)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!pgp_generate_primary_key(
-              &primary_desc, true, &primary_sec, &primary_pub, ffi->secring->format)) {
+        if (!pgp_generate_primary_key(&keygen_desc.primary.keygen,
+                                      true,
+                                      &primary_sec,
+                                      &primary_pub,
+                                      ffi->secring->format)) {
             goto done;
         }
         if (results && !gen_json_grips(results, &primary_pub, NULL)) {
@@ -2985,6 +3084,16 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             primary_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
+            /* encrypt secret key if specified */
+            if (keygen_desc.primary.protection.symm_alg &&
+                !rnp_key_add_protection(&primary_sec,
+                                        ffi->secring->format,
+                                        &keygen_desc.primary.protection,
+                                        &ffi->pass_provider)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+
             if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
@@ -3027,12 +3136,12 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_KEY_NOT_FOUND;
             goto done;
         }
-        if (!parse_keygen_sub(jsosub, &sub_desc)) {
+        if (!parse_keygen_sub(jsosub, &keygen_desc)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        sub_desc.crypto.rng = &ffi->rng;
-        if (!pgp_generate_subkey(&sub_desc,
+        keygen_desc.subkey.keygen.crypto.rng = &ffi->rng;
+        if (!pgp_generate_subkey(&keygen_desc.subkey.keygen,
                                  true,
                                  primary_sec,
                                  primary_pub,
@@ -3054,6 +3163,16 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             sub_pub = (pgp_key_t){0};
         }
         if (ffi->secring) {
+            /* encrypt subkey if specified */
+            if (keygen_desc.subkey.protection.symm_alg &&
+                !rnp_key_add_protection(&sub_sec,
+                                        ffi->secring->format,
+                                        &keygen_desc.subkey.protection,
+                                        &ffi->pass_provider)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+
             if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
@@ -3075,7 +3194,7 @@ done:
     json_object_put(jso);
     free(identifier_type);
     free(identifier);
-    pgp_free_user_prefs(&primary_desc.cert.prefs);
+    pgp_free_user_prefs(&keygen_desc.primary.keygen.cert.prefs);
     return ret;
 }
 
