@@ -102,10 +102,19 @@ typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
  *        it is destroyed after the callback. It should only be used to
  *        retrieve information like the userids, grip, etc.
  * @param pgp_context a descriptive string on why the password is being
- *        requested
- * @param pass to which the callback should write the returned
- * password, NULL terminated.
- * @param pass_len the size of pass buffer
+ *        requested, may have one of the following values:
+ *         - "add subkey": add subkey to the encrypted secret key
+ *         - "add userid": add userid to the encrypted secret key
+ *         - "sign": sign data
+ *         - "decrypt": decrypt data using the encrypted secret key
+ *         - "unlock": temporary unlock secret key (decrypting it's fields), so it may be used
+ *           later without need to decrypt
+ *         - "protect": encrypt secret key fields
+ *         - "unprotect": decrypt secret key fields, leaving those in a raw format
+ *         - "decrypt (symmetric): decrypt data, using the password
+ *         - "encrypt (symmetric)": encrypt data, using the password
+ * @param buf to which the callback should write the returned password, NULL terminated.
+ * @param buf_len the size of buf
  * @return true if a password was provided, false otherwise
  */
 typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
@@ -145,8 +154,10 @@ typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
 /** create the top-level object used for interacting with the library
  *
  *  @param ffi pointer that will be set to the created ffi object
- *  @param pub_format the format of the public keyring
- *  @param sec_format the format of the secret keyring
+ *  @param pub_format the format of the public keyring, RNP_KEYSTORE_GPG or other
+ *         RNP_KEYSTORE_* constant
+ *  @param sec_format the format of the secret keyring, RNP_KEYSTORE_GPG or other
+ *         RNP_KEYSTORE_* constant
  *  @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format);
@@ -238,6 +249,16 @@ rnp_result_t rnp_save_keys(rnp_ffi_t    ffi,
 rnp_result_t rnp_get_public_key_count(rnp_ffi_t ffi, size_t *count);
 rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
 
+/** search for the key
+ *
+ *  @param ffi
+ *  @param identifier_type string with type of the identifier: userid, keyid, fingerprint, grip
+ *  @param identifier for userid is the userid string, for other search types - hex string
+ *         representation of the value
+ *  @param key if key was found then the resulting key handle will be stored here, otherwise it
+ *         will contain NULL value. You must free handle after use with rnp_key_handle_destroy.
+ *  @return 0 on success (including case where key is not found), or any other value on error
+ */
 rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             const char *      identifier_type,
                             const char *      identifier,
@@ -254,7 +275,7 @@ rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
  *  @param json the json data that describes the key generation.
  *         Must not be NULL.
  *  @param results pointer that will be set to the JSON results.
- *         Must not be NULL. The caller should free this with rnp_buffer_free.
+ *         Must not be NULL. The caller should free this with rnp_buffer_destroy.
  *  @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
@@ -313,8 +334,35 @@ rnp_result_t rnp_key_add_uid(rnp_key_handle_t key,
                              bool             primary);
 
 /* The following output hex encoded strings */
+
+/**
+ * @brief Get key's fingerprint as hex-encoded string.
+ *
+ * @param key key handle, should not be NULL
+ * @param fprint pointer to the NULL-terminated string with hex-encoded fingerprint will be
+ *        stored here. You must free it later using rnp_buffer_destroy function.
+ * @return RNP_SUCCESS or error code on failure.
+ */
 rnp_result_t rnp_key_get_fprint(rnp_key_handle_t key, char **fprint);
+
+/**
+ * @brief Get key's id as hex-encoded string
+ *
+ * @param key key handle, should not be NULL
+ * @param keyid pointer to the NULL-terminated string with hex-encoded key id will be
+ *        stored here. You must free it later using rnp_buffer_destroy function.
+ * @return RNP_SUCCESS or error code on failure.
+ */
 rnp_result_t rnp_key_get_keyid(rnp_key_handle_t key, char **keyid);
+
+/**
+ * @brief Get key's grip as hex-encoded string
+ *
+ * @param key key handle, should not be NULL
+ * @param grip pointer to the NULL-terminated string with hex-encoded key grip will be
+ *        stored here. You must free it later using rnp_buffer_destroy function.
+ * @return RNP_SUCCESS or error code on failure.
+ */
 rnp_result_t rnp_key_get_grip(rnp_key_handle_t key, char **grip);
 
 /** check if a key is currently locked
