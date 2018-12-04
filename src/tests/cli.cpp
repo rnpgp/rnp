@@ -382,11 +382,18 @@ test_cli_examples(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char *examples_path = rnp_compose_path(rstate->original_dir, "../examples", NULL);
+    char *example_path = NULL;
     /* key generation example */
-    char *example_path = rnp_compose_path(examples_path, "generate", NULL);
+    example_path = rnp_compose_path(examples_path, "generate", NULL);
     assert_non_null(example_path);
     assert_int_equal(system(example_path), 0);
-
     free(example_path);
+
+    /* encryption sample */
+    example_path = rnp_compose_path(examples_path, "encrypt", NULL);
+    assert_non_null(example_path);
+    assert_int_equal(system(example_path), 0);
+    free(example_path);
+
     free(examples_path);
 }
