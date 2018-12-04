@@ -279,6 +279,10 @@ static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
                                          {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
                                          {PGP_SA_SM4, "SM4"}};
 
+static const pgp_map_t aead_alg_map[] = {{PGP_AEAD_NONE, "None"},
+                                         {PGP_AEAD_EAX, "EAX"},
+                                         {PGP_AEAD_OCB, "OCB"}};
+
 static const pgp_map_t cipher_mode_map[] = {
   {PGP_CIPHER_MODE_CFB, "CFB"}, {PGP_CIPHER_MODE_CBC, "CBC"}, {PGP_CIPHER_MODE_OCB, "OCB"}};
 
@@ -1698,6 +1702,23 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, op->rnpctx.ealg);
     if (op->rnpctx.ealg == PGP_SA_UNKNOWN) {
         FFI_LOG(op->ffi, "Invalid cipher: %s", cipher);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
+{
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->rnpctx.aalg = PGP_AEAD_NONE;
+    ARRAY_LOOKUP_BY_STRCASE(aead_alg_map, string, type, alg, op->rnpctx.aalg);
+
+    if ((op->rnpctx.aalg == PGP_AEAD_NONE) && strcmp(alg, aead_alg_map[0].string)) {
+        FFI_LOG(op->ffi, "Invalid AEAD algorithm: %s", alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
