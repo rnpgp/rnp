@@ -36,3 +36,17 @@ target_link_libraries(generate
     librnp
     JSON-C::JSON-C
 )
+
+add_executable(encrypt encrypt.cpp)
+
+target_include_directories(encrypt
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(encrypt
+  PRIVATE
+    librnp
+    JSON-C::JSON-C
+)
