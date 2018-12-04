@@ -510,6 +510,7 @@ rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
  *         rnp_op_sign_*_create functions.
  *  @param key handle of the private key. Private key should be capable for signing.
  *  @param sig pointer to opaque structure holding the signature information. May be NULL.
+ *         You should not free it as it will be destroyed together with signing context.
  *  @return RNP_SUCCESS or error code if failed
  */
 rnp_result_t rnp_op_sign_add_signature(rnp_op_sign_t            op,
@@ -872,7 +873,10 @@ rnp_result_t rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
  * used. To set hash function for each signature separately use rnp_op_sign_signature_set_hash.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
- * @param hash hash algorithm to be used
+ * @param hash hash algorithm to be used as NULL-terminated string. Following values are
+ *        supported: "MD5", "SHA1", "RIPEMD160", "SHA256", "SHA384", "SHA512", "SHA224", "SM3".
+ *        However, some signature types may require specific hash function or hash function
+ *        output length.
  * @return RNP_SUCCESS or error code if failed
  */
 rnp_result_t rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash);
@@ -896,18 +900,86 @@ rnp_result_t rnp_op_encrypt_set_creation_time(rnp_op_encrypt_t op, uint32_t crea
  */
 rnp_result_t rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t expire);
 
+/**
+ * @brief Add password which is used to encrypt data. Multiple passwords can be added.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param password NULL-terminated password string
+ * @param s2k_hash hash algorithm, used in key-from-password derivation. Pass NULL for default
+ *        value. See rnp_op_encrypt_set_hash for possible values.
+ * @param iterations number of iterations, used iin key derivation function. Pass 0 for default
+ *        value.
+ * @param s2k_cipher symmetric cipher, used for key encryption. Pass NULL for default value.
+ * See rnp_op_encrypt_set_cipher for possible values.
+ * @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                                          const char *     password,
                                          const char *     s2k_hash,
                                          size_t           iterations,
                                          const char *     s2k_cipher);
 
+/**
+ * @brief Set whether output should be ASCII-armored, or binary.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param armored true for armored, false for binary
+ * @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_encrypt_set_armor(rnp_op_encrypt_t op, bool armored);
+
+/**
+ * @brief set the encryption algorithm
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param cipher NULL-terminated string with cipher's name. One of the "IDEA", "TRIPLEDES",
+ *        "CAST5", "BLOWFISH", "AES128", "AES192", "AES256", "TWOFISH", "CAMELLIA128",
+ *        "CAMELLIA192", "CAMELLIA256", "SM4".
+ * @return RNP_SUCCESS or error code if failed
+ */
 rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher);
+
+/**
+ * @brief set AEAD mode algorithm or disable AEAD usage. By default it is disabled.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param alg NULL-terminated AEAD algorithm name. Use "None" to disable AEAD, or "EAX", "OCB"
+ * to use the corresponding algorithm.
+ * @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg);
+
+/**
+ * @brief set the compression algorithm and level for the inner raw data
+ *
+ * @param op opaque encrypted context. Must be allocated and initialized
+ * @param compression compression algorithm name. Can be one of the "Uncompressed", "ZIP",
+ *        "ZLIB", "BZip2". Please note that ZIP is not PkWare's ZIP file format but just a
+ *        DEFLATE compressed data (RFC 1951).
+ * @param level 0 - 9, where 0 is no compression and 9 is maximum compression level.
+ * @return 0 on success, or any other value on error
+ */
 rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
                                             const char *     compression,
                                             int              level);
+
+/**
+ * @brief set the internally stored file name for the data being encrypted
+ *
+ * @param op opaque encrypted context. Must be allocated and initialized
+ * @param filename file name as NULL-terminated string. May be empty string. Value "_CONSOLE"
+ * may have specific processing (see RFC 4880 for the details), depending on implementation.
+ * @return 0 on success, or any other value on error
+ */
 rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename);
+
+/**
+ * @brief set the internally stored file modification date for the data being encrypted
+ *
+ * @param op opaque encrypted context. Must be allocated and initialized
+ * @param mtime time in seconds since Jan, 1 1970.
+ * @return 0 on success, or any other value on error
+ */
 rnp_result_t rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime);
 
 rnp_result_t rnp_op_encrypt_execute(rnp_op_encrypt_t op);
