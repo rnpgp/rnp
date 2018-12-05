@@ -11,6 +11,8 @@ Following sample applications are available:
 
 * decrypt : this one shows how to decrypt OpenPGP data, using the key or password
 
+* sign : shows how to sign messages, using the key(s) from loaded keyring
+
 Examples are built together with rnp library, and are available in `src/examples` directory of your build folder.
 
 ## generate
@@ -35,3 +37,10 @@ Also you may want to decrypt saved file via `rnp --keyfile secring.pgp -d encryp
 This example uses keyrings, generated in `generate` sample to decrypt messages, encrypted by `encrypt` sample.
 It shows how to decrypt message with password or with a key, and implements custom password provider for decryption or key password.
 Decrypted message is saved to the memory and then printed to the stdout.
+
+## sign
+
+This example uses keyrings, generated in `generate` example. Then it configures signing context, and signs message, saving it to the `signed.asc` file.
+Attached signature is used, i.e. data is encapsulated into the resulting message.
+
+You can investigate the signed message by issuing `rnp --list-packets signed.asc` command.
