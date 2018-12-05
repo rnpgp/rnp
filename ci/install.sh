@@ -159,43 +159,49 @@ build_gpg_beta() {
   # alternatively, forcing the libgpg-error build to use gcc should work
   export LD_LIBRARY_PATH="/usr/local/clang/lib"
 
-  git clone --depth 1 --branch "$NPTH_VERSION" git://git.gnupg.org/npth
+  git clone git://git.gnupg.org/npth
   pushd npth
+  git checkout "$NPTH_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$LIBGPG_ERROR_VERSION" git://git.gnupg.org/libgpg-error
+  git clone git://git.gnupg.org/libgpg-error
   pushd libgpg-error
+  git checkout "$LIBGPG_ERROR_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$LIBGCRYPT_VERSION" git://git.gnupg.org/libgcrypt
+  git clone git://git.gnupg.org/libgcrypt
   pushd libgcrypt
+  git checkout "$LIBGCRYPT_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$LIBASSUAN_VERSION" git://git.gnupg.org/libassuan
+  git clone git://git.gnupg.org/libassuan
   pushd libassuan
+  git checkout "$LIBASSUAN_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$LIBKSBA_VERSION" git://git.gnupg.org/libksba
+  git clone git://git.gnupg.org/libksba
   pushd libksba
+  git checkout "$LIBKSBA_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
   ${MAKE} -j${CORES} install
   popd
 
-  git clone --depth 1 --branch "$PINENTRY_VERSION" git://git.gnupg.org/pinentry.git
+  git clone git://git.gnupg.org/pinentry.git
   pushd pinentry
+  git checkout "$PINENTRY_VERSION"
   cat << 'END' | git apply -
 diff --git a/Makefile.am b/Makefile.am
 index 8c8b8e5..412244c 100644
@@ -250,10 +256,10 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
 
   if [ "$GPG_VERSION" = "stable" ]; then
     #                npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_stable 1.5  1.31         1.8.2     2.5.1     1.3.5   1.1.0    2.2.7
+    build_gpg_stable 1.6  1.32         1.8.4     2.5.1     1.3.5   1.1.0    2.2.11
   elif [ "$GPG_VERSION" = "beta" ]; then
     #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_beta latest master master master master master master fe621cc
+    build_gpg_beta latest 377c1b9 f4d139b 66d2b7f eac43aa c37cdbd d0eaec8 e154fba
   else
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
