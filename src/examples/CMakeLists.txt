@@ -78,3 +78,17 @@ target_link_libraries(sign
     librnp
     JSON-C::JSON-C
 )
+
+add_executable(verify verify.cpp)
+
+target_include_directories(verify
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(verify
+  PRIVATE
+    librnp
+    JSON-C::JSON-C
+)
