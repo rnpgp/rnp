@@ -279,9 +279,8 @@ static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
                                          {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
                                          {PGP_SA_SM4, "SM4"}};
 
-static const pgp_map_t aead_alg_map[] = {{PGP_AEAD_NONE, "None"},
-                                         {PGP_AEAD_EAX, "EAX"},
-                                         {PGP_AEAD_OCB, "OCB"}};
+static const pgp_map_t aead_alg_map[] = {
+  {PGP_AEAD_NONE, "None"}, {PGP_AEAD_EAX, "EAX"}, {PGP_AEAD_OCB, "OCB"}};
 
 static const pgp_map_t cipher_mode_map[] = {
   {PGP_CIPHER_MODE_CFB, "CFB"}, {PGP_CIPHER_MODE_CBC, "CBC"}, {PGP_CIPHER_MODE_OCB, "OCB"}};
@@ -2520,8 +2519,9 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     }
     if (armored) {
         dst_finish(&armordst);
-        dst_close(&armordst, true);
+        dst_close(&armordst, false);
     }
+    output->keep = true;
     return RNP_SUCCESS;
 }
 
