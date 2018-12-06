@@ -13,6 +13,8 @@ Following sample applications are available:
 
 * sign : shows how to sign messages, using the key(s) from loaded keyring
 
+* verify : shows how to verify signed messages, using dynamic keys fetching (sample key provider implementation)
+
 Examples are built together with rnp library, and are available in `src/examples` directory of your build folder.
 
 ## generate
@@ -44,3 +46,9 @@ This example uses keyrings, generated in `generate` example. Then it configures 
 Attached signature is used, i.e. data is encapsulated into the resulting message.
 
 You can investigate the signed message by issuing `rnp --list-packets signed.asc` command.
+To verify message, use `rnp --keyfile pubring.pgp -v signed.asc`
+
+## verify
+
+This example uses keyrings, generated in `generate` example. However, instead of loading the whole keyring it implements dynamic key fetching via custom key provider (see function `example_key_provider`).
+After verification sample outputs verified embedded message, and all signatures with signing key ids and statueses.
