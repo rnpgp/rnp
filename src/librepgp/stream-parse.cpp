@@ -907,7 +907,6 @@ signed_src_finish(pgp_source_t *src)
 
     /* validating signatures */
     keyctx.op = PGP_OP_VERIFY;
-    keyctx.secret = false;
     keyctx.search.type = PGP_KEY_SEARCH_KEYID;
 
     for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
@@ -915,6 +914,9 @@ signed_src_finish(pgp_source_t *src)
         if (!sinfo->sig) {
             continue;
         }
+
+        /* we need public key, however may fallback to secret later on */
+        keyctx.secret = false;
 
         /* Get the key id */
         if (!signature_get_keyid(sinfo->sig, keyctx.search.by.keyid)) {
