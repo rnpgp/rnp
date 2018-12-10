@@ -720,7 +720,7 @@ test_ffi_keygen_json_pair(void **state)
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void*) "abc"));
 
     // load our JSON
     load_test_data(rstate->data_dir, "test_ffi_json/generate-pair.json", &json, NULL);
