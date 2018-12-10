@@ -35,7 +35,7 @@ determine_version("${CMAKE_CURRENT_SOURCE_DIR}" RNP)
 # project name, etc
 project(RNP
   VERSION "${RNP_VERSION}"
-  LANGUAGES CXX
+  LANGUAGES C CXX
   DESCRIPTION "${PACKAGE_DESCRIPTION_SHORT}"
 )
 
