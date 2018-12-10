@@ -10,6 +10,7 @@ export RNP_INSTALL="${LOCAL_BUILDS}/rnp-install"
 export RUBY_RNP_INSTALL="${LOCAL_BUILDS}/ruby-rnp"
 export RUBY_RNP_VERSION="master"
 export CXX=clang++
+export CC=clang
 export CORES=$(grep -c '^$' /proc/cpuinfo)
 ci/install.sh
 ci/main.sh
