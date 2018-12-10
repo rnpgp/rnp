@@ -22,9 +22,9 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-find_package(JSON-C 0.11 REQUIRED)
+add_executable(generate generate.c)
+set_target_properties(generate PROPERTIES LINKER_LANGUAGE C)
 
-add_executable(generate generate.cpp)
 target_include_directories(generate
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
@@ -34,10 +34,10 @@ target_include_directories(generate
 target_link_libraries(generate
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 
-add_executable(encrypt encrypt.cpp)
+add_executable(encrypt encrypt.c)
+set_target_properties(encrypt PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(encrypt
   PRIVATE
@@ -48,10 +48,10 @@ target_include_directories(encrypt
 target_link_libraries(encrypt
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 
-add_executable(decrypt decrypt.cpp)
+add_executable(decrypt decrypt.c)
+set_target_properties(decrypt PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(decrypt
   PRIVATE
@@ -62,10 +62,10 @@ target_include_directories(decrypt
 target_link_libraries(decrypt
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 
-add_executable(sign sign.cpp)
+add_executable(sign sign.c)
+set_target_properties(sign PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(sign
   PRIVATE
@@ -76,10 +76,10 @@ target_include_directories(sign
 target_link_libraries(sign
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 
-add_executable(verify verify.cpp)
+add_executable(verify verify.c)
+set_target_properties(verify PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(verify
   PRIVATE
@@ -90,5 +90,4 @@ target_include_directories(verify
 target_link_libraries(verify
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
