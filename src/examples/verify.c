@@ -30,7 +30,7 @@
 #define RNP_SUCCESS 0
 
 /* example key provider which loads key from file based on it's keyid */
-void
+static void
 example_key_provider(rnp_ffi_t   ffi,
                      void *      app_ctx,
                      const char *identifier_type,
@@ -58,7 +58,7 @@ example_key_provider(rnp_ffi_t   ffi,
     rnp_input_destroy(input);
 }
 
-int
+static int
 ffi_verify()
 {
     rnp_ffi_t       ffi = NULL;
