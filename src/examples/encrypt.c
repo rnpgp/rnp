@@ -30,7 +30,7 @@
 
 #define RNP_SUCCESS 0
 
-int
+static int
 ffi_encrypt()
 {
     rnp_ffi_t        ffi = NULL;

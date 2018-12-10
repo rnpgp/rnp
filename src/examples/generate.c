@@ -80,7 +80,7 @@ const char *CURVE_25519_KEY_DESC = "{\
 /* basic pass provider implementation, which always return 'password' for key protection.
 You may ask for password via stdin, or choose password based on key properties, whatever else
 */
-bool
+static bool
 example_pass_provider(rnp_ffi_t        ffi,
                       void *           app_ctx,
                       rnp_key_handle_t key,
@@ -183,7 +183,7 @@ finish:
 }
 
 /* this example function generates RSA/RSA and Eddsa/X25519 keypairs */
-int
+static int
 ffi_generate_keys()
 {
     rnp_ffi_t    ffi = NULL;
@@ -259,7 +259,7 @@ finish:
     return result;
 }
 
-int
+static int
 ffi_output_keys()
 {
     rnp_ffi_t   ffi = NULL;
