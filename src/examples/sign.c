@@ -31,7 +31,7 @@
 #define RNP_SUCCESS 0
 
 /* sample pass provider implementation, which always return 'password' */
-bool
+static bool
 example_pass_provider(rnp_ffi_t        ffi,
                       void *           app_ctx,
                       rnp_key_handle_t key,
@@ -43,7 +43,7 @@ example_pass_provider(rnp_ffi_t        ffi,
     return true;
 }
 
-int
+static int
 ffi_sign()
 {
     rnp_ffi_t        ffi = NULL;

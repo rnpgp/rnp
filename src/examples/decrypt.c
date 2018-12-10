@@ -32,7 +32,7 @@
 /* sample pass provider implementation, which always return 'password' for key decryption and
  * 'encpassword' when password is needed for file decryption. You may ask for password via
  * stdin, or choose password based on key properties, whatever else */
-bool
+static bool
 example_pass_provider(rnp_ffi_t        ffi,
                       void *           app_ctx,
                       rnp_key_handle_t key,
@@ -52,7 +52,7 @@ example_pass_provider(rnp_ffi_t        ffi,
     return false;
 }
 
-int
+static int
 ffi_decrypt(bool usekeys)
 {
     rnp_ffi_t    ffi = NULL;
