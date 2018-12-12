@@ -1101,17 +1101,23 @@ copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
 }
 
 bool
-rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
-                           pgp_memory_t *            memory,
+rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
+                           pgp_source_t *            src,
                            const pgp_key_provider_t *key_provider)
 {
     const pgp_key_t *pubkey = NULL;
     pgp_key_t        key = {0};
     pgp_key_pkt_t    seckey = {0};
+    pgp_source_t     memsrc = {};
     bool             ret = false;
 
+    if (read_mem_src(&memsrc, src)) {
+        goto done;
+    }
+
     /* parse secret key: fills material and sec_protection only */
-    if (!g10_parse_seckey(&seckey, memory->buf, memory->length, NULL)) {
+    if (!g10_parse_seckey(
+          &seckey, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, NULL)) {
         goto done;
     }
 
@@ -1150,7 +1156,8 @@ rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
         memset(&seckey, 0, sizeof(seckey));
     }
 
-    if (!pgp_key_add_rawpacket(&key, memory->buf, memory->length, PGP_PTAG_CT_RESERVED)) {
+    if (!pgp_key_add_rawpacket(
+          &key, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PTAG_CT_RESERVED)) {
         RNP_LOG("failed to add packet");
         goto done;
     }
@@ -1160,6 +1167,7 @@ rnp_key_store_g10_from_mem(rnp_key_store_t *         key_store,
     }
     ret = true;
 done:
+    src_close(&memsrc);
     if (!ret) {
         free_key_pkt(&seckey);
         pgp_key_free_data(&key);

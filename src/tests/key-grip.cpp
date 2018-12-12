@@ -42,13 +42,13 @@ test_key_grip(void **state)
 
     pub_store = rnp_key_store_new("KBX", "data/test_stream_key_load/g10/pubring.kbx");
     assert_non_null(pub_store);
-    assert_true(rnp_key_store_load_from_file(pub_store, NULL));
+    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
 
     sec_store = rnp_key_store_new("G10", "data/test_stream_key_load/g10/private-keys-v1.d");
     assert_non_null(sec_store);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pub_store};
-    assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
+    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
     // dsa-eg public/secret key
     assert_true(

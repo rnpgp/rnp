@@ -40,17 +40,17 @@ test_load_v3_keyring_pgp(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
-    pgp_memory_t      mem = {0};
+    pgp_source_t      src = {};
 
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/2/pubring.gpg", NULL);
-    // read the pubring into memory
-    assert_true(pgp_mem_readfile(&mem, path));
 
     rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
-    // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
+    // load pubring in to the key store
+    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    src_close(&src);
     assert_int_equal(1, rnp_key_store_get_key_count(key_store));
 
     // find the key by keyid
@@ -64,16 +64,16 @@ test_load_v3_keyring_pgp(void **state)
 
     // cleanup
     rnp_key_store_free(key_store);
-    pgp_memory_release(&mem);
 
     // load secret keyring and decrypt the key
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/4/secring.pgp", NULL);
-    assert_true(pgp_mem_readfile(&mem, path));
 
     key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
-    assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
+    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    src_close(&src);
     assert_int_equal(1, rnp_key_store_get_key_count(key_store));
 
     static const uint8_t keyid2[] = {0x7D, 0x0B, 0xC1, 0x0E, 0x93, 0x34, 0x04, 0xC9};
@@ -98,7 +98,6 @@ test_load_v3_keyring_pgp(void **state)
     free_key_pkt(seckey);
     free(seckey);
     rnp_key_store_free(key_store);
-    pgp_memory_release(&mem);
 }
 
 /* This test loads a .gpg pubring with multiple V4 keys,
@@ -110,17 +109,17 @@ test_load_v4_keyring_pgp(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
     char              path[PATH_MAX];
-    pgp_memory_t      mem = {0};
+    pgp_source_t      src = {};
 
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/pubring.gpg", NULL);
-    // read the pubring into memory
-    assert_true(pgp_mem_readfile(&mem, path));
 
     rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
+    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    src_close(&src);
     assert_int_equal(7, rnp_key_store_get_key_count(key_store));
 
     // find the key by keyid
@@ -133,7 +132,6 @@ test_load_v4_keyring_pgp(void **state)
 
     // cleanup
     rnp_key_store_free(key_store);
-    pgp_memory_release(&mem);
 }
 
 /* Just a helper for the below test */
@@ -142,16 +140,14 @@ check_pgp_keyring_counts(const char *   path,
                          unsigned       primary_count,
                          const unsigned subkey_counts[])
 {
-    pgp_memory_t mem = {0};
-
-    // read the keyring into memory
-    assert_true(pgp_mem_readfile(&mem, path));
-
+    pgp_source_t     src = {};
     rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    assert_non_null(key_store);
 
+    assert_non_null(key_store);
     // load it in to the key store
-    assert_true(rnp_key_store_pgp_read_from_mem(key_store, &mem, NULL));
+    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    src_close(&src);
 
     // count primary keys first
     unsigned total_primary_count = 0;
@@ -181,7 +177,6 @@ check_pgp_keyring_counts(const char *   path,
 
     // cleanup
     rnp_key_store_free(key_store);
-    pgp_memory_release(&mem);
 }
 
 /* This test loads a pubring.gpg and secring.gpg and confirms
@@ -220,7 +215,7 @@ test_load_check_bitfields_and_times(void **state)
     // load keyring
     rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/1/pubring.gpg");
     assert_non_null(key_store);
-    assert_true(rnp_key_store_load_from_file(key_store, NULL));
+    assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     // find
     key = NULL;
@@ -385,7 +380,7 @@ test_load_check_bitfields_and_times_v3(void **state)
     // load keyring
     rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/2/pubring.gpg");
     assert_non_null(key_store);
-    assert_true(rnp_key_store_load_from_file(key_store, NULL));
+    assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     // find
     key = NULL;
@@ -427,7 +422,7 @@ test_load_armored_pub_sec(void **state)
 
     key_store = rnp_key_store_new("GPG", MERGE_PATH "key-both.asc");
     assert_non_null(key_store);
-    assert_true(rnp_key_store_load_from_file(key_store, NULL));
+    assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     /* we must have 1 main key and 2 subkeys */
     assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
@@ -742,7 +737,7 @@ test_load_public_from_secret(void **state)
     rnp_key_store_t *secstore, *pubstore;
 
     assert_non_null(secstore = rnp_key_store_new("GPG", MERGE_PATH "key-sec.asc"));
-    assert_true(rnp_key_store_load_from_file(secstore, NULL));
+    assert_true(rnp_key_store_load_from_path(secstore, NULL));
     assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
 
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
@@ -808,7 +803,7 @@ test_load_public_from_secret(void **state)
     rnp_key_store_free(pubstore);
     /* reload */
     assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
-    assert_true(rnp_key_store_load_from_file(pubstore, NULL));
+    assert_true(rnp_key_store_load_from_path(pubstore, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_id(pubstore, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(pubstore, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(pubstore, sub2id, NULL));
