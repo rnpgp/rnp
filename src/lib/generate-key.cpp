@@ -53,8 +53,8 @@ load_generated_g10_key(pgp_key_t *    dst,
                        pgp_key_t *    pubkey)
 {
     bool               ok = false;
-    pgp_memory_t       mem = {};
     pgp_dest_t         memdst = {};
+    pgp_source_t       memsrc = {};
     rnp_key_store_t *  key_store = NULL;
     list               key_ptrs = NULL; /* holds primary and pubkey, when used */
     pgp_key_provider_t prov = {};
@@ -95,9 +95,11 @@ load_generated_g10_key(pgp_key_t *    dst,
     prov.callback = rnp_key_provider_key_ptr_list;
     prov.userdata = key_ptrs;
 
-    pgp_memory_ref(&mem, (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
+    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
+        goto end;
+    }
 
-    if (!rnp_key_store_g10_from_mem(key_store, &mem, &prov)) {
+    if (!rnp_key_store_g10_from_src(key_store, &memsrc, &prov)) {
         goto end;
     }
     // if a primary key is provided, it should match the sub with regards to type
@@ -111,9 +113,9 @@ load_generated_g10_key(pgp_key_t *    dst,
     // we don't want the key store to free the internal key data
     rnp_key_store_remove_key(key_store, (pgp_key_t *) rnp_key_store_get_key(key_store, 0));
     ok = true;
-
 end:
     rnp_key_store_free(key_store);
+    src_close(&memsrc);
     dst_close(&memdst, true);
     list_destroy(&key_ptrs);
     return ok;

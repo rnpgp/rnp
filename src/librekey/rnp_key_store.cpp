@@ -105,7 +105,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
 
     rnp_key_store_clear(pubring);
 
-    if (!rnp_key_store_load_from_file(pubring, &rnp->key_provider)) {
+    if (!rnp_key_store_load_from_path(pubring, &rnp->key_provider)) {
         RNP_LOG("cannot read pub keyring");
         return false;
     }
@@ -118,7 +118,7 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     /* Only read secret keys if we need to */
     if (loadsecret) {
         rnp_key_store_clear(secring);
-        if (!rnp_key_store_load_from_file(secring, &rnp->key_provider)) {
+        if (!rnp_key_store_load_from_path(secring, &rnp->key_provider)) {
             RNP_LOG("cannot read sec keyring");
             return false;
         }
@@ -147,13 +147,13 @@ rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
     return true;
 }
 
-int
-rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
+bool
+rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
 {
     DIR *          dir;
     bool           rc;
-    pgp_memory_t   mem = {0};
+    pgp_source_t   src = {};
     struct dirent *ent;
     char           path[MAXPATHLEN];
 
@@ -169,49 +169,47 @@ rnp_key_store_load_from_file(rnp_key_store_t *         key_store,
                 continue;
             }
 
-            snprintf(path, MAXPATHLEN, "%s/%s", key_store->path, ent->d_name);
-
-            memset(&mem, 0, sizeof(mem));
-
+            snprintf(path, sizeof(path), "%s/%s", key_store->path, ent->d_name);
             RNP_DLOG("Loading G10 key from file '%s'", path);
 
-            if (!pgp_mem_readfile(&mem, path)) {
-                RNP_LOG("Can't read file '%s' to memory", path);
+            if (init_file_src(&src, path)) {
+                RNP_LOG("failed to read file %s", path);
                 continue;
             }
 
             // G10 may don't read one file, so, ignore it!
-            if (!rnp_key_store_g10_from_mem(key_store, &mem, key_provider)) {
+            if (!rnp_key_store_g10_from_src(key_store, &src, key_provider)) {
                 RNP_LOG("Can't parse file: %s", path);
             }
-            pgp_memory_release(&mem);
+            src_close(&src);
         }
         closedir(dir);
-
         return true;
     }
 
-    if (!pgp_mem_readfile(&mem, key_store->path)) {
+    /* init file source and load from it */
+    if (init_file_src(&src, key_store->path)) {
+        RNP_LOG("failed to read file %s", key_store->path);
         return false;
     }
 
-    rc = rnp_key_store_load_from_mem(key_store, &mem, key_provider);
-    pgp_memory_release(&mem);
+    rc = rnp_key_store_load_from_src(key_store, &src, key_provider);
+    src_close(&src);
     return rc;
 }
 
 bool
-rnp_key_store_load_from_mem(rnp_key_store_t *         key_store,
-                            pgp_memory_t *            memory,
+rnp_key_store_load_from_src(rnp_key_store_t *         key_store,
+                            pgp_source_t *            src,
                             const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_read_from_mem(key_store, memory, key_provider);
+        return rnp_key_store_pgp_read_from_src(key_store, src) == RNP_SUCCESS;
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_from_mem(key_store, memory, key_provider);
+        return rnp_key_store_kbx_from_src(key_store, src, key_provider);
     case G10_KEY_STORE:
-        return rnp_key_store_g10_from_mem(key_store, memory, key_provider);
+        return rnp_key_store_g10_from_src(key_store, src, key_provider);
     default:
         RNP_LOG("Unsupported load from memory for key-store format: %d", key_store->format);
     }
