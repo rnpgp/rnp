@@ -379,68 +379,82 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 }
 
 bool
-rnp_key_store_kbx_from_mem(rnp_key_store_t *         key_store,
-                           pgp_memory_t *            memory,
+rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
+                           pgp_source_t *            src,
                            const pgp_key_provider_t *key_provider)
 {
-    size_t   has_bytes;
-    uint8_t *buf;
-    uint32_t blob_length;
-
-    pgp_memory_t    mem;
+    pgp_source_t    memsrc = {};
+    size_t          has_bytes;
+    uint8_t *       buf;
+    uint32_t        blob_length;
     kbx_pgp_blob_t *pgp_blob;
     kbx_blob_t **   blob;
+    bool            res = false;
 
-    has_bytes = memory->length;
-    buf = memory->buf;
+    if (read_mem_src(&memsrc, src)) {
+        RNP_LOG("failed to get data to memory source");
+        return false;
+    }
+
+    has_bytes = memsrc.size;
+    buf = (uint8_t *) mem_src_get_memory(&memsrc);
     while (has_bytes > 0) {
         blob_length = ru32(buf);
         if (blob_length > BLOB_SIZE_LIMIT) {
             RNP_LOG(
               "Blob size is %d bytes but limit is %d bytes", blob_length, BLOB_SIZE_LIMIT);
-            return false;
+            goto finish;
         }
         if (has_bytes < blob_length) {
             RNP_LOG("Blob have size %d bytes but file contains only %zu bytes",
                     blob_length,
                     has_bytes);
-            return false;
+            goto finish;
         }
         blob = (kbx_blob_t **) list_append(&key_store->blobs, NULL, sizeof(*blob));
         if (!blob) {
             RNP_LOG("alloc failed");
-            return false;
+            goto finish;
         }
 
         *blob = rnp_key_store_kbx_parse_blob(buf, blob_length);
         if (*blob == NULL) {
-            return false;
+            goto finish;
         }
 
         if ((*blob)->type == KBX_PGP_BLOB) {
+            pgp_source_t blsrc = {};
             // parse keyblock if it existed
             pgp_blob = (kbx_pgp_blob_t *) *blob;
 
-            mem.buf = (*blob)->image + pgp_blob->keyblock_offset;
-            mem.length = pgp_blob->keyblock_length;
-            mem.mmapped = 0;
-            mem.allocated = 0;
-
             if (pgp_blob->keyblock_length == 0) {
                 RNP_LOG("PGP blob have zero size");
-                return false;
+                goto finish;
             }
 
-            if (!rnp_key_store_pgp_read_from_mem(key_store, &mem, key_provider)) {
-                return false;
+            if (init_mem_src(&blsrc,
+                             (*blob)->image + pgp_blob->keyblock_offset,
+                             pgp_blob->keyblock_length,
+                             false)) {
+                RNP_LOG("memory src allocation failed");
+                goto finish;
             }
+
+            if (rnp_key_store_pgp_read_from_src(key_store, &blsrc)) {
+                src_close(&blsrc);
+                goto finish;
+            }
+            src_close(&blsrc);
         }
 
         has_bytes -= blob_length;
         buf += blob_length;
     }
 
-    return true;
+    res = true;
+finish:
+    src_close(&memsrc);
+    return res;
 }
 
 static int

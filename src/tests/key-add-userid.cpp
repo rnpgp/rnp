@@ -40,6 +40,8 @@ test_key_add_userid(void **state)
     rnp_test_state_t * rstate = (rnp_test_state_t *) *state;
     char               path[PATH_MAX];
     pgp_key_t *        key = NULL;
+    pgp_source_t       src = {};
+    pgp_dest_t         dst = {};
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
                                    "1d7e8a5393c997a8",
@@ -51,11 +53,10 @@ test_key_add_userid(void **state)
     rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
     assert_non_null(ks);
 
-    pgp_memory_t mem = {0};
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
-    assert_true(pgp_mem_readfile(&mem, path));
-    assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
-    pgp_memory_release(&mem);
+    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
+    src_close(&src);
 
     // locate our key
     assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
@@ -119,10 +120,10 @@ test_key_add_userid(void **state)
     assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
 
     // save the raw packets for the key (to reload later)
-    mem = (pgp_memory_t){0};
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
         pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        pgp_memory_add(&mem, pkt->raw, pkt->length);
+        dst_write(&dst, pkt->raw, pkt->length);
     }
     // cleanup
     rnp_key_store_free(ks);
@@ -132,8 +133,10 @@ test_key_add_userid(void **state)
     ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
     assert_non_null(ks);
     // read from the saved packets
-    assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
-    pgp_memory_release(&mem);
+    assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));
+    assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
+    src_close(&src);
+    dst_close(&dst, true);
     assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
 
     // confirm that the counts have increased as expected

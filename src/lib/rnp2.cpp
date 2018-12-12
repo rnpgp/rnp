@@ -776,49 +776,10 @@ done:
     return ret;
 }
 
-// TODO: this is temporary and should disappear when support for loading keys with
-// the streaming framework exists
-static rnp_result_t
-read_all_input(pgp_source_t *src, uint8_t **buf, size_t *buf_len)
-{
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    *buf = NULL;
-    *buf_len = 0;
-    while (!src->eof) {
-        uint8_t readbuf[PGP_INPUT_CACHE_SIZE];
-        ssize_t read = src_read(src, readbuf, PGP_INPUT_CACHE_SIZE);
-        if (read < 0) {
-            ret = RNP_ERROR_READ;
-            goto done;
-        } else if (read > 0) {
-            uint8_t *new_buf = (uint8_t *) realloc(*buf, *buf_len + read);
-            if (!new_buf) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
-            }
-            *buf = new_buf;
-            memcpy(*buf + *buf_len, readbuf, read);
-            *buf_len += read;
-        }
-    }
-
-    ret = RNP_SUCCESS;
-done:
-    if (ret) {
-        free(*buf);
-        *buf = NULL;
-        *buf_len = 0;
-    }
-    return ret;
-}
-
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    uint8_t *    buf = NULL;
-    size_t       buf_len;
 
     pgp_key_provider_t chained;
     chained.callback = rnp_key_provider_store;
@@ -837,20 +798,13 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        if (!rnp_key_store_load_from_file(store, &key_provider)) {
+        if (!rnp_key_store_load_from_path(store, &key_provider)) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
     } else {
-        // read in the full data (streaming isn't currently supported)
-        rnp_result_t tmpret = read_all_input(&input->src, &buf, &buf_len);
-        if (tmpret) {
-            ret = tmpret;
-            goto done;
-        }
         // load the keys
-        pgp_memory_t mem = {.buf = buf, .length = buf_len};
-        if (!rnp_key_store_load_from_mem(store, &mem, &key_provider)) {
+        if (!rnp_key_store_load_from_src(store, &input->src, &key_provider)) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto done;
         }
@@ -858,7 +812,6 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 
     ret = RNP_SUCCESS;
 done:
-    free(buf);
     return ret;
 }
 

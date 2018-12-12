@@ -58,7 +58,7 @@ test_key_validate(void **state)
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(pubring, NULL));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     /* this keyring has one expired subkey */
     assert_non_null(key = rnp_key_store_get_key_by_name(pubring, "1d7e8a5393c997a8", NULL));
     assert_false(key->valid);
@@ -68,7 +68,7 @@ test_key_validate(void **state)
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_name(secring, "1d7e8a5393c997a8", NULL));
     assert_false(key->valid);
     key->valid = true;
@@ -77,51 +77,51 @@ test_key_validate(void **state)
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/2/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(pubring, NULL));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/2/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_KBX, "data/keyrings/3/pubring.kbx");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(pubring, NULL));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
 
     secring = rnp_key_store_new(RNP_KEYSTORE_G10, "data/keyrings/3/private-keys-v1.d");
     assert_non_null(secring);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pubring};
-    assert_true(rnp_key_store_load_from_file(secring, &key_provider));
+    assert_true(rnp_key_store_load_from_path(secring, &key_provider));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(pubring);
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/pubring.pgp");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(pubring, NULL));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/secring.pgp");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/5/pubring.gpg");
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_file(pubring, NULL));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/5/secring.gpg");
     assert_non_null(secring);
-    assert_true(rnp_key_store_load_from_file(secring, NULL));
+    assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 }

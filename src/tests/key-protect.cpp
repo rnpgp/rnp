@@ -58,14 +58,14 @@ test_key_protect_load_pgp(void **state)
 
     // load our keyring and do some quick checks
     {
+        pgp_source_t     src = {};
         rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
         assert_non_null(ks);
 
-        pgp_memory_t mem = {0};
         paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
-        assert_true(pgp_mem_readfile(&mem, path));
-        assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
-        pgp_memory_release(&mem);
+        assert_rnp_success(init_file_src(&src, path));
+        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
+        src_close(&src);
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
             pgp_key_t * key = NULL;
@@ -140,14 +140,14 @@ test_key_protect_load_pgp(void **state)
 
     // confirm that packets[0] is no longer encrypted
     {
+        pgp_source_t     memsrc = {};
         rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
         assert_non_null(ks);
-
-        pgp_memory_t     mem = {0};
         pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, 0);
-        mem.buf = pkt->raw;
-        mem.length = pkt->length;
-        assert_true(rnp_key_store_pgp_read_from_mem(ks, &mem, NULL));
+
+        assert_rnp_success(init_mem_src(&memsrc, pkt->raw, pkt->length, false));
+        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &memsrc));
+        src_close(&memsrc);
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;
