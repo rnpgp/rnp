@@ -751,7 +751,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
     }
 
     // load the key(s)
-    if (!rnp_key_store_load_from_file(tmp_keystore, &rnp->key_provider)) {
+    if (!rnp_key_store_load_from_path(tmp_keystore, &rnp->key_provider)) {
         RNP_LOG("failed to load key from file %s", path);
         goto done;
     }

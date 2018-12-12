@@ -182,13 +182,13 @@ test_key_store_search_by_name(void **state)
     // load pubring
     rnp_key_store_t *pub_store = rnp_key_store_new("KBX", "data/keyrings/3/pubring.kbx");
     assert_non_null(pub_store);
-    assert_true(rnp_key_store_load_from_file(pub_store, NULL));
+    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
     // load secring
     rnp_key_store_t *sec_store = rnp_key_store_new("G10", "data/keyrings/3/private-keys-v1.d");
     assert_non_null(sec_store);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pub_store};
-    assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
+    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
     /* Main key fingerprint and id:
        4F2E62B74E6A4CD333BC19004BE147BB22DF1E60, 4BE147BB22DF1E60

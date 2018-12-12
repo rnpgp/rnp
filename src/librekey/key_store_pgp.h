@@ -62,10 +62,6 @@
 
 rnp_result_t rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src);
 
-bool rnp_key_store_pgp_read_from_mem(rnp_key_store_t *,
-                                     pgp_memory_t *,
-                                     const pgp_key_provider_t *);
-
 bool rnp_key_store_pgp_write_to_mem(rnp_key_store_t *, bool, pgp_memory_t *);
 
 bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst);

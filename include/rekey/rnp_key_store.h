@@ -37,7 +37,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#include "memory.h"
+#include "librepgp/stream-common.h"
 
 typedef struct rnp_t     rnp_t;
 typedef struct pgp_key_t pgp_key_t;
@@ -139,9 +139,9 @@ rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
 
 bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
-int  rnp_key_store_load_from_file(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
-bool rnp_key_store_load_from_mem(rnp_key_store_t *,
-                                 pgp_memory_t *,
+bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
+bool rnp_key_store_load_from_src(rnp_key_store_t *,
+                                 pgp_source_t *,
                                  const pgp_key_provider_t *key_provider);
 
 bool rnp_key_store_write_to_file(rnp_key_store_t *, const unsigned);

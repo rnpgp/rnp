@@ -62,11 +62,11 @@ test_load_g10(void **state)
 
     // load pubring
     assert_non_null(pub_store = rnp_key_store_new("KBX", "data/keyrings/3/pubring.kbx"));
-    assert_true(rnp_key_store_load_from_file(pub_store, NULL));
+    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
     // load secring
     assert_non_null(sec_store = rnp_key_store_new("G10", "data/keyrings/3/private-keys-v1.d"));
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
+    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
     /* check primary key and subkey */
     test_load_g10_check_key(pub_store, sec_store, "4BE147BB22DF1E60");
@@ -79,11 +79,11 @@ test_load_g10(void **state)
     /* another store */
     pub_store = rnp_key_store_new("KBX", "data/test_stream_key_load/g10/pubring.kbx");
     assert_non_null(pub_store);
-    assert_true(rnp_key_store_load_from_file(pub_store, NULL));
+    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
     sec_store = rnp_key_store_new("G10", "data/test_stream_key_load/g10/private-keys-v1.d");
     assert_non_null(sec_store);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_file(sec_store, &key_provider));
+    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
     /* dsa/eg key */
     assert_true(test_load_g10_check_key(pub_store, sec_store, "C8A10A7D78273E10"));

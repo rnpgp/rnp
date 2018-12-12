@@ -481,24 +481,6 @@ done:
 }
 
 bool
-rnp_key_store_pgp_read_from_mem(rnp_key_store_t *         keyring,
-                                pgp_memory_t *            mem,
-                                const pgp_key_provider_t *key_provider)
-{
-    pgp_source_t src = {};
-    bool         res = false;
-
-    if (init_mem_src(&src, mem->buf, mem->length, false)) {
-        return false;
-    }
-
-    res = !rnp_key_store_pgp_read_from_src(keyring, &src);
-
-    src_close(&src);
-    return res;
-}
-
-bool
 rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
 {
     if (!pgp_key_get_rawpacket_count(key)) {
