@@ -1347,7 +1347,7 @@ done:
 }
 
 bool
-pgp_key_write_packets(const pgp_key_t *key, pgp_memory_t *mem)
+pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
 {
     if (!pgp_key_get_rawpacket_count(key)) {
         return false;
@@ -1357,7 +1357,8 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_memory_t *mem)
         if (!pkt->raw || !pkt->length) {
             return false;
         }
-        if (!pgp_memory_add(mem, pkt->raw, pkt->length)) {
+        dst_write(dst, pkt->raw, pkt->length);
+        if (dst->werr) {
             return false;
         }
     }
