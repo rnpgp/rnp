@@ -369,6 +369,12 @@ init_file_src(pgp_source_t *src, const char *path)
         return RNP_ERROR_READ;
     }
 
+    /* read call may succeed on directory depending on OS type */
+    if (S_ISDIR(st.st_mode)) {
+        RNP_LOG("source is directory");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
 #ifdef O_BINARY
     fd = open(path, O_RDONLY | O_BINARY);
 #else
@@ -644,6 +650,7 @@ dst_close(pgp_dest_t *dst, bool discard)
 typedef struct pgp_dest_file_param_t {
     int  fd;
     int  errcode;
+    bool overwrite;
     char path[PATH_MAX];
 } pgp_dest_file_param_t;
 
@@ -703,9 +710,20 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!overwrite && !stat(path, &st)) {
-        RNP_LOG("file already exists: '%s'", path);
-        return RNP_ERROR_WRITE;
+    /* check whether file/dir already exists */
+    if (!stat(path, &st)) {
+        if (!overwrite) {
+            RNP_LOG("file already exists: '%s'", path);
+            return RNP_ERROR_WRITE;
+        }
+
+        /* if we are overwriting empty directory then should first remove it */
+        if (S_ISDIR(st.st_mode)) {
+            if (rmdir(path) == -1) {
+                RNP_LOG("failed to remove directory: error %d", errno);
+                return RNP_ERROR_BAD_PARAMETERS;
+            }
+        }
     }
 
     flags = O_WRONLY | O_CREAT;
@@ -715,7 +733,7 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
 #endif
     fd = open(path, flags, 0600);
     if (fd < 0) {
-        RNP_LOG("failed to create file '%s'", path);
+        RNP_LOG("failed to create file '%s'. Error %d.", path, errno);
         return RNP_ERROR_WRITE;
     }
 
@@ -731,6 +749,101 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
 
+    return RNP_SUCCESS;
+}
+
+#define TMPDST_SUFFIX ".rnp-tmp.XXXXXX"
+
+static rnp_result_t
+file_tmpdst_finish(pgp_dest_t *dst)
+{
+    pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
+    size_t                 plen = 0;
+    struct stat            st;
+    char                   origpath[PATH_MAX] = {0};
+
+    if (!param) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* remove suffix so we have required path */
+    plen = strnlen(param->path, sizeof(param->path));
+    if (plen < strlen(TMPDST_SUFFIX)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    strncpy(origpath, param->path, plen - strlen(TMPDST_SUFFIX));
+
+    /* rename the temporary file */
+    close(param->fd);
+    param->fd = 0;
+
+    /* check if file already exists */
+    if (!stat(origpath, &st)) {
+        if (!param->overwrite) {
+            RNP_LOG("target path already exists");
+            return RNP_ERROR_BAD_STATE;
+        }
+
+        /* we should remove dir if overwriting, file will be unlinked in rename call */
+        if (S_ISDIR(st.st_mode) && rmdir(origpath)) {
+            RNP_LOG("failed to remove directory");
+            return RNP_ERROR_BAD_STATE;
+        }
+    }
+
+    if (rename(param->path, origpath)) {
+        RNP_LOG("failed to rename temporary path to target file: %s", strerror(errno));
+        return RNP_ERROR_BAD_STATE;
+    }
+
+    return RNP_SUCCESS;
+}
+
+static void
+file_tmpdst_close(pgp_dest_t *dst, bool discard)
+{
+    pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
+
+    if (!param) {
+        return;
+    }
+
+    /* we close file in finish function, except the case when some error occurred */
+    if (!dst->finished && (dst->type == PGP_STREAM_FILE)) {
+        close(param->fd);
+        if (discard) {
+            unlink(param->path);
+        }
+    }
+
+    free(param);
+    dst->param = NULL;
+}
+
+rnp_result_t
+init_tmpfile_dest(pgp_dest_t *dst, const char *path, bool overwrite)
+{
+    char                   tmp[PATH_MAX];
+    pgp_dest_file_param_t *param = NULL;
+    rnp_result_t           res = RNP_ERROR_GENERIC;
+    int                    ires = 0;
+
+    ires = snprintf(tmp, sizeof(tmp), "%s%s", path, TMPDST_SUFFIX);
+    if ((ires < 0) || ((size_t) ires >= sizeof(tmp))) {
+        RNP_LOG("failed to build file path");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    mktemp(tmp);
+
+    if ((res = init_file_dest(dst, tmp, overwrite))) {
+        return res;
+    }
+
+    /* now let's change some parameters to handle temporary file correctly */
+    param = (pgp_dest_file_param_t *) dst->param;
+    param->overwrite = overwrite;
+    dst->finish = file_tmpdst_finish;
+    dst->close = file_tmpdst_close;
     return RNP_SUCCESS;
 }
 
