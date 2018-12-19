@@ -457,33 +457,38 @@ finish:
     return res;
 }
 
-static int
-pu8(pgp_memory_t *mem, uint8_t p)
+static bool
+pbuf(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    return pgp_memory_add(mem, &p, 1);
-}
-
-static int
-pu16(pgp_memory_t *mem, uint16_t f)
-{
-    uint8_t p[2];
-
-    p[0] = (uint8_t)(f >> 8);
-    p[1] = (uint8_t) f;
-
-    return pgp_memory_add(mem, p, 2);
-}
-
-static int
-pu32(pgp_memory_t *mem, uint32_t f)
-{
-    uint8_t p[4];
-    STORE32BE(p, f);
-    return pgp_memory_add(mem, p, 4);
+    dst_write(dst, buf, len);
+    return dst->werr == RNP_SUCCESS;
 }
 
 static bool
-rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
+pu8(pgp_dest_t *dst, uint8_t p)
+{
+    return pbuf(dst, &p, 1);
+}
+
+static bool
+pu16(pgp_dest_t *dst, uint16_t f)
+{
+    uint8_t p[2];
+    p[0] = (uint8_t)(f >> 8);
+    p[1] = (uint8_t) f;
+    return pbuf(dst, p, 2);
+}
+
+static bool
+pu32(pgp_dest_t *dst, uint32_t f)
+{
+    uint8_t p[4];
+    STORE32BE(p, f);
+    return pbuf(dst, p, 4);
+}
+
+static bool
+rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     uint16_t    flags = 0;
     uint32_t    file_created_at = time(NULL);
@@ -493,214 +498,225 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_memory_t *m)
         file_created_at = ((kbx_header_blob_t *) blob)->file_created_at;
     }
 
-    return !(!pu32(m, BLOB_FIRST_SIZE) || !pu8(m, KBX_HEADER_BLOB) || !pu8(m, 1) // version
-             || !pu16(m, flags) || !pgp_memory_add(m, (const uint8_t *) "KBXf", 4) ||
-             !pu32(m, 0)                                                           // RFU
-             || !pu32(m, 0)                                                        // RFU
-             || !pu32(m, file_created_at) || !pu32(m, time(NULL)) || !pu32(m, 0)); // RFU
+    return !(!pu32(dst, BLOB_FIRST_SIZE) || !pu8(dst, KBX_HEADER_BLOB) ||
+             !pu8(dst, 1)                                                   // version
+             || !pu16(dst, flags) || !pbuf(dst, "KBXf", 4) || !pu32(dst, 0) // RFU
+             || !pu32(dst, 0)                                               // RFU
+             || !pu32(dst, file_created_at) || !pu32(dst, time(NULL)) || !pu32(dst, 0)); // RFU
 }
 
 static bool
-rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_memory_t *m)
+rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest_t *dst)
 {
     unsigned   i;
-    size_t     start, key_start, uid_start;
+    pgp_dest_t memdst = {};
+    size_t     key_start, uid_start;
     uint8_t *  p;
     uint8_t    checksum[20];
     uint32_t   pt;
     pgp_hash_t hash = {0};
+    bool       result = false;
 
-    start = m->length;
-
-    if (!pu32(m, 0)) { // length, we don't know length of blbo, so it's 0 right now
+    if (init_mem_dest(&memdst, NULL, BLOB_SIZE_LIMIT)) {
+        RNP_LOG("alloc failed");
         return false;
     }
 
-    if (!pu8(m, KBX_PGP_BLOB) || !pu8(m, 1)) { // type, version
-        return false;
+    if (!pu32(&memdst, 0)) { // length, we don't know length of blob yet, so it's 0 right now
+        goto finish;
     }
 
-    if (!pu16(m, 0)) { // flags, not used by GnuPG
-        return false;
+    if (!pu8(&memdst, KBX_PGP_BLOB) || !pu8(&memdst, 1)) { // type, version
+        goto finish;
     }
 
-    if (!pu32(m, 0) || !pu32(m, 0)) { // offset and length of keyblock, update later
-        return false;
+    if (!pu16(&memdst, 0)) { // flags, not used by GnuPG
+        goto finish;
     }
 
-    if (!pu16(m, 1 + list_length(key->subkey_grips))) { // number of keys in keyblock
-        return false;
-    }
-    if (!pu16(m, 28)) { // size of key info structure)
-        return false;
+    if (!pu32(&memdst, 0) ||
+        !pu32(&memdst, 0)) { // offset and length of keyblock, update later
+        goto finish;
     }
 
-    if (!pgp_memory_add(m, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
-        !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
-        !pu16(m, 0) ||                     // flags, not used by GnuPG
-        !pu16(m, 0)) {                     // RFU
-        return false;
+    if (!pu16(&memdst, 1 + list_length(key->subkey_grips))) { // number of keys in keyblock
+        goto finish;
+    }
+    if (!pu16(&memdst, 28)) { // size of key info structure)
+        goto finish;
+    }
+
+    if (!pbuf(&memdst, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
+        !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
+        !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
+        !pu16(&memdst, 0)) {                 // RFU
+        goto finish;
     }
 
     // same as above, for each subkey
-    list_item *subkey_grip = list_front(key->subkey_grips);
-    while (subkey_grip) {
+    for (list_item *sgrip = list_front(key->subkey_grips); sgrip; sgrip = list_next(sgrip)) {
         const pgp_key_t *subkey =
-          rnp_key_store_get_key_by_grip(key_store, (const uint8_t *) subkey_grip);
-        if (!pgp_memory_add(m, subkey->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
-            !pu32(m, m->length - start - 8) || // offset to keyid (part of fpr for V4)
-            !pu16(m, 0) ||                     // flags, not used by GnuPG
-            !pu16(m, 0)) {                     // RFU
-            return false;
+          rnp_key_store_get_key_by_grip(key_store, (const uint8_t *) sgrip);
+        if (!pbuf(&memdst, subkey->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE) ||
+            !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
+            !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
+            !pu16(&memdst, 0)) {                 // RFU
+            goto finish;
         }
-        subkey_grip = list_next(subkey_grip);
     }
 
-    if (!pu16(m, 0)) { // Zero size of serial number
-        return false;
+    if (!pu16(&memdst, 0)) { // Zero size of serial number
+        goto finish;
     }
 
     // skip serial number
 
-    if (!pu16(m, pgp_get_userid_count(key)) || !pu16(m, 12)) {
-        return false;
+    if (!pu16(&memdst, pgp_get_userid_count(key)) || !pu16(&memdst, 12)) {
+        goto finish;
     }
 
-    uid_start = m->length;
+    uid_start = memdst.writeb;
 
     for (i = 0; i < pgp_get_userid_count(key); i++) {
-        if (!pu32(m, 0) || !pu32(m, 0)) { // UID offset and length, update when blob has done
-            return false;
+        if (!pu32(&memdst, 0) ||
+            !pu32(&memdst, 0)) { // UID offset and length, update when blob has done
+            goto finish;
         }
 
-        if (!pu16(m, 0)) { // flags, (not yet used)
-            return false;
+        if (!pu16(&memdst, 0)) { // flags, (not yet used)
+            goto finish;
         }
 
-        if (!pu8(m, 0) || !pu8(m, 0)) { // Validity & RFU
-            return false;
+        if (!pu8(&memdst, 0) || !pu8(&memdst, 0)) { // Validity & RFU
+            goto finish;
         }
     }
 
     // TODO: add subkey subsigc too, or leave this field zero
     // since it seems to be deprecated in GnuPG
-    if (!pu16(m, pgp_key_get_subsig_count(key)) || !pu16(m, 4)) {
-        return false;
+    if (!pu16(&memdst, pgp_key_get_subsig_count(key)) || !pu16(&memdst, 4)) {
+        goto finish;
     }
 
     for (i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        if (!pu32(m, signature_get_key_expiration(&pgp_key_get_subsig(key, i)->sig))) {
-            return false;
+        if (!pu32(&memdst, signature_get_key_expiration(&pgp_key_get_subsig(key, i)->sig))) {
+            goto finish;
         }
     }
 
-    if (!pu8(m, 0) || !pu8(m, 0)) { // Assigned ownertrust & All_Validity (not yet used)
-        return false;
+    if (!pu8(&memdst, 0) ||
+        !pu8(&memdst, 0)) { // Assigned ownertrust & All_Validity (not yet used)
+        goto finish;
     }
 
-    if (!pu16(m, 0) || !pu32(m, 0)) { // RFU & Recheck_after
-        return false;
+    if (!pu16(&memdst, 0) || !pu32(&memdst, 0)) { // RFU & Recheck_after
+        goto finish;
     }
 
-    if (!pu32(m, time(NULL)) || !pu32(m, time(NULL))) { // Latest timestamp && created
-        return false;
+    if (!pu32(&memdst, time(NULL)) ||
+        !pu32(&memdst, time(NULL))) { // Latest timestamp && created
+        goto finish;
     }
 
-    if (!pu32(m, 0)) { // Size of reserved space
-        return false;
+    if (!pu32(&memdst, 0)) { // Size of reserved space
+        goto finish;
     }
 
     // wrtite UID, we might redesign PGP write and use this information from keyblob
     for (i = 0; i < pgp_get_userid_count(key); i++) {
         const char *uid = (const char *) pgp_get_userid(key, i);
-        p = m->buf + uid_start + (12 * i);
-        pt = m->length - start;
+        p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i);
+        /* store absolute uid offset in the output stream */
+        pt = memdst.writeb + dst->writeb;
         STORE32BE(p, pt);
-
+        /* and uid length */
         pt = strlen(uid);
-        if (!pgp_memory_add(m, (const uint8_t *) uid, pt)) {
-            return false;
-        }
-
-        p = m->buf + uid_start + (12 * i) + 4;
+        p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i) + 4;
         STORE32BE(p, pt);
+        /* uid data itself */
+        if (!pbuf(&memdst, uid, pt)) {
+            goto finish;
+        }
     }
 
-    // write keyblock and fix the offset/length
-    key_start = m->length;
-    pt = key_start - start;
-    p = m->buf + start + 8;
+    /* write keyblock and fix the offset/length */
+    key_start = memdst.writeb;
+    /* absolute offset in output stream */
+    pt = key_start + dst->writeb;
+    p = (uint8_t *) mem_dest_get_memory(&memdst) + 8;
     STORE32BE(p, pt);
 
-    if (!pgp_key_write_packets(key, m)) {
-        return false;
+    if (!pgp_key_write_packets(key, &memdst)) {
+        goto finish;
     }
-    subkey_grip = list_front(key->subkey_grips);
-    while (subkey_grip) {
-        const pgp_key_t *subkey =
-          rnp_key_store_get_key_by_grip(key_store, (uint8_t *) subkey_grip);
-        if (!pgp_key_write_packets(subkey, m)) {
-            return false;
+
+    for (list_item *sgrip = list_front(key->subkey_grips); sgrip; sgrip = list_next(sgrip)) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(key_store, (uint8_t *) sgrip);
+        if (!pgp_key_write_packets(subkey, &memdst)) {
+            goto finish;
         }
-        subkey_grip = list_next(subkey_grip);
     }
 
-    pt = m->length - key_start;
-    p = m->buf + start + 12;
-
+    /* key blob length */
+    pt = memdst.writeb - key_start;
+    p = (uint8_t *) mem_dest_get_memory(&memdst) + 12;
     STORE32BE(p, pt);
 
     // fix the length of blob
-    pt = m->length - start + 20;
-    p = m->buf + start;
-
+    pt = memdst.writeb + 20;
+    p = (uint8_t *) mem_dest_get_memory(&memdst);
     STORE32BE(p, pt);
 
     // checksum
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
         RNP_LOG("bad sha1 alloc");
-        return false;
+        goto finish;
     }
 
     if (hash._output_len != 20) {
         RNP_LOG("wrong hash size %zu, should be 20 bytes", hash._output_len);
-        return false;
+        goto finish;
     }
 
-    pgp_hash_add(&hash, m->buf + start, m->length - start);
+    pgp_hash_add(&hash, (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
 
     if (!pgp_hash_finish(&hash, checksum)) {
-        return false;
+        goto finish;
     }
 
-    if (!(pgp_memory_add(m, checksum, 20))) {
-        return false;
+    if (!(pbuf(&memdst, checksum, 20))) {
+        goto finish;
     }
 
+    /* finally write to the output */
+    dst_write(dst, mem_dest_get_memory(&memdst), memdst.writeb);
+    result = dst->werr == RNP_SUCCESS;
+finish:
+    dst_close(&memdst, true);
     return true;
 }
 
 static bool
-rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
+rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     for (list_item *item = list_front(key_store->blobs); item; item = list_next(item)) {
         kbx_blob_t *blob = *((kbx_blob_t **) item);
-        if (blob->type == KBX_X509_BLOB) {
-            if (!pgp_memory_add(m, blob->image, blob->length)) {
-                return false;
-            }
+        if (blob->type != KBX_X509_BLOB) {
+            continue;
+        }
+
+        if (!pbuf(dst, blob->image, blob->length)) {
+            return false;
         }
     }
 
     return true;
 }
 
-static bool
-rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
+bool
+rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
-    pgp_memory_clear(memory);
-
-    if (!rnp_key_store_kbx_write_header(key_store, memory)) {
+    if (!rnp_key_store_kbx_write_header(key_store, dst)) {
         RNP_LOG("Can't write KBX header");
         return false;
     }
@@ -711,30 +727,16 @@ rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
         if (!pgp_key_is_primary_key(key)) {
             continue;
         }
-        if (!rnp_key_store_kbx_write_pgp(key_store, key, memory)) {
+        if (!rnp_key_store_kbx_write_pgp(key_store, key, dst)) {
             RNP_LOG("Can't write PGP blobs for key %p", key);
             return false;
         }
     }
 
-    if (!rnp_key_store_kbx_write_x509(key_store, memory)) {
+    if (!rnp_key_store_kbx_write_x509(key_store, dst)) {
         RNP_LOG("Can't write X509 blobs");
         return false;
     }
 
     return true;
-}
-
-bool
-rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
-{
-    pgp_memory_t mem = {};
-    if (!rnp_key_store_kbx_to_mem(key_store, &mem)) {
-        pgp_memory_release(&mem);
-        return false;
-    }
-
-    dst_write(dst, mem.buf, mem.length);
-    pgp_memory_release(&mem);
-    return dst->werr == RNP_SUCCESS;
 }
