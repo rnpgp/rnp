@@ -1560,7 +1560,7 @@ error:
 }
 
 bool
-rnp_key_store_g10_key_to_mem(pgp_key_t *key, pgp_memory_t *memory)
+rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
 {
     pgp_rawpacket_t *packet = NULL;
     if (!pgp_key_get_rawpacket_count(key)) {
@@ -1571,5 +1571,6 @@ rnp_key_store_g10_key_to_mem(pgp_key_t *key, pgp_memory_t *memory)
         return false;
     }
     packet = pgp_key_get_rawpacket(key, 0);
-    return pgp_memory_add(memory, packet->raw, packet->length);
+    dst_write(dest, packet->raw, packet->length);
+    return dest->werr == RNP_SUCCESS;
 }

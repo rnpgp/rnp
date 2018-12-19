@@ -589,20 +589,3 @@ rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_
 
     return res;
 }
-
-bool
-rnp_key_store_pgp_write_to_mem(rnp_key_store_t *key_store, bool armor, pgp_memory_t *mem)
-{
-    pgp_dest_t dst = {};
-    bool       res = false;
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    res = rnp_key_store_pgp_write_to_dst(key_store, armor, &dst) &&
-          pgp_memory_add(mem, (uint8_t *) mem_dest_get_memory(&dst), dst.writeb);
-
-    dst_close(&dst, true);
-    return res;
-}
