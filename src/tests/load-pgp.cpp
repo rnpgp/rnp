@@ -799,7 +799,7 @@ test_load_public_from_secret(void **state)
     assert_false(pgp_get_key_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* save pubring */
-    assert_true(rnp_key_store_write_to_file(pubstore, false));
+    assert_true(rnp_key_store_write_to_path(pubstore));
     rnp_key_store_free(pubstore);
     /* reload */
     assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));

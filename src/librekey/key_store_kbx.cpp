@@ -695,7 +695,7 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_memory_t *m)
     return true;
 }
 
-bool
+static bool
 rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
 {
     pgp_memory_clear(memory);
@@ -723,4 +723,18 @@ rnp_key_store_kbx_to_mem(rnp_key_store_t *key_store, pgp_memory_t *memory)
     }
 
     return true;
+}
+
+bool
+rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
+{
+    pgp_memory_t mem = {};
+    if (!rnp_key_store_kbx_to_mem(key_store, &mem)) {
+        pgp_memory_release(&mem);
+        return false;
+    }
+
+    dst_write(dst, mem.buf, mem.length);
+    pgp_memory_release(&mem);
+    return dst->werr == RNP_SUCCESS;
 }

@@ -218,11 +218,12 @@ rnp_key_store_load_from_src(rnp_key_store_t *         key_store,
 }
 
 bool
-rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
+rnp_key_store_write_to_path(rnp_key_store_t *key_store)
 {
-    bool         rc;
-    pgp_memory_t mem = {0};
+    bool       rc;
+    pgp_dest_t keydst = {};
 
+    /* write g10 key store to the directory */
     if (key_store->format == G10_KEY_STORE) {
         char path[MAXPATHLEN];
         char grips[PGP_FINGERPRINT_HEX_SIZE];
@@ -248,19 +249,24 @@ rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
              key_item = list_next(key_item)) {
             pgp_key_t *key = (pgp_key_t *) key_item;
             snprintf(path,
-                     MAXPATHLEN,
+                     sizeof(path),
                      "%s/%s.key",
                      key_store->path,
                      rnp_strhexdump_upper(grips, key->grip, 20, ""));
 
-            memset(&mem, 0, sizeof(mem));
-            if (!rnp_key_store_g10_key_to_mem(key, &mem)) {
-                pgp_memory_release(&mem);
+            if (init_tmpfile_dest(&keydst, path, true)) {
+                RNP_LOG("failed to create file");
                 return false;
             }
 
-            rc = pgp_mem_writefile(&mem, path);
-            pgp_memory_release(&mem);
+            if (!rnp_key_store_g10_key_to_dst(key, &keydst)) {
+                RNP_LOG("failed to write key to file");
+                dst_close(&keydst, true);
+                return false;
+            }
+
+            rc = dst_finish(&keydst) == RNP_SUCCESS;
+            dst_close(&keydst, !rc);
 
             if (!rc) {
                 return false;
@@ -270,28 +276,31 @@ rnp_key_store_write_to_file(rnp_key_store_t *key_store, const unsigned armor)
         return true;
     }
 
-    if (!rnp_key_store_write_to_mem(key_store, armor, &mem)) {
-        pgp_memory_release(&mem);
+    /* write kbx/gpg store to the single file */
+    if (init_tmpfile_dest(&keydst, key_store->path, true)) {
+        RNP_LOG("failed to create keystore file");
         return false;
     }
 
-    rc = pgp_mem_writefile(&mem, key_store->path);
-    pgp_memory_release(&mem);
+    if (!rnp_key_store_write_to_dst(key_store, &keydst)) {
+        RNP_LOG("failed to write keys to file");
+        dst_close(&keydst, true);
+        return false;
+    }
+
+    rc = dst_finish(&keydst) == RNP_SUCCESS;
+    dst_close(&keydst, !rc);
     return rc;
 }
 
 bool
-rnp_key_store_write_to_mem(rnp_key_store_t *key_store,
-                           const unsigned   armor,
-                           pgp_memory_t *   memory)
+rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_mem(key_store, armor, memory);
-
+        return rnp_key_store_pgp_write_to_dst(key_store, false, dst);
     case KBX_KEY_STORE:
-        return rnp_key_store_kbx_to_mem(key_store, memory);
-
+        return rnp_key_store_kbx_to_dst(key_store, dst);
     default:
         RNP_LOG("Unsupported write to memory for key-store format: %d", key_store->format);
     }
