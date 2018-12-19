@@ -1027,21 +1027,18 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        if (!rnp_key_store_write_to_file(tmp_store, 0)) {
+        if (!rnp_key_store_write_to_path(tmp_store)) {
             ret = RNP_ERROR_WRITE;
             goto done;
         }
         ret = RNP_SUCCESS;
     } else {
-        pgp_memory_t mem = {0};
-        if (!rnp_key_store_write_to_mem(tmp_store, 0, &mem)) {
+        if (!rnp_key_store_write_to_dst(tmp_store, &output->dst)) {
             ret = RNP_ERROR_WRITE;
             goto done;
         }
-        dst_write(&output->dst, mem.buf, mem.length);
         dst_flush(&output->dst);
         output->keep = (output->dst.werr == RNP_SUCCESS);
-        pgp_memory_release(&mem);
         ret = output->dst.werr;
     }
 

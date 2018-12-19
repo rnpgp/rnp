@@ -144,8 +144,8 @@ bool rnp_key_store_load_from_src(rnp_key_store_t *,
                                  pgp_source_t *,
                                  const pgp_key_provider_t *key_provider);
 
-bool rnp_key_store_write_to_file(rnp_key_store_t *, const unsigned);
-bool rnp_key_store_write_to_mem(rnp_key_store_t *, const unsigned, pgp_memory_t *);
+bool rnp_key_store_write_to_path(rnp_key_store_t *);
+bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
 
 void rnp_key_store_clear(rnp_key_store_t *);
 void rnp_key_store_free(rnp_key_store_t *);
