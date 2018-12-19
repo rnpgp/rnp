@@ -270,6 +270,15 @@ void dst_flush(pgp_dest_t *dst);
  **/
 rnp_result_t init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite);
 
+/** @brief init file destination, using the temporary file name, based on path.
+ *         Once writing is over, dst_finish() will attempt to rename to the desired name.
+ *  @param dst pre-allocated dest structure
+ *  @param path path to the file
+ *  @param overwrite overwrite existing file on rename
+ *  @return RNP_SUCCESS or error code
+ **/
+rnp_result_t init_tmpfile_dest(pgp_dest_t *dst, const char *path, bool overwrite);
+
 /** @brief init stdout destination
  *  @param dst pre-allocated dest structure
  *  @return RNP_SUCCESS or error code
