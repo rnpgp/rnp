@@ -98,6 +98,188 @@ test_stream_memory(void **state)
     free(mown);
 }
 
+static int
+file_size(const char *path)
+{
+    struct stat path_stat;
+    if (stat(path, &path_stat) != -1) {
+        if (S_ISDIR(path_stat.st_mode)) {
+            return -1;
+        }
+        return (int) path_stat.st_size;
+    }
+    return -1;
+}
+
+static void
+copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
+{
+    typedef struct pgp_dest_file_param_t {
+        int  fd;
+        int  errcode;
+        bool overwrite;
+        char path[PATH_MAX];
+    } pgp_dest_file_param_t;
+
+    pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
+    strncpy(buf, param->path, buflen);
+}
+
+void
+test_stream_file(void **state)
+{
+    const char * filename = "dummyfile.dat";
+    const char * dirname = "dummydir";
+    const char * file2name = "dummydir/dummyfile.dat";
+    const char * filedata = "dummy message to be stored in the file";
+    const int    iterations = 10000;
+    const int    filedatalen = strlen(filedata);
+    char         tmpname[PATH_MAX] = {0};
+    uint8_t      tmpbuf[1024] = {0};
+    pgp_dest_t   dst = {};
+    pgp_source_t src = {};
+
+    /* try to read non-existing file */
+    assert_rnp_failure(init_file_src(&src, filename));
+    assert_rnp_failure(init_file_src(&src, dirname));
+    /* create dir */
+    assert_int_equal(mkdir(dirname, S_IRWXU), 0);
+    /* attempt to read or create file in place of directory */
+    assert_rnp_failure(init_file_src(&src, dirname));
+    assert_rnp_failure(init_file_dest(&dst, dirname, false));
+    /* with overwrite flag it must succeed, then delete it */
+    assert_rnp_success(init_file_dest(&dst, dirname, true));
+    assert_int_equal(file_size(dirname), 0);
+    dst_close(&dst, true);
+    /* create dir back */
+    assert_int_equal(mkdir(dirname, S_IRWXU), 0);
+
+    /* write some data to the file and the discard it */
+    assert_rnp_success(init_file_dest(&dst, filename, false));
+    dst_write(&dst, filedata, filedatalen);
+    assert_int_not_equal(file_size(filename), -1);
+    dst_close(&dst, true);
+    assert_int_equal(file_size(filename), -1);
+
+    /* write some data to the file and make sure it is written */
+    assert_rnp_success(init_file_dest(&dst, filename, false));
+    dst_write(&dst, filedata, filedatalen);
+    assert_int_not_equal(file_size(filename), -1);
+    dst_close(&dst, false);
+    assert_int_equal(file_size(filename), filedatalen);
+
+    /* attempt to create file over existing without overwrite flag */
+    assert_rnp_failure(init_file_dest(&dst, filename, false));
+    assert_int_equal(file_size(filename), filedatalen);
+
+    /* overwrite file - it should be truncated, then write bunch of bytes */
+    assert_rnp_success(init_file_dest(&dst, filename, true));
+    assert_int_equal(file_size(filename), 0);
+    for (int i = 0; i < iterations; i++) {
+        dst_write(&dst, filedata, filedatalen);
+    }
+    /* and some smaller writes */
+    for (int i = 0; i < 5 * iterations; i++) {
+        dst_write(&dst, "zzz", 3);
+    }
+    dst_close(&dst, false);
+    assert_int_equal(file_size(filename), iterations * (filedatalen + 15));
+
+    /* read file back, checking the contents */
+    assert_rnp_success(init_file_src(&src, filename));
+    for (int i = 0; i < iterations; i++) {
+        assert_int_equal(src_read(&src, tmpbuf, filedatalen), filedatalen);
+        assert_int_equal(memcmp(tmpbuf, filedata, filedatalen), 0);
+    }
+    for (int i = 0; i < 5 * iterations; i++) {
+        assert_int_equal(src_read(&src, tmpbuf, 3), 3);
+        assert_int_equal(memcmp(tmpbuf, "zzz", 3), 0);
+    }
+    src_close(&src);
+
+    /* overwrite and discard - file should be deleted */
+    assert_rnp_success(init_file_dest(&dst, filename, true));
+    assert_int_equal(file_size(filename), 0);
+    for (int i = 0; i < iterations; i++) {
+        dst_write(&dst, "hello", 6);
+    }
+    dst_close(&dst, true);
+    assert_int_equal(file_size(filename), -1);
+
+    /* create and populate file in subfolder */
+    assert_rnp_success(init_file_dest(&dst, file2name, true));
+    assert_int_equal(file_size(file2name), 0);
+    for (int i = 0; i < iterations; i++) {
+        dst_write(&dst, filedata, filedatalen);
+    }
+    dst_close(&dst, false);
+    assert_int_equal(file_size(file2name), filedatalen * iterations);
+    assert_int_equal(unlink(file2name), 0);
+
+    /* create and populate file stream, using tmp name before closing */
+    assert_rnp_success(init_tmpfile_dest(&dst, filename, false));
+    copy_tmp_path(tmpname, sizeof(tmpname), &dst);
+    assert_int_equal(file_size(tmpname), 0);
+    assert_int_equal(file_size(filename), -1);
+    for (int i = 0; i < iterations; i++) {
+        dst_write(&dst, filedata, filedatalen);
+    }
+    dst_close(&dst, false);
+    assert_int_equal(file_size(tmpname), -1);
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+
+    /* create and then discard file stream, using tmp name before closing */
+    assert_rnp_success(init_tmpfile_dest(&dst, filename, true));
+    copy_tmp_path(tmpname, sizeof(tmpname), &dst);
+    assert_int_equal(file_size(tmpname), 0);
+    dst_write(&dst, filedata, filedatalen);
+    /* make sure file was not overwritten */
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+    dst_close(&dst, true);
+    assert_int_equal(file_size(tmpname), -1);
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+
+    /* create and then close file stream, using tmp name before closing. No overwrite. */
+    assert_rnp_success(init_tmpfile_dest(&dst, filename, false));
+    copy_tmp_path(tmpname, sizeof(tmpname), &dst);
+    assert_int_equal(file_size(tmpname), 0);
+    dst_write(&dst, filedata, filedatalen);
+    /* make sure file was not overwritten */
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+    assert_rnp_failure(dst_finish(&dst));
+    dst_close(&dst, false);
+    assert_int_equal(file_size(tmpname), filedatalen);
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+    assert_int_equal(unlink(tmpname), 0);
+
+    /* create and then close file stream, using tmp name before closing. Overwrite existing. */
+    assert_rnp_success(init_tmpfile_dest(&dst, filename, true));
+    copy_tmp_path(tmpname, sizeof(tmpname), &dst);
+    assert_int_equal(file_size(tmpname), 0);
+    dst_write(&dst, filedata, filedatalen);
+    /* make sure file was not overwritten yet */
+    assert_int_equal(file_size(filename), filedatalen * iterations);
+    assert_rnp_success(dst_finish(&dst));
+    dst_close(&dst, false);
+    assert_int_equal(file_size(tmpname), -1);
+    assert_int_equal(file_size(filename), filedatalen);
+
+    /* make sure we can overwrite directory */
+    assert_rnp_success(init_tmpfile_dest(&dst, dirname, true));
+    copy_tmp_path(tmpname, sizeof(tmpname), &dst);
+    assert_int_equal(file_size(tmpname), 0);
+    dst_write(&dst, filedata, filedatalen);
+    /* make sure file was not overwritten yet */
+    assert_int_equal(file_size(dirname), -1);
+    assert_rnp_success(dst_finish(&dst));
+    dst_close(&dst, false);
+    assert_int_equal(file_size(tmpname), -1);
+    assert_int_equal(file_size(dirname), filedatalen);
+
+    /* cleanup */
+    assert_int_equal(unlink(dirname), 0);
+}
+
 void
 test_stream_signatures(void **state)
 {
