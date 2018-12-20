@@ -72,7 +72,7 @@ typedef struct format_info {
     pgp_cipher_mode_t cipher_mode;
     pgp_hash_alg_t    hash_alg;
     const char *      botan_cipher_name;
-    size_t            chiper_block_size;
+    size_t            cipher_block_size;
     const char *      g10_type;
     size_t            iv_size;
 } format_info;
@@ -1178,19 +1178,15 @@ done:
 #define MAX_SIZE_T_LEN ((3 * sizeof(size_t) * CHAR_BIT / 8) + 2)
 
 static bool
-write_block(s_exp_block_t *block, pgp_memory_t *mem)
+write_block(s_exp_block_t *block, pgp_dest_t *dst)
 {
-    if (!pgp_memory_pad(mem, MAX_SIZE_T_LEN)) {
-        return false;
-    }
-    mem->length +=
-      snprintf((char *) (mem->buf + mem->length), MAX_SIZE_T_LEN, "%zu", block->len);
+    char   blen[MAX_SIZE_T_LEN + 1] = {0};
+    size_t len;
 
-    if (!pgp_memory_add(mem, (const uint8_t *) ":", 1)) {
-        return false;
-    }
-
-    return pgp_memory_add(mem, block->bytes, block->len);
+    len = snprintf(blen, sizeof(blen), "%zu:", block->len);
+    dst_write(dst, blen, len);
+    dst_write(dst, block->bytes, block->len);
+    return dst->werr == RNP_SUCCESS;
 }
 
 /*
@@ -1199,9 +1195,10 @@ write_block(s_exp_block_t *block, pgp_memory_t *mem)
  * Supported format: (1:a2:ab(3:asd1:a))
  */
 static bool
-write_sexp(s_exp_t *s_exp, pgp_memory_t *mem)
+write_sexp(s_exp_t *s_exp, pgp_dest_t *dst)
 {
-    if (!pgp_memory_add(mem, (const uint8_t *) "(", 1)) {
+    dst_write(dst, "(", 1);
+    if (dst->werr != RNP_SUCCESS) {
         return false;
     }
 
@@ -1209,17 +1206,18 @@ write_sexp(s_exp_t *s_exp, pgp_memory_t *mem)
         sub_element_t *sub_el = (sub_element_t *) item;
 
         if (sub_el->is_block) {
-            if (!write_block(&sub_el->block, mem)) {
+            if (!write_block(&sub_el->block, dst)) {
                 return false;
             }
         } else {
-            if (!write_sexp(&sub_el->s_exp, mem)) {
+            if (!write_sexp(&sub_el->s_exp, dst)) {
                 return false;
             }
         }
     }
 
-    return pgp_memory_add(mem, (const uint8_t *) ")", 1);
+    dst_write(dst, ")", 1);
+    return dst->werr == RNP_SUCCESS;
 }
 
 static bool
@@ -1325,7 +1323,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     const format_info *   format;
     s_exp_t               raw_s_exp = {0};
     s_exp_t *             sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
-    pgp_memory_t          raw = {0};
+    pgp_dest_t            raw = {0};
     uint8_t *             encrypted_data = NULL;
     botan_cipher_t        encrypt = NULL;
     unsigned              keysize;
@@ -1348,11 +1346,18 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     if (!rng_init(&rng, RNG_SYSTEM) || !rng_get_data(&rng, &prot->iv[0], sizeof(prot->iv)) ||
         !rng_get_data(&rng, &prot->s2k.salt[0], sizeof(prot->s2k.salt))) {
         rng_destroy(&rng);
+        RNP_LOG("iv generation failed");
         return false;
     }
     rng_destroy(&rng);
 
+    if (init_mem_dest(&raw, NULL, 0)) {
+        RNP_LOG("mem dst alloc failed");
+        return false;
+    }
+
     if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp) || !write_seckey(sub_s_exp, seckey)) {
+        RNP_LOG("failed to write seckey");
         goto done;
     }
 
@@ -1386,15 +1391,16 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     }
 
     // add padding!
-    for (int i = (int) (format->chiper_block_size - raw.length % format->chiper_block_size);
+    for (int i = (int) (format->cipher_block_size - raw.writeb % format->cipher_block_size);
          i > 0;
          i--) {
-        if (!pgp_memory_add(&raw, (const uint8_t *) "X", 1)) {
+        dst_write(&raw, "X", 1);
+        if (raw.werr != RNP_SUCCESS) {
             goto done;
         }
     }
 
-    encrypted_data_len = raw.length;
+    encrypted_data_len = raw.writeb;
     encrypted_data = (uint8_t *) malloc(encrypted_data_len);
     if (!encrypted_data) {
         goto done;
@@ -1402,7 +1408,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
 
     RNP_DHEX("input iv", prot->iv, G10_CBC_IV_SIZE);
     RNP_DHEX("key", derived_key, keysize);
-    RNP_DHEX("raw data", raw.buf, raw.length);
+    RNP_DHEX("raw data", (uint8_t *) mem_dest_get_memory(&raw), raw.writeb);
 
     if (botan_cipher_init(
           &encrypt, format->botan_cipher_name, BOTAN_CIPHER_INIT_FLAG_ENCRYPT) ||
@@ -1415,8 +1421,8 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
                             encrypted_data,
                             encrypted_data_len,
                             &output_written,
-                            raw.buf,
-                            raw.length,
+                            (uint8_t *) mem_dest_get_memory(&raw),
+                            raw.writeb,
                             &input_consumed)) {
         goto done;
     }
@@ -1442,7 +1448,7 @@ done:
     pgp_forget(derived_key, sizeof(derived_key));
     free(encrypted_data);
     destroy_s_exp(&raw_s_exp);
-    pgp_memory_release(&raw);
+    dst_close(&raw, true);
     botan_cipher_destroy(encrypt);
     return ret;
 }
@@ -1450,11 +1456,10 @@ done:
 bool
 g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password)
 {
-    s_exp_t      s_exp = {0};
-    s_exp_t *    sub_s_exp = NULL;
-    pgp_memory_t mem = {0};
-    bool         is_protected = true;
-    bool         ret = false;
+    s_exp_t  s_exp = {0};
+    s_exp_t *sub_s_exp = NULL;
+    bool     is_protected = true;
+    bool     ret = false;
 
     switch (seckey->sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
@@ -1485,13 +1490,11 @@ g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password)
             goto done;
         }
     }
-    if (!write_sexp(&s_exp, &mem)) {
+    if (!write_sexp(&s_exp, dst)) {
         goto done;
     }
-    dst_write(dst, mem.buf, mem.length);
     ret = !dst->werr;
 done:
-    pgp_memory_release(&mem);
     destroy_s_exp(&s_exp);
     return ret;
 }
@@ -1499,10 +1502,10 @@ done:
 static bool
 g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t *checksum)
 {
-    s_exp_t      s_exp = {0};
-    s_exp_t *    sub_s_exp;
-    pgp_memory_t mem = {0};
-    pgp_hash_t   hash = {0};
+    s_exp_t    s_exp = {0};
+    s_exp_t *  sub_s_exp;
+    pgp_dest_t memdst = {};
+    pgp_hash_t hash = {0};
 
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
         goto error;
@@ -1536,25 +1539,27 @@ g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t 
         goto error;
     }
 
-    if (!write_sexp(&s_exp, &mem)) {
+    if (init_mem_dest(&memdst, NULL, 0)) {
         goto error;
     }
 
+    if (!write_sexp(&s_exp, &memdst)) {
+        goto error;
+    }
     destroy_s_exp(&s_exp);
 
-    RNP_DHEX("data for hashing", mem.buf, mem.length);
+    RNP_DHEX("data for hashing", (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
 
-    pgp_hash_add(&hash, mem.buf, mem.length);
-
-    pgp_memory_release(&mem);
+    pgp_hash_add(&hash, mem_dest_get_memory(&memdst), memdst.writeb);
+    dst_close(&memdst, true);
 
     if (!pgp_hash_finish(&hash, checksum)) {
         goto error;
     }
 
     return true;
-
 error:
+    dst_close(&memdst, true);
     destroy_s_exp(&s_exp);
     return false;
 }
