@@ -34,7 +34,6 @@
 #include <librepgp/stream-packet.h>
 #include "crypto.h"
 #include "pgp-key.h"
-#include "memory.h"
 #include "packet-create.h"
 #include "defaults.h"
 #include "utils.h"

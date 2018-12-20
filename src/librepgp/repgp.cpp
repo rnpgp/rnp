@@ -43,7 +43,6 @@
 
 #include "internal_types.h"
 #include "packet-print.h"
-#include "memory.h"
 #include "utils.h"
 #include "crypto.h"
 #include "pgp-key.h"

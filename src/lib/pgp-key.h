@@ -58,7 +58,6 @@
 #include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
 #include "crypto/symmetric.h"
-#include "memory.h"
 #include "types.h"
 
 /* describes a user's key */
