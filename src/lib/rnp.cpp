@@ -63,7 +63,6 @@
 #include <repgp/repgp.h>
 #include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
-#include "memory.h"
 #include "utils.h"
 #include "crypto.h"
 #include "crypto/common.h"
