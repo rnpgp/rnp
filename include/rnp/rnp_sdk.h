@@ -106,6 +106,8 @@ char *userid_to_id(const uint8_t *userid, char *id);
 bool ishex(const char *hexid, size_t hexlen);
 
 bool hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out);
+
+void pgp_forget(void *, size_t);
 }
 
 #endif

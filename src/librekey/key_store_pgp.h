@@ -58,7 +58,6 @@
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-key.h>
-#include "memory.h"
 
 rnp_result_t rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src);
 

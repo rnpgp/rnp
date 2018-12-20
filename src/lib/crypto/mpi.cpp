@@ -27,7 +27,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mpi.h"
-#include "memory.h"
 #include "hash.h"
 
 bool
