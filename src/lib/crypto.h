@@ -57,7 +57,6 @@
 
 #include <limits.h>
 #include <librepgp/packet-print.h>
-#include "memory.h"
 #include "crypto/common.h"
 #include <rekey/rnp_key_store.h>
 
