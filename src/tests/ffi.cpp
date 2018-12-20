@@ -31,6 +31,7 @@
 #include <rnp/rnp2.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include "librepgp/stream-common.h"
 #include "utils.h"
 #include <json.h>
 #include <vector>
@@ -720,7 +721,7 @@ test_ffi_keygen_json_pair(void **state)
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void*) "abc"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
 
     // load our JSON
     load_test_data(rstate->data_dir, "test_ffi_json/generate-pair.json", &json, NULL);
@@ -1172,6 +1173,21 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     rnp_ffi_destroy(ffi);
 }
 
+static bool
+file_equals(const char *filename, const void *data, size_t len)
+{
+    pgp_source_t msrc = {};
+    bool         res = false;
+
+    if (file_to_mem_src(&msrc, filename)) {
+        return false;
+    }
+
+    res = (msrc.size == len) && !memcmp(mem_src_get_memory(&msrc), data, len);
+    src_close(&msrc);
+    return res;
+}
+
 void
 test_ffi_encrypt_pass(void **state)
 {
@@ -1276,14 +1292,8 @@ test_ffi_encrypt_pass(void **state)
     input = NULL;
     rnp_output_destroy(output);
     output = NULL;
-    // read in the decrypted file
-    pgp_memory_t mem = {0};
-    assert_true(pgp_mem_readfile(&mem, "decrypted"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
+    // compare the decrypted file
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     unlink("decrypted");
 
     // decrypt (pass2)
@@ -1298,15 +1308,8 @@ test_ffi_encrypt_pass(void **state)
     input = NULL;
     rnp_output_destroy(output);
     output = NULL;
-    // read in the decrypted file
-    mem = (pgp_memory_t){0};
-    assert_true(pgp_mem_readfile(&mem, "decrypted"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
-
+    // compare the decrypted file
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     // final cleanup
     rnp_ffi_destroy(ffi);
 }
@@ -1415,13 +1418,7 @@ test_ffi_encrypt_pk(void **state)
     rnp_output_destroy(output);
     output = NULL;
     // read in the decrypted file
-    pgp_memory_t mem = {0};
-    assert_true(pgp_mem_readfile(&mem, "decrypted"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     // final cleanup
     rnp_ffi_destroy(ffi);
 }
@@ -1549,14 +1546,8 @@ test_ffi_encrypt_pk_key_provider(void **state)
     input = NULL;
     rnp_output_destroy(output);
     output = NULL;
-    // read in the decrypted file
-    pgp_memory_t mem = {0};
-    assert_true(pgp_mem_readfile(&mem, "decrypted"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
+    // compare the decrypted file
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     // final cleanup
     rnp_ffi_destroy(ffi);
     free(sub_sec_key_data);
@@ -1678,15 +1669,8 @@ test_ffi_encrypt_and_sign(void **state)
     input = NULL;
     rnp_output_destroy(output);
     output = NULL;
-    // read in the decrypted file
-    pgp_memory_t mem = {0};
-    assert_true(pgp_mem_readfile(&mem, "decrypted"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
-
+    // compare the decrypted file
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     // verify and check signatures
     rnp_op_verify_t verify;
     assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
@@ -1721,14 +1705,8 @@ test_ffi_encrypt_and_sign(void **state)
     input = NULL;
     rnp_output_destroy(output);
     output = NULL;
-    // read in the decrypted file
-    assert_true(pgp_mem_readfile(&mem, "verified"));
-    // compare
-    assert_int_equal(mem.length, strlen(plaintext));
-    assert_true(memcmp(mem.buf, plaintext, strlen(plaintext)) == 0);
-    // cleanup
-    pgp_memory_release(&mem);
-
+    // compare the decrypted file
+    assert_true(file_equals("verified", plaintext, strlen(plaintext)));
     // final cleanup
     rnp_ffi_destroy(ffi);
 }
@@ -1865,21 +1843,27 @@ test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
     rnp_buffer_destroy(hname);
 }
 
-static void
+static bool
 test_ffi_check_recovered(void **state)
 {
-    // read in the recovered data from signature
-    pgp_memory_t recovered = {0};
-    pgp_memory_t plaintext = {0};
+    pgp_source_t msrc1 = {};
+    pgp_source_t msrc2 = {};
+    bool         res = false;
 
-    assert_true(pgp_mem_readfile(&recovered, "recovered"));
-    assert_true(pgp_mem_readfile(&plaintext, "plaintext"));
-    // compare
-    assert_int_equal(recovered.length, plaintext.length);
-    assert_true(memcmp(recovered.buf, plaintext.buf, recovered.length) == 0);
-    // cleanup
-    pgp_memory_release(&recovered);
-    pgp_memory_release(&plaintext);
+    if (file_to_mem_src(&msrc1, "recovered")) {
+        return false;
+    }
+
+    if (file_to_mem_src(&msrc2, "plaintext")) {
+        goto finish;
+    }
+
+    res = (msrc1.size == msrc2.size) &&
+          !memcmp(mem_src_get_memory(&msrc1), mem_src_get_memory(&msrc2), msrc1.size);
+finish:
+    src_close(&msrc1);
+    src_close(&msrc2);
+    return res;
 }
 
 void
@@ -1989,7 +1973,7 @@ test_ffi_signatures(void **state)
     output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     // check output
-    test_ffi_check_recovered(state);
+    assert_true(test_ffi_check_recovered(state));
 }
 
 void

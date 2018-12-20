@@ -526,6 +526,22 @@ done:
     return ret;
 }
 
+rnp_result_t
+file_to_mem_src(pgp_source_t *src, const char *filename)
+{
+    pgp_source_t fsrc = {};
+    rnp_result_t res = RNP_ERROR_GENERIC;
+
+    if ((res = init_file_src(&fsrc, filename))) {
+        return res;
+    }
+
+    res = read_mem_src(src, &fsrc);
+    src_close(&fsrc);
+
+    return res;
+}
+
 const void *
 mem_src_get_memory(pgp_source_t *src)
 {
