@@ -113,6 +113,7 @@ cache:
 
 before_install:
   - ./ci/before_install.sh
+  - gpg --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
   - rvm get stable
   - rvm use 2.3.4 --install --binary --fuzzy
 
