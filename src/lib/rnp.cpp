@@ -910,6 +910,7 @@ typedef struct pgp_parse_handler_param_t {
     bool         hasdst;
     pgp_source_t src;
     pgp_dest_t   dst;
+    rnp_ctx_t *  ctx;
 } pgp_parse_handler_param_t;
 
 /** @brief checks whether file exists already and asks user for the new filename
@@ -1132,14 +1133,26 @@ rnp_parse_handler_src(pgp_parse_handler_t *handler, pgp_source_t *src)
     return false;
 }
 
+static void
+rnp_signatures_func_proxy(pgp_signature_info_t *sigs, int count, void *param)
+{
+    pgp_parse_handler_param_t *hparam = (pgp_parse_handler_param_t *) param;
+    if (hparam->ctx->on_signatures) {
+        pgp_signatures_func_t *func = (pgp_signatures_func_t *) hparam->ctx->on_signatures;
+        func(sigs, count, hparam->ctx->sig_cb_param);
+    }
+}
+
 static bool
 rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
 {
     pgp_parse_handler_param_t *param;
 
+    /* param */
     if (!(param = (pgp_parse_handler_param_t *) calloc(1, sizeof(*param)))) {
         return false;
     }
+    param->ctx = ctx;
 
     /* context */
     ctx->operation = RNP_OP_DECRYPT_VERIFY;
@@ -1150,7 +1163,7 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
     handler->key_provider = &ctx->rnp->key_provider;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
-    handler->on_signatures = (pgp_signatures_func_t *) ctx->on_signatures;
+    handler->on_signatures = rnp_signatures_func_proxy;
     handler->param = param;
 
     return true;

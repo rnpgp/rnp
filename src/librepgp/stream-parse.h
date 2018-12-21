@@ -41,9 +41,7 @@ typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *
                                                            bool *               closedst,
                                                            const char *         filename);
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
-typedef void pgp_signatures_func_t(pgp_parse_handler_t * handler,
-                                   pgp_signature_info_t *sigs,
-                                   int                   count);
+typedef void pgp_signatures_func_t(pgp_signature_info_t *sigs, int count, void *param);
 
 /* handler used to return needed information during pgp source processing */
 typedef struct pgp_parse_handler_t {

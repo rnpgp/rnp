@@ -959,7 +959,7 @@ signed_src_finish(pgp_source_t *src)
 
     /* call the callback with signature infos */
     if (param->ctx->handler.on_signatures) {
-        param->ctx->handler.on_signatures(&param->ctx->handler, sinfos, sinfoc);
+        param->ctx->handler.on_signatures(sinfos, sinfoc, param->ctx->handler.param);
     }
 
     free(sinfos);
