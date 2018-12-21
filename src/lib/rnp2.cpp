@@ -1944,12 +1944,10 @@ rnp_op_sign_destroy(rnp_op_sign_t op)
 }
 
 static void
-rnp_op_verify_on_signatures(pgp_parse_handler_t * handler,
-                            pgp_signature_info_t *sigs,
-                            int                   count)
+rnp_op_verify_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
 {
     struct rnp_op_verify_signature_st res;
-    rnp_op_verify_t                   op = (rnp_op_verify_t) handler->param;
+    rnp_op_verify_t                   op = (rnp_op_verify_t) param;
 
     op->signatures = (rnp_op_verify_signature_t) calloc(count, sizeof(*op->signatures));
     if (!op->signatures) {
