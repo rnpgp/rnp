@@ -231,7 +231,7 @@ print_usage(const char *usagemsg)
 }
 
 static void
-rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int count)
+rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
 {
     unsigned         invalidc = 0;
     unsigned         unknownc = 0;
@@ -242,7 +242,8 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
     char             id[MAX_ID_LENGTH + 1];
     const pgp_key_t *key;
     const char *     title = "UNKNOWN signature";
-    FILE *           resfp = handler->ctx->rnp->resfp;
+    rnp_ctx_t *      ctx = (rnp_ctx_t *) param;
+    FILE *           resfp = ctx->rnp->resfp;
 
     for (int i = 0; i < count; i++) {
         if (sigs[i].unknown || sigs[i].no_signer) {
@@ -286,8 +287,8 @@ rnp_on_signatures(pgp_parse_handler_t *handler, pgp_signature_info_t *sigs, int 
                 userid_to_id(keyid, id));
 
         if (!sigs[i].no_signer) {
-            key = rnp_key_store_get_key_by_id(handler->ctx->rnp->pubring, keyid, NULL);
-            repgp_print_key(resfp, handler->ctx->rnp->pubring, key, "signature ", 0);
+            key = rnp_key_store_get_key_by_id(ctx->rnp->pubring, keyid, NULL);
+            repgp_print_key(resfp, ctx->rnp->pubring, key, "signature ", 0);
         }
     }
 
@@ -458,6 +459,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
         ctx->discard =
           rnp_cfg_getbool(cfg, CFG_NO_OUTPUT) && !rnp_cfg_getstr(cfg, CFG_OUTFILE);
         ctx->on_signatures = (void *) rnp_on_signatures;
+        ctx->sig_cb_param = ctx;
     }
 
     return true;
@@ -831,10 +833,12 @@ parse_option(rnp_cfg_t *cfg, const char *s)
 }
 
 #ifndef RNP_RUN_TESTS
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 #else
 int rnp_main(int argc, char **argv);
-int rnp_main(int argc, char **argv)
+int
+rnp_main(int argc, char **argv)
 #endif
 {
     rnp_params_t rnp_params = {0};
