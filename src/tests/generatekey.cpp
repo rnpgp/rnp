@@ -110,9 +110,11 @@ rnpkeys_generatekey_testSignature(void **state)
                 ctx.filename = strdup("dummyfile.dat");
                 ctx.clearsign = cleartext;
                 rnp_assert_int_not_equal(rstate, ctx.halg, PGP_HASH_UNKNOWN);
-                pgp_key_t *key = rnp_key_store_get_key_by_name(rnp.secring, userId, NULL);
-                assert_non_null(key);
-                rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
+                rnp_signer_info_t sinfo = {};
+                sinfo.key = rnp_key_store_get_key_by_name(rnp.secring, userId, NULL);
+                sinfo.halg = ctx.halg;
+                assert_non_null(sinfo.key);
+                rnp_assert_non_null(rstate, list_append(&ctx.signers, &sinfo, sizeof(sinfo)));
 
                 /* Signing the memory */
                 ret = rnp_protect_mem(&ctx,

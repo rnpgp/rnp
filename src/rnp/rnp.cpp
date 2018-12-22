@@ -306,6 +306,17 @@ rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
 }
 
 static bool
+add_signing_key(rnp_cfg_t *cfg, rnp_ctx_t *ctx, pgp_key_t *key)
+{
+    rnp_signer_info_t sinfo = {};
+    sinfo.key = key;
+    sinfo.sigcreate = get_creation(rnp_cfg_getstr(cfg, CFG_CREATION));
+    sinfo.sigexpire = get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION));
+    sinfo.halg = ctx->halg;
+    return list_append(&ctx->signers, &sinfo, sizeof(sinfo));
+}
+
+static bool
 setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 {
     int         cmd;
@@ -350,15 +361,14 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 return false;
             }
             for (list_item *signer = list_front(signers); signer; signer = list_next(signer)) {
-                pgp_key_t *key =
-                  rnp_key_store_get_key_by_name(rnp->secring, (const char *) signer, NULL);
+                const char *keyname = (const char *) signer;
+                pgp_key_t * key = rnp_key_store_get_key_by_name(rnp->secring, keyname, NULL);
                 if (!key) {
-                    fprintf(
-                      stderr, "Invalid or unavailable signer: %s\n", (const char *) signer);
+                    fprintf(stderr, "Invalid or unavailable signer: %s\n", keyname);
                     list_destroy(&signers);
                     return false;
                 }
-                if (!list_append(&ctx->signers, &key, sizeof(key))) {
+                if (!add_signing_key(cfg, ctx, key)) {
                     list_destroy(&signers);
                     return false;
                 }
@@ -375,7 +385,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 if (!key) {
                     return false;
                 }
-                if (!list_append(&ctx->signers, &key, sizeof(key))) {
+                if (!add_signing_key(cfg, ctx, key)) {
                     RNP_LOG("allocation failed");
                     return false;
                 }

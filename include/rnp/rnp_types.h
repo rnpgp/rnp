@@ -100,6 +100,14 @@ typedef enum rnp_operation_t {
     RNP_OP_ARMOR = 3
 } rnp_operation_t;
 
+/* signature info structure */
+typedef struct rnp_signer_info_t {
+    pgp_key_t *    key;
+    pgp_hash_alg_t halg;
+    int64_t        sigcreate;
+    uint64_t       sigexpire;
+} rnp_signer_info_t;
+
 /** rnp operation context : contains configuration data about the currently ongoing operation.
  *
  *  Common fields which make sense for every operation:
@@ -125,8 +133,8 @@ typedef enum rnp_operation_t {
  *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
  *    If both are false then attached signing is used.
  *  - halg : hash algorithm used to calculate signature(s)
- *  - signers : list of key pointers used to sign data
- *  - sigcreate, sigexpire : signature(s) creation and expiration times
+ *  - signers : list of rnp_signer_info_t structures describing signing key and parameters
+ *  - sigcreate, sigexpire : default signature(s) creation and expiration times
  *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
  *
  *  For data decryption and/or verification there is not much of fields:
@@ -138,6 +146,7 @@ typedef enum rnp_operation_t {
  *  For enarmor/dearmor:
  *  - armortype: type of the armor headers (message, key, whatever else)
  */
+
 typedef struct rnp_ctx_t {
     rnp_t *         rnp;           /* Pointer to initialized rnp_t (temporary solution) */
     char *          filename;      /* name of the input file to store in literal data packet */
@@ -156,7 +165,7 @@ typedef struct rnp_ctx_t {
     bool            armor;         /* whether to use ASCII armor on output */
     list            recipients;    /* recipients of the encrypted message */
     list            passwords;     /* list of rnp_symmetric_pass_info_t */
-    list            signers;       /* list of signer key ids/user ids */
+    list            signers;       /* list of rnp_signer_info_t structures */
     unsigned        armortype;     /* type of the armored message, used in enarmor command */
     bool            discard;       /* discard the output */
     void *          on_signatures; /* handler for signed messages */

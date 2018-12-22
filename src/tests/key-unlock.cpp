@@ -40,6 +40,7 @@ test_key_unlock_pgp(void **state)
     rnp_t                   rnp;
     pgp_key_t *             key = NULL;
     rnp_ctx_t               ctx;
+    rnp_signer_info_t       signer = {};
     rnp_result_t            ret;
     const char *            data = "my test data";
     char                    signature[512] = {0};
@@ -76,7 +77,9 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
+    signer.key = key;
+    signer.halg = ctx.halg;
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, &signer, sizeof(signer)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
@@ -127,7 +130,9 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
+    signer.halg = ctx.halg;
+    signer.key = key;
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, &signer, sizeof(signer)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
@@ -157,7 +162,9 @@ test_key_unlock_pgp(void **state)
     rnp_ctx_init(&ctx, &rnp);
     ctx.halg = pgp_str_to_hash_alg("SHA1");
     assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    rnp_assert_non_null(rstate, list_append(&ctx.signers, &key, sizeof(key)));
+    signer.key = key;
+    signer.halg = ctx.halg;
+    rnp_assert_non_null(rstate, list_append(&ctx.signers, &signer, sizeof(signer)));
     memset(signature, 0, sizeof(signature));
     ret = rnp_protect_mem(&ctx, data, strlen(data), signature, sizeof(signature), &siglen);
     rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);

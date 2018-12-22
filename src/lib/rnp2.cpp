@@ -1377,7 +1377,10 @@ rnp_output_destroy(rnp_output_t output)
 }
 
 static rnp_result_t
-rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signature_t *sig)
+rnp_op_add_signature(list *                   signatures,
+                     rnp_key_handle_t         key,
+                     rnp_ctx_t *              ctx,
+                     rnp_op_sign_signature_t *sig)
 {
     rnp_op_sign_signature_t newsig = NULL;
 
@@ -1401,6 +1404,11 @@ rnp_op_add_signature(list *signatures, rnp_key_handle_t key, rnp_op_sign_signatu
         list_remove((list_item *) newsig);
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
+
+    /* set default create/expire times */
+    newsig->create = ctx->sigcreate;
+    newsig->expires = ctx->sigexpire;
+
     if (sig) {
         *sig = newsig;
     }
@@ -1545,7 +1553,7 @@ rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(&op->signatures, key, sig);
+    return rnp_op_add_signature(&op->signatures, key, &op->rnpctx, sig);
 }
 
 rnp_result_t
@@ -1716,6 +1724,30 @@ pgp_write_handler(pgp_password_provider_t *pass_provider,
     return handler;
 }
 
+static rnp_result_t
+rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
+{
+    for (list_item *sig = list_front(opsigs); sig; sig = list_next(sig)) {
+        rnp_signer_info_t       sinfo = {};
+        rnp_op_sign_signature_t osig = (rnp_op_sign_signature_t) sig;
+
+        if (!osig->key) {
+            return RNP_ERROR_NO_SUITABLE_KEY;
+        }
+
+        sinfo.key = osig->key;
+        sinfo.halg = osig->halg ? osig->halg : ctx->halg;
+        sinfo.sigcreate = osig->create;
+        sinfo.sigexpire = osig->expires;
+
+        if (!list_append(&ctx->signers, &sinfo, sizeof(sinfo))) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 rnp_op_encrypt_execute(rnp_op_encrypt_t op)
 {
@@ -1733,11 +1765,8 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
 
     rnp_result_t ret;
     if (list_length(op->signatures)) {
-        for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-            pgp_key_t *key = ((rnp_op_sign_signature_t) sig)->key;
-            if (!list_append(&op->rnpctx.signers, &key, sizeof(key))) {
-                return RNP_ERROR_OUT_OF_MEMORY;
-            }
+        if ((ret = rnp_op_add_signatures(op->signatures, &op->rnpctx))) {
+            return ret;
         }
         ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
     } else {
@@ -1814,7 +1843,7 @@ rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_si
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(&op->signatures, key, sig);
+    return rnp_op_add_signature(&op->signatures, key, &op->rnpctx, sig);
 }
 
 rnp_result_t
@@ -1913,17 +1942,11 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     pgp_write_handler_t handler =
       pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
-    for (list_item *sig = list_front(op->signatures); sig; sig = list_next(sig)) {
-        pgp_key_t *key = ((rnp_op_sign_signature_t) sig)->key;
-        if (!key) {
-            return RNP_ERROR_NO_SUITABLE_KEY;
-        }
-        if (!list_append(&op->rnpctx.signers, &key, sizeof(key))) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+    rnp_result_t ret;
+    if ((ret = rnp_op_add_signatures(op->signatures, &op->rnpctx))) {
+        return ret;
     }
-
-    rnp_result_t ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
+    ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
 
     dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
