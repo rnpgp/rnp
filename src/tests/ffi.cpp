@@ -1557,11 +1557,17 @@ test_ffi_encrypt_pk_key_provider(void **state)
 void
 test_ffi_encrypt_and_sign(void **state)
 {
-    rnp_ffi_t        ffi = NULL;
-    rnp_input_t      input = NULL;
-    rnp_output_t     output = NULL;
-    rnp_op_encrypt_t op = NULL;
-    const char *     plaintext = "data1";
+    rnp_ffi_t               ffi = NULL;
+    rnp_input_t             input = NULL;
+    rnp_output_t            output = NULL;
+    rnp_op_encrypt_t        op = NULL;
+    rnp_op_sign_signature_t signsig = NULL;
+    const char *            plaintext = "data1";
+    rnp_key_handle_t        key = NULL;
+    const uint32_t          issued = 1516211899;   // Unix epoch, nowish
+    const uint32_t          expires = 1000000000;  // expires later
+    const uint32_t          issued2 = 1516211900;  // Unix epoch, nowish
+    const uint32_t          expires2 = 2000000000; // expires later
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1590,7 +1596,6 @@ test_ffi_encrypt_and_sign(void **state)
     // create encrypt operation
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     // add recipients
-    rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
@@ -1604,13 +1609,19 @@ test_ffi_encrypt_and_sign(void **state)
     // enable armoring
     assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
     // add signature
-    const uint32_t issued = 1516211899;  // Unix epoch, nowish
-    const uint32_t expires = 1000000000; // expires later
     assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA256"));
     assert_rnp_success(rnp_op_encrypt_set_creation_time(op, issued));
     assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, expires));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
+    rnp_key_handle_destroy(key);
+    key = NULL;
+    // add second signature with different hash/issued/expiration
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid2", &key));
+    assert_rnp_success(rnp_op_encrypt_add_signature(op, key, &signsig));
+    assert_rnp_success(rnp_op_sign_signature_set_creation_time(signsig, issued2));
+    assert_rnp_success(rnp_op_sign_signature_set_expiration_time(signsig, expires2));
+    assert_rnp_success(rnp_op_sign_signature_set_hash(signsig, "SHA512"));
     rnp_key_handle_destroy(key);
     key = NULL;
     // execute the operation
@@ -1689,7 +1700,8 @@ test_ffi_encrypt_and_sign(void **state)
     char *                    hname = NULL;
 
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
-    assert_int_equal(sig_count, 1);
+    assert_int_equal(sig_count, 2);
+    // signature 1
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
@@ -1697,6 +1709,16 @@ test_ffi_encrypt_and_sign(void **state)
     assert_int_equal(sig_expires, expires);
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
+    rnp_buffer_destroy(hname);
+    hname = NULL;
+    // signature 2
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued2);
+    assert_int_equal(sig_expires, expires2);
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
+    assert_string_equal(hname, "SHA512");
     rnp_buffer_destroy(hname);
     hname = NULL;
     // cleanup
@@ -1801,9 +1823,13 @@ test_ffi_init_verify_memory_input(void **       state,
 static void
 test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
 {
+    rnp_key_handle_t        key = NULL;
+    rnp_op_sign_signature_t sig = NULL;
     // set signature times
-    const uint32_t issued = 1516211899;  // Unix epoch, nowish
-    const uint32_t expires = 1000000000; // expires later
+    const uint32_t issued = 1516211899;   // Unix epoch, nowish
+    const uint32_t expires = 1000000000;  // expires later
+    const uint32_t issued2 = 1516211900;  // Unix epoch, nowish
+    const uint32_t expires2 = 2000000000; // expires later
 
     assert_rnp_success(rnp_op_sign_set_armor(*op, true));
     assert_rnp_success(rnp_op_sign_set_hash(*op, "SHA256"));
@@ -1813,10 +1839,17 @@ test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
     // set pass provider
     assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, getpasscb, (void *) "password"));
 
-    // set signature key
-    rnp_key_handle_t key = NULL;
+    // set first signature key
     assert_rnp_success(rnp_locate_key(*ffi, "userid", "key0-uid2", &key));
     assert_rnp_success(rnp_op_sign_add_signature(*op, key, NULL));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    key = NULL;
+    // set second signature key
+    assert_rnp_success(rnp_locate_key(*ffi, "userid", "key0-uid1", &key));
+    assert_rnp_success(rnp_op_sign_add_signature(*op, key, &sig));
+    assert_rnp_success(rnp_op_sign_signature_set_creation_time(sig, issued2));
+    assert_rnp_success(rnp_op_sign_signature_set_expiration_time(sig, expires2));
+    assert_rnp_success(rnp_op_sign_signature_set_hash(sig, "SHA512"));
     assert_rnp_success(rnp_key_handle_destroy(key));
 }
 
@@ -1828,11 +1861,14 @@ test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
     uint32_t                  sig_create;
     uint32_t                  sig_expires;
     char *                    hname = NULL;
-    const uint32_t            issued = 1516211899;  // Unix epoch, nowish
-    const uint32_t            expires = 1000000000; // expires later
+    const uint32_t            issued = 1516211899;   // Unix epoch, nowish
+    const uint32_t            expires = 1000000000;  // expires later
+    const uint32_t            issued2 = 1516211900;  // Unix epoch, nowish
+    const uint32_t            expires2 = 2000000000; // expires later
 
     assert_rnp_success(rnp_op_verify_get_signature_count(*verify, &sig_count));
-    assert_int_equal(sig_count, 1);
+    assert_int_equal(sig_count, 2);
+    // first signature
     assert_rnp_success(rnp_op_verify_get_signature_at(*verify, 0, &sig));
     assert_rnp_success(rnp_op_verify_signature_get_status(sig));
     assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
@@ -1840,6 +1876,15 @@ test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
     assert_int_equal(sig_expires, expires);
     assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
     assert_string_equal(hname, "SHA256");
+    rnp_buffer_destroy(hname);
+    // second signature
+    assert_rnp_success(rnp_op_verify_get_signature_at(*verify, 1, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_times(sig, &sig_create, &sig_expires));
+    assert_int_equal(sig_create, issued2);
+    assert_int_equal(sig_expires, expires2);
+    assert_rnp_success(rnp_op_verify_signature_get_hash(sig, &hname));
+    assert_string_equal(hname, "SHA512");
     rnp_buffer_destroy(hname);
 }
 
