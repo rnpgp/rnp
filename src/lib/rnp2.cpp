@@ -99,10 +99,8 @@ struct rnp_op_sign_st {
 };
 
 struct rnp_op_sign_signature_st {
-    pgp_key_t *    key;
-    pgp_hash_alg_t halg;
-    uint32_t       create;
-    uint32_t       expires;
+    rnp_ffi_t         ffi;
+    rnp_signer_info_t signer;
 };
 
 struct rnp_op_verify_signature_st {
@@ -1377,7 +1375,8 @@ rnp_output_destroy(rnp_output_t output)
 }
 
 static rnp_result_t
-rnp_op_add_signature(list *                   signatures,
+rnp_op_add_signature(rnp_ffi_t                ffi,
+                     list *                   signatures,
                      rnp_key_handle_t         key,
                      rnp_ctx_t *              ctx,
                      rnp_op_sign_signature_t *sig)
@@ -1392,22 +1391,23 @@ rnp_op_add_signature(list *                   signatures,
     if (!newsig) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    newsig->key = find_suitable_key(
+    newsig->signer.key = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
-    if (newsig->key && !pgp_is_key_secret(newsig->key)) {
+    if (newsig->signer.key && !pgp_is_key_secret(newsig->signer.key)) {
         pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
         ctx.search.type = PGP_KEY_SEARCH_GRIP;
-        memcpy(ctx.search.by.grip, newsig->key->grip, PGP_FINGERPRINT_SIZE);
-        newsig->key = pgp_request_key(&key->ffi->key_provider, &ctx);
+        memcpy(ctx.search.by.grip, newsig->signer.key->grip, PGP_FINGERPRINT_SIZE);
+        newsig->signer.key = pgp_request_key(&key->ffi->key_provider, &ctx);
     }
-    if (!newsig->key) {
+    if (!newsig->signer.key) {
         list_remove((list_item *) newsig);
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
     /* set default create/expire times */
-    newsig->create = ctx->sigcreate;
-    newsig->expires = ctx->sigexpire;
+    newsig->signer.sigcreate = ctx->sigcreate;
+    newsig->signer.sigexpire = ctx->sigexpire;
+    newsig->ffi = ffi;
 
     if (sig) {
         *sig = newsig;
@@ -1553,7 +1553,7 @@ rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(&op->signatures, key, &op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
 }
 
 rnp_result_t
@@ -1731,14 +1731,14 @@ rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
         rnp_signer_info_t       sinfo = {};
         rnp_op_sign_signature_t osig = (rnp_op_sign_signature_t) sig;
 
-        if (!osig->key) {
+        if (!osig->signer.key) {
             return RNP_ERROR_NO_SUITABLE_KEY;
         }
 
-        sinfo.key = osig->key;
-        sinfo.halg = osig->halg ? osig->halg : ctx->halg;
-        sinfo.sigcreate = osig->create;
-        sinfo.sigexpire = osig->expires;
+        sinfo = osig->signer;
+        if (!sinfo.halg) {
+            sinfo.halg = ctx->halg;
+        }
 
         if (!list_append(&ctx->signers, &sinfo, sizeof(sinfo))) {
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -1843,25 +1843,44 @@ rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_si
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(&op->signatures, key, &op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
 }
 
 rnp_result_t
 rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
+    if (hash_alg == PGP_HASH_UNKNOWN) {
+        FFI_LOG(sig->ffi, "Invalid hash: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->signer.halg = hash_alg;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
 rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig, uint32_t create)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    sig->signer.sigcreate = create;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
 rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t expires)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    sig->signer.sigexpire = expires;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t

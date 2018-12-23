@@ -517,14 +517,16 @@ rnp_result_t rnp_op_sign_add_signature(rnp_op_sign_t            op,
                                        rnp_key_handle_t         key,
                                        rnp_op_sign_signature_t *sig);
 
-/** @brief Set hash algorithm used during signature calculation. Not implemented yet.
+/** @brief Set hash algorithm used during signature calculation instead of default one, or one
+ *         set by rnp_op_encrypt_set_hash/rnp_op_sign_set_hash
  *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
  *  @param hash hash algorithm to be used
  *  @return RNP_SUCCESS or error code if failed
  */
 rnp_result_t rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash);
 
-/** @brief Set signature creation time. Not implemented yet.
+/** @brief Set signature creation time. By default current time is used or value set by
+ *         rnp_op_encrypt_set_creation_time/rnp_op_sign_set_creation_time
  *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
  *  @param create creation time in seconds since Jan, 1 1970 UTC
  *  @return RNP_SUCCESS or error code if failed
@@ -532,7 +534,8 @@ rnp_result_t rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const c
 rnp_result_t rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig,
                                                      uint32_t                create);
 
-/** @brief Set signature expiration time. Not implemented yet.
+/** @brief Set signature expiration time. By default is set to never expire or to value set by
+ *         rnp_op_encrypt_set_expiration_time/rnp_op_sign_set_expiration_time
  *  @param sig opaque signature context, returned via rnp_op_sign_add_signature
  *  @param expire expiration time in seconds since the creation time. 0 value is used to mark
  *         signature as non-expiring (default value)
