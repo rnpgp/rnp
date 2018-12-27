@@ -208,7 +208,7 @@ pgp_rawpacket_free(pgp_rawpacket_t *packet)
 }
 
 bool
-pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag)
+pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag)
 {
     assert(!key->pkt.version);
     assert(is_key_pkt(tag));
