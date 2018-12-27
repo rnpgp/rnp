@@ -558,21 +558,21 @@ pgp_get_key_type(const pgp_key_t *key)
 }
 
 bool
-pgp_is_key_public(const pgp_key_t *key)
+pgp_key_is_public(const pgp_key_t *key)
 {
     return is_public_key_pkt(key->pkt.tag);
 }
 
 bool
-pgp_is_key_secret(const pgp_key_t *key)
+pgp_key_is_secret(const pgp_key_t *key)
 {
     return is_secret_key_pkt(key->pkt.tag);
 }
 
 bool
-pgp_is_key_encrypted(const pgp_key_t *key)
+pgp_key_is_encrypted(const pgp_key_t *key)
 {
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         return false;
     }
 
@@ -664,7 +664,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     char                  password[MAX_PASSWORD_LENGTH] = {0};
 
     // sanity checks
-    if (!key || !pgp_is_key_secret(key) || !provider) {
+    if (!key || !pgp_key_is_secret(key) || !provider) {
         RNP_LOG("invalid args");
         goto done;
     }
@@ -911,7 +911,7 @@ pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key)
     if (init_mem_dest(&memdst, NULL, 0)) {
         return NULL;
     }
-    bool is_public = pgp_is_key_public(key);
+    bool is_public = pgp_key_is_public(key);
     if (init_armored_dst(
           &armordst, &memdst, is_public ? PGP_ARMORED_PUBLIC_KEY : PGP_ARMORED_SECRET_KEY)) {
         dst_close(&memdst, true);
@@ -968,11 +968,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 bool
 pgp_key_is_locked(const pgp_key_t *key)
 {
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         RNP_LOG("key is not a secret key");
         return false;
     }
-    return pgp_is_key_encrypted(key);
+    return pgp_key_is_encrypted(key);
 }
 
 bool
@@ -984,7 +984,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
     if (!key || !provider) {
         return false;
     }
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         RNP_LOG("key is not a secret key");
         return false;
     }
@@ -1016,7 +1016,7 @@ bool
 pgp_key_lock(pgp_key_t *key)
 {
     // sanity checks
-    if (!key || !pgp_is_key_secret(key)) {
+    if (!key || !pgp_key_is_secret(key)) {
         RNP_LOG("invalid args");
         return false;
     }
@@ -1121,7 +1121,7 @@ pgp_key_protect(pgp_key_t *                  key,
         RNP_LOG("NULL args");
         goto done;
     }
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
@@ -1181,7 +1181,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     pgp_key_pkt_t *decrypted_seckey = NULL;
 
     // sanity check
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
@@ -1193,7 +1193,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
 
     seckey = &key->pkt;
 
-    if (pgp_is_key_encrypted(key)) {
+    if (pgp_key_is_encrypted(key)) {
         pgp_password_ctx_t ctx;
         memset(&ctx, 0, sizeof(ctx));
         ctx.op = PGP_OP_UNPROTECT;
@@ -1231,7 +1231,7 @@ bool
 pgp_key_is_protected(const pgp_key_t *key)
 {
     // sanity check
-    if (!pgp_is_key_secret(key)) {
+    if (!pgp_key_is_secret(key)) {
         RNP_LOG("Warning: this is not a secret key");
     }
     return key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
@@ -1331,7 +1331,7 @@ find_suitable_key(pgp_op_t            op,
         return key;
     }
     list_item *           subkey_grip = list_front(key->subkey_grips);
-    pgp_key_request_ctx_t ctx{.op = op, .secret = pgp_is_key_secret(key)};
+    pgp_key_request_ctx_t ctx{.op = op, .secret = pgp_key_is_secret(key)};
     ctx.search.type = PGP_KEY_SEARCH_GRIP;
 
     while (subkey_grip) {
@@ -1373,7 +1373,7 @@ find_signer(const pgp_signature_t *   sig,
         signature_get_keyfp(sig, &search.by.fingerprint);
         // search the store, if provided
         if (store && (key = rnp_key_store_search(store, &search, NULL)) &&
-            pgp_is_key_secret(key) == secret) {
+            pgp_key_is_secret(key) == secret) {
             return key;
         }
 
@@ -1392,7 +1392,7 @@ find_signer(const pgp_signature_t *   sig,
         search.type = PGP_KEY_SEARCH_KEYID;
         // search the store, if provided
         if (store && (key = rnp_key_store_search(store, &search, NULL)) &&
-            pgp_is_key_secret(key) == secret) {
+            pgp_key_is_secret(key) == secret) {
             return key;
         }
 
@@ -1440,7 +1440,7 @@ pgp_get_primary_key_for(const pgp_key_t *         subkey,
         RNP_LOG("No issuer information in subkey binding signature.");
         return NULL;
     }
-    return find_signer(binding_sig, store, key_provider, pgp_is_key_secret(subkey));
+    return find_signer(binding_sig, store, key_provider, pgp_key_is_secret(subkey));
 }
 
 pgp_hash_alg_t

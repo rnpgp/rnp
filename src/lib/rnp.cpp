@@ -779,7 +779,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         changed = pgp_key_get_rawpacket_count(exkey) > expackets;
 
         /* add secret key if there is one */
-        if (!pgp_is_key_secret(imported)) {
+        if (!pgp_key_is_secret(imported)) {
             if (changed && print) {
                 repgp_print_key(rnp->resfp, rnp->pubring, exkey, "pub", 0);
             }

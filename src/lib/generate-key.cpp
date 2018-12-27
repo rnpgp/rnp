@@ -63,7 +63,7 @@ load_generated_g10_key(pgp_key_t *    dst,
     // if a primary is provided, make sure it's actually a primary key
     assert(!primary_key || pgp_key_is_primary_key(primary_key));
     // if a pubkey is provided, make sure it's actually a public key
-    assert(!pubkey || pgp_is_key_public(pubkey));
+    assert(!pubkey || pgp_key_is_public(pubkey));
     // G10 always needs pubkey here
     assert(pubkey);
 
@@ -103,8 +103,8 @@ load_generated_g10_key(pgp_key_t *    dst,
     }
     // if a primary key is provided, it should match the sub with regards to type
     assert(!primary_key ||
-           (pgp_is_key_secret(primary_key) ==
-            pgp_is_key_secret((pgp_key_t *) list_back(rnp_key_store_get_keys(key_store)))));
+           (pgp_key_is_secret(primary_key) ==
+            pgp_key_is_secret((pgp_key_t *) list_back(rnp_key_store_get_keys(key_store)))));
     if (rnp_key_store_get_key_count(key_store) != 1) {
         goto end;
     }
@@ -458,7 +458,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     ctx = {.op = PGP_OP_ADD_SUBKEY, .key = primary_sec};
 
     // decrypt the primary seckey if needed (for signatures)
-    if (pgp_is_key_encrypted(primary_sec)) {
+    if (pgp_key_is_encrypted(primary_sec)) {
         decrypted_primary_seckey = pgp_decrypt_seckey(primary_sec, password_provider, &ctx);
         if (!decrypted_primary_seckey) {
             goto end;
