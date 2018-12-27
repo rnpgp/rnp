@@ -847,7 +847,7 @@ test_generated_key_sigs(void **state)
         uid.uid = (uint8_t *) pgp_get_userid(&pub, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
-          psig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub)));
+          psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         assert_true(signature_get_keyfp(psig, &fp));
         assert_true(fingerprint_equal(&fp, &pub.fingerprint));
         // check subpackets and their contents
@@ -866,7 +866,7 @@ test_generated_key_sigs(void **state)
         uid.uid = (uint8_t *) pgp_get_userid(&sec, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_success(signature_validate_certification(
-          ssig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec)));
+          ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
         assert_true(signature_get_keyfp(ssig, &fp));
         assert_true(fingerprint_equal(&fp, &sec.fingerprint));
 
@@ -877,11 +877,11 @@ test_generated_key_sigs(void **state)
         uid.uid = (uint8_t *) pgp_get_userid(&pub, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_failure(signature_validate_certification(
-          psig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub)));
+          psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         uid.uid = (uint8_t *) pgp_get_userid(&sec, 0);
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_failure(signature_validate_certification(
-          ssig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec)));
+          ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
@@ -889,9 +889,9 @@ test_generated_key_sigs(void **state)
         uid.uid = (uint8_t *) "fake";
         uid.uid_len = strlen((char *) uid.uid);
         assert_rnp_failure(signature_validate_certification(
-          psig, pgp_get_key_pkt(&pub), &uid, pgp_get_key_material(&pub)));
+          psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         assert_rnp_failure(signature_validate_certification(
-          ssig, pgp_get_key_pkt(&sec), &uid, pgp_get_key_material(&sec)));
+          ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
 
         // validate via an alternative method
         pgp_signatures_info_t result = {0};
@@ -957,7 +957,7 @@ test_generated_key_sigs(void **state)
         assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&sec, 1)->tag);
         // validate the binding sig
         assert_rnp_success(signature_validate_binding(
-          psig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&pub)));
+          psig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&pub)));
         assert_true(signature_get_keyfp(psig, &fp));
         assert_true(fingerprint_equal(&fp, &primary_pub->fingerprint));
         // check subpackets and their contents
@@ -975,7 +975,7 @@ test_generated_key_sigs(void **state)
         assert_true(subpkt->fields.create <= time(NULL));
 
         assert_rnp_success(signature_validate_binding(
-          ssig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&sec)));
+          ssig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&sec)));
         assert_true(signature_get_keyfp(ssig, &fp));
         assert_true(fingerprint_equal(&fp, &primary_sec->fingerprint));
 
@@ -984,9 +984,9 @@ test_generated_key_sigs(void **state)
         ssig->hashed_data[10] ^= 0xff;
         // ensure validation fails
         assert_rnp_failure(signature_validate_binding(
-          psig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&pub)));
+          psig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&pub)));
         assert_rnp_failure(signature_validate_binding(
-          ssig, pgp_get_key_pkt(primary_pub), pgp_get_key_pkt(&sec)));
+          ssig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&sec)));
         // restore the original data
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;
