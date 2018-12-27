@@ -436,7 +436,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
     if (!pgp_key_is_primary_key(primary_sec) || !pgp_key_is_primary_key(primary_pub) ||
-        !pgp_is_key_secret(primary_sec) || !pgp_is_key_public(primary_pub)) {
+        !pgp_key_is_secret(primary_sec) || !pgp_key_is_public(primary_pub)) {
         RNP_LOG("invalid parameters");
         goto end;
     }

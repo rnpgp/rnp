@@ -359,7 +359,7 @@ transferable_key_merge(pgp_transferable_key_t *dst, const pgp_transferable_key_t
             continue;
         }
         /* add subkey */
-        if (pgp_is_public_key_tag(dst->key.tag) != pgp_is_public_key_tag(lskey->subkey.tag)) {
+        if (is_public_key_pkt(dst->key.tag) != is_public_key_pkt(lskey->subkey.tag)) {
             RNP_LOG("warning: adding public/secret subkey to secret/public key");
         }
         subkey =
