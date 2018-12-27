@@ -1599,7 +1599,7 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     rng_t                     rng = {};
 
     /* no signatures in g10 secret keys */
-    if (pgp_is_key_secret(key) && (key->format == G10_KEY_STORE)) {
+    if (pgp_key_is_secret(key) && (key->format == G10_KEY_STORE)) {
         return RNP_SUCCESS;
     }
 
@@ -1691,7 +1691,7 @@ validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
     res = validate_pgp_key_signatures(&sinfo, key, keyring);
     if (!res) {
         bool valid = false;
-        if (pgp_is_key_secret(key)) {
+        if (pgp_key_is_secret(key)) {
             // secret key may be stored without signatures
             valid = sinfo.validc == list_length(sinfo.sigs);
         } else {

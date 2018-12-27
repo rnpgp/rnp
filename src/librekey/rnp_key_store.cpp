@@ -456,7 +456,7 @@ rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
     for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_is_key_secret(key)) {
+        if (pgp_key_is_secret(key)) {
             repgp_print_key(fp, keyring, key, "sec", 0);
         } else {
             repgp_print_key(fp, keyring, key, "pub", psigs);
@@ -474,7 +474,7 @@ rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int p
         pgp_key_t *  key = (pgp_key_t *) key_item;
         json_object *jso = json_object_new_object();
         const char * header = NULL;
-        if (pgp_is_key_secret(key)) { /* secret key is always shown as "sec" */
+        if (pgp_key_is_secret(key)) { /* secret key is always shown as "sec" */
             header = "sec";
         } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
             header = "pub";

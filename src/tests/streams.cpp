@@ -332,7 +332,7 @@ test_stream_signatures(void **state)
     assert_non_null(secring);
     assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_id(secring, keyid, NULL));
-    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_secret(key));
     /* fill signature */
     uint32_t create = time(NULL);
     uint32_t expire = 123456;

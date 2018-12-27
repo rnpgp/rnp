@@ -152,7 +152,7 @@ pgp_write_xfer_key(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
     if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
-    if (pgp_is_key_public(key)) {
+    if (pgp_key_is_public(key)) {
         res = write_matching_packets(dst, key, keyring, pub_tags, ARRAY_SIZE(pub_tags));
     } else {
         res = write_matching_packets(dst, key, keyring, sec_tags, ARRAY_SIZE(sec_tags));

@@ -152,14 +152,14 @@ pgp_pubkey_alg_t pgp_get_key_alg(const pgp_key_t *key);
 
 int pgp_get_key_type(const pgp_key_t *key);
 
-bool pgp_is_key_encrypted(const pgp_key_t *);
+bool pgp_key_is_encrypted(const pgp_key_t *);
 
 bool pgp_key_can_sign(const pgp_key_t *key);
 bool pgp_key_can_certify(const pgp_key_t *key);
 bool pgp_key_can_encrypt(const pgp_key_t *key);
 
-bool pgp_is_key_public(const pgp_key_t *);
-bool pgp_is_key_secret(const pgp_key_t *);
+bool pgp_key_is_public(const pgp_key_t *);
+bool pgp_key_is_secret(const pgp_key_t *);
 bool pgp_key_is_primary_key(const pgp_key_t *key);
 bool pgp_key_is_subkey(const pgp_key_t *key);
 

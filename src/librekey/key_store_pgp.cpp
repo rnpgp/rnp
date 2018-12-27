@@ -519,7 +519,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
     for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_is_key_secret(key) != secret) {
+        if (pgp_key_is_secret(key) != secret) {
             continue;
         }
         // skip subkeys, they are written below (orphans are ignored)
@@ -543,7 +543,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
                  subkey_item;
                  subkey_item = list_next(subkey_item)) {
                 pgp_key_t *candidate = (pgp_key_t *) subkey_item;
-                if (pgp_is_key_secret(candidate) != secret) {
+                if (pgp_key_is_secret(candidate) != secret) {
                     continue;
                 }
                 if (rnp_key_matches_search(candidate, &search)) {
@@ -572,7 +572,7 @@ rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_
     if (armor) {
         pgp_armored_msg_t type = PGP_ARMORED_PUBLIC_KEY;
         if (rnp_key_store_get_key_count(key_store) &&
-            pgp_is_key_secret(rnp_key_store_get_key(key_store, 0))) {
+            pgp_key_is_secret(rnp_key_store_get_key(key_store, 0))) {
             type = PGP_ARMORED_SECRET_KEY;
         }
         if (init_armored_dst(&armordst, dst, type)) {
