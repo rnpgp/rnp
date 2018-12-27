@@ -1093,7 +1093,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     /* Validate signature itself */
     if (sinfo->signer->valid) {
         sinfo->valid =
-          !signature_validate(sinfo->sig, pgp_get_key_material(sinfo->signer), hash);
+          !signature_validate(sinfo->sig, pgp_key_get_material(sinfo->signer), hash);
     } else {
         sinfo->valid = false;
         RNP_LOG("invalid or untrusted key");
@@ -1115,7 +1115,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* check key creation time vs signature creation */
-    kcreate = pgp_get_key_pkt(sinfo->signer)->creation_time;
+    kcreate = pgp_key_get_pkt(sinfo->signer)->creation_time;
     if (kcreate > create) {
         RNP_LOG("key is newer than signature");
         sinfo->valid = false;

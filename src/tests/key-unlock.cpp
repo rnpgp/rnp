@@ -91,12 +91,12 @@ test_key_unlock_pgp(void **state)
     rnp_assert_non_null(rstate, key);
 
     // confirm that this key is indeed RSA first
-    assert_int_equal(pgp_get_key_alg(key), PGP_PKA_RSA);
+    assert_int_equal(pgp_key_get_alg(key), PGP_PKA_RSA);
     // confirm the secret MPIs are NULL
-    assert_int_equal(pgp_get_key_material(key)->rsa.d.len, 0);
-    assert_int_equal(pgp_get_key_material(key)->rsa.p.len, 0);
-    assert_int_equal(pgp_get_key_material(key)->rsa.q.len, 0);
-    assert_int_equal(pgp_get_key_material(key)->rsa.u.len, 0);
+    assert_int_equal(pgp_key_get_material(key)->rsa.d.len, 0);
+    assert_int_equal(pgp_key_get_material(key)->rsa.p.len, 0);
+    assert_int_equal(pgp_key_get_material(key)->rsa.q.len, 0);
+    assert_int_equal(pgp_key_get_material(key)->rsa.u.len, 0);
 
     // try to unlock with a failing password provider
     provider =
@@ -117,10 +117,10 @@ test_key_unlock_pgp(void **state)
     rnp_assert_false(rstate, pgp_key_is_locked(key));
 
     // confirm the secret MPIs are now filled in
-    assert_int_not_equal(pgp_get_key_material(key)->rsa.d.len, 0);
-    assert_int_not_equal(pgp_get_key_material(key)->rsa.p.len, 0);
-    assert_int_not_equal(pgp_get_key_material(key)->rsa.q.len, 0);
-    assert_int_not_equal(pgp_get_key_material(key)->rsa.u.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key)->rsa.d.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key)->rsa.p.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key)->rsa.q.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key)->rsa.u.len, 0);
 
     // now the signing key is unlocked, confirm that no password is required for signing
     rnp.password_provider =

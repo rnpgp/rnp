@@ -172,7 +172,7 @@ create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
     }
 
     key->format = GPG_KEY_STORE;
-    key->key_flags = pgp_pk_alg_capabilities(pgp_get_key_pkt(key)->alg);
+    key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     return true;
 }
 

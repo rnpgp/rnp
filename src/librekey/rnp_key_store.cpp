@@ -662,7 +662,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     pgp_key_t *added_key = NULL;
 
     RNP_DLOG("rnp_key_store_add_key");
-    assert(pgp_get_key_type(srckey) && pgp_get_key_pkt(srckey)->version);
+    assert(pgp_key_get_type(srckey) && pgp_key_get_pkt(srckey)->version);
     added_key = rnp_key_store_get_key_by_grip(keyring, srckey->grip);
 
     if (added_key) {

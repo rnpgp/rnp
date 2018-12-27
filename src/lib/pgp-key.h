@@ -144,13 +144,13 @@ bool pgp_user_prefs_set_ks_prefs(pgp_user_prefs_t *prefs, const uint8_t *vals, s
 
 bool pgp_user_prefs_add_ks_pref(pgp_user_prefs_t *prefs, pgp_key_server_prefs_t val);
 
-const pgp_key_pkt_t *pgp_get_key_pkt(const pgp_key_t *);
+const pgp_key_pkt_t *pgp_key_get_pkt(const pgp_key_t *);
 
-const pgp_key_material_t *pgp_get_key_material(const pgp_key_t *key);
+const pgp_key_material_t *pgp_key_get_material(const pgp_key_t *key);
 
-pgp_pubkey_alg_t pgp_get_key_alg(const pgp_key_t *key);
+pgp_pubkey_alg_t pgp_key_get_alg(const pgp_key_t *key);
 
-int pgp_get_key_type(const pgp_key_t *key);
+int pgp_key_get_type(const pgp_key_t *key);
 
 bool pgp_key_is_encrypted(const pgp_key_t *);
 
@@ -172,7 +172,13 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
                                   const pgp_password_provider_t *,
                                   const pgp_password_ctx_t *);
 
-const unsigned char *pgp_get_key_id(const pgp_key_t *);
+/**
+ * @brief Get key's keyid
+ * 
+ * @param key populated key, should not be NULL
+ * @return pointer to the 8-byte buffer with keyid
+ */
+const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
 
 size_t pgp_get_userid_count(const pgp_key_t *);
 

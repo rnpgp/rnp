@@ -510,7 +510,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         RNP_LOG("attempt to use invalid key as recipient");
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    keypkt = pgp_get_key_pkt(userkey);
+    keypkt = pgp_key_get_pkt(userkey);
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
@@ -1132,8 +1132,8 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.palg = signer->onepass.palg;
         sig.type = signer->onepass.type;
     } else {
-        sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_get_key_pkt(signer->key));
-        sig.palg = pgp_get_key_alg(signer->key);
+        sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
+        sig.palg = pgp_key_get_alg(signer->key);
         sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
     }
 
@@ -1253,7 +1253,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.sigexpire = signer->sigexpire;
 
     /* Add hash to the list */
-    sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_get_key_pkt(signer->key));
+    sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
     if (!pgp_hash_list_add(&param->hashes, sinfo.halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1269,10 +1269,9 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.version = 3;
     sinfo.onepass.type = PGP_SIG_BINARY;
     sinfo.onepass.halg = sinfo.halg;
-    sinfo.onepass.palg = pgp_get_key_alg(sinfo.key);
+    sinfo.onepass.palg = pgp_key_get_alg(sinfo.key);
     memcpy(sinfo.onepass.keyid, sinfo.key->keyid, PGP_KEY_ID_SIZE);
     sinfo.onepass.nested = false;
-
     if (!list_append(&param->siginfos, &sinfo, sizeof(sinfo))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
