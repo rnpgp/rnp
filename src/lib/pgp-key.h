@@ -84,12 +84,12 @@ struct pgp_key_t {
 
 struct pgp_key_t *pgp_key_new(void);
 
-/** create a key from pgp_keydata_key_t
+/** create a key from the key pkt
  *
  *  This sets up basic properties of the key like keyid/fpr/grip, type, etc.
  *  It does not set primary_grip or subkey_grips (the key store does this).
  */
-bool pgp_key_from_keypkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag);
+bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag);
 
 /** free the internal data of a key *and* the key structure itself
  *
