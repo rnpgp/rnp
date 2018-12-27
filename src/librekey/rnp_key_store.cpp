@@ -45,6 +45,7 @@
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 #include <librepgp/packet-print.h>
+#include <librepgp/stream-packet.h>
 
 #include "key_store_internal.h"
 #include "key_store_pgp.h"
@@ -511,8 +512,7 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     }
 
     /* if src is secret key then merged key will become secret as well. */
-    if (pgp_is_secret_key_tag(srckey.subkey.tag) &&
-        !pgp_is_secret_key_tag(dstkey.subkey.tag)) {
+    if (is_secret_key_pkt(srckey.subkey.tag) && !is_secret_key_pkt(dstkey.subkey.tag)) {
         pgp_key_pkt_t tmp = dstkey.subkey;
         dstkey.subkey = srckey.subkey;
         srckey.subkey = tmp;
@@ -562,7 +562,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* if src is secret key then merged key will become secret as well. */
-    if (pgp_is_secret_key_tag(srckey.key.tag) && !pgp_is_secret_key_tag(dstkey.key.tag)) {
+    if (is_secret_key_pkt(srckey.key.tag) && !is_secret_key_pkt(dstkey.key.tag)) {
         pgp_key_pkt_t tmp = dstkey.key;
         dstkey.key = srckey.key;
         srckey.key = tmp;

@@ -1094,8 +1094,7 @@ copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
 
     dst->material.secret = src->material.secret;
     dst->sec_protection = src->sec_protection;
-    dst->tag = pgp_is_subkey_tag((pgp_content_enum) dst->tag) ? PGP_PTAG_CT_SECRET_SUBKEY :
-                                                                PGP_PTAG_CT_SECRET_KEY;
+    dst->tag = is_subkey_pkt(dst->tag) ? PGP_PTAG_CT_SECRET_SUBKEY : PGP_PTAG_CT_SECRET_KEY;
 
     return true;
 }
