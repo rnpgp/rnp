@@ -624,12 +624,8 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
                 }
             } else {
                 json_object *obj = json_object_new_object();
-                repgp_sprint_json(rnp->pubring,
-                                  key,
-                                  obj,
-                                  pgp_is_primary_key_tag(pgp_get_key_type(key)) ? "pub" :
-                                                                                  "sub",
-                                  psigs);
+                repgp_sprint_json(
+                  rnp->pubring, key, obj, pgp_key_is_primary_key(key) ? "pub" : "sub", psigs);
                 json_object_array_add(id_array, obj);
             }
         }

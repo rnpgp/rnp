@@ -560,13 +560,13 @@ pgp_get_key_type(const pgp_key_t *key)
 bool
 pgp_is_key_public(const pgp_key_t *key)
 {
-    return pgp_is_public_key_tag((pgp_content_enum) key->pkt.tag);
+    return is_public_key_pkt(key->pkt.tag);
 }
 
 bool
 pgp_is_key_secret(const pgp_key_t *key)
 {
-    return pgp_is_secret_key_tag((pgp_content_enum) key->pkt.tag);
+    return is_secret_key_pkt(key->pkt.tag);
 }
 
 bool
@@ -599,63 +599,15 @@ pgp_key_can_encrypt(const pgp_key_t *key)
 }
 
 bool
-pgp_is_secret_key_tag(int tag)
-{
-    switch (tag) {
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool
-pgp_is_public_key_tag(int tag)
-{
-    switch (tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool
-pgp_is_primary_key_tag(int tag)
-{
-    switch (tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_SECRET_KEY:
-        return true;
-    default:
-        return false;
-    }
-}
-
-bool
 pgp_key_is_primary_key(const pgp_key_t *key)
 {
-    return pgp_is_primary_key_tag((pgp_content_enum) key->pkt.tag);
-}
-
-bool
-pgp_is_subkey_tag(pgp_content_enum tag)
-{
-    switch (tag) {
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
-        return true;
-    default:
-        return false;
-    }
+    return is_primary_key_pkt(key->pkt.tag);
 }
 
 bool
 pgp_key_is_subkey(const pgp_key_t *key)
 {
-    return pgp_is_subkey_tag((pgp_content_enum) key->pkt.tag);
+    return is_subkey_pkt(key->pkt.tag);
 }
 
 pgp_key_pkt_t *

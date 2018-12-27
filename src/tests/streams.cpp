@@ -1132,7 +1132,7 @@ test_stream_key_signature_validate(void **state)
     assert_true(rnp_key_store_get_key_count(pubring) > 0);
     for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
         pkey = rnp_key_store_get_key(pubring, i);
-        if (!pgp_is_primary_key_tag(pgp_get_key_pkt(pkey)->tag)) {
+        if (!pgp_key_is_primary_key(pkey)) {
             continue;
         }
 
