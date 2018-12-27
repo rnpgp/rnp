@@ -101,6 +101,9 @@ struct rnp_op_sign_st {
 struct rnp_op_sign_signature_st {
     rnp_ffi_t         ffi;
     rnp_signer_info_t signer;
+    bool              expiry_set : 1;
+    bool              create_set : 1;
+    bool              hash_set : 1;
 };
 
 struct rnp_op_verify_signature_st {
@@ -1736,8 +1739,14 @@ rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
         }
 
         sinfo = osig->signer;
-        if (!sinfo.halg) {
+        if (!osig->hash_set) {
             sinfo.halg = ctx->halg;
+        }
+        if (!osig->expiry_set) {
+            sinfo.sigexpire = ctx->sigexpire;
+        }
+        if (!osig->create_set) {
+            sinfo.sigcreate = ctx->sigcreate;
         }
 
         if (!list_append(&ctx->signers, &sinfo, sizeof(sinfo))) {
@@ -1860,6 +1869,7 @@ rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
         return RNP_ERROR_BAD_PARAMETERS;
     }
     sig->signer.halg = hash_alg;
+    sig->hash_set = true;
     return RNP_SUCCESS;
 }
 
@@ -1870,6 +1880,7 @@ rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig, uint32_t cr
         return RNP_ERROR_NULL_POINTER;
     }
     sig->signer.sigcreate = create;
+    sig->create_set = true;
     return RNP_SUCCESS;
 }
 
@@ -1880,6 +1891,7 @@ rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t 
         return RNP_ERROR_NULL_POINTER;
     }
     sig->signer.sigexpire = expires;
+    sig->expiry_set = true;
     return RNP_SUCCESS;
 }
 
