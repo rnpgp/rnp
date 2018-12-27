@@ -866,7 +866,7 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
         pgp_key_t *key = (pgp_key_t *) key_item;
         // check that the key is the correct type and has not already been loaded
         // add secret key part if it is and we need it
-        if (pgp_is_key_secret(key) &&
+        if (pgp_key_is_secret(key) &&
             ((key_type == KEY_TYPE_SECRET) || (key_type == KEY_TYPE_ANY))) {
             if (key_needs_conversion(key, ffi->secring)) {
                 FFI_LOG(ffi, "This key format conversion is not yet supported");
@@ -1396,7 +1396,7 @@ rnp_op_add_signature(rnp_ffi_t                ffi,
     }
     newsig->signer.key = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
-    if (newsig->signer.key && !pgp_is_key_secret(newsig->signer.key)) {
+    if (newsig->signer.key && !pgp_key_is_secret(newsig->signer.key)) {
         pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
         ctx.search.type = PGP_KEY_SEARCH_GRIP;
         memcpy(ctx.search.by.grip, newsig->signer.key->grip, PGP_FINGERPRINT_SIZE);
@@ -2488,7 +2488,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
         rnp_result_t res;
         if ((res = init_armored_dst(&armordst,
                                     &output->dst,
-                                    pgp_is_key_secret(key) ? PGP_ARMORED_SECRET_KEY :
+                                    pgp_key_is_secret(key) ? PGP_ARMORED_SECRET_KEY :
                                                              PGP_ARMORED_PUBLIC_KEY))) {
             return res;
         }
@@ -3583,7 +3583,7 @@ rnp_key_protect(rnp_key_handle_t handle,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &key->pkt;
-    if (pgp_is_key_encrypted(key)) {
+    if (pgp_key_is_encrypted(key)) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
         decrypted_seckey = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
