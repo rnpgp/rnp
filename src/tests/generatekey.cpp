@@ -303,11 +303,11 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
 
             /* Some minor checks */
             for (size_t i = 0; i < rnp_key_store_get_key_count(rnp.pubring); i++) {
-                assert_true(pgp_is_key_public(rnp_key_store_get_key(rnp.pubring, i)));
+                assert_true(pgp_key_is_public(rnp_key_store_get_key(rnp.pubring, i)));
             }
 
             for (size_t i = 0; i < rnp_key_store_get_key_count(rnp.secring); i++) {
-                assert_true(pgp_is_key_secret(rnp_key_store_get_key(rnp.secring, i)));
+                assert_true(pgp_key_is_secret(rnp_key_store_get_key(rnp.secring, i)));
             }
 
             // G10 doesn't support metadata

@@ -85,7 +85,7 @@ test_load_v3_keyring_pgp(void **state)
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // check if the key is secret and is locked
-    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_secret(key));
     assert_true(pgp_key_is_locked(key));
 
     // decrypt the key
@@ -431,7 +431,7 @@ test_load_armored_pub_sec(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_true(pgp_key_is_primary_key(key));
-    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_secret(key));
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key, 0)->tag, PGP_PTAG_CT_SECRET_KEY);
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_USER_ID);
@@ -443,7 +443,7 @@ test_load_armored_pub_sec(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_true(pgp_key_is_subkey(key));
-    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_secret(key));
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key, 0)->tag, PGP_PTAG_CT_SECRET_SUBKEY);
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_SIGNATURE);
@@ -452,7 +452,7 @@ test_load_armored_pub_sec(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
     assert_true(pgp_key_is_subkey(key));
-    assert_true(pgp_is_key_secret(key));
+    assert_true(pgp_key_is_secret(key));
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key, 0)->tag, PGP_PTAG_CT_SECRET_SUBKEY);
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_SIGNATURE);
@@ -750,7 +750,7 @@ test_load_public_from_secret(void **state)
 
     /* copy the secret key */
     assert_rnp_success(pgp_key_copy(&keycp, key, false));
-    assert_true(pgp_is_key_secret(&keycp));
+    assert_true(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_false(
       memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
@@ -762,7 +762,7 @@ test_load_public_from_secret(void **state)
 
     /* copy the public part */
     assert_rnp_success(pgp_key_copy(&keycp, key, true));
-    assert_false(pgp_is_key_secret(&keycp));
+    assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_false(
       memcmp(pgp_key_get_subkey_grip(&keycp, 0), skey1->grip, PGP_FINGERPRINT_SIZE));
@@ -776,7 +776,7 @@ test_load_public_from_secret(void **state)
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 1 */
     assert_rnp_success(pgp_key_copy(&keycp, skey1, true));
-    assert_false(pgp_is_key_secret(&keycp));
+    assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, skey1->grip, PGP_FINGERPRINT_SIZE));
@@ -788,7 +788,7 @@ test_load_public_from_secret(void **state)
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 2 */
     assert_rnp_success(pgp_key_copy(&keycp, skey2, true));
-    assert_false(pgp_is_key_secret(&keycp));
+    assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, skey2->grip, PGP_FINGERPRINT_SIZE));
