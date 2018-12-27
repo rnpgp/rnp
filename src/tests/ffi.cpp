@@ -1609,9 +1609,9 @@ test_ffi_encrypt_and_sign(void **state)
     // enable armoring
     assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
     // add signature
-    assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA256"));
-    assert_rnp_success(rnp_op_encrypt_set_creation_time(op, issued));
-    assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, expires));
+    assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA1"));
+    assert_rnp_success(rnp_op_encrypt_set_creation_time(op, 0));
+    assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, 0));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
     rnp_key_handle_destroy(key);
@@ -1624,6 +1624,10 @@ test_ffi_encrypt_and_sign(void **state)
     assert_rnp_success(rnp_op_sign_signature_set_hash(signsig, "SHA512"));
     rnp_key_handle_destroy(key);
     key = NULL;
+    // set default sig parameters after the signature is added - those should be picked up
+    assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA256"));
+    assert_rnp_success(rnp_op_encrypt_set_creation_time(op, issued));
+    assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, expires));
     // execute the operation
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
     assert_rnp_success(rnp_op_encrypt_execute(op));
