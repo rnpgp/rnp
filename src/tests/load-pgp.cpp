@@ -91,7 +91,7 @@ test_load_v3_keyring_pgp(void **state)
     // decrypt the key
     pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, 0);
     pgp_key_pkt_t *  seckey =
-      pgp_decrypt_seckey_pgp(pkt->raw, pkt->length, pgp_get_key_pkt(key), "password");
+      pgp_decrypt_seckey_pgp(pkt->raw, pkt->length, pgp_key_get_pkt(key), "password");
     assert_non_null(seckey);
 
     // cleanup
@@ -253,7 +253,7 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569820);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -273,7 +273,7 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569851);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -293,7 +293,7 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569896);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -336,7 +336,7 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569946);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -356,7 +356,7 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500570165);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -388,7 +388,7 @@ test_load_check_bitfields_and_times_v3(void **state)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check key version
-    assert_int_equal(pgp_get_key_pkt(key)->version, PGP_V3);
+    assert_int_equal(pgp_key_get_pkt(key)->version, PGP_V3);
     // check subsig count
     assert_int_equal(pgp_key_get_subsig_count(key), 1);
     sig = &pgp_key_get_subsig(key, 0)->sig;
@@ -400,12 +400,12 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check creation time
     assert_int_equal(signature_get_creation(sig), 1005209227);
-    assert_int_equal(signature_get_creation(sig), pgp_get_key_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(signature_get_expiration(sig), 0);
     // check key expiration
     assert_int_equal(key->expiration, 0); // only for V4 keys
-    assert_int_equal(pgp_get_key_pkt(key)->v3_days, 0);
+    assert_int_equal(pgp_key_get_pkt(key)->v3_days, 0);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -770,9 +770,9 @@ test_load_public_from_secret(void **state)
       memcmp(pgp_key_get_subkey_grip(&keycp, 1), skey2->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_KEY);
-    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 1 */
     assert_rnp_success(pgp_key_copy(&keycp, skey1, true));
@@ -782,9 +782,9 @@ test_load_public_from_secret(void **state)
     assert_false(memcmp(keycp.grip, skey1->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.keyid, sub1id, PGP_KEY_ID_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
-    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 2 */
     assert_rnp_success(pgp_key_copy(&keycp, skey2, true));
@@ -794,9 +794,9 @@ test_load_public_from_secret(void **state)
     assert_false(memcmp(keycp.grip, skey2->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.keyid, sub2id, PGP_KEY_ID_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
-    assert_null(pgp_get_key_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_get_key_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_get_key_pkt(&keycp)->material.secret);
+    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
+    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
+    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* save pubring */
     assert_true(rnp_key_store_write_to_path(pubstore));

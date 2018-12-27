@@ -534,25 +534,25 @@ error:
 */
 
 const pgp_key_pkt_t *
-pgp_get_key_pkt(const pgp_key_t *key)
+pgp_key_get_pkt(const pgp_key_t *key)
 {
     return &key->pkt;
 }
 
 const pgp_key_material_t *
-pgp_get_key_material(const pgp_key_t *key)
+pgp_key_get_material(const pgp_key_t *key)
 {
     return &key->pkt.material;
 }
 
 pgp_pubkey_alg_t
-pgp_get_key_alg(const pgp_key_t *key)
+pgp_key_get_alg(const pgp_key_t *key)
 {
     return key->pkt.alg;
 }
 
 int
-pgp_get_key_type(const pgp_key_t *key)
+pgp_key_get_type(const pgp_key_t *key)
 {
     return key->pkt.tag;
 }
@@ -576,7 +576,7 @@ pgp_key_is_encrypted(const pgp_key_t *key)
         return false;
     }
 
-    const pgp_key_pkt_t *pkt = pgp_get_key_pkt(key);
+    const pgp_key_pkt_t *pkt = pgp_key_get_pkt(key);
     return !pkt->material.secret;
 }
 
@@ -694,21 +694,15 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     }
     // attempt to decrypt with the provided password
     packet = pgp_key_get_rawpacket(key, 0);
-    decrypted_seckey = decryptor(packet->raw, packet->length, pgp_get_key_pkt(key), password);
+    decrypted_seckey = decryptor(packet->raw, packet->length, pgp_key_get_pkt(key), password);
 
 done:
     pgp_forget(password, sizeof(password));
     return decrypted_seckey;
 }
 
-/**
-\ingroup Core_Keys
-\brief Get Key ID from key
-\param key Key to get Key ID from
-\return Pointer to Key ID inside key
-*/
 const uint8_t *
-pgp_get_key_id(const pgp_key_t *key)
+pgp_key_get_keyid(const pgp_key_t *key)
 {
     return key->keyid;
 }
@@ -1161,7 +1155,7 @@ pgp_key_protect(pgp_key_t *                  key,
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(decrypted_seckey,
                                 pgp_key_get_rawpacket(key, 0),
-                                (pgp_content_enum) pgp_get_key_type(key),
+                                (pgp_content_enum) pgp_key_get_type(key),
                                 format,
                                 new_password)) {
         goto done;
@@ -1208,7 +1202,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(seckey,
                                 pgp_key_get_rawpacket(key, 0),
-                                (pgp_content_enum) pgp_get_key_type(key),
+                                (pgp_content_enum) pgp_key_get_type(key),
                                 key->format,
                                 NULL)) {
         goto done;

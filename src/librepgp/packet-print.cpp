@@ -121,7 +121,7 @@ static bool
 key_has_expired(const pgp_key_t *key, time_t t)
 {
     return (key->expiration > 0) &&
-           (pgp_get_key_pkt(key)->creation_time + key->expiration < t);
+           (pgp_key_get_pkt(key)->creation_time + key->expiration < t);
 }
 
 /* Write the time as a string to buffer `dest`. The time string is guaranteed
@@ -156,10 +156,10 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     return snprintf(buf,
                     size,
                     "encryption %zu/%s %s %s [%s] %s\n",
-                    key_bitlength(pgp_get_key_material(key)),
-                    pgp_show_pka(pgp_get_key_alg(key)),
+                    key_bitlength(pgp_key_get_material(key)),
+                    pgp_show_pka(pgp_key_get_alg(key)),
                     rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
-                    ptimestr(t, sizeof(t), (time_t) pgp_get_key_pkt(key)->creation_time),
+                    ptimestr(t, sizeof(t), (time_t) pgp_key_get_pkt(key)->creation_time),
                     key_usage,
                     expired);
 }
@@ -213,7 +213,7 @@ format_pubkey_expiration_notice(char *buffer, const pgp_key_t *key, time_t time,
 
     /* Write the expiration time. */
     ptimestr(
-      buffer, buffer_end - buffer, pgp_get_key_pkt(key)->creation_time + key->expiration);
+      buffer, buffer_end - buffer, pgp_key_get_pkt(key)->creation_time + key->expiration);
     buffer += PTIMESTR_LEN;
     if (buffer >= buffer_end) {
         return false;
@@ -452,7 +452,7 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
 
     rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
-    ptimestr(creation, sizeof(creation), (time_t) pgp_get_key_pkt(key)->creation_time);
+    ptimestr(creation, sizeof(creation), (time_t) pgp_key_get_pkt(key)->creation_time);
 
     if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
         free(uid_notices);
@@ -472,8 +472,8 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
                                 KB(16),
                                 "%s %zu/%s %s %s [%s] %s\n                 %s\n%s",
                                 header,
-                                key_bitlength(pgp_get_key_material(key)),
-                                pgp_show_pka(pgp_get_key_alg(key)),
+                                key_bitlength(pgp_key_get_material(key)),
+                                pgp_show_pka(pgp_key_get_alg(key)),
                                 keyid,
                                 creation,
                                 key_usage,
@@ -509,9 +509,9 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
     // add the top-level values
     json_object_object_add(keyjson, "header", json_object_new_string(header));
     json_object_object_add(
-      keyjson, "key bits", json_object_new_int(key_bitlength(pgp_get_key_material(key))));
+      keyjson, "key bits", json_object_new_int(key_bitlength(pgp_key_get_material(key))));
     json_object_object_add(
-      keyjson, "pka", json_object_new_string(pgp_show_pka(pgp_get_key_alg(key))));
+      keyjson, "pka", json_object_new_string(pgp_show_pka(pgp_key_get_alg(key))));
     json_object_object_add(
       keyjson,
       "key id",
@@ -521,7 +521,7 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
                            json_object_new_string(rnp_strhexdump(
                              fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
     json_object_object_add(
-      keyjson, "creation time", json_object_new_int(pgp_get_key_pkt(key)->creation_time));
+      keyjson, "creation time", json_object_new_int(pgp_key_get_pkt(key)->creation_time));
     json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
     json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
     json_object *usage_arr = json_object_new_array();
@@ -604,7 +604,7 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
         n += snprintf(&uidbuf[n],
                       sizeof(uidbuf) - n,
                       "uid:%lld:%lld:%s\n",
-                      (long long) pgp_get_key_pkt(key)->creation_time,
+                      (long long) pgp_key_get_pkt(key)->creation_time,
                       (long long) key->expiration,
                       pgp_get_userid(key, i));
         for (j = 0; j < pgp_key_get_subsig_count(key); j++) {
@@ -626,7 +626,7 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
                 n += snprintf(&uidbuf[n],
                               sizeof(uidbuf) - n,
                               "sub:%zu:%d:%s:%lld:%lld\n",
-                              key_bitlength(pgp_get_key_material(key)),
+                              key_bitlength(pgp_key_get_material(key)),
                               subsig->sig.palg,
                               rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, ""),
                               (long long) signature_get_creation(&subsig->sig),
@@ -654,9 +654,9 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
                          KB(16),
                          "pub:%s:%d:%zu:%lld:%lld\n%s",
                          fingerprint,
-                         pgp_get_key_alg(key),
-                         key_bitlength(pgp_get_key_material(key)),
-                         (long long) pgp_get_key_pkt(key)->creation_time,
+                         pgp_key_get_alg(key),
+                         key_bitlength(pgp_key_get_material(key)),
+                         (long long) pgp_key_get_pkt(key)->creation_time,
                          (long long) key->expiration,
                          uidbuf);
             *buf = buffer;
@@ -687,8 +687,8 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
     char fp[PGP_FINGERPRINT_HEX_SIZE];
     int  cc;
 
-    const pgp_key_pkt_t *     pkt = pgp_get_key_pkt(key);
-    const pgp_key_material_t *material = pgp_get_key_material(key);
+    const pgp_key_pkt_t *     pkt = pgp_key_get_pkt(key);
+    const pgp_key_material_t *material = pgp_key_get_material(key);
     cc = snprintf(out,
                   outsize,
                   "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
