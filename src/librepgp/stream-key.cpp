@@ -1635,7 +1635,7 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
             res = RNP_ERROR_BAD_STATE;
             goto done;
         }
-        info.key = pgp_get_key_pkt(primary);
+        info.key = pgp_key_get_pkt(primary);
         info.uid = NULL;
         info.subkey = &tskey.subkey;
         res = validate_pgp_key_signature_list(tskey.signatures, &info);
@@ -1702,7 +1702,7 @@ validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
     free_signatures_info(&sinfo);
     /* if signatures are ok then check key material */
     if (!res) {
-        res = validate_pgp_key_material(pgp_get_key_material(key), &rng);
+        res = validate_pgp_key_material(pgp_key_get_material(key), &rng);
     }
 
     rng_destroy(&rng);

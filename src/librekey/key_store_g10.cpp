@@ -1143,7 +1143,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         }
 
         /* public key packet has some more info then the secret part */
-        if (!copy_key_pkt(&key.pkt, pgp_get_key_pkt(pubkey), false)) {
+        if (!copy_key_pkt(&key.pkt, pgp_key_get_pkt(pubkey), false)) {
             goto done;
         }
 
