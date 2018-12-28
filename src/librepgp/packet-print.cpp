@@ -450,7 +450,8 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
 
     rnp_strhexdump(keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "");
 
-    rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
+    rnp_strhexdump(
+      fingerprint, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, " ");
 
     ptimestr(creation, sizeof(creation), (time_t) pgp_key_get_pkt(key)->creation_time);
 
@@ -516,10 +517,11 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
                            "key id",
                            json_object_new_string(rnp_strhexdump(
                              keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "")));
-    json_object_object_add(keyjson,
-                           "fingerprint",
-                           json_object_new_string(rnp_strhexdump(
-                             fp, key->fingerprint.fingerprint, key->fingerprint.length, "")));
+    json_object_object_add(
+      keyjson,
+      "fingerprint",
+      json_object_new_string(rnp_strhexdump(
+        fp, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "")));
     json_object_object_add(
       keyjson, "creation time", json_object_new_int(pgp_key_get_pkt(key)->creation_time));
     json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
@@ -642,7 +644,8 @@ pgp_hkp_sprint_key(const struct rnp_key_store_t *keyring,
         }
     }
 
-    rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, "");
+    rnp_strhexdump(
+      fingerprint, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "");
 
     n = -1;
     {
@@ -689,15 +692,16 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 
     const pgp_key_pkt_t *     pkt = pgp_key_get_pkt(key);
     const pgp_key_material_t *material = pgp_key_get_material(key);
-    cc = snprintf(out,
-                  outsize,
-                  "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
-                  rnp_strhexdump(fp, key->fingerprint.fingerprint, PGP_FINGERPRINT_SIZE, ""),
-                  pgp_key_get_primary_userid(key),
-                  (long long) pkt->creation_time,
-                  (long long) pkt->v3_days,
-                  pkt->version,
-                  pkt->alg);
+    cc = snprintf(
+      out,
+      outsize,
+      "key=%s\nname=%s\ncreation=%lld\nexpiry=%lld\nversion=%d\nalg=%d\n",
+      rnp_strhexdump(fp, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, ""),
+      pgp_key_get_primary_userid(key),
+      (long long) pkt->creation_time,
+      (long long) pkt->v3_days,
+      pkt->version,
+      pkt->alg);
     switch (pkt->alg) {
     case PGP_PKA_DSA: {
         char *p = mpi2hex(&material->dsa.p);

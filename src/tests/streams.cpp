@@ -341,7 +341,7 @@ test_stream_signatures(void **state)
     sig.halg = halg;
     sig.palg = pgp_key_get_alg(key);
     sig.type = PGP_SIG_BINARY;
-    assert_true(signature_set_keyfp(&sig, &key->fingerprint));
+    assert_true(signature_set_keyfp(&sig, pgp_key_get_fp(key)));
     assert_true(signature_set_keyid(&sig, pgp_key_get_keyid(key)));
     assert_true(signature_set_creation(&sig, create));
     assert_true(signature_set_expiration(&sig, expire));
@@ -362,8 +362,7 @@ test_stream_signatures(void **state)
     assert_int_equal(signature_get_expiration(&sig), expire);
     assert_true(signature_has_keyfp(&sig));
     assert_true(signature_get_keyfp(&sig, &fp));
-    assert_int_equal(fp.length, key->fingerprint.length);
-    assert_int_equal(0, memcmp(fp.fingerprint, key->fingerprint.fingerprint, fp.length));
+    assert_true(fingerprint_equal(&fp, pgp_key_get_fp(key)));
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
     free_signature(&sig);
     /* cleanup */
