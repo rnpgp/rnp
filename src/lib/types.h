@@ -56,9 +56,6 @@
 #include "list.h"
 #include "crypto/common.h"
 
-#define PGP_KEY_ID_SIZE 8
-#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
-
 /* SHA1 Hash Size */
 #define PGP_SHA1_HASH_SIZE 20
 

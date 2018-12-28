@@ -84,6 +84,6 @@ bool rnp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt);
 
 bool rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src);
 
-bool rnp_key_add_subkey_grip(pgp_key_t *key, uint8_t *grip);
+bool rnp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip);
 
 #endif /* KEY_STORE_PGP_H_ */

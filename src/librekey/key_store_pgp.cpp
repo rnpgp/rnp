@@ -275,15 +275,15 @@ rnp_key_add_signatures(pgp_key_t *key, list signatures)
 }
 
 bool
-rnp_key_add_subkey_grip(pgp_key_t *key, uint8_t *grip)
+rnp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip)
 {
     for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {
-        if (!memcmp(grip, (uint8_t *) li, PGP_FINGERPRINT_SIZE)) {
+        if (!memcmp(grip, (uint8_t *) li, PGP_KEY_GRIP_SIZE)) {
             return true;
         }
     }
 
-    return list_append(&key->subkey_grips, grip, PGP_FINGERPRINT_SIZE);
+    return list_append(&key->subkey_grips, grip, PGP_KEY_GRIP_SIZE);
 }
 
 bool
@@ -426,13 +426,13 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
 
     /* setup key grips if primary is available */
     if (primary) {
-        subkey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+        subkey->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
         if (!subkey->primary_grip) {
             RNP_LOG("alloc failed");
             goto error;
         }
-        memcpy(subkey->primary_grip, primary->grip, PGP_FINGERPRINT_SIZE);
-        if (!rnp_key_add_subkey_grip(primary, subkey->grip)) {
+        memcpy(subkey->primary_grip, primary->grip, PGP_KEY_GRIP_SIZE);
+        if (!rnp_key_add_subkey_grip(primary, pgp_key_get_grip(subkey))) {
             RNP_LOG("failed to add subkey grip");
             goto error;
         }
@@ -537,7 +537,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
         for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
              subkey_grip = list_next(subkey_grip)) {
             search.type = PGP_KEY_SEARCH_GRIP;
-            memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_FINGERPRINT_SIZE);
+            memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_KEY_GRIP_SIZE);
             pgp_key_t *subkey = NULL;
             for (list_item *subkey_item = list_front(rnp_key_store_get_keys(key_store));
                  subkey_item;

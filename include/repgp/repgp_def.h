@@ -88,8 +88,15 @@
 /* Salt size for hashing */
 #define PGP_SALT_SIZE 8
 
+/* Size of the keyid */
+#define PGP_KEY_ID_SIZE 8
+
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_SIZE 20
+#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
+
+/* Size of the key grip */
+#define PGP_KEY_GRIP_SIZE 20
 
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the

@@ -769,7 +769,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             RNP_LOG("failed to create key copy");
             continue;
         }
-        exkey = rnp_key_store_get_key_by_grip(rnp->pubring, imported->grip);
+        exkey = rnp_key_store_get_key_by_grip(rnp->pubring, pgp_key_get_grip(imported));
         expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
         if (!(exkey = rnp_key_store_add_key(rnp->pubring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");
@@ -790,7 +790,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
             RNP_LOG("failed to create secret key copy");
             continue;
         }
-        exkey = rnp_key_store_get_key_by_grip(rnp->secring, imported->grip);
+        exkey = rnp_key_store_get_key_by_grip(rnp->secring, pgp_key_get_grip(imported));
         expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
         if (!(exkey = rnp_key_store_add_key(rnp->secring, &keycp))) {
             RNP_LOG("failed to add key to the keyring");

@@ -474,18 +474,18 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* subkey grips */
     for (list_item *grip = list_front(src->subkey_grips); grip; grip = list_next(grip)) {
-        if (!list_append(&dst->subkey_grips, grip, PGP_FINGERPRINT_SIZE)) {
+        if (!list_append(&dst->subkey_grips, grip, PGP_KEY_GRIP_SIZE)) {
             goto error;
         }
     }
 
     /* primary grip */
     if (src->primary_grip) {
-        dst->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+        dst->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
         if (!dst->primary_grip) {
             goto error;
         }
-        memcpy(dst->primary_grip, src->primary_grip, PGP_FINGERPRINT_SIZE);
+        memcpy(dst->primary_grip, src->primary_grip, PGP_KEY_GRIP_SIZE);
     }
 
     /* expiration */
@@ -495,7 +495,7 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     dst->key_flags = src->key_flags;
 
     /* key id / fingerprint / grip */
-    memcpy(dst->keyid, src->keyid, PGP_KEY_ID_SIZE);
+    memcpy(dst->keyid, src->keyid, sizeof(dst->keyid));
     memcpy(&dst->fingerprint, &src->fingerprint, sizeof(dst->fingerprint));
     memcpy(&dst->grip, &src->grip, sizeof(dst->grip));
 
@@ -711,6 +711,12 @@ const pgp_fingerprint_t *
 pgp_key_get_fp(const pgp_key_t *key)
 {
     return &key->fingerprint;
+}
+
+const uint8_t *
+pgp_key_get_grip(const pgp_key_t *key)
+{
+    return key->grip;
 }
 
 /**
@@ -1335,7 +1341,7 @@ find_suitable_key(pgp_op_t            op,
     ctx.search.type = PGP_KEY_SEARCH_GRIP;
 
     while (subkey_grip) {
-        memcpy(ctx.search.by.grip, subkey_grip, PGP_FINGERPRINT_SIZE);
+        memcpy(ctx.search.by.grip, subkey_grip, PGP_KEY_GRIP_SIZE);
         pgp_key_t *subkey = pgp_request_key(key_provider, &ctx);
         if (subkey && (subkey->key_flags & desired_usage)) {
             return subkey;
