@@ -1019,11 +1019,11 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
     }
 
     if (rnp_get_debug(__FILE__)) {
-        uint8_t grip[PGP_FINGERPRINT_SIZE];
-        char    grips[PGP_FINGERPRINT_HEX_SIZE];
+        uint8_t grip[PGP_KEY_GRIP_SIZE];
+        char    grips[PGP_KEY_GRIP_SIZE * 3];
         if (rnp_key_store_get_key_grip(&seckey->material, grip)) {
             RNP_LOG("loaded G10 key with GRIP: %s\n",
-                    rnp_strhexdump_upper(grips, grip, PGP_FINGERPRINT_SIZE, ""));
+                    rnp_strhexdump_upper(grips, grip, PGP_KEY_GRIP_SIZE, ""));
         }
     }
     ret = true;

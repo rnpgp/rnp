@@ -73,7 +73,7 @@ struct pgp_key_t {
     uint8_t       key_flags;    /* key flags */
     uint8_t       keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t  fingerprint;
-    uint8_t            grip[PGP_FINGERPRINT_SIZE];
+    uint8_t            grip[PGP_KEY_GRIP_SIZE];
     uint32_t           uid0;         /* primary uid index in uids array */
     unsigned           uid0_set : 1; /* flag for the above */
     uint8_t            revoked;      /* key has been revoked */
@@ -187,6 +187,14 @@ const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
  * @return pointer to the fingerprint structure
  */
 const pgp_fingerprint_t *pgp_key_get_fp(const pgp_key_t *key);
+
+/**
+ * @brief Get key's grip
+ *
+ * @param key populated key, should not be NULL
+ * @return pointer to buffer with the grip
+ */
+const uint8_t *pgp_key_get_grip(const pgp_key_t *key);
 
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
