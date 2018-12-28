@@ -174,7 +174,7 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
 
 /**
  * @brief Get key's keyid
- * 
+ *
  * @param key populated key, should not be NULL
  * @return pointer to the 8-byte buffer with keyid
  */

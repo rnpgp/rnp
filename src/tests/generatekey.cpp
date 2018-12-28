@@ -857,7 +857,8 @@ test_generated_key_sigs(void **state)
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
-        assert_int_equal(0, memcmp(subpkt->fields.issuer, pub.keyid, PGP_KEY_ID_SIZE));
+        assert_int_equal(
+          0, memcmp(subpkt->fields.issuer, pgp_key_get_keyid(&pub), PGP_KEY_ID_SIZE));
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
@@ -967,8 +968,8 @@ test_generated_key_sigs(void **state)
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
-        assert_int_equal(0,
-                         memcmp(subpkt->fields.issuer, primary_pub->keyid, PGP_KEY_ID_SIZE));
+        assert_int_equal(
+          0, memcmp(subpkt->fields.issuer, pgp_key_get_keyid(primary_pub), PGP_KEY_ID_SIZE));
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);

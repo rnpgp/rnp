@@ -218,7 +218,7 @@ signature_get_keyid(const pgp_signature_t *sig, uint8_t *id)
 }
 
 bool
-signature_set_keyid(pgp_signature_t *sig, uint8_t *id)
+signature_set_keyid(pgp_signature_t *sig, const uint8_t *id)
 {
     pgp_sig_subpkt_t *subpkt;
 
@@ -1166,7 +1166,7 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
     /* check key expiration time, only for self-signature. While sinfo->expired tells about
        the signature expiry, we'll use it for bkey expiration as well */
     if (signature_get_keyid(sinfo->sig, keyid) &&
-        !memcmp(keyid, sinfo->signer->keyid, PGP_KEY_ID_SIZE)) {
+        !memcmp(keyid, pgp_key_get_keyid(sinfo->signer), PGP_KEY_ID_SIZE)) {
         uint32_t expiry = signature_get_key_expiration(sinfo->sig);
         uint32_t now = time(NULL);
 

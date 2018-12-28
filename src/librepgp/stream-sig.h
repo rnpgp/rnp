@@ -135,7 +135,7 @@ bool signature_get_keyid(const pgp_signature_t *sig, uint8_t *id);
  * @param id pointer to buffer with PGP_KEY_ID_SIZE bytes of key id.
  * @return true on success or false otherwise
  */
-bool signature_set_keyid(pgp_signature_t *sig, uint8_t *id);
+bool signature_set_keyid(pgp_signature_t *sig, const uint8_t *id);
 
 /**
  * @brief Get signature's creation time
@@ -345,8 +345,7 @@ rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
  *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
  *         during the signature validation (out of memory, wrong parameters, etc).
  */
-rnp_result_t signature_check(pgp_signature_info_t *sinfo,
-                             pgp_hash_t *hash);
+rnp_result_t signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash);
 
 rnp_result_t signature_check_certification(pgp_signature_info_t *  sinfo,
                                            const pgp_key_pkt_t *   key,
@@ -356,8 +355,7 @@ rnp_result_t signature_check_binding(pgp_signature_info_t *sinfo,
                                      const pgp_key_pkt_t * key,
                                      const pgp_key_pkt_t * subkey);
 
-rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo,
-                                    const pgp_key_pkt_t * key);
+rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key);
 
 /**
  * @brief Check whether signatures info structure has all correct signatures.

@@ -40,8 +40,11 @@ all_keys_valid(const rnp_key_store_t *keyring)
     for (size_t i = 0; i < rnp_key_store_get_key_count(keyring); i++) {
         pgp_key_t *key = rnp_key_store_get_key(keyring, i);
         if (!key->valid) {
-            assert_true(rnp_hex_encode(
-              key->keyid, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_LOWERCASE));
+            assert_true(rnp_hex_encode(pgp_key_get_keyid(key),
+                                       PGP_KEY_ID_SIZE,
+                                       keyid,
+                                       sizeof(keyid),
+                                       RNP_HEX_LOWERCASE));
             RNP_LOG("key %s is not valid", keyid);
             return false;
         }
