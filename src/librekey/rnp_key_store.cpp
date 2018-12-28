@@ -945,10 +945,10 @@ get_key_by_name(const rnp_key_store_t *keyring,
          key_item = list_next(key_item)) {
         keyp = (pgp_key_t *) key_item;
 
-        for (i = 0; i < pgp_get_userid_count(keyp); i++) {
-            if (regexec(&r, (char *) pgp_get_userid(keyp, i), 0, NULL, 0) == 0) {
+        for (i = 0; i < pgp_key_get_userid_count(keyp); i++) {
+            if (regexec(&r, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
                 RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
-                         (char *) pgp_get_userid(keyp, i),
+                         (char *) pgp_key_get_userid(keyp, i),
                          len);
                 regfree(&r);
                 *key = keyp;
