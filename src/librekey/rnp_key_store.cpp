@@ -249,11 +249,12 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
              key_item = list_next(key_item)) {
             pgp_key_t *key = (pgp_key_t *) key_item;
-            snprintf(path,
-                     sizeof(path),
-                     "%s/%s.key",
-                     key_store->path,
-                     rnp_strhexdump_upper(grips, key->grip, 20, ""));
+            snprintf(
+              path,
+              sizeof(path),
+              "%s/%s.key",
+              key_store->path,
+              rnp_strhexdump_upper(grips, pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE, ""));
 
             if (init_tmpfile_dest(&keydst, path, true)) {
                 RNP_LOG("failed to create file");
@@ -638,13 +639,13 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         }
 
         if (found) {
-            skey->primary_grip = (uint8_t *) malloc(PGP_FINGERPRINT_SIZE);
+            skey->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
             if (!skey->primary_grip) {
                 RNP_LOG("alloc failed");
                 return false;
             }
-            memcpy(skey->primary_grip, key->grip, PGP_FINGERPRINT_SIZE);
-            if (!rnp_key_add_subkey_grip(key, skey->grip)) {
+            memcpy(skey->primary_grip, pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE);
+            if (!rnp_key_add_subkey_grip(key, pgp_key_get_grip(skey))) {
                 RNP_LOG("failed to add subkey grip");
                 return false;
             }
@@ -662,7 +663,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 
     RNP_DLOG("rnp_key_store_add_key");
     assert(pgp_key_get_type(srckey) && pgp_key_get_pkt(srckey)->version);
-    added_key = rnp_key_store_get_key_by_grip(keyring, srckey->grip);
+    added_key = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
 
     if (added_key) {
         /* we cannot merge G10 keys - so just return it */
@@ -829,10 +830,10 @@ rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *gri
     for (list_item *key_item = list_front(keyring->keys); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        RNP_DHEX("looking for grip", grip, PGP_FINGERPRINT_SIZE);
-        RNP_DHEX("keyring grip", key->grip, PGP_FINGERPRINT_SIZE);
+        RNP_DHEX("looking for grip", grip, PGP_KEY_GRIP_SIZE);
+        RNP_DHEX("key grip", pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE);
 
-        if (memcmp(key->grip, grip, PGP_FINGERPRINT_SIZE) == 0) {
+        if (memcmp(pgp_key_get_grip(key), grip, PGP_KEY_GRIP_SIZE) == 0) {
             return key;
         }
     }
@@ -1110,7 +1111,7 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
         return false;
     }
 
-    return pgp_hash_finish(&hash, grip) == PGP_FINGERPRINT_SIZE;
+    return pgp_hash_finish(&hash, grip) == PGP_KEY_GRIP_SIZE;
 }
 
 pgp_key_t *
