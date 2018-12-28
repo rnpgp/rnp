@@ -1129,7 +1129,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
 
     /* Check signer's fingerprint */
     if (signature_get_keyfp(sinfo->sig, &fp) &&
-        !fingerprint_equal(&fp, &sinfo->signer->fingerprint)) {
+        !fingerprint_equal(&fp, pgp_key_get_fp(sinfo->signer))) {
         RNP_LOG("issuer fingerprint doesn't match signer's one");
         sinfo->valid = false;
     }
