@@ -67,7 +67,7 @@ test_key_store_search(void **state)
             // set the userids
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 const char *userid = testdata[i].userids[uidn];
-                assert_true(pgp_add_userid(&key, (const uint8_t *) userid));
+                assert_true(pgp_key_add_userid(&key, (const uint8_t *) userid));
             }
             // add to the store
             assert_true(rnp_key_store_add_key(store, &key));
@@ -127,8 +127,8 @@ test_key_store_search(void **state)
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
-                for (unsigned j = 0; j < pgp_get_userid_count(key); j++) {
-                    if (!strcmp(pgp_get_userid(key, j), userid)) {
+                for (unsigned j = 0; j < pgp_key_get_userid_count(key); j++) {
+                    if (!strcmp(pgp_key_get_userid(key, j), userid)) {
                         found = true;
                     }
                 }

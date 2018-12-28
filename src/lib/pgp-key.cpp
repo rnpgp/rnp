@@ -233,8 +233,8 @@ pgp_key_free_data(pgp_key_t *key)
         return;
     }
 
-    for (n = 0; n < pgp_get_userid_count(key); ++n) {
-        free((void *) pgp_get_userid(key, n));
+    for (n = 0; n < pgp_key_get_userid_count(key); ++n) {
+        free((void *) pgp_key_get_userid(key, n));
     }
     list_destroy(&key->uids);
 
@@ -442,8 +442,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     rnp_result_t tmpret;
 
     /* uids */
-    for (size_t i = 0; i < pgp_get_userid_count(src); i++) {
-        if (!pgp_add_userid(dst, (const uint8_t *) pgp_get_userid(src, i))) {
+    for (size_t i = 0; i < pgp_key_get_userid_count(src); i++) {
+        if (!pgp_key_add_userid(dst, (const uint8_t *) pgp_key_get_userid(src, i))) {
             goto error;
         }
     }
@@ -714,7 +714,7 @@ pgp_key_get_keyid(const pgp_key_t *key)
 \return Num of user ids
 */
 size_t
-pgp_get_userid_count(const pgp_key_t *key)
+pgp_key_get_userid_count(const pgp_key_t *key)
 {
     return list_length(key->uids);
 }
@@ -727,20 +727,20 @@ pgp_get_userid_count(const pgp_key_t *key)
 \return Pointer to requested user id
 */
 const char *
-pgp_get_userid(const pgp_key_t *key, size_t idx)
+pgp_key_get_userid(const pgp_key_t *key, size_t idx)
 {
     list_item *uid = list_at(key->uids, idx);
     return uid ? *((char **) uid) : NULL;
 }
 
 const char *
-pgp_get_primary_userid(const pgp_key_t *key)
+pgp_key_get_primary_userid(const pgp_key_t *key)
 {
     if (key->uid0_set) {
-        return pgp_get_userid(key, key->uid0);
+        return pgp_key_get_userid(key, key->uid0);
     }
     if (list_length(key->uids)) {
-        return pgp_get_userid(key, 0);
+        return pgp_key_get_userid(key, 0);
     }
     return NULL;
 }
@@ -791,7 +791,7 @@ copy_userid(uint8_t **dst, const uint8_t *src)
 \return Pointer to new User ID
 */
 uint8_t *
-pgp_add_userid(pgp_key_t *key, const uint8_t *userid)
+pgp_key_add_userid(pgp_key_t *key, const uint8_t *userid)
 {
     list_item *uidp = list_append(&key->uids, NULL, sizeof(userid));
     if (!(uidp)) {
