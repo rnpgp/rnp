@@ -180,6 +180,14 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
  */
 const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
 
+/**
+ * @brief Get key's fingerprint
+ *
+ * @param key populated key, should not be NULL
+ * @return pointer to the fingerprint structure
+ */
+const pgp_fingerprint_t *pgp_key_get_fp(const pgp_key_t *key);
+
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
 const char *pgp_key_get_userid(const pgp_key_t *, size_t);

@@ -1078,7 +1078,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     /* fill signature fields */
-    res = signature_set_keyfp(sig, &signer->key->fingerprint) &&
+    res = signature_set_keyfp(sig, pgp_key_get_fp(signer->key)) &&
           signature_set_keyid(sig, pgp_key_get_keyid(signer->key)) &&
           signature_set_creation(sig, signer->sigcreate ? signer->sigcreate : time(NULL)) &&
           signature_set_expiration(sig, signer->sigexpire) && signature_fill_hashed_data(sig);

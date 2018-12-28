@@ -3244,7 +3244,7 @@ get_key_require_public(rnp_key_handle_t handle)
 
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = handle->sec->fingerprint;
+        request.search.by.fingerprint = *pgp_key_get_fp(handle->sec);
         handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
         if (handle->pub) {
             return handle->pub;
@@ -3274,7 +3274,7 @@ get_key_require_secret(rnp_key_handle_t handle)
 
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = handle->pub->fingerprint;
+        request.search.by.fingerprint = *pgp_key_get_fp(handle->pub);
         handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
         if (handle->sec) {
             return handle->sec;
@@ -3420,8 +3420,8 @@ rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(key->fingerprint.fingerprint,
-                        key->fingerprint.length,
+    if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
+                        pgp_key_get_fp(key)->length,
                         *fprint,
                         hex_len,
                         RNP_HEX_UPPERCASE)) {
@@ -4195,8 +4195,8 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // fingerprint
     char fpr[PGP_FINGERPRINT_SIZE * 2 + 1];
-    if (!rnp_hex_encode(key->fingerprint.fingerprint,
-                        key->fingerprint.length,
+    if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
+                        pgp_key_get_fp(key)->length,
                         fpr,
                         sizeof(fpr),
                         RNP_HEX_UPPERCASE)) {
@@ -4503,8 +4503,8 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp_hex_encode(key->fingerprint.fingerprint,
-                            key->fingerprint.length,
+        if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
+                            pgp_key_get_fp(key)->length,
                             buf,
                             buf_len,
                             RNP_HEX_UPPERCASE)) {

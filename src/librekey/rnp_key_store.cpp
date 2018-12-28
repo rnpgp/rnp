@@ -625,8 +625,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             }
 
             if (signature_get_keyfp(&subsig->sig, &keyfp) &&
-                (key->fingerprint.length == keyfp.length) &&
-                !memcmp(key->fingerprint.fingerprint, keyfp.fingerprint, keyfp.length)) {
+                fingerprint_equal(pgp_key_get_fp(key), &keyfp)) {
                 found = true;
                 break;
             }
@@ -843,12 +842,9 @@ rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *gri
 pgp_key_t *
 rnp_key_store_get_key_by_fpr(const rnp_key_store_t *keyring, const pgp_fingerprint_t *fpr)
 {
-    for (list_item *key_item = list_front(keyring->keys); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (key->fingerprint.length == fpr->length &&
-            memcmp(key->fingerprint.fingerprint, fpr->fingerprint, fpr->length) == 0) {
-            return key;
+    for (list_item *key = list_front(keyring->keys); key; key = list_next(key)) {
+        if (fingerprint_equal(pgp_key_get_fp((pgp_key_t *) key), fpr)) {
+            return (pgp_key_t *) key;
         }
     }
     return NULL;
