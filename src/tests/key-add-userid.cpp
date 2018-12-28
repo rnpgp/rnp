@@ -68,7 +68,7 @@ test_key_add_userid(void **state)
     assert_true(pgp_key_unlock(key, &pprov));
 
     // save the counts for a few items
-    unsigned uidc = pgp_get_userid_count(key);
+    unsigned uidc = pgp_key_get_userid_count(key);
     unsigned subsigc = pgp_key_get_subsig_count(key);
 
     // add a userid
@@ -82,7 +82,7 @@ test_key_add_userid(void **state)
     assert_true(pgp_key_add_userid(key, pgp_key_get_pkt(key), PGP_HASH_SHA1, &selfsig));
 
     // make sure this userid has been marked as primary
-    assert_int_equal(pgp_get_userid_count(key) - 1, key->uid0);
+    assert_int_equal(pgp_key_get_userid_count(key) - 1, key->uid0);
 
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info_t dup_selfsig;
@@ -105,17 +105,17 @@ test_key_add_userid(void **state)
     assert_true(pgp_key_add_userid(key, pgp_key_get_pkt(key), PGP_HASH_SHA1, &selfsig2));
 
     // confirm that the counts have increased as expected
-    assert_int_equal(pgp_get_userid_count(key), uidc + 2);
+    assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
     assert_int_equal(pgp_key_get_subsig_count(key), subsigc + 2);
 
     // check the userids array
     // added1
-    assert_int_equal(0, strcmp(pgp_get_userid(key, uidc), "added1"));
+    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc), "added1"));
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
     assert_int_equal(123456789, key->expiration);
     // added2
-    assert_int_equal(0, strcmp(pgp_get_userid(key, uidc + 1), "added2"));
+    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1), "added2"));
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
     assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
 
@@ -140,17 +140,17 @@ test_key_add_userid(void **state)
     assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
 
     // confirm that the counts have increased as expected
-    assert_int_equal(pgp_get_userid_count(key), uidc + 2);
+    assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
     assert_int_equal(pgp_key_get_subsig_count(key), subsigc + 2);
 
     // check the userids array
     // added1
-    assert_int_equal(0, strcmp(pgp_get_userid(key, uidc), "added1"));
+    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc), "added1"));
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
     assert_int_equal(123456789, key->expiration);
     // added2
-    assert_int_equal(0, strcmp(pgp_get_userid(key, uidc + 1), "added2"));
+    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1), "added2"));
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
     assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
 

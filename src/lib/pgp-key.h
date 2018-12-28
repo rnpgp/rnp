@@ -180,15 +180,15 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
  */
 const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
 
-size_t pgp_get_userid_count(const pgp_key_t *);
+size_t pgp_key_get_userid_count(const pgp_key_t *);
 
-const char *pgp_get_userid(const pgp_key_t *, size_t);
+const char *pgp_key_get_userid(const pgp_key_t *, size_t);
 
-const char *pgp_get_primary_userid(const pgp_key_t *);
+const char *pgp_key_get_primary_userid(const pgp_key_t *);
 
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
-unsigned char *pgp_add_userid(pgp_key_t *, const unsigned char *);
+unsigned char *pgp_key_add_userid(pgp_key_t *, const unsigned char *);
 
 pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
 
