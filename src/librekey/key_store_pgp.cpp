@@ -193,7 +193,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         return false;
     }
 
-    subsig->uid = pgp_get_userid_count(key) - 1;
+    subsig->uid = pgp_key_get_userid_count(key) - 1;
     if (!copy_signature_packet(&subsig->sig, sig)) {
         return false;
     }
@@ -205,7 +205,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
     }
     if (signature_get_primary_uid(&subsig->sig)) {
-        key->uid0 = pgp_get_userid_count(key) - 1;
+        key->uid0 = pgp_key_get_userid_count(key) - 1;
         key->uid0_set = 1;
     }
 
@@ -241,7 +241,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     if (signature_has_revocation_reason(&subsig->sig)) {
         /* not sure whether this logic is correct - we should check signature type? */
         pgp_revoke_t *revocation = NULL;
-        if (!pgp_get_userid_count(key)) {
+        if (!pgp_key_get_userid_count(key)) {
             /* revoke whole key */
             key->revoked = 1;
             revocation = &key->revocation;
@@ -251,7 +251,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
                 RNP_LOG("failed to add revoke");
                 return false;
             }
-            revocation->uid = pgp_get_userid_count(key) - 1;
+            revocation->uid = pgp_key_get_userid_count(key) - 1;
         }
         signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
         if (!strlen(revocation->reason)) {
@@ -327,7 +327,7 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 
     memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
     uidz[uid->uid.uid_len] = 0;
-    if (!pgp_add_userid(key, uidz)) {
+    if (!pgp_key_add_userid(key, uidz)) {
         RNP_LOG("failed to add user id");
         free(uidz);
         return false;
