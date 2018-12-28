@@ -35,7 +35,7 @@
 void
 test_key_grip(void **state)
 {
-    uint8_t          grip[PGP_FINGERPRINT_SIZE];
+    uint8_t          grip[PGP_KEY_GRIP_SIZE];
     const pgp_key_t *key;
     rnp_key_store_t *pub_store = NULL;
     rnp_key_store_t *sec_store = NULL;

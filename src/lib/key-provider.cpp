@@ -45,7 +45,7 @@ rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
     case PGP_KEY_SEARCH_FINGERPRINT:
         return fingerprint_equal(pgp_key_get_fp(key), &search->by.fingerprint);
     case PGP_KEY_SEARCH_GRIP:
-        return !memcmp(key->grip, search->by.grip, PGP_FINGERPRINT_SIZE);
+        return !memcmp(pgp_key_get_grip(key), search->by.grip, PGP_KEY_GRIP_SIZE);
     case PGP_KEY_SEARCH_USERID:
         if (pgp_key_has_userid(key, search->by.userid)) {
             return true;
