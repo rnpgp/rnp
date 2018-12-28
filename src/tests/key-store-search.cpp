@@ -82,7 +82,7 @@ test_key_store_search(void **state)
         for (pgp_key_t *key = rnp_key_store_get_key_by_id(store, keyid, NULL); key;
              key = rnp_key_store_get_key_by_id(store, keyid, key)) {
             // check that the keyid actually matches
-            assert_int_equal(0, memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE));
+            assert_int_equal(0, memcmp(pgp_key_get_keyid(key), keyid, PGP_KEY_ID_SIZE));
             // check that we have not already encountered this key pointer
             assert_null(list_find(seen_keys, &key, sizeof(key)));
             // keep track of what key pointers we have seen
@@ -101,7 +101,8 @@ test_key_store_search(void **state)
             uint8_t expected_keyid[PGP_KEY_ID_SIZE];
             assert_true(
               rnp_hex_decode(testdata[i].keyid, expected_keyid, sizeof(expected_keyid)));
-            assert_int_equal(0, memcmp(key->keyid, expected_keyid, PGP_KEY_ID_SIZE));
+            assert_int_equal(0,
+                             memcmp(pgp_key_get_keyid(key), expected_keyid, PGP_KEY_ID_SIZE));
             // check that we have not already encountered this key pointer
             assert_null(list_find(seen_keys, &key, sizeof(key)));
             // keep track of what key pointers we have seen

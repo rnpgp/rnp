@@ -158,7 +158,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
                     "encryption %zu/%s %s %s [%s] %s\n",
                     key_bitlength(pgp_key_get_material(key)),
                     pgp_show_pka(pgp_key_get_alg(key)),
-                    rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, ""),
+                    rnp_strhexdump(keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, ""),
                     ptimestr(t, sizeof(t), (time_t) pgp_key_get_pkt(key)->creation_time),
                     key_usage,
                     expired);
@@ -448,7 +448,7 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
     }
     uid_notices[uid_notices_offset] = '\0';
 
-    rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "");
+    rnp_strhexdump(keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "");
 
     rnp_strhexdump(fingerprint, key->fingerprint.fingerprint, key->fingerprint.length, " ");
 
@@ -512,10 +512,10 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
       keyjson, "key bits", json_object_new_int(key_bitlength(pgp_key_get_material(key))));
     json_object_object_add(
       keyjson, "pka", json_object_new_string(pgp_show_pka(pgp_key_get_alg(key))));
-    json_object_object_add(
-      keyjson,
-      "key id",
-      json_object_new_string(rnp_strhexdump(keyid, key->keyid, PGP_KEY_ID_SIZE, "")));
+    json_object_object_add(keyjson,
+                           "key id",
+                           json_object_new_string(rnp_strhexdump(
+                             keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "")));
     json_object_object_add(keyjson,
                            "fingerprint",
                            json_object_new_string(rnp_strhexdump(
