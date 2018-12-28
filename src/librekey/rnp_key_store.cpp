@@ -321,7 +321,7 @@ rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
  */
 
 void
-rnp_key_store_format_key(char *buffer, uint8_t *keyid, int len)
+rnp_key_store_format_key(char *buffer, const uint8_t *keyid, int len)
 {
     unsigned int i;
     unsigned int n;
@@ -350,7 +350,7 @@ rnp_key_store_format_key(char *buffer, uint8_t *keyid, int len)
 bool
 rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last)
 {
-    uint8_t *src;
+    const uint8_t *src;
 
     /* The NULL test on the ring may not be necessary for non-debug
      * builds - it would be much better that a NULL ring never
@@ -372,7 +372,7 @@ rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int la
 
     list_item *key_item = last ? list_back(rnp_key_store_get_keys(ring)) :
                                  list_front(rnp_key_store_get_keys(ring));
-    src = (uint8_t *) ((pgp_key_t *) key_item)->keyid;
+    src = pgp_key_get_keyid((pgp_key_t *) key_item);
     rnp_key_store_format_key(id, src, len);
 
     return true;
@@ -632,7 +632,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             }
 
             if (signature_get_keyid(&subsig->sig, keyid) &&
-                !memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE)) {
+                !memcmp(pgp_key_get_keyid(key), keyid, PGP_KEY_ID_SIZE)) {
                 found = true;
                 break;
             }
@@ -786,10 +786,11 @@ rnp_key_store_get_key_by_id(const rnp_key_store_t *keyring,
          key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
-        RNP_DHEX("keyring keyid", key->keyid, PGP_KEY_ID_SIZE);
+        RNP_DHEX("keyring keyid", pgp_key_get_keyid(key), PGP_KEY_ID_SIZE);
         RNP_DHEX("keyid", keyid, PGP_KEY_ID_SIZE);
-        if (memcmp(key->keyid, keyid, PGP_KEY_ID_SIZE) == 0 ||
-            memcmp(&key->keyid[PGP_KEY_ID_SIZE / 2], keyid, PGP_KEY_ID_SIZE / 2) == 0) {
+        if (memcmp(pgp_key_get_keyid(key), keyid, PGP_KEY_ID_SIZE) == 0 ||
+            memcmp(pgp_key_get_keyid(key) + PGP_KEY_ID_SIZE / 2, keyid, PGP_KEY_ID_SIZE / 2) ==
+              0) {
             return key;
         }
     }

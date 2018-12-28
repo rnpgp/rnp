@@ -780,7 +780,7 @@ test_load_public_from_secret(void **state)
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, skey1->grip, PGP_FINGERPRINT_SIZE));
-    assert_false(memcmp(keycp.keyid, sub1id, PGP_KEY_ID_SIZE));
+    assert_false(memcmp(pgp_key_get_keyid(&keycp), sub1id, PGP_KEY_ID_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
     assert_null(pgp_key_get_pkt(&keycp)->sec_data);
     assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
@@ -792,7 +792,7 @@ test_load_public_from_secret(void **state)
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_false(memcmp(keycp.primary_grip, key->grip, PGP_FINGERPRINT_SIZE));
     assert_false(memcmp(keycp.grip, skey2->grip, PGP_FINGERPRINT_SIZE));
-    assert_false(memcmp(keycp.keyid, sub2id, PGP_KEY_ID_SIZE));
+    assert_false(memcmp(pgp_key_get_keyid(&keycp), sub2id, PGP_KEY_ID_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
     assert_null(pgp_key_get_pkt(&keycp)->sec_data);
     assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);

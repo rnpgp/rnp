@@ -3252,7 +3252,7 @@ get_key_require_public(rnp_key_handle_t handle)
 
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
-        memcpy(request.search.by.keyid, handle->sec->keyid, PGP_KEY_ID_SIZE);
+        memcpy(request.search.by.keyid, pgp_key_get_keyid(handle->sec), PGP_KEY_ID_SIZE);
         handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
     }
     return handle->pub;
@@ -3282,7 +3282,7 @@ get_key_require_secret(rnp_key_handle_t handle)
 
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
-        memcpy(request.search.by.keyid, handle->pub->keyid, PGP_KEY_ID_SIZE);
+        memcpy(request.search.by.keyid, pgp_key_get_keyid(handle->pub), PGP_KEY_ID_SIZE);
         handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
     }
     return handle->sec;
@@ -3442,7 +3442,8 @@ rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(key->keyid, PGP_KEY_ID_SIZE, *keyid, hex_len, RNP_HEX_UPPERCASE)) {
+    if (!rnp_hex_encode(
+          pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, *keyid, hex_len, RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
     return RNP_SUCCESS;
@@ -4186,7 +4187,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     // keyid
     char keyid[PGP_KEY_ID_SIZE * 2 + 1];
     if (!rnp_hex_encode(
-          key->keyid, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+          pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "keyid", keyid)) {
@@ -4496,7 +4497,8 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
     const pgp_key_t *key = it->keyp;
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID:
-        if (!rnp_hex_encode(key->keyid, sizeof(key->keyid), buf, buf_len, RNP_HEX_UPPERCASE)) {
+        if (!rnp_hex_encode(
+              pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, buf, buf_len, RNP_HEX_UPPERCASE)) {
             return false;
         }
         break;

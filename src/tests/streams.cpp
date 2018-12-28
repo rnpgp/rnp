@@ -342,7 +342,7 @@ test_stream_signatures(void **state)
     sig.palg = pgp_key_get_alg(key);
     sig.type = PGP_SIG_BINARY;
     assert_true(signature_set_keyfp(&sig, &key->fingerprint));
-    assert_true(signature_set_keyid(&sig, key->keyid));
+    assert_true(signature_set_keyid(&sig, pgp_key_get_keyid(key)));
     assert_true(signature_set_creation(&sig, create));
     assert_true(signature_set_expiration(&sig, expire));
     assert_true(signature_fill_hashed_data(&sig));

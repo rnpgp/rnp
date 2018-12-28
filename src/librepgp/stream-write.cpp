@@ -1079,7 +1079,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
 
     /* fill signature fields */
     res = signature_set_keyfp(sig, &signer->key->fingerprint) &&
-          signature_set_keyid(sig, signer->key->keyid) &&
+          signature_set_keyid(sig, pgp_key_get_keyid(signer->key)) &&
           signature_set_creation(sig, signer->sigcreate ? signer->sigcreate : time(NULL)) &&
           signature_set_expiration(sig, signer->sigexpire) && signature_fill_hashed_data(sig);
 
@@ -1270,7 +1270,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.type = PGP_SIG_BINARY;
     sinfo.onepass.halg = sinfo.halg;
     sinfo.onepass.palg = pgp_key_get_alg(sinfo.key);
-    memcpy(sinfo.onepass.keyid, sinfo.key->keyid, PGP_KEY_ID_SIZE);
+    memcpy(sinfo.onepass.keyid, pgp_key_get_keyid(sinfo.key), PGP_KEY_ID_SIZE);
     sinfo.onepass.nested = false;
     if (!list_append(&param->siginfos, &sinfo, sizeof(sinfo))) {
         return RNP_ERROR_OUT_OF_MEMORY;
