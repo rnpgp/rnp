@@ -210,9 +210,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
         rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
         rnp_key_protection_params_t *protection = &action->primary.protection;
-        pgp_key_t *primary_key = NULL;
-        pgp_key_t *subkey = NULL;
-        char *key_info = NULL;
+        pgp_key_t *                  primary_key = NULL;
+        pgp_key_t *                  subkey = NULL;
+        char *                       key_info = NULL;
 
         memset(action, 0, sizeof(*action));
         /* setup key generation and key protection parameters */
@@ -222,8 +222,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_gethashalg(cfg));
 
         if (primary_desc->crypto.hash_alg == PGP_HASH_UNKNOWN) {
-           fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
-           return false;
+            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
+            return false;
         }
 
         primary_desc->crypto.rng = &rnp->rng;
@@ -231,9 +231,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
         protection->symm_alg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
         protection->iterations = rnp_cfg_getint(cfg, CFG_S2K_ITER);
 
-        if(protection->iterations == 0) {
-           protection->iterations =
-              pgp_s2k_compute_iters(protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_MSEC), 10);
+        if (protection->iterations == 0) {
+            protection->iterations = pgp_s2k_compute_iters(
+              protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_MSEC), 10);
         }
 
         action->subkey.keygen.crypto.rng = &rnp->rng;
@@ -255,7 +255,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
             return false;
         }
         /* show the primary key, use public key part */
-        primary_key = rnp_key_store_get_key_by_fpr(rnp->pubring, &primary_key->fingerprint);
+        primary_key = rnp_key_store_get_key_by_fpr(rnp->pubring, pgp_key_get_fp(primary_key));
         if (!primary_key) {
             RNP_LOG("Cannot get public key part");
             return false;

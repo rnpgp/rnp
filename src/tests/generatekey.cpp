@@ -849,7 +849,7 @@ test_generated_key_sigs(void **state)
         assert_rnp_success(signature_validate_certification(
           psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         assert_true(signature_get_keyfp(psig, &fp));
-        assert_true(fingerprint_equal(&fp, &pub.fingerprint));
+        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(&pub)));
         // check subpackets and their contents
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -869,7 +869,7 @@ test_generated_key_sigs(void **state)
         assert_rnp_success(signature_validate_certification(
           ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
         assert_true(signature_get_keyfp(ssig, &fp));
-        assert_true(fingerprint_equal(&fp, &sec.fingerprint));
+        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(&sec)));
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[32] ^= 0xff;
@@ -960,7 +960,7 @@ test_generated_key_sigs(void **state)
         assert_rnp_success(signature_validate_binding(
           psig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&pub)));
         assert_true(signature_get_keyfp(psig, &fp));
-        assert_true(fingerprint_equal(&fp, &primary_pub->fingerprint));
+        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(primary_pub)));
         // check subpackets and their contents
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -978,7 +978,7 @@ test_generated_key_sigs(void **state)
         assert_rnp_success(signature_validate_binding(
           ssig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&sec)));
         assert_true(signature_get_keyfp(ssig, &fp));
-        assert_true(fingerprint_equal(&fp, &primary_sec->fingerprint));
+        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(primary_sec)));
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[10] ^= 0xff;

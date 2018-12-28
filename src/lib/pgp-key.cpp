@@ -707,6 +707,12 @@ pgp_key_get_keyid(const pgp_key_t *key)
     return key->keyid;
 }
 
+const pgp_fingerprint_t *
+pgp_key_get_fp(const pgp_key_t *key)
+{
+    return &key->fingerprint;
+}
+
 /**
 \ingroup Core_Keys
 \brief How many User IDs in this key?
