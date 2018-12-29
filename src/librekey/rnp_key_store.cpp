@@ -614,7 +614,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         bool       found = false;
 
         /* if we have primary_grip then we also added to subkey_grips */
-        if (!pgp_key_is_subkey(skey) || skey->primary_grip) {
+        if (!pgp_key_is_subkey(skey) || pgp_key_get_primary_grip(skey)) {
             continue;
         }
 
@@ -638,17 +638,8 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             }
         }
 
-        if (found) {
-            skey->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
-            if (!skey->primary_grip) {
-                RNP_LOG("alloc failed");
-                return false;
-            }
-            memcpy(skey->primary_grip, pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE);
-            if (!rnp_key_add_subkey_grip(key, pgp_key_get_grip(skey))) {
-                RNP_LOG("failed to add subkey grip");
-                return false;
-            }
+        if (found && !pgp_key_link_subkey_grip(key, skey)) {
+            return false;
         }
     }
 
@@ -861,8 +852,8 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
         return NULL;
     }
 
-    if (subkey->primary_grip) {
-        return rnp_key_store_get_key_by_grip(keyring, subkey->primary_grip);
+    if (pgp_key_get_primary_grip(subkey)) {
+        return rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(subkey));
     }
 
     for (unsigned i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
