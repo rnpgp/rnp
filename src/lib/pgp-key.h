@@ -154,9 +154,10 @@ int pgp_key_get_type(const pgp_key_t *key);
 
 bool pgp_key_is_encrypted(const pgp_key_t *);
 
-bool pgp_key_can_sign(const pgp_key_t *key);
-bool pgp_key_can_certify(const pgp_key_t *key);
-bool pgp_key_can_encrypt(const pgp_key_t *key);
+uint8_t pgp_key_get_flags(const pgp_key_t *key);
+bool    pgp_key_can_sign(const pgp_key_t *key);
+bool    pgp_key_can_certify(const pgp_key_t *key);
+bool    pgp_key_can_encrypt(const pgp_key_t *key);
 
 bool pgp_key_is_public(const pgp_key_t *);
 bool pgp_key_is_secret(const pgp_key_t *);
