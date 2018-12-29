@@ -1122,7 +1122,8 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* check whether key was not expired when sig created */
-    if (sinfo->signer->expiration && (kcreate + sinfo->signer->expiration < create)) {
+    if (pgp_key_get_expiration(sinfo->signer) &&
+        (kcreate + pgp_key_get_expiration(sinfo->signer) < create)) {
         RNP_LOG("signature made after key expiration");
         sinfo->valid = false;
     }

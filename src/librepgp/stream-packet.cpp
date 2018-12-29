@@ -2157,7 +2157,7 @@ key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly
         return false;
     }
 
-    /* check basic tags */
+    /* check basic fields */
     if ((key1->version != key2->version) || (key1->alg != key2->alg) ||
         (key1->creation_time != key2->creation_time)) {
         return false;

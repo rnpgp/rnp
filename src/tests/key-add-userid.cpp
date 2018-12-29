@@ -113,7 +113,7 @@ test_key_add_userid(void **state)
     assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc), "added1"));
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
-    assert_int_equal(123456789, key->expiration);
+    assert_int_equal(123456789, pgp_key_get_expiration(key));
     // added2
     assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1), "added2"));
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
@@ -148,7 +148,7 @@ test_key_add_userid(void **state)
     assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc), "added1"));
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
-    assert_int_equal(123456789, key->expiration);
+    assert_int_equal(123456789, pgp_key_get_expiration(key));
     // added2
     assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1), "added2"));
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
