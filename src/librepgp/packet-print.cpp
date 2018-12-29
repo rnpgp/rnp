@@ -152,7 +152,7 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
     char t[32];
     char key_usage[8];
 
-    format_key_usage(key_usage, sizeof(key_usage), key->key_flags);
+    format_key_usage(key_usage, sizeof(key_usage), pgp_key_get_flags(key));
     return snprintf(buf,
                     size,
                     "encryption %zu/%s %s %s [%s] %s\n",
@@ -455,7 +455,7 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
 
     ptimestr(creation, sizeof(creation), (time_t) pgp_key_get_pkt(key)->creation_time);
 
-    if (!format_key_usage(key_usage, sizeof(key_usage), key->key_flags)) {
+    if (!format_key_usage(key_usage, sizeof(key_usage), pgp_key_get_flags(key))) {
         free(uid_notices);
         return -1;
     }
@@ -525,9 +525,9 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
     json_object_object_add(
       keyjson, "creation time", json_object_new_int(pgp_key_get_pkt(key)->creation_time));
     json_object_object_add(keyjson, "expiration", json_object_new_int(key->expiration));
-    json_object_object_add(keyjson, "key flags", json_object_new_int(key->key_flags));
+    json_object_object_add(keyjson, "key flags", json_object_new_int(pgp_key_get_flags(key)));
     json_object *usage_arr = json_object_new_array();
-    format_key_usage_json(usage_arr, key->key_flags);
+    format_key_usage_json(usage_arr, pgp_key_get_flags(key));
     json_object_object_add(keyjson, "usage", usage_arr);
 
     // iterating through the uids

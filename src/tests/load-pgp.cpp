@@ -59,7 +59,7 @@ test_load_v3_keyring_pgp(void **state)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(key->key_flags,
+    assert_int_equal(pgp_key_get_flags(key),
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // cleanup
@@ -81,7 +81,7 @@ test_load_v3_keyring_pgp(void **state)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(key->key_flags,
+    assert_int_equal(pgp_key_get_flags(key),
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // check if the key is secret and is locked
@@ -128,7 +128,7 @@ test_load_v4_keyring_pgp(void **state)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(key->key_flags, PGP_KF_ENCRYPT);
+    assert_int_equal(pgp_key_get_flags(key), PGP_KF_ENCRYPT);
 
     // cleanup
     rnp_key_store_free(key_store);

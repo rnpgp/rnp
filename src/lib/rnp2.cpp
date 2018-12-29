@@ -4244,11 +4244,11 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "expiration", jsoexpiration);
     // key flags (usage)
-    if (!add_json_key_usage(jso, key->key_flags)) {
+    if (!add_json_key_usage(jso, pgp_key_get_flags(key))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // key flags (other)
-    if (!add_json_key_flags(jso, key->key_flags)) {
+    if (!add_json_key_flags(jso, pgp_key_get_flags(key))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // parent / subkeys
