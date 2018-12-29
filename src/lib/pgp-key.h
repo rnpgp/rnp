@@ -159,6 +159,22 @@ bool    pgp_key_can_sign(const pgp_key_t *key);
 bool    pgp_key_can_certify(const pgp_key_t *key);
 bool    pgp_key_can_encrypt(const pgp_key_t *key);
 
+/**
+ * @brief Get key's expiration time in seconds. If 0 then it doesn't expire.
+ *
+ * @param key populated key, could not be NULL
+ * @return key expiration time
+ */
+uint32_t pgp_key_get_expiration(const pgp_key_t *key);
+
+/**
+ * @brief Get key's creation time in seconds since Jan, 1 1980.
+ *
+ * @param key populated key, could not be NULL
+ * @return key creation time
+ */
+uint32_t pgp_key_get_creation(const pgp_key_t *key);
+
 bool pgp_key_is_public(const pgp_key_t *);
 bool pgp_key_is_secret(const pgp_key_t *);
 bool pgp_key_is_primary_key(const pgp_key_t *key);
