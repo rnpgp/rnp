@@ -237,7 +237,7 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(signature_get_expiration(sig), 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 0);
+    assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // find
     key = NULL;
@@ -253,11 +253,11 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569820);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 0);
+    assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // find
     key = NULL;
@@ -273,11 +273,11 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569851);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 123 * 24 * 60 * 60 /* 123 days */);
+    assert_int_equal(pgp_key_get_expiration(key), 123 * 24 * 60 * 60 /* 123 days */);
 
     // find
     key = NULL;
@@ -293,11 +293,11 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569896);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 0);
+    assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // find
     key = NULL;
@@ -320,7 +320,7 @@ test_load_check_bitfields_and_times(void **state)
         assert_int_equal(signature_get_expiration(sig), 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 2076663808);
+    assert_int_equal(pgp_key_get_expiration(key), 2076663808);
 
     // find
     key = NULL;
@@ -336,11 +336,11 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500569946);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 2076663808);
+    assert_int_equal(pgp_key_get_expiration(key), 2076663808);
 
     // find
     key = NULL;
@@ -356,11 +356,11 @@ test_load_check_bitfields_and_times(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check SS_CREATION_TIME [0]
     assert_int_equal(signature_get_creation(sig), 1500570165);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(key->expiration, 0);
+    assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // cleanup
     rnp_key_store_free(key_store);
@@ -400,11 +400,11 @@ test_load_check_bitfields_and_times_v3(void **state)
     assert_int_equal(memcmp(keyid, signer_id, PGP_KEY_ID_SIZE), 0);
     // check creation time
     assert_int_equal(signature_get_creation(sig), 1005209227);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_pkt(key)->creation_time);
+    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(signature_get_expiration(sig), 0);
     // check key expiration
-    assert_int_equal(key->expiration, 0); // only for V4 keys
+    assert_int_equal(pgp_key_get_expiration(key), 0); // only for V4 keys
     assert_int_equal(pgp_key_get_pkt(key)->v3_days, 0);
 
     // cleanup

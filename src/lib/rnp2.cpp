@@ -4237,8 +4237,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "creation time", jsocreation_time);
     // expiration
-    json_object *jsoexpiration = json_object_new_int64(
-      pubkey->version >= 4 ? key->expiration : (pubkey->v3_days * 86400));
+    json_object *jsoexpiration = json_object_new_int64(pgp_key_get_expiration(key));
     if (!jsoexpiration) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

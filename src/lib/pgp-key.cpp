@@ -612,6 +612,18 @@ pgp_key_is_subkey(const pgp_key_t *key)
     return is_subkey_pkt(key->pkt.tag);
 }
 
+uint32_t
+pgp_key_get_expiration(const pgp_key_t *key)
+{
+    return (key->pkt.version >= 4) ? key->expiration : key->pkt.v3_days * 86400;
+}
+
+uint32_t
+pgp_key_get_creation(const pgp_key_t *key)
+{
+    return key->pkt.creation_time;
+}
+
 pgp_key_pkt_t *
 pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        size_t               data_len,
