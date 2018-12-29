@@ -425,17 +425,8 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
     }
 
     /* setup key grips if primary is available */
-    if (primary) {
-        subkey->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
-        if (!subkey->primary_grip) {
-            RNP_LOG("alloc failed");
-            goto error;
-        }
-        memcpy(subkey->primary_grip, primary->grip, PGP_KEY_GRIP_SIZE);
-        if (!rnp_key_add_subkey_grip(primary, pgp_key_get_grip(subkey))) {
-            RNP_LOG("failed to add subkey grip");
-            goto error;
-        }
+    if (primary && !pgp_key_link_subkey_grip(primary, subkey)) {
+        goto error;
     }
     return true;
 error:

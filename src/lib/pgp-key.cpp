@@ -480,12 +480,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* primary grip */
-    if (src->primary_grip) {
-        dst->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
-        if (!dst->primary_grip) {
-            goto error;
-        }
-        memcpy(dst->primary_grip, src->primary_grip, PGP_KEY_GRIP_SIZE);
+    if (src->primary_grip && !pgp_key_set_primary_grip(dst, pgp_key_get_primary_grip(src))) {
+        goto error;
     }
 
     /* expiration */
@@ -717,6 +713,38 @@ const uint8_t *
 pgp_key_get_grip(const pgp_key_t *key)
 {
     return key->grip;
+}
+
+const uint8_t *
+pgp_key_get_primary_grip(const pgp_key_t *key)
+{
+    return key->primary_grip;
+}
+
+bool
+pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip)
+{
+    key->primary_grip = (uint8_t *) malloc(PGP_KEY_GRIP_SIZE);
+    if (!key->primary_grip) {
+        RNP_LOG("alloc failed");
+        return false;
+    }
+    memcpy(key->primary_grip, grip, PGP_KEY_GRIP_SIZE);
+    return true;
+}
+
+bool
+pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey)
+{
+    if (!pgp_key_set_primary_grip(subkey, pgp_key_get_grip(key))) {
+        RNP_LOG("failed to set primary grip");
+        return false;
+    }
+    if (!rnp_key_add_subkey_grip(key, pgp_key_get_grip(subkey))) {
+        RNP_LOG("failed to add subkey grip");
+        return false;
+    }
+    return true;
 }
 
 /**
