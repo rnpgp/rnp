@@ -1630,7 +1630,8 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
 
     /* subkey may have only binding signatures */
     if (pgp_key_is_subkey(key)) {
-        pgp_key_t *primary = rnp_key_store_get_key_by_grip(keyring, key->primary_grip);
+        pgp_key_t *primary =
+          rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(key));
         if (!primary) {
             res = RNP_ERROR_BAD_STATE;
             goto done;

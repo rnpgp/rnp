@@ -2511,7 +2511,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
         }
         // subkey, write the primary + this subkey only
         pgp_key_t *primary;
-        if (!(primary = rnp_key_store_get_key_by_grip(store, key->primary_grip))) {
+        if (!(primary = rnp_key_store_get_key_by_grip(store, pgp_key_get_primary_grip(key)))) {
             // shouldn't happen
             return RNP_ERROR_GENERIC;
         }
@@ -4273,8 +4273,11 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             subgrip_item = list_next(subgrip_item);
         }
     } else {
-        if (!rnp_hex_encode(
-              key->primary_grip, PGP_KEY_GRIP_SIZE, grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+        if (!rnp_hex_encode(pgp_key_get_primary_grip(key),
+                            PGP_KEY_GRIP_SIZE,
+                            grip,
+                            sizeof(grip),
+                            RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
         }
         if (!add_json_string_field(jso, "primary key grip", grip)) {

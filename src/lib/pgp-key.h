@@ -196,6 +196,32 @@ const pgp_fingerprint_t *pgp_key_get_fp(const pgp_key_t *key);
  */
 const uint8_t *pgp_key_get_grip(const pgp_key_t *key);
 
+/**
+ * @brief Get primary key's grip for the subkey, if available.
+ *
+ * @param key subkey, which primary key's grip should be returned
+ * @return pointer to the array with grip or NULL if it is not available
+ */
+const uint8_t *pgp_key_get_primary_grip(const pgp_key_t *key);
+
+/**
+ * @brief Set primary key's grip for the subkey
+ *
+ * @param key subkey
+ * @param grip buffer with grip, should not be NULL
+ * @return true on success or false otherwise (key is not subkey, or allocation failed)
+ */
+bool pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip);
+
+/**
+ * @brief Link key with subkey via primary_grip and subkey_grips list
+ *
+ * @param key primary key
+ * @param subkey subkey of the primary key
+ * @return true on success or false otherwise (allocation failed, wrong key types)
+ */
+bool pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey);
+
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
 const char *pgp_key_get_userid(const pgp_key_t *, size_t);
