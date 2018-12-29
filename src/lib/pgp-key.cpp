@@ -576,22 +576,28 @@ pgp_key_is_encrypted(const pgp_key_t *key)
     return !pkt->material.secret;
 }
 
+uint8_t
+pgp_key_get_flags(const pgp_key_t *key)
+{
+    return key->key_flags;
+}
+
 bool
 pgp_key_can_sign(const pgp_key_t *key)
 {
-    return key->key_flags & PGP_KF_SIGN;
+    return pgp_key_get_flags(key) & PGP_KF_SIGN;
 }
 
 bool
 pgp_key_can_certify(const pgp_key_t *key)
 {
-    return key->key_flags & PGP_KF_CERTIFY;
+    return pgp_key_get_flags(key) & PGP_KF_CERTIFY;
 }
 
 bool
 pgp_key_can_encrypt(const pgp_key_t *key)
 {
-    return key->key_flags & PGP_KF_ENCRYPT;
+    return pgp_key_get_flags(key) & PGP_KF_ENCRYPT;
 }
 
 bool
@@ -1361,7 +1367,7 @@ find_suitable_key(pgp_op_t            op,
     if (!key) {
         return NULL;
     }
-    if (key->key_flags & desired_usage) {
+    if (pgp_key_get_flags(key) & desired_usage) {
         return key;
     }
     list_item *           subkey_grip = list_front(key->subkey_grips);
@@ -1371,7 +1377,7 @@ find_suitable_key(pgp_op_t            op,
     while (subkey_grip) {
         memcpy(ctx.search.by.grip, subkey_grip, PGP_KEY_GRIP_SIZE);
         pgp_key_t *subkey = pgp_request_key(key_provider, &ctx);
-        if (subkey && (subkey->key_flags & desired_usage)) {
+        if (subkey && (pgp_key_get_flags(subkey) & desired_usage)) {
             return subkey;
         }
         subkey_grip = list_next(subkey_grip);
