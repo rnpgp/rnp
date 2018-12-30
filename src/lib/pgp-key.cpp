@@ -547,6 +547,12 @@ pgp_key_get_alg(const pgp_key_t *key)
     return key->pkt.alg;
 }
 
+pgp_version_t
+pgp_key_get_version(const pgp_key_t *key)
+{
+    return key->pkt.version;
+}
+
 int
 pgp_key_get_type(const pgp_key_t *key)
 {

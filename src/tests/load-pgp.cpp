@@ -388,7 +388,7 @@ test_load_check_bitfields_and_times_v3(void **state)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check key version
-    assert_int_equal(pgp_key_get_pkt(key)->version, PGP_V3);
+    assert_int_equal(pgp_key_get_version(key), PGP_V3);
     // check subsig count
     assert_int_equal(pgp_key_get_subsig_count(key), 1);
     sig = &pgp_key_get_subsig(key, 0)->sig;
