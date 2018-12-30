@@ -493,7 +493,6 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         const uint8_t *      key,
                         const unsigned       keylen)
 {
-    const pgp_key_pkt_t *       keypkt;
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
     pgp_pk_sesskey_t            pkey = {0};
@@ -510,16 +509,11 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         RNP_LOG("attempt to use invalid key as recipient");
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    keypkt = pgp_key_get_pkt(userkey);
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
-    pkey.alg = keypkt->alg;
-    rnp_result_t tmpret;
-    if ((tmpret = pgp_keyid(pkey.key_id, PGP_KEY_ID_SIZE, keypkt))) {
-        RNP_LOG("key id calculation failed");
-        return tmpret;
-    }
+    pkey.alg = pgp_key_get_alg(userkey);
+    memcpy(pkey.key_id, pgp_key_get_keyid(userkey), PGP_KEY_ID_SIZE);
 
     /* Encrypt the session key */
     enckey[0] = param->ctx->ealg;
@@ -532,14 +526,14 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     enckey[keylen + 1] = (checksum >> 8) & 0xff;
     enckey[keylen + 2] = checksum & 0xff;
 
-    switch (keypkt->alg) {
+    switch (pgp_key_get_alg(userkey)) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
                                 &pkey.material.rsa,
                                 enckey,
                                 keylen + 3,
-                                &keypkt->material.rsa);
+                                &pgp_key_get_material(userkey)->rsa);
         if (ret) {
             RNP_LOG("rsa_encrypt_pkcs1 failed");
             goto finish;
@@ -552,7 +546,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                           enckey,
                           keylen + 3,
                           PGP_HASH_SM3,
-                          &keypkt->material.ec);
+                          &pgp_key_get_material(userkey)->ec);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("sm2_encrypt failed");
             goto finish;
@@ -560,19 +554,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_ECDH: {
-        pgp_fingerprint_t fingerprint;
-
-        // why do we calculate it here while it is available in userkey?
-        if ((ret = pgp_fingerprint(&fingerprint, keypkt))) {
-            RNP_LOG("ECDH fingerprint calculation failed");
-            goto finish;
-        }
         ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
                                  &pkey.material.ecdh,
                                  enckey,
                                  keylen + 3,
-                                 &keypkt->material.ec,
-                                 &fingerprint);
+                                 &pgp_key_get_material(userkey)->ec,
+                                 pgp_key_get_fp(userkey));
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
             goto finish;
@@ -584,7 +571,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                     &pkey.material.eg,
                                     enckey,
                                     keylen + 3,
-                                    &keypkt->material.eg);
+                                    &pgp_key_get_material(userkey)->eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             goto finish;
@@ -592,7 +579,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     default:
-        RNP_LOG("unsupported alg: %d", keypkt->alg);
+        RNP_LOG("unsupported alg: %d", pgp_key_get_alg(userkey));
         goto finish;
     }
 

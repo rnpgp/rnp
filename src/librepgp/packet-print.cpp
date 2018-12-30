@@ -687,11 +687,10 @@ repgp_print_key(FILE *                 fp,
 int
 pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
 {
-    char fp[PGP_FINGERPRINT_HEX_SIZE];
-    int  cc;
-
-    const pgp_key_pkt_t *     pkt = pgp_key_get_pkt(key);
+    char                      fp[PGP_FINGERPRINT_HEX_SIZE];
+    int                       cc;
     const pgp_key_material_t *material = pgp_key_get_material(key);
+
     cc = snprintf(
       out,
       outsize,
@@ -700,9 +699,9 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
       pgp_key_get_primary_userid(key),
       (long long) pgp_key_get_creation(key),
       (long long) pgp_key_get_expiration(key),
-      pkt->version,
+      pgp_key_get_version(key),
       pgp_key_get_alg(key));
-    switch (pkt->alg) {
+    switch (pgp_key_get_alg(key)) {
     case PGP_PKA_DSA: {
         char *p = mpi2hex(&material->dsa.p);
         char *q = mpi2hex(&material->dsa.q);
@@ -755,7 +754,7 @@ pgp_sprint_pubkey(const pgp_key_t *key, char *out, size_t outsize)
         break;
     }
     default:
-        RNP_LOG("pgp_print_pubkey: Unusual algorithm: %d", (int) pkt->alg);
+        RNP_LOG("pgp_print_pubkey: Unusual algorithm: %d", (int) pgp_key_get_alg(key));
     }
     return cc;
 }
