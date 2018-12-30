@@ -4133,14 +4133,14 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
 static rnp_result_t
 key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 {
-    bool                 have_sec = handle->sec != NULL;
-    bool                 have_pub = handle->pub != NULL;
-    pgp_key_t *          key = get_key_prefer_public(handle);
-    const char *         str = NULL;
-    const pgp_key_pkt_t *pubkey = pgp_key_get_pkt(key);
+    bool                      have_sec = handle->sec != NULL;
+    bool                      have_pub = handle->pub != NULL;
+    pgp_key_t *               key = get_key_prefer_public(handle);
+    const char *              str = NULL;
+    const pgp_key_material_t *material = pgp_key_get_material(key);
 
     // type
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pubkey->alg, str);
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pgp_key_get_alg(key), str);
     if (!str) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -4148,21 +4148,19 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // length
-    if (!add_json_int_field(jso, "length", key_bitlength(&pubkey->material))) {
+    if (!add_json_int_field(jso, "length", key_bitlength(material))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // curve / alg-specific items
-    switch (pubkey->alg) {
+    switch (pgp_key_get_alg(key)) {
     case PGP_PKA_ECDH: {
         const char *hash_name = NULL;
-        ARRAY_LOOKUP_BY_ID(
-          hash_alg_map, type, string, pubkey->material.ec.kdf_hash_alg, hash_name);
+        ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, material->ec.kdf_hash_alg, hash_name);
         if (!hash_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name = NULL;
-        ARRAY_LOOKUP_BY_ID(
-          symm_alg_map, type, string, pubkey->material.ec.key_wrap_alg, cipher_name);
+        ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, material->ec.key_wrap_alg, cipher_name);
         if (!cipher_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -4181,7 +4179,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
-        if (!curve_type_to_str(pubkey->material.ec.curve, &curve_name)) {
+        if (!curve_type_to_str(material->ec.curve, &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsocurve = json_object_new_string(curve_name);
@@ -4231,7 +4229,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "revoked", jsorevoked);
     // creation time
-    json_object *jsocreation_time = json_object_new_int64(pubkey->creation_time);
+    json_object *jsocreation_time = json_object_new_int64(pgp_key_get_creation(key));
     if (!jsocreation_time) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
