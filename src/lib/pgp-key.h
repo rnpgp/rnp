@@ -150,6 +150,8 @@ const pgp_key_material_t *pgp_key_get_material(const pgp_key_t *key);
 
 pgp_pubkey_alg_t pgp_key_get_alg(const pgp_key_t *key);
 
+pgp_version_t pgp_key_get_version(const pgp_key_t *key);
+
 int pgp_key_get_type(const pgp_key_t *key);
 
 bool pgp_key_is_encrypted(const pgp_key_t *);

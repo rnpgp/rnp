@@ -1115,7 +1115,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* check key creation time vs signature creation */
-    kcreate = pgp_key_get_pkt(sinfo->signer)->creation_time;
+    kcreate = pgp_key_get_creation(sinfo->signer);
     if (kcreate > create) {
         RNP_LOG("key is newer than signature");
         sinfo->valid = false;
