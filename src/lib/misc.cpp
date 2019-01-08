@@ -176,7 +176,7 @@ static int   debugc;
 static char *debugv[MAX_DEBUG_NAMES];
 
 /* set the debugging level per filename */
-int
+bool
 rnp_set_debug(const char *f)
 {
     const char *name;
@@ -192,7 +192,7 @@ rnp_set_debug(const char *f)
     }
     for (i = 0; ((i < MAX_DEBUG_NAMES) && (i < debugc)); i++) {
         if (strcmp(debugv[i], name) == 0) {
-            return 1;
+            return true;
         }
     }
     if (i == MAX_DEBUG_NAMES) {
@@ -203,14 +203,14 @@ rnp_set_debug(const char *f)
 }
 
 /* get the debugging level per filename */
-int
+bool
 rnp_get_debug(const char *f)
 {
     const char *name;
     int         i;
 
     if (!debugc) {
-        return 0;
+        return false;
     }
 
     if ((name = strrchr(f, '/')) == NULL) {
@@ -220,10 +220,10 @@ rnp_get_debug(const char *f)
     }
     for (i = 0; i < debugc; i++) {
         if (strcmp(debugv[i], "all") == 0 || strcmp(debugv[i], name) == 0) {
-            return 1;
+            return true;
         }
     }
-    return 0;
+    return false;
 }
 
 /* return the version for the library */
