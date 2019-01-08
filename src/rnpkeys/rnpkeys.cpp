@@ -33,6 +33,7 @@
 #include <getopt.h>
 #include <regex.h>
 #include <string.h>
+#include <stdarg.h>
 #include <rnp/rnp.h>
 #include "crypto.h"
 #include <rnp/rnp_def.h>
@@ -112,6 +113,321 @@ struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
+/* vararg print function */
+static void
+p(FILE *fp, const char *s, ...)
+{
+    va_list args;
+
+    va_start(args, s);
+    while (s != NULL) {
+        (void) fprintf(fp, "%s", s);
+        s = va_arg(args, char *);
+    }
+    va_end(args);
+}
+
+/* print a JSON object to the FILE stream */
+static void
+pobj(FILE *fp, json_object *obj, int depth)
+{
+    unsigned i;
+
+    if (obj == NULL) {
+        RNP_LOG("No object found");
+        return;
+    }
+    for (i = 0; i < (unsigned) depth; i++) {
+        p(fp, " ", NULL);
+    }
+    switch (json_object_get_type(obj)) {
+    case json_type_null:
+        p(fp, "null", NULL);
+    case json_type_boolean:
+        p(fp, json_object_get_boolean(obj) ? "true" : "false", NULL);
+        break;
+    case json_type_int:
+        fprintf(fp, "%d", json_object_get_int(obj));
+        break;
+    case json_type_string:
+        fprintf(fp, "%s", json_object_get_string(obj));
+        break;
+    case json_type_array: {
+        int arrsize = json_object_array_length(obj);
+        int i;
+        for (i = 0; i < arrsize; i++) {
+            json_object *item = json_object_array_get_idx(obj, i);
+            pobj(fp, item, depth + 1);
+            if (i < arrsize - 1) {
+                (void) fprintf(fp, ", ");
+            }
+        }
+        (void) fprintf(fp, "\n");
+        break;
+    }
+    case json_type_object: {
+        json_object_object_foreach(obj, key, val)
+        {
+            printf("key: \"%s\"\n", key);
+            pobj(fp, val, depth + 1);
+        }
+        p(fp, "\n", NULL);
+        break;
+    }
+    default:
+        break;
+    }
+}
+
+/* return the time as a string */
+static char *
+ptimestr(char *dest, size_t size, time_t t)
+{
+    struct tm *tm;
+
+    tm = gmtime(&t);
+    (void) snprintf(
+      dest, size, "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+    return dest;
+}
+
+/* format a JSON object */
+static void
+format_json_key(FILE *fp, json_object *obj, const int psigs)
+{
+    int64_t creation;
+    int64_t expiration;
+    time_t  now;
+    char    tbuf[32];
+
+    RNP_DLOG("json is '%s'", json_object_to_json_string(obj));
+#if 0 //?
+    if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
+        strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
+        /* whole key has been rovoked - just return */
+        return;
+    }
+#endif
+    json_object *tmp;
+    if (json_object_object_get_ex(obj, "header", &tmp)) {
+        if (strcmp(json_object_get_string(tmp), "sub") != 0) {
+            p(fp, "\n", NULL);
+        }
+        pobj(fp, tmp, 0);
+        p(fp, "   ", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "key bits", &tmp)) {
+        pobj(fp, tmp, 0);
+        p(fp, "/", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "pka", &tmp)) {
+        pobj(fp, tmp, 0);
+        p(fp, " ", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "key id", &tmp)) {
+        pobj(fp, tmp, 0);
+    }
+
+    if (json_object_object_get_ex(obj, "creation time", &tmp)) {
+        creation = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
+        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), creation), NULL);
+
+        if (json_object_object_get_ex(obj, "usage", &tmp)) {
+            p(fp, " [", NULL);
+            int count = json_object_array_length(tmp);
+            for (int i = 0; i < count; i++) {
+                json_object *str = json_object_array_get_idx(tmp, i);
+                char         buff[2] = {0};
+                buff[0] = toupper(*json_object_get_string(str));
+                p(fp, buff, NULL);
+            }
+            p(fp, "]", NULL);
+        }
+
+        if (json_object_object_get_ex(obj, "expiration", &tmp)) {
+            expiration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
+            if (expiration > 0) {
+                now = time(NULL);
+                p(fp,
+                  " ",
+                  (creation + expiration < now) ? "[EXPIRED " : "[EXPIRES ",
+                  ptimestr(tbuf, sizeof(tbuf), creation + expiration),
+                  "]",
+                  NULL);
+            }
+        }
+    }
+
+    if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
+        p(fp, "\n", "      ", NULL);
+        pobj(fp, tmp, 0);
+        p(fp, "\n", NULL);
+    }
+
+    if (json_object_object_get_ex(obj, "user ids", &tmp) &&
+        !json_object_is_type(tmp, json_type_null)) {
+        int count = json_object_array_length(tmp);
+        for (int i = 0; i < count; i++) {
+            json_object *uidobj = json_object_array_get_idx(tmp, i);
+            json_object *userid = NULL;
+
+            json_object_object_get_ex(uidobj, "user id", &userid);
+            p(fp, "uid", NULL);
+            pobj(fp, userid, 11); /* human name */
+            json_object *revoked = NULL;
+            json_object_object_get_ex(uidobj, "revoked", &revoked);
+            p(fp, json_object_get_boolean(revoked) ? "[REVOKED]" : "", NULL);
+            p(fp, "\n", NULL);
+
+            json_object *sig = NULL;
+            json_object_object_get_ex(uidobj, "signature", &sig);
+            if (sig && psigs) {
+                json_object *signer_id = NULL;
+                json_object *creation_time = NULL;
+                json_object_object_get_ex(sig, "signer id", &signer_id);
+                json_object_object_get_ex(sig, "creation time", &creation_time);
+                json_object_object_get_ex(sig, "user id", &userid);
+                if (signer_id && creation_time && userid) {
+                    p(fp, "sig", NULL);
+                    pobj(fp, signer_id, 11);
+                    p(fp,
+                      " ",
+                      ptimestr(tbuf, sizeof(tbuf), json_object_get_int(creation_time)),
+                      " ",
+                      NULL);
+                    pobj(fp, userid, 0);
+                    p(fp, "\n", NULL);
+                }
+            }
+        }
+    }
+}
+
+/* print the json out on 'fp' */
+static int
+rnp_format_json(void *vp, const char *json, const int psigs)
+{
+    json_object *ids;
+    FILE *       fp;
+    int          idc;
+    int          i;
+
+    if ((fp = (FILE *) vp) == NULL || json == NULL) {
+        return 0;
+    }
+    /* convert from string into a json structure */
+    ids = json_tokener_parse(json);
+    //    /* ids is an array of strings, each containing 1 entry */
+    idc = json_object_array_length(ids);
+    (void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
+    for (i = 0; i < idc; i++) {
+        json_object *item = json_object_array_get_idx(ids, i);
+        ;
+        format_json_key(fp, item, psigs);
+    }
+    fprintf(fp, "\n");
+    /* clean up */
+    json_object_put(ids);
+    return idc;
+}
+
+static bool
+rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int psigs)
+{
+    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
+         key_item = list_next(key_item)) {
+        pgp_key_t *  key = (pgp_key_t *) key_item;
+        json_object *jso = json_object_new_object();
+        const char * header = NULL;
+        if (pgp_key_is_secret(key)) { /* secret key is always shown as "sec" */
+            header = "sec";
+        } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
+            header = "pub";
+        } else {
+            header = "sub"; /* subkey */
+        }
+        repgp_sprint_json(keyring, key, jso, header, psigs);
+        json_object_array_add(obj, jso);
+    }
+    return true;
+}
+
+/* list the keys in a keyring, returning a JSON encoded string */
+static bool
+rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
+{
+    json_object *obj = json_object_new_array();
+
+    if (!obj) {
+        return false;
+    }
+    if (rnp->pubring == NULL) {
+        RNP_LOG("No keyring");
+        return false;
+    }
+    if (!rnp_key_store_json(rnp->pubring, obj, psigs)) {
+        RNP_LOG("No keys in keyring");
+        return false;
+    }
+    const char *j = json_object_to_json_string(obj);
+    if (!j) {
+        json_object_put(obj);
+        return false;
+    }
+    *json = strdup(j);
+    json_object_put(obj);
+    return *json != NULL;
+}
+
+#ifndef HKP_VERSION
+#define HKP_VERSION 1
+#endif
+
+/* find and list some keys in a keyring - return JSON string */
+static int
+rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
+{
+    int          ret = 1;
+    pgp_key_t *  key = NULL;
+    json_object *id_array = json_object_new_array();
+    char *       newkey;
+    // remove 0x prefix, if any
+    if (name[0] == '0' && name[1] == 'x') {
+        name += 2;
+    }
+    printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
+    *json = NULL;
+    do {
+        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
+        if (!key) {
+            return 0;
+        }
+        if (key != NULL) {
+            if (strcmp(fmt, "mr") == 0) {
+                pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0);
+                if (newkey) {
+                    printf("%s\n", newkey);
+                    free(newkey);
+                    newkey = NULL;
+                }
+            } else {
+                json_object *obj = json_object_new_object();
+                repgp_sprint_json(
+                  rnp->pubring, key, obj, pgp_key_is_primary_key(key) ? "pub" : "sub", psigs);
+                json_object_array_add(id_array, obj);
+            }
+        }
+    } while (key != NULL);
+    const char *j = json_object_to_json_string(id_array);
+    *json = strdup(j);
+    ret = strlen(j);
+    json_object_put(id_array);
+    return ret;
+}
+
 /* match keys, decoding from json if we do find any */
 static int
 match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
@@ -133,6 +449,46 @@ match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
     /* clean up */
     free(json);
     return idc;
+}
+
+/* find and list some public keys in a keyring */
+static int
+rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
+{
+    pgp_key_t *key = NULL;
+    unsigned   k = 0;
+    ssize_t    cc;
+    char       out[1024 * 64];
+    FILE *     fp = (FILE *) vp;
+
+    do {
+        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
+        if (!key) {
+            return 0;
+        }
+        if (key != NULL) {
+            cc = pgp_sprint_pubkey(key, out, sizeof(out));
+            (void) fprintf(fp, "%.*s", (int) cc, out);
+            k += 1;
+        }
+    } while (key != NULL);
+    return k;
+}
+
+/* get a key in a keyring */
+static char *
+rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
+{
+    const pgp_key_t *key;
+    char *           newkey;
+
+    if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
+        return NULL;
+    }
+    if (strcmp(fmt, "mr") == 0) {
+        return (pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0) > 0) ? newkey : NULL;
+    }
+    return (pgp_sprint_key(rnp->pubring, key, &newkey, "signature", 0) > 0) ? newkey : NULL;
 }
 
 void
@@ -290,6 +646,9 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     }
     case CMD_TRUSTED_KEYS:
         return rnp_match_pubkeys(rnp, f, stdout);
+    case CMD_VERSION:
+        print_praise();
+        return true;
     case CMD_HELP:
     default:
         print_usage(usage);
@@ -298,19 +657,21 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
 }
 
 /* set the option */
-int
+bool
 setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
 {
+    bool ret = false;
+
     switch (val) {
     case OPT_COREDUMPS:
-        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
+        ret = rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
         break;
     case CMD_GENERATE_KEY:
-        rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
+        ret = rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         *cmd = (optdefs_t) val;
         break;
     case OPT_EXPERT:
-        rnp_cfg_setbool(cfg, CFG_EXPERT, true);
+        ret = rnp_cfg_setbool(cfg, CFG_EXPERT, true);
         break;
     case CMD_LIST_KEYS:
     case CMD_LIST_SIGS:
@@ -320,116 +681,116 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
     case CMD_GET_KEY:
     case CMD_TRUSTED_KEYS:
     case CMD_HELP:
-        *cmd = (optdefs_t) val;
-        break;
     case CMD_VERSION:
-        print_praise();
-        exit(EXIT_SUCCESS);
+        *cmd = (optdefs_t) val;
+        ret = true;
+        break;
     /* options */
     case OPT_KEYRING:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
         break;
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
         break;
     case OPT_USERID:
         if (arg == NULL) {
             (void) fprintf(stderr, "no userid argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_USERID, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_USERID, arg);
         break;
     case OPT_VERBOSE:
-        rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
+        ret = rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
         break;
     case OPT_HOMEDIR:
         if (arg == NULL) {
             (void) fprintf(stderr, "no home directory argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
         break;
     case OPT_NUMBITS:
         if (arg == NULL) {
             (void) fprintf(stderr, "no number of bits argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setint(cfg, CFG_NUMBITS, atoi(arg));
+        ret = rnp_cfg_setint(cfg, CFG_NUMBITS, atoi(arg));
         break;
     case OPT_HASH_ALG:
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_HASH, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_HASH, arg);
         break;
     case OPT_S2K_ITER:
         if (arg == NULL) {
             (void) fprintf(stderr, "No s2k iteration argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setint(cfg, CFG_S2K_ITER, atoi(arg));
+        ret = rnp_cfg_setint(cfg, CFG_S2K_ITER, atoi(arg));
         break;
     case OPT_S2K_MSEC:
         if (arg == NULL) {
             (void) fprintf(stderr, "No s2k msec argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setint(cfg, CFG_S2K_MSEC, atoi(arg));
+        ret = rnp_cfg_setint(cfg, CFG_S2K_MSEC, atoi(arg));
         break;
     case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "no pass-fd argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
         break;
     case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_IO_RESS, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_IO_RESS, arg);
         break;
     case OPT_FORMAT:
-        rnp_cfg_setstr(cfg, CFG_KEYFORMAT, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_KEYFORMAT, arg);
         break;
     case OPT_CIPHER:
-        rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
         break;
     case OPT_DEBUG:
-        rnp_set_debug(arg);
+        ret = rnp_set_debug(arg);
         break;
     case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
-            exit(EXIT_ERROR);
+            break;
         }
-        rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
+        ret = rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
         break;
     case OPT_FORCE:
-        rnp_cfg_setbool(cfg, CFG_FORCE, true);
+        ret = rnp_cfg_setbool(cfg, CFG_FORCE, true);
         break;
     case OPT_SECRET:
-        rnp_cfg_setbool(cfg, CFG_SECRET, true);
+        ret = rnp_cfg_setbool(cfg, CFG_SECRET, true);
         break;
     default:
         *cmd = CMD_HELP;
+        ret = true;
         break;
     }
-    return true;
+    return ret;
 }
 
 /* we have -o option=value -- parse, and process */
-int
+bool
 parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 {
     static regex_t opt;
@@ -443,7 +804,7 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
         compiled = 1;
         if (regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED) != 0) {
             fprintf(stderr, "Can't compile regex\n");
-            return 0;
+            return false;
         }
     }
     if (regexec(&opt, s, 10, matches, 0) == 0) {
@@ -467,7 +828,7 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
             }
         }
     }
-    return 0;
+    return false;
 }
 
 bool
