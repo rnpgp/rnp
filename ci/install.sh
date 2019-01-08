@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -exu
 
 [ "$BUILD_MODE" = "style-check" ] && exit 0
@@ -270,7 +270,7 @@ fi
 if [ ! -e "${RUBY_RNP_INSTALL}/Gemfile" ]; then
   git clone --depth 1 --branch "$RUBY_RNP_VERSION" https://github.com/riboseinc/ruby-rnp "$RUBY_RNP_INSTALL"
   pushd "$RUBY_RNP_INSTALL"
-  gem install bundler
+  sudo gem install bundler -v 1.16.4
   bundle install --path .
   popd
 fi
