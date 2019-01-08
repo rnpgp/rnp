@@ -69,12 +69,13 @@ const char *rnp_get_info(const char *);
 int rnp_set_key_store_format(rnp_t *, const char *);
 
 /* key management */
-bool  rnp_list_keys(rnp_t *, const int);
-bool  rnp_find_key(rnp_t *, const char *);
-char *rnp_get_key(rnp_t *, const char *, const char *);
-char *rnp_export_key(rnp_t *, const char *, bool);
-bool  rnp_add_key(rnp_t *rnp, const char *path, bool print);
-bool  rnp_import_key(rnp_t *, const char *);
+bool       rnp_list_keys(rnp_t *, const int);
+bool       rnp_find_key(rnp_t *, const char *);
+char *     rnp_export_key(rnp_t *, const char *, bool);
+bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
+bool       rnp_import_key(rnp_t *, const char *);
+pgp_key_t *resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid);
+
 /**
  * @brief Generate key, based on information passed in rnp->action.generate_key_ctx
  *
@@ -93,11 +94,6 @@ rnp_result_t rnp_dump_file(rnp_ctx_t *, const char *, const char *);
 /* memory signing and encryption */
 rnp_result_t rnp_process_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 rnp_result_t rnp_protect_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
-
-/* match and hkp-related functions */
-int rnp_match_keys(rnp_t *, char *, const char *, void *, const int);
-int rnp_match_pubkeys(rnp_t *, char *, void *);
-int rnp_format_json(void *, const char *, const int);
 
 /**
  * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data

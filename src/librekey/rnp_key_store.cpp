@@ -467,27 +467,6 @@ rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
     return true;
 }
 
-bool
-rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int psigs)
-{
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *  key = (pgp_key_t *) key_item;
-        json_object *jso = json_object_new_object();
-        const char * header = NULL;
-        if (pgp_key_is_secret(key)) { /* secret key is always shown as "sec" */
-            header = "sec";
-        } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
-            header = "pub";
-        } else {
-            header = "sub"; /* subkey */
-        }
-        repgp_sprint_json(keyring, key, jso, header, psigs);
-        json_object_array_add(obj, jso);
-    }
-    return true;
-}
-
 static bool
 rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *primary)
 {

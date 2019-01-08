@@ -155,7 +155,6 @@ pgp_key_t *rnp_key_store_get_key(const rnp_key_store_t *, size_t);
 list       rnp_key_store_get_keys(const rnp_key_store_t *);
 
 bool rnp_key_store_list(FILE *fp, const rnp_key_store_t *, const int);
-bool rnp_key_store_json(const rnp_key_store_t *, json_object *, const int);
 
 pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *, pgp_key_t *);
 
