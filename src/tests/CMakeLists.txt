@@ -30,6 +30,7 @@ add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/rnp.cpp
   ../rnpkeys/rnpkeys.cpp
+  ../rnpkeys/main.cpp
   ../rnpkeys/tui.cpp
   cipher.cpp
   cli.cpp
