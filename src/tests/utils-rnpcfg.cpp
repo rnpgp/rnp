@@ -42,7 +42,6 @@ test_rnpcfg(void **state)
     assert_null(rnp_cfg_getstr(&cfg1, "key"));
 
     /* set the values */
-
     assert_true(rnp_cfg_setstr(&cfg1, "key_str", "val"));
     assert_true(rnp_cfg_setstr(&cfg1, "key_true", "true"));
     assert_true(rnp_cfg_setstr(&cfg1, "key_True", "True"));
@@ -55,12 +54,16 @@ test_rnpcfg(void **state)
         assert_true(rnp_cfg_addstr(&cfg1, "key_list", buf));
     }
 
-    /* copy to the cfg2 */
+    /* copy empty cfg2 to cfg1 to make sure values are not deleted */
+    rnp_cfg_copy(&cfg1, &cfg2);
 
+    /* copy to the cfg2 */
+    rnp_cfg_copy(&cfg2, &cfg1);
+
+    /* copy second time to make sure there are no leaks */
     rnp_cfg_copy(&cfg2, &cfg1);
 
     /* get values back, including transformations */
-
     for (int i = 0; i < 2; i++) {
         cfg = cfgs[i];
 
@@ -92,7 +95,6 @@ test_rnpcfg(void **state)
     }
 
     /* override value */
-
     assert_true(rnp_cfg_setint(&cfg1, "key_int", 222));
     assert_int_equal(rnp_cfg_getint(&cfg1, "key_int"), 222);
     assert_int_equal(rnp_cfg_getint(&cfg2, "key_int"), 999);
@@ -100,7 +102,6 @@ test_rnpcfg(void **state)
     assert_int_equal(rnp_cfg_getint(&cfg1, "key_int"), 333);
 
     /* unset value */
-
     assert_true(rnp_cfg_unset(&cfg1, "key_int"));
     assert_false(rnp_cfg_unset(&cfg1, "key_int"));
 
