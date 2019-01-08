@@ -11,6 +11,7 @@ export RNP_INSTALL="${LOCAL_BUILDS}/builds/rnp-install"
 export RUBY_RNP_INSTALL="${LOCAL_BUILDS}/builds/ruby-rnp"
 export RUBY_RNP_VERSION="master"
 export BUILD_MODE=normal
+export GPG_VERSION=stable
 export CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 export CXX=clang++
 export MAKE=gmake
