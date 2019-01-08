@@ -224,6 +224,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_cli_rnp),
       cmocka_unit_test(test_cli_rnp_keyfile),
       cmocka_unit_test(test_cli_g10_operations),
+      cmocka_unit_test(test_cli_rnpkeys),
       cmocka_unit_test(test_cli_examples)};
 
     /* Each test entry will invoke setup_test before running
