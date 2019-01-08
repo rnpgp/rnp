@@ -327,10 +327,11 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
-const char* rnp_cfg_gethashalg(rnp_cfg_t* cfg)
+const char *
+rnp_cfg_gethashalg(rnp_cfg_t *cfg)
 {
-    const char* hash_alg = rnp_cfg_getstr(cfg, CFG_HASH);
-    if(hash_alg) {
+    const char *hash_alg = rnp_cfg_getstr(cfg, CFG_HASH);
+    if (hash_alg) {
         return hash_alg;
     }
     return DEFAULT_HASH_ALG;
@@ -828,8 +829,6 @@ rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
     if (!src || !dst) {
         return;
     }
-
-    rnp_cfg_free(dst);
 
     for (list_item *li = list_front(src->vals); li; li = list_next(li)) {
         if (!rnp_cfg_val_copy(&val, &((rnp_cfg_item_t *) li)->val) ||
