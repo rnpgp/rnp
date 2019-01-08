@@ -35,10 +35,23 @@ macos_install() {
 }
 
 freebsd_install() {
-  sudo pkg install -y python
-  sudo pkg install -y cmake
-  sudo pkg install -y gettext-tools
-  sudo pkg install -y gnupg
+  packages="
+    bash
+    gnupg
+    devel/pkgconf
+    wget
+    cmake
+    gmake
+    autoconf
+    automake
+    libtool
+    gettext-tools
+    python
+    ruby
+    devel/ruby-gems
+"
+  # Note: we assume sudo is already installed
+  sudo pkg install -y ${packages}
 }
 
 openbsd_install() {
