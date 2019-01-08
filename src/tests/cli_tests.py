@@ -129,6 +129,9 @@ def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
         raise_err(message)
 
+def compare_file(src, string, message):
+    if file_text(src) != string:
+        raise_err(message)
 
 def remove_files(*args):
     try:
@@ -669,14 +672,18 @@ def setup(loglvl):
     logging.info('Running in ' + WORKDIR)
 
     RNPDIR = path.join(WORKDIR, '.rnp')
-    RNP = os.getenv('RNP_TESTS_RNP_PATH')
-    RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH')
+    RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
+    RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
     os.mkdir(RNPDIR, 0700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
     os.mkdir(GPGDIR, 0700)
+
+def data_path(subpath):
+    ''' Constructs path to the tests data file/dir'''
+    return os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data', subpath)
 
 def key_path(file_base_name, secret):
     ''' Constructs path to the .gpg file'''
@@ -955,6 +962,41 @@ class Misc(unittest.TestCase):
             compare_files(dst_beg, dst_fin, "RNP armor/dearmor test failed")
             compare_files(src_beg, dst_mid, "RNP armor/dearmor test failed")
             remove_files(dst_beg, dst_mid, dst_fin)
+
+    def test_rnpkeys_lists(self):
+        path = data_path('test_cli_rnpkeys') + '/'
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-keys'])
+        compare_file(path + 'keyring_1_list_keys', out, 'keyring 1 key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-sigs'])
+        compare_file(path + 'keyring_1_list_sigs', out, 'keyring 1 sig listing failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys'])
+        compare_file(path + 'keyring_2_list_keys', out, 'keyring 2 key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-sigs'])
+        compare_file(path + 'keyring_2_list_sigs', out, 'keyring 2 sig listing failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-keys'])
+        compare_file(path + 'keyring_3_list_keys', out, 'keyring 3 key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-sigs'])
+        compare_file(path + 'keyring_3_list_sigs', out, 'keyring 3 sig listing failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '--list-keys'])
+        compare_file(path + 'keyring_5_list_keys', out, 'keyring 5 key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '--list-sigs'])
+        compare_file(path + 'keyring_5_list_sigs', out, 'keyring 5 sig listing failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
+        compare_file(path + 'test_stream_key_load_keys', out, 'g10 keyring key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-sigs'])
+        compare_file(path + 'test_stream_key_load_sigs', out, 'g10 keyring sig listing failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', '2fcadf05ffa501bb'])
+        compare_file(path + 'getkey_2fcadf05ffa501bb', out, 'getkey 2fcadf05ffa501bb failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', '00000000'])
+        compare_file(path + 'getkey_00000000', out, 'getkey 00000000 failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', 'zzzzzzzz'])
+        compare_file(path + 'getkey_zzzzzzzz', out, 'getkey zzzzzzzz failed')
 
 class Encryption(unittest.TestCase):
     '''
