@@ -42,19 +42,26 @@
 extern struct option options[];
 extern const char *  usage;
 
+#ifndef RNP_RUN_TESTS
 int
 main(int argc, char **argv)
+#else
+int rnpkeys_main(int argc, char **argv);
+int
+rnpkeys_main(int argc, char **argv)
+#endif
 {
-    rnp_t     rnp;
-    rnp_cfg_t opt_cfg;
-    optdefs_t cmd;
+    rnp_t     rnp = {};
+    rnp_cfg_t opt_cfg = {};
+    rnp_cfg_t cfg = {};
+    optdefs_t cmd = (optdefs_t) 0;
     int       optindex = 0;
-    int       ret;
+    int       ret = EXIT_FAILURE;
     int       ch;
 
     if (argc < 2) {
         print_usage(usage);
-        exit(EXIT_ERROR);
+        return EXIT_FAILURE;
     }
 
     rnp_cfg_init(&opt_cfg);
@@ -62,13 +69,16 @@ main(int argc, char **argv)
     while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&opt_cfg, &cmd, options[optindex].val, optarg))
+            if (!setoption(&opt_cfg, &cmd, options[optindex].val, optarg)) {
                 fprintf(stderr, "Bad setoption result %d\n", ch);
+                goto end;
+            }
         } else {
             switch (ch) {
             case 'V':
                 print_praise();
-                exit(EXIT_SUCCESS);
+                ret = EXIT_SUCCESS;
+                goto end;
             case 'g':
                 cmd = CMD_GENERATE_KEY;
                 break;
@@ -78,6 +88,7 @@ main(int argc, char **argv)
             case 'o':
                 if (!parse_option(&opt_cfg, &cmd, optarg)) {
                     (void) fprintf(stderr, "Bad parse_option\n");
+                    goto end;
                 }
                 break;
             case 's':
@@ -90,9 +101,9 @@ main(int argc, char **argv)
         }
     }
 
-    rnp_cfg_t cfg = {0};
     if (!rnpkeys_init(&cfg, &rnp, &opt_cfg, true)) {
-        return EXIT_ERROR;
+        ret = EXIT_FAILURE;
+        goto end;
     }
 
     /* now do the required action for each of the command line args */
@@ -109,6 +120,7 @@ main(int argc, char **argv)
         }
     }
 
+end:
     rnp_cfg_free(&cfg);
     rnp_cfg_free(&opt_cfg);
     rnp_end(&rnp);
