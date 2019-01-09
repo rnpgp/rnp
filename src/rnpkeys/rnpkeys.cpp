@@ -394,10 +394,7 @@ rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const 
     pgp_key_t *  key = NULL;
     json_object *id_array = json_object_new_array();
     char *       newkey;
-    // remove 0x prefix, if any
-    if (name[0] == '0' && name[1] == 'x') {
-        name += 2;
-    }
+
     printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
     *json = NULL;
     do {
