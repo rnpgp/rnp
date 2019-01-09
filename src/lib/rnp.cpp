@@ -307,8 +307,6 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
 
     if (userid == NULL) {
         return NULL;
-    } else if ((strlen(userid) > 1) && userid[0] == '0' && userid[1] == 'x') {
-        userid += 2;
     }
     key = rnp_key_store_get_key_by_name(keyring, userid, NULL);
     if (!key) {
