@@ -622,6 +622,12 @@ rnp_version_patch(uint32_t version)
     return (version >> RNP_VERSION_PATCH_SHIFT) & RNP_VERSION_COMPONENT_MASK;
 }
 
+uint64_t
+rnp_version_commit_timestamp()
+{
+    return RNP_VERSION_COMMIT_TIMESTAMP;
+}
+
 rnp_result_t
 rnp_get_default_homedir(char **homedir)
 {
