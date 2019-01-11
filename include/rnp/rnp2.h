@@ -66,10 +66,42 @@ const char *rnp_result_to_string(rnp_result_t result);
 const char *rnp_version_string();
 const char *rnp_version_string_full();
 
+/** return a value representing the version of librnp
+ *
+ *  This function is only useful for releases. For non-releases,
+ *  it will return 0.
+ *
+ *  The value returned can be used in comparisons by utilizing
+ *  rnp_version_for.
+ *
+ *  @return a value representing the librnp version
+ **/
 uint32_t rnp_version();
+
+/** return a value representing a specific version of librnp
+ *
+ *  This value can be used in comparisons.
+ *
+ *  @return a value representing a librnp version
+ **/
 uint32_t rnp_version_for(uint32_t major, uint32_t minor, uint32_t patch);
+
+/** return the librnp major version
+ *
+ *  @return
+ **/
 uint32_t rnp_version_major(uint32_t version);
+
+/** return the librnp minor version
+ *
+ *  @return
+ **/
 uint32_t rnp_version_minor(uint32_t version);
+
+/** return the librnp patch version
+ *
+ *  @return
+ **/
 uint32_t rnp_version_patch(uint32_t version);
 
 /** return a unix timestamp of the last commit, if available
