@@ -48,9 +48,9 @@ endmacro()
 
 function(extract_version_info version var_prefix)
   # extract the main components
-  #   v1.9.0-3-g5b92266
-  #   v1.9.0-3-g5b92266-dirty
-  string(REGEX MATCH "^v?([0-9]+\\.[0-9]+\\.[0-9]+)(-([0-9]+)-g([0-9a-f]+)(-dirty)?)?$" matches "${version}")
+  #   v1.9.0-3-g5b92266+1546836556
+  #   v1.9.0-3-g5b92266-dirty+1546836556
+  string(REGEX MATCH "^v?([0-9]+\\.[0-9]+\\.[0-9]+)(-([0-9]+)-g([0-9a-f]+)(-dirty)?)?(\\+([0-9]+))?$" matches "${version}")
   if (NOT matches)
     message(FATAL_ERROR "Failed to extract version components.")
   endif()
@@ -68,6 +68,11 @@ function(extract_version_info version var_prefix)
   else()
     set(${var_prefix}_VERSION_IS_DIRTY FALSE PARENT_SCOPE)
   endif()
+  # timestamp is optional, default to 0
+  if (NOT CMAKE_MATCH_7)
+    set(CMAKE_MATCH_7 "0")
+  endif()
+  set(${var_prefix}_VERSION_COMMIT_TIMESTAMP "${CMAKE_MATCH_7}" PARENT_SCOPE) # 1546836556
 endfunction()
 
 function(determine_version source_dir var_prefix)
@@ -89,6 +94,10 @@ function(determine_version source_dir var_prefix)
       if (NOT _git_ec EQUAL 0)
         string(APPEND version "-dirty")
       endif()
+      # append the commit timestamp of the most recent commit (only
+      # in non-release branches -- typically master)
+      git(commit_timestamp show -s --format=%ct)
+      string(APPEND version "+${commit_timestamp}")
     endif()
   else()
     # same as above, but used for snapshots
@@ -96,7 +105,7 @@ function(determine_version source_dir var_prefix)
   endif()
   set(local_prefix "_determine_ver")
   extract_version_info("${version}" "${local_prefix}")
-  foreach(suffix VERSION VERSION_NCOMMITS VERSION_GIT_REV VERSION_IS_DIRTY)
+  foreach(suffix VERSION VERSION_NCOMMITS VERSION_GIT_REV VERSION_IS_DIRTY VERSION_COMMIT_TIMESTAMP)
     if (NOT DEFINED ${local_prefix}_${suffix})
       message(FATAL_ERROR "Unable to determine version.")
     endif()
