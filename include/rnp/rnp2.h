@@ -72,6 +72,18 @@ uint32_t rnp_version_major(uint32_t version);
 uint32_t rnp_version_minor(uint32_t version);
 uint32_t rnp_version_patch(uint32_t version);
 
+/** return a unix timestamp of the last commit, if available
+ *
+ *  This function is only useful for non-releases. For releases,
+ *  it will return 0.
+ *
+ *  The intended usage is to provide a form of versioning for the master
+ *  branch.
+ *
+ *  @return the unix timestamp of the last commit, or 0 if unavailable
+ **/
+uint64_t rnp_version_commit_timestamp();
+
 /*
  * Opaque structures
  */
