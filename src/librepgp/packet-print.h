@@ -63,7 +63,5 @@ void repgp_print_key(
 
 int pgp_sprint_key(
   const rnp_key_store_t *, const pgp_key_t *, char **, const char *, const int);
-int pgp_hkp_sprint_key(const rnp_key_store_t *, const pgp_key_t *, char **, const int);
-int pgp_sprint_pubkey(const pgp_key_t *, char *, size_t);
 
 #endif /* PACKET_PRINT_H_ */
