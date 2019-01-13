@@ -84,7 +84,6 @@ struct option options[] = {
   {"debug", required_argument, NULL, OPT_DEBUG},
   /* options */
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
-  {"keyring", required_argument, NULL, OPT_KEYRING},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"format", required_argument, NULL, OPT_FORMAT},
@@ -464,13 +463,6 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         ret = true;
         break;
     /* options */
-    case OPT_KEYRING:
-        if (arg == NULL) {
-            (void) fprintf(stderr, "No keyring argument provided\n");
-            break;
-        }
-        ret = rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
-        break;
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
