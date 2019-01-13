@@ -341,30 +341,6 @@ format_key_usage(char *buffer, size_t size, uint8_t flags)
     return true;
 }
 
-static bool
-format_key_usage_json(json_object *arr, uint8_t flags)
-{
-    static const pgp_bit_map_t flags_map[] = {
-      {PGP_KF_ENCRYPT, "encrypt"},
-      {PGP_KF_SIGN, "sign"},
-      {PGP_KF_CERTIFY, "certify"},
-      {PGP_KF_AUTH, "authenticate"},
-    };
-
-    for (size_t i = 0; i < ARRAY_SIZE(flags_map); i++) {
-        if (flags & flags_map[i].mask) {
-            json_object *str = json_object_new_string(flags_map[i].string);
-            if (!str) {
-                return false;
-            }
-            if (json_object_array_add(arr, str) != 0) {
-                return false;
-            }
-        }
-    }
-    return true;
-}
-
 #ifndef KB
 #define KB(x) ((x) *1024)
 #endif
@@ -472,102 +448,6 @@ pgp_sprint_key(const rnp_key_store_t *keyring,
     free((void *) uid_notices);
 
     return total_length;
-}
-
-/* return the key info as a JSON encoded string */
-int
-repgp_sprint_json(const struct rnp_key_store_t *keyring,
-                  const pgp_key_t *             key,
-                  json_object *                 keyjson,
-                  const char *                  header,
-                  const int                     psigs)
-{
-    char     keyid[PGP_KEY_ID_SIZE * 3];
-    char     fp[PGP_FINGERPRINT_HEX_SIZE];
-    unsigned i;
-    unsigned j;
-
-    if (key == NULL || key->revoked) {
-        return -1;
-    }
-
-    // add the top-level values
-    json_object_object_add(keyjson, "header", json_object_new_string(header));
-    json_object_object_add(
-      keyjson, "key bits", json_object_new_int(key_bitlength(pgp_key_get_material(key))));
-    json_object_object_add(
-      keyjson, "pka", json_object_new_string(pgp_show_pka(pgp_key_get_alg(key))));
-    json_object_object_add(keyjson,
-                           "key id",
-                           json_object_new_string(rnp_strhexdump(
-                             keyid, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "")));
-    json_object_object_add(
-      keyjson,
-      "fingerprint",
-      json_object_new_string(rnp_strhexdump(
-        fp, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "")));
-    json_object_object_add(
-      keyjson, "creation time", json_object_new_int(pgp_key_get_creation(key)));
-    json_object_object_add(
-      keyjson, "expiration", json_object_new_int(pgp_key_get_expiration(key)));
-    json_object_object_add(keyjson, "key flags", json_object_new_int(pgp_key_get_flags(key)));
-    json_object *usage_arr = json_object_new_array();
-    format_key_usage_json(usage_arr, pgp_key_get_flags(key));
-    json_object_object_add(keyjson, "usage", usage_arr);
-
-    // iterating through the uids
-    json_object *uid_arr = json_object_new_array();
-    for (i = 0; i < pgp_key_get_userid_count(key); i++) {
-        pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, i);
-        if (revoke && (revoke->code == PGP_REVOCATION_COMPROMISED)) {
-            continue;
-        }
-        // add an array of the uids (and checking whether is REVOKED and
-        // indicate it as well)
-        json_object *uidobj = json_object_new_object();
-        json_object_object_add(
-          uidobj, "user id", json_object_new_string((char *) pgp_key_get_userid(key, i)));
-        json_object_object_add(
-          uidobj, "revoked", json_object_new_boolean(revoke ? TRUE : FALSE));
-        for (j = 0; j < pgp_key_get_subsig_count(key); j++) {
-            pgp_subsig_t *subsig = pgp_key_get_subsig(key, j);
-            if (psigs) {
-                if (subsig->uid != i) {
-                    continue;
-                }
-            } else {
-                if (!(subsig->sig.version == 4 && subsig->sig.type == PGP_SIG_SUBKEY &&
-                      (i == pgp_key_get_userid_count(key) - 1))) {
-                    continue;
-                }
-            }
-            json_object *subsigc = json_object_new_object();
-            uint8_t      signer[PGP_KEY_ID_SIZE] = {0};
-            signature_get_keyid(&subsig->sig, signer);
-            json_object_object_add(
-              subsigc,
-              "signer id",
-              json_object_new_string(rnp_strhexdump(keyid, signer, PGP_KEY_ID_SIZE, "")));
-            json_object_object_add(
-              subsigc,
-              "creation time",
-              json_object_new_int((int64_t) signature_get_creation(&subsig->sig)));
-
-            const pgp_key_t *trustkey = rnp_key_store_get_key_by_id(keyring, signer, NULL);
-
-            json_object_object_add(
-              subsigc,
-              "user id",
-              json_object_new_string(
-                (trustkey) ? (char *) pgp_key_get_primary_userid(trustkey) : "[unknown]"));
-            json_object_object_add(uidobj, "signature", subsigc);
-        }
-        json_object_array_add(uid_arr, uidobj);
-    } // for uidc
-    json_object_object_add(keyjson, "user ids", uid_arr);
-    RNP_DLOG("The json object created: %s",
-             json_object_to_json_string_ext(keyjson, JSON_C_TO_STRING_PRETTY));
-    return 1;
 }
 
 int
