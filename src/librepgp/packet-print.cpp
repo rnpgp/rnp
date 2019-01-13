@@ -163,26 +163,11 @@ psubkeybinding(char *buf, size_t size, const pgp_key_t *key, const char *expired
                     expired);
 }
 
-/* Searches a key's revocation list for the given key UID. If it is found its
- * index is returned, otherwise -1 is returned.
- */
-static int
-isrevoked(const pgp_key_t *key, unsigned uid)
-{
-    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        if (pgp_key_get_revoke(key, i)->uid == uid) {
-            return i;
-        }
-    }
-    return -1;
-}
-
 static bool
 iscompromised(const pgp_key_t *key, unsigned uid)
 {
-    int r = isrevoked(key, uid);
-
-    return (r >= 0) && (pgp_key_get_revoke(key, r)->code == PGP_REVOCATION_COMPROMISED);
+    pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, uid);
+    return revoke && (revoke->code == PGP_REVOCATION_COMPROMISED);
 }
 
 /* Formats a public key expiration notice. Assumes that the public key
@@ -298,8 +283,9 @@ format_uid_notice(char *                 buffer,
 {
     unsigned n = 0;
 
-    if (isrevoked(key, uid) >= 0)
+    if (pgp_key_get_userid_revoke(key, uid)) {
         flags |= F_REVOKED;
+    }
 
     n += format_uid_line(buffer, pgp_key_get_userid(key, uid), size, flags);
 
@@ -498,7 +484,6 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
 {
     char     keyid[PGP_KEY_ID_SIZE * 3];
     char     fp[PGP_FINGERPRINT_HEX_SIZE];
-    int      r;
     unsigned i;
     unsigned j;
 
@@ -533,8 +518,8 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
     // iterating through the uids
     json_object *uid_arr = json_object_new_array();
     for (i = 0; i < pgp_key_get_userid_count(key); i++) {
-        if (((r = isrevoked(key, i)) >= 0) &&
-            (pgp_key_get_revoke(key, r)->code == PGP_REVOCATION_COMPROMISED)) {
+        pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, i);
+        if (revoke && (revoke->code == PGP_REVOCATION_COMPROMISED)) {
             continue;
         }
         // add an array of the uids (and checking whether is REVOKED and
@@ -543,7 +528,7 @@ repgp_sprint_json(const struct rnp_key_store_t *keyring,
         json_object_object_add(
           uidobj, "user id", json_object_new_string((char *) pgp_key_get_userid(key, i)));
         json_object_object_add(
-          uidobj, "revoked", json_object_new_boolean((r >= 0) ? TRUE : FALSE));
+          uidobj, "revoked", json_object_new_boolean(revoke ? TRUE : FALSE));
         for (j = 0; j < pgp_key_get_subsig_count(key); j++) {
             pgp_subsig_t *subsig = pgp_key_get_subsig(key, j);
             if (psigs) {
