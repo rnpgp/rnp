@@ -809,6 +809,18 @@ pgp_key_get_primary_userid(const pgp_key_t *key)
     return NULL;
 }
 
+pgp_revoke_t *
+pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
+{
+    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
+        pgp_revoke_t *revoke = pgp_key_get_revoke(key, i);
+        if (revoke->uid == uid) {
+            return revoke;
+        }
+    }
+    return NULL;
+}
+
 bool
 pgp_key_has_userid(const pgp_key_t *key, const char *uid)
 {

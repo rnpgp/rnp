@@ -247,6 +247,8 @@ const char *pgp_key_get_userid(const pgp_key_t *, size_t);
 
 const char *pgp_key_get_primary_userid(const pgp_key_t *);
 
+pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
+
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
 unsigned char *pgp_key_add_userid(pgp_key_t *, const unsigned char *);
