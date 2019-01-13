@@ -41,6 +41,8 @@
 #include "../rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include <librepgp/stream-common.h>
+#include <librepgp/stream-sig.h>
+#include <librepgp/packet-show.h>
 #include "utils.h"
 
 extern char *__progname;
@@ -113,72 +115,6 @@ struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
-/* vararg print function */
-static void
-p(FILE *fp, const char *s, ...)
-{
-    va_list args;
-
-    va_start(args, s);
-    while (s != NULL) {
-        (void) fprintf(fp, "%s", s);
-        s = va_arg(args, char *);
-    }
-    va_end(args);
-}
-
-/* print a JSON object to the FILE stream */
-static void
-pobj(FILE *fp, json_object *obj, int depth)
-{
-    unsigned i;
-
-    if (obj == NULL) {
-        RNP_LOG("No object found");
-        return;
-    }
-    for (i = 0; i < (unsigned) depth; i++) {
-        p(fp, " ", NULL);
-    }
-    switch (json_object_get_type(obj)) {
-    case json_type_null:
-        p(fp, "null", NULL);
-    case json_type_boolean:
-        p(fp, json_object_get_boolean(obj) ? "true" : "false", NULL);
-        break;
-    case json_type_int:
-        fprintf(fp, "%d", json_object_get_int(obj));
-        break;
-    case json_type_string:
-        fprintf(fp, "%s", json_object_get_string(obj));
-        break;
-    case json_type_array: {
-        int arrsize = json_object_array_length(obj);
-        int i;
-        for (i = 0; i < arrsize; i++) {
-            json_object *item = json_object_array_get_idx(obj, i);
-            pobj(fp, item, depth + 1);
-            if (i < arrsize - 1) {
-                (void) fprintf(fp, ", ");
-            }
-        }
-        (void) fprintf(fp, "\n");
-        break;
-    }
-    case json_type_object: {
-        json_object_object_foreach(obj, key, val)
-        {
-            printf("key: \"%s\"\n", key);
-            pobj(fp, val, depth + 1);
-        }
-        p(fp, "\n", NULL);
-        break;
-    }
-    default:
-        break;
-    }
-}
-
 /* return the time as a string */
 static char *
 ptimestr(char *dest, size_t size, time_t t)
@@ -191,272 +127,182 @@ ptimestr(char *dest, size_t size, time_t t)
     return dest;
 }
 
-/* format a JSON object */
-static void
-format_json_key(FILE *fp, json_object *obj, const int psigs)
+static char *
+key_usage_str(uint8_t flags, char *buf)
 {
-    int64_t creation;
-    int64_t expiration;
-    time_t  now;
-    char    tbuf[32];
+    char *orig = buf;
 
-    RNP_DLOG("json is '%s'", json_object_to_json_string(obj));
-#if 0 //?
-    if (obj->c == 2 && obj->value.v[1].type == MJ_STRING &&
-        strcmp(obj->value.v[1].value.s, "[REVOKED]") == 0) {
-        /* whole key has been rovoked - just return */
-        return;
+    if (flags & PGP_KF_ENCRYPT) {
+        *buf++ = 'E';
     }
-#endif
-    json_object *tmp;
-    if (json_object_object_get_ex(obj, "header", &tmp)) {
-        if (strcmp(json_object_get_string(tmp), "sub") != 0) {
-            p(fp, "\n", NULL);
+    if (flags & PGP_KF_SIGN) {
+        *buf++ = 'S';
+    }
+    if (flags & PGP_KF_CERTIFY) {
+        *buf++ = 'C';
+    }
+    if (flags & PGP_KF_AUTH) {
+        *buf++ = 'A';
+    }
+    *buf = '\0';
+    return orig;
+}
+
+static void
+print_key_info(FILE *fp, rnp_t *rnp, const pgp_key_t *key, bool psigs)
+{
+    char        buf[64] = {0};
+    const char *header = NULL;
+
+    /* header */
+    /* secret key is always shown as "sec" */
+    if (pgp_key_is_secret(key) ||
+        rnp_key_store_get_key_by_grip(rnp->secring, pgp_key_get_grip(key))) {
+        header = "sec";
+    } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
+        header = "pub";
+    } else {
+        header = "sub"; /* subkey */
+        fprintf(fp, "\n");
+    }
+    fprintf(fp, "%s   ", header);
+    /* key bits */
+    fprintf(fp, "%d/", (int) key_bitlength(pgp_key_get_material(key)));
+    /* key algorithm */
+    fprintf(fp, "%s ", pgp_show_pka(pgp_key_get_alg(key)));
+    /* key id */
+    rnp_strhexdump(buf, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "");
+    fprintf(fp, "%s", buf);
+    /* key creation time */
+    fprintf(fp, " %s", ptimestr(buf, sizeof(buf), pgp_key_get_creation(key)));
+    /* key usage */
+    fprintf(fp, " [%s]", key_usage_str(pgp_key_get_flags(key), buf));
+    /* key expiration */
+    if (pgp_key_get_expiration(key) > 0) {
+        time_t now = time(NULL);
+        time_t expiry = pgp_key_get_creation(key) + pgp_key_get_expiration(key);
+        ptimestr(buf, sizeof(buf), expiry);
+        fprintf(fp, " [%s %s]", expiry < now ? "EXPIRED" : "EXPIRES", buf);
+    }
+    /* fingerprint */
+    rnp_strhexdump(buf, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "");
+    fprintf(fp, "\n      %s\n", buf);
+    /* user ids */
+    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
+        pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, i);
+        if (revoke && (revoke->code == PGP_REVOCATION_COMPROMISED)) {
+            continue;
         }
-        pobj(fp, tmp, 0);
-        p(fp, "   ", NULL);
-    }
 
-    if (json_object_object_get_ex(obj, "key bits", &tmp)) {
-        pobj(fp, tmp, 0);
-        p(fp, "/", NULL);
-    }
+        /* userid itself with revocation status */
+        fprintf(fp, "uid           %s", pgp_key_get_userid(key, i));
+        fprintf(fp, "%s\n", revoke ? "[REVOKED]" : "");
 
-    if (json_object_object_get_ex(obj, "pka", &tmp)) {
-        pobj(fp, tmp, 0);
-        p(fp, " ", NULL);
-    }
-
-    if (json_object_object_get_ex(obj, "key id", &tmp)) {
-        pobj(fp, tmp, 0);
-    }
-
-    if (json_object_object_get_ex(obj, "creation time", &tmp)) {
-        creation = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
-        p(fp, " ", ptimestr(tbuf, sizeof(tbuf), creation), NULL);
-
-        if (json_object_object_get_ex(obj, "usage", &tmp)) {
-            p(fp, " [", NULL);
-            int count = json_object_array_length(tmp);
-            for (int i = 0; i < count; i++) {
-                json_object *str = json_object_array_get_idx(tmp, i);
-                char         buff[2] = {0};
-                buff[0] = toupper(*json_object_get_string(str));
-                p(fp, buff, NULL);
-            }
-            p(fp, "]", NULL);
+        /* print signatures only if requested */
+        if (!psigs) {
+            continue;
         }
 
-        if (json_object_object_get_ex(obj, "expiration", &tmp)) {
-            expiration = (int64_t) strtoll(json_object_get_string(tmp), NULL, 10);
-            if (expiration > 0) {
-                now = time(NULL);
-                p(fp,
-                  " ",
-                  (creation + expiration < now) ? "[EXPIRED " : "[EXPIRES ",
-                  ptimestr(tbuf, sizeof(tbuf), creation + expiration),
-                  "]",
-                  NULL);
+        for (size_t j = 0; j < pgp_key_get_subsig_count(key); j++) {
+            pgp_subsig_t *   subsig = pgp_key_get_subsig(key, j);
+            uint8_t          signerid[PGP_KEY_ID_SIZE] = {0};
+            const pgp_key_t *signer = NULL;
+
+            if (subsig->uid != i) {
+                continue;
             }
-        }
-    }
 
-    if (json_object_object_get_ex(obj, "fingerprint", &tmp)) {
-        p(fp, "\n", "      ", NULL);
-        pobj(fp, tmp, 0);
-        p(fp, "\n", NULL);
-    }
+            signature_get_keyid(&subsig->sig, signerid);
+            signer = rnp_key_store_get_key_by_id(rnp->pubring, signerid, NULL);
 
-    if (json_object_object_get_ex(obj, "user ids", &tmp) &&
-        !json_object_is_type(tmp, json_type_null)) {
-        int count = json_object_array_length(tmp);
-        for (int i = 0; i < count; i++) {
-            json_object *uidobj = json_object_array_get_idx(tmp, i);
-            json_object *userid = NULL;
-
-            json_object_object_get_ex(uidobj, "user id", &userid);
-            p(fp, "uid", NULL);
-            pobj(fp, userid, 11); /* human name */
-            json_object *revoked = NULL;
-            json_object_object_get_ex(uidobj, "revoked", &revoked);
-            p(fp, json_object_get_boolean(revoked) ? "[REVOKED]" : "", NULL);
-            p(fp, "\n", NULL);
-
-            json_object *sig = NULL;
-            json_object_object_get_ex(uidobj, "signature", &sig);
-            if (sig && psigs) {
-                json_object *signer_id = NULL;
-                json_object *creation_time = NULL;
-                json_object_object_get_ex(sig, "signer id", &signer_id);
-                json_object_object_get_ex(sig, "creation time", &creation_time);
-                json_object_object_get_ex(sig, "user id", &userid);
-                if (signer_id && creation_time && userid) {
-                    p(fp, "sig", NULL);
-                    pobj(fp, signer_id, 11);
-                    p(fp,
-                      " ",
-                      ptimestr(tbuf, sizeof(tbuf), json_object_get_int(creation_time)),
-                      " ",
-                      NULL);
-                    pobj(fp, userid, 0);
-                    p(fp, "\n", NULL);
-                }
-            }
+            /* signer key id */
+            rnp_strhexdump(buf, signerid, PGP_KEY_ID_SIZE, "");
+            fprintf(fp, "sig           %s ", buf);
+            /* signature creation time */
+            fprintf(
+              fp, "%s", ptimestr(buf, sizeof(buf), signature_get_creation(&subsig->sig)));
+            /* signer's userid */
+            fprintf(fp, " %s\n", signer ? pgp_key_get_primary_userid(signer) : "[unknown]");
         }
     }
 }
 
-/* print the json out on 'fp' */
-static int
-rnp_format_json(void *vp, const char *json, const int psigs)
+static list
+rnp_get_keylist(rnp_key_store_t *keyring, const char *filter)
 {
-    json_object *ids;
-    FILE *       fp;
-    int          idc;
-    int          i;
+    list       result = NULL;
+    pgp_key_t *key = NULL;
 
-    if ((fp = (FILE *) vp) == NULL || json == NULL) {
-        return 0;
+    if (!filter) {
+        for (list_item *key = list_front(rnp_key_store_get_keys(keyring)); key;
+             key = list_next(key)) {
+            if (!list_append(&result, &key, sizeof(pgp_key_t *))) {
+                goto error;
+            }
+        }
+
+        return result;
     }
-    /* convert from string into a json structure */
-    ids = json_tokener_parse(json);
-    //    /* ids is an array of strings, each containing 1 entry */
-    idc = json_object_array_length(ids);
-    (void) fprintf(fp, "%d key%s found\n", idc, (idc == 1) ? "" : "s");
-    for (i = 0; i < idc; i++) {
-        json_object *item = json_object_array_get_idx(ids, i);
-        ;
-        format_json_key(fp, item, psigs);
+
+    while ((key = rnp_key_store_get_key_by_name(keyring, filter, key))) {
+        if (!list_append(&result, &key, sizeof(pgp_key_t *))) {
+            goto error;
+        }
+        if (pgp_key_is_subkey(key)) {
+            continue;
+        }
+        /* add primary key's subkeys as well */
+        for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
+            const uint8_t *grip = pgp_key_get_subkey_grip(key, i);
+            pgp_key_t *    subkey = grip ? rnp_key_store_get_key_by_grip(keyring, grip) : NULL;
+            if (subkey && !list_append(&result, &subkey, sizeof(pgp_key_t *))) {
+                goto error;
+            }
+        }
     }
+
+    return result;
+error:
+    list_destroy(&result);
+    return NULL;
+}
+
+/* list keys */
+static bool
+print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter, bool psigs)
+{
+    list keys = NULL;
+    int  keyc;
+
+    /* TODO: display secret keys as well */
+    keys = rnp_get_keylist(rnp->pubring, filter);
+    if (!keys) {
+        fprintf(fp, "Key(s) not found.\n");
+        return false;
+    }
+
+    keyc = list_length(keys);
+    fprintf(fp, "%d key%s found\n", keyc, (keyc == 1) ? "" : "s");
+
+    for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
+        pgp_key_t *key = *((pgp_key_t **) ki);
+        print_key_info(fp, rnp, key, psigs);
+    }
+
     fprintf(fp, "\n");
     /* clean up */
-    json_object_put(ids);
-    return idc;
-}
-
-static bool
-rnp_key_store_json(const rnp_key_store_t *keyring, json_object *obj, const int psigs)
-{
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *  key = (pgp_key_t *) key_item;
-        json_object *jso = json_object_new_object();
-        const char * header = NULL;
-        if (pgp_key_is_secret(key)) { /* secret key is always shown as "sec" */
-            header = "sec";
-        } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
-            header = "pub";
-        } else {
-            header = "sub"; /* subkey */
-        }
-        repgp_sprint_json(keyring, key, jso, header, psigs);
-        json_object_array_add(obj, jso);
-    }
+    list_destroy(&keys);
     return true;
-}
-
-/* list the keys in a keyring, returning a JSON encoded string */
-static bool
-rnp_list_keys_json(rnp_t *rnp, char **json, const int psigs)
-{
-    json_object *obj = json_object_new_array();
-
-    if (!obj) {
-        return false;
-    }
-    if (rnp->pubring == NULL) {
-        RNP_LOG("No keyring");
-        return false;
-    }
-    if (!rnp_key_store_json(rnp->pubring, obj, psigs)) {
-        RNP_LOG("No keys in keyring");
-        return false;
-    }
-    const char *j = json_object_to_json_string(obj);
-    if (!j) {
-        json_object_put(obj);
-        return false;
-    }
-    *json = strdup(j);
-    json_object_put(obj);
-    return *json != NULL;
-}
-
-#ifndef HKP_VERSION
-#define HKP_VERSION 1
-#endif
-
-/* find and list some keys in a keyring - return JSON string */
-static int
-rnp_match_keys_json(rnp_t *rnp, char **json, char *name, const char *fmt, const int psigs)
-{
-    int          ret = 1;
-    pgp_key_t *  key = NULL;
-    json_object *id_array = json_object_new_array();
-    char *       newkey;
-
-    printf("%s,%d, NAME: %s\n", __FILE__, __LINE__, name);
-    *json = NULL;
-    do {
-        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
-        if (!key) {
-            return 0;
-        }
-        if (key != NULL) {
-            if (strcmp(fmt, "mr") == 0) {
-                pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0);
-                if (newkey) {
-                    printf("%s\n", newkey);
-                    free(newkey);
-                    newkey = NULL;
-                }
-            } else {
-                json_object *obj = json_object_new_object();
-                repgp_sprint_json(
-                  rnp->pubring, key, obj, pgp_key_is_primary_key(key) ? "pub" : "sub", psigs);
-                json_object_array_add(id_array, obj);
-            }
-        }
-    } while (key != NULL);
-    const char *j = json_object_to_json_string(id_array);
-    *json = strdup(j);
-    ret = strlen(j);
-    json_object_put(id_array);
-    return ret;
-}
-
-/* match keys, decoding from json if we do find any */
-static int
-match_keys(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, char *f, const int psigs)
-{
-    char *json = NULL;
-    int   idc;
-
-    if (f == NULL) {
-        if (!rnp_list_keys_json(rnp, &json, psigs)) {
-            return 0;
-        }
-    } else {
-        if (rnp_match_keys_json(rnp, &json, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT), psigs) ==
-            0) {
-            return 0;
-        }
-    }
-    idc = rnp_format_json(fp, json, psigs);
-    /* clean up */
-    free(json);
-    return idc;
 }
 
 /* find and list some public keys in a keyring */
 static int
-rnp_match_pubkeys(rnp_t *rnp, char *name, void *vp)
+rnp_match_pubkeys(rnp_t *rnp, const char *name, FILE *fp)
 {
     pgp_key_t *key = NULL;
     unsigned   k = 0;
     ssize_t    cc;
     char       out[1024 * 64];
-    FILE *     fp = (FILE *) vp;
 
     do {
         key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
@@ -507,7 +353,7 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified file 'f' */
 bool
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
 {
     const char *key;
     char *      s;
@@ -515,7 +361,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, char *f)
     switch (cmd) {
     case CMD_LIST_KEYS:
     case CMD_LIST_SIGS:
-        return match_keys(cfg, rnp, stdout, f, cmd == CMD_LIST_SIGS);
+        if (!f) {
+            f = rnp_cfg_getstr(cfg, CFG_USERID);
+        }
+        return print_keys_info(cfg, rnp, stdout, f, cmd == CMD_LIST_SIGS);
     case CMD_FIND_KEY:
         if ((key = f) == NULL) {
             key = rnp_cfg_getstr(cfg, CFG_USERID);

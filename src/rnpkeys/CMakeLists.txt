@@ -42,7 +42,6 @@ target_include_directories(rnpkeys
 target_link_libraries(rnpkeys
   PRIVATE
     librnp
-    JSON-C::JSON-C
 )
 
 include(GNUInstallDirs)
