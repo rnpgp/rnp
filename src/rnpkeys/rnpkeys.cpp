@@ -49,18 +49,15 @@ extern char *__progname;
 
 const char *usage = "--help OR\n"
                     "\t--export-key [options] OR\n"
-                    "\t--find-key [options] OR\n"
                     "\t--generate-key [options] OR\n"
                     "\t--import-key [options] OR\n"
                     "\t--list-keys [options] OR\n"
-                    "\t--list-sigs [options] OR\n"
-                    "\t--trusted-keys [options] OR\n"
-                    "\t--get-key keyid [options] OR\n"
                     "\t--version\n"
                     "where options are:\n"
                     "\t[--cipher=<cipher name>] AND/OR\n"
                     "\t[--coredumps] AND/OR\n"
                     "\t[--expert] AND/OR\n"
+                    "\t[--with-sigs] AND/OR\n"
                     "\t[--force] AND/OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
@@ -73,8 +70,6 @@ const char *usage = "--help OR\n"
 struct option options[] = {
   /* key-management commands */
   {"list-keys", no_argument, NULL, CMD_LIST_KEYS},
-  {"list-sigs", no_argument, NULL, CMD_LIST_SIGS},
-  {"find-key", optional_argument, NULL, CMD_FIND_KEY},
   {"export", no_argument, NULL, CMD_EXPORT_KEY},
   {"export-key", optional_argument, NULL, CMD_EXPORT_KEY},
   {"import", no_argument, NULL, CMD_IMPORT_KEY},
@@ -83,9 +78,6 @@ struct option options[] = {
   {"gen-key", optional_argument, NULL, CMD_GENERATE_KEY},
   {"generate", optional_argument, NULL, CMD_GENERATE_KEY},
   {"generate-key", optional_argument, NULL, CMD_GENERATE_KEY},
-  {"get-key", no_argument, NULL, CMD_GET_KEY},
-  {"trusted-keys", optional_argument, NULL, CMD_TRUSTED_KEYS},
-  {"trusted", optional_argument, NULL, CMD_TRUSTED_KEYS},
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
@@ -96,6 +88,7 @@ struct option options[] = {
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"format", required_argument, NULL, OPT_FORMAT},
+  {"with-sigs", no_argument, NULL, OPT_WITH_SIGS},
   {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
   {"hash", required_argument, NULL, OPT_HASH_ALG},
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
@@ -295,45 +288,6 @@ print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter, bool p
     return true;
 }
 
-/* find and list some public keys in a keyring */
-static int
-rnp_match_pubkeys(rnp_t *rnp, const char *name, FILE *fp)
-{
-    pgp_key_t *key = NULL;
-    unsigned   k = 0;
-    ssize_t    cc;
-    char       out[1024 * 64];
-
-    do {
-        key = rnp_key_store_get_key_by_name(rnp->pubring, name, key);
-        if (!key) {
-            return 0;
-        }
-        if (key != NULL) {
-            cc = pgp_sprint_pubkey(key, out, sizeof(out));
-            (void) fprintf(fp, "%.*s", (int) cc, out);
-            k += 1;
-        }
-    } while (key != NULL);
-    return k;
-}
-
-/* get a key in a keyring */
-static char *
-rnp_get_key(rnp_t *rnp, const char *name, const char *fmt)
-{
-    const pgp_key_t *key;
-    char *           newkey;
-
-    if ((key = resolve_userid(rnp, rnp->pubring, name)) == NULL) {
-        return NULL;
-    }
-    if (strcmp(fmt, "mr") == 0) {
-        return (pgp_hkp_sprint_key(rnp->pubring, key, &newkey, 0) > 0) ? newkey : NULL;
-    }
-    return (pgp_sprint_key(rnp->pubring, key, &newkey, "signature", 0) > 0) ? newkey : NULL;
-}
-
 void
 print_praise(void)
 {
@@ -360,16 +314,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
 
     switch (cmd) {
     case CMD_LIST_KEYS:
-    case CMD_LIST_SIGS:
         if (!f) {
             f = rnp_cfg_getstr(cfg, CFG_USERID);
         }
-        return print_keys_info(cfg, rnp, stdout, f, cmd == CMD_LIST_SIGS);
-    case CMD_FIND_KEY:
-        if ((key = f) == NULL) {
-            key = rnp_cfg_getstr(cfg, CFG_USERID);
-        }
-        return rnp_find_key(rnp, key);
+        return print_keys_info(cfg, rnp, stdout, f, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
     case CMD_EXPORT_KEY: {
         pgp_dest_t   dst;
         rnp_result_t ret;
@@ -480,18 +428,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
 
         return true;
     }
-    case CMD_GET_KEY: {
-        char *keydesc = rnp_get_key(rnp, f, rnp_cfg_getstr(cfg, CFG_KEYFORMAT));
-        if (keydesc) {
-            printf("%s", keydesc);
-            free(keydesc);
-            return true;
-        }
-        (void) fprintf(stderr, "key '%s' not found\n", f);
-        return false;
-    }
-    case CMD_TRUSTED_KEYS:
-        return rnp_match_pubkeys(rnp, f, stdout);
     case CMD_VERSION:
         print_praise();
         return true;
@@ -520,12 +456,8 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         ret = rnp_cfg_setbool(cfg, CFG_EXPERT, true);
         break;
     case CMD_LIST_KEYS:
-    case CMD_LIST_SIGS:
-    case CMD_FIND_KEY:
     case CMD_EXPORT_KEY:
     case CMD_IMPORT_KEY:
-    case CMD_GET_KEY:
-    case CMD_TRUSTED_KEYS:
     case CMD_HELP:
     case CMD_VERSION:
         *cmd = (optdefs_t) val;
@@ -626,6 +558,9 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         break;
     case OPT_SECRET:
         ret = rnp_cfg_setbool(cfg, CFG_SECRET, true);
+        break;
+    case OPT_WITH_SIGS:
+        ret = rnp_cfg_setbool(cfg, CFG_WITH_SIGS, true);
         break;
     default:
         *cmd = CMD_HELP;

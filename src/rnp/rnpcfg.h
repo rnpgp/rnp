@@ -75,9 +75,10 @@
 #define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore"      /* indicates wether keystore must be initialized */
-#define CFG_FORCE "force"   /* force command to succeed operation */
-#define CFG_SECRET "secret" /* indicates operation on secret key */
+    "disable_keystore"            /* indicates wether keystore must be initialized */
+#define CFG_FORCE "force"         /* force command to succeed operation */
+#define CFG_SECRET "secret"       /* indicates operation on secret key */
+#define CFG_WITH_SIGS "with-sigs" /* list keys with signatures */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
@@ -235,7 +236,7 @@ void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
  *  @param cfg [in] rnp config, must be allocated and initialized
  *  @return desired hash algorithm, or default value if not set by user
  */
-const char* rnp_cfg_gethashalg(rnp_cfg_t* cfg);
+const char *rnp_cfg_gethashalg(rnp_cfg_t *cfg);
 
 /** @brief Fill the keyring pathes according to user-specified settings
  *  @param cfg [in] rnp config, must be allocated and initialized

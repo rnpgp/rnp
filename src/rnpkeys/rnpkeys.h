@@ -9,15 +9,11 @@
 typedef enum {
     /* commands */
     CMD_LIST_KEYS = 260,
-    CMD_LIST_SIGS,
-    CMD_FIND_KEY,
     CMD_EXPORT_KEY,
     CMD_IMPORT_KEY,
     CMD_GENERATE_KEY,
     CMD_VERSION,
     CMD_HELP,
-    CMD_GET_KEY,
-    CMD_TRUSTED_KEYS,
 
     /* options */
     OPT_KEYRING,
@@ -38,6 +34,7 @@ typedef enum {
     OPT_SECRET,
     OPT_S2K_ITER,
     OPT_S2K_MSEC,
+    OPT_WITH_SIGS,
 
     /* debug */
     OPT_DEBUG
