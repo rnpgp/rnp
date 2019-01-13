@@ -46,7 +46,6 @@
 #define CFG_SUBDIRGPG "subdirgpg"        /* gpg/rnp files subdirectory: .rnp by default */
 #define CFG_COREDUMPS "coredumps"        /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
-#define CFG_KEYRING "keyring"       /* path to the keyring ?? seems not to be used anywhere */
 #define CFG_USERID "userid"         /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients" /* list of encrypted data recipients */
 #define CFG_SIGNERS "signers"       /* list of signers */
