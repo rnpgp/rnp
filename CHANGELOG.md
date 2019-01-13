@@ -1,5 +1,35 @@
 ## Changelog
 
+### 0.12.0 [01-13-2019]
+#### General
+
+* We now require Botan 2.8+.
+* Fixed key grip calculations for various key types.
+* Fixed SM2 signatures hashing the hash of the message. See comment in issue #436.
+* Added support for G10 ECC keys.
+* Fixed dumping of partial-length packets.
+* Added support for extra ECC curves:
+  * Brainpool p256, p384, p512 ECDSA/ECDH
+  * secp256k1 ECDSA/ECDH
+  * x25519
+* Fixed AEAD with newer versions of Botan.
+* Removed a lot of legacy code.
+
+#### CLI
+
+* rnp: Added -f/--keyfile option to load keys directly from a file.
+* rnp: Fixed issue with selecting G10 secret keys via userid.
+* rnpkeys: Added support for SM2 with arbitrary hashes.
+* redumper: Added -g option to dump fingerprints and grips.
+* redumper: Display key id/fingerprint/grip in packet listings.
+
+#### FFI
+
+* Added FFI examples.
+* Fixed a regression with loading subkeys directly.
+* Implemented support for per-signature hash and creation/expiration time.
+* Added AEAD support.
+
 ### 0.11.0 [09-16-2018]
 #### General
 
