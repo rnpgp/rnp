@@ -66,7 +66,7 @@ rnpkeys_main(int argc, char **argv)
 
     rnp_cfg_init(&opt_cfg);
 
-    while ((ch = getopt_long(argc, argv, "S:Vglo:s", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "Vglo:", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&opt_cfg, &cmd, options[optindex].val, optarg)) {
@@ -90,9 +90,6 @@ rnpkeys_main(int argc, char **argv)
                     (void) fprintf(stderr, "Bad parse_option\n");
                     goto end;
                 }
-                break;
-            case 's':
-                cmd = CMD_LIST_SIGS;
                 break;
             default:
                 cmd = CMD_HELP;
