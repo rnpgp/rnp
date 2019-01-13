@@ -67,7 +67,15 @@ git cherry -v release/1.x master
 It is often useful to pick a range of commits. For example:
 
 ```
+git checkout release/0.x
 git cherry-pick a57b36f^..e23352c
+```
+
+If there are merge commits in this range, this will not work. Instead, try:
+
+```
+git checkout release/0.x
+git cherry release/0.x master | grep '^+ ' | cut -c 3-9 | while read commit; do git cherry-pick $commit; done
 ```
 
 From here, you can follow the steps for an initial release, starting with [Create (Update) a CHANGELOG.md and version.txt](#create-a-changelogmd-and-versiontxt).
