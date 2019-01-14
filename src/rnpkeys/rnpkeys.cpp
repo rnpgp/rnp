@@ -107,116 +107,6 @@ struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
-/* return the time as a string */
-static char *
-ptimestr(char *dest, size_t size, time_t t)
-{
-    struct tm *tm;
-
-    tm = gmtime(&t);
-    (void) snprintf(
-      dest, size, "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
-    return dest;
-}
-
-static char *
-key_usage_str(uint8_t flags, char *buf)
-{
-    char *orig = buf;
-
-    if (flags & PGP_KF_ENCRYPT) {
-        *buf++ = 'E';
-    }
-    if (flags & PGP_KF_SIGN) {
-        *buf++ = 'S';
-    }
-    if (flags & PGP_KF_CERTIFY) {
-        *buf++ = 'C';
-    }
-    if (flags & PGP_KF_AUTH) {
-        *buf++ = 'A';
-    }
-    *buf = '\0';
-    return orig;
-}
-
-static void
-print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, bool psigs)
-{
-    char        buf[64] = {0};
-    const char *header = NULL;
-
-    /* header */
-    if (pgp_key_is_secret(key)) {
-        header = pgp_key_is_primary_key(key) ? "sec" : "ssb";
-    } else {
-        header = pgp_key_is_primary_key(key) ? "pub" : "sub";
-    }
-    if (pgp_key_is_primary_key(key)) {
-        fprintf(fp, "\n");
-    }
-    fprintf(fp, "%s   ", header);
-    /* key bits */
-    fprintf(fp, "%d/", (int) key_bitlength(pgp_key_get_material(key)));
-    /* key algorithm */
-    fprintf(fp, "%s ", pgp_show_pka(pgp_key_get_alg(key)));
-    /* key id */
-    rnp_strhexdump(buf, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "");
-    fprintf(fp, "%s", buf);
-    /* key creation time */
-    fprintf(fp, " %s", ptimestr(buf, sizeof(buf), pgp_key_get_creation(key)));
-    /* key usage */
-    fprintf(fp, " [%s]", key_usage_str(pgp_key_get_flags(key), buf));
-    /* key expiration */
-    if (pgp_key_get_expiration(key) > 0) {
-        time_t now = time(NULL);
-        time_t expiry = pgp_key_get_creation(key) + pgp_key_get_expiration(key);
-        ptimestr(buf, sizeof(buf), expiry);
-        fprintf(fp, " [%s %s]", expiry < now ? "EXPIRED" : "EXPIRES", buf);
-    }
-    /* fingerprint */
-    rnp_strhexdump(buf, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "");
-    fprintf(fp, "\n      %s\n", buf);
-    /* user ids */
-    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
-        pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, i);
-        if (revoke && (revoke->code == PGP_REVOCATION_COMPROMISED)) {
-            continue;
-        }
-
-        /* userid itself with revocation status */
-        fprintf(fp, "uid           %s", pgp_key_get_userid(key, i));
-        fprintf(fp, "%s\n", revoke ? "[REVOKED]" : "");
-
-        /* print signatures only if requested */
-        if (!psigs) {
-            continue;
-        }
-
-        for (size_t j = 0; j < pgp_key_get_subsig_count(key); j++) {
-            pgp_subsig_t *   subsig = pgp_key_get_subsig(key, j);
-            uint8_t          signerid[PGP_KEY_ID_SIZE] = {0};
-            const pgp_key_t *signer = NULL;
-
-            if (subsig->uid != i) {
-                continue;
-            }
-
-            signature_get_keyid(&subsig->sig, signerid);
-            signer = rnp_key_store_get_key_by_id(keyring, signerid, NULL);
-
-            /* signer key id */
-            rnp_strhexdump(buf, signerid, PGP_KEY_ID_SIZE, "");
-            fprintf(fp, "sig           %s ", buf);
-            /* signature creation time */
-            fprintf(
-              fp, "%s", ptimestr(buf, sizeof(buf), signature_get_creation(&subsig->sig)));
-            /* signer's userid */
-            fprintf(fp, " %s\n", signer ? pgp_key_get_primary_userid(signer) : "[unknown]");
-        }
-    }
-}
-
 static list
 rnp_get_keylist(rnp_key_store_t *keyring, const char *filter)
 {
@@ -277,7 +167,7 @@ print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter)
 
     for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
         pgp_key_t *key = *((pgp_key_t **) ki);
-        print_key_info(fp, keyring, key, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
+        rnp_print_key_info(fp, keyring, key, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
     }
 
     fprintf(fp, "\n");
@@ -360,7 +250,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
         rnp_key_protection_params_t *protection = &action->primary.protection;
         pgp_key_t *                  primary_key = NULL;
         pgp_key_t *                  subkey = NULL;
-        char *                       key_info = NULL;
 
         memset(action, 0, sizeof(*action));
         /* setup key generation and key protection parameters */
@@ -408,9 +297,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
             RNP_LOG("Cannot get public key part");
             return false;
         }
-        pgp_sprint_key(NULL, primary_key, &key_info, "pub", 0);
-        (void) fprintf(stdout, "%s", key_info);
-        free(key_info);
+        rnp_print_key_info(stdout, rnp->pubring, primary_key, false);
 
         /* show the subkey if any */
         if (pgp_key_get_subkey_count(primary_key)) {
@@ -419,11 +306,8 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
                 RNP_LOG("Cannot find generated subkey");
                 return false;
             }
-            pgp_sprint_key(NULL, subkey, &key_info, "sub", 0);
-            (void) fprintf(stdout, "%s", key_info);
-            free(key_info);
+            rnp_print_key_info(stdout, rnp->pubring, subkey, false);
         }
-
         return true;
     }
     case CMD_VERSION:

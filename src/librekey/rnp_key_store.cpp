@@ -44,7 +44,6 @@
 #include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
-#include <librepgp/packet-print.h>
 #include <librepgp/stream-packet.h>
 
 #include "key_store_internal.h"
@@ -432,39 +431,6 @@ list
 rnp_key_store_get_keys(const rnp_key_store_t *keyring)
 {
     return keyring->keys;
-}
-
-/**
-   \ingroup HighLevel_KeyringList
-
-   \brief Prints all keys in keyring to stdout.
-
-   \param keyring Keyring to use
-
-   \return none
-*/
-bool
-rnp_key_store_list(FILE *fp, const rnp_key_store_t *keyring, const int psigs)
-{
-    unsigned keyc = (keyring != NULL) ? rnp_key_store_get_key_count(keyring) : 0;
-
-    (void) fprintf(fp, "%u key%s\n", keyc, (keyc == 1) ? "" : "s");
-
-    if (keyring == NULL) {
-        return true;
-    }
-
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(keyring)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_key_is_secret(key)) {
-            repgp_print_key(fp, keyring, key, "sec", 0);
-        } else {
-            repgp_print_key(fp, keyring, key, "pub", psigs);
-        }
-        (void) fputc('\n', fp);
-    }
-    return true;
 }
 
 static bool

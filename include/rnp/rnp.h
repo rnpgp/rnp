@@ -69,7 +69,7 @@ const char *rnp_get_info(const char *);
 int rnp_set_key_store_format(rnp_t *, const char *);
 
 /* key management */
-bool       rnp_list_keys(rnp_t *, const int);
+void       rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool);
 bool       rnp_find_key(rnp_t *, const char *);
 char *     rnp_export_key(rnp_t *, const char *, bool);
 bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
