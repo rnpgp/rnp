@@ -61,7 +61,6 @@
 #include "pass-provider.h"
 #include "key-provider.h"
 #include <repgp/repgp.h>
-#include <librepgp/packet-print.h>
 #include <librepgp/packet-show.h>
 #include "utils.h"
 #include "crypto.h"
@@ -75,6 +74,7 @@
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
 #include <librepgp/stream-packet.h>
+#include <librepgp/stream-sig.h>
 #include <librepgp/stream-dump.h>
 #include <librekey/key_store_internal.h>
 
@@ -316,17 +316,6 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     return key;
 }
 
-/* list the keys in a keyring */
-bool
-rnp_list_keys(rnp_t *rnp, const int psigs)
-{
-    if (rnp->pubring == NULL) {
-        RNP_LOG("No keyring");
-        return false;
-    }
-    return rnp_key_store_list(rnp->resfp, rnp->pubring, psigs);
-}
-
 /* find a key in a keyring */
 bool
 rnp_find_key(rnp_t *rnp, const char *id)
@@ -431,7 +420,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         /* add secret key if there is one */
         if (!pgp_key_is_secret(imported)) {
             if (changed && print) {
-                repgp_print_key(rnp->resfp, rnp->pubring, exkey, "pub", 0);
+                rnp_print_key_info(rnp->resfp, rnp->pubring, exkey, false);
             }
             continue;
         }
@@ -449,7 +438,7 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         }
 
         if (print && (changed || (pgp_key_get_rawpacket_count(exkey) > expackets))) {
-            repgp_print_key(rnp->resfp, rnp->pubring, exkey, "sec", 0);
+            rnp_print_key_info(rnp->resfp, rnp->secring, exkey, false);
         }
     }
 
@@ -479,6 +468,116 @@ rnp_import_key(rnp_t *rnp, const char *f)
     }
 
     return true;
+}
+
+/* return the time as a string */
+static char *
+ptimestr(char *dest, size_t size, time_t t)
+{
+    struct tm *tm;
+
+    tm = gmtime(&t);
+    (void) snprintf(
+      dest, size, "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+    return dest;
+}
+
+static char *
+key_usage_str(uint8_t flags, char *buf)
+{
+    char *orig = buf;
+
+    if (flags & PGP_KF_ENCRYPT) {
+        *buf++ = 'E';
+    }
+    if (flags & PGP_KF_SIGN) {
+        *buf++ = 'S';
+    }
+    if (flags & PGP_KF_CERTIFY) {
+        *buf++ = 'C';
+    }
+    if (flags & PGP_KF_AUTH) {
+        *buf++ = 'A';
+    }
+    *buf = '\0';
+    return orig;
+}
+
+void
+rnp_print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, bool psigs)
+{
+    char        buf[64] = {0};
+    const char *header = NULL;
+
+    /* header */
+    if (pgp_key_is_secret(key)) {
+        header = pgp_key_is_primary_key(key) ? "sec" : "ssb";
+    } else {
+        header = pgp_key_is_primary_key(key) ? "pub" : "sub";
+    }
+    if (pgp_key_is_primary_key(key)) {
+        fprintf(fp, "\n");
+    }
+    fprintf(fp, "%s   ", header);
+    /* key bits */
+    fprintf(fp, "%d/", (int) key_bitlength(pgp_key_get_material(key)));
+    /* key algorithm */
+    fprintf(fp, "%s ", pgp_show_pka(pgp_key_get_alg(key)));
+    /* key id */
+    rnp_strhexdump(buf, pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, "");
+    fprintf(fp, "%s", buf);
+    /* key creation time */
+    fprintf(fp, " %s", ptimestr(buf, sizeof(buf), pgp_key_get_creation(key)));
+    /* key usage */
+    fprintf(fp, " [%s]", key_usage_str(pgp_key_get_flags(key), buf));
+    /* key expiration */
+    if (pgp_key_get_expiration(key) > 0) {
+        time_t now = time(NULL);
+        time_t expiry = pgp_key_get_creation(key) + pgp_key_get_expiration(key);
+        ptimestr(buf, sizeof(buf), expiry);
+        fprintf(fp, " [%s %s]", expiry < now ? "EXPIRED" : "EXPIRES", buf);
+    }
+    /* fingerprint */
+    rnp_strhexdump(buf, pgp_key_get_fp(key)->fingerprint, pgp_key_get_fp(key)->length, "");
+    fprintf(fp, "\n      %s\n", buf);
+    /* user ids */
+    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
+        pgp_revoke_t *revoke = pgp_key_get_userid_revoke(key, i);
+        if (revoke && (revoke->code == PGP_REVOCATION_COMPROMISED)) {
+            continue;
+        }
+
+        /* userid itself with revocation status */
+        fprintf(fp, "uid           %s", pgp_key_get_userid(key, i));
+        fprintf(fp, "%s\n", revoke ? "[REVOKED]" : "");
+
+        /* print signatures only if requested */
+        if (!psigs) {
+            continue;
+        }
+
+        for (size_t j = 0; j < pgp_key_get_subsig_count(key); j++) {
+            pgp_subsig_t *   subsig = pgp_key_get_subsig(key, j);
+            uint8_t          signerid[PGP_KEY_ID_SIZE] = {0};
+            const pgp_key_t *signer = NULL;
+
+            if (subsig->uid != i) {
+                continue;
+            }
+
+            signature_get_keyid(&subsig->sig, signerid);
+            signer = rnp_key_store_get_key_by_id(keyring, signerid, NULL);
+
+            /* signer key id */
+            rnp_strhexdump(buf, signerid, PGP_KEY_ID_SIZE, "");
+            fprintf(fp, "sig           %s ", buf);
+            /* signature creation time */
+            fprintf(
+              fp, "%s", ptimestr(buf, sizeof(buf), signature_get_creation(&subsig->sig)));
+            /* signer's userid */
+            fprintf(fp, " %s\n", signer ? pgp_key_get_primary_userid(signer) : "[unknown]");
+        }
+    }
 }
 
 size_t

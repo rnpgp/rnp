@@ -56,7 +56,6 @@
 #define CRYPTO_H_
 
 #include <limits.h>
-#include <librepgp/packet-print.h>
 #include "crypto/common.h"
 #include <rekey/rnp_key_store.h>
 
@@ -138,5 +137,7 @@ bool pgp_generate_keypair(rng_t *                    rng,
 bool key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key2);
 
 rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng);
+
+size_t key_bitlength(const pgp_key_material_t *key);
 
 #endif /* CRYPTO_H_ */

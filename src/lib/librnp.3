@@ -90,10 +90,6 @@ The following function sets the home directory:
 .Pp
 The following functions are used for key management:
 .Ft int
-.Fo rnp_list_keys
-.Fa "rnp_t *rnp" "const int printsigs"
-.Fc
-.Ft int
 .Fo rnp_match_list_keys
 .Fa "rnp_t *rnp" "char *pattern"
 .Fc
@@ -174,11 +170,6 @@ The
 .Fn rnp_init
 function returns 1 on success, 0 on failure.
 .Pp
-To list all the keys in a keyring, the
-.Fn rnp_list_keys
-function is used.
-The signature subkey fields can also be displayed
-using this function.
 The
 .Fn rnp_match_list_keys
 function is used to match (via regular expression)

@@ -67,6 +67,7 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #endif
 
 #include <string.h>
+#include <time.h>
 #include <rnp/rnp_sdk.h>
 #include <rnp/rnp_def.h>
 
@@ -220,4 +221,30 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
     }
 
     return RNP_ERROR_BAD_PARAMETERS;
+}
+
+size_t
+key_bitlength(const pgp_key_material_t *key)
+{
+    switch (key->alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return 8 * mpi_bytes(&key->rsa.n);
+    case PGP_PKA_DSA:
+        return 8 * mpi_bytes(&key->dsa.p);
+    case PGP_PKA_ELGAMAL:
+        return 8 * mpi_bytes(&key->eg.y);
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        // bn_num_bytes returns value <= curve order
+        const ec_curve_desc_t *curve = get_curve_desc(key->ec.curve);
+        return curve ? curve->bitlen : 0;
+    }
+    default:
+        RNP_LOG("Unknown public key alg in key_bitlength");
+        return 0;
+    }
 }
