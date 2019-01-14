@@ -52,7 +52,6 @@
 #include <librepgp/stream-dump.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/packet-show.h>
-#include <librepgp/packet-print.h>
 #include <rekey/rnp_key_store.h>
 #include "rnpcfg.h"
 #include "crypto/common.h"
@@ -286,7 +285,7 @@ rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
 
         if (!sigs[i].no_signer) {
             key = rnp_key_store_get_key_by_id(ctx->rnp->pubring, keyid, NULL);
-            repgp_print_key(resfp, ctx->rnp->pubring, key, "signature ", 0);
+            rnp_print_key_info(resfp, ctx->rnp->pubring, key, false);
         }
     }
 
