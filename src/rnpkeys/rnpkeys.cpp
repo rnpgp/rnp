@@ -141,20 +141,18 @@ key_usage_str(uint8_t flags, char *buf)
 }
 
 static void
-print_key_info(FILE *fp, rnp_t *rnp, const pgp_key_t *key, bool psigs)
+print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, bool psigs)
 {
     char        buf[64] = {0};
     const char *header = NULL;
 
     /* header */
-    /* secret key is always shown as "sec" */
-    if (pgp_key_is_secret(key) ||
-        rnp_key_store_get_key_by_grip(rnp->secring, pgp_key_get_grip(key))) {
-        header = "sec";
-    } else if (pgp_key_is_primary_key(key)) { /* top-level public key */
-        header = "pub";
+    if (pgp_key_is_secret(key)) {
+        header = pgp_key_is_primary_key(key) ? "sec" : "ssb";
     } else {
-        header = "sub"; /* subkey */
+        header = pgp_key_is_primary_key(key) ? "pub" : "sub";
+    }
+    if (pgp_key_is_primary_key(key)) {
         fprintf(fp, "\n");
     }
     fprintf(fp, "%s   ", header);
@@ -205,7 +203,7 @@ print_key_info(FILE *fp, rnp_t *rnp, const pgp_key_t *key, bool psigs)
             }
 
             signature_get_keyid(&subsig->sig, signerid);
-            signer = rnp_key_store_get_key_by_id(rnp->pubring, signerid, NULL);
+            signer = rnp_key_store_get_key_by_id(keyring, signerid, NULL);
 
             /* signer key id */
             rnp_strhexdump(buf, signerid, PGP_KEY_ID_SIZE, "");
@@ -261,13 +259,14 @@ error:
 
 /* list keys */
 static bool
-print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter, bool psigs)
+print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter)
 {
-    list keys = NULL;
-    int  keyc;
+    list             keys = NULL;
+    int              keyc;
+    rnp_key_store_t *keyring;
 
-    /* TODO: display secret keys as well */
-    keys = rnp_get_keylist(rnp->pubring, filter);
+    keyring = rnp_cfg_getbool(cfg, CFG_SECRET) ? rnp->secring : rnp->pubring;
+    keys = rnp_get_keylist(keyring, filter);
     if (!keys) {
         fprintf(fp, "Key(s) not found.\n");
         return false;
@@ -278,7 +277,7 @@ print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter, bool p
 
     for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
         pgp_key_t *key = *((pgp_key_t **) ki);
-        print_key_info(fp, rnp, key, psigs);
+        print_key_info(fp, keyring, key, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
     }
 
     fprintf(fp, "\n");
@@ -316,7 +315,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
         if (!f) {
             f = rnp_cfg_getstr(cfg, CFG_USERID);
         }
-        return print_keys_info(cfg, rnp, stdout, f, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
+        return print_keys_info(cfg, rnp, stdout, f);
     case CMD_EXPORT_KEY: {
         pgp_dest_t   dst;
         rnp_result_t ret;
