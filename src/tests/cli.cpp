@@ -434,40 +434,40 @@ test_cli_rnpkeys(void **state)
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-sigs", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "--with-sigs", NULL);
     assert_int_equal(ret, 0);
 
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/2", "--list-keys", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/2", "--list-sigs", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/2", "--list-keys", "--with-sigs", NULL);
     assert_int_equal(ret, 0);
 
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/3", "--list-keys", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/3", "--list-sigs", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/3", "--list-keys", "--with-sigs", NULL);
     assert_int_equal(ret, 0);
 
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/5", "--list-keys", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/5", "--list-sigs", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/5", "--list-keys", "--with-sigs", NULL);
     assert_int_equal(ret, 0);
 
     ret = call_rnp("rnpkeys", "--homedir", G10KEYS, "--list-keys", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", G10KEYS, "--list-sigs", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", G10KEYS, "--list-keys", "--with-sigs", NULL);
     assert_int_equal(ret, 0);
 
-    /* test get-key command */
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--get-key", "2fcadf05ffa501bb", NULL);
+    /* test single key listing command */
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "2fcadf05ffa501bb", NULL);
     assert_int_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--get-key", "00000000", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "00000000", NULL);
     assert_int_not_equal(ret, 0);
 
-    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--get-key", "zzzzzzzz", NULL);
+    ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "zzzzzzzz", NULL);
     assert_int_not_equal(ret, 0);
 }
