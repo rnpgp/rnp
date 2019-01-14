@@ -90,7 +90,7 @@ r'gpg: Good signature from "(.*)".*'
 RE_RNP_GOOD_SIGNATURE = r'(?s)^.*' \
 r'Good signature made .*' \
 r'using .* key .*' \
-r'signature .*' \
+r'pub .*' \
 r'uid\s+(.*)\s*' \
 r'Signature\(s\) verified successfully.*$'
 
@@ -968,35 +968,49 @@ class Misc(unittest.TestCase):
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-keys'])
         compare_file(path + 'keyring_1_list_keys', out, 'keyring 1 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-sigs'])
+        _, out, _ = run_proc(RNPK, ['--hom', data_path('keyrings/1'), '-l', '--with-sigs'])
         compare_file(path + 'keyring_1_list_sigs', out, 'keyring 1 sig listing failed')
+        _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys', '--secret'])
+        compare_file(path + 'keyring_1_list_keys_sec', out, 'keyring 1 sec key listing failed')
+        _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys', '--secret', '--with-sigs'])
+        compare_file(path + 'keyring_1_list_sigs_sec', out, 'keyring 1 sec sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys'])
         compare_file(path + 'keyring_2_list_keys', out, 'keyring 2 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-sigs'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '-l', '--with-sigs'])
         compare_file(path + 'keyring_2_list_sigs', out, 'keyring 2 sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-keys'])
         compare_file(path + 'keyring_3_list_keys', out, 'keyring 3 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-sigs'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '-l', '--with-sigs'])
         compare_file(path + 'keyring_3_list_sigs', out, 'keyring 3 sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '--list-keys'])
         compare_file(path + 'keyring_5_list_keys', out, 'keyring 5 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '--list-sigs'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '-l', '--with-sigs'])
         compare_file(path + 'keyring_5_list_sigs', out, 'keyring 5 sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
         compare_file(path + 'test_stream_key_load_keys', out, 'g10 keyring key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-sigs'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--with-sigs'])
         compare_file(path + 'test_stream_key_load_sigs', out, 'g10 keyring sig listing failed')
+        # Below are disabled until we have some kind of sorting which doesn't depend on readdir order
+        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--secret'])
+        #compare_file(path + 'test_stream_key_load_keys_sec', out, 'g10 sec keyring key listing failed')
+        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--secret', '--with-sigs'])
+        #compare_file(path + 'test_stream_key_load_sigs_sec', out, 'g10 sec keyring sig listing failed')
 
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', '2fcadf05ffa501bb'])
-        compare_file(path + 'getkey_2fcadf05ffa501bb', out, 'getkey 2fcadf05ffa501bb failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', '00000000'])
-        compare_file(path + 'getkey_00000000', out, 'getkey 00000000 failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--get-key', 'zzzzzzzz'])
-        compare_file(path + 'getkey_zzzzzzzz', out, 'getkey zzzzzzzz failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '2fcadf05ffa501bb'])
+        compare_file(path + 'getkey_2fcadf05ffa501bb', out, 'list key 2fcadf05ffa501bb failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '--with-sigs', '2fcadf05ffa501bb'])
+        compare_file(path + 'getkey_2fcadf05ffa501bb_sig', out, 'list sig 2fcadf05ffa501bb failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '--secret', '2fcadf05ffa501bb'])
+        compare_file(path + 'getkey_2fcadf05ffa501bb_sec', out, 'list sec 2fcadf05ffa501bb failed')
+
+        _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '00000000'])
+        compare_file(path + 'getkey_00000000', out, 'list key 00000000 failed')
+        _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', 'zzzzzzzz'])
+        compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
 class Encryption(unittest.TestCase):
     '''
