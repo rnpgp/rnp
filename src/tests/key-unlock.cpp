@@ -60,7 +60,7 @@ test_key_unlock_pgp(void **state)
 
     paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/", NULL);
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, path, NULL));
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
 
     for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
         const char *keyid = keyids[i];

@@ -516,7 +516,7 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
         goto end;
     }
 
-    if (!rnp_key_store_load_keys(rnp, 1) && !is_generate_key) {
+    if (!rnp_load_keyrings(rnp, 1) && !is_generate_key) {
         /* Keys mightn't loaded if this is a key generation step. */
         fputs("fatal: failed to load keys\n", stderr);
         ret = false;

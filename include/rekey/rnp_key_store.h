@@ -39,7 +39,6 @@
 
 #include "librepgp/stream-common.h"
 
-typedef struct rnp_t     rnp_t;
 typedef struct pgp_key_t pgp_key_t;
 
 typedef enum {
@@ -136,8 +135,6 @@ typedef struct rnp_key_store_t {
 } rnp_key_store_t;
 
 rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
-
-bool rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret);
 
 bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
 bool rnp_key_store_load_from_src(rnp_key_store_t *,
