@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <unistd.h> /* getopt() */
 #include <getopt.h>
-#include <repgp/repgp.h> /* repgp API */
 #include <librepgp/stream-dump.h>
 #include "utils.h"
 #include <rnp/rnp.h> /* rnp_t, rnp_ctx_t et. all */

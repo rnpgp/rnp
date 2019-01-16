@@ -82,7 +82,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 
 #include <botan/ffi.h>
 #include "crypto.h"
-#include <repgp/repgp.h>
 #include <rnp/rnp_sdk.h>
 #include "utils.h"
 
