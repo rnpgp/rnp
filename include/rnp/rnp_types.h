@@ -28,7 +28,6 @@
 #define __RNP_TYPES__
 
 #include <stdint.h>
-#include <repgp/repgp.h>
 
 #include "types.h"
 #include "pass-provider.h"

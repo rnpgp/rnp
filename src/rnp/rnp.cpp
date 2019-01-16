@@ -45,7 +45,6 @@
 #include <regex.h>
 #include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
-#include <repgp/repgp.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-packet.h>

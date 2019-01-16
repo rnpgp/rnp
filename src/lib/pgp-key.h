@@ -55,7 +55,6 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include "pass-provider.h"
-#include <repgp/repgp.h>
 #include <rekey/rnp_key_store.h>
 #include "crypto/symmetric.h"
 #include "types.h"

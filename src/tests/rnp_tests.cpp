@@ -181,8 +181,6 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_key_add_userid),
       cmocka_unit_test(test_key_validate),
       cmocka_unit_test(test_forged_key_validate),
-      cmocka_unit_test(test_repgp_decrypt),
-      cmocka_unit_test(test_repgp_verify),
       cmocka_unit_test(test_generated_key_sigs),
       cmocka_unit_test(test_key_store_search),
       cmocka_unit_test(test_key_store_search_by_name),

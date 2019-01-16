@@ -45,7 +45,6 @@ add_executable(rnp_tests
   key-validate.cpp
   load-g10.cpp
   load-pgp.cpp
-  pgp-parse.cpp
   rnp_tests.cpp
   streams.cpp
   support.cpp
