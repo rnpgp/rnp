@@ -129,6 +129,20 @@ set_pass_fd(rnp_t *rnp, int passfd)
     return true;
 }
 
+/** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
+ *pointer to the rnp_t structure
+ **/
+static pgp_key_t *
+rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata)
+{
+    rnp_t *rnp = (rnp_t *) userdata;
+
+    if (!rnp) {
+        return NULL;
+    }
+    return rnp_key_provider_store(ctx, ctx->secret ? rnp->secring : rnp->pubring);
+}
+
 /*************************************************************************/
 /* exported functions start here                                         */
 /*************************************************************************/
@@ -236,6 +250,58 @@ rnp_end(rnp_t *rnp)
         fclose(rnp->resfp);
         rnp->resfp = NULL;
     }
+}
+
+bool
+rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
+{
+    char id[MAX_ID_LENGTH];
+
+    rnp_key_store_t *pubring = rnp->pubring;
+    rnp_key_store_t *secring = rnp->secring;
+
+    rnp_key_store_clear(pubring);
+
+    if (!rnp_key_store_load_from_path(pubring, &rnp->key_provider)) {
+        RNP_LOG("cannot read pub keyring");
+        return false;
+    }
+
+    if (rnp_key_store_get_key_count(pubring) < 1) {
+        RNP_LOG("pub keyring '%s' is empty", ((rnp_key_store_t *) pubring)->path);
+        return false;
+    }
+
+    /* Only read secret keys if we need to */
+    if (loadsecret) {
+        rnp_key_store_clear(secring);
+        if (!rnp_key_store_load_from_path(secring, &rnp->key_provider)) {
+            RNP_LOG("cannot read sec keyring");
+            return false;
+        }
+
+        if (rnp_key_store_get_key_count(secring) < 1) {
+            RNP_LOG("sec keyring '%s' is empty", ((rnp_key_store_t *) secring)->path);
+            return false;
+        }
+
+        /* Now, if we don't have a valid user, use the first
+         * in secring.
+         */
+        if (!rnp->defkey) {
+            if (rnp_key_store_get_first_ring(secring, id, sizeof(id), 0)) {
+                rnp->defkey = strdup(id);
+            }
+        }
+
+    } else if (!rnp->defkey) {
+        /* encrypting - get first in pubring */
+        if (rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
+            rnp->defkey = strdup(id);
+        }
+    }
+
+    return true;
 }
 
 /* rnp_params_t : initialize and free internals */

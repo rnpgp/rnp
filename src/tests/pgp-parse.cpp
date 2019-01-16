@@ -66,7 +66,7 @@ setup_keystore_1(rnp_test_state_t *state, rnp_t *rnp)
     }
 
     // Load keys
-    if (!rnp_key_store_load_keys(rnp, true)) {
+    if (!rnp_load_keyrings(rnp, true)) {
         res = false;
         goto end;
     }

@@ -49,6 +49,8 @@ typedef struct rnp_ctx_t    rnp_ctx_t;
 rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
 void rnp_end(rnp_t *);
+/* load keys */
+bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
 
 /* rnp initialization parameters : init and free */
 void rnp_params_init(rnp_params_t *);

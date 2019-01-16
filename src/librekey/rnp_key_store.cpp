@@ -96,58 +96,6 @@ rnp_key_store_new(const char *format, const char *path)
 }
 
 bool
-rnp_key_store_load_keys(rnp_t *rnp, bool loadsecret)
-{
-    char id[MAX_ID_LENGTH];
-
-    rnp_key_store_t *pubring = rnp->pubring;
-    rnp_key_store_t *secring = rnp->secring;
-
-    rnp_key_store_clear(pubring);
-
-    if (!rnp_key_store_load_from_path(pubring, &rnp->key_provider)) {
-        RNP_LOG("cannot read pub keyring");
-        return false;
-    }
-
-    if (rnp_key_store_get_key_count(pubring) < 1) {
-        RNP_LOG("pub keyring '%s' is empty", ((rnp_key_store_t *) pubring)->path);
-        return false;
-    }
-
-    /* Only read secret keys if we need to */
-    if (loadsecret) {
-        rnp_key_store_clear(secring);
-        if (!rnp_key_store_load_from_path(secring, &rnp->key_provider)) {
-            RNP_LOG("cannot read sec keyring");
-            return false;
-        }
-
-        if (rnp_key_store_get_key_count(secring) < 1) {
-            RNP_LOG("sec keyring '%s' is empty", ((rnp_key_store_t *) secring)->path);
-            return false;
-        }
-
-        /* Now, if we don't have a valid user, use the first
-         * in secring.
-         */
-        if (!rnp->defkey) {
-            if (rnp_key_store_get_first_ring(secring, id, sizeof(id), 0)) {
-                rnp->defkey = strdup(id);
-            }
-        }
-
-    } else if (!rnp->defkey) {
-        /* encrypting - get first in pubring */
-        if (rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
-            rnp->defkey = strdup(id);
-        }
-    }
-
-    return true;
-}
-
-bool
 rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
 {

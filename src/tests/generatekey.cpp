@@ -79,7 +79,7 @@ rnpkeys_generatekey_testSignature(void **state)
         rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
         /* Load the newly generated rnp key */
-        rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+        rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
         rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
         /* Make sure just generated key is present in the keyring */
@@ -100,7 +100,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
                 /* Load keyring */
-                rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+                rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
                 rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
                 /* Setup signing context */
@@ -191,7 +191,7 @@ rnpkeys_generatekey_testEncryption(void **state)
     rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Load keyring */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
     rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
     /* Make sure just generated key is present in the keyring */
@@ -207,7 +207,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
 
             /* Load keyring */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, false));
+            rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, false));
             rnp_assert_int_equal(rstate, 0, rnp_secret_count(&rnp));
 
             /* setting the cipher and armored flags */
@@ -239,7 +239,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
 
             /* Loading the keyrings */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+            rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
             /* Setting the decryption context */
@@ -298,7 +298,7 @@ rnpkeys_generatekey_verifySupportedHashAlg(void **state)
             rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
             /* Load the newly generated rnp key */
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+            rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
             /* Some minor checks */
@@ -362,7 +362,7 @@ rnpkeys_generatekey_verifyUserIdOption(void **state)
             rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
             /*Load the newly generated rnp key*/
-            rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+            rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0 && rnp_public_count(&rnp) > 0);
 
             // G10 doesn't support metadata
@@ -405,7 +405,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_true(rstate, path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
     rnp_assert_int_equal(rstate, 2, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 2, rnp_public_count(&rnp));
     rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
@@ -439,7 +439,7 @@ rnpkeys_generatekey_verifykeyHomeDirOption(void **state)
     rnp_assert_true(rstate, path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
     rnp_assert_int_equal(rstate, 2, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 2, rnp_public_count(&rnp));
     /* We should not find this key */
@@ -480,7 +480,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_false(rstate, path_file_exists(ourdir, ".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
     rnp_assert_int_equal(rstate, 2, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 2, rnp_public_count(&rnp));
     rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
@@ -515,7 +515,7 @@ rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state)
     rnp_assert_false(rstate, path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, true));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
     rnp_assert_int_equal(rstate, 2, rnp_secret_count(&rnp));
     rnp_assert_int_equal(rstate, 2, rnp_public_count(&rnp));
     /* We should not find this key */
