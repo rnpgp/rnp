@@ -329,15 +329,10 @@ rnp_params_free(rnp_params_t *params)
 
 /* rnp_ctx_t : init, reset, free internal pointers */
 rnp_result_t
-rnp_ctx_init(rnp_ctx_t *ctx, rnp_t *rnp)
+rnp_ctx_init(rnp_ctx_t *ctx, rng_t *rng)
 {
-    if (rnp == NULL) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
     memset(ctx, '\0', sizeof(*ctx));
-    ctx->rnp = rnp;
-    ctx->rng = &rnp->rng;
+    ctx->rng = rng;
     return RNP_SUCCESS;
 }
 
@@ -955,7 +950,7 @@ rnp_signatures_func_proxy(pgp_signature_info_t *sigs, int count, void *param)
 }
 
 static bool
-rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
+rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_t *rnp, rnp_ctx_t *ctx)
 {
     pgp_parse_handler_param_t *param;
 
@@ -970,8 +965,8 @@ rnp_init_parse_handler(pgp_parse_handler_t *handler, rnp_ctx_t *ctx)
     handler->ctx = ctx;
 
     /* handler */
-    handler->password_provider = &ctx->rnp->password_provider;
-    handler->key_provider = &ctx->rnp->key_provider;
+    handler->password_provider = &rnp->password_provider;
+    handler->key_provider = &rnp->key_provider;
     handler->dest_provider = rnp_parse_handler_dest;
     handler->src_provider = rnp_parse_handler_src;
     handler->on_signatures = rnp_signatures_func_proxy;
@@ -988,7 +983,7 @@ rnp_free_parse_handler(pgp_parse_handler_t *handler)
 }
 
 rnp_result_t
-rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
+rnp_process_file(rnp_t *rnp, rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_parse_handler_t        handler = {0};
     pgp_parse_handler_param_t *param = NULL;
@@ -1006,7 +1001,7 @@ rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
     }
 
     /* initialize handler */
-    if (!rnp_init_parse_handler(&handler, ctx)) {
+    if (!rnp_init_parse_handler(&handler, rnp, ctx)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1041,8 +1036,13 @@ rnp_process_file(rnp_ctx_t *ctx, const char *in, const char *out)
 }
 
 rnp_result_t
-rnp_process_mem(
-  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
+rnp_process_mem(rnp_t *     rnp,
+                rnp_ctx_t * ctx,
+                const void *in,
+                size_t      len,
+                void *      out,
+                size_t      outlen,
+                size_t *    reslen)
 {
     pgp_parse_handler_t        handler = {0};
     pgp_parse_handler_param_t *param = NULL;
@@ -1050,7 +1050,7 @@ rnp_process_mem(
     rnp_result_t               result;
 
     /* initialize handler */
-    if (!rnp_init_parse_handler(&handler, ctx)) {
+    if (!rnp_init_parse_handler(&handler, rnp, ctx)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1124,7 +1124,7 @@ typedef struct pgp_write_handler_param_t {
 } pgp_write_handler_param_t;
 
 static bool
-rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
+rnp_init_write_handler(pgp_write_handler_t *handler, rnp_t *rnp, rnp_ctx_t *ctx)
 {
     pgp_write_handler_param_t *param;
 
@@ -1134,8 +1134,8 @@ rnp_init_write_handler(pgp_write_handler_t *handler, rnp_ctx_t *ctx)
         return false;
     }
 
-    handler->password_provider = &ctx->rnp->password_provider;
-    handler->key_provider = &ctx->rnp->key_provider;
+    handler->password_provider = &rnp->password_provider;
+    handler->key_provider = &rnp->key_provider;
     handler->ctx = ctx;
     handler->param = param;
 
@@ -1171,14 +1171,14 @@ rnp_call_protect_operation(pgp_write_handler_t *handler, pgp_source_t *src, pgp_
 }
 
 rnp_result_t
-rnp_protect_file(rnp_ctx_t *ctx, const char *in, const char *out)
+rnp_protect_file(rnp_t *rnp, rnp_ctx_t *ctx, const char *in, const char *out)
 {
     pgp_write_handler_t        handler = {0};
     pgp_write_handler_param_t *param;
     rnp_result_t               result;
 
     /* initialize write handler */
-    if (!rnp_init_write_handler(&handler, ctx)) {
+    if (!rnp_init_write_handler(&handler, rnp, ctx)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1204,15 +1204,20 @@ rnp_protect_file(rnp_ctx_t *ctx, const char *in, const char *out)
 }
 
 rnp_result_t
-rnp_protect_mem(
-  rnp_ctx_t *ctx, const void *in, size_t len, void *out, size_t outlen, size_t *reslen)
+rnp_protect_mem(rnp_t *     rnp,
+                rnp_ctx_t * ctx,
+                const void *in,
+                size_t      len,
+                void *      out,
+                size_t      outlen,
+                size_t *    reslen)
 {
     pgp_write_handler_t        handler = {0};
     pgp_write_handler_param_t *param;
     rnp_result_t               result;
     void *                     outdata;
 
-    if (!rnp_init_write_handler(&handler, ctx)) {
+    if (!rnp_init_write_handler(&handler, rnp, ctx)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1322,15 +1327,14 @@ rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
 }
 
 rnp_result_t
-rnp_encrypt_add_password(rnp_ctx_t *ctx)
+rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx)
 {
     rnp_result_t              ret = RNP_ERROR_GENERIC;
     rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t) 0}};
     char                      password[MAX_PASSWORD_LENGTH] = {0};
     pgp_password_ctx_t        pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
 
-    if (!pgp_request_password(
-          &ctx->rnp->password_provider, &pswdctx, password, sizeof(password))) {
+    if (!pgp_request_password(&rnp->password_provider, &pswdctx, password, sizeof(password))) {
         return RNP_ERROR_BAD_PASSWORD;
     }
 
@@ -1347,7 +1351,6 @@ rnp_encrypt_add_password(rnp_ctx_t *ctx)
         goto done;
     }
     ret = RNP_SUCCESS;
-
 done:
     pgp_forget(password, sizeof(password));
     pgp_forget(&info, sizeof(info));

@@ -104,7 +104,7 @@ rnpkeys_generatekey_testSignature(void **state)
                 rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
                 /* Setup signing context */
-                rnp_ctx_init(&ctx, &rnp);
+                rnp_ctx_init(&ctx, &rnp.rng);
                 ctx.armor = armored;
                 ctx.halg = pgp_str_to_hash_alg(hashAlg[i]);
                 ctx.filename = strdup("dummyfile.dat");
@@ -117,7 +117,8 @@ rnpkeys_generatekey_testSignature(void **state)
                 rnp_assert_non_null(rstate, list_append(&ctx.signers, &sinfo, sizeof(sinfo)));
 
                 /* Signing the memory */
-                ret = rnp_protect_mem(&ctx,
+                ret = rnp_protect_mem(&rnp,
+                                      &ctx,
                                       memToSign,
                                       strlen(memToSign),
                                       signatureBuf,
@@ -130,10 +131,15 @@ rnpkeys_generatekey_testSignature(void **state)
                 rnp_ctx_free(&ctx);
 
                 /* Verify the memory */
-                rnp_ctx_init(&ctx, &rnp);
+                rnp_ctx_init(&ctx, &rnp.rng);
                 ctx.armor = armored;
-                ret = rnp_process_mem(
-                  &ctx, signatureBuf, siglen, recoveredSig, sizeof(recoveredSig), &reslen);
+                ret = rnp_process_mem(&rnp,
+                                      &ctx,
+                                      signatureBuf,
+                                      siglen,
+                                      recoveredSig,
+                                      sizeof(recoveredSig),
+                                      &reslen);
                 /* Ensure signature verification passed */
                 rnp_assert_int_equal(rstate, ret, RNP_SUCCESS);
                 if (cleartext) {
@@ -145,8 +151,13 @@ rnpkeys_generatekey_testSignature(void **state)
                 /* TODO be smarter about this */
                 signatureBuf[siglen / 2] ^= 0x0C;
 
-                ret = rnp_process_mem(
-                  &ctx, signatureBuf, siglen, recoveredSig, sizeof(recoveredSig), &reslen);
+                ret = rnp_process_mem(&rnp,
+                                      &ctx,
+                                      signatureBuf,
+                                      siglen,
+                                      recoveredSig,
+                                      sizeof(recoveredSig),
+                                      &reslen);
                 /* Ensure that signature verification fails */
                 rnp_assert_int_not_equal(rstate, ret, RNP_SUCCESS);
                 rnp_end(&rnp);
@@ -211,7 +222,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_equal(rstate, 0, rnp_secret_count(&rnp));
 
             /* setting the cipher and armored flags */
-            rnp_ctx_init(&ctx, &rnp);
+            rnp_ctx_init(&ctx, &rnp.rng);
             ctx.armor = armored;
             ctx.filename = strdup("dummyfile.dat");
             ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
@@ -225,7 +236,8 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_non_null(rstate, list_append(&ctx.recipients, &key, sizeof(key)));
             /* Encrypting the memory */
             size_t       reslen = 0;
-            rnp_result_t ret = rnp_protect_mem(&ctx,
+            rnp_result_t ret = rnp_protect_mem(&rnp,
+                                               &ctx,
                                                memToEncrypt,
                                                strlen(memToEncrypt),
                                                ciphertextBuf,
@@ -243,7 +255,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
 
             /* Setting the decryption context */
-            rnp_ctx_init(&ctx, &rnp);
+            rnp_ctx_init(&ctx, &rnp.rng);
             ctx.armor = armored;
 
             /* Decrypting the memory */
@@ -251,7 +263,7 @@ rnpkeys_generatekey_testEncryption(void **state)
             rnp_assert_int_equal(
               rstate,
               rnp_process_mem(
-                &ctx, ciphertextBuf, reslen, plaintextBuf, sizeof(plaintextBuf), &tmp),
+                &rnp, &ctx, ciphertextBuf, reslen, plaintextBuf, sizeof(plaintextBuf), &tmp),
               RNP_SUCCESS);
 
             /* Ensure plaintext recovered */
@@ -797,7 +809,7 @@ test_generated_key_sigs(void **state)
     assert_non_null(secring);
 
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
-    rnp_ctx_init(&rnp_ctx, &rnp);
+    rnp_ctx_init(&rnp_ctx, &rnp.rng);
 
     uid.tag = PGP_PTAG_CT_USER_ID;
 
