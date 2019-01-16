@@ -109,6 +109,8 @@ rnp_result_t rnp_protect_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, 
  */
 rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out);
 
+rnp_result_t rnp_validate_keys_signatures(rnp_t *rnp);
+
 rnp_result_t rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
                                        const char *               password,
                                        pgp_hash_alg_t             hash_alg,
