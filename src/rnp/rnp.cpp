@@ -959,7 +959,7 @@ rnp_main(int argc, char **argv)
     }
 
     if (!rnp_params.keystore_disabled &&
-        !rnp_key_store_load_keys(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
+        !rnp_load_keyrings(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         ret = EXIT_ERROR;
         goto finish;

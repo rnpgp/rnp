@@ -82,11 +82,6 @@ bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search
 pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
                            const pgp_key_request_ctx_t *ctx);
 
-/** @brief key provider callback which searches for key in rnp_key_store_t. userdata must be
- *pointer to the rnp_t structure
- **/
-pgp_key_t *rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata);
-
 /** key provider callback that searches a list of pgp_key_t pointers
  *
  *  @param ctx

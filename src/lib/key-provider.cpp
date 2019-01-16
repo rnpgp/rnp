@@ -76,17 +76,6 @@ pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t 
 }
 
 pgp_key_t *
-rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata)
-{
-    rnp_t *rnp = (rnp_t *) userdata;
-
-    if (!rnp) {
-        return NULL;
-    }
-    return rnp_key_provider_store(ctx, ctx->secret ? rnp->secring : rnp->pubring);
-}
-
-pgp_key_t *
 rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     list key_list = (list) userdata;

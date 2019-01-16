@@ -48,7 +48,7 @@ rnpkeys_exportkey_verifyUserId(void **state)
     rnp_assert_non_null(rstate, rnp_generate_key(&rnp));
 
     /* Loading keyrings and checking whether they have correct key */
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, 1));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, 1));
     rnp_assert_int_not_equal(rstate, 0, rnp_secret_count(&rnp));
     rnp_assert_int_not_equal(rstate, 0, rnp_public_count(&rnp));
     rnp_assert_true(rstate, rnp_find_key(&rnp, getenv("LOGNAME")));
