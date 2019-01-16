@@ -60,7 +60,6 @@
 
 #include "pass-provider.h"
 #include "key-provider.h"
-#include <repgp/repgp.h>
 #include <librepgp/packet-show.h>
 #include "utils.h"
 #include "crypto.h"
