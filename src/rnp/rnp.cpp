@@ -238,8 +238,8 @@ rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
     char             id[MAX_ID_LENGTH + 1];
     const pgp_key_t *key;
     const char *     title = "UNKNOWN signature";
-    rnp_ctx_t *      ctx = (rnp_ctx_t *) param;
-    FILE *           resfp = ctx->rnp->resfp;
+    rnp_t *          rnp = (rnp_t *) param;
+    FILE *           resfp = rnp->resfp;
 
     for (int i = 0; i < count; i++) {
         if (sigs[i].unknown || sigs[i].no_signer) {
@@ -283,8 +283,8 @@ rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
                 userid_to_id(keyid, id));
 
         if (!sigs[i].no_signer) {
-            key = rnp_key_store_get_key_by_id(ctx->rnp->pubring, keyid, NULL);
-            rnp_print_key_info(resfp, ctx->rnp->pubring, key, false);
+            key = rnp_key_store_get_key_by_id(rnp->pubring, keyid, NULL);
+            rnp_print_key_info(resfp, rnp->pubring, key, false);
         }
     }
 
@@ -326,7 +326,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
     rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
 
     /* operation context initialization */
-    rnp_ctx_init(ctx, rnp);
+    rnp_ctx_init(ctx, &rnp->rng);
     ctx->armor = rnp_cfg_getint(cfg, CFG_ARMOR);
     ctx->overwrite = rnp_cfg_getbool(cfg, CFG_OVERWRITE);
     if ((fname = rnp_cfg_getstr(cfg, CFG_INFILE))) {
@@ -407,7 +407,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
                 int passwordc = rnp_cfg_getint_default(cfg, CFG_PASSWORDC, 1);
 
                 for (int i = 0; i < passwordc; i++) {
-                    if (rnp_encrypt_add_password(ctx)) {
+                    if (rnp_encrypt_add_password(rnp, ctx)) {
                         RNP_LOG("Failed to add password");
                         return false;
                     }
@@ -465,7 +465,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
         ctx->discard =
           rnp_cfg_getbool(cfg, CFG_NO_OUTPUT) && !rnp_cfg_getstr(cfg, CFG_OUTFILE);
         ctx->on_signatures = (void *) rnp_on_signatures;
-        ctx->sig_cb_param = ctx;
+        ctx->sig_cb_param = rnp;
     }
 
     return true;
@@ -489,10 +489,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
 
     switch (rnp_cfg_getint(cfg, CFG_COMMAND)) {
     case CMD_PROTECT:
-        ret = rnp_protect_file(&ctx, infile, outfile) == RNP_SUCCESS;
+        ret = rnp_protect_file(rnp, &ctx, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_PROCESS:
-        ret = rnp_process_file(&ctx, infile, outfile) == RNP_SUCCESS;
+        ret = rnp_process_file(rnp, &ctx, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_LIST_PACKETS:
         ret = rnp_dump_file(&ctx, infile, outfile) == RNP_SUCCESS;
