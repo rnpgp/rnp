@@ -147,7 +147,6 @@ typedef struct rnp_signer_info_t {
  */
 
 typedef struct rnp_ctx_t {
-    rnp_t *         rnp;           /* Pointer to initialized rnp_t (temporary solution) */
     char *          filename;      /* name of the input file to store in literal data packet */
     int64_t         filemtime;     /* file modification time to store in literal data packet */
     int64_t         sigcreate;     /* signature creation time */

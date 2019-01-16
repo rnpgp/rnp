@@ -57,7 +57,7 @@ void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
 
 /* init, reset and free rnp operation context */
-rnp_result_t     rnp_ctx_init(rnp_ctx_t *, rnp_t *);
+rnp_result_t     rnp_ctx_init(rnp_ctx_t *, rng_t *);
 void             rnp_ctx_reset(rnp_ctx_t *);
 void             rnp_ctx_free(rnp_ctx_t *);
 struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
@@ -89,13 +89,15 @@ size_t     rnp_secret_count(rnp_t *);
 size_t     rnp_public_count(rnp_t *);
 
 /* file management */
-rnp_result_t rnp_process_file(rnp_ctx_t *, const char *, const char *);
-rnp_result_t rnp_protect_file(rnp_ctx_t *, const char *, const char *);
+rnp_result_t rnp_process_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
+rnp_result_t rnp_protect_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_dump_file(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
-rnp_result_t rnp_process_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
-rnp_result_t rnp_protect_mem(rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
+rnp_result_t rnp_process_mem(
+  rnp_t *, rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
+rnp_result_t rnp_protect_mem(
+  rnp_t *, rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 
 /**
  * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data
@@ -116,7 +118,7 @@ rnp_result_t rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
                                        pgp_hash_alg_t             hash_alg,
                                        size_t                     iterations,
                                        pgp_symm_alg_t             s2k_cipher);
-rnp_result_t rnp_encrypt_add_password(rnp_ctx_t *ctx);
+rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
 
 #if defined(__cplusplus)
 }
