@@ -85,7 +85,6 @@ set(CMAKE_REQUIRED_INCLUDES)
 add_library(librnp
   # librepgp
   ../librepgp/packet-show.cpp
-  ../librepgp/repgp.cpp
   ../librepgp/stream-armor.cpp
   ../librepgp/stream-common.cpp
   ../librepgp/stream-dump.cpp

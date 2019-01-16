@@ -124,10 +124,6 @@ void test_key_protect_load_pgp(void **state);
 
 void test_key_add_userid(void **state);
 
-void test_repgp_decrypt(void **state);
-
-void test_repgp_verify(void **state);
-
 void test_generated_key_sigs(void **state);
 
 void test_key_store_search(void **state);
