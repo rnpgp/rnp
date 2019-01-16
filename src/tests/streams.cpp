@@ -1200,27 +1200,27 @@ test_stream_verify_no_key(void **state)
     /* setup operation context */
     rnp.password_provider.callback = rnp_password_provider_string;
     rnp.password_provider.userdata = (void *) "pass1";
-    rnp_ctx_init(&ctx, &rnp);
+    rnp_ctx_init(&ctx, &rnp.rng);
 
     /* operation should success if output is not discarded, i.e. operation = decrypt */
     ctx.discard = false;
-    assert_rnp_success(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_rnp_success(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
     assert_int_equal(out_len, 4);
     /* try second password */
     rnp.password_provider.userdata = (void *) "pass2";
-    assert_rnp_success(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_rnp_success(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
     assert_int_equal(out_len, 4);
     /* decryption/verification fails without password */
     rnp.password_provider.userdata = NULL;
-    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
     assert_int_equal(out_len, 0);
     /* decryption/verification fails with wrong password */
     rnp.password_provider.userdata = (void *) "pass_wrong";
-    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
     assert_int_equal(out_len, 0);
     /* verification fails if output is discarded, i.e. operation = verify */
     ctx.discard = true;
-    assert_rnp_failure(rnp_process_mem(&ctx, data, len, out_data, out_alloc, &out_len));
+    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
     assert_int_equal(out_len, 0);
 
     /* cleanup */
