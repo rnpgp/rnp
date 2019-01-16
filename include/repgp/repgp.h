@@ -194,15 +194,4 @@ rnp_result_t repgp_verify(const void *ctx, repgp_io_t *io);
  */
 rnp_result_t repgp_decrypt(const void *ctx, repgp_io_t *io);
 
-/**
- * @brief   Validate all signatures on a single key against the given keyring
- *
- * @param   ctx Context initialized with key ring
- *
- * @returns RNP_SUCCESS all signatures valid
- *          RNP_ERROR_GENERIC at least one signature is invalid
- *          RNP_ERROR_BAD_PARAMETERS incorrect input parameters
- */
-rnp_result_t repgp_validate_pubkeys_signatures(void *ctx);
-
 #endif /* REPGP_H_ */

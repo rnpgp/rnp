@@ -506,7 +506,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
         ret = rnp_armor_stream(&ctx, true, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_SHOW_KEYS:
-        ret = repgp_validate_pubkeys_signatures(&ctx) == RNP_SUCCESS;
+        ret = rnp_validate_keys_signatures(rnp) == RNP_SUCCESS;
         break;
     case CMD_VERSION:
         print_praise();
