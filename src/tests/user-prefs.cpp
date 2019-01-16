@@ -66,7 +66,7 @@ test_load_user_prefs(void **state)
     paths_concat(homedir, sizeof(homedir), rstate->data_dir, "keyrings/1", NULL);
 
     rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, homedir, pipefd));
-    rnp_assert_ok(rstate, rnp_key_store_load_keys(&rnp, false));
+    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, false));
     rnp_assert_true(rstate, rnp_secret_count(&rnp) == 0 && rnp_public_count(&rnp) == 7);
 
     {
