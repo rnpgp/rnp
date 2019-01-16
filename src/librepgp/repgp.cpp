@@ -309,28 +309,3 @@ repgp_destroy_io(repgp_io_t *io)
     }
     free(io);
 }
-
-rnp_result_t
-repgp_validate_pubkeys_signatures(void *ctx)
-{
-    struct rnp_ctx_t *rctx = (rnp_ctx_t *) ctx;
-    if (!rctx || !rctx->rnp) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    const rnp_key_store_t *ring = rctx->rnp->pubring;
-    pgp_signatures_info_t  result = {0};
-    rnp_result_t           ret;
-    bool                   valid = true;
-
-    for (list_item *key = list_front(rnp_key_store_get_keys(ring)); key;
-         key = list_next(key)) {
-        ret = validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
-        valid &= check_signatures_info(&result);
-        free_signatures_info(&result);
-        if (ret) {
-            break;
-        }
-    }
-
-    return valid ? RNP_SUCCESS : RNP_ERROR_GENERIC;
-}
