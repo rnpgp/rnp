@@ -69,6 +69,7 @@
 #include "list.h"
 #include "defaults.h"
 #include <librepgp/stream-def.h>
+#include <librepgp/stream-ctx.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-parse.h>
 #include <librepgp/stream-write.h>
@@ -325,39 +326,6 @@ rnp_params_free(rnp_params_t *params)
     if (params->defkey != NULL) {
         free(params->defkey);
     }
-}
-
-/* rnp_ctx_t : init, reset, free internal pointers */
-rnp_result_t
-rnp_ctx_init(rnp_ctx_t *ctx, rng_t *rng)
-{
-    memset(ctx, '\0', sizeof(*ctx));
-    ctx->rng = rng;
-    return RNP_SUCCESS;
-}
-
-rng_t *
-rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
-{
-    assert(ctx->rng);
-    return ctx->rng;
-}
-
-void
-rnp_ctx_reset(rnp_ctx_t *ctx)
-{
-    rnp_ctx_free(ctx);
-    memset(ctx, '\0', sizeof(*ctx));
-}
-
-/* free operation context */
-void
-rnp_ctx_free(rnp_ctx_t *ctx)
-{
-    free(ctx->filename);
-    list_destroy(&ctx->recipients);
-    list_destroy(&ctx->signers);
-    list_destroy(&ctx->passwords);
 }
 
 /* resolve the userid */
