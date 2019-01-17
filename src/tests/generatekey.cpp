@@ -34,6 +34,7 @@
 #include "crypto/common.h"
 #include "crypto.h"
 #include "pgp-key.h"
+#include "librepgp/stream-ctx.h"
 #include "librepgp/stream-sig.h"
 #include "librepgp/stream-key.h"
 #include "defaults.h"

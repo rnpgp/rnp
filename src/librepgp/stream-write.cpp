@@ -39,6 +39,7 @@
 #endif
 #include <rnp/rnp_def.h>
 #include "stream-def.h"
+#include "stream-ctx.h"
 #include "stream-write.h"
 #include "stream-packet.h"
 #include "stream-armor.h"
