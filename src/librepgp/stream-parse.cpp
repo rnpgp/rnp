@@ -31,6 +31,7 @@
 #include <string.h>
 #include <time.h>
 #include <rnp/rnp_def.h>
+#include "stream-ctx.h"
 #include "stream-def.h"
 #include "stream-parse.h"
 #include "stream-armor.h"

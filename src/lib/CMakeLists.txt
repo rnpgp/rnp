@@ -87,6 +87,7 @@ add_library(librnp
   ../librepgp/packet-show.cpp
   ../librepgp/stream-armor.cpp
   ../librepgp/stream-common.cpp
+  ../librepgp/stream-ctx.cpp
   ../librepgp/stream-dump.cpp
   ../librepgp/stream-key.cpp
   ../librepgp/stream-packet.cpp

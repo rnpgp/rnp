@@ -45,6 +45,12 @@ typedef struct rnp_t        rnp_t;
 typedef struct rnp_params_t rnp_params_t;
 typedef struct rnp_ctx_t    rnp_ctx_t;
 
+typedef struct rnp_symmetric_pass_info_t {
+    pgp_s2k_t      s2k;
+    pgp_symm_alg_t s2k_cipher;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+} rnp_symmetric_pass_info_t;
+
 /* initialize rnp using the init structure  */
 rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
@@ -55,12 +61,6 @@ bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
 /* rnp initialization parameters : init and free */
 void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
-
-/* init, reset and free rnp operation context */
-rnp_result_t     rnp_ctx_init(rnp_ctx_t *, rng_t *);
-void             rnp_ctx_reset(rnp_ctx_t *);
-void             rnp_ctx_free(rnp_ctx_t *);
-struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 
 /* debugging, reflection and information */
 bool        rnp_set_debug(const char *);
