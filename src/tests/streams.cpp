@@ -33,6 +33,7 @@
 #include "pgp-key.h"
 #include <time.h>
 #include <rnp/rnp.h>
+#include <librepgp/stream-ctx.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-key.h>
