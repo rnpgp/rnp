@@ -112,11 +112,22 @@ typedef struct rnp_ctx_t {
     rnp_operation_t operation;     /* current operation type */
 } rnp_ctx_t;
 
+typedef struct rnp_symmetric_pass_info_t {
+    pgp_s2k_t      s2k;
+    pgp_symm_alg_t s2k_cipher;
+    uint8_t        key[PGP_MAX_KEY_SIZE];
+} rnp_symmetric_pass_info_t;
 
 /* init, reset and free rnp operation context */
 rnp_result_t     rnp_ctx_init(rnp_ctx_t *, rng_t *);
 void             rnp_ctx_reset(rnp_ctx_t *);
 void             rnp_ctx_free(rnp_ctx_t *);
 struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
+
+rnp_result_t rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
+                                             const char *   password,
+                                             pgp_hash_alg_t halg,
+                                             pgp_symm_alg_t ealg,
+                                             int            iterations);
 
 #endif

@@ -1260,68 +1260,17 @@ rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
 }
 
 rnp_result_t
-rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
-                          const char *               password,
-                          pgp_hash_alg_t             hash_alg,
-                          size_t                     iterations,
-                          pgp_symm_alg_t             s2k_cipher)
-{
-    info->s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    info->s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    info->s2k.hash_alg = hash_alg;
-    if (!rng_generate(info->s2k.salt, sizeof(info->s2k.salt))) {
-        return RNP_ERROR_GENERIC;
-    }
-    if (iterations == 0) {
-        iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
-    }
-    info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
-    info->s2k_cipher = s2k_cipher;
-    /* Note: we're relying on the fact that a longer-than-needed key length
-     * here does not change the entire derived key (it just generates unused
-     * extra bytes at the end). We derive a key of our maximum supported length,
-     * which is a bit wasteful.
-     *
-     * This is done because we do not yet know what cipher this key will actually
-     * end up being used with until later.
-     *
-     * An alternative would be to keep a list of actual passwords and s2k params,
-     * and save the key derivation for later.
-     */
-    if (!pgp_s2k_derive_key(&info->s2k, password, info->key, sizeof(info->key))) {
-        return RNP_ERROR_GENERIC;
-    }
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
 rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx)
 {
-    rnp_result_t              ret = RNP_ERROR_GENERIC;
-    rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t) 0}};
-    char                      password[MAX_PASSWORD_LENGTH] = {0};
-    pgp_password_ctx_t        pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
+    rnp_result_t       ret = RNP_ERROR_GENERIC;
+    char               password[MAX_PASSWORD_LENGTH] = {0};
+    pgp_password_ctx_t pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
 
     if (!pgp_request_password(&rnp->password_provider, &pswdctx, password, sizeof(password))) {
         return RNP_ERROR_BAD_PASSWORD;
     }
-
-    if ((ret =
-           rnp_encrypt_set_pass_info(&info,
-                                     password,
-                                     ctx->halg /* TODO: should be separate s2k-specific */,
-                                     0,
-                                     ctx->ealg /* TODO: should be separate s2k-specific */))) {
-        goto done;
-    }
-    if (!list_append(&ctx->passwords, &info, sizeof(info))) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-    ret = RNP_SUCCESS;
-done:
+    ret = rnp_ctx_add_encryption_password(ctx, password, ctx->halg, ctx->ealg, 0);
     pgp_forget(password, sizeof(password));
-    pgp_forget(&info, sizeof(info));
     return ret;
 }
 
