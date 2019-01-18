@@ -34,11 +34,11 @@
 #include <regex.h>
 #include <string.h>
 #include <stdarg.h>
-#include <rnp/rnp.h>
+#include "rnp.h"
 #include "crypto.h"
-#include <rnp/rnp_def.h>
 #include "pgp-key.h"
 #include "../rnp/rnpcfg.h"
+#include "../rnp/rnpcli.h"
 #include "rnpkeys.h"
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-sig.h>

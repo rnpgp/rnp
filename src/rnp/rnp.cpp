@@ -43,7 +43,7 @@
 #include <errno.h>
 #include <getopt.h>
 #include <regex.h>
-#include <rnp/rnp.h>
+#include "rnpcli.h"
 #include <rnp/rnp_sdk.h>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-parse.h>

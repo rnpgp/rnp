@@ -126,7 +126,6 @@ add_library(librnp
   pass-provider.cpp
   pgp-key.cpp
   rnp2.cpp
-  rnp.cpp
 )
 
 set_target_properties(librnp

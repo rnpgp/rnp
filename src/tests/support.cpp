@@ -28,6 +28,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/stat.h>
 
 #include <stdarg.h>
 #include <stddef.h>
@@ -44,9 +45,6 @@
 
 #include <crypto.h>
 #include <pgp-key.h>
-
-#include <rnp/rnp.h>
-#include <sys/stat.h>
 
 extern rng_t global_rng;
 
@@ -571,4 +569,3 @@ fmt(const char *format, ...)
     buf.resize(size);
     return buf;
 }
-
