@@ -154,10 +154,6 @@ get_timestamp_usec()
 size_t
 pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec)
 {
-    const uint8_t MIN_ITERS = 96;
-    uint8_t       buf[8192] = {0};
-    size_t        bytes = 0;
-
     if (desired_msec == 0) {
         desired_msec = DEFAULT_S2K_MSEC;
     }
@@ -165,12 +161,16 @@ pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec
         trial_msec = DEFAULT_S2K_TUNE_MSEC;
     }
 
-    pgp_hash_t hash;
-    pgp_hash_create(&hash, alg);
+    pgp_hash_t hash = {};
+    if (!pgp_hash_create(&hash, alg)) {
+        RNP_LOG("failed to create hash object");
+        return 0;
+    }
 
-    const uint64_t start = get_timestamp_usec();
-    uint64_t       end = start;
-
+    uint64_t start = get_timestamp_usec();
+    uint64_t end = start;
+    uint8_t  buf[8192] = {0};
+    size_t   bytes = 0;
     while (end - start < trial_msec * 1000ull) {
         pgp_hash_add(&hash, buf, sizeof(buf));
         bytes += sizeof(buf);
@@ -179,10 +179,11 @@ pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec
 
     pgp_hash_finish(&hash, buf);
 
-    const uint64_t duration = end - start;
-
-    if (duration == 0)
+    uint64_t      duration = end - start;
+    const uint8_t MIN_ITERS = 96;
+    if (duration == 0) {
         return pgp_s2k_decode_iterations(MIN_ITERS);
+    }
 
     const double  bytes_per_usec = static_cast<double>(bytes) / duration;
     const double  desired_usec = desired_msec * 1000.0;

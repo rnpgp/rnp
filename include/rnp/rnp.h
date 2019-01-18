@@ -45,12 +45,6 @@ typedef struct rnp_t        rnp_t;
 typedef struct rnp_params_t rnp_params_t;
 typedef struct rnp_ctx_t    rnp_ctx_t;
 
-typedef struct rnp_symmetric_pass_info_t {
-    pgp_s2k_t      s2k;
-    pgp_symm_alg_t s2k_cipher;
-    uint8_t        key[PGP_MAX_KEY_SIZE];
-} rnp_symmetric_pass_info_t;
-
 /* initialize rnp using the init structure  */
 rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
 /* finish work with rnp and cleanup the memory */
@@ -113,11 +107,6 @@ rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const 
 
 rnp_result_t rnp_validate_keys_signatures(rnp_t *rnp);
 
-rnp_result_t rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
-                                       const char *               password,
-                                       pgp_hash_alg_t             hash_alg,
-                                       size_t                     iterations,
-                                       pgp_symm_alg_t             s2k_cipher);
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
 
 #if defined(__cplusplus)

@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <assert.h>
+#include "defaults.h"
 #include "stream-ctx.h"
 
 /* rnp_ctx_t : init, reset, free internal pointers */
@@ -42,6 +43,86 @@ rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
 {
     assert(ctx->rng);
     return ctx->rng;
+}
+
+rnp_result_t
+rnp_encrypt_set_pass_info(rnp_symmetric_pass_info_t *info,
+                          const char *               password,
+                          pgp_hash_alg_t             hash_alg,
+                          size_t                     iterations,
+                          pgp_symm_alg_t             s2k_cipher)
+{
+    info->s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    info->s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    info->s2k.hash_alg = hash_alg;
+    if (!rng_generate(info->s2k.salt, sizeof(info->s2k.salt))) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (iterations == 0) {
+        iterations = pgp_s2k_compute_iters(hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+    }
+    info->s2k.iterations = pgp_s2k_encode_iterations(iterations);
+    info->s2k_cipher = s2k_cipher;
+    /* Note: we're relying on the fact that a longer-than-needed key length
+     * here does not change the entire derived key (it just generates unused
+     * extra bytes at the end). We derive a key of our maximum supported length,
+     * which is a bit wasteful.
+     *
+     * This is done because we do not yet know what cipher this key will actually
+     * end up being used with until later.
+     *
+     * An alternative would be to keep a list of actual passwords and s2k params,
+     * and save the key derivation for later.
+     */
+    if (!pgp_s2k_derive_key(&info->s2k, password, info->key, sizeof(info->key))) {
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
+                                const char *   password,
+                                pgp_hash_alg_t halg,
+                                pgp_symm_alg_t ealg,
+                                int            iterations)
+{
+    rnp_symmetric_pass_info_t info = {};
+
+    info.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    info.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    info.s2k.hash_alg = halg;
+
+    if (!rng_get_data(ctx->rng, info.s2k.salt, sizeof(info.s2k.salt))) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (iterations == 0) {
+        iterations = pgp_s2k_compute_iters(halg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+    }
+    if (!iterations) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    info.s2k.iterations = pgp_s2k_encode_iterations(iterations);
+    info.s2k_cipher = ealg;
+    /* Note: we're relying on the fact that a longer-than-needed key length
+     * here does not change the entire derived key (it just generates unused
+     * extra bytes at the end). We derive a key of our maximum supported length,
+     * which is a bit wasteful.
+     *
+     * This is done because we do not yet know what cipher this key will actually
+     * end up being used with until later.
+     *
+     * An alternative would be to keep a list of actual passwords and s2k params,
+     * and save the key derivation for later.
+     */
+    if (!pgp_s2k_derive_key(&info.s2k, password, info.key, sizeof(info.key))) {
+        return RNP_ERROR_GENERIC;
+    }
+    if (!list_append(&ctx->passwords, &info, sizeof(info))) {
+        pgp_forget(&info, sizeof(info));
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    return RNP_SUCCESS;
 }
 
 void

@@ -748,5 +748,7 @@ s2k_iteration_tuning(void **state)
     // Test roughly linear cost, often skeyed by clock idle
     assert_true(static_cast<double>(iters_100) / iters_10 > 6);
 
+    // Should not crash for unknown hash algorithm
+    assert_int_equal(pgp_s2k_compute_iters(PGP_HASH_UNKNOWN, 1000, TRIAL_MSEC), 0);
     /// TODO test that hashing iters_xx data takes roughly requested time
 }

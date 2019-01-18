@@ -1603,8 +1603,7 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                             size_t           iterations,
                             const char *     s2k_cipher)
 {
-    rnp_symmetric_pass_info_t info = {{(pgp_s2k_usage_t) 0}};
-    rnp_result_t              ret = RNP_ERROR_GENERIC;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
 
     // checks
     if (!op || !password) {
@@ -1637,17 +1636,7 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     // derive key, etc
-    if ((ret = rnp_encrypt_set_pass_info(&info, password, hash_alg, iterations, symm_alg))) {
-        goto done;
-    }
-    if (!list_append(&op->rnpctx.passwords, &info, sizeof(info))) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-    ret = RNP_SUCCESS;
-
-done:
-    pgp_forget(&info, sizeof(info));
+    ret = rnp_ctx_add_encryption_password(&op->rnpctx, password, hash_alg, symm_alg, 0);
     return ret;
 }
 
