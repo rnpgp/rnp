@@ -31,10 +31,7 @@
 #ifndef KEY_STORE_INTERNAL_H_
 #define KEY_STORE_INTERNAL_H_
 
-#include <rnp/rnp.h>
-
 #include <stdint.h>
-
 #include <rekey/rnp_key_store.h>
 
 void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);

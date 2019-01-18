@@ -33,17 +33,52 @@
 
 #include <stddef.h>
 #include <stdbool.h>
-
-#include <rnp/rnp_def.h>
-#include <rnp/rnp_types.h>
+#include "rnp.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-typedef struct rnp_t        rnp_t;
-typedef struct rnp_params_t rnp_params_t;
-typedef struct rnp_ctx_t    rnp_ctx_t;
+typedef struct rnp_ctx_t       rnp_ctx_t;
+typedef struct rnp_key_store_t rnp_key_store_t;
+
+/* structure used to keep application-wide rnp configuration: keyrings, password io, whatever
+ * else */
+typedef struct rnp_t {
+    rnp_key_store_t *pubring;       /* public key ring */
+    rnp_key_store_t *secring;       /* s3kr1t key ring */
+    FILE *           resfp;         /* where to put result messages, defaults to stdout */
+    FILE *           user_input_fp; /* file pointer for user input */
+    FILE *           passfp;        /* file pointer for password input */
+    char *           defkey;        /* default key id */
+    int              pswdtries;     /* number of password tries, -1 for unlimited */
+
+    union {
+        rnp_action_keygen_t generate_key_ctx;
+    } action;
+
+    pgp_password_provider_t password_provider;
+    pgp_key_provider_t      key_provider;
+    rng_t                   rng; /* handle to rng_t */
+} rnp_t;
+
+/* rnp initialization parameters : keyring pathes, flags, whatever else */
+typedef struct rnp_params_t {
+    unsigned enable_coredumps; /* enable coredumps: if it is allowed then they are disabled by
+                                  default to not leak confidential information */
+
+    int         passfd; /* password file descriptor */
+    int         userinputfd;
+    const char *ress; /* results stream : maye be <stdout>, <stderr> or file name/path */
+
+    const char *ks_pub_format;     /* format of the public key store */
+    const char *ks_sec_format;     /* format of the secret key store */
+    char *      pubpath;           /* public keystore path */
+    char *      secpath;           /* secret keystore path */
+    char *      defkey;            /* default/preferred key id */
+    bool        keystore_disabled; /* indicates wether keystore must be initialized */
+    pgp_password_provider_t password_provider;
+} rnp_params_t;
 
 /* initialize rnp using the init structure  */
 rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
@@ -55,11 +90,6 @@ bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
 /* rnp initialization parameters : init and free */
 void rnp_params_init(rnp_params_t *);
 void rnp_params_free(rnp_params_t *);
-
-/* debugging, reflection and information */
-bool        rnp_set_debug(const char *);
-bool        rnp_get_debug(const char *);
-const char *rnp_get_info(const char *);
 
 /* set key store format information */
 int rnp_set_key_store_format(rnp_t *, const char *);

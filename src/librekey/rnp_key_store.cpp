@@ -41,7 +41,6 @@
 #include <dirent.h>
 #include <errno.h>
 
-#include <rnp/rnp.h>
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-packet.h>

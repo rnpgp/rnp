@@ -122,6 +122,11 @@ void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
 const char *pgp_str_from_map(int, pgp_map_t *);
 
+/* debugging, reflection and information */
+bool        rnp_set_debug(const char *);
+bool        rnp_get_debug(const char *);
+const char *rnp_get_info(const char *);
+
 /* Portable way to convert bits to bytes */
 
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)

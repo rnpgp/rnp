@@ -26,9 +26,8 @@
 #ifndef RNP_CFG_H_
 #define RNP_CFG_H_
 
-#include <rnp/rnp.h>
 #include <stdbool.h>
-#include "list.h"
+#include "rnpcli.h"
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
@@ -46,15 +45,15 @@
 #define CFG_SUBDIRGPG "subdirgpg"        /* gpg/rnp files subdirectory: .rnp by default */
 #define CFG_COREDUMPS "coredumps"        /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
-#define CFG_USERID "userid"         /* userid for the ongoing operation */
-#define CFG_RECIPIENTS "recipients" /* list of encrypted data recipients */
-#define CFG_SIGNERS "signers"       /* list of signers */
-#define CFG_VERBOSE "verbose"       /* verbose logging */
-#define CFG_HOMEDIR "homedir"       /* home directory - folder with keyrings and so on */
-#define CFG_KEYFILE "keyfile"       /* path to the file with key(s), used instead of keyring */
-#define CFG_PASSFD "pass-fd"        /* password file descriptor */
-#define CFG_PASSWD "password"       /* password as command-line constant */
-#define CFG_PASSWORDC "passwordc"   /* number of passwords for symmetric encryption */
+#define CFG_USERID "userid"              /* userid for the ongoing operation */
+#define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
+#define CFG_SIGNERS "signers"            /* list of signers */
+#define CFG_VERBOSE "verbose"            /* verbose logging */
+#define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
+#define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */
+#define CFG_PASSFD "pass-fd"      /* password file descriptor */
+#define CFG_PASSWD "password"     /* password as command-line constant */
+#define CFG_PASSWORDC "passwordc" /* number of passwords for symmetric encryption */
 #define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_EXPIRATION "expiration"     /* signature expiration time */

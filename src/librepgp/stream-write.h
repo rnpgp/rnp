@@ -30,8 +30,9 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <rnp/rnp.h>
+#include "rnp.h"
 #include "stream-common.h"
+#include "stream-ctx.h"
 
 typedef struct pgp_write_handler_t {
     pgp_password_provider_t *password_provider;
