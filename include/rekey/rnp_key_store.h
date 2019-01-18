@@ -31,12 +31,9 @@
 #ifndef KEY_STORE_H_
 #define KEY_STORE_H_
 
-#include <rnp/rnp.h>
-#include <json.h>
-
 #include <stdint.h>
 #include <stdbool.h>
-
+#include "rnp.h"
 #include "librepgp/stream-common.h"
 
 typedef struct pgp_key_t pgp_key_t;

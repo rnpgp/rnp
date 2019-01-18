@@ -27,7 +27,7 @@
 #ifndef RNP_KEY_STORE_G10_H
 #define RNP_KEY_STORE_G10_H
 
-#include <rnp/rnp.h>
+#include "rnp.h"
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-common.h>
 

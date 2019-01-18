@@ -32,10 +32,12 @@
 #ifndef RNP_RNP_H
 #define RNP_RNP_H
 
-#include <rnp/rnp.h>
+#include "types.h"
+#include "pass-provider.h"
+#include "key-provider.h"
+#include "list.h"
+#include "crypto/rng.h"
 #include <rnp/rnp_def.h>
-#include <rnp/rnp_types.h>
-
 #include <rekey/rnp_key_store.h>
 
 #endif // RNP_RNP_H
