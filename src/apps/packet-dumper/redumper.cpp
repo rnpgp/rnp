@@ -4,8 +4,8 @@
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-dump.h>
 #include "utils.h"
-#include <rnp/rnp.h> /* rnp_t, rnp_ctx_t et. all */
-#include <libgen.h>  /* basename() */
+#include "rnp.h"    /* rnp_ctx_t et. all */
+#include <libgen.h> /* basename() */
 
 #define PFX "redumper: "
 

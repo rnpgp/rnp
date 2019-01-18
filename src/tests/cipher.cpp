@@ -27,7 +27,7 @@
 #include <crypto/common.h>
 #include <crypto.h>
 #include <pgp-key.h>
-#include <rnp/rnp.h>
+#include "rnp.h"
 #include <librepgp/stream-packet.h>
 
 #include "rnp_tests.h"

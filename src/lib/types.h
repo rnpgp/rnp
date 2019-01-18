@@ -429,4 +429,15 @@ typedef struct rnp_key_protection_params_t {
     pgp_hash_alg_t    hash_alg;
 } rnp_key_protection_params_t;
 
+typedef struct rnp_action_keygen_t {
+    struct {
+        rnp_keygen_primary_desc_t   keygen;
+        rnp_key_protection_params_t protection;
+    } primary;
+    struct {
+        rnp_keygen_subkey_desc_t    keygen;
+        rnp_key_protection_params_t protection;
+    } subkey;
+} rnp_action_keygen_t;
+
 #endif /* TYPES_H_ */

@@ -41,7 +41,8 @@ extern "C" {
 #include <cmocka.h>
 }
 
-#include <rnp/rnp.h>
+#include "rnp.h"
+#include "../rnp/rnpcli.h"
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
@@ -164,4 +165,3 @@ bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
 
 std::string fmt(const char *format, ...);
-

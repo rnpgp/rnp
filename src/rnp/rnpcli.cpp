@@ -49,25 +49,18 @@
 #include <unistd.h>
 #endif
 
-#include <errno.h>
 #include <limits.h>
 #include <sys/resource.h>
 
-#include <rnp/rnp.h>
-#include <rnp/rnp_def.h>
-#include <rnp/rnp_sdk.h>
+#include "rnpcli.h"
 #include <rekey/rnp_key_store.h>
 
-#include "pass-provider.h"
-#include "key-provider.h"
-#include <librepgp/packet-show.h>
 #include "utils.h"
 #include "crypto.h"
 #include "crypto/common.h"
-#include <rnp/rnp_def.h>
 #include "pgp-key.h"
-#include "list.h"
 #include "defaults.h"
+#include <librepgp/packet-show.h>
 #include <librepgp/stream-def.h>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-armor.h>
@@ -78,9 +71,7 @@
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-dump.h>
 #include <librekey/key_store_internal.h>
-
 #include <json.h>
-#include <rnp.h>
 
 #ifdef HAVE_SYS_RESOURCE_H
 

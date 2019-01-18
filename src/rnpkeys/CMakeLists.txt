@@ -30,6 +30,7 @@ add_executable(rnpkeys
   tui.cpp
   main.cpp
   ../rnp/rnpcfg.cpp
+  ../rnp/rnpcli.cpp
 )
 
 target_include_directories(rnpkeys

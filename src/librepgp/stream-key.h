@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include <rnp/rnp.h>
+#include "rnp.h"
 #include "stream-common.h"
 #include "stream-sig.h"
 
