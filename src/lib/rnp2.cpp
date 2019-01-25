@@ -344,6 +344,58 @@ curve_type_to_str(pgp_curve_t type, const char **str)
     return true;
 }
 
+static bool
+str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
+{
+    pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, str, alg);
+    if (alg == PGP_SA_UNKNOWN) {
+        return false;
+    }
+
+    *cipher = alg;
+    return true;
+}
+
+static bool
+str_to_hash_alg(const char *str, pgp_hash_alg_t *hash_alg)
+{
+    pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, str, alg);
+    if (alg == PGP_HASH_UNKNOWN) {
+        return false;
+    }
+
+    *hash_alg = alg;
+    return true;
+}
+
+static bool
+str_to_cipher_mode(const char *str, pgp_cipher_mode_t *mode)
+{
+    pgp_cipher_mode_t c_mode = PGP_CIPHER_MODE_NONE;
+    ARRAY_LOOKUP_BY_STRCASE(cipher_mode_map, string, type, str, c_mode);
+    if (c_mode == PGP_CIPHER_MODE_NONE) {
+        return false;
+    }
+
+    *mode = c_mode;
+    return true;
+}
+
+static bool
+str_to_pubkey_alg(const char *str, pgp_pubkey_alg_t *pub_alg)
+{
+    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+    ARRAY_LOOKUP_BY_STRCASE(pubkey_alg_map, string, type, str, alg);
+    if (alg == PGP_PKA_NOTHING) {
+        return false;
+    }
+
+    *pub_alg = alg;
+    return true;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -1463,13 +1515,10 @@ rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *hash)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if (!str_to_hash_alg(hash, &ctx->halg)) {
         FFI_LOG(ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    ctx->halg = hash_alg;
     return RNP_SUCCESS;
 }
 
@@ -1624,14 +1673,12 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
     }
     // parse
     pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, s2k_hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if (!str_to_hash_alg(s2k_hash, &hash_alg)) {
         FFI_LOG(op->ffi, "Invalid hash: %s", s2k_hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, s2k_cipher, symm_alg);
-    if (symm_alg == PGP_SA_UNKNOWN) {
+    if (!str_to_cipher(s2k_cipher, &symm_alg)) {
         FFI_LOG(op->ffi, "Invalid cipher: %s", s2k_hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1657,9 +1704,7 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->rnpctx.ealg = PGP_SA_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, op->rnpctx.ealg);
-    if (op->rnpctx.ealg == PGP_SA_UNKNOWN) {
+    if (!str_to_cipher(cipher, &op->rnpctx.ealg)) {
         FFI_LOG(op->ffi, "Invalid cipher: %s", cipher);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1860,14 +1905,10 @@ rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if (!str_to_hash_alg(hash, &sig->signer.halg)) {
         FFI_LOG(sig->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    sig->signer.halg = hash_alg;
     sig->hash_set = true;
     return RNP_SUCCESS;
 }
@@ -2569,9 +2610,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(
-                  hash_alg_map, string, type, json_object_get_string(item), hash_alg);
-                if (hash_alg == PGP_HASH_UNKNOWN) {
+                if (!str_to_hash_alg(json_object_get_string(item), &hash_alg)) {
                     return false;
                 }
                 if (!pgp_user_prefs_add_hash_alg(prefs, hash_alg)) {
@@ -2586,9 +2625,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(
-                  symm_alg_map, string, type, json_object_get_string(item), symm_alg);
-                if (symm_alg == PGP_SA_UNKNOWN) {
+                if (!str_to_cipher(json_object_get_string(item), &symm_alg)) {
                     return false;
                 }
                 if (!pgp_user_prefs_add_symm_alg(prefs, symm_alg)) {
@@ -2648,10 +2685,7 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
         }
         // TODO: make sure there are no duplicate keys in the JSON
         if (!rnp_strcasecmp(key, "type")) {
-            crypto->key_alg = PGP_PKA_NOTHING;
-            ARRAY_LOOKUP_BY_STRCASE(
-              pubkey_alg_map, string, type, json_object_get_string(value), crypto->key_alg);
-            if (crypto->key_alg == PGP_PKA_NOTHING) {
+            if (!str_to_pubkey_alg(json_object_get_string(value), &crypto->key_alg)) {
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "length")) {
@@ -2669,10 +2703,7 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "hash")) {
-            crypto->hash_alg = PGP_HASH_UNKNOWN;
-            const char *str = json_object_get_string(value);
-            ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, str, crypto->hash_alg);
-            if (crypto->hash_alg == PGP_HASH_UNKNOWN) {
+            if (!str_to_hash_alg(json_object_get_string(value), &crypto->hash_alg)) {
                 return false;
             }
         } else {
@@ -2709,29 +2740,17 @@ parse_protection(json_object *jso, rnp_key_protection_params_t *protection)
         }
         // TODO: make sure there are no duplicate keys in the JSON
         if (!rnp_strcasecmp(key, "cipher")) {
-            protection->symm_alg = PGP_SA_UNKNOWN;
-            ARRAY_LOOKUP_BY_STRCASE(
-              symm_alg_map, string, type, json_object_get_string(value), protection->symm_alg);
-            if (protection->symm_alg == PGP_SA_UNKNOWN) {
+            if (!str_to_cipher(json_object_get_string(value), &protection->symm_alg)) {
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "mode")) {
-            protection->cipher_mode = PGP_CIPHER_MODE_NONE;
-            ARRAY_LOOKUP_BY_STRCASE(cipher_mode_map,
-                                    string,
-                                    type,
-                                    json_object_get_string(value),
-                                    protection->cipher_mode);
-            if (protection->cipher_mode == PGP_CIPHER_MODE_NONE) {
+            if (!str_to_cipher_mode(json_object_get_string(value), &protection->cipher_mode)) {
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "iterations")) {
             protection->iterations = json_object_get_int(value);
         } else if (!rnp_strcasecmp(key, "hash")) {
-            protection->hash_alg = PGP_HASH_UNKNOWN;
-            ARRAY_LOOKUP_BY_STRCASE(
-              hash_alg_map, string, type, json_object_get_string(value), protection->hash_alg);
-            if (protection->hash_alg == PGP_HASH_UNKNOWN) {
+            if (!str_to_hash_alg(json_object_get_string(value), &protection->hash_alg)) {
                 return false;
             }
         } else {
@@ -3332,8 +3351,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, hash_alg);
-    if (hash_alg == PGP_HASH_UNKNOWN) {
+    if (!str_to_hash_alg(hash, &hash_alg)) {
         FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -3560,27 +3578,17 @@ rnp_key_protect(rnp_key_handle_t handle,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    if (cipher) {
-        ARRAY_LOOKUP_BY_STRCASE(symm_alg_map, string, type, cipher, protection.symm_alg);
-        if (!protection.symm_alg) {
-            FFI_LOG(handle->ffi, "Invalid cipher: %s", cipher);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
+    if (cipher && !str_to_cipher(cipher, &protection.symm_alg)) {
+        FFI_LOG(handle->ffi, "Invalid cipher: %s", cipher);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (cipher_mode) {
-        ARRAY_LOOKUP_BY_STRCASE(
-          cipher_mode_map, string, type, cipher_mode, protection.cipher_mode);
-        if (!protection.cipher_mode) {
-            FFI_LOG(handle->ffi, "Invalid cipher mode: %s", cipher_mode);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
+    if (cipher_mode && !str_to_cipher_mode(cipher_mode, &protection.cipher_mode)) {
+        FFI_LOG(handle->ffi, "Invalid cipher mode: %s", cipher_mode);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (hash) {
-        ARRAY_LOOKUP_BY_STRCASE(hash_alg_map, string, type, hash, protection.hash_alg);
-        if (!protection.hash_alg) {
-            FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
+    if (hash && !str_to_hash_alg(hash, &protection.hash_alg)) {
+        FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     protection.iterations = iterations;
 
