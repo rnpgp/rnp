@@ -126,6 +126,7 @@ typedef struct rnp_ffi_st *                rnp_ffi_t;
 typedef struct rnp_key_handle_st *         rnp_key_handle_t;
 typedef struct rnp_input_st *              rnp_input_t;
 typedef struct rnp_output_st *             rnp_output_t;
+typedef struct rnp_op_generate_st *        rnp_op_generate_t;
 typedef struct rnp_op_sign_st *            rnp_op_sign_t;
 typedef struct rnp_op_sign_signature_st *  rnp_op_sign_signature_t;
 typedef struct rnp_op_verify_st *          rnp_op_verify_t;
@@ -328,6 +329,247 @@ rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
 rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
 
 /* Key operations */
+
+rnp_result_t rnp_generate_key_rsa(
+  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key);
+
+rnp_result_t rnp_generate_key_dsa_eg(
+  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key);
+
+rnp_result_t rnp_generate_key_ec(rnp_ffi_t         ffi,
+                                 const char *      curve,
+                                 const char *      userid,
+                                 rnp_key_handle_t *key);
+
+rnp_result_t rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key);
+
+/** Create key generation context for the primary key.
+ *  To generate a subkey use function rnp_op_generate_subkey_create() instead.
+ *  Note: pass provider is required if generated key needs protection.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param ffi
+ * @param alg key algorithm as string. Must be able to sign. Currently the following algorithms
+ *            are supported (case-insensetive) : 'rsa', 'dsa', 'ecdsa', 'eddsa', 'sm2'.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg);
+
+/** Create key generation context for the subkey.
+ *  Note: you need to have primary key before calling this function. It can be loaded from
+ * keyring or generated via the function rnp_op_generate_create(). Also pass provider is needed
+ * if primary key is encrypted (protected and locked).
+ *
+ * @param op pointer to opaque key generation context.
+ * @param ffi
+ * @param primary primary key handle, must have secret part.
+ * @param alg key algorithm as string. Currently the following algorithms are supported
+ * (case-insensetive) : 'rsa', 'dsa', 'elgamal', 'ecdsa', 'eddsa', 'ecdh', 'sm2'.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_subkey_create(rnp_op_generate_t *op,
+                                           rnp_ffi_t          ffi,
+                                           rnp_key_handle_t   primary,
+                                           const char *       alg);
+
+/** Set bits of the generated key or subkey.
+ *  Note: this is applicable only to rsa, dsa and el-gamal keys.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param bits number of bits
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_bits(rnp_op_generate_t op, uint32_t bits);
+
+/** Set hash algorithm used in self signature or subkey binding signature.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param hash string with hash algorithm name. Following hash algorithms are supported:
+ *             "MD5", "SHA1", "RIPEMD160", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_hash(rnp_op_generate_t op, const char *hash);
+
+/** Set size of q parameter for DSA key.
+ *  Note: appropriate default value will be set, depending on key bits. However you may
+ *        override it if needed.
+ * @param op pointer to opaque key generation context.
+ * @param qbits number of bits
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_dsa_qbits(rnp_op_generate_t op, uint32_t qbits);
+
+/** Set the curve used for ECC key
+ *  Note: this is only applicable for ECDSA, ECDH and SM2 keys.
+ * @param op pointer to opaque key generation context.
+ * @param curve string with curve name. Following curve names may be used:
+ *              "NIST P-256", "NIST P-384", "NIST P-521", "Curve25519" (ECDH only),
+ *              "brainpoolP256r1", "brainpoolP384r1", "brainpoolP512r1", "secp256k1",
+ *              "SM2 P-256" (SM2 only)
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve);
+
+/** Set cipher used to encrypt secret key data.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param cipher string with cipher name. Following ciphers are supported:
+ *               "Idea", "Tripledes", "Cast5", "Blowfish", "AES128", "AES192", "AES256",
+ *               "Twofish", "Camellia128", "Camellia192", "Camellia256", "SM4".
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher);
+
+/** Set hash algorithm, used to derive key from password for secret key data encryption.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param hash string with hash algorithm, see rnp_op_generate_set_hash() for the whole list.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_protection_hash(rnp_op_generate_t op, const char *hash);
+
+/** Set encryption mode, used for secret key data encryption.
+ *  Note: currently this makes sense only for G10 key format
+ *
+ * @param op pointer to opaque key generation context.
+ * @param mode string with mode name: "CFB", "CBC", "OCB"
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_protection_mode(rnp_op_generate_t op, const char *mode);
+
+/** Set number of iterations used to derive key from password for secret key encryption.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param iterations number of iterations
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_protection_iterations(rnp_op_generate_t op,
+                                                       uint32_t          iterations);
+
+/** Add key usage flag to the key or subkey.
+ *  Note: use it only if you need to override defaults, which depend on primary key or subkey,
+ *        and public key algorithm.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param usage string, representing key usage. Following values are supported: "sign",
+ *              "certify", "encrypt", "authenticate".
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_add_usage(rnp_op_generate_t op, const char *usage);
+
+/** Reset key usage flags, so default ones will be used during key/subkey generation
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_clear_usage(rnp_op_generate_t op);
+
+/** Set the userid which will represent the generate key.
+ *  Note: Makes sense only for primary key generation.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param userid NULL-terminated string with userid.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_userid(rnp_op_generate_t op, const char *userid);
+
+/** Set the key or subkey expiration time.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param expiration expiration time in seconds. 0 value means that key doesn't expire.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_expiration(rnp_op_generate_t op, uint32_t expiration);
+
+/** Add preferred hash to user preferences.
+ *  Note: the first added hash algorithm has the highest priority, then the second and so on.
+ *        Applicable only for the primary key generation.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param hash string, representing the hash algorithm. See the rnp_op_generate_set_hash()
+ *             function description for the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_add_pref_hash(rnp_op_generate_t op, const char *hash);
+
+/** Clear the preferred hash algorithms list, so default ones will be used.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_clear_pref_hashes(rnp_op_generate_t op);
+
+/** Add preferred compression algorithm to user preferences.
+ *  Note: the first added algorithm has the highest priority, then the second and so on.
+ *        Applicable only for the primary key generation.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param compression string, representing the compression algorithm. Possible values are:
+ *                    "zip", "zlib", "bzip2"
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_add_pref_compression(rnp_op_generate_t op,
+                                                  const char *      compression);
+
+/** Clear the preferred compression algorithms list, so default ones will be used.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_clear_pref_compression(rnp_op_generate_t op);
+
+/** Add preferred encryption algorithm to user preferences.
+ *  Note: the first added algorithm has the highest priority, then the second and so on.
+ *        Applicable only for the primary key generation.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param cipher string, representing the encryption algorithm.
+ *               See the rnp_op_generate_set_protection_cipher() function description for
+ *               the list of possible values.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_add_pref_cipher(rnp_op_generate_t op, const char *cipher);
+
+/** Clear the preferred encryption algorithms list, so default ones will be used.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
+
+/** Set the preferred key server. Applicable only for the primary key.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param keyserver NULL-terminated string with key server's URL, or NULL to delete it from
+ *                  user preferences.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver);
+
+/** Execute the prepared key or subkey generation operation.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_execute(rnp_op_generate_t op);
+
+/** Get the generated key's handle. Should be called only after successfull execution of
+ *  rnp_op_generate_execute().
+ *
+ * @param op pointer to opaque key generation context.
+ * @param handle pointer to key handle will be stored here.
+ *            You must free handle after use with rnp_key_handle_destroy.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle);
+
+/** Free resources associated with signing operation.
+ *
+ *  @param op opaque key generation context. Must be successfully initialized with one of the
+ *         rnp_op_generate_*_create functions.
+ *  @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_destroy(rnp_op_generate_t op);
 
 /** export a key
  *
@@ -669,7 +911,7 @@ rnp_result_t rnp_op_sign_execute(rnp_op_sign_t op);
 
 /** @brief Free resources associated with signing operation.
  *  @param op opaque signing context. Must be successfully initialized with one of the
- *         rnp_op_sign_*_create functions. At least one signing key should be added.
+ *         rnp_op_sign_*_create functions.
  *  @return RNP_SUCCESS or error code if failed.
  */
 rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
