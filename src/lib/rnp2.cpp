@@ -91,6 +91,20 @@ struct rnp_output_st {
     bool                 keep;
 };
 
+struct rnp_op_generate_st {
+    rnp_ffi_t  ffi;
+    bool       primary;
+    pgp_key_t *primary_sec;
+    pgp_key_t *primary_pub;
+    pgp_key_t *gen_sec;
+    pgp_key_t *gen_pub;
+    /* we don't use top-level keygen action here for easier fields access */
+    rnp_keygen_crypto_params_t  crypto;
+    rnp_key_protection_params_t protection;
+    rnp_selfsig_cert_info_t     cert;
+    rnp_selfsig_binding_info_t  binding;
+};
+
 struct rnp_op_sign_st {
     rnp_ffi_t    ffi;
     rnp_input_t  input;
@@ -3278,6 +3292,526 @@ done:
     free(identifier);
     pgp_free_user_prefs(&keygen_desc.primary.keygen.cert.prefs);
     return ret;
+}
+
+rnp_result_t
+rnp_generate_key_rsa(
+  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_generate_key_dsa_eg(
+  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_generate_key_ec(rnp_ffi_t         ffi,
+                    const char *      curve,
+                    const char *      userid,
+                    rnp_key_handle_t *key)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+rnp_result_t
+rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg)
+{
+    pgp_pubkey_alg_t key_alg = PGP_PKA_NOTHING;
+
+    if (!op || !ffi || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (!ffi->pubring || !ffi->secring) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!str_to_pubkey_alg(alg, &key_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!(pgp_pk_alg_capabilities(key_alg) & PGP_KF_SIGN)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *op = (rnp_op_generate_t) calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    (*op)->ffi = ffi;
+    (*op)->primary = true;
+    (*op)->crypto.key_alg = key_alg;
+    (*op)->crypto.rng = &ffi->rng;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_subkey_create(rnp_op_generate_t *op,
+                              rnp_ffi_t          ffi,
+                              rnp_key_handle_t   primary,
+                              const char *       alg)
+{
+    if (!op || !ffi || !alg || !primary) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (!ffi->pubring || !ffi->secring) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* TODO: should we do these checks here or may leave it up till generate call? */
+    bool flag = false;
+    if (rnp_key_have_secret(primary, &flag) || !flag) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (rnp_key_is_primary(primary, &flag) || !flag) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!pgp_key_can_sign(primary->sec)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_pubkey_alg_t key_alg = PGP_PKA_NOTHING;
+    if (!str_to_pubkey_alg(alg, &key_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *op = (rnp_op_generate_t) calloc(1, sizeof(**op));
+    if (!*op) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    (*op)->ffi = ffi;
+    (*op)->primary = false;
+    (*op)->crypto.key_alg = key_alg;
+    (*op)->crypto.rng = &ffi->rng;
+    (*op)->primary_sec = primary->sec;
+    (*op)->primary_pub = primary->pub;
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_bits(rnp_op_generate_t op, uint32_t bits)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    switch (op->crypto.key_alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        op->crypto.rsa.modulus_bit_len = bits;
+        break;
+    case PGP_PKA_ELGAMAL:
+        op->crypto.elgamal.key_bitlen = bits;
+        break;
+    case PGP_PKA_DSA:
+        op->crypto.dsa.p_bitlen = bits;
+        break;
+    default:
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_hash(rnp_op_generate_t op, const char *hash)
+{
+    if (!op || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!str_to_hash_alg(hash, &op->crypto.hash_alg)) {
+        FFI_LOG(op->ffi, "Invalid hash: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_dsa_qbits(rnp_op_generate_t op, uint32_t qbits)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (op->crypto.key_alg != PGP_PKA_DSA) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    op->crypto.dsa.q_bitlen = qbits;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve)
+{
+    if (!op || !curve) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!pk_alg_allows_custom_curve(op->crypto.key_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!curve_str_to_type(curve, &op->crypto.ecc.curve)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher)
+{
+    if (!op || !cipher) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!str_to_cipher(cipher, &op->protection.symm_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_protection_hash(rnp_op_generate_t op, const char *hash)
+{
+    if (!op || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!str_to_hash_alg(hash, &op->protection.hash_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_protection_mode(rnp_op_generate_t op, const char *mode)
+{
+    if (!op || !mode) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!str_to_cipher_mode(mode, &op->protection.cipher_mode)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_protection_iterations(rnp_op_generate_t op, uint32_t iterations)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->protection.iterations = iterations;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_add_usage(rnp_op_generate_t op, const char *usage)
+{
+    if (!op || !usage) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    uint8_t flag = 0;
+    if (!str_to_key_flag(usage, &flag)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (op->primary) {
+        op->cert.key_flags |= flag;
+    } else {
+        op->binding.key_flags |= flag;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_clear_usage(rnp_op_generate_t op)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (op->primary) {
+        op->cert.key_flags = 0;
+    } else {
+        op->binding.key_flags = 0;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_userid(rnp_op_generate_t op, const char *userid)
+{
+    if (!op || !userid) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (strlen(userid) >= sizeof(op->cert.userid)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    strcpy((char *) op->cert.userid, userid);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_expiration(rnp_op_generate_t op, uint32_t expiration)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (op->primary) {
+        op->cert.key_expiration = expiration;
+    } else {
+        op->binding.key_expiration = expiration;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_clear_pref_hashes(rnp_op_generate_t op)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_set_hash_algs(&op->cert.prefs, NULL, 0)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_add_pref_hash(rnp_op_generate_t op, const char *hash)
+{
+    if (!op || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+    if (!str_to_hash_alg(hash, &hash_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_add_hash_alg(&op->cert.prefs, hash_alg)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_clear_pref_compression(rnp_op_generate_t op)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_set_z_algs(&op->cert.prefs, NULL, 0)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_add_pref_compression(rnp_op_generate_t op, const char *compression)
+{
+    if (!op || !compression) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, z_alg);
+    if (z_alg == PGP_C_UNKNOWN) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_add_z_alg(&op->cert.prefs, z_alg)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_set_symm_algs(&op->cert.prefs, NULL, 0)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_add_pref_cipher(rnp_op_generate_t op, const char *cipher)
+{
+    if (!op || !cipher) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->primary) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
+    if (!str_to_cipher(cipher, &symm_alg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_user_prefs_add_symm_alg(&op->cert.prefs, symm_alg)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver)
+{
+    if (!op || !keyserver) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    uint8_t *_keyserver = (uint8_t *) strdup(keyserver);
+    if (!_keyserver) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    free(op->cert.prefs.key_server);
+    op->cert.prefs.key_server = _keyserver;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_execute(rnp_op_generate_t op)
+{
+    if (!op || !op->ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    pgp_key_t    pub = {};
+    pgp_key_t    sec = {};
+
+    if (op->primary) {
+        rnp_keygen_primary_desc_t keygen = {};
+        keygen.crypto = op->crypto;
+        keygen.cert = op->cert;
+        op->cert.prefs = {}; /* generate call will free prefs */
+
+        if (!pgp_generate_primary_key(&keygen, true, &sec, &pub, op->ffi->secring->format)) {
+            return RNP_ERROR_KEY_GENERATION;
+        }
+        if (!(op->gen_pub = rnp_key_store_add_key(op->ffi->pubring, &pub))) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto prim_done;
+        }
+        pub = (pgp_key_t){0};
+
+        /* encrypt secret key if specified */
+        if (op->protection.symm_alg &&
+            !rnp_key_add_protection(
+              &sec, op->ffi->secring->format, &op->protection, &op->ffi->pass_provider)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto prim_done;
+        }
+
+        if (!(op->gen_sec = rnp_key_store_add_key(op->ffi->secring, &sec))) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto prim_done;
+        }
+        sec = (pgp_key_t){0};
+        ret = RNP_SUCCESS;
+    prim_done:
+        pgp_key_free_data(&sec);
+        pgp_key_free_data(&pub);
+        return ret;
+    }
+    /* subkey generation */
+    rnp_keygen_subkey_desc_t keygen = {};
+    keygen.crypto = op->crypto;
+    keygen.binding = op->binding;
+    if (!pgp_generate_subkey(&keygen,
+                             true,
+                             op->primary_sec,
+                             op->primary_pub,
+                             &sec,
+                             &pub,
+                             &op->ffi->pass_provider,
+                             op->ffi->secring->format)) {
+        ret = RNP_ERROR_KEY_GENERATION;
+        goto sub_done;
+    }
+    if (!(op->gen_pub = rnp_key_store_add_key(op->ffi->pubring, &pub))) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto sub_done;
+    }
+    pub = (pgp_key_t){0};
+
+    /* encrypt subkey if specified */
+    if (op->protection.symm_alg &&
+        !rnp_key_add_protection(
+          &sec, op->ffi->secring->format, &op->protection, &op->ffi->pass_provider)) {
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto sub_done;
+    }
+
+    if (!(op->gen_sec = rnp_key_store_add_key(op->ffi->secring, &sec))) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto sub_done;
+    }
+    sec = (pgp_key_t){0};
+    ret = RNP_SUCCESS;
+sub_done:
+    pgp_key_free_data(&sec);
+    pgp_key_free_data(&pub);
+    return ret;
+}
+
+rnp_result_t
+rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle)
+{
+    if (!op || !handle) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!op->gen_sec || !op->gen_pub) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
+    if (!handle) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*handle)->ffi = op->ffi;
+    (*handle)->pub = op->gen_pub;
+    (*handle)->sec = op->gen_sec;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_generate_destroy(rnp_op_generate_t op)
+{
+    if (op) {
+        pgp_free_user_prefs(&op->cert.prefs);
+        free(op);
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
