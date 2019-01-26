@@ -396,6 +396,18 @@ str_to_pubkey_alg(const char *str, pgp_pubkey_alg_t *pub_alg)
     return true;
 }
 
+static bool
+str_to_key_flag(const char *str, uint8_t *flag)
+{
+    uint8_t _flag = 0;
+    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, _flag);
+    if (!_flag) {
+        return false;
+    }
+    *flag = _flag;
+    return true;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -2798,10 +2810,8 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t     flag = 0;
-                    const char *str = json_object_get_string(item);
-                    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
-                    if (!flag) {
+                    uint8_t flag = 0;
+                    if (!str_to_key_flag(json_object_get_string(item), &flag)) {
                         return false;
                     }
                     // check for duplicate
@@ -2812,10 +2822,7 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
                 }
             } break;
             case json_type_string: {
-                const char *str = json_object_get_string(value);
-                cert->key_flags = 0;
-                ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, cert->key_flags);
-                if (!cert->key_flags) {
+                if (!str_to_key_flag(json_object_get_string(value), &cert->key_flags)) {
                     return false;
                 }
             } break;
@@ -2879,10 +2886,8 @@ parse_keygen_sub(json_object *jso, rnp_action_keygen_t *desc)
                     if (!json_object_is_type(item, json_type_string)) {
                         return false;
                     }
-                    uint8_t     flag = 0;
-                    const char *str = json_object_get_string(item);
-                    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, flag);
-                    if (!flag) {
+                    uint8_t flag = 0;
+                    if (!str_to_key_flag(json_object_get_string(item), &flag)) {
                         return false;
                     }
                     if (binding->key_flags & flag) {
@@ -2892,10 +2897,7 @@ parse_keygen_sub(json_object *jso, rnp_action_keygen_t *desc)
                 }
             } break;
             case json_type_string: {
-                const char *str = json_object_get_string(value);
-                binding->key_flags = 0;
-                ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, binding->key_flags);
-                if (!binding->key_flags) {
+                if (!str_to_key_flag(json_object_get_string(value), &binding->key_flags)) {
                     return false;
                 }
             } break;
