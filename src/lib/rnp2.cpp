@@ -3294,18 +3294,85 @@ done:
     return ret;
 }
 
+static rnp_result_t
+rnp_generate_key_ex(rnp_ffi_t         ffi,
+                    const char *      alg,
+                    const char *      salg,
+                    uint32_t          bits,
+                    uint32_t          sbits,
+                    const char *      curve,
+                    const char *      scurve,
+                    const char *      userid,
+                    rnp_key_handle_t *key)
+{
+    rnp_op_generate_t op = NULL;
+    rnp_op_generate_t subop = NULL;
+    rnp_key_handle_t  primary = NULL;
+    rnp_result_t      ret = RNP_ERROR_KEY_GENERATION;
+
+    /* generate primary key */
+    if ((ret = rnp_op_generate_create(&op, ffi, alg))) {
+        return ret;
+    }
+
+    if (bits && (ret = rnp_op_generate_set_bits(op, bits))) {
+        goto done;
+    }
+    if (curve && (ret = rnp_op_generate_set_curve(op, curve))) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_set_userid(op, userid))) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_execute(op))) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_get_key(op, &primary))) {
+        goto done;
+    }
+    /* generate subkey if requested */
+    if (!salg) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_subkey_create(&subop, ffi, primary, salg))) {
+        goto done;
+    }
+    if (sbits && (ret = rnp_op_generate_set_bits(subop, sbits))) {
+        goto done;
+    }
+    if (scurve && (ret = rnp_op_generate_set_curve(subop, scurve))) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_execute(subop))) {
+        goto done;
+    }
+done:
+    if (!ret && key) {
+        *key = primary;
+    }
+    if (ret && primary) {
+        rnp_key_remove(primary, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
+        rnp_key_handle_destroy(primary);
+    }
+    rnp_op_generate_destroy(op);
+    rnp_op_generate_destroy(subop);
+    return ret;
+}
+
 rnp_result_t
 rnp_generate_key_rsa(
   rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return rnp_generate_key_ex(
+      ffi, "RSA", subbits ? "RSA" : NULL, bits, subbits, NULL, NULL, userid, key);
 }
 
 rnp_result_t
 rnp_generate_key_dsa_eg(
   rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return rnp_generate_key_ex(
+      ffi, "DSA", subbits ? "ElGamal" : NULL, bits, subbits, NULL, NULL, userid, key);
 }
 
 rnp_result_t
@@ -3314,13 +3381,19 @@ rnp_generate_key_ec(rnp_ffi_t         ffi,
                     const char *      userid,
                     rnp_key_handle_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return rnp_generate_key_ex(ffi, "ECDSA", "ECDH", 0, 0, curve, curve, userid, key);
 }
 
 rnp_result_t
 rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return rnp_generate_key_ex(ffi, "EDDSA", "ECDH", 0, 0, NULL, "Curve25519", userid, key);
+}
+
+rnp_result_t
+rnp_generate_key_sm2(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key)
+{
+    return rnp_generate_key_ex(ffi, "SM2", "SM2", 0, 0, NULL, NULL, userid, key);
 }
 
 rnp_result_t

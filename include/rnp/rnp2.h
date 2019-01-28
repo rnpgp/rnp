@@ -343,6 +343,8 @@ rnp_result_t rnp_generate_key_ec(rnp_ffi_t         ffi,
 
 rnp_result_t rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key);
 
+rnp_result_t rnp_generate_key_sm2(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key);
+
 /** Create key generation context for the primary key.
  *  To generate a subkey use function rnp_op_generate_subkey_create() instead.
  *  Note: pass provider is required if generated key needs protection.
