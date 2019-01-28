@@ -44,6 +44,9 @@ typedef uint32_t rnp_result_t;
 #define RNP_KEY_EXPORT_SECRET (1U << 2)
 #define RNP_KEY_EXPORT_SUBKEYS (1U << 3)
 
+#define RNP_KEY_REMOVE_PUBLIC (1U << 0)
+#define RNP_KEY_REMOVE_SECRET (1U << 1)
+
 /**
  * Flags for optional details to include in JSON.
  */
@@ -334,6 +337,15 @@ rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **resul
  *  @return 0 on success, or any other value on error
  **/
 rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, uint32_t flags);
+
+/** remove a key from keyring(s)
+ *  Note: you need to call rnp_save_keys() to write updated keyring(s) out.
+ *        Other handles of the same key should not be used after this call.
+ * @param key pointer to the key handle.
+ * @param flags see RNP_KEY_REMOVE_* constants.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
 
 /** Add ASCII Armor
  *
