@@ -2579,6 +2579,39 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     return RNP_SUCCESS;
 }
 
+rnp_result_t
+rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
+{
+    if (!key || !key->ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (flags == 0) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (flags & RNP_KEY_REMOVE_PUBLIC) {
+        if (!key->ffi->pubring || !key->pub) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        pgp_key_free_data(key->pub);
+        if (!rnp_key_store_remove_key(key->ffi->pubring, key->pub)) {
+            return RNP_ERROR_KEY_NOT_FOUND;
+        }
+        key->pub = NULL;
+    }
+    if (flags & RNP_KEY_REMOVE_SECRET) {
+        if (!key->ffi->secring || !key->sec) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        pgp_key_free_data(key->sec);
+        if (!rnp_key_store_remove_key(key->ffi->secring, key->sec)) {
+            return RNP_ERROR_KEY_NOT_FOUND;
+        }
+        key->sec = NULL;
+    }
+
+    return RNP_SUCCESS;
+}
+
 static bool
 pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 {
