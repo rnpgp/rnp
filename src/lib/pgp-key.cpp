@@ -558,6 +558,26 @@ pgp_key_get_dsa_qbits(const pgp_key_t *key)
     return dsa_qbits(&pgp_key_get_material(key)->dsa);
 }
 
+size_t
+pgp_key_get_bits(const pgp_key_t *key)
+{
+    return key_bitlength(pgp_key_get_material(key));
+}
+
+pgp_curve_t
+pgp_key_get_curve(const pgp_key_t *key)
+{
+    switch (pgp_key_get_alg(key)) {
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return pgp_key_get_material(key)->ec.curve;
+    default:
+        return PGP_CURVE_UNKNOWN;
+    }
+}
+
 pgp_version_t
 pgp_key_get_version(const pgp_key_t *key)
 {

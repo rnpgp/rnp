@@ -540,7 +540,7 @@ rnp_print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, boo
     }
     fprintf(fp, "%s   ", header);
     /* key bits */
-    fprintf(fp, "%d/", (int) key_bitlength(pgp_key_get_material(key)));
+    fprintf(fp, "%d/", (int) pgp_key_get_bits(key));
     /* key algorithm */
     fprintf(fp, "%s ", pgp_show_pka(pgp_key_get_alg(key)));
     /* key id */
