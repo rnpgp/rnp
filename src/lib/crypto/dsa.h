@@ -142,4 +142,6 @@ pgp_hash_alg_t dsa_get_min_hash(size_t qsize);
  */
 size_t dsa_choose_qsize_by_psize(size_t psize);
 
+size_t dsa_qbits(const pgp_dsa_key_t *key);
+
 #endif

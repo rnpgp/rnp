@@ -53,6 +53,7 @@
 #include "utils.h"
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
+#include "crypto.h"
 #include "crypto/s2k.h"
 #include "fingerprint.h"
 
@@ -545,6 +546,16 @@ pgp_pubkey_alg_t
 pgp_key_get_alg(const pgp_key_t *key)
 {
     return key->pkt.alg;
+}
+
+size_t
+pgp_key_get_dsa_qbits(const pgp_key_t *key)
+{
+    if (pgp_key_get_alg(key) != PGP_PKA_DSA) {
+        return 0;
+    }
+
+    return dsa_qbits(&pgp_key_get_material(key)->dsa);
 }
 
 pgp_version_t
