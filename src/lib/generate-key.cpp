@@ -190,7 +190,9 @@ keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_DSA: {
         if (!crypto->dsa.p_bitlen) {
             crypto->dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
-            crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(DSA_DEFAULT_P_BITLEN);
+        }
+        if (!crypto->dsa.q_bitlen) {
+            crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto->dsa.p_bitlen);
         }
         break;
     }
