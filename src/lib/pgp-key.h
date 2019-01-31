@@ -151,6 +151,10 @@ pgp_pubkey_alg_t pgp_key_get_alg(const pgp_key_t *key);
 
 size_t pgp_key_get_dsa_qbits(const pgp_key_t *key);
 
+size_t pgp_key_get_bits(const pgp_key_t *key);
+
+pgp_curve_t pgp_key_get_curve(const pgp_key_t *key);
+
 pgp_version_t pgp_key_get_version(const pgp_key_t *key);
 
 int pgp_key_get_type(const pgp_key_t *key);
