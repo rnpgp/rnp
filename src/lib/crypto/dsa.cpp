@@ -300,15 +300,18 @@ end:
 rnp_result_t
 dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
 {
+    if ((keylen < 1024) || (keylen > 3072) || (qbits < 160) || (qbits > 256)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     botan_privkey_t key_priv = NULL;
     botan_pubkey_t  key_pub = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
-
-    bignum_t *p = bn_new();
-    bignum_t *q = bn_new();
-    bignum_t *g = bn_new();
-    bignum_t *y = bn_new();
-    bignum_t *x = bn_new();
+    bignum_t *      p = bn_new();
+    bignum_t *      q = bn_new();
+    bignum_t *      g = bn_new();
+    bignum_t *      y = bn_new();
+    bignum_t *      x = bn_new();
 
     if (!p || !q || !g || !y || !x) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
