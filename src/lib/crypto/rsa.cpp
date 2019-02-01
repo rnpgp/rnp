@@ -350,6 +350,10 @@ done:
 rnp_result_t
 rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
 {
+    if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     botan_privkey_t rsa_key = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     int             cmp;

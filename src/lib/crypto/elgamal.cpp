@@ -280,14 +280,17 @@ end:
 rnp_result_t
 elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits)
 {
+    if ((keybits < 1024) || (keybits > PGP_MPINT_BITS)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     botan_privkey_t key_priv = NULL;
     botan_pubkey_t  key_pub = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
-
-    bignum_t *p = bn_new();
-    bignum_t *g = bn_new();
-    bignum_t *y = bn_new();
-    bignum_t *x = bn_new();
+    bignum_t *      p = bn_new();
+    bignum_t *      g = bn_new();
+    bignum_t *      y = bn_new();
+    bignum_t *      x = bn_new();
 
     if (!p || !g || !y || !x) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
