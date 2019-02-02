@@ -144,6 +144,16 @@ void test_ffi_keygen_json_sub(void **state);
 
 void test_ffi_keygen_json_sub_pass_required(void **state);
 
+void test_ffi_key_generate_rsa(void **state);
+
+void test_ffi_key_generate_dsa(void **state);
+
+void test_ffi_key_generate_ecdsa(void **state);
+
+void test_ffi_key_generate_eddsa(void **state);
+
+void test_ffi_key_generate_sm2(void **state);
+
 void test_ffi_add_userid(void **state);
 
 void test_ffi_detect_key_format(void **state);
