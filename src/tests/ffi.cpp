@@ -970,6 +970,427 @@ test_ffi_keygen_json_sub(void **state)
 }
 
 void
+test_ffi_key_generate_rsa(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    /* make sure we fail to generate too small and too large keys/subkeys */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 768, 2048, "rsa_768", &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 768, "rsa_768", &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 20480, 1024, "rsa_20480", &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 20480, "rsa_20480", &key));
+    /* generate RSA-RSA key */
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 2048, "rsa_1024", &key));
+    assert_non_null(key);
+    /* check properties of the generated key */
+    bool boolres = false;
+    assert_rnp_success(rnp_key_is_primary(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_public(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(key, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(key, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    char *alg = NULL;
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcasecmp(alg, "RSA"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    uint32_t bits = 0;
+    assert_rnp_failure(rnp_key_get_bits(key, NULL));
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 1024);
+    assert_rnp_failure(rnp_key_get_dsa_qbits(key, &bits));
+    /* curve - must fail */
+    char *curve = NULL;
+    assert_rnp_failure(rnp_key_get_curve(key, NULL));
+    assert_rnp_failure(rnp_key_get_curve(key, &curve));
+    assert_null(curve);
+    /* user ids */
+    size_t uids = 0;
+    char * uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+    assert_rnp_failure(rnp_key_get_uid_at(key, 1, &uid));
+    assert_null(uid);
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "rsa_1024"), 0);
+    rnp_buffer_destroy(uid);
+    /* subkey */
+    size_t subkeys = 0;
+    assert_rnp_failure(rnp_key_get_subkey_count(key, NULL));
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 1);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_failure(rnp_key_get_subkey_at(key, 1, &subkey));
+    assert_rnp_failure(rnp_key_get_subkey_at(key, 0, NULL));
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    /* check properties of the generated subkey */
+    assert_rnp_success(rnp_key_is_primary(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_have_public(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(subkey, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    assert_rnp_success(rnp_key_get_alg(subkey, &alg));
+    assert_int_equal(strcasecmp(alg, "RSA"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 2048);
+    /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* generate RSA key without the subkey */
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 0, "rsa_1024", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 0);
+    /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
+test_ffi_key_generate_dsa(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    /* try to generate keys with invalid sizes */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 768, 2048, "dsa_768", &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 768, "dsa_768", &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 4096, 1024, "dsa_20480", &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 20480, "dsa_20480", &key));
+    /* generate DSA-ElGamal keypair */
+    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 1024, "dsa_1024", &key));
+    assert_non_null(key);
+    /* check properties of the generated key */
+    bool boolres = false;
+    assert_rnp_success(rnp_key_is_primary(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_public(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(key, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(key, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    char *alg = NULL;
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcasecmp(alg, "DSA"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    uint32_t bits = 0;
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 1024);
+    assert_rnp_success(rnp_key_get_dsa_qbits(key, &bits));
+    assert_int_equal(bits, 160);
+    /* user ids */
+    size_t uids = 0;
+    char * uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "dsa_1024"), 0);
+    rnp_buffer_destroy(uid);
+    /* subkey */
+    size_t subkeys = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 1);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    /* check properties of the generated subkey */
+    assert_rnp_success(rnp_key_is_primary(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_have_public(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(subkey, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    assert_rnp_success(rnp_key_get_alg(subkey, &alg));
+    assert_int_equal(strcasecmp(alg, "ElGamal"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 1024);
+    /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* generate DSA key without the subkey */
+    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 0, "dsa_1024", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 0);
+    /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
+test_ffi_key_generate_ecdsa(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    /* try to generate key with invalid curve */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_generate_key_ec(ffi, "curve_wrong", "wrong", &key));
+    assert_null(key);
+    /* generate secp256k1 key */
+    assert_rnp_success(rnp_generate_key_ec(ffi, "secp256k1", "ec_256k1", &key));
+    assert_non_null(key);
+    /* check properties of the generated key */
+    bool boolres = false;
+    assert_rnp_success(rnp_key_is_primary(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_public(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(key, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(key, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    char *alg = NULL;
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcasecmp(alg, "ECDSA"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    uint32_t bits = 0;
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 256);
+    assert_rnp_failure(rnp_key_get_dsa_qbits(key, &bits));
+    /* curve */
+    char *curve = NULL;
+    assert_rnp_failure(rnp_key_get_curve(key, NULL));
+    assert_rnp_success(rnp_key_get_curve(key, &curve));
+    assert_int_equal(strcasecmp(curve, "secp256k1"), 0);
+    rnp_buffer_destroy(curve);
+    /* user ids */
+    size_t uids = 0;
+    char * uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "ec_256k1"), 0);
+    rnp_buffer_destroy(uid);
+    /* subkey */
+    size_t subkeys = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 1);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    /* check properties of the generated subkey */
+    assert_rnp_success(rnp_key_is_primary(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_have_public(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(subkey, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    assert_rnp_success(rnp_key_get_alg(subkey, &alg));
+    assert_int_equal(strcasecmp(alg, "ECDH"), 0);
+    rnp_buffer_destroy(alg);
+    /* bits */
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 256);
+    /* curve */
+    curve = NULL;
+    assert_rnp_success(rnp_key_get_curve(subkey, &curve));
+    assert_int_equal(strcasecmp(curve, "secp256k1"), 0);
+    rnp_buffer_destroy(curve);
+
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
+test_ffi_key_generate_eddsa(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    /* generate key with subkey */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_generate_key_25519(ffi, "eddsa_25519", &key));
+    assert_non_null(key);
+    /* check properties of the generated key */
+    bool boolres = false;
+    assert_rnp_success(rnp_key_is_primary(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_public(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(key, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(key, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    char *alg = NULL;
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcasecmp(alg, "EDDSA"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    uint32_t bits = 0;
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 255);
+    /* curve */
+    char *curve = NULL;
+    assert_rnp_success(rnp_key_get_curve(key, &curve));
+    assert_int_equal(strcasecmp(curve, "ed25519"), 0);
+    rnp_buffer_destroy(curve);
+    /* user ids */
+    size_t uids = 0;
+    char * uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "eddsa_25519"), 0);
+    rnp_buffer_destroy(uid);
+    /* subkey */
+    size_t subkeys = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 1);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    /* check properties of the generated subkey */
+    assert_rnp_success(rnp_key_is_primary(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_have_public(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(subkey, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    assert_rnp_success(rnp_key_get_alg(subkey, &alg));
+    assert_int_equal(strcasecmp(alg, "ECDH"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 255);
+    /* curve */
+    curve = NULL;
+    assert_rnp_success(rnp_key_get_curve(subkey, &curve));
+    assert_int_equal(strcasecmp(curve, "Curve25519"), 0);
+    rnp_buffer_destroy(curve);
+
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
+test_ffi_key_generate_sm2(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+
+    /* generate sm2 key */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_generate_key_sm2(ffi, "sm2", &key));
+    assert_non_null(key);
+    /* check properties of the generated key */
+    bool boolres = false;
+    assert_rnp_success(rnp_key_is_primary(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_public(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(key, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(key, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(key, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    char *alg = NULL;
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcasecmp(alg, "SM2"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    uint32_t bits = 0;
+    assert_rnp_success(rnp_key_get_bits(key, &bits));
+    assert_int_equal(bits, 256);
+    /* curve */
+    char *curve = NULL;
+    assert_rnp_success(rnp_key_get_curve(key, &curve));
+    assert_int_equal(strcasecmp(curve, "SM2 P-256"), 0);
+    rnp_buffer_destroy(curve);
+    /* user ids */
+    size_t uids = 0;
+    char * uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "sm2"), 0);
+    rnp_buffer_destroy(uid);
+    /* subkey */
+    size_t subkeys = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
+    assert_int_equal(subkeys, 1);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    /* check properties of the generated subkey */
+    assert_rnp_success(rnp_key_is_primary(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_have_public(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_have_secret(subkey, &boolres));
+    assert_true(boolres);
+    assert_rnp_success(rnp_key_is_protected(subkey, &boolres));
+    assert_false(boolres);
+    assert_rnp_success(rnp_key_is_locked(subkey, &boolres));
+    assert_false(boolres);
+    /* algorithm */
+    assert_rnp_success(rnp_key_get_alg(subkey, &alg));
+    assert_int_equal(strcasecmp(alg, "SM2"), 0);
+    rnp_buffer_destroy(alg);
+    /* key bits */
+    assert_rnp_success(rnp_key_get_bits(subkey, &bits));
+    assert_int_equal(bits, 256);
+    /* curve */
+    curve = NULL;
+    assert_rnp_success(rnp_key_get_curve(subkey, &curve));
+    assert_int_equal(strcasecmp(curve, "SM2 P-256"), 0);
+    rnp_buffer_destroy(curve);
+
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
 test_ffi_add_userid(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
