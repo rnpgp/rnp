@@ -4074,6 +4074,112 @@ rnp_key_get_uid_at(rnp_key_handle_t handle, size_t idx, char **uid)
 }
 
 rnp_result_t
+rnp_key_get_subkey_count(rnp_key_handle_t handle, size_t *count)
+{
+    if (!handle || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    *count = pgp_key_get_subkey_count(key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_subkey_at(rnp_key_handle_t handle, size_t idx, rnp_key_handle_t *subkey)
+{
+    if (!handle || !subkey) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (idx >= pgp_key_get_subkey_count(key)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const uint8_t *grip = pgp_key_get_subkey_grip(key, idx);
+    char           griphex[PGP_KEY_GRIP_SIZE * 2 + 1] = {0};
+    if (!rnp_hex_encode(
+          grip, PGP_KEY_GRIP_SIZE, griphex, sizeof(griphex), RNP_HEX_UPPERCASE)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return rnp_locate_key(handle->ffi, "grip", griphex, subkey);
+}
+
+rnp_result_t
+rnp_key_get_alg(rnp_key_handle_t handle, char **alg)
+{
+    if (!handle || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t * key = get_key_prefer_public(handle);
+    const char *str = NULL;
+
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pgp_key_get_alg(key), str);
+    if (!str) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    char *algcp = strdup(str);
+    if (!algcp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    *alg = algcp;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_bits(rnp_key_handle_t handle, uint32_t *bits)
+{
+    if (!handle || !bits) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    size_t     _bits = pgp_key_get_bits(key);
+    if (!_bits) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *bits = _bits;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_dsa_qbits(rnp_key_handle_t handle, uint32_t *qbits)
+{
+    if (!handle || !qbits) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    size_t     _qbits = pgp_key_get_dsa_qbits(key);
+    if (!_qbits) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *qbits = _qbits;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_curve(rnp_key_handle_t handle, char **curve)
+{
+    if (!handle || !curve) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t * key = get_key_prefer_public(handle);
+    pgp_curve_t _curve = pgp_key_get_curve(key);
+    if (_curve == PGP_CURVE_UNKNOWN) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const char *curvename = NULL;
+    if (!curve_type_to_str(_curve, &curvename)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    char *curvenamecp = strdup(curvename);
+    if (!curvenamecp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    *curve = curvenamecp;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
 {
     if (handle == NULL || fprint == NULL)
