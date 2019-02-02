@@ -610,9 +610,84 @@ rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *typ
  */
 rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
 
+/** Get key's primary user id.
+ * 
+ * @param key key handle.
+ * @param uid pointer to the string with primary user id will be stored here.
+ *            You must free it using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
 rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
+
+/** Get number of the key's user ids.
+ * 
+ * @param key key handle.
+ * @param count number of user ids will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
 rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
+
+/** Get key's user id by it's index.
+ * 
+ * @param key key handle.
+ * @param idx zero-based index of the userid.
+ * @param uid pointer to the string with user id will be stored here.
+ *            You must free it using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
+
+/** Get number of the key's subkeys.
+ * 
+ * @param key key handle.
+ * @param count number of subkeys will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_subkey_count(rnp_key_handle_t key, size_t *count);
+
+/** Get the handle of one of the key's subkeys, using it's index in the list.
+ * 
+ * @param key handle of the primary key.
+ * @param idx zero-based index of the subkey.
+ * @param subkey on success handle for the subkey will be stored here. You must free it
+ *               using the rnp_key_handle_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t key, size_t idx, rnp_key_handle_t *subkey);
+
+/** Get the key's algorithm.
+ * 
+ * @param key key handle
+ * @param alg string with algorithm name will be stored here. You must free it using the
+ *            rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
+
+/** Get number of bits in the key. For EC-based keys it will return size of the curve.
+ * 
+ * @param key key handle
+ * @param bits number of bits will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_bits(rnp_key_handle_t key, uint32_t *bits);
+
+/** Get the number of bits in q parameter of the DSA key. Makes sense only for DSA keys.
+ * 
+ * @param key key handle
+ * @param qbits number of bits will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_dsa_qbits(rnp_key_handle_t key, uint32_t *qbits);
+
+/** Get the curve of EC-based key.
+ * 
+ * @param key key handle
+ * @param curve string with name of the curve will be stored here. You must free it using the
+ *              rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_curve(rnp_key_handle_t key, char **curve);
 
 /** Add a new user identifier to a key
  *
@@ -1315,6 +1390,14 @@ rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, siz
  */
 rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 
+/** output key information to JSON structure and serialize it to the string
+ *
+ * @param handle the key handle, could not be NULL
+ * @param flags controls which key data is printed, see RNP_JSON_* constants.
+ * @param result pointer to the resulting string will be stored here on success. You must
+ *               release it afterwards via rnp_buffer_destroy() function call.
+ * @return RNP_SUCCESS or error code if failed.
+ */
 rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
 
 /** create an identifier iterator
