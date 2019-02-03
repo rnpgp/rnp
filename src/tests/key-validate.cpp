@@ -336,20 +336,20 @@ test_forged_key_validate(void **state)
 
     /* load ecdsa/rsa keypair with expired subkey */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-subkey.pgp");
-    key = rnp_key_store_get_key_by_name(pubring, "1E4526C06A6D482B", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_true(key->valid);
-    key = rnp_key_store_get_key_by_name(pubring, "B20D0A7D37200BEB", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair with expired key */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-key.pgp");
-    key = rnp_key_store_get_key_by_name(pubring, "1CBED48ED08792BB", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "23674F21B2441527", NULL);
     assert_non_null(key);
     assert_false(key->valid);
-    key = rnp_key_store_get_key_by_name(pubring, "F4CA7C5CDD74AB81", NULL);
+    key = rnp_key_store_get_key_by_name(pubring, "37E285E9E9851491", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
