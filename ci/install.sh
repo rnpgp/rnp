@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -exu
 
-[ "$BUILD_MODE" = "style-check" ] && exit 0
-
 : "${CORES:=2}"
 : "${MAKE:=make}"
 : "${RNP_TESTS:=all}"
