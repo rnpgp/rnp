@@ -85,6 +85,7 @@ matrix:
     # clang-format style checks
     - env: BUILD_MODE=style-check
       install: true
+      script: ci/style-check.sh
       stage: test
       addons:
         apt:
