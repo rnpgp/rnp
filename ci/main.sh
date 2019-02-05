@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -eux
 
-[ "$BUILD_MODE" = "style-check" ] && exec ci/style-check.sh
-
 : "${CORES:=2}"
 : "${RNP_TESTS:=all}"
 
