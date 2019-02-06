@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 set -eux
 
-: "${CORES:=2}"
 : "${RNP_TESTS:=all}"
 
 # check for use of uninitialized or unused vars in CMake
