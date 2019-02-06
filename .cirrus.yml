@@ -1,0 +1,28 @@
+freebsd_instance:
+  image: freebsd-12-0-release-amd64
+
+task:
+  name: build
+  # increase timeout since we use a single task for building cache and testing
+  timeout_in: 90m
+  env:
+    BUILD_MODE: normal
+    GPG_VERSION: stable
+    LOCAL_BUILDS: /home/rnpuser/local-builds
+    LOCAL_INSTALLS: /home/rnpuser/local-installs
+  dependencies_cache:
+    folder: $LOCAL_INSTALLS
+    fingerprint_script: cat ci/install.sh
+  script: |
+    # add rnpuser
+    pkg install -y sudo
+    pw useradd -n rnpuser -m
+    echo 'rnpuser ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/rnpuser
+    # change ownership for the cloned repo
+    chown -R rnpuser:rnpuser "$PWD"
+    # cirrus cache doesn't seem to retain ownership
+    mkdir -p "$LOCAL_INSTALLS"
+    chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
+    # deps+build+test
+    su rnpuser ci/run.sh
+
