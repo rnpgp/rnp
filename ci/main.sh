@@ -20,11 +20,12 @@ cmakeopts=(
 [ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
 [ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
 
-mkdir build
-pushd build
+mkdir -p "${LOCAL_BUILDS}/rnp-build"
+rnpsrc="$PWD"
+pushd "${LOCAL_BUILDS}/rnp-build"
 export LD_LIBRARY_PATH="${GPG_INSTALL}/lib"
 
-cmake "${cmakeopts[@]}" ..
+cmake "${cmakeopts[@]}" "$rnpsrc"
 make -j${CORES} VERBOSE=1 install
 
 : "${COVERITY_SCAN_BRANCH:=0}"
