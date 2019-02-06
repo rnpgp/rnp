@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -exu
 
-: "${CORES:=2}"
-: "${MAKE:=make}"
-: "${RNP_TESTS:=all}"
-
 # botan
 botan_build=${LOCAL_BUILDS}/botan
 if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
