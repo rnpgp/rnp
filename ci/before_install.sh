@@ -62,26 +62,5 @@ linux_install() {
   echo ""
 }
 
-crossplat_install() {
-  echo ""
-}
+"$(get_os)_install"
 
-main() {
-  case $(get_os) in
-    freebsd*)
-      freebsd_install ;;
-    netbsd*)
-      netbsd_install ;;
-    openbsd*)
-      openbsd_install ;;
-    darwin*)
-      macos_install ;;
-    linux*)
-      linux_install ;;
-    *) echo "unknown"; exit 1 ;;
-  esac
-
-  crossplat_install
-}
-
-main
