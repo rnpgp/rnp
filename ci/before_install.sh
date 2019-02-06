@@ -46,6 +46,8 @@ freebsd_install() {
 "
   # Note: we assume sudo is already installed
   sudo pkg install -y ${packages}
+  dirmngr </dev/null
+  dirmngr --daemon
 }
 
 openbsd_install() {
