@@ -10,15 +10,8 @@ branches:
 
 env:
   global:
-    - LOCAL_BUILDS="$HOME/local-builds"
-    - BOTAN_INSTALL="${LOCAL_BUILDS}/botan-install"
-    - CMOCKA_INSTALL="${LOCAL_BUILDS}/cmocka-install"
-    - JSONC_INSTALL="${LOCAL_BUILDS}/jsonc-install"
-    - GPG_INSTALL="${LOCAL_BUILDS}/gpg-install"
-    - RNP_INSTALL="${LOCAL_BUILDS}/rnp-install"
-    - RUBY_RNP_INSTALL="${LOCAL_BUILDS}/ruby-rnp"
-    - RUBY_RNP_VERSION="master"
-    - LOGNAME="Travis"
+    - LOCAL_INSTALLS="$HOME/local-builds"
+    - CORES=2
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
     # The next declaration is the encrypted COVERITY_SCAN_TOKEN, created via
@@ -106,13 +99,10 @@ stages:
 
 cache:
   directories:
-    - "$BOTAN_INSTALL"
-    - "$CMOCKA_INSTALL"
-    - "$JSONC_INSTALL"
-    - "$GPG_INSTALL"
-    - "$RUBY_RNP_INSTALL"
+    - "$LOCAL_INSTALLS"
 
 before_install:
+  - . ci/env.inc.sh
   - ./ci/before_install.sh
   - gpg --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
   - rvm get stable
