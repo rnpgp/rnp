@@ -3,6 +3,7 @@ freebsd_instance:
 
 task:
   name: build
+  only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_PR != ''
   # increase timeout since we use a single task for building cache and testing
   timeout_in: 90m
   env:
