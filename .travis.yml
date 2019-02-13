@@ -10,7 +10,7 @@ branches:
 
 env:
   global:
-    - LOCAL_INSTALLS="$HOME/local-builds"
+    - LOCAL_INSTALLS="$HOME/local-installs"
     - CORES=2
     - CLANG_FORMAT_DIFF="clang-format-diff-4.0"
 
