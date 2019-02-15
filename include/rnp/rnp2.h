@@ -549,6 +549,8 @@ rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
 rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver);
 
 /** Execute the prepared key or subkey generation operation.
+ *  Note: if you set protection algorithm, then you need to specify ffi password provider to
+ *        be able to request password for key encryption.
  *
  * @param op pointer to opaque key generation context.
  * @return RNP_SUCCESS or error code if failed.
@@ -611,7 +613,7 @@ rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *typ
 rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
 
 /** Get key's primary user id.
- * 
+ *
  * @param key key handle.
  * @param uid pointer to the string with primary user id will be stored here.
  *            You must free it using the rnp_buffer_destroy().
@@ -620,7 +622,7 @@ rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
 rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
 
 /** Get number of the key's user ids.
- * 
+ *
  * @param key key handle.
  * @param count number of user ids will be stored here.
  * @return RNP_SUCCESS or error code if failed.
@@ -628,7 +630,7 @@ rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
 rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 
 /** Get key's user id by it's index.
- * 
+ *
  * @param key key handle.
  * @param idx zero-based index of the userid.
  * @param uid pointer to the string with user id will be stored here.
@@ -638,7 +640,7 @@ rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 
 /** Get number of the key's subkeys.
- * 
+ *
  * @param key key handle.
  * @param count number of subkeys will be stored here.
  * @return RNP_SUCCESS or error code if failed.
@@ -646,7 +648,7 @@ rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 rnp_result_t rnp_key_get_subkey_count(rnp_key_handle_t key, size_t *count);
 
 /** Get the handle of one of the key's subkeys, using it's index in the list.
- * 
+ *
  * @param key handle of the primary key.
  * @param idx zero-based index of the subkey.
  * @param subkey on success handle for the subkey will be stored here. You must free it
@@ -656,7 +658,7 @@ rnp_result_t rnp_key_get_subkey_count(rnp_key_handle_t key, size_t *count);
 rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t key, size_t idx, rnp_key_handle_t *subkey);
 
 /** Get the key's algorithm.
- * 
+ *
  * @param key key handle
  * @param alg string with algorithm name will be stored here. You must free it using the
  *            rnp_buffer_destroy() function.
@@ -665,7 +667,7 @@ rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t key, size_t idx, rnp_key_han
 rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
 
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
- * 
+ *
  * @param key key handle
  * @param bits number of bits will be stored here.
  * @return RNP_SUCCESS or error code if failed.
@@ -673,7 +675,7 @@ rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
 rnp_result_t rnp_key_get_bits(rnp_key_handle_t key, uint32_t *bits);
 
 /** Get the number of bits in q parameter of the DSA key. Makes sense only for DSA keys.
- * 
+ *
  * @param key key handle
  * @param qbits number of bits will be stored here.
  * @return RNP_SUCCESS or error code if failed.
@@ -681,7 +683,7 @@ rnp_result_t rnp_key_get_bits(rnp_key_handle_t key, uint32_t *bits);
 rnp_result_t rnp_key_get_dsa_qbits(rnp_key_handle_t key, uint32_t *qbits);
 
 /** Get the curve of EC-based key.
- * 
+ *
  * @param key key handle
  * @param curve string with name of the curve will be stored here. You must free it using the
  *              rnp_buffer_destroy() function.
