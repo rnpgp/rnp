@@ -154,6 +154,8 @@ void test_ffi_key_generate_eddsa(void **state);
 
 void test_ffi_key_generate_sm2(void **state);
 
+void test_ffi_key_generate_ex(void **state);
+
 void test_ffi_add_userid(void **state);
 
 void test_ffi_detect_key_format(void **state);
