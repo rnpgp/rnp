@@ -275,6 +275,25 @@ end:
     return ret;
 }
 
+bool
+alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
+{
+    /* SM2 curve is only for SM2 algo */
+    if ((alg == PGP_PKA_SM2) || (curve == PGP_CURVE_SM2_P_256)) {
+        return (alg == PGP_PKA_SM2) && (curve == PGP_CURVE_SM2_P_256);
+    }
+    /* EDDSA and PGP_CURVE_ED25519 */
+    if ((alg == PGP_PKA_EDDSA) || (curve == PGP_CURVE_ED25519)) {
+        return (alg == PGP_PKA_EDDSA) && (curve == PGP_CURVE_ED25519);
+    }
+    /* Curve x25519 is only for ECDH */
+    if (curve == PGP_CURVE_25519) {
+        return alg == PGP_PKA_ECDH;
+    }
+    /* Other curves are good for both ECDH and ECDSA */
+    return true;
+}
+
 rnp_result_t
 ec_generate(rng_t *                rng,
             pgp_ec_key_t *         key,
@@ -287,13 +306,18 @@ ec_generate(rng_t *                rng,
      *
      * P-521 is biggest supported curve
      */
-    botan_privkey_t        pr_key = NULL;
-    botan_pubkey_t         pu_key = NULL;
-    bignum_t *             px = NULL;
-    bignum_t *             py = NULL;
-    bignum_t *             x = NULL;
-    rnp_result_t           ret = RNP_ERROR_KEY_GENERATION;
-    size_t                 filed_byte_size = 0;
+    botan_privkey_t pr_key = NULL;
+    botan_pubkey_t  pu_key = NULL;
+    bignum_t *      px = NULL;
+    bignum_t *      py = NULL;
+    bignum_t *      x = NULL;
+    rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
+    size_t          filed_byte_size = 0;
+
+    if (!alg_allows_curve(alg_id, curve)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         ret = RNP_ERROR_BAD_PARAMETERS;
