@@ -9,7 +9,7 @@ get_os() {
     freebsd*) echo "freebsd" ;;
     netbsd*) echo "netbsd" ;;
     openbsd*) echo "openbsd" ;;
-    darwin*) echo "mac" ;;
+    darwin*) echo "macos" ;;
     linux*) echo "linux" ;;
     cygwin*) echo "cygwin" ;;
     *) echo "unknown"; exit 1 ;;
