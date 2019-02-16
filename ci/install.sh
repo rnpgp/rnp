@@ -122,7 +122,8 @@ build_gpg_stable() {
     --with-libgcrypt-prefix="${GPG_INSTALL}" \
     --with-libassuan-prefix="${GPG_INSTALL}" \
     --with-ksba-prefix="${GPG_INSTALL}" \
-    --with-npth-prefix="${GPG_INSTALL}"
+    --with-npth-prefix="${GPG_INSTALL}" \
+    --disable-ldap
   ${MAKE} -j${CORES} install
   popd
 }
@@ -236,6 +237,7 @@ END
     --with-libassuan-prefix="${GPG_INSTALL}" \
     --with-ksba-prefix="${GPG_INSTALL}" \
     --with-npth-prefix="${GPG_INSTALL}" \
+    --disable-ldap \
     --disable-doc \
     --enable-maintainer-mode
   ${MAKE} -j${CORES} install
