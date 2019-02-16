@@ -10,7 +10,7 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
     rm -rf "${botan_build}"
   fi
 
-  git clone --depth 1 https://github.com/randombit/botan "${botan_build}"
+  git clone --depth 1 --branch 2.9.0 https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
   ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer"
   ${MAKE} -j${CORES} install
