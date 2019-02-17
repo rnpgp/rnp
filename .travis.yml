@@ -38,6 +38,19 @@ matrix:
     - env: BUILD_MODE=normal GPG_VERSION=beta
       compiler: clang
       stage: test
+    # normal (macos)
+    # gpg stable
+    - env: BUILD_MODE=normal GPG_VERSION=stable
+      os: osx
+      osx_image: xcode10.1
+      compiler: clang
+      stage: cache
+      script: true
+    - env: BUILD_MODE=normal GPG_VERSION=stable
+      os: osx
+      osx_image: xcode10.1
+      compiler: clang
+      stage: test
 
     # clang sanitizers
     # gpg stable
@@ -104,9 +117,6 @@ cache:
 before_install:
   - . ci/env.inc.sh
   - ./ci/before_install.sh
-  - gpg --recv-keys 7D2BAF1CF37B13E2069D6956105BD0E739499BDB
-  - rvm get stable
-  - rvm use 2.3.4 --install --binary --fuzzy
 
 install:
   - travis_wait 50 ./ci/install.sh
@@ -118,6 +128,9 @@ after_success:
   - ./ci/success.sh
 
 addons:
+  homebrew:
+    brewfile: true
+
   coverity_scan:
 
     # GitHub project metadata
