@@ -4,27 +4,7 @@ set -ex
 . ci/utils.inc.sh
 
 macos_install() {
-  brew update
-  packages="
-    openssl
-    make
-    cmake
-    autoconf
-    automake
-    libtool
-    pkg-config
-    cmocka
-    gnupg
-    gnutls
-    wget
-    python2
-"
-	# gnutls for manual compile of gnupg
-	for p in ${packages}; do
-		brew install ${p} || brew upgrade ${p}
-	done
-
-  mkdir -p ${CMOCKA_INSTALL}
+  [ "${CI-}" = true ] || brew bundle
 }
 
 freebsd_install() {
