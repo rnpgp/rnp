@@ -169,10 +169,19 @@ endif()
 
 set(LIBRNP_INCLUDEDIR "rnp-${PROJECT_VERSION_MAJOR}")
 
+if (${CMAKE_VERSION} VERSION_GREATER_EQUAL "3.12.0")
+  set(namelink_component NAMELINK_COMPONENT development)
+else()
+  set(namelink_component)
+endif()
+
 # add these to the rnp-targets export
 install(TARGETS librnp
   EXPORT rnp-targets
-  LIBRARY DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+  LIBRARY
+    DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+    COMPONENT runtime
+    ${namelink_component}
   ARCHIVE DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}"
 )
@@ -181,6 +190,8 @@ install(TARGETS librnp
 install(
   FILES
     "${PROJECT_SOURCE_DIR}/include/rnp/rnp2.h"
+  COMPONENT
+    development
   DESTINATION
     "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}"
   RENAME
@@ -194,6 +205,7 @@ install(EXPORT rnp-targets
   FILE rnp-targets.cmake
   NAMESPACE rnp::
   DESTINATION "${INSTALL_CMAKEDIR}"
+  COMPONENT development
 )
 
 include(CMakePackageConfigHelpers)
@@ -211,6 +223,7 @@ install (
     "${CMAKE_CURRENT_BINARY_DIR}/rnp-config.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/rnp-config-version.cmake"
   DESTINATION "${INSTALL_CMAKEDIR}"
+  COMPONENT development
 )
 
 # create a pkgconfig .pc too
@@ -224,6 +237,7 @@ if (PKG_CONFIG_FOUND)
   install(
     FILES "${PROJECT_BINARY_DIR}/librnp-${PROJECT_VERSION_MAJOR}.pc"
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/pkgconfig"
+    COMPONENT development
   )
 endif()
 
