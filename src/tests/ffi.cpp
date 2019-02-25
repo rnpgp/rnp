@@ -981,6 +981,8 @@ test_ffi_key_generate_rsa(void **state)
     assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 768, "rsa_768", &key));
     assert_rnp_failure(rnp_generate_key_rsa(ffi, 20480, 1024, "rsa_20480", &key));
     assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 20480, "rsa_20480", &key));
+    /* make sure we do not leak key handle and do not access NULL */
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", NULL));
     /* generate RSA-RSA key */
     assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 2048, "rsa_1024", &key));
     assert_non_null(key);
