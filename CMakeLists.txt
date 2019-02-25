@@ -22,7 +22,10 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# 3.7+ for the BZip2 target in the cmake-bundled finder
+# 3.7+ for the BZip2 target in the cmake-bundled finder (basic build)
+# 3.8+ for CPACK_RPM_MAIN_COMPONENT (RPM packaging)
+# 3.10+ for CPackFreeBSD (FreeBSD packaging)
+# 3.12+ for NAMELINK_COMPONENT (for better RPM packaging)
 cmake_minimum_required(VERSION 3.7)
 
 # contact email, other info
