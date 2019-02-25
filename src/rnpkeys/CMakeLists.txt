@@ -47,6 +47,8 @@ target_link_libraries(rnpkeys
 
 include(GNUInstallDirs)
 install(TARGETS rnpkeys
-  RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
+  RUNTIME
+    DESTINATION "${CMAKE_INSTALL_BINDIR}"
+    COMPONENT cli
 )
 
