@@ -3294,6 +3294,26 @@ done:
     return ret;
 }
 
+/**
+ * @brief Shortcut for quick key generation. Static private function used by other public
+ *        library functions.
+ *
+ * @param ffi
+ * @param alg string with primary key algorithm. Cannot be NULL.
+ * @param salg string with subkey algorithm. If NULL then subkey will not be generated.
+ * @param bits size of key in bits. If zero then default value will be used.
+ *             Must be zero for EC-based primary key algorithm (use curve instead).
+ * @param sbits size of subkey in bits. If zero then default value will be used.
+ *              Must be zero for EC-based subkey algorithm (use scurve instead).
+ * @param curve Curve name. Must be non-NULL only with EC-based primary key algorithm,
+ *              otherwise error will be returned.
+ * @param scurve Subkey curve name. Must be non-NULL only with EC-based subkey algorithm,
+ *               otherwise error will be returned.
+ * @param userid String with userid. Cannot be NULL.
+ * @param key if non-NULL, then handle of the primary key will be stored here. Caller must
+ *             destroy it with rnp_key_handle_destroy() call.
+ * @return RNP_SUCCESS or error code instead.
+ */
 static rnp_result_t
 rnp_generate_key_ex(rnp_ffi_t         ffi,
                     const char *      alg,
@@ -3347,11 +3367,12 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
         goto done;
     }
 done:
-    if (!ret && key) {
-        *key = primary;
-    }
     if (ret && primary) {
         rnp_key_remove(primary, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
+    }
+    if (!ret && key) {
+        *key = primary;
+    } else {
         rnp_key_handle_destroy(primary);
     }
     rnp_op_generate_destroy(op);
