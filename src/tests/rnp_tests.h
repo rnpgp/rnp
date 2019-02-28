@@ -144,6 +144,8 @@ void test_ffi_keygen_json_sub(void **state);
 
 void test_ffi_keygen_json_sub_pass_required(void **state);
 
+void test_ffi_key_generate_misc(void **state);
+
 void test_ffi_key_generate_rsa(void **state);
 
 void test_ffi_key_generate_dsa(void **state);
