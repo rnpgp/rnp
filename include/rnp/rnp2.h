@@ -412,7 +412,18 @@ rnp_result_t rnp_op_generate_set_dsa_qbits(rnp_op_generate_t op, uint32_t qbits)
  */
 rnp_result_t rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve);
 
-/** Set cipher used to encrypt secret key data.
+/** Set password, used to encrypt secret key data. If this method is not called then
+ *  key will be generated without protection (unencrypted).
+ *
+ * @param op pointer to opaque key generation context.
+ * @param password string with password, could not be NULL. Will be copied internally so may
+ *                 be safely freed after the call.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_protection_password(rnp_op_generate_t op,
+                                                     const char *      password);
+
+/** Set cipher used to encrypt secret key data. If not called then default one will be used.
  *
  * @param op pointer to opaque key generation context.
  * @param cipher string with cipher name. Following ciphers are supported:
@@ -423,6 +434,7 @@ rnp_result_t rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve);
 rnp_result_t rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher);
 
 /** Set hash algorithm, used to derive key from password for secret key data encryption.
+ *  If not called then default one will be used.
  *
  * @param op pointer to opaque key generation context.
  * @param hash string with hash algorithm, see rnp_op_generate_set_hash() for the whole list.
@@ -440,6 +452,7 @@ rnp_result_t rnp_op_generate_set_protection_hash(rnp_op_generate_t op, const cha
 rnp_result_t rnp_op_generate_set_protection_mode(rnp_op_generate_t op, const char *mode);
 
 /** Set number of iterations used to derive key from password for secret key encryption.
+ *  If not called then default one will be used.
  *
  * @param op pointer to opaque key generation context.
  * @param iterations number of iterations
