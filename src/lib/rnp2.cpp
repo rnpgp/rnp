@@ -3296,51 +3296,32 @@ done:
     return ret;
 }
 
-/**
- * @brief Shortcut for quick key generation. Static private function used by other public
- *        library functions.
- *
- * @param ffi
- * @param alg string with primary key algorithm. Cannot be NULL.
- * @param salg string with subkey algorithm. If NULL then subkey will not be generated.
- * @param bits size of key in bits. If zero then default value will be used.
- *             Must be zero for EC-based primary key algorithm (use curve instead).
- * @param sbits size of subkey in bits. If zero then default value will be used.
- *              Must be zero for EC-based subkey algorithm (use scurve instead).
- * @param curve Curve name. Must be non-NULL only with EC-based primary key algorithm,
- *              otherwise error will be returned.
- * @param scurve Subkey curve name. Must be non-NULL only with EC-based subkey algorithm,
- *               otherwise error will be returned.
- * @param userid String with userid. Cannot be NULL.
- * @param key if non-NULL, then handle of the primary key will be stored here. Caller must
- *             destroy it with rnp_key_handle_destroy() call.
- * @return RNP_SUCCESS or error code instead.
- */
-static rnp_result_t
+rnp_result_t
 rnp_generate_key_ex(rnp_ffi_t         ffi,
-                    const char *      alg,
-                    const char *      salg,
-                    uint32_t          bits,
-                    uint32_t          sbits,
-                    const char *      curve,
-                    const char *      scurve,
+                    const char *      key_alg,
+                    const char *      sub_alg,
+                    uint32_t          key_bits,
+                    uint32_t          sub_bits,
+                    const char *      key_curve,
+                    const char *      sub_curve,
                     const char *      userid,
+                    const char *      password,
                     rnp_key_handle_t *key)
 {
     rnp_op_generate_t op = NULL;
     rnp_op_generate_t subop = NULL;
     rnp_key_handle_t  primary = NULL;
+    rnp_key_handle_t  subkey = NULL;
     rnp_result_t      ret = RNP_ERROR_KEY_GENERATION;
 
     /* generate primary key */
-    if ((ret = rnp_op_generate_create(&op, ffi, alg))) {
+    if ((ret = rnp_op_generate_create(&op, ffi, key_alg))) {
         return ret;
     }
-
-    if (bits && (ret = rnp_op_generate_set_bits(op, bits))) {
+    if (key_bits && (ret = rnp_op_generate_set_bits(op, key_bits))) {
         goto done;
     }
-    if (curve && (ret = rnp_op_generate_set_curve(op, curve))) {
+    if (key_curve && (ret = rnp_op_generate_set_curve(op, key_curve))) {
         goto done;
     }
     if ((ret = rnp_op_generate_set_userid(op, userid))) {
@@ -3353,70 +3334,115 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
         goto done;
     }
     /* generate subkey if requested */
-    if (!salg) {
+    if (!sub_alg) {
         goto done;
     }
-    if ((ret = rnp_op_generate_subkey_create(&subop, ffi, primary, salg))) {
+    if ((ret = rnp_op_generate_subkey_create(&subop, ffi, primary, sub_alg))) {
         goto done;
     }
-    if (sbits && (ret = rnp_op_generate_set_bits(subop, sbits))) {
+    if (sub_bits && (ret = rnp_op_generate_set_bits(subop, sub_bits))) {
         goto done;
     }
-    if (scurve && (ret = rnp_op_generate_set_curve(subop, scurve))) {
+    if (sub_curve && (ret = rnp_op_generate_set_curve(subop, sub_curve))) {
+        goto done;
+    }
+    if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
         goto done;
     }
     if ((ret = rnp_op_generate_execute(subop))) {
         goto done;
     }
+    if ((ret = rnp_op_generate_get_key(subop, &subkey))) {
+        goto done;
+    }
+    /* only now will protect the primary key - to not spend time on unlocking to sign subkey */
+    if (password) {
+        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
+                                        .userdata = (void *) password};
+        if (!rnp_key_add_protection(
+              primary->sec, ffi->secring->format, &op->protection, &prov)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
+    }
 done:
     if (ret && primary) {
         rnp_key_remove(primary, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
+    }
+    if (ret && subkey) {
+        rnp_key_remove(subkey, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
     }
     if (!ret && key) {
         *key = primary;
     } else {
         rnp_key_handle_destroy(primary);
     }
+    rnp_key_handle_destroy(subkey);
     rnp_op_generate_destroy(op);
     rnp_op_generate_destroy(subop);
     return ret;
 }
 
 rnp_result_t
-rnp_generate_key_rsa(
-  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
+rnp_generate_key_rsa(rnp_ffi_t         ffi,
+                     uint32_t          bits,
+                     uint32_t          subbits,
+                     const char *      userid,
+                     const char *      password,
+                     rnp_key_handle_t *key)
 {
     return rnp_generate_key_ex(
-      ffi, "RSA", subbits ? "RSA" : NULL, bits, subbits, NULL, NULL, userid, key);
+      ffi, "RSA", subbits ? "RSA" : NULL, bits, subbits, NULL, NULL, userid, password, key);
 }
 
 rnp_result_t
-rnp_generate_key_dsa_eg(
-  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key)
+rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
+                        uint32_t          bits,
+                        uint32_t          subbits,
+                        const char *      userid,
+                        const char *      password,
+                        rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(
-      ffi, "DSA", subbits ? "ElGamal" : NULL, bits, subbits, NULL, NULL, userid, key);
+    return rnp_generate_key_ex(ffi,
+                               "DSA",
+                               subbits ? "ElGamal" : NULL,
+                               bits,
+                               subbits,
+                               NULL,
+                               NULL,
+                               userid,
+                               password,
+                               key);
 }
 
 rnp_result_t
 rnp_generate_key_ec(rnp_ffi_t         ffi,
                     const char *      curve,
                     const char *      userid,
+                    const char *      password,
                     rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(ffi, "ECDSA", "ECDH", 0, 0, curve, curve, userid, key);
+    return rnp_generate_key_ex(
+      ffi, "ECDSA", "ECDH", 0, 0, curve, curve, userid, password, key);
 }
 
 rnp_result_t
-rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key)
+rnp_generate_key_25519(rnp_ffi_t         ffi,
+                       const char *      userid,
+                       const char *      password,
+                       rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(ffi, "EDDSA", "ECDH", 0, 0, NULL, "Curve25519", userid, key);
+    return rnp_generate_key_ex(
+      ffi, "EDDSA", "ECDH", 0, 0, NULL, "Curve25519", userid, password, key);
 }
 
 rnp_result_t
-rnp_generate_key_sm2(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key)
+rnp_generate_key_sm2(rnp_ffi_t         ffi,
+                     const char *      userid,
+                     const char *      password,
+                     rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(ffi, "SM2", "SM2", 0, 0, NULL, NULL, userid, key);
+    return rnp_generate_key_ex(ffi, "SM2", "SM2", 0, 0, NULL, NULL, userid, password, key);
 }
 
 rnp_result_t
@@ -3831,67 +3857,63 @@ rnp_op_generate_execute(rnp_op_generate_t op)
         if (!pgp_generate_primary_key(&keygen, true, &sec, &pub, op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
-        if (!(op->gen_pub = rnp_key_store_add_key(op->ffi->pubring, &pub))) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto prim_done;
+    } else {
+        /* subkey generation */
+        rnp_keygen_subkey_desc_t keygen = {};
+        keygen.crypto = op->crypto;
+        keygen.binding = op->binding;
+        if (!pgp_generate_subkey(&keygen,
+                                 true,
+                                 op->primary_sec,
+                                 op->primary_pub,
+                                 &sec,
+                                 &pub,
+                                 &op->ffi->pass_provider,
+                                 op->ffi->secring->format)) {
+            return RNP_ERROR_KEY_GENERATION;
         }
-        pub = (pgp_key_t){0};
-
-        /* encrypt secret key if specified */
-        if (op->protection.symm_alg &&
-            !rnp_key_add_protection(
-              &sec, op->ffi->secring->format, &op->protection, &op->ffi->pass_provider)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto prim_done;
-        }
-
-        if (!(op->gen_sec = rnp_key_store_add_key(op->ffi->secring, &sec))) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto prim_done;
-        }
-        sec = (pgp_key_t){0};
-        ret = RNP_SUCCESS;
-    prim_done:
-        pgp_key_free_data(&sec);
-        pgp_key_free_data(&pub);
-        return ret;
     }
-    /* subkey generation */
-    rnp_keygen_subkey_desc_t keygen = {};
-    keygen.crypto = op->crypto;
-    keygen.binding = op->binding;
-    if (!pgp_generate_subkey(&keygen,
-                             true,
-                             op->primary_sec,
-                             op->primary_pub,
-                             &sec,
-                             &pub,
-                             &op->ffi->pass_provider,
-                             op->ffi->secring->format)) {
-        ret = RNP_ERROR_KEY_GENERATION;
-        goto sub_done;
-    }
+
+    /* add public key part to the keyring */
     if (!(op->gen_pub = rnp_key_store_add_key(op->ffi->pubring, &pub))) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto sub_done;
+        goto done;
     }
-    pub = (pgp_key_t){0};
+    pub = {};
 
-    /* encrypt subkey if specified */
-    if (op->protection.symm_alg &&
-        !rnp_key_add_protection(
-          &sec, op->ffi->secring->format, &op->protection, &op->ffi->pass_provider)) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto sub_done;
+    /* encrypt secret key if requested */
+    if (op->password) {
+        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
+                                        .userdata = (void *) op->password};
+        if (!rnp_key_add_protection(&sec, op->ffi->secring->format, &op->protection, &prov)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
     }
 
+    /* add secret key to the keyring */
     if (!(op->gen_sec = rnp_key_store_add_key(op->ffi->secring, &sec))) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto sub_done;
+        goto done;
     }
-    sec = (pgp_key_t){0};
+    sec = {};
     ret = RNP_SUCCESS;
-sub_done:
+done:
+    if (op->password) {
+        pgp_forget(op->password, strlen(op->password) + 1);
+        free(op->password);
+        op->password = NULL;
+    }
+    if (ret && op->gen_pub) {
+        pgp_key_free_data(op->gen_pub);
+        rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub);
+        op->gen_pub = NULL;
+    }
+    if (ret && op->gen_sec) {
+        pgp_key_free_data(op->gen_sec);
+        rnp_key_store_remove_key(op->ffi->secring, op->gen_sec);
+        op->gen_sec = NULL;
+    }
     pgp_key_free_data(&sec);
     pgp_key_free_data(&pub);
     return ret;

@@ -201,6 +201,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_keygen_json_primary),
       cmocka_unit_test(test_ffi_keygen_json_sub),
       cmocka_unit_test(test_ffi_keygen_json_sub_pass_required),
+      cmocka_unit_test(test_ffi_key_generate_misc),
       cmocka_unit_test(test_ffi_key_generate_rsa),
       cmocka_unit_test(test_ffi_key_generate_dsa),
       cmocka_unit_test(test_ffi_key_generate_ecdsa),
