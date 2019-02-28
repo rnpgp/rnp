@@ -970,6 +970,62 @@ test_ffi_keygen_json_sub(void **state)
 }
 
 void
+test_ffi_key_generate_misc(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+
+    /* make sure we do not leak key handle and do not access NULL */
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa", NULL, NULL));
+
+    /* make sure we do not leak password on failed key generation */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 768, 2048, "rsa_768", "password", &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 768, "rsa_768", "password", &key));
+
+    /* make sure we behave correctly and do not leak data on wrong parameters to _generate_ex
+     * function */
+    assert_rnp_failure(rnp_generate_key_ex(
+      ffi, "RSA", "RSA", 1024, 1024, "Curve", NULL, "userid", "password", &key));
+    assert_rnp_failure(rnp_generate_key_ex(
+      ffi, "RSA", "RSA", 1024, 1024, "Curve", NULL, NULL, "password", &key));
+    assert_rnp_failure(rnp_generate_key_ex(
+      ffi, "RSA", "RSA", 1024, 768, NULL, "Curve", NULL, "password", &key));
+    assert_rnp_failure(rnp_generate_key_ex(
+      ffi, "ECDSA", "ECDH", 1024, 0, "Unknown", "Curve", NULL, NULL, &key));
+    assert_rnp_failure(rnp_generate_key_ex(
+      ffi, "ECDSA", "ECDH", 0, 1024, "Unknown", "Curve", NULL, "password", &key));
+
+    /* generate RSA-RSA key without password */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", NULL, &key));
+    assert_non_null(key);
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_false(locked);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    /* generate encrypted RSA-RSA key */
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", "123", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    /* make sure it can be unlocked with correct password */
+    assert_rnp_success(rnp_key_unlock(key, "123"));
+    /* do the same for subkey */
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_key_is_locked(subkey, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_unlock(subkey, "123"));
+    /* cleanup */
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
 test_ffi_key_generate_rsa(void **state)
 {
     rnp_ffi_t ffi = NULL;
@@ -977,14 +1033,12 @@ test_ffi_key_generate_rsa(void **state)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     /* make sure we fail to generate too small and too large keys/subkeys */
     rnp_key_handle_t key = NULL;
-    assert_rnp_failure(rnp_generate_key_rsa(ffi, 768, 2048, "rsa_768", &key));
-    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 768, "rsa_768", &key));
-    assert_rnp_failure(rnp_generate_key_rsa(ffi, 20480, 1024, "rsa_20480", &key));
-    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 20480, "rsa_20480", &key));
-    /* make sure we do not leak key handle and do not access NULL */
-    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", NULL));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 768, 2048, "rsa_768", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 768, "rsa_768", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 20480, 1024, "rsa_20480", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_rsa(ffi, 1024, 20480, "rsa_20480", NULL, &key));
     /* generate RSA-RSA key */
-    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 2048, "rsa_1024", &key));
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 2048, "rsa_1024", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
     bool boolres = false;
@@ -1056,7 +1110,7 @@ test_ffi_key_generate_rsa(void **state)
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     /* generate RSA key without the subkey */
-    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 0, "rsa_1024", &key));
+    assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 0, "rsa_1024", NULL, &key));
     assert_non_null(key);
     assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
     assert_int_equal(subkeys, 0);
@@ -1073,12 +1127,12 @@ test_ffi_key_generate_dsa(void **state)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     /* try to generate keys with invalid sizes */
     rnp_key_handle_t key = NULL;
-    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 768, 2048, "dsa_768", &key));
-    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 768, "dsa_768", &key));
-    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 4096, 1024, "dsa_20480", &key));
-    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 20480, "dsa_20480", &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 768, 2048, "dsa_768", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 768, "dsa_768", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 4096, 1024, "dsa_20480", NULL, &key));
+    assert_rnp_failure(rnp_generate_key_dsa_eg(ffi, 1024, 20480, "dsa_20480", NULL, &key));
     /* generate DSA-ElGamal keypair */
-    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 1024, "dsa_1024", &key));
+    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 1024, "dsa_1024", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
     bool boolres = false;
@@ -1140,7 +1194,7 @@ test_ffi_key_generate_dsa(void **state)
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     /* generate DSA key without the subkey */
-    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 0, "dsa_1024", &key));
+    assert_rnp_success(rnp_generate_key_dsa_eg(ffi, 1024, 0, "dsa_1024", NULL, &key));
     assert_non_null(key);
     assert_rnp_success(rnp_key_get_subkey_count(key, &subkeys));
     assert_int_equal(subkeys, 0);
@@ -1157,10 +1211,10 @@ test_ffi_key_generate_ecdsa(void **state)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     /* try to generate key with invalid curve */
     rnp_key_handle_t key = NULL;
-    assert_rnp_failure(rnp_generate_key_ec(ffi, "curve_wrong", "wrong", &key));
+    assert_rnp_failure(rnp_generate_key_ec(ffi, "curve_wrong", "wrong", NULL, &key));
     assert_null(key);
     /* generate secp256k1 key */
-    assert_rnp_success(rnp_generate_key_ec(ffi, "secp256k1", "ec_256k1", &key));
+    assert_rnp_success(rnp_generate_key_ec(ffi, "secp256k1", "ec_256k1", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
     bool boolres = false;
@@ -1241,7 +1295,7 @@ test_ffi_key_generate_eddsa(void **state)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     /* generate key with subkey */
     rnp_key_handle_t key = NULL;
-    assert_rnp_success(rnp_generate_key_25519(ffi, "eddsa_25519", &key));
+    assert_rnp_success(rnp_generate_key_25519(ffi, "eddsa_25519", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
     bool boolres = false;
@@ -1321,7 +1375,7 @@ test_ffi_key_generate_sm2(void **state)
 
     /* generate sm2 key */
     rnp_key_handle_t key = NULL;
-    assert_rnp_success(rnp_generate_key_sm2(ffi, "sm2", &key));
+    assert_rnp_success(rnp_generate_key_sm2(ffi, "sm2", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
     bool boolres = false;
