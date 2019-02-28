@@ -88,13 +88,20 @@ pgp_user_prefs_set_arr(uint8_t **arr, size_t *arrlen, const uint8_t *val, size_t
 static bool
 pgp_user_prefs_add_val(uint8_t **arr, size_t *arrlen, uint8_t val)
 {
+    /* do not add duplicate values */
+    for (int i = 0; i < *arrlen; i++) {
+        if ((*arr)[i] == val) {
+            return true;
+        }
+    }
+
     uint8_t *newarr = (uint8_t *) realloc(*arr, *arrlen + 1);
 
     if (!newarr) {
         return false;
     }
 
-    newarr[*arrlen++] = val;
+    newarr[(*arrlen)++] = val;
     *arr = newarr;
     return true;
 }

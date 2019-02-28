@@ -40,6 +40,7 @@ add_executable(rnp_tests
   generatekey.cpp
   key-add-userid.cpp
   key-grip.cpp
+  key-prefs.cpp
   key-protect.cpp
   key-store-search.cpp
   key-unlock.cpp
