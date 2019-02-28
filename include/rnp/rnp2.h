@@ -330,20 +330,81 @@ rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **resul
 
 /* Key operations */
 
-rnp_result_t rnp_generate_key_rsa(
-  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key);
+/** Shortcut function for rsa key-subkey pair generation. See rnp_generate_key_ex() for the
+ *  detailed parameters description.
+ */
+rnp_result_t rnp_generate_key_rsa(rnp_ffi_t         ffi,
+                                  uint32_t          bits,
+                                  uint32_t          subbits,
+                                  const char *      userid,
+                                  const char *      password,
+                                  rnp_key_handle_t *key);
 
-rnp_result_t rnp_generate_key_dsa_eg(
-  rnp_ffi_t ffi, uint32_t bits, uint32_t subbits, const char *userid, rnp_key_handle_t *key);
+/** Shortcut function for DSA/ElGamal key-subkey pair generation. See rnp_generate_key_ex() for
+ *  the detailed parameters description.
+ */
+rnp_result_t rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
+                                     uint32_t          bits,
+                                     uint32_t          subbits,
+                                     const char *      userid,
+                                     const char *      password,
+                                     rnp_key_handle_t *key);
 
+/** Shortcut function for ECDSA/ECDH key-subkey pair generation. See rnp_generate_key_ex() for
+ *  the detailed parameters description.
+ */
 rnp_result_t rnp_generate_key_ec(rnp_ffi_t         ffi,
                                  const char *      curve,
                                  const char *      userid,
+                                 const char *      password,
                                  rnp_key_handle_t *key);
 
-rnp_result_t rnp_generate_key_25519(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key);
+/** Shortcut function for EdDSA/x25519 key-subkey pair generation. See rnp_generate_key_ex()
+ *  for the detailed parameters description.
+ */
+rnp_result_t rnp_generate_key_25519(rnp_ffi_t         ffi,
+                                    const char *      userid,
+                                    const char *      password,
+                                    rnp_key_handle_t *key);
 
-rnp_result_t rnp_generate_key_sm2(rnp_ffi_t ffi, const char *userid, rnp_key_handle_t *key);
+/** Shortcut function for SM2/SM2 key-subkey pair generation. See rnp_generate_key_ex() for
+ *  for the detailed parameters description.
+ */
+rnp_result_t rnp_generate_key_sm2(rnp_ffi_t         ffi,
+                                  const char *      userid,
+                                  const char *      password,
+                                  rnp_key_handle_t *key);
+
+/**
+ * @brief Shortcut for quick key generation. While it is used in other shortcut functions for
+ *        key generation
+ *
+ * @param ffi
+ * @param key_alg string with primary key algorithm. Cannot be NULL.
+ * @param sub_alg string with subkey algorithm. If NULL then subkey will not be generated.
+ * @param key_bits size of key in bits. If zero then default value will be used.
+ *             Must be zero for EC-based primary key algorithm (use curve instead).
+ * @param sub_bits size of subkey in bits. If zero then default value will be used.
+ *              Must be zero for EC-based subkey algorithm (use scurve instead).
+ * @param key_curve Curve name. Must be non-NULL only with EC-based primary key algorithm,
+ *              otherwise error will be returned.
+ * @param sub_curve Subkey curve name. Must be non-NULL only with EC-based subkey algorithm,
+ *               otherwise error will be returned.
+ * @param userid String with userid. Cannot be NULL.
+ * @param key if non-NULL, then handle of the primary key will be stored here on success.
+ *            Caller must destroy it with rnp_key_handle_destroy() call.
+ * @return RNP_SUCCESS or error code instead.
+ */
+rnp_result_t rnp_generate_key_ex(rnp_ffi_t         ffi,
+                                 const char *      key_alg,
+                                 const char *      sub_alg,
+                                 uint32_t          key_bits,
+                                 uint32_t          sub_bits,
+                                 const char *      key_curve,
+                                 const char *      sub_curve,
+                                 const char *      userid,
+                                 const char *      password,
+                                 rnp_key_handle_t *key);
 
 /** Create key generation context for the primary key.
  *  To generate a subkey use function rnp_op_generate_subkey_create() instead.
