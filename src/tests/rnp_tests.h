@@ -112,6 +112,8 @@ void test_key_import(void **state);
 
 void test_key_grip(void **state);
 
+void test_key_prefs(void **state);
+
 void test_load_subkey(void **state);
 
 void test_key_unlock_pgp(void **state);
