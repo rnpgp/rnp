@@ -98,6 +98,8 @@ struct rnp_op_generate_st {
     pgp_key_t *primary_pub;
     pgp_key_t *gen_sec;
     pgp_key_t *gen_pub;
+    /* password used to encrypt the key, if specified */
+    char *password;
     /* we don't use top-level keygen action here for easier fields access */
     rnp_keygen_crypto_params_t  crypto;
     rnp_key_protection_params_t protection;
@@ -3567,6 +3569,20 @@ rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve)
 }
 
 rnp_result_t
+rnp_op_generate_set_protection_password(rnp_op_generate_t op, const char *password)
+{
+    if (!op || !password) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    free(op->password);
+    op->password = strdup(password);
+    if (!op->password) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher)
 {
     if (!op || !cipher) {
@@ -3906,6 +3922,11 @@ rnp_op_generate_destroy(rnp_op_generate_t op)
 {
     if (op) {
         pgp_free_user_prefs(&op->cert.prefs);
+        if (op->password) {
+            pgp_forget(op->password, strlen(op->password) + 1);
+            free(op->password);
+            op->password = NULL;
+        }
         free(op);
     }
     return RNP_SUCCESS;
