@@ -1517,6 +1517,10 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "DSA"));
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1536));
     assert_rnp_success(rnp_op_generate_set_dsa_qbits(keygen, 224));
+    /* key flags */
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "certify"));
     /* these should not work for subkey */
     assert_rnp_failure(rnp_op_generate_clear_pref_ciphers(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_cipher(keygen, "aes256"));
@@ -1559,6 +1563,8 @@ test_ffi_key_generate_ex(void **state)
     /* generate ElGamal subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ElGamal"));
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 0));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
@@ -1572,6 +1578,8 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_failure(rnp_op_generate_set_bits(keygen, 1024));
     assert_rnp_failure(rnp_op_generate_set_dsa_qbits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
@@ -1660,6 +1668,8 @@ test_ffi_key_generate_ex(void **state)
     /* Add EDDSA subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "EDDSA"));
     assert_rnp_failure(rnp_op_generate_set_curve(keygen, "secp256k1"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
@@ -1671,6 +1681,21 @@ test_ffi_key_generate_ex(void **state)
     /* Add ECDH subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDH"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* Add ECDH x25519 subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDH"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "Curve25519"));
+    assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
