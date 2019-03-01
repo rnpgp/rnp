@@ -3664,6 +3664,9 @@ rnp_op_generate_add_usage(rnp_op_generate_t op, const char *usage)
     if (!str_to_key_flag(usage, &flag)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    if (!(pgp_pk_alg_capabilities(op->crypto.key_alg) & flag)) {
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
     if (op->primary) {
         op->cert.key_flags |= flag;
     } else {
