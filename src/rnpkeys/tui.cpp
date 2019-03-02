@@ -5,6 +5,7 @@
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "utils.h"
+#include "defaults.h"
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
@@ -61,25 +62,8 @@ is_rsa_keysize_supported(uint32_t keysize)
     return ((keysize >= 1024) && (keysize <= 4096) && !(keysize % 8));
 }
 
-static bool
-is_keygen_supported_for_alg(pgp_pubkey_alg_t id)
-{
-    switch (id) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_ECDH:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_DSA:
-    case PGP_PKA_ELGAMAL:
-        return true;
-    default:
-        return false;
-    }
-}
-
-static pgp_curve_t
-ask_curve(FILE *input_fp)
+static const char *
+ask_curve_name(FILE *input_fp)
 {
     pgp_curve_t       result = PGP_CURVE_MAX;
     long              val = 0;
@@ -108,26 +92,7 @@ ask_curve(FILE *input_fp)
         }
     } while (!ok);
 
-    return result;
-}
-
-static long
-ask_algorithm(FILE *input_fp)
-{
-    long result = 0;
-    do {
-        printf("Please select what kind of key you want:\n"
-               "\t(1)  RSA (Encrypt or Sign)\n"
-               "\t(16) DSA + ElGamal\n"
-               "\t(17) DSA + RSA\n" // TODO: See #584
-               "\t(19) ECDSA + ECDH\n"
-               "\t(22) EDDSA + X25519\n"
-               "\t(99) SM2\n"
-               "> ");
-
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result, false) ||
-             !is_keygen_supported_for_alg((pgp_pubkey_alg_t) result));
-    return result;
+    return get_curve_desc(result)->pgp_name;
 }
 
 static long
@@ -163,84 +128,129 @@ ask_dsa_bitlen(FILE *input_fp)
     return result;
 }
 
-/* -----------------------------------------------------------------------------
- * @brief   Asks user for details needed for the key to be generated (currently
- *          key type and key length only)
- *          This function should explicitly ask user for all details (not use
- *          getenv or something similar).
- *
- * @param   rnp [in]  Initialized rnp_t struture.
- *              [out] Function fills corresponding to key type and length
- * @param   cfg [in]  Requested configuration
- *
- * @returns RNP_SUCCESS on success
- *          RNP_ERROR_BAD_PARAMETERS unsupported parameters supplied
- *          RNP_ERROR_GENERIC indicates problem in implementation
- *
--------------------------------------------------------------------------------- */
-rnp_result_t
-rnp_generate_key_expert_mode(rnp_t *rnp, rnp_cfg_t *cfg)
+static bool
+rnpkeys_ask_generate_params(rnp_cfg_t *cfg, FILE *input_fp)
 {
-    FILE *                      input_fd = rnp->user_input_fp ? rnp->user_input_fp : stdin;
-    rnp_action_keygen_t *       action = &rnp->action.generate_key_ctx;
-    rnp_keygen_primary_desc_t * primary_desc = &action->primary.keygen;
-    rnp_keygen_crypto_params_t *crypto = &primary_desc->crypto;
-
-    crypto->key_alg = (pgp_pubkey_alg_t) ask_algorithm(input_fd);
-    // get more details about the key
-    const pgp_pubkey_alg_t key_alg = crypto->key_alg;
-    switch (key_alg) {
-    case PGP_PKA_RSA:
-        // Those algorithms must _NOT_ be supported
-        //  case PGP_PKA_RSA_ENCRYPT_ONLY:
-        //  case PGP_PKA_RSA_SIGN_ONLY:
-        crypto->rsa.modulus_bit_len = ask_rsa_bitlen(input_fd);
-        action->subkey.keygen.crypto = *crypto;
-        break;
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-        /* Generate ECDH as a subkey of ECDSA */
-        action->primary.keygen.crypto.key_alg = PGP_PKA_ECDSA;
-        action->primary.keygen.crypto.ecc.curve = ask_curve(input_fd);
-        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
-        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
-        action->subkey.keygen.crypto.ecc.curve = action->primary.keygen.crypto.ecc.curve;
-        break;
-
-    case PGP_PKA_EDDSA:
-        crypto->ecc.curve = PGP_CURVE_ED25519;
-        action->subkey.keygen.crypto.key_alg = PGP_PKA_ECDH;
-        action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
-        action->subkey.keygen.crypto.ecc.curve = PGP_CURVE_25519;
-        break;
-
-    case PGP_PKA_SM2:
-        if (rnp_cfg_hasval(cfg, CFG_HASH) == false) {
-            crypto->hash_alg = PGP_HASH_SM3;
+    long option = 0;
+    bool res = true;
+    do {
+        printf("Please select what kind of key you want:\n"
+               "\t(1)  RSA (Encrypt or Sign)\n"
+               "\t(16) DSA + ElGamal\n"
+               "\t(17) DSA + RSA\n" // TODO: See #584
+               "\t(19) ECDSA + ECDH\n"
+               "\t(22) EDDSA + X25519\n"
+               "\t(99) SM2\n"
+               "> ");
+        if (!rnp_secure_get_long_from_fd(input_fp, &option, false)) {
+            option = 0;
+            continue;
         }
-
-        crypto->ecc.curve = PGP_CURVE_SM2_P_256;
-        action->subkey.keygen.crypto = *crypto;
-        break;
-
-    case PGP_PKA_DSA:
-    case PGP_PKA_ELGAMAL:
-        crypto->key_alg = PGP_PKA_DSA;
-        crypto->dsa.p_bitlen = ask_dsa_bitlen(input_fd);
-        crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto->dsa.p_bitlen);
-        if (key_alg == PGP_PKA_ELGAMAL) {
-            /* Generate Elgamal as a subkey of DSA */
-            action->subkey.keygen.crypto.key_alg = PGP_PKA_ELGAMAL;
-            action->subkey.keygen.crypto.hash_alg = action->primary.keygen.crypto.hash_alg;
-            action->subkey.keygen.crypto.elgamal.key_bitlen = crypto->dsa.p_bitlen;
+        switch (option) {
+        case 1: {
+            long bits = ask_rsa_bitlen(input_fp);
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "RSA") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA") &&
+                  rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
+                  rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
+            break;
         }
-        break;
+        case 16: {
+            long bits = ask_dsa_bitlen(input_fp);
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "DSA") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ElGamal") &&
+                  rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
+                  rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
+            break;
+        }
+        case 17: {
+            long bits = ask_dsa_bitlen(input_fp);
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "DSA") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA") &&
+                  rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
+                  rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
+            break;
+        }
+        case 19: {
+            const char *curve = ask_curve_name(input_fp);
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "ECDSA") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ECDH") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_CURVE, curve) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_CURVE, curve);
+            break;
+        }
+        case 22: {
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "EDDSA") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ECDH") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_CURVE, "Curve25519");
+            break;
+        }
+        case 99: {
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "SM2") &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "SM2");
+            if (!rnp_cfg_hasval(cfg, CFG_KG_HASH)) {
+                res = res && rnp_cfg_setstr(cfg, CFG_KG_HASH, "SM3");
+            }
+            break;
+        }
+        default:
+            option = 0;
+            break;
+        }
+    } while (!option);
 
-    default:
-        return RNP_ERROR_BAD_PARAMETERS;
+    return res;
+}
+
+bool
+cli_rnp_set_generate_params(rnp_cfg_t *cfg)
+{
+    bool res = true;
+    // hash algorithms for signing and protection
+    if (rnp_cfg_hasval(cfg, CFG_HASH)) {
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_HASH, rnp_cfg_getstr(cfg, CFG_HASH)) &&
+              rnp_cfg_setstr(cfg, CFG_KG_PROT_HASH, rnp_cfg_getstr(cfg, CFG_HASH));
     }
 
-    action->primary.protection.hash_alg = crypto->hash_alg;
-    action->subkey.protection = action->primary.protection;
-    return RNP_SUCCESS;
+    // key and subkey algorithms, bit length/curve
+    if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "RSA");
+        res =
+          res && rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, rnp_cfg_getint(cfg, CFG_NUMBITS));
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA");
+        res = res && rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, rnp_cfg_getint(cfg, CFG_NUMBITS));
+    } else {
+        FILE *input = stdin;
+        if (rnp_cfg_hasval(cfg, CFG_USERINPUTFD)) {
+            input = fdopen(rnp_cfg_getint(cfg, CFG_USERINPUTFD), "r");
+        }
+        res = res && input && rnpkeys_ask_generate_params(cfg, input);
+        if (input && (input != stdin)) {
+            fclose(input);
+        }
+    }
+
+    // make sure hash algorithms are set
+    if (!rnp_cfg_hasval(cfg, CFG_KG_HASH)) {
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_HASH, DEFAULT_HASH_ALG);
+    }
+    if (!rnp_cfg_hasval(cfg, CFG_KG_PROT_HASH)) {
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_PROT_HASH, DEFAULT_HASH_ALG);
+    }
+
+    // protection symmetric algorithm
+    res =
+      res && rnp_cfg_setstr(cfg,
+                            CFG_KG_PROT_ALG,
+                            rnp_cfg_hasval(cfg, CFG_CIPHER) ? rnp_cfg_getstr(cfg, CFG_CIPHER) :
+                                                              DEFAULT_SYMM_ALG);
+    // protection iterations count
+    size_t iterations = rnp_cfg_getint(cfg, CFG_S2K_ITER);
+    if (!iterations) {
+        res = res && !rnp_calculate_iterations(rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
+                                               rnp_cfg_getint(cfg, CFG_S2K_MSEC),
+                                               &iterations);
+    }
+    res = res && rnp_cfg_setint(cfg, CFG_KG_PROT_ITERATIONS, iterations);
+    return res;
 }

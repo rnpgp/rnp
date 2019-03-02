@@ -84,7 +84,7 @@
  * will be set to the result from setrlimit in the event of
  * failure.
  */
-static rnp_result_t
+rnp_result_t
 disable_core_dumps(void)
 {
     struct rlimit limit;
@@ -110,7 +110,7 @@ disable_core_dumps(void)
 
 #endif
 
-static bool
+bool
 set_pass_fd(FILE **file, int passfd)
 {
     if (!file) {
@@ -474,7 +474,7 @@ rnp_import_key(rnp_t *rnp, const char *f)
 }
 
 /* return the time as a string */
-static char *
+char *
 ptimestr(char *dest, size_t size, time_t t)
 {
     struct tm *tm;
@@ -1524,7 +1524,7 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
 }
 
 bool
-rnp_cfg_set_keystore_info(rnp_cfg_t *cfg)
+cli_cfg_set_keystore_info(rnp_cfg_t *cfg)
 {
     /* detecting keystore pathes and format */
     if (!rnp_cfg_set_ks_info(cfg)) {
