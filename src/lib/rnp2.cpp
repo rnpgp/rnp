@@ -3327,6 +3327,12 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
     if ((ret = rnp_op_generate_set_userid(op, userid))) {
         goto done;
     }
+    if ((ret = rnp_op_generate_add_usage(op, "sign"))) {
+        goto done;
+    }
+    if ((ret = rnp_op_generate_add_usage(op, "certify"))) {
+        goto done;
+    }
     if ((ret = rnp_op_generate_execute(op))) {
         goto done;
     }
@@ -3349,6 +3355,9 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
     if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
         goto done;
     }
+    if ((ret = rnp_op_generate_add_usage(subop, "encrypt"))) {
+        goto done;
+    }
     if ((ret = rnp_op_generate_execute(subop))) {
         goto done;
     }
@@ -3356,14 +3365,8 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
         goto done;
     }
     /* only now will protect the primary key - to not spend time on unlocking to sign subkey */
-    if (password) {
-        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = (void *) password};
-        if (!rnp_key_add_protection(
-              primary->sec, ffi->secring->format, &op->protection, &prov)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
-        }
+    if (password && (ret = rnp_key_protect(primary, password, NULL, NULL, NULL, 0))) {
+        goto done;
     }
 done:
     if (ret && primary) {
@@ -4306,6 +4309,24 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
           pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE, *grip, hex_len, RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
+{
+    if (!handle || !usage || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    uint8_t flag = 0;
+    if (!str_to_key_flag(usage, &flag)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = pgp_key_get_flags(key) & flag;
     return RNP_SUCCESS;
 }
 
