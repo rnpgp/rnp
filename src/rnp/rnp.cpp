@@ -944,7 +944,7 @@ rnp_main(int argc, char **argv)
     default:;
     }
 
-    if (!rnp_cfg_set_keystore_info(&cfg)) {
+    if (!cli_cfg_set_keystore_info(&cfg)) {
         fputs("fatal: cannot set keystore info\n", stderr);
         ret = EXIT_ERROR;
         goto finish;

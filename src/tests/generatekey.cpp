@@ -568,7 +568,7 @@ rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state)
 }
 
 static bool
-ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
+ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
 {
     /* Run tests*/
     bool      ret = true;
@@ -578,7 +578,7 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     size_t    rsp_len;
 
     rsp_len = strlen(rsp);
-    *ctx = (rnp_t){0};
+    memset(ctx, 0, sizeof(*ctx));
     if (pipe(pipefd) == -1) {
         ret = false;
         goto end;
@@ -600,19 +600,17 @@ ask_expert_details(rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     close(user_input_pipefd[1]);
 
     /* Mock user-input*/
-    ctx->user_input_fp = fdopen(user_input_pipefd[0], "r");
+    rnp_cfg_setint(&cfg, CFG_USERINPUTFD, user_input_pipefd[0]);
 
     if (!rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }
 
+    rnp_cfg_copy(ops, &cfg);
+
 end:
     /* Close & clean fd*/
-    if (ctx->user_input_fp) {
-        fclose(ctx->user_input_fp);
-        ctx->user_input_fp = NULL;
-    }
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
     }
@@ -620,115 +618,251 @@ end:
     return ret;
 }
 
+static bool
+check_key_props(cli_rnp_t * rnp,
+                const char *uid,
+                const char *primary_alg,
+                const char *sub_alg,
+                const char *primary_curve,
+                const char *sub_curve,
+                int         bits,
+                int         sub_bits,
+                const char *hash)
+{
+    rnp_key_handle_t       key = NULL;
+    rnp_key_handle_t       subkey = NULL;
+    rnp_signature_handle_t sig = NULL;
+    uint32_t               kbits = 0;
+    char *                 str = NULL;
+    bool                   res = false;
+
+    /* check primary key properties */
+    if (rnp_locate_key(rnp->ffi, "userid", uid, &key) || !key) {
+        return false;
+    }
+    if (rnp_key_get_alg(key, &str) || strcmp(str, primary_alg)) {
+        goto done;
+    }
+    rnp_buffer_destroy(str);
+    str = NULL;
+
+    if (primary_curve && (rnp_key_get_curve(key, &str) || strcmp(str, primary_curve))) {
+        goto done;
+    }
+    rnp_buffer_destroy(str);
+    str = NULL;
+    if (bits && (rnp_key_get_bits(key, &kbits) || (bits != (int) kbits))) {
+        goto done;
+    }
+
+    /* check subkey properties */
+    if (!sub_alg) {
+        res = true;
+        goto done;
+    }
+
+    if (rnp_key_get_subkey_at(key, 0, &subkey)) {
+        goto done;
+    }
+
+    if (rnp_key_get_alg(subkey, &str) || strcmp(str, sub_alg)) {
+        goto done;
+    }
+    rnp_buffer_destroy(str);
+    str = NULL;
+
+    if (sub_curve && (rnp_key_get_curve(subkey, &str) || strcmp(str, sub_curve))) {
+        goto done;
+    }
+    rnp_buffer_destroy(str);
+    str = NULL;
+    if (sub_bits && (rnp_key_get_bits(subkey, &kbits) || (sub_bits != (int) kbits))) {
+        goto done;
+    }
+
+    if (rnp_key_get_signature_at(subkey, 0, &sig) || !sig) {
+        goto done;
+    }
+    if (rnp_signature_get_hash_alg(sig, &str) || strcmp(str, hash)) {
+        goto done;
+    }
+
+    res = true;
+done:
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(subkey);
+    rnp_buffer_destroy(str);
+    return res;
+}
+
+static bool
+check_cfg_props(rnp_cfg_t * cfg,
+                const char *primary_alg,
+                const char *sub_alg,
+                const char *primary_curve,
+                const char *sub_curve,
+                int         bits,
+                int         sub_bits)
+{
+    if (strcmp(rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_ALG), primary_alg)) {
+        return false;
+    }
+    if (strcmp(rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_ALG), sub_alg)) {
+        return false;
+    }
+    if (primary_curve && strcmp(rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_CURVE), primary_curve)) {
+        return false;
+    }
+    if (sub_curve && strcmp(rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_CURVE), sub_curve)) {
+        return false;
+    }
+    if (bits && (rnp_cfg_getint(cfg, CFG_KG_PRIMARY_BITS) != bits)) {
+        return false;
+    }
+    if (sub_bits && (rnp_cfg_getint(cfg, CFG_KG_SUBKEY_BITS) != sub_bits)) {
+        return false;
+    }
+    return true;
+}
+
 void
 rnpkeys_generatekey_testExpertMode(void **state)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_t             rnp;
-    rnp_cfg_t         ops = {0};
-    /* let's shortcut some lines for easier reading */
-    rnp_keygen_crypto_params_t *keyp = &rnp.action.generate_key_ctx.primary.keygen.crypto;
-    rnp_keygen_crypto_params_t *subkeyp = &rnp.action.generate_key_ctx.subkey.keygen.crypto;
+    cli_rnp_t rnp;
+    rnp_cfg_t ops = {0};
 
-    rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     /* ecdsa/ecdh p256 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n1\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_NIST_P_256);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA256);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_NIST_P_256);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p256"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n1\n"));
+    assert_false(check_cfg_props(&ops, "ECDH", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(&ops, "ECDSA", "ECDSA", "NIST P-256", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-384", 0, 0));
+    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 1024, 0));
+    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 1024));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
+    assert_true(check_key_props(
+      &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0, "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p384 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n2\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_NIST_P_384);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA384);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_NIST_P_384);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p384"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    assert_false(check_key_props(
+      &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0, "SHA384"));
+    assert_true(check_key_props(
+      &rnp, "expert_ecdsa_p384", "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0, "SHA384"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p521 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n3\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_NIST_P_521);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA512);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_NIST_P_521);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p521"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n3\n"));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0));
+    assert_true(check_key_props(
+      &rnp, "expert_ecdsa_p521", "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0, "SHA512"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool256 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n4\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_BP256);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA256);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_BP256);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp256"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n4\n"));
+    assert_true(
+      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
+    assert_true(check_key_props(&rnp,
+                                "expert_ecdsa_bp256",
+                                "ECDSA",
+                                "ECDH",
+                                "brainpoolP256r1",
+                                "brainpoolP256r1",
+                                0,
+                                0,
+                                "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool384 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n5\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_BP384);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA384);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_BP384);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp384"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n5\n"));
+    assert_true(
+      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
+    assert_true(check_key_props(&rnp,
+                                "expert_ecdsa_bp384",
+                                "ECDSA",
+                                "ECDH",
+                                "brainpoolP384r1",
+                                "brainpoolP384r1",
+                                0,
+                                0,
+                                "SHA384"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool512 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n6\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_BP512);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA512);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_BP512);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp512"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n6\n"));
+    assert_true(
+      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
+    assert_true(check_key_props(&rnp,
+                                "expert_ecdsa_bp512",
+                                "ECDSA",
+                                "ECDH",
+                                "brainpoolP512r1",
+                                "brainpoolP512r1",
+                                0,
+                                0,
+                                "SHA512"));
+    cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh secp256k1 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n7\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_ECDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_P256K1);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA256);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_P256K1);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p256k1"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n7\n"));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
+    assert_true(check_key_props(
+      &rnp, "expert_ecdsa_p256k1", "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0, "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* eddsa/x25519 keypair */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "22\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_EDDSA);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_ECDH);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_ED25519);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SHA256);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_25519);
-    rnp_end(&rnp);
+    rnp_cfg_free(&ops);
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_eddsa_ecdh"));
+    assert_true(ask_expert_details(&rnp, &ops, "22\n"));
+    assert_true(check_cfg_props(&ops, "EDDSA", "ECDH", NULL, "Curve25519", 0, 0));
+    assert_true(check_key_props(
+      &rnp, "expert_eddsa_ecdh", "EDDSA", "ECDH", "Ed25519", "Curve25519", 0, 0, "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* rsa/rsa 1024 key */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "1\n1024\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, keyp->rsa.modulus_bit_len, 1024);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, subkeyp->rsa.modulus_bit_len, 1024);
-    rnp_end(&rnp);
+    rnp_cfg_free(&ops);
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_rsa_1024"));
+    assert_true(ask_expert_details(&rnp, &ops, "1\n1024\n"));
+    assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 1024, 1024));
+    assert_true(check_key_props(
+      &rnp, "expert_rsa_1024", "RSA", "RSA", NULL, NULL, 1024, 1024, "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* rsa 4096 key, asked twice */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "1\n1023\n4096\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, keyp->rsa.modulus_bit_len, 4096);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_RSA);
-    rnp_assert_int_equal(rstate, subkeyp->rsa.modulus_bit_len, 4096);
-    rnp_end(&rnp);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_rsa_4096"));
+    assert_true(ask_expert_details(&rnp, &ops, "1\n1023\n4096\n"));
+    assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 4096, 4096));
+    assert_true(check_key_props(
+      &rnp, "expert_rsa_4096", "RSA", "RSA", NULL, NULL, 4096, 4096, "SHA256"));
+    cli_rnp_end(&rnp);
 
     /* sm2 key */
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "99\n"));
-    rnp_assert_int_equal(rstate, keyp->key_alg, PGP_PKA_SM2);
-    rnp_assert_int_equal(rstate, keyp->ecc.curve, PGP_CURVE_SM2_P_256);
-    rnp_assert_int_equal(rstate, keyp->hash_alg, PGP_HASH_SM3);
-    rnp_assert_int_equal(rstate, subkeyp->key_alg, PGP_PKA_SM2);
-    rnp_assert_int_equal(rstate, subkeyp->ecc.curve, PGP_CURVE_SM2_P_256);
-    rnp_end(&rnp);
+    rnp_cfg_free(&ops);
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_sm2"));
+    assert_true(ask_expert_details(&rnp, &ops, "99\n"));
+    assert_true(check_cfg_props(&ops, "SM2", "SM2", NULL, NULL, 0, 0));
+    assert_true(check_key_props(
+      &rnp, "expert_sm2", "SM2", "SM2", "SM2 P-256", "SM2 P-256", 0, 0, "SM3"));
+    cli_rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
 }
@@ -737,45 +871,63 @@ void
 generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_t             rnp;
+    cli_rnp_t         rnp;
     rnp_cfg_t         ops = {0};
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
     rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n2\n"));
-    rnp_assert_int_equal(
-      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.hash_alg, PGP_HASH_SHA384);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_small_digest"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    assert_true(check_key_props(&rnp,
+                                "expert_small_digest",
+                                "ECDSA",
+                                "ECDH",
+                                "NIST P-384",
+                                "NIST P-384",
+                                0,
+                                0,
+                                "SHA384"));
+    cli_rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
-    rnp_end(&rnp);
 }
 
 void
 generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_t             rnp;
+    cli_rnp_t         rnp;
     rnp_cfg_t         ops = {0};
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     rnp_assert_true(rstate, rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
     rnp_assert_true(rstate, rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
-    rnp_assert_true(rstate, ask_expert_details(&rnp, &ops, "19\n2\n"));
-    rnp_assert_int_equal(
-      rstate, rnp.action.generate_key_ctx.primary.keygen.crypto.hash_alg, PGP_HASH_SHA512);
+    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_large_digest"));
+    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
+    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    assert_true(check_key_props(&rnp,
+                                "expert_large_digest",
+                                "ECDSA",
+                                "ECDH",
+                                "NIST P-384",
+                                "NIST P-384",
+                                0,
+                                0,
+                                "SHA512"));
+    cli_rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
-    rnp_end(&rnp);
 }
 
 void
 generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail(void **state)
 {
     rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_t             rnp;
+    cli_rnp_t         rnp;
     rnp_cfg_t         ops = {0};
 
     rnp_assert_true(rstate, rnp_cfg_setbool(&ops, CFG_EXPERT, true));
@@ -785,7 +937,7 @@ generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail(void **state)
     // Finds out that hash doesn't exist and returns an error
     rnp_assert_false(rstate, ask_expert_details(&rnp, &ops, "19\n2\n"));
     rnp_cfg_free(&ops);
-    rnp_end(&rnp);
+    cli_rnp_end(&rnp);
 }
 
 /* This tests some of the mid-level key generation functions and their
