@@ -816,6 +816,17 @@ rnp_result_t rnp_key_get_keyid(rnp_key_handle_t key, char **keyid);
  */
 rnp_result_t rnp_key_get_grip(rnp_key_handle_t key, char **grip);
 
+/**
+ * @brief Check whether certain usage type is allowed for the key.
+ *
+ * @param key key handle, should not be NULL
+ * @param usage string describing the key usage. For the list of allowed values see the
+ *              rnp_op_generate_add_usage() function description.
+ * @param result function result will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_allows_usage(rnp_key_handle_t key, const char *usage, bool *result);
+
 /** check if a key is currently locked
  *
  *  @param key

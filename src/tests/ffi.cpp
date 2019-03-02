@@ -1004,7 +1004,29 @@ test_ffi_key_generate_misc(void **state)
     bool locked = false;
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_false(locked);
+    /* check key and subkey flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
     /* generate encrypted RSA-RSA key */
     assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", "123", &key));
     assert_non_null(key);
@@ -1013,7 +1035,6 @@ test_ffi_key_generate_misc(void **state)
     /* make sure it can be unlocked with correct password */
     assert_rnp_success(rnp_key_unlock(key, "123"));
     /* do the same for subkey */
-    rnp_key_handle_t subkey = NULL;
     assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_key_is_locked(subkey, &locked));
@@ -1512,6 +1533,16 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
     assert_non_null(key);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check key usage */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
 
     /* generate DSA subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "DSA"));
@@ -1542,6 +1573,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* generate RSA sign/encrypt subkey */
@@ -1558,6 +1598,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* generate ElGamal subkey */
@@ -1572,6 +1621,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* generate ECDSA subkeys for each curve */
@@ -1587,6 +1645,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
@@ -1676,6 +1743,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* Add ECDH subkey */
@@ -1689,6 +1765,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* Add ECDH x25519 subkey */
@@ -1702,6 +1787,15 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
     assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* now check subkey usage */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* Add SM2 subkey */
