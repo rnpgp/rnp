@@ -29,6 +29,7 @@ find_package(JSON-C 0.11 REQUIRED)
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/rnpcli.cpp
+  ../rnp/fficli.cpp
   ../rnp/rnp.cpp
   ../rnpkeys/rnpkeys.cpp
   ../rnpkeys/main.cpp

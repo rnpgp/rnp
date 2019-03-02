@@ -86,6 +86,18 @@
 #define CFG_KR_SEC_PATH "kr-sec-path"
 #define CFG_KR_DEF_KEY "kr-def-key"
 
+/* key generation variables */
+#define CFG_KG_PRIMARY_ALG "kg-primary-alg"
+#define CFG_KG_PRIMARY_BITS "kg-primary-bits"
+#define CFG_KG_PRIMARY_CURVE "kg-primary-curve"
+#define CFG_KG_SUBKEY_ALG "kg-subkey-alg"
+#define CFG_KG_SUBKEY_BITS "kg-subkey-bits"
+#define CFG_KG_SUBKEY_CURVE "kg-subkey-curve"
+#define CFG_KG_HASH "kg-hash"
+#define CFG_KG_PROT_HASH "kg-prot-hash"
+#define CFG_KG_PROT_ALG "kg-prot-alg"
+#define CFG_KG_PROT_ITERATIONS "kg-prot-iterations"
+
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
 typedef struct rnp_cfg_t {

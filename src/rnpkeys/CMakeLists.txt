@@ -30,6 +30,7 @@ add_executable(rnpkeys
   tui.cpp
   main.cpp
   ../rnp/rnpcfg.cpp
+  ../rnp/fficli.cpp
   ../rnp/rnpcli.cpp
 )
 
@@ -43,6 +44,7 @@ target_include_directories(rnpkeys
 target_link_libraries(rnpkeys
   PRIVATE
     librnp
+    JSON-C::JSON-C
 )
 
 include(GNUInstallDirs)
@@ -51,4 +53,3 @@ install(TARGETS rnpkeys
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT cli
 )
-

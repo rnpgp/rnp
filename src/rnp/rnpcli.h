@@ -78,10 +78,7 @@ bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
  * @return true on success or false otherwise.
  * @return false
  */
-bool rnp_cfg_set_keystore_info(rnp_cfg_t *cfg);
-
-/* set key store format information */
-int rnp_set_key_store_format(rnp_t *, const char *);
+bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
 /* key management */
 void       rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool);
@@ -127,6 +124,12 @@ rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const 
 rnp_result_t rnp_validate_keys_signatures(rnp_t *rnp);
 
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
+
+rnp_result_t disable_core_dumps(void);
+
+bool set_pass_fd(FILE **file, int passfd);
+
+char *ptimestr(char *dest, size_t size, time_t t);
 
 #if defined(__cplusplus)
 }

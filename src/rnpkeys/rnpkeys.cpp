@@ -34,12 +34,10 @@
 #include <regex.h>
 #include <string.h>
 #include <stdarg.h>
-#include "rnp.h"
-#include "pgp-key.h"
 #include "../rnp/rnpcfg.h"
-#include "../rnp/rnpcli.h"
+#include "../rnp/fficli.h"
 #include "rnpkeys.h"
-#include "utils.h"
+#include "config.h"
 
 extern char *__progname;
 
@@ -103,56 +101,15 @@ struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
-static list
-rnp_get_keylist(rnp_key_store_t *keyring, const char *filter)
-{
-    list       result = NULL;
-    pgp_key_t *key = NULL;
-
-    if (!filter) {
-        for (list_item *key = list_front(rnp_key_store_get_keys(keyring)); key;
-             key = list_next(key)) {
-            if (!list_append(&result, &key, sizeof(pgp_key_t *))) {
-                goto error;
-            }
-        }
-
-        return result;
-    }
-
-    while ((key = rnp_key_store_get_key_by_name(keyring, filter, key))) {
-        if (!list_append(&result, &key, sizeof(pgp_key_t *))) {
-            goto error;
-        }
-        if (pgp_key_is_subkey(key)) {
-            continue;
-        }
-        /* add primary key's subkeys as well */
-        for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
-            const uint8_t *grip = pgp_key_get_subkey_grip(key, i);
-            pgp_key_t *    subkey = grip ? rnp_key_store_get_key_by_grip(keyring, grip) : NULL;
-            if (subkey && !list_append(&result, &subkey, sizeof(pgp_key_t *))) {
-                goto error;
-            }
-        }
-    }
-
-    return result;
-error:
-    list_destroy(&result);
-    return NULL;
-}
-
 /* list keys */
 static bool
-print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter)
+print_keys_info(rnp_cfg_t *cfg, cli_rnp_t *rnp, FILE *fp, const char *filter)
 {
-    list             keys = NULL;
-    int              keyc;
-    rnp_key_store_t *keyring;
+    list keys = NULL;
+    int  keyc;
+    bool psecret = rnp_cfg_getbool(cfg, CFG_SECRET);
 
-    keyring = rnp_cfg_getbool(cfg, CFG_SECRET) ? rnp->secring : rnp->pubring;
-    keys = rnp_get_keylist(keyring, filter);
+    keys = cli_rnp_get_keylist(rnp, filter, psecret);
     if (!keys) {
         fprintf(fp, "Key(s) not found.\n");
         return false;
@@ -162,14 +119,87 @@ print_keys_info(rnp_cfg_t *cfg, rnp_t *rnp, FILE *fp, const char *filter)
     fprintf(fp, "%d key%s found\n", keyc, (keyc == 1) ? "" : "s");
 
     for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
-        pgp_key_t *key = *((pgp_key_t **) ki);
-        rnp_print_key_info(fp, keyring, key, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
+        rnp_key_handle_t key = *((rnp_key_handle_t *) ki);
+        cli_rnp_print_key_info(
+          fp, rnp->ffi, key, psecret, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
     }
 
     fprintf(fp, "\n");
     /* clean up */
-    list_destroy(&keys);
+    cli_rnp_keylist_destroy(&keys);
     return true;
+}
+
+static bool
+imported_key_changed(json_object *key)
+{
+    const char *pub = json_obj_get_str(key, "public");
+    const char *sec = json_obj_get_str(key, "secret");
+
+    if (pub && (!strcmp(pub, "updated") || !strcmp(pub, "new"))) {
+        return true;
+    }
+    return sec && (!strcmp(pub, "updated") || !strcmp(pub, "new"));
+}
+
+static bool
+import_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file)
+{
+    rnp_input_t input = NULL;
+    bool        res = false;
+
+    if (rnp_input_from_path(&input, file)) {
+        (void) fprintf(stderr, "failed to open file %s\n", file);
+        return false;
+    }
+
+    uint32_t     flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS;
+    char *       results = NULL;
+    json_object *jso = NULL;
+    json_object *keys = NULL;
+
+    if (rnp_import_keys(rnp->ffi, input, flags, &results)) {
+        (void) fprintf(stderr, "failed to import keys from file %s\n", file);
+        goto done;
+    }
+    // print information about imported key(s)
+    jso = json_tokener_parse(results);
+    if (!jso || !json_object_object_get_ex(jso, "keys", &keys)) {
+        (void) fprintf(stderr, "invalid key import result\n");
+        goto done;
+    }
+
+    for (size_t idx = 0; idx < (size_t) json_object_array_length(keys); idx++) {
+        json_object *    keyinfo = json_object_array_get_idx(keys, idx);
+        rnp_key_handle_t key = NULL;
+        if (!keyinfo || !imported_key_changed(keyinfo)) {
+            continue;
+        }
+        const char *fphex = json_obj_get_str(keyinfo, "fingerprint");
+        if (rnp_locate_key(rnp->ffi, "fingerprint", fphex, &key) || !key) {
+            (void) fprintf(stderr, "failed to locate key with fingerprint %s\n", fphex);
+            continue;
+        }
+        cli_rnp_print_key_info(stdout, rnp->ffi, key, true, false);
+        rnp_key_handle_destroy(key);
+    }
+
+    // set default key if we didn't have one
+    if (!rnp->defkey) {
+        cli_rnp_set_default_key(rnp);
+    }
+
+    // save public and secret keyrings
+    if (!cli_rnp_save_keyrings(rnp)) {
+        (void) fprintf(stderr, "failed to save keyrings\n");
+        goto done;
+    }
+    res = true;
+done:
+    json_object_put(jso);
+    rnp_buffer_destroy(results);
+    rnp_input_destroy(input);
+    return res;
 }
 
 void
@@ -177,8 +207,8 @@ print_praise(void)
 {
     (void) fprintf(stderr,
                    "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-                   rnp_get_info("version"),
-                   rnp_get_info("maintainer"));
+                   PACKAGE_STRING,
+                   PACKAGE_BUGREPORT);
 }
 
 /* print a usage message */
@@ -191,10 +221,9 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified file 'f' */
 bool
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
+rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
 {
     const char *key;
-    char *      s;
 
     switch (cmd) {
     case CMD_LIST_KEYS:
@@ -203,108 +232,24 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return print_keys_info(cfg, rnp, stdout, f);
     case CMD_EXPORT_KEY: {
-        pgp_dest_t   dst;
-        rnp_result_t ret;
-
-        if ((key = f) == NULL) {
-            key = rnp_cfg_getstr(cfg, CFG_USERID);
-        }
-
+        key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
         if (!key) {
-            RNP_LOG("key '%s' not found\n", f);
+            (void) fprintf(stderr, "key '%s' not found\n", f);
             return 0;
         }
-
-        s = rnp_export_key(rnp, key, rnp_cfg_getbool(cfg, CFG_SECRET));
-        if (!s) {
-            return false;
-        }
-
-        const char *file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
-        bool        force = rnp_cfg_getbool(cfg, CFG_FORCE);
-        ret = file ? init_file_dest(&dst, file, force) : init_stdout_dest(&dst);
-        if (ret) {
-            free(s);
-            return false;
-        }
-
-        dst_write(&dst, s, strlen(s));
-        dst_close(&dst, false);
-        free(s);
-        return true;
+        return cli_rnp_export_keys(cfg, rnp, key);
     }
     case CMD_IMPORT_KEY:
         if (f == NULL) {
             (void) fprintf(stderr, "import file isn't specified\n");
             return false;
         }
-        return rnp_import_key(rnp, f);
+        return import_keys(cfg, rnp, f);
     case CMD_GENERATE_KEY: {
-        key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
-        rnp_action_keygen_t *        action = &rnp->action.generate_key_ctx;
-        rnp_keygen_primary_desc_t *  primary_desc = &action->primary.keygen;
-        rnp_key_protection_params_t *protection = &action->primary.protection;
-        pgp_key_t *                  primary_key = NULL;
-        pgp_key_t *                  subkey = NULL;
-
-        memset(action, 0, sizeof(*action));
-        /* setup key generation and key protection parameters */
-        if (key) {
-            strcpy((char *) primary_desc->cert.userid, key);
+        if (f == NULL) {
+            f = rnp_cfg_getstr(cfg, CFG_USERID);
         }
-        primary_desc->crypto.hash_alg = pgp_str_to_hash_alg(rnp_cfg_gethashalg(cfg));
-
-        if (primary_desc->crypto.hash_alg == PGP_HASH_UNKNOWN) {
-            fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
-            return false;
-        }
-
-        primary_desc->crypto.rng = &rnp->rng;
-        protection->hash_alg = primary_desc->crypto.hash_alg;
-        protection->symm_alg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
-        protection->iterations = rnp_cfg_getint(cfg, CFG_S2K_ITER);
-
-        if (protection->iterations == 0) {
-            protection->iterations = pgp_s2k_compute_iters(
-              protection->hash_alg, rnp_cfg_getint(cfg, CFG_S2K_MSEC), 10);
-        }
-
-        action->subkey.keygen.crypto.rng = &rnp->rng;
-
-        if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
-            primary_desc->crypto.key_alg = PGP_PKA_RSA;
-            primary_desc->crypto.rsa.modulus_bit_len = rnp_cfg_getint(cfg, CFG_NUMBITS);
-            // copy keygen crypto and protection from primary to subkey
-            action->subkey.keygen.crypto = primary_desc->crypto;
-            action->subkey.protection = *protection;
-        } else if (rnp_generate_key_expert_mode(rnp, cfg) != RNP_SUCCESS) {
-            RNP_LOG("Critical error: Key generation failed");
-            return false;
-        }
-
-        /* generate key with/without subkey */
-        RNP_MSG("Generating a new key...\n");
-        if (!(primary_key = rnp_generate_key(rnp))) {
-            return false;
-        }
-        /* show the primary key, use public key part */
-        primary_key = rnp_key_store_get_key_by_fpr(rnp->pubring, pgp_key_get_fp(primary_key));
-        if (!primary_key) {
-            RNP_LOG("Cannot get public key part");
-            return false;
-        }
-        rnp_print_key_info(stdout, rnp->pubring, primary_key, false);
-
-        /* show the subkey if any */
-        if (pgp_key_get_subkey_count(primary_key)) {
-            subkey = pgp_key_get_subkey(primary_key, rnp->pubring, 0);
-            if (!subkey) {
-                RNP_LOG("Cannot find generated subkey");
-                return false;
-            }
-            rnp_print_key_info(stdout, rnp->pubring, subkey, false);
-        }
-        return true;
+        return cli_rnp_generate_key(cfg, rnp, f);
     }
     case CMD_VERSION:
         print_praise();
@@ -366,34 +311,58 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
         }
         ret = rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
         break;
-    case OPT_NUMBITS:
+    case OPT_NUMBITS: {
         if (arg == NULL) {
             (void) fprintf(stderr, "no number of bits argument provided\n");
             break;
         }
-        ret = rnp_cfg_setint(cfg, CFG_NUMBITS, atoi(arg));
+        int bits = atoi(arg);
+        if ((bits < 1024) || (bits > 16384)) {
+            (void) fprintf(stderr, "wrong bits value: %s\n", arg);
+            break;
+        }
+        ret = rnp_cfg_setint(cfg, CFG_NUMBITS, bits);
         break;
-    case OPT_HASH_ALG:
+    }
+    case OPT_HASH_ALG: {
         if (arg == NULL) {
             (void) fprintf(stderr, "No hash algorithm argument provided\n");
             break;
         }
+        bool supported = false;
+        if (rnp_supports_feature("hash algorithm", arg, &supported) || !supported) {
+            (void) fprintf(stderr, "Unsupported hash algorithm: %s\n", arg);
+            break;
+        }
         ret = rnp_cfg_setstr(cfg, CFG_HASH, arg);
         break;
-    case OPT_S2K_ITER:
+    }
+    case OPT_S2K_ITER: {
         if (arg == NULL) {
             (void) fprintf(stderr, "No s2k iteration argument provided\n");
             break;
         }
-        ret = rnp_cfg_setint(cfg, CFG_S2K_ITER, atoi(arg));
+        int iterations = atoi(arg);
+        if (!iterations) {
+            (void) fprintf(stderr, "Wrong iterations value: %s\n", arg);
+            break;
+        }
+        ret = rnp_cfg_setint(cfg, CFG_S2K_ITER, iterations);
         break;
-    case OPT_S2K_MSEC:
+    }
+    case OPT_S2K_MSEC: {
         if (arg == NULL) {
             (void) fprintf(stderr, "No s2k msec argument provided\n");
             break;
         }
+        int msec = atoi(arg);
+        if (!msec) {
+            (void) fprintf(stderr, "Invalid s2k msec value: %s\n", arg);
+            break;
+        }
         ret = rnp_cfg_setint(cfg, CFG_S2K_MSEC, atoi(arg));
         break;
+    }
     case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "no pass-fd argument provided\n");
@@ -411,11 +380,17 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg)
     case OPT_FORMAT:
         ret = rnp_cfg_setstr(cfg, CFG_KEYFORMAT, arg);
         break;
-    case OPT_CIPHER:
+    case OPT_CIPHER: {
+        bool supported = false;
+        if (rnp_supports_feature("symmetric algorithm", arg, &supported) || !supported) {
+            (void) fprintf(stderr, "Unsupported symmetric algorithm: %s\n", arg);
+            break;
+        }
         ret = rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
         break;
+    }
     case OPT_DEBUG:
-        ret = rnp_set_debug(arg);
+        ret = !rnp_enable_debug(arg);
         break;
     case OPT_OUTPUT:
         if (arg == NULL) {
@@ -484,7 +459,10 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 }
 
 bool
-rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_generate_key)
+rnpkeys_init(rnp_cfg_t *      cfg,
+             cli_rnp_t *      rnp,
+             const rnp_cfg_t *override_cfg,
+             bool             is_generate_key)
 {
     bool ret = true;
 
@@ -496,23 +474,23 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
     rnp_cfg_setstr(cfg, CFG_KEYFORMAT, "human");
     rnp_cfg_copy(cfg, override_cfg);
 
-    memset(rnp, '\0', sizeof(rnp_t));
+    memset(rnp, '\0', sizeof(*rnp));
 
-    if (!rnp_cfg_set_keystore_info(cfg)) {
-        fputs("fatal: cannot set keystore info\n", stderr);
+    if (!cli_cfg_set_keystore_info(cfg)) {
+        ERR_MSG("fatal: cannot set keystore info");
         ret = false;
         goto end;
     }
 
-    if (rnp_init(rnp, cfg) != RNP_SUCCESS) {
-        fputs("fatal: failed to initialize rnpkeys\n", stderr);
+    if (!cli_rnp_init(rnp, cfg)) {
+        ERR_MSG("fatal: failed to initialize rnpkeys");
         ret = false;
         goto end;
     }
 
-    if (!rnp_load_keyrings(rnp, 1) && !is_generate_key) {
+    if (!cli_rnp_load_keyrings(rnp, true) && !is_generate_key) {
         /* Keys mightn't loaded if this is a key generation step. */
-        fputs("fatal: failed to load keys\n", stderr);
+        ERR_MSG("fatal: failed to load keys");
         ret = false;
         goto end;
     }
@@ -520,7 +498,7 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
 end:
     if (!ret) {
         rnp_cfg_free(cfg);
-        rnp_end(rnp);
+        cli_rnp_end(rnp);
     }
     return ret;
 }
