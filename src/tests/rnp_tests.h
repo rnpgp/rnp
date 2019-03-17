@@ -224,6 +224,8 @@ void test_stream_verify_no_key(void **state);
 
 void test_stream_key_signature_validate(void **state);
 
+void test_stream_814_dearmor_double_free(void **state);
+
 void test_cli_rnpkeys(void **state);
 
 void test_cli_rnp(void **state);
