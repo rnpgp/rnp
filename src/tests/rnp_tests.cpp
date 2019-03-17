@@ -197,6 +197,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_stream_verify_no_key),
       cmocka_unit_test(test_stream_key_signature_validate),
       cmocka_unit_test(test_stream_key_load_errors),
+      cmocka_unit_test(test_stream_814_dearmor_double_free),
       cmocka_unit_test(test_ffi_homedir),
       cmocka_unit_test(test_ffi_keygen_json_pair),
       cmocka_unit_test(test_ffi_keygen_json_primary),
