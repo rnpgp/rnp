@@ -374,7 +374,7 @@ armored_src_close(pgp_source_t *src)
         free(param->hash);
         free(param->charset);
         free(param);
-        param = NULL;
+        src->param = NULL;
     }
 }
 

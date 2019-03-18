@@ -1,14 +1,24 @@
 #!/usr/bin/env python2
 
+import tempfile
 import sys
 
 sys.path.append("../../")
+import git
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
 
 PASSWORD = "password"
 USERID_PFX = '@example.com'
 
+def find_exe(basedir, exename):
+    import os
+    for root, _, files in os.walk(basedir):
+        fpath = os.path.join(root, exename)
+        if exename in files and os.access(fpath, os.X_OK):
+            return os.path.abspath(fpath)
+
+    return None
 
 class KeyFormatter(object):
     def __init__(self, ktype, pattern):
@@ -43,7 +53,6 @@ class GpgRsaKeyFormatter(KeyFormatter):
         Subkey-Length: {1}
         Subkey-Usage: encrypt
         Name-Real: Test Testovich
-        Expire-Date: 1y
         Preferences: twofish sha256 sha384 sha512 sha1 zlib
         Name-Email: {2}"""
 
@@ -62,7 +71,6 @@ class GpgDsaKeyFormatter(KeyFormatter):
         Subkey-Length: {1}
         Subkey-Usage: encrypt
         Name-Real: Test Testovich
-        Expire-Date: 1y
         Preferences: twofish sha256 sha384 sha512 sha1 zlib
         Name-Email: {2}
         """
@@ -97,13 +105,14 @@ def keygen(obj, formatter):
 
 
 # Lists of tuples (sign key size, encryption key size)
-DSA_ELGAMAL_KEY_SIZES = [(1024, 1024), (1024, 2048), (2048, 2048), (2112, 2112), (3072, 3072)]
+DSA_ELGAMAL_KEY_SIZES = [(1024, 1024), (1024, 2048), (1234, 1234), (2048, 2048), (2112, 2112), (3072, 3072)]
 RSA_KEY_SIZES = [(1024, 1024), (2048, 2048), (3072, 3072), (4096, 4096)]
 
 
-rnp = Rnp("tmp_rnp", "../../../rnp/rnp", "../../../rnpkeys/rnpkeys")
+topdir = git.Repo(".", search_parent_directories=True).working_tree_dir
+rnp = Rnp(tempfile.mkdtemp(prefix="rnp-regen-rnp"), find_exe(topdir, "rnp"), find_exe(topdir, "rnpkeys"))
 rnp.password = PASSWORD
-gpg = GnuPG("tmp_gpg", "/usr/bin/gpg")
+gpg = GnuPG(tempfile.mkdtemp(prefix="rnp-regen-gpg"), "/usr/bin/gpg")
 gpg.password = PASSWORD
 
 # Generate RSA

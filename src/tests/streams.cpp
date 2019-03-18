@@ -1350,3 +1350,20 @@ test_stream_z(void **state)
     src_close(&src);
     dst_close(&dst, true);
 }
+
+/* This test checks for GitHub issue #814.
+ */
+void
+test_stream_814_dearmor_double_free(void **state)
+{
+    pgp_source_t src;
+    pgp_dest_t   dst;
+    const char * buf = "-----BEGIN PGP BAD HEADER-----";
+
+    assert_rnp_success(init_mem_src(&src, buf, strlen(buf), false));
+    assert_rnp_success(init_null_dest(&dst));
+    assert_rnp_failure(rnp_dearmor_source(&src, &dst));
+    src_close(&src);
+    dst_close(&dst, true);
+}
+
