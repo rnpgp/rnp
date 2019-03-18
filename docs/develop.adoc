@@ -1,4 +1,4 @@
-= Development guide
+= RNP development guide
 
 The following are a set of conventions and items that are relevant to
 contributors.
