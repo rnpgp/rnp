@@ -1,4 +1,4 @@
-= Usage
+= Using the RNP command-line tool
 
 == Generating an RSA Private Key
 
@@ -156,7 +156,6 @@ rnp --decrypt --homedir=${keyringdir} ${filename}.gpg
 =>
 
 Creates `${filename}`.
-= Using the RNP command-line tool
 
 
 == Check binary version
