@@ -33,6 +33,8 @@ Upcoming supported platforms:
 * OpenSUSE Leap 42.2, 42.3
 * SLES 12
 
+== link:docs/installation.adoc[Installation]
+
 == link:docs/cli-usage.adoc[Using CLI tool]
 
 == Using RNP’s C API
@@ -40,8 +42,6 @@ Upcoming supported platforms:
 If you’re a developer and wish to use the librnp library in your projects,
 see the https://github.com/riboseinc/rnp/blob/master/src/examples/README.md[`src/examples/README.md`]
 for usage details and sample code.
-
-== link:docs/installation.adoc[Installation]
 
 == Versioning
 
