@@ -1,0 +1,55 @@
+= Installation
+
+Binaries that will be installed:
+
+* `rnp`
+* `rnpkeys`
+
+== On macOS using Homebrew
+
+[source,console]
+----
+brew tap riboseinc/rnp
+brew install rnp
+----
+
+== On RHEL and CentOS via YUM
+
+[source,console]
+----
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+yum install -y rnp
+----
+
+== On Debian
+
+[source,console]
+----
+# Clone the repository by version tag (or omit it to get the latest sources)
+sudo apt install git
+git clone https://github.com/riboseinc/rnp.git -b v0.11.0
+
+# Enable access to `testing` packages by editing /etc/apt/sources.list
+# deb http://deb.debian.org/debian testing main
+# Install required packages
+sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential
+
+# Cmake recommend out-of-source builds
+mkdir rnp-build
+cd rnp-build
+
+# Cmake it
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off ../rnp/
+make install
+----
+
+== Compiling from source
+
+Clone this repo, or download a release and expand it. Then:
+
+[source,console]
+----
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off .
+make install
+----
