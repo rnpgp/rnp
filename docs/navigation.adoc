@@ -4,6 +4,7 @@ items:
 - { title: Command-line usage, path: cli-usage/ }
 - { title: C API usage, path: c-usage/ }
 - title: Developing RNP
+  path: develop/
   items:
   - { title: "C++ usage", path: develop/cpp-usage/ }
   - { title: "Development guide", path: develop/guide/ }
