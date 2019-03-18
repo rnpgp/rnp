@@ -1,4 +1,4 @@
-= Installation
+= Installing RNP
 
 Binaries that will be installed:
 
