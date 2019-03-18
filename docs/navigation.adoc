@@ -1,8 +1,8 @@
 ---
 items:
-- title: Introduction
-  items:
-    - { title: README, path: README/ }
+- { title: Installation, path: installation/ }
+- { title: Command-line usage, path: cli-usage/ }
+- { title: C API usage, path: c-usage/ }
 ---
 
 = Navigation
