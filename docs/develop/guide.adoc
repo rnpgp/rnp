@@ -344,48 +344,49 @@ Do:
   outside the current source file.
 * Do always use braces for conditionals, even if the block only contains a
   single statement.
-  +
-  [source,c]
-  --
-  if (something) {
-    return val;
-  }
-  --
++
+[source,c]
+--
+if (something) {
+  return val;
+}
+--
 
 * Do use a default failure (not success) value for `ret` variables. Example:
++
+[source,c]
+--
+rnp_result_t ret = RNP_ERROR_GENERIC;
+// ...
 
-  [source,c]
-  --
-  rnp_result_t ret = RNP_ERROR_GENERIC;
-  // ...
-
-  return ret;
-  --
+return ret;
+--
 
 Do not:
 
 * Do not use the static storage class for local variables, *unless* they
   are constant.
-
-  [source,c]
-  .Not OK!
-  --
-  int somefunc() {
-    static char buffer[256];
-    //...
-  }
-  --
-
-  **OK**
-
-  [source,c]
-  --
-  int somefunc() {
-    static const uint16_t some_data[] = {
-      0x00, 0x01, 0x02, //...
-    };
-  }
-  --
++
+**Not OK**
++
+[source,c]
+--
+int somefunc() {
+  static char buffer[256];
+  //...
+}
+--
++
+**OK**
++
+[source,c]
+--
+int somefunc() {
+  static const uint16_t some_data[] = {
+    0x00, 0x01, 0x02, //...
+  };
+}
+--
 
 * Do not use `pragma`, and try to avoid `__attribute__` as well.
 
