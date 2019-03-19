@@ -22,11 +22,32 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# fixture to copy the test data directory
-add_test(
-  NAME setupTestData
-  COMMAND "${CMAKE_COMMAND}" -E copy_directory
-          "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
+find_package(JSON-C 0.11 REQUIRED)
+
+add_executable(gtest-test
+  ../rnp/rnpcfg.cpp
+  ../rnp/rnpcli.cpp
+  ../rnp/rnp.cpp
+  ../rnpkeys/rnpkeys.cpp
+  ../rnpkeys/main.cpp
+  ../rnpkeys/tui.cpp
+  support.cpp
+  gtest-test.cpp
 )
-set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
+target_include_directories(gtest-test
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+target_link_libraries(gtest-test gtest gtest_main librnp JSON-C::JSON-C)
+target_compile_definitions(gtest-test PRIVATE RNP_RUN_TESTS)
+add_test(
+  NAME Google-Test
+  COMMAND gtest-test
+)
+set_tests_properties(Google-Test PROPERTIES
+  ENVIRONMENT "\
+RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data;\
+"
+)
 

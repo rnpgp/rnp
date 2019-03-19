@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "gtest/gtest.h"
 #include <string>
 #include <stdarg.h>
 #include <stddef.h>
@@ -37,12 +38,15 @@
 #include <ftw.h>
 #include <sys/stat.h>
 
-extern "C" {
-#include <cmocka.h>
-}
-
 #include "rnp.h"
 #include "../rnp/rnpcli.h"
+
+#define assert_rnp_success(a) EXPECT_EQ((a), RNP_SUCCESS)
+#define assert_true(a) EXPECT_TRUE((a))
+#define assert_false(a) EXPECT_FALSE((a))
+#define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
+#define assert_int_equal(a, b) EXPECT_EQ((a), (b))
+#define assert_non_null(a) EXPECT_NE((a), nullptr)
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
