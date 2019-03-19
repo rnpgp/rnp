@@ -36,7 +36,6 @@ static char original_dir[PATH_MAX];
 /*
  * Handler used to access DRBG.
  */
-rng_t global_rng;
 
 static char *
 get_data_dir(void)

@@ -37,12 +37,17 @@
 #include <ftw.h>
 #include <sys/stat.h>
 
-extern "C" {
-#include <cmocka.h>
-}
-
 #include "rnp.h"
 #include "../rnp/rnpcli.h"
+
+#include <catch2/catch.hpp>
+
+#define assert_rnp_success(a) REQUIRE((a) == RNP_SUCCESS)
+#define assert_true(a) REQUIRE((a))
+#define assert_false(a) REQUIRE(!(a))
+#define assert_string_equal(a, b) REQUIRE(std::string((a)) == (b))
+#define assert_int_equal(a, b) REQUIRE((a) == (b))
+#define assert_non_null(a) REQUIRE((a) != nullptr)
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
