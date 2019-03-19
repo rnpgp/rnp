@@ -22,57 +22,6 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# for rnp_tests
-find_package(cmocka REQUIRED)
-find_package(JSON-C 0.11 REQUIRED)
-
-add_executable(rnp_tests
-  ../rnp/rnpcfg.cpp
-  ../rnp/rnpcli.cpp
-  ../rnp/rnp.cpp
-  ../rnpkeys/rnpkeys.cpp
-  ../rnpkeys/main.cpp
-  ../rnpkeys/tui.cpp
-  cipher.cpp
-  cli.cpp
-  exportkey.cpp
-  ffi.cpp
-  generatekey.cpp
-  key-add-userid.cpp
-  key-grip.cpp
-  key-prefs.cpp
-  key-protect.cpp
-  key-store-search.cpp
-  key-unlock.cpp
-  key-validate.cpp
-  load-g10.cpp
-  load-pgp.cpp
-  rnp_tests.cpp
-  streams.cpp
-  support.cpp
-  user-prefs.cpp
-  utils-list.cpp
-  utils-rnpcfg.cpp
-)
-
-target_include_directories(rnp_tests
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(rnp_tests
-  PRIVATE
-    librnp
-    JSON-C::JSON-C
-    cmocka::cmocka
-)
-
-target_compile_definitions(rnp_tests
-  PRIVATE
-    RNP_RUN_TESTS
-)
-
 # fixture to copy the test data directory
 add_test(
   NAME setupTestData
@@ -80,32 +29,4 @@ add_test(
           "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
 )
 set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
-
-# rnp_tests
-add_test(
-  NAME rnp_tests
-  COMMAND rnp_tests
-)
-set_tests_properties(rnp_tests PROPERTIES
-  TIMEOUT 3000
-  FIXTURES_REQUIRED testdata
-)
-
-# cli_tests
-find_package(PythonInterp 2.7 EXACT)
-find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
-add_test(
-  NAME cli_tests
-  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d
-)
-set_tests_properties(cli_tests PROPERTIES
-  TIMEOUT 3000
-  FIXTURES_REQUIRED testdata
-  ENVIRONMENT "\
-RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>;\
-RNP_TESTS_RNPKEYS_PATH=$<TARGET_FILE:rnpkeys>;\
-RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE};\
-RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE};\
-"
-)
 
