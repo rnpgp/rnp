@@ -76,7 +76,7 @@ function(extract_version_info version var_prefix)
 endfunction()
 
 function(determine_version source_dir var_prefix)
-  if (IS_DIRECTORY "${source_dir}/.git/")
+  if (EXISTS "${source_dir}/.git")
     # for GIT_EXECUTABLE
     find_package(Git REQUIRED)
     # get a description of the version, something like:
