@@ -24,6 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <boost/test/unit_test.hpp>
+
 #include <string>
 #include <stdarg.h>
 #include <stddef.h>
@@ -37,12 +39,15 @@
 #include <ftw.h>
 #include <sys/stat.h>
 
-extern "C" {
-#include <cmocka.h>
-}
-
 #include "rnp.h"
 #include "../rnp/rnpcli.h"
+
+#define assert_rnp_success(a) BOOST_TEST_REQUIRE((a) == RNP_SUCCESS)
+#define assert_true(a) BOOST_TEST_REQUIRE((a))
+#define assert_false(a) BOOST_TEST_REQUIRE(!(a))
+#define assert_string_equal(a, b) BOOST_TEST_REQUIRE(std::string((a)) == (b))
+#define assert_int_equal(a, b) BOOST_TEST_REQUIRE((a) == (b))
+#define assert_non_null(a) BOOST_TEST_REQUIRE((a) != nullptr)
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .

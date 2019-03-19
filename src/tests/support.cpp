@@ -46,7 +46,7 @@
 #include <crypto.h>
 #include <pgp-key.h>
 
-extern rng_t global_rng;
+rng_t global_rng;
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .

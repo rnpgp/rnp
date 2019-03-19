@@ -22,6 +22,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+find_package(JSON-C 0.11 REQUIRED)
+
 # fixture to copy the test data directory
 add_test(
   NAME setupTestData
@@ -29,4 +31,28 @@ add_test(
           "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
 )
 set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
+
+add_executable(boosttest-test
+  ../rnp/rnpcfg.cpp
+  ../rnp/rnpcli.cpp
+  ../rnp/rnp.cpp
+  ../rnpkeys/rnpkeys.cpp
+  ../rnpkeys/main.cpp
+  ../rnpkeys/tui.cpp
+  support.cpp
+  boosttest-test.cpp
+)
+target_include_directories(boosttest-test
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+target_compile_definitions(boosttest-test PRIVATE RNP_RUN_TESTS)
+target_link_libraries(boosttest-test boost_unit_test_framework librnp JSON-C::JSON-C)
+add_test(NAME Boost.Test COMMAND boosttest-test)
+set_tests_properties(Boost.Test PROPERTIES
+  ENVIRONMENT "\
+RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data;\
+"
+)
 
