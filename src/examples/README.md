@@ -1,7 +1,9 @@
 # Introduction
 
-This folder includes examples of rnp library usage for developers.
-All samples utilize API, exposed via header file `rnp2.h`, check it for more details.
+This folder includes examples of RNP library usage for developers.
+
+All samples below use APIs exposed via header file [`rnp2.h`](/include/rnp/rnp2.h),
+check it out for more documentation.
 
 Following sample applications are available:
 
