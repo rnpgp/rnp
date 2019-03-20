@@ -37,11 +37,7 @@ Upcoming supported platforms:
 
 == link:docs/cli-usage.adoc[Using CLI tool]
 
-== Using RNP’s C API
-
-If you’re a developer and wish to use the librnp library in your projects,
-see the https://github.com/riboseinc/rnp/blob/master/src/examples/README.md[`src/examples/README.md`]
-for usage details and sample code.
+== link:docs/c-usage.adoc[Using RNP’s C API in your projects]
 
 == Versioning
 
