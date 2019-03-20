@@ -28,7 +28,7 @@ yum install -y rnp
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
 sudo apt install git
-git clone https://github.com/riboseinc/rnp.git -b v0.11.0
+git clone https://github.com/riboseinc/rnp.git -b v0.12.0
 
 # Enable access to `testing` packages by editing /etc/apt/sources.list
 # deb http://deb.debian.org/debian testing main
