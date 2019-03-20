@@ -1,0 +1,92 @@
+= Using RNP’s C APIs
+
+If you’re a developer and wish to use the RNP library in your projects,
+you can use the examples below to see how it may be done.
+
+== Samples
+
+[TIP]
+.Where to find the examples
+====
+Find the source code for these examples
+under `https://github.com/riboseinc/rnp/blob/master/src/examples/[src/examples]`.
+
+If you’re building from source, the examples are built together with the RNP library
+and are available in `src/examples` directory of your build folder.
+====
+
+[TIP]
+====
+All samples below use APIs exposed via header file
+`https://github.com/riboseinc/rnp/blob/master/src/include/rnp/rnp2.h[include/rnp/rnp2.h]`,
+check it out for more documentation.
+====
+
+Following sample applications are available:
+
+`generate`:: Includes code which shows how to generate keys, save/load keyrings, export keys.
+
+`encrypt`:: Includes code which shows how to encrypt file, using the password and/or key.
+
+`decrypt`:: This one shows how to decrypt OpenPGP data, using the key or password.
+
+`sign`:: Shows how to sign messages, using the key(s) from loaded keyring.
+
+`verify`:: Shows how to verify signed messages using dynamic keys fetching (sample key provider implementation).
+
+=== https://github.com/riboseinc/rnp/blob/master/src/examples/generate.c[generate.c]
+
+This example is composed from 2 functions:
+
+ * `ffi_generate_keys()`: this shows how to generate and save different key types
+   (RSA and EDDSA/Curve25519) using the JSON key description.
+   This also demonstrates the usage of password provider.
++
+Keyrings will be saved to files `pubring.pgp` and `secring.pgp` in the current directory.
+You can use `rnp --list-packets pubring.pgp` to check the properties of the generated key(s).
+
+ * `ffi_output_keys()`: This shows how to load keyrings,
+   search for the keys (in helper functions `ffi_print_key()`/`ffi_export_key()`),
+   and export them to memory or file in armored format.
+
+=== https://github.com/riboseinc/rnp/blob/master/src/examples/encrypt.c[encrypt.c]
+
+This code sample first loads public keyring (`pubring.pgp`) (created by the “generate.c” example),
+then creates encryption operation structure and configures it with various options
+(including the setup of password encryption and public-key encryption).
+
+The result is the encrypted and armored (for easier reading) message `RNP encryption sample message`.
+It is saved to the file `encrypted.asc` in current directory.
+
+You can investigate it via the `rnp --list-packets encrypted.asc` command.
+Also, you may want to decrypt saved file via `rnp --keyfile secring.pgp -d encrypted.asc`.
+
+=== https://github.com/riboseinc/rnp/blob/master/src/examples/decrypt.c[decrypt.c]
+
+This example uses keyrings generated in the “generate.c” sample to decrypt messages
+encrypted by the “encrypt.c” sample.
+
+It shows how to decrypt message with password or with a key
+and implements custom password provider for decryption or key password.
+
+Decrypted message is saved to the memory and then printed to the stdout.
+
+=== https://github.com/riboseinc/rnp/blob/master/src/examples/sign.c[sign.c]
+
+This sample uses keyrings generated in the preceding “generate.c” sample.
+
+This sample configures signing context and signs the message, saving it to the `signed.asc` file.
+Attached signature is used, i.e. the data is encapsulated into the resulting message.
+
+You can investigate the signed message by issuing `rnp --list-packets signed.asc` command.
+To verify message, use `rnp --keyfile pubring.pgp -v signed.asc`.
+
+=== https://github.com/riboseinc/rnp/blob/master/src/examples/verify.c[verify.c]
+
+This example uses keyrings generated in the “generate.c” sample.
+
+However, instead of loading the whole keyring, it implements dynamic key fetching
+via custom key provider (see function `example_key_provider`).
+
+After verification this sample outputs the verified embedded message
+and all signatures with signing key ids and statueses.
