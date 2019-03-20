@@ -19,13 +19,18 @@ version (and x is a literal -- not a placeholder).
 git checkout -b release/1.x master
 --
 
-[[create-a-changelog-and-versiontxt]]
-=== Create a CHANGELOG.md and version.txt
+[[update-changelog-and-version]]
+=== Update CHANGELOG and version
 
 [source,console]
 --
 vim CHANGELOG.md
+# Add/update CHANGELOG entry for the new version
 git add CHANGELOG.md
+
+vim docs/installation.adoc
+# Update latest stable version tag in Debian instructions
+git add docs/installation.adoc
 
 echo 1.0.0 > version.txt
 git add -f version.txt
@@ -89,4 +94,4 @@ git cherry release/0.x master | grep '^+ ' | cut -c 3-9 | while read commit; do 
 --
 
 From here, you can follow the steps for an initial release,
-starting with link:#create-a-changelog-and-versiontxt[Create (Update) a CHANGELOG.md and version.txt].
+starting with link:#update-changelog-and-version[Update CHANGELOG and version].
