@@ -47,6 +47,9 @@ typedef uint32_t rnp_result_t;
 #define RNP_KEY_REMOVE_PUBLIC (1U << 0)
 #define RNP_KEY_REMOVE_SECRET (1U << 1)
 
+#define RNP_KEY_UNLOAD_PUBLIC (1U << 0)
+#define RNP_KEY_UNLOAD_SECRET (1U << 1)
+
 /**
  * Flags for optional details to include in JSON.
  */
@@ -278,6 +281,15 @@ rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
                            const char *format,
                            rnp_input_t input,
                            uint32_t    flags);
+
+/** unload public and/or secret keys
+ *  Note: After unloading all key handles will become invalid and must be destroyed.
+ * @param ffi
+ * @param flags choose which keys should be unloaded (pubic, secret or both).
+ *              See RNP_UNLOAD_PUBLIC_KEYS/RNP_UNLOAD_SECRET_KEYS.
+ * @return rnp_result_t 0 on success, or any other value on error.
+ */
+rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
 
 /** save keys
  *
