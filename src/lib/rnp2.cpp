@@ -1056,6 +1056,27 @@ rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t fla
     return do_load_keys(ffi, input, format, type);
 }
 
+rnp_result_t
+rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags)
+{
+    if (!ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (flags & ~(RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (flags & RNP_KEY_UNLOAD_PUBLIC) {
+        rnp_key_store_clear(ffi->pubring);
+    }
+    if (flags & RNP_KEY_UNLOAD_SECRET) {
+        rnp_key_store_clear(ffi->secring);
+    }
+
+    return RNP_SUCCESS;
+}
+
 static bool
 copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 {
