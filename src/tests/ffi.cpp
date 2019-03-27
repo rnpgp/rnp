@@ -401,6 +401,80 @@ test_ffi_load_keys(void **state)
 }
 
 void
+test_ffi_clear_keys(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      pub_count;
+    size_t      sec_count;
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load pubring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // load secring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // check counts
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(7, pub_count);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(7, sec_count);
+    // clear public keys
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(pub_count, 0);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(sec_count, 7);
+    // clear secret keys
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(pub_count, 0);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(sec_count, 0);
+    // load public and clear secret keys
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(pub_count, 7);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(sec_count, 0);
+    // load secret keys and clear all
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(7, pub_count);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(7, sec_count);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &pub_count));
+    assert_int_equal(pub_count, 0);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &sec_count));
+    assert_int_equal(sec_count, 0);
+    // attempt to clear NULL ffi
+    assert_rnp_failure(rnp_unload_keys(NULL, RNP_KEY_UNLOAD_SECRET));
+    // attempt to pass wrong flags
+    assert_rnp_failure(rnp_unload_keys(ffi, 255));
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+}
+
+void
 test_ffi_save_keys(void **state)
 {
     rnp_ffi_t    ffi = NULL;
