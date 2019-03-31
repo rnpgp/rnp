@@ -43,7 +43,7 @@
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include "packet-create.h"
-#include <rnp/rnp2.h>
+#include <rnp/rnp.h>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <unistd.h>

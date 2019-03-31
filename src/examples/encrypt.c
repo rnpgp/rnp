@@ -26,7 +26,7 @@
 
 #include <string.h>
 #include <time.h>
-#include <rnp/rnp2.h>
+#include <rnp/rnp.h>
 
 #define RNP_SUCCESS 0
 
