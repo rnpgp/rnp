@@ -18,7 +18,7 @@ and are available in `src/examples` directory of your build folder.
 [TIP]
 ====
 All samples below use APIs exposed via header file
-`https://github.com/riboseinc/rnp/blob/master/include/rnp/rnp2.h[include/rnp/rnp2.h]`,
+`https://github.com/riboseinc/rnp/blob/master/include/rnp/rnp.h[include/rnp/rnp.h]`,
 check it out for more documentation.
 ====
 
