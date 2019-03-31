@@ -125,7 +125,7 @@ add_library(librnp
   packet-create.cpp
   pass-provider.cpp
   pgp-key.cpp
-  rnp2.cpp
+  rnp.cpp
 )
 
 set_target_properties(librnp
@@ -189,7 +189,7 @@ install(TARGETS librnp
 # install headers
 install(
   FILES
-    "${PROJECT_SOURCE_DIR}/include/rnp/rnp2.h"
+    "${PROJECT_SOURCE_DIR}/include/rnp/rnp.h"
   COMPONENT
     development
   DESTINATION
