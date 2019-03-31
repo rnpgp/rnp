@@ -28,7 +28,7 @@
 #include <vector>
 #include <string>
 
-#include <rnp/rnp2.h>
+#include <rnp/rnp.h>
 #include "rnp_tests.h"
 #include "support.h"
 #include "librepgp/stream-common.h"

@@ -24,7 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <rnp/rnp2.h>
+#include <rnp/rnp.h>
 #include <string.h>
 
 #define RNP_SUCCESS 0
