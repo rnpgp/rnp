@@ -3812,6 +3812,27 @@ test_ffi_enarmor_dearmor(void **state)
         rnp_input_destroy(input);
         rnp_output_destroy(output);
     }
+    // test truncated armored data
+    {
+        std::ifstream keyf("data/test_stream_key_load/rsa-rsa-pub.asc",
+                           std::ios::binary | std::ios::ate);
+        std::string   keystr(keyf.tellg(), ' ');
+        keyf.seekg(0);
+        keyf.read(&keystr[0], keystr.size());
+        keyf.close();
+        for (size_t sz = keystr.size() - 2; sz > 0; sz--) {
+            rnp_input_t  input = NULL;
+            rnp_output_t output = NULL;
+
+            assert_rnp_success(
+              rnp_input_from_memory(&input, (const uint8_t *) keystr.data(), sz, true));
+            assert_rnp_success(rnp_output_to_memory(&output, 0));
+            assert_rnp_failure(rnp_dearmor(input, output));
+
+            rnp_input_destroy(input);
+            rnp_output_destroy(output);
+        }
+    }
 }
 
 void

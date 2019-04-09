@@ -221,6 +221,10 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len)
         if (read < 0) {
             return read;
         }
+        if (read == 0) {
+            RNP_LOG("premature end of armored input");
+            return -1;
+        }
 
         dptr = dend;
         bptr = b64buf;
