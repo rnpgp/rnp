@@ -90,7 +90,7 @@ static bool
 pgp_user_prefs_add_val(uint8_t **arr, size_t *arrlen, uint8_t val)
 {
     /* do not add duplicate values */
-    for (int i = 0; i < *arrlen; i++) {
+    for (size_t i = 0; i < *arrlen; i++) {
         if ((*arr)[i] == val) {
             return true;
         }
