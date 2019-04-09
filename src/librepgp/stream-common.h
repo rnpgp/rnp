@@ -83,6 +83,7 @@ typedef struct pgp_source_t {
 
     unsigned eof : 1;       /* end of data as reported by read and empty cache */
     unsigned knownsize : 1; /* whether size of the data is known */
+    unsigned error : 1;     /* there were reading error */
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param
@@ -134,9 +135,16 @@ ssize_t src_skip(pgp_source_t *src, size_t len);
  */
 rnp_result_t src_finish(pgp_source_t *src);
 
+/** @brief check whether there were reading error on source
+ *  @param allocated and initialized source structure
+ *  @return true if there were reading error or false otherwise
+ */
+bool src_error(const pgp_source_t *src);
+
 /** @brief check whether there is no more input on source
  *  @param src allocated and initialized source structure
- *  @return true if there is no more input or false otherwise
+ *  @return true if there is no more input or false otherwise.
+ *          On read error false will be returned.
  */
 bool src_eof(pgp_source_t *src);
 
