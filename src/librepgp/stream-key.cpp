@@ -811,7 +811,7 @@ armoredpass:
     }
 
     /* read sequence of transferable OpenPGP keys as described in RFC 4880, 11.1 - 11.2 */
-    while (!src_eof(src)) {
+    while (!src_eof(src) && !src_error(src)) {
         ptag = stream_pkt_type(src);
 
         if ((ptag < 0) || !is_primary_key_pkt(ptag)) {

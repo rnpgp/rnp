@@ -90,6 +90,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
                 len = len - left;
                 goto finish;
             } else {
+                src->error = 1;
                 return -1;
             }
         } else {
@@ -100,6 +101,7 @@ src_read(pgp_source_t *src, void *buf, size_t len)
                 len = len - left;
                 goto finish;
             } else if (read < 0) {
+                src->error = 1;
                 return -1;
             } else if ((size_t) read < left) {
                 memcpy(buf, &cache->buf[0], read);
@@ -177,6 +179,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
             }
             return cache->len;
         } else if (read < 0) {
+            src->error = 1;
             return -1;
         } else {
             cache->len += read;
@@ -232,6 +235,12 @@ src_finish(pgp_source_t *src)
 }
 
 bool
+src_error(const pgp_source_t *src)
+{
+    return src->error;
+}
+
+bool
 src_eof(pgp_source_t *src)
 {
     uint8_t check;
@@ -240,6 +249,7 @@ src_eof(pgp_source_t *src)
         return true;
     }
 
+    /* Error on stream read is NOT considered as eof. See src_error(). */
     return src_peek(src, &check, 1) == 0;
 }
 
