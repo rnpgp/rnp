@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <sys/wait.h>
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
@@ -470,4 +471,28 @@ test_cli_rnpkeys(void **state)
 
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "zzzzzzzz", NULL);
     assert_int_not_equal(ret, 0);
+}
+
+void
+test_cli_redumper(void **state)
+{
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
+    char *            redumper_path =
+      rnp_compose_path(rstate->original_dir, "../apps/packet-dumper/redumper", NULL);
+    char cmd[512] = {0};
+    int  chnum;
+    int  status;
+    /* call redumper's help */
+    chnum = snprintf(cmd, sizeof(cmd), "%s -h", redumper_path);
+    assert_true(chnum < (int) sizeof(cmd));
+    status = system(cmd);
+    assert_true(WIFEXITED(status));
+    assert_int_equal(WEXITSTATUS(status), 1);
+    /* run redumper on some data */
+    chnum = snprintf(cmd, sizeof(cmd), "%s \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
+    assert_true(chnum < (int) sizeof(cmd));
+    status = system(cmd);
+    assert_true(WIFEXITED(status));
+    assert_int_equal(WEXITSTATUS(status), 0);
+    free(redumper_path);
 }
