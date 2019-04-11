@@ -1367,3 +1367,132 @@ test_stream_814_dearmor_double_free(void **state)
     dst_close(&dst, true);
 }
 
+void
+test_stream_825_dearmor_blank_line(void **state)
+{
+    rnp_key_store_t *keystore = NULL;
+    pgp_source_t     src = {};
+
+    keystore = rnp_key_store_new("GPG", "");
+    assert_non_null(keystore);
+    assert_rnp_success(
+      init_file_src(&src, "data/test_stream_armor/extra_line_before_trailer.asc"));
+    assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));
+    assert_int_equal(rnp_key_store_get_key_count(keystore), 2);
+    src_close(&src);
+    rnp_key_store_free(keystore);
+}
+
+static bool
+try_dearmor(const char *str, size_t len)
+{
+    pgp_source_t src = {};
+    pgp_dest_t   dst = {};
+    bool         res = false;
+
+    if (len < 0) {
+        return false;
+    }
+    if (init_mem_src(&src, str, len, false) != RNP_SUCCESS) {
+        goto done;
+    }
+    if (init_null_dest(&dst) != RNP_SUCCESS) {
+        goto done;
+    }
+    res = rnp_dearmor_source(&src, &dst) == RNP_SUCCESS;
+done:
+    src_close(&src);
+    dst_close(&dst, true);
+    return res;
+}
+
+void
+test_stream_dearmor_edge_cases(void **state)
+{
+    const char *HDR = "-----BEGIN PGP PUBLIC KEY BLOCK-----";
+    const char *B1 = "mDMEWsN6MBYJKwYBBAHaRw8BAQdAAS+nkv9BdVi0JX7g6d+O201bdKhdowbielOo";
+    const char *B2 = "ugCpCfi0CWVjYy0yNTUxOYiUBBMWCAA8AhsDBQsJCAcCAyICAQYVCgkICwIEFgID";
+    const char *B3 = "AQIeAwIXgBYhBCH8aCdKrjtd45pCd8x4YniYGwcoBQJcVa/NAAoJEMx4YniYGwco";
+    const char *B4 = "lFAA/jMt3RUUb5xt63JW6HFcrYq0RrDAcYMsXAY73iZpPsEcAQDmKbH21LkwoClU";
+    const char *B5 = "9RrUJSYZnMla/pQdgOxd7/PjRCpbCg==";
+    const char *CRC = "=miZp";
+    const char *FTR = "-----END PGP PUBLIC KEY BLOCK-----";
+    const char *FTR2 = "-----END PGP WEIRD KEY BLOCK-----";
+    char        b64[1024];
+    char        msg[1024];
+    int         b64len = 0;
+    int         len = 0;
+
+    /* fill the body with normal \n line endings */
+    b64len = snprintf(b64, sizeof(b64), "%s\n%s\n%s\n%s\n%s", B1, B2, B3, B4, B5);
+    assert_true((b64len > 0) && (b64len < (int) sizeof(b64)));
+
+    /* try normal message */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* no empty line after the headers */
+    len = snprintf(msg, sizeof(msg), "%s\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+
+    /* \r\n line ending */
+    len = snprintf(msg, sizeof(msg), "%s\r\n\r\n%s\r\n%s\r\n%s\r\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* mixed line ending */
+    len = snprintf(msg, sizeof(msg), "%s\r\n\n%s\r\n%s\n%s\r\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* extra line before the footer */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n\n%s\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* extra spaces after the header: allowed by RFC */
+    len = snprintf(msg, sizeof(msg), "%s  \t  \n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* extra spaces after the footer: allowed by RFC as well */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s \n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\t\n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\t\t     \t\t \n", HDR, b64, CRC, FTR);
+    assert_true(try_dearmor(msg, len));
+
+    /* invalid footer */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR2);
+    assert_false(try_dearmor(msg, len));
+
+    /* extra spaces or chars before the footer - FAIL */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n  %s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n\t\t %s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n11111%s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+
+    /* cuted out or extended b64 padding */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%.*s\n%s\n%s\n", HDR, b64len - 1, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%.*s\n%s\n%s\n", HDR, b64len - 2, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s==\n%s\n%s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+
+    /* invalid chars in b64 data */
+    char old = b64[30];
+    b64[30] = '?';
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
+    assert_false(try_dearmor(msg, len));
+    b64[30] = old;
+
+    /* modified/malformed crc */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n=miZq\n%s\n", HDR, b64, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\nmiZp\n%s\n", HDR, b64, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n==miZp\n%s\n", HDR, b64, FTR);
+    assert_false(try_dearmor(msg, len));
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n=miZpp\n%s\n", HDR, b64, FTR);
+    assert_false(try_dearmor(msg, len));
+}
