@@ -36,6 +36,15 @@
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
 
+typedef struct pgp_packet_hdr_t {
+    pgp_content_enum tag;
+    uint8_t          hdr[PGP_MAX_HEADER_SIZE];
+    size_t           hdr_len;
+    size_t           pkt_len;
+    bool             partial;
+    bool             indeterminate;
+} pgp_packet_hdr_t;
+
 /* structure for convenient writing or parsing of non-stream packets */
 typedef struct pgp_packet_body_t {
     int      tag;       /* packet tag */
@@ -210,6 +219,15 @@ void free_packet_body(pgp_packet_body_t *body);
  *  @return void
  **/
 void stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst);
+
+/** @brief get and parse OpenPGP packet header to the structure.
+ *         Note: this will not read but just peek required bytes.
+ *
+ *  @param src source to read from
+ *  @param hdr header structure
+ *  @return RNP_SUCCESS or error code if operation failed
+ **/
+rnp_result_t stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr);
 
 /** @brief read 'short-length' packet body (including tag and length bytes) from the source
  *  @param src source to read from

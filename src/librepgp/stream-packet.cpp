@@ -598,6 +598,44 @@ stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst)
 }
 
 rnp_result_t
+stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr)
+{
+    ssize_t hlen;
+
+    memset(hdr, 0, sizeof(*hdr));
+    hlen = stream_pkt_hdr_len(src);
+    if (hlen < 0) {
+        uint8_t hdr2[2] = {0};
+        hlen = src_peek(src, hdr2, 2);
+        if (hlen < 2) {
+            RNP_LOG("pkt header read failed");
+            return RNP_ERROR_READ;
+        }
+
+        RNP_LOG("bad packet header: 0x%02x%02x", hdr2[0], hdr2[1]);
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (src_peek(src, hdr->hdr, hlen) != hlen) {
+        RNP_LOG("failed to read pkt header");
+        return RNP_ERROR_READ;
+    }
+
+    hdr->hdr_len = hlen;
+    hdr->tag = (pgp_content_enum) get_packet_type(hdr->hdr[0]);
+
+    if (stream_partial_pkt_len(src)) {
+        hdr->partial = true;
+    } else if (stream_intedeterminate_pkt_len(src)) {
+        hdr->indeterminate = true;
+    } else {
+        hdr->pkt_len = get_pkt_len(hdr->hdr);
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 {
     ssize_t len;
