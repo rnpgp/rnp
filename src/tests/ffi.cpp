@@ -2869,7 +2869,8 @@ test_ffi_signatures_memory(void **state)
     op = NULL;
 
     /* now verify */
-
+    // make sure it is correctly armored
+    assert_int_equal(memcmp(signed_buf, "-----BEGIN PGP MESSAGE-----", 27), 0);
     // create input and output
     test_ffi_init_verify_memory_input(state, &input, &output, signed_buf, signed_len);
     // call verify
@@ -2977,7 +2978,8 @@ test_ffi_signatures_detached_memory(void **state)
     op = NULL;
 
     /* now verify */
-
+    // make sure it is correctly armored
+    assert_int_equal(memcmp(signed_buf, "-----BEGIN PGP SIGNATURE-----", 29), 0);
     // create input and output
     test_ffi_init_sign_memory_input(state, &input, NULL);
     assert_rnp_success(rnp_input_from_memory(&signature, signed_buf, signed_len, true));
