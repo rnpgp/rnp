@@ -1811,7 +1811,9 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armor && !handler->ctx->clearsign) {
-        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
+        pgp_armored_msg_t msgt =
+          handler->ctx->detached ? PGP_ARMORED_SIGNATURE : PGP_ARMORED_MESSAGE;
+        ret = init_armored_dst(&dests[destc], dst, msgt);
         if (ret != RNP_SUCCESS) {
             goto finish;
         }
