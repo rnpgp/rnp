@@ -2771,12 +2771,20 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
                 return false;
             }
         } else if (!rnp_strcasecmp(key, "length")) {
-            // if the key alg is set and isn't RSA, this wouldn't be used
-            // (RSA is default, so we have to see if it is set)
-            if (crypto->key_alg && crypto->key_alg != PGP_PKA_RSA) {
-                return false;
+            int length = json_object_get_int(value);
+            switch (crypto->key_alg) {
+                case PGP_PKA_RSA:
+                    crypto->rsa.modulus_bit_len = length;
+                    break;
+                case PGP_PKA_DSA:
+                    crypto->dsa.p_bitlen = length;
+                    break;
+                case PGP_PKA_ELGAMAL:
+                    crypto->elgamal.key_bitlen = length;
+                    break;
+                default:
+                    return false;
             }
-            crypto->rsa.modulus_bit_len = json_object_get_int(value);
         } else if (!rnp_strcasecmp(key, "curve")) {
             if (!pk_alg_allows_custom_curve(crypto->key_alg)) {
                 return false;
