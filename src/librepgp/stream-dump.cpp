@@ -1061,11 +1061,6 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     char         msg[1024 + PGP_MAX_HEADER_SIZE] = {0};
     char         smsg[128] = {0};
-    uint8_t      hdr[PGP_MAX_HEADER_SIZE];
-    ssize_t      hlen;
-    int          tag;
-    size_t       off;
-    size_t       plen;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     if (src_eof(src)) {
@@ -1073,68 +1068,53 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     while (!src_eof(src)) {
-        hlen = stream_pkt_hdr_len(src);
-        if (hlen < 0) {
-            hlen = src_peek(src, hdr, 2);
-            if (hlen < 2) {
-                RNP_LOG("pkt header read failed");
-                ret = RNP_ERROR_READ;
-                goto finish;
-            }
-            RNP_LOG("bad packet header: 0x%02x%02x", hdr[0], hdr[1]);
-            ret = RNP_ERROR_BAD_FORMAT;
+        pgp_packet_hdr_t hdr = {};
+        size_t           off = src->readb;
+        rnp_result_t     hdrret = stream_peek_packet_hdr(src, &hdr);
+        if (hdrret) {
+            ret = hdrret;
             goto finish;
         }
 
-        if (src_peek(src, hdr, hlen) != hlen) {
-            RNP_LOG("failed to read pkt header");
-            ret = RNP_ERROR_READ;
-            goto finish;
-        }
-
-        tag = get_packet_type(hdr[0]);
-        off = src->readb;
-
-        plen = 0;
-        if (stream_partial_pkt_len(src)) {
+        if (hdr.partial) {
             snprintf(msg, sizeof(msg), "partial len");
-        } else if (stream_intedeterminate_pkt_len(src)) {
+        } else if (hdr.indeterminate) {
             snprintf(msg, sizeof(msg), "indeterminate len");
         } else {
-            plen = get_pkt_len(hdr);
-            snprintf(msg, sizeof(msg), "len %zu", plen);
+            snprintf(msg, sizeof(msg), "len %zu", hdr.pkt_len);
         }
-        vsnprinthex(smsg, sizeof(smsg), hdr, hlen);
-        dst_printf(dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, tag, msg);
+        vsnprinthex(smsg, sizeof(smsg), hdr.hdr, hdr.hdr_len);
+        dst_printf(
+          dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, hdr.tag, msg);
 
         if (ctx->dump_packets) {
-            ssize_t rlen = plen + hlen;
-            bool    part = false;
+            size_t rlen = hdr.pkt_len + hdr.hdr_len;
+            bool   part = false;
 
-            if (!plen || (rlen > 1024 + hlen)) {
-                rlen = 1024 + hlen;
+            if (!hdr.pkt_len || (rlen > 1024 + hdr.hdr_len)) {
+                rlen = 1024 + hdr.hdr_len;
                 part = true;
             }
 
-            dst_printf(dst, ":off %zu: packet contents ", off + hlen);
+            dst_printf(dst, ":off %zu: packet contents ", off + hdr.hdr_len);
             rlen = src_peek(src, msg, rlen);
             if (rlen < 0) {
                 dst_printf(dst, "- failed to read\n");
             } else {
-                rlen -= hlen;
-                if (part || ((size_t) rlen < plen)) {
+                rlen -= hdr.hdr_len;
+                if (part || ((size_t) rlen < hdr.pkt_len)) {
                     dst_printf(dst, "(first %d bytes)\n", (int) rlen);
                 } else {
                     dst_printf(dst, "(%d bytes)\n", (int) rlen);
                 }
                 indent_dest_increase(dst);
-                dst_hexdump(dst, (uint8_t *) msg + hlen, rlen);
+                dst_hexdump(dst, (uint8_t *) msg + hdr.hdr_len, rlen);
                 indent_dest_decrease(dst);
             }
             dst_printf(dst, "\n");
         }
 
-        switch (tag) {
+        switch (hdr.tag) {
         case PGP_PTAG_CT_SIGNATURE:
             ret = stream_dump_signature(ctx, src, dst);
             break;
@@ -1157,7 +1137,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         case PGP_PTAG_CT_SE_DATA:
         case PGP_PTAG_CT_SE_IP_DATA:
         case PGP_PTAG_CT_AEAD_ENCRYPTED:
-            ret = stream_dump_encrypted(src, dst, tag);
+            ret = stream_dump_encrypted(src, dst, hdr.tag);
             break;
         case PGP_PTAG_CT_1_PASS_SIG:
             ret = stream_dump_one_pass(src, dst);
@@ -1171,11 +1151,11 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         case PGP_PTAG_CT_MARKER:
         case PGP_PTAG_CT_TRUST:
         case PGP_PTAG_CT_MDC:
-            dst_printf(dst, "Skipping unhandled pkt: %d\n\n", tag);
+            dst_printf(dst, "Skipping unhandled pkt: %d\n\n", (int) hdr.tag);
             ret = stream_skip_packet(src);
             break;
         default:
-            dst_printf(dst, "Skipping Unknown pkt: %d\n\n", tag);
+            dst_printf(dst, "Skipping Unknown pkt: %d\n\n", (int) hdr.tag);
             ret = stream_skip_packet(src);
         }
 
