@@ -138,6 +138,8 @@ void test_ffi_homedir(void **state);
 
 void test_ffi_keygen_json_pair(void **state);
 
+void test_ffi_keygen_json_pair_dsa_elg(void **state);
+
 void test_ffi_keygen_json_primary(void **state);
 
 void test_ffi_keygen_json_sub(void **state);
