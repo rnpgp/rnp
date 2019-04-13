@@ -203,6 +203,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_homedir),
       cmocka_unit_test(test_ffi_keygen_json_pair),
       cmocka_unit_test(test_ffi_keygen_json_primary),
+      cmocka_unit_test(test_ffi_keygen_json_pair_dsa_elg),
       cmocka_unit_test(test_ffi_keygen_json_sub),
       cmocka_unit_test(test_ffi_keygen_json_sub_pass_required),
       cmocka_unit_test(test_ffi_key_generate_misc),

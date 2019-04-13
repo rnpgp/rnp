@@ -852,6 +852,93 @@ test_ffi_keygen_json_pair(void **state)
     check_key_properties(primary, true, true, true);
     check_key_properties(sub, false, true, true);
 
+    // check sub bit length
+    uint32_t length = 0;
+    assert_rnp_success(rnp_key_get_bits(sub, &length));
+    assert_int_equal(1024, length);
+
+    // cleanup
+    rnp_key_handle_destroy(primary);
+    rnp_key_handle_destroy(sub);
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_keygen_json_pair_dsa_elg(void **state)
+{
+    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
+    rnp_ffi_t         ffi = NULL;
+    char *            json = NULL;
+    char *            results = NULL;
+    size_t            count = 0;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
+
+    // load our JSON
+    load_test_data(rstate->data_dir, "test_ffi_json/generate-pair-dsa-elg.json", &json, NULL);
+
+    // generate the keys
+    assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
+    assert_non_null(results);
+    free(json);
+    json = NULL;
+
+    // parse the results JSON
+    json_object *parsed_results = json_tokener_parse(results);
+    assert_non_null(parsed_results);
+    rnp_buffer_destroy(results);
+    results = NULL;
+    // get a handle for the primary
+    rnp_key_handle_t primary = NULL;
+    {
+        json_object *jsokey = NULL;
+        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_non_null(jsokey);
+        json_object *jsogrip = NULL;
+        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_non_null(jsogrip);
+        const char *grip = json_object_get_string(jsogrip);
+        assert_non_null(grip);
+        assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "grip", grip, &primary));
+        assert_non_null(primary);
+    }
+    // get a handle for the sub
+    rnp_key_handle_t sub = NULL;
+    {
+        json_object *jsokey = NULL;
+        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "sub", &jsokey));
+        assert_non_null(jsokey);
+        json_object *jsogrip = NULL;
+        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_non_null(jsogrip);
+        const char *grip = json_object_get_string(jsogrip);
+        assert_non_null(grip);
+        assert_int_equal(RNP_SUCCESS, rnp_locate_key(ffi, "grip", grip, &sub));
+        assert_non_null(sub);
+    }
+    // cleanup
+    json_object_put(parsed_results);
+
+    // check the key counts
+    assert_int_equal(RNP_SUCCESS, rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(2, count);
+    assert_int_equal(RNP_SUCCESS, rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(2, count);
+
+    // check some key properties
+    check_key_properties(primary, true, true, true);
+    check_key_properties(sub, false, true, true);
+
+    // check bit lengths
+    uint32_t length = 0;
+    assert_rnp_success(rnp_key_get_bits(primary, &length));
+    assert_int_equal(length, 1024);
+    assert_rnp_success(rnp_key_get_bits(sub, &length));
+    assert_int_equal(length, 1536);
+
     // cleanup
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(sub);
@@ -1036,6 +1123,11 @@ test_ffi_keygen_json_sub(void **state)
     // check some key properties
     check_key_properties(primary, true, true, true);
     check_key_properties(sub, false, true, true);
+
+    // check sub bit length
+    uint32_t length = 0;
+    assert_rnp_success(rnp_key_get_bits(sub, &length));
+    assert_int_equal(length, 1024);
 
     // cleanup
     rnp_key_handle_destroy(primary);
