@@ -3393,11 +3393,11 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
     if ((ret = rnp_op_generate_get_key(subop, &subkey))) {
         goto done;
     }
-    /* only now will protect the primary key - to not spend time on unlocking to sign subkey */
-    if (password && (ret = rnp_key_protect(primary, password, NULL, NULL, NULL, 0))) {
-        goto done;
-    }
 done:
+    /* only now will protect the primary key - to not spend time on unlocking to sign subkey */
+    if (!ret && password) {
+        ret = rnp_key_protect(primary, password, NULL, NULL, NULL, 0);
+    }
     if (ret && primary) {
         rnp_key_remove(primary, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET);
     }
