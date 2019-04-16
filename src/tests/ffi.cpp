@@ -1209,6 +1209,19 @@ test_ffi_key_generate_misc(void **state)
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
+    /* generate encrypted RSA key (primary only) */
+    key = NULL;
+    assert_rnp_success(rnp_generate_key_ex(ffi, "RSA", NULL, 1024, 0, NULL, NULL, "rsa_1024", "123", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    bool prot = false;
+    assert_rnp_success(rnp_key_is_protected(key, &prot));
+    assert_true(prot);
+    /* cleanup */
+    rnp_key_handle_destroy(key);
+
+    /* cleanup */
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
