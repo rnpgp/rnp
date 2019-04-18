@@ -30,6 +30,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include "json_object.h"
+#include "json.h"
 #include "rnp.h"
 #include "stream-common.h"
 
@@ -40,5 +42,9 @@ typedef struct rnp_dump_ctx_t {
 } rnp_dump_ctx_t;
 
 rnp_result_t stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst);
+
+rnp_result_t stream_dump_packets_json(rnp_dump_ctx_t *ctx,
+                                      pgp_source_t *  src,
+                                      json_object **  jso);
 
 #endif
