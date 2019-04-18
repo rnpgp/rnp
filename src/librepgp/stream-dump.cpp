@@ -1708,7 +1708,133 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
 static rnp_result_t
 stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_key_pkt_t     key;
+    rnp_result_t      ret;
+    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_fingerprint_t keyfp = {};
+    json_object *     material = NULL;
+
+    if ((ret = stream_parse_key(src, &key))) {
+        return ret;
+    }
+
+    ret = RNP_ERROR_OUT_OF_MEMORY;
+
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(key.version))) {
+        goto done;
+    }
+    if (!obj_add_field_json(pkt, "creation time", json_object_new_int64(key.creation_time))) {
+        goto done;
+    }
+    if ((key.version < PGP_V4) &&
+        !obj_add_field_json(pkt, "v3 days", json_object_new_int(key.v3_days))) {
+        goto done;
+    }
+    if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
+        goto done;
+    }
+
+    material = json_object_new_object();
+    if (!material || !obj_add_field_json(pkt, "material", material)) {
+        goto done;
+    }
+
+    switch (key.alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (!obj_add_mpi_json(material, "n", &key.material.rsa.n, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "e", &key.material.rsa.e, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_DSA:
+        if (!obj_add_mpi_json(material, "p", &key.material.dsa.p, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "q", &key.material.dsa.q, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "g", &key.material.dsa.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "y", &key.material.dsa.y, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        if (!obj_add_mpi_json(material, "p", &key.material.eg.p, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "g", &key.material.eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "y", &key.material.eg.y, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
+        if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
+            goto done;
+        }
+        if (!obj_add_field_json(material,
+                                "curve",
+                                json_object_new_string(cdesc ? cdesc->pgp_name : "unknown"))) {
+            goto done;
+        }
+        break;
+    }
+    case PGP_PKA_ECDH: {
+        const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
+        if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
+            goto done;
+        }
+        if (!obj_add_field_json(material,
+                                "curve",
+                                json_object_new_string(cdesc ? cdesc->pgp_name : "unknown"))) {
+            goto done;
+        }
+        if (!obj_add_intstr_json(
+              material, "hash algorithm", key.material.ec.kdf_hash_alg, hash_alg_map)) {
+            goto done;
+        }
+        if (!obj_add_intstr_json(
+              material, "key wrap algorithm", key.material.ec.key_wrap_alg, symm_alg_map)) {
+            goto done;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+
+    if (is_secret_key_pkt(key.tag)) {
+        json_object *s2k = json_object_new_object();
+        if (!obj_add_field_json(material, "s2k", s2k)) {
+            goto done;
+        }
+        if (!obj_add_field_json(
+              s2k, "usage", json_object_new_int(key.sec_protection.s2k.usage))) {
+            goto done;
+        }
+    }
+
+    if (pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key) ||
+        !obj_add_hex_json(pkt, "keyid", keyid, PGP_KEY_ID_SIZE)) {
+        goto done;
+    }
+
+    if (ctx->dump_grips) {
+        if ((key.version > PGP_V3) &&
+            (pgp_fingerprint(&keyfp, &key) ||
+             !obj_add_hex_json(pkt, "fingerprint", keyfp.fingerprint, keyfp.length))) {
+            goto done;
+        }
+
+        if (!rnp_key_store_get_key_grip(&key.material, keyfp.fingerprint) ||
+            !obj_add_hex_json(pkt, "grip", keyfp.fingerprint, PGP_KEY_GRIP_SIZE)) {
+            goto done;
+        }
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    free_key_pkt(&key);
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
