@@ -22,10 +22,15 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+find_package(JSON-C 0.11 REQUIRED)
+
 add_executable(redumper redumper.cpp)
 target_include_directories(redumper PRIVATE
   "${PROJECT_SOURCE_DIR}/src"
   "${PROJECT_SOURCE_DIR}/src/lib"
 )
-target_link_libraries(redumper PRIVATE librnp)
-
+target_link_libraries(redumper
+  PRIVATE
+    librnp
+    JSON-C::JSON-C
+)

@@ -46,6 +46,32 @@
 #include "crypto.h"
 #include "utils.h"
 
+static pgp_map_t packet_tag_map[] = {
+  {PGP_PTAG_CT_RESERVED, "Reserved"},
+  {PGP_PTAG_CT_PK_SESSION_KEY, "Public-Key Encrypted Session Key"},
+  {PGP_PTAG_CT_SIGNATURE, "Signature"},
+  {PGP_PTAG_CT_SK_SESSION_KEY, "Symmetric-Key Encrypted Session Key"},
+  {PGP_PTAG_CT_1_PASS_SIG, "One-Pass Signature"},
+  {PGP_PTAG_CT_SECRET_KEY, "Secret Key"},
+  {PGP_PTAG_CT_PUBLIC_KEY, "Public Key"},
+  {PGP_PTAG_CT_SECRET_SUBKEY, "Secret Subkey"},
+  {PGP_PTAG_CT_COMPRESSED, "Compressed Data"},
+  {PGP_PTAG_CT_SE_DATA, "Symmetrically Encrypted Data"},
+  {PGP_PTAG_CT_MARKER, "Marker"},
+  {PGP_PTAG_CT_LITDATA, "Literal Data"},
+  {PGP_PTAG_CT_TRUST, "Trust"},
+  {PGP_PTAG_CT_USER_ID, "User ID"},
+  {PGP_PTAG_CT_PUBLIC_SUBKEY, "Public Subkey"},
+  {PGP_PTAG_CT_RESERVED2, "reserved2"},
+  {PGP_PTAG_CT_RESERVED3, "reserved3"},
+  {PGP_PTAG_CT_USER_ATTR, "User Attribute"},
+  {PGP_PTAG_CT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
+  {PGP_PTAG_CT_MDC, "Modification Detection Code"},
+  {PGP_PTAG_CT_AEAD_ENCRYPTED, "AEAD Encrypted Data Packet"},
+
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
 static pgp_map_t sig_type_map[] = {
   {PGP_SIG_BINARY, "Signature of a binary document"},
   {PGP_SIG_TEXT, "Signature of a canonical text document"},
@@ -1248,6 +1274,286 @@ finish:
     }
     if (indent) {
         dst_close(&wrdst, false);
+    }
+    return ret;
+}
+
+/* Shortcut function to add field checking it for null to avoid allocation failure.
+   Please note that it deallocates val on failure. */
+static bool
+obj_add_field_json(json_object *obj, const char *name, json_object *val)
+{
+    if (!val) {
+        return false;
+    }
+    if (json_object_object_add(obj, name, val)) {
+        json_object_put(val);
+        return false;
+    }
+    return true;
+}
+
+static bool
+obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
+{
+    if (val_len > 1024 * 1024) {
+        RNP_LOG("too large json hex field: %zu", val_len);
+        val_len = 1024 * 1024;
+    }
+
+    char   smallbuf[64] = {0};
+    size_t hexlen = val_len * 2 + 1;
+
+    char *hexbuf = hexlen < sizeof(smallbuf) ? smallbuf : (char *) malloc(hexlen);
+    if (!hexbuf) {
+        return false;
+    }
+
+    bool res = rnp_hex_encode(val, val_len, hexbuf, hexlen, RNP_HEX_LOWERCASE) &&
+               obj_add_field_json(obj, name, json_object_new_string(hexbuf));
+
+    if (hexbuf != smallbuf) {
+        free(hexbuf);
+    }
+    return res;
+}
+
+static bool
+obj_add_intstr_json(json_object *obj, const char *name, int val, pgp_map_t map[])
+{
+    if (!obj_add_field_json(obj, name, json_object_new_int(val))) {
+        return false;
+    }
+    if (!map) {
+        return true;
+    }
+    char        namestr[64] = {0};
+    const char *str = pgp_str_from_map(val, map);
+    snprintf(namestr, sizeof(namestr), "%s.str", name);
+    return obj_add_field_json(obj, namestr, json_object_new_string(str));
+}
+
+static rnp_result_t
+stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum tag)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static rnp_result_t
+stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
+{
+    return RNP_ERROR_NOT_IMPLEMENTED;
+}
+
+static bool
+stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
+{
+    rnp_result_t hdrret = stream_peek_packet_hdr(src, hdr);
+    if (hdrret) {
+        return false;
+    }
+
+    json_object *jso_hdr = json_object_new_object();
+    if (!jso_hdr) {
+        return false;
+    }
+
+    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(src->readb))) {
+        goto error;
+    }
+    if (!obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map)) {
+        goto error;
+    }
+    if (!obj_add_hex_json(jso_hdr, "hdr", hdr->hdr, hdr->hdr_len)) {
+        goto error;
+    }
+    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(hdr->pkt_len))) {
+        goto error;
+    }
+    if (!obj_add_field_json(jso_hdr, "partial", json_object_new_boolean(hdr->partial))) {
+        goto error;
+    }
+    if (!obj_add_field_json(
+          jso_hdr, "indeterminate", json_object_new_boolean(hdr->indeterminate))) {
+        goto error;
+    }
+    return obj_add_field_json(pkt, "header", jso_hdr);
+error:
+    json_object_put(jso_hdr);
+    return false;
+}
+
+rnp_result_t
+stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
+{
+    json_object *pkts = NULL;
+    json_object *pkt = NULL;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    pkts = json_object_new_array();
+    if (!pkts) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (src_eof(src)) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    while (!src_eof(src)) {
+        pgp_packet_hdr_t hdr = {};
+
+        pkt = json_object_new_object();
+        if (!pkt) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+
+        if (!stream_dump_hdr_json(src, &hdr, pkt)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+
+        switch (hdr.tag) {
+        case PGP_PTAG_CT_SIGNATURE:
+            ret = stream_dump_signature_json(ctx, src, pkt);
+            break;
+        case PGP_PTAG_CT_SECRET_KEY:
+        case PGP_PTAG_CT_PUBLIC_KEY:
+        case PGP_PTAG_CT_SECRET_SUBKEY:
+        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+            ret = stream_dump_key_json(ctx, src, pkt);
+            break;
+        case PGP_PTAG_CT_USER_ID:
+        case PGP_PTAG_CT_USER_ATTR:
+            ret = stream_dump_userid_json(src, pkt);
+            break;
+        case PGP_PTAG_CT_PK_SESSION_KEY:
+            ret = stream_dump_pk_session_key_json(ctx, src, pkt);
+            break;
+        case PGP_PTAG_CT_SK_SESSION_KEY:
+            ret = stream_dump_sk_session_key_json(src, pkt);
+            break;
+        case PGP_PTAG_CT_SE_DATA:
+        case PGP_PTAG_CT_SE_IP_DATA:
+        case PGP_PTAG_CT_AEAD_ENCRYPTED:
+            ret = stream_dump_encrypted_json(src, pkt, hdr.tag);
+            break;
+        case PGP_PTAG_CT_1_PASS_SIG:
+            ret = stream_dump_one_pass_json(src, pkt);
+            break;
+        case PGP_PTAG_CT_COMPRESSED:
+            ret = stream_dump_compressed_json(ctx, src, pkt);
+            break;
+        case PGP_PTAG_CT_LITDATA:
+            ret = stream_dump_literal_json(src, pkt);
+            break;
+        case PGP_PTAG_CT_MARKER:
+        case PGP_PTAG_CT_TRUST:
+        case PGP_PTAG_CT_MDC:
+            ret = stream_skip_packet(src);
+            break;
+        default:
+            ret = stream_skip_packet(src);
+        }
+
+        if (ret) {
+            RNP_LOG("failed to process packet");
+            goto done;
+        }
+
+        if (json_object_array_add(pkts, pkt)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        pkt = NULL;
+    }
+done:
+    if (ret) {
+        json_object_put(pkts);
+        json_object_put(pkt);
+        pkts = NULL;
+    }
+    *jso = pkts;
+    return ret;
+}
+
+rnp_result_t
+stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
+{
+    pgp_source_t armorsrc = {0};
+    bool         armored = false;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    /* check whether source is cleartext - then skip till the signature */
+    if (is_cleartext_source(src)) {
+        if (!stream_skip_cleartext(src)) {
+            RNP_LOG("malformed cleartext signed data");
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+    }
+    /* check whether source is armored */
+    if (is_armored_source(src)) {
+        if ((ret = init_armored_src(&armorsrc, src))) {
+            RNP_LOG("failed to parse armored data");
+            goto finish;
+        }
+        armored = true;
+        src = &armorsrc;
+    }
+
+    if (src_eof(src)) {
+        ret = RNP_ERROR_NOT_ENOUGH_DATA;
+        goto finish;
+    }
+
+    ret = stream_dump_raw_packets_json(ctx, src, jso);
+finish:
+    if (armored) {
+        src_close(&armorsrc);
     }
     return ret;
 }
