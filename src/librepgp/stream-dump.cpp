@@ -1333,10 +1333,376 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, pgp_map_t map[]
     return obj_add_field_json(obj, namestr, json_object_new_string(str));
 }
 
+static bool
+obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool contents)
+{
+    char strname[64] = {0};
+    snprintf(strname, sizeof(strname), "%s.bits", name);
+    if (!obj_add_field_json(obj, strname, json_object_new_int(mpi_bits(mpi)))) {
+        return false;
+    }
+    if (!contents) {
+        return true;
+    }
+    snprintf(strname, sizeof(strname), "%s.data", name);
+    return obj_add_hex_json(obj, strname, mpi->mpi, mpi->len);
+}
+
+static bool
+array_add_element_json(json_object *obj, json_object *val)
+{
+    if (!val) {
+        return false;
+    }
+    if (json_object_array_add(obj, val)) {
+        json_object_put(val);
+        return false;
+    }
+    return true;
+}
+
+static bool
+subpacket_obj_add_algs(
+  json_object *obj, const char *name, uint8_t *algs, size_t len, pgp_map_t map[])
+{
+    json_object *jso_algs = json_object_new_array();
+    if (!jso_algs || !obj_add_field_json(obj, name, jso_algs)) {
+        return false;
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (!array_add_element_json(jso_algs, json_object_new_int(algs[i]))) {
+            return false;
+        }
+    }
+    if (!map) {
+        return true;
+    }
+
+    char strname[64] = {0};
+    snprintf(strname, sizeof(strname), "%s.str", name);
+
+    jso_algs = json_object_new_array();
+    if (!jso_algs || !obj_add_field_json(obj, strname, jso_algs)) {
+        return false;
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (!array_add_element_json(jso_algs,
+                                    json_object_new_string(pgp_str_from_map(algs[i], map)))) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
+                                                   const pgp_signature_t *sig,
+                                                   json_object *          pkt);
+
+static bool
+signature_dump_subpacket_json(rnp_dump_ctx_t *ctx, pgp_sig_subpkt_t *subpkt, json_object *obj)
+{
+    switch (subpkt->type) {
+    case PGP_SIG_SUBPKT_CREATION_TIME:
+        return obj_add_field_json(
+          obj, "creation time", json_object_new_int64(subpkt->fields.create));
+    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
+        return obj_add_field_json(
+          obj, "expiration time", json_object_new_int64(subpkt->fields.expiry));
+    case PGP_SIG_SUBPKT_EXPORT_CERT:
+        return obj_add_field_json(
+          obj, "exportable", json_object_new_boolean(subpkt->fields.exportable));
+    case PGP_SIG_SUBPKT_TRUST:
+        return obj_add_field_json(
+                 obj, "amount", json_object_new_int(subpkt->fields.trust.amount)) &&
+               obj_add_field_json(
+                 obj, "level", json_object_new_int(subpkt->fields.trust.level));
+    case PGP_SIG_SUBPKT_REGEXP:
+        return obj_add_field_json(
+          obj,
+          "regexp",
+          json_object_new_string_len(subpkt->fields.regexp.str, subpkt->fields.regexp.len));
+    case PGP_SIG_SUBPKT_REVOCABLE:
+        return obj_add_field_json(
+          obj, "revocable", json_object_new_boolean(subpkt->fields.revocable));
+    case PGP_SIG_SUBPKT_KEY_EXPIRY:
+        return obj_add_field_json(
+          obj, "key expiration", json_object_new_int64(subpkt->fields.expiry));
+    case PGP_SIG_SUBPKT_PREFERRED_SKA:
+        return subpacket_obj_add_algs(obj,
+                                      "algorithms",
+                                      subpkt->fields.preferred.arr,
+                                      subpkt->fields.preferred.len,
+                                      symm_alg_map);
+    case PGP_SIG_SUBPKT_PREFERRED_HASH:
+        return subpacket_obj_add_algs(obj,
+                                      "algorithms",
+                                      subpkt->fields.preferred.arr,
+                                      subpkt->fields.preferred.len,
+                                      hash_alg_map);
+    case PGP_SIG_SUBPKT_PREF_COMPRESS:
+        return subpacket_obj_add_algs(obj,
+                                      "algorithms",
+                                      subpkt->fields.preferred.arr,
+                                      subpkt->fields.preferred.len,
+                                      z_alg_map);
+    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
+        return subpacket_obj_add_algs(obj,
+                                      "algorithms",
+                                      subpkt->fields.preferred.arr,
+                                      subpkt->fields.preferred.len,
+                                      aead_alg_map);
+    case PGP_SIG_SUBPKT_REVOCATION_KEY:
+        return obj_add_field_json(
+                 obj, "class", json_object_new_int(subpkt->fields.revocation_key.klass)) &&
+               obj_add_field_json(
+                 obj, "algorithm", json_object_new_int(subpkt->fields.revocation_key.pkalg)) &&
+               obj_add_hex_json(
+                 obj, "fingerprint", subpkt->fields.revocation_key.fp, PGP_FINGERPRINT_SIZE);
+    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
+        return obj_add_hex_json(obj, "issuer keyid", subpkt->fields.issuer, PGP_KEY_ID_SIZE);
+    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
+        return obj_add_field_json(
+          obj, "no-modify", json_object_new_boolean(subpkt->fields.ks_prefs.no_modify));
+    case PGP_SIG_SUBPKT_PREF_KEYSERV:
+        return obj_add_field_json(obj,
+                                  "uri",
+                                  json_object_new_string_len(subpkt->fields.preferred_ks.uri,
+                                                             subpkt->fields.preferred_ks.len));
+    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
+        return obj_add_field_json(
+          obj, "primary", json_object_new_boolean(subpkt->fields.primary_uid));
+    case PGP_SIG_SUBPKT_POLICY_URI:
+        return obj_add_field_json(
+          obj,
+          "uri",
+          json_object_new_string_len(subpkt->fields.policy.uri, subpkt->fields.policy.len));
+    case PGP_SIG_SUBPKT_KEY_FLAGS: {
+        uint8_t flg = subpkt->fields.key_flags;
+        if (!obj_add_field_json(obj, "flags", json_object_new_int(flg))) {
+            return false;
+        }
+        json_object *jso_flg = json_object_new_array();
+        if (!jso_flg || !obj_add_field_json(obj, "flags.str", jso_flg)) {
+            return false;
+        }
+        if ((flg & PGP_KF_CERTIFY) &&
+            !array_add_element_json(jso_flg, json_object_new_string("certify"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_SIGN) &&
+            !array_add_element_json(jso_flg, json_object_new_string("sign"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_ENCRYPT_COMMS) &&
+            !array_add_element_json(jso_flg, json_object_new_string("encrypt_comm"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_ENCRYPT_STORAGE) &&
+            !array_add_element_json(jso_flg, json_object_new_string("encrypt_storage"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_SPLIT) &&
+            !array_add_element_json(jso_flg, json_object_new_string("split"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_AUTH) &&
+            !array_add_element_json(jso_flg, json_object_new_string("auth"))) {
+            return false;
+        }
+        if ((flg & PGP_KF_SHARED) &&
+            !array_add_element_json(jso_flg, json_object_new_string("shared"))) {
+            return false;
+        }
+        return true;
+    }
+    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
+        return obj_add_field_json(
+          obj,
+          "uid",
+          json_object_new_string_len(subpkt->fields.signer.uid, subpkt->fields.signer.len));
+    case PGP_SIG_SUBPKT_REVOCATION_REASON: {
+        if (!obj_add_intstr_json(
+              obj, "code", subpkt->fields.revocation_reason.code, revoc_reason_map)) {
+            return false;
+        }
+        return obj_add_field_json(
+          obj,
+          "message",
+          json_object_new_string_len(subpkt->fields.revocation_reason.str,
+                                     subpkt->fields.revocation_reason.len));
+    }
+    case PGP_SIG_SUBPKT_FEATURES:
+        return obj_add_field_json(
+                 obj, "mdc", json_object_new_boolean(subpkt->fields.features.mdc)) &&
+               obj_add_field_json(
+                 obj, "aead", json_object_new_boolean(subpkt->fields.features.aead)) &&
+               obj_add_field_json(
+                 obj, "v5 keys", json_object_new_boolean(subpkt->fields.features.key_v5));
+    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
+        json_object *sig = json_object_new_object();
+        if (!sig || !obj_add_field_json(obj, "signature", sig)) {
+            return false;
+        }
+        return !stream_dump_signature_pkt_json(ctx, &subpkt->fields.sig, sig);
+    }
+    case PGP_SIG_SUBPKT_ISSUER_FPR:
+        return obj_add_hex_json(obj,
+                                "issuer fingerprint",
+                                subpkt->fields.issuer_fp.fp,
+                                subpkt->fields.issuer_fp.len);
+    case PGP_SIG_SUBPKT_NOTATION_DATA:
+    default:
+        if (!ctx->dump_packets) {
+            return obj_add_hex_json(obj, "contents", subpkt->data, subpkt->len);
+        }
+        return true;
+    }
+
+    return true;
+}
+
+static json_object *
+signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
+{
+    json_object *res = json_object_new_array();
+
+    for (list_item *li = list_front(sig->subpkts); li; li = list_next(li)) {
+        pgp_sig_subpkt_t *subpkt = (pgp_sig_subpkt_t *) li;
+        json_object *     jso_subpkt = json_object_new_object();
+        if (json_object_array_add(res, jso_subpkt)) {
+            json_object_put(jso_subpkt);
+            goto error;
+        }
+
+        if (!obj_add_intstr_json(jso_subpkt, "type", subpkt->type, sig_subpkt_type_map)) {
+            goto error;
+        }
+        if (!obj_add_field_json(jso_subpkt, "length", json_object_new_int(subpkt->len))) {
+            goto error;
+        }
+        if (!obj_add_field_json(
+              jso_subpkt, "hashed", json_object_new_boolean(subpkt->hashed))) {
+            goto error;
+        }
+        if (!obj_add_field_json(
+              jso_subpkt, "critical", json_object_new_boolean(subpkt->critical))) {
+            goto error;
+        }
+
+        if (ctx->dump_packets &&
+            !obj_add_hex_json(jso_subpkt, "contents", subpkt->data, subpkt->len)) {
+            goto error;
+        }
+
+        if (signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
+            goto error;
+        }
+    }
+
+    return res;
+error:
+    json_object_put(res);
+    return NULL;
+}
+
+static rnp_result_t
+stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
+                               const pgp_signature_t *sig,
+                               json_object *          pkt)
+{
+    json_object *material = NULL;
+    rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
+
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(sig->version))) {
+        goto done;
+    }
+    if (!obj_add_field_json(pkt, "type", json_object_new_int(sig->type))) {
+        goto done;
+    }
+
+    if (sig->version < PGP_V4) {
+        if (!obj_add_field_json(
+              pkt, "creation time", json_object_new_int(sig->creation_time))) {
+            goto done;
+        }
+        if (!obj_add_hex_json(pkt, "signer", sig->signer, PGP_KEY_ID_SIZE)) {
+            goto done;
+        }
+    }
+    if (!obj_add_intstr_json(pkt, "algorithm", sig->palg, pubkey_alg_map)) {
+        goto done;
+    }
+    if (!obj_add_intstr_json(pkt, "hash algorithm", sig->halg, hash_alg_map)) {
+        goto done;
+    }
+
+    if (sig->version >= PGP_V4) {
+        json_object *subpkts = signature_dump_subpackets_json(ctx, sig);
+        if (!subpkts) {
+            goto done;
+        }
+        if (!obj_add_field_json(pkt, "subpackets", subpkts)) {
+            goto done;
+        }
+    }
+
+    if (!obj_add_hex_json(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
+        goto done;
+    }
+
+    material = json_object_new_object();
+    if (!material || !obj_add_field_json(pkt, "material", material)) {
+        goto done;
+    }
+
+    switch (sig->palg) {
+    case PGP_PKA_RSA:
+        if (!obj_add_mpi_json(material, "s", &sig->material.rsa.s, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_DSA:
+        if (!obj_add_mpi_json(material, "r", &sig->material.dsa.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sig->material.dsa.s, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        if (!obj_add_mpi_json(material, "r", &sig->material.ecc.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sig->material.ecc.s, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        if (!obj_add_mpi_json(material, "r", &sig->material.eg.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sig->material.eg.s, ctx->dump_mpi)) {
+            goto done;
+        }
+        break;
+    default:
+        break;
+    }
+    ret = RNP_SUCCESS;
+done:
+    return ret;
+}
+
 static rnp_result_t
 stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_signature_t sig;
+    rnp_result_t    ret;
+
+    if ((ret = stream_parse_signature(src, &sig))) {
+        return ret;
+    }
+
+    ret = stream_dump_signature_pkt_json(ctx, &sig, pkt);
+    free_signature(&sig);
+    return ret;
 }
 
 static rnp_result_t
