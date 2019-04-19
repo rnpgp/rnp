@@ -1643,7 +1643,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     if (!obj_add_field_json(pkt, "version", json_object_new_int(sig->version))) {
         goto done;
     }
-    if (!obj_add_field_json(pkt, "type", json_object_new_int(sig->type))) {
+    if (!obj_add_intstr_json(pkt, "type", sig->type, sig_type_map)) {
         goto done;
     }
 
@@ -1984,7 +1984,8 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
 static rnp_result_t
 stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum tag)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    /* packet header with tag is already in pkt */
+    return stream_skip_packet(src);
 }
 
 static rnp_result_t
@@ -2018,16 +2019,77 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx,
+                                                 pgp_source_t *  src,
+                                                 json_object **  jso);
+
 static rnp_result_t
 stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_source_t zsrc = {0};
+    uint8_t      zalg;
+    rnp_result_t ret;
+    json_object *contents = NULL;
+
+    if ((ret = init_compressed_src(&zsrc, src))) {
+        return ret;
+    }
+
+    get_compressed_src_alg(&zsrc, &zalg);
+    if (!obj_add_intstr_json(pkt, "algorithm", zalg, z_alg_map)) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    ret = stream_dump_raw_packets_json(ctx, &zsrc, &contents);
+    if (!ret && !obj_add_field_json(pkt, "contents", contents)) {
+        json_object_put(contents);
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+    }
+done:
+    src_close(&zsrc);
+    return ret;
 }
 
 static rnp_result_t
 stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_source_t      lsrc = {0};
+    pgp_literal_hdr_t lhdr = {0};
+    rnp_result_t      ret;
+    uint8_t           readbuf[16384];
+
+    if ((ret = init_literal_src(&lsrc, src))) {
+        return ret;
+    }
+    ret = RNP_ERROR_OUT_OF_MEMORY;
+    get_literal_src_hdr(&lsrc, &lhdr);
+    if (!obj_add_field_json(
+          pkt, "format", json_object_new_string_len((char *) &lhdr.format, 1))) {
+        goto done;
+    }
+    if (!obj_add_field_json(
+          pkt, "filename", json_object_new_string_len(lhdr.fname, lhdr.fname_len))) {
+        goto done;
+    }
+    if (!obj_add_field_json(pkt, "timestamp", json_object_new_int64(lhdr.timestamp))) {
+        goto done;
+    }
+
+    while (!src_eof(&lsrc)) {
+        if (src_read(&lsrc, readbuf, sizeof(readbuf)) < 0) {
+            ret = RNP_ERROR_READ;
+            goto done;
+        }
+    }
+
+    if (!obj_add_field_json(pkt, "datalen", json_object_new_int64(lsrc.readb))) {
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    src_close(&lsrc);
+    return ret;
 }
 
 static bool
@@ -2068,7 +2130,7 @@ error:
     return false;
 }
 
-rnp_result_t
+static rnp_result_t
 stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
 {
     json_object *pkts = NULL;
