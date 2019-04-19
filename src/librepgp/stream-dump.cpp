@@ -1990,7 +1990,32 @@ stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum
 static rnp_result_t
 stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_one_pass_sig_t onepass;
+    rnp_result_t       ret;
+
+    if ((ret = stream_parse_one_pass(src, &onepass))) {
+        return ret;
+    }
+
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(onepass.version))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_intstr_json(pkt, "type", onepass.type, sig_type_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_intstr_json(pkt, "hash algorithm", onepass.halg, hash_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_hex_json(pkt, "signer", onepass.keyid, PGP_KEY_ID_SIZE)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_field_json(pkt, "nested", json_object_new_boolean(onepass.nested))) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
