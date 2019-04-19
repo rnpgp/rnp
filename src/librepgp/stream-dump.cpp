@@ -1573,10 +1573,8 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *ctx, pgp_sig_subpkt_t *subpkt, jso
         return !stream_dump_signature_pkt_json(ctx, &subpkt->fields.sig, sig);
     }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
-        return obj_add_hex_json(obj,
-                                "issuer fingerprint",
-                                subpkt->fields.issuer_fp.fp,
-                                subpkt->fields.issuer_fp.len);
+        return obj_add_hex_json(
+          obj, "fingerprint", subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
     case PGP_SIG_SUBPKT_NOTATION_DATA:
     default:
         if (!ctx->dump_packets) {
@@ -1621,7 +1619,7 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
             goto error;
         }
 
-        if (signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
+        if (!signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
             goto error;
         }
     }
@@ -2114,7 +2112,8 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     if (!obj_add_hex_json(jso_hdr, "hdr", hdr->hdr, hdr->hdr_len)) {
         goto error;
     }
-    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(hdr->pkt_len))) {
+    if (!hdr->partial && !hdr->indeterminate &&
+        !obj_add_field_json(jso_hdr, "length", json_object_new_int64(hdr->pkt_len))) {
         goto error;
     }
     if (!obj_add_field_json(jso_hdr, "partial", json_object_new_boolean(hdr->partial))) {
