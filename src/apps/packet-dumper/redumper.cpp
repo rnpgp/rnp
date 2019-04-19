@@ -19,6 +19,7 @@ print_usage(char *program_name)
             "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
             "\t  -m : dump mpi values\n"
             "\t  -g : dump key fingerprints and grips\n"
+            "\t  -j : JSON output\n"
             "\t  -h : prints help and exists\n",
             basename(program_name));
 }
@@ -31,16 +32,18 @@ main(int argc, char *const argv[])
     rnp_result_t   res = RNP_ERROR_GENERIC;
     rnp_dump_ctx_t ctx = {0};
     char *         input_file = NULL;
+    bool           json = false;
 
     /* Parse command line options:
         -i input_file [mandatory]: specifies name of the file with PGP packets
         -d : indicates wether to dump whole packet content
         -m : dump mpi contents
         -g : dump key grips and fingerprints
+        -j : JSON output
         -h : prints help and exists
     */
     int opt = 0;
-    while ((opt = getopt(argc, argv, "dmgh")) != -1) {
+    while ((opt = getopt(argc, argv, "dmgjh")) != -1) {
         switch (opt) {
         case 'd':
             ctx.dump_packets = true;
@@ -50,6 +53,9 @@ main(int argc, char *const argv[])
             break;
         case 'g':
             ctx.dump_grips = true;
+            break;
+        case 'j':
+            json = true;
             break;
         default:
             print_usage(argv[0]);
@@ -67,17 +73,27 @@ main(int argc, char *const argv[])
         RNP_LOG("failed to open source: error 0x%x", (int) res);
         return 1;
     }
-    res = init_stdout_dest(&dst);
-    if (res) {
-        RNP_LOG("failed to open stdout: error 0x%x", (int) res);
-        src_close(&src);
-        return 1;
+
+    if (!json) {
+        res = init_stdout_dest(&dst);
+        if (res) {
+            RNP_LOG("failed to open stdout: error 0x%x", (int) res);
+            src_close(&src);
+            return 1;
+        }
+
+        res = stream_dump_packets(&ctx, &src, &dst);
+
+        dst_close(&dst, false);
+    } else {
+        json_object *dump = NULL;
+        res = stream_dump_packets_json(&ctx, &src, &dump);
+        if (res == RNP_SUCCESS) {
+            json_object_to_fd(STDOUT_FILENO, dump, JSON_C_TO_STRING_PRETTY);
+            json_object_put(dump);
+        }
     }
-
-    res = stream_dump_packets(&ctx, &src, &dst);
-
     src_close(&src);
-    dst_close(&dst, false);
 
     /* Inform in case of error occured during parsing */
     if (res != RNP_SUCCESS) {
