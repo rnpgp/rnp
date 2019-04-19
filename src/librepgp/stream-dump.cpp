@@ -1840,7 +1840,34 @@ done:
 static rnp_result_t
 stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_userid_pkt_t uid;
+    rnp_result_t     ret;
+
+    if ((ret = stream_parse_userid(src, &uid))) {
+        return ret;
+    }
+
+    switch (uid.tag) {
+    case PGP_PTAG_CT_USER_ID:
+        if (!obj_add_field_json(
+              pkt, "userid", json_object_new_string_len((char *) uid.uid, uid.uid_len))) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        break;
+    case PGP_PTAG_CT_USER_ATTR:
+        if (!obj_add_hex_json(pkt, "userattr", uid.uid, uid.uid_len)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        break;
+    default:;
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    free_userid_pkt(&uid);
+    return ret;
 }
 
 static rnp_result_t
