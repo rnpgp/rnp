@@ -1394,6 +1394,33 @@ subpacket_obj_add_algs(
     return true;
 }
 
+static bool
+obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
+{
+    json_object *s2k_obj = json_object_new_object();
+    if (!obj_add_field_json(obj, "s2k", s2k_obj)) {
+        return false;
+    }
+    if (!obj_add_field_json(s2k_obj, "specifier", json_object_new_int(s2k->specifier))) {
+        return false;
+    }
+    if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
+        return false;
+    }
+    if (((s2k->specifier == PGP_S2KS_SALTED) ||
+         (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) &&
+        !obj_add_hex_json(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
+        return false;
+    }
+    if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
+        if (!obj_add_field_json(s2k_obj, "iterations", json_object_new_int(real_iter))) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static rnp_result_t stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
                                                    const pgp_signature_t *sig,
                                                    json_object *          pkt);
@@ -1803,12 +1830,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 
     if (is_secret_key_pkt(key.tag)) {
-        json_object *s2k = json_object_new_object();
-        if (!obj_add_field_json(material, "s2k", s2k)) {
+        if (!obj_add_field_json(
+              material, "s2k usage", json_object_new_int(key.sec_protection.s2k.usage))) {
             goto done;
         }
-        if (!obj_add_field_json(
-              s2k, "usage", json_object_new_int(key.sec_protection.s2k.usage))) {
+        if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
             goto done;
         }
     }
@@ -1873,13 +1899,86 @@ done:
 static rnp_result_t
 stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_pk_sesskey_t pkey;
+    rnp_result_t     ret;
+
+    if ((ret = stream_parse_pk_sesskey(src, &pkey))) {
+        return ret;
+    }
+
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(pkey.version)) ||
+        !obj_add_hex_json(pkt, "keyid", pkey.key_id, PGP_KEY_ID_SIZE) ||
+        !obj_add_intstr_json(pkt, "algorithm", pkey.alg, pubkey_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    json_object *material = json_object_new_object();
+    if (!obj_add_field_json(pkt, "material", material)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    switch (pkey.alg) {
+    case PGP_PKA_RSA:
+        if (!obj_add_mpi_json(material, "m", &pkey.material.rsa.m, ctx->dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        break;
+    case PGP_PKA_ELGAMAL:
+        if (!obj_add_mpi_json(material, "g", &pkey.material.eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "m", &pkey.material.eg.m, ctx->dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        break;
+    case PGP_PKA_SM2:
+        if (!obj_add_mpi_json(material, "m", &pkey.material.sm2.m, ctx->dump_mpi)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        break;
+    case PGP_PKA_ECDH:
+        if (!obj_add_mpi_json(material, "p", &pkey.material.ecdh.p, ctx->dump_mpi) ||
+            !obj_add_field_json(
+              material, "m.bytes", json_object_new_int(pkey.material.ecdh.mlen))) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        if (ctx->dump_mpi &&
+            !obj_add_hex_json(material, "m", pkey.material.ecdh.m, pkey.material.ecdh.mlen)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        break;
+    default:;
+    }
+
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
 stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    pgp_sk_sesskey_t skey;
+    rnp_result_t     ret;
+
+    if ((ret = stream_parse_sk_sesskey(src, &skey))) {
+        return ret;
+    }
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(skey.version)) ||
+        !obj_add_intstr_json(pkt, "algorithm", skey.alg, symm_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if ((skey.version == PGP_SKSK_V5) &&
+        !obj_add_intstr_json(pkt, "aead algorithm", skey.aalg, aead_alg_map)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_s2k_json(pkt, &skey.s2k)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if ((skey.version == PGP_SKSK_V5) &&
+        !obj_add_hex_json(pkt, "aead iv", skey.iv, skey.ivlen)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!obj_add_hex_json(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
