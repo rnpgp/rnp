@@ -802,7 +802,7 @@ signature_get_revocation_reason(const pgp_signature_t *sig, uint8_t *code, char 
                 return false;
             }
             memcpy(*reason, subpkt->fields.revocation_reason.str, len);
-            *reason[len] = '\0';
+            (*reason)[len] = '\0';
         }
         return true;
     }

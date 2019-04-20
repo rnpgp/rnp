@@ -210,6 +210,8 @@ void test_stream_file(void **state);
 
 void test_stream_signatures(void **state);
 
+void test_stream_signatures_revoked_key(void **state);
+
 void test_stream_key_load(void **state);
 
 void test_stream_key_load_errors(void **state);
