@@ -59,6 +59,13 @@ typedef uint32_t rnp_result_t;
 #define RNP_JSON_SIGNATURE_MPIS (1U << 3)
 
 /**
+ * Flags to include additional data in packet dumping
+ */
+#define RNP_JSON_DUMP_MPI (1U << 0)
+#define RNP_JSON_DUMP_RAW (1U << 1)
+#define RNP_JSON_DUMP_GRIP (1U << 2)
+
+/**
  * Flags for the key loading/saving functions.
  */
 #define RNP_LOAD_SAVE_PUBLIC_KEYS (1U << 0)
@@ -935,6 +942,32 @@ rnp_result_t rnp_key_have_secret(rnp_key_handle_t key, bool *result);
 rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
 /* TODO: function to add a userid to a key */
+
+/** Get the information about key packets in JSON string.
+ *  Note: this will not work for G10 keys.
+ *
+ * @param key key's handle, cannot be NULL
+ * @param secret dump secret key instead of public
+ * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
+ *              RNP_JSON_DUMP_* flags)
+ * @param result resulting JSON string will be stored here. You must free it using the
+ *               rnp_buffer_destroy() function.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
+                                     bool             secret,
+                                     uint32_t         flags,
+                                     char **          result);
+
+/** Dump OpenPGP packets stream information to the JSON string.
+ * @param input source with OpenPGP data
+ * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
+ *              RNP_JSON_DUMP_* flags)
+ * @result resulting JSON string will be stored here. You must free it using the
+ *         rnp_buffer_destroy() function.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result);
 
 /* Signing operations */
 
