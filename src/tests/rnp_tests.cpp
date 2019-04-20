@@ -188,6 +188,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_stream_memory),
       cmocka_unit_test(test_stream_file),
       cmocka_unit_test(test_stream_signatures),
+      cmocka_unit_test(test_stream_signatures_revoked_key),
       cmocka_unit_test(test_stream_key_load),
       cmocka_unit_test(test_stream_key_decrypt),
       cmocka_unit_test(test_stream_key_encrypt),
