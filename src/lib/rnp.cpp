@@ -42,6 +42,7 @@
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
+#include <librepgp/stream-dump.h>
 #include "packet-create.h"
 #include <rnp/rnp.h>
 #include <stdarg.h>
@@ -2773,17 +2774,17 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
         } else if (!rnp_strcasecmp(key, "length")) {
             int length = json_object_get_int(value);
             switch (crypto->key_alg) {
-                case PGP_PKA_RSA:
-                    crypto->rsa.modulus_bit_len = length;
-                    break;
-                case PGP_PKA_DSA:
-                    crypto->dsa.p_bitlen = length;
-                    break;
-                case PGP_PKA_ELGAMAL:
-                    crypto->elgamal.key_bitlen = length;
-                    break;
-                default:
-                    return false;
+            case PGP_PKA_RSA:
+                crypto->rsa.modulus_bit_len = length;
+                break;
+            case PGP_PKA_DSA:
+                crypto->dsa.p_bitlen = length;
+                break;
+            case PGP_PKA_ELGAMAL:
+                crypto->elgamal.key_bitlen = length;
+                break;
+            default:
+                return false;
             }
         } else if (!rnp_strcasecmp(key, "curve")) {
             if (!pk_alg_allows_custom_curve(crypto->key_alg)) {
@@ -5279,6 +5280,98 @@ rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result)
 done:
     json_object_put(jso);
     return ret;
+}
+
+static rnp_result_t
+rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result)
+{
+    rnp_dump_ctx_t dumpctx = {};
+    json_object *  jso = NULL;
+    rnp_result_t   ret = RNP_ERROR_GENERIC;
+
+    if (flags & RNP_JSON_DUMP_MPI) {
+        dumpctx.dump_mpi = true;
+        flags &= ~RNP_JSON_DUMP_MPI;
+    }
+    if (flags & RNP_JSON_DUMP_RAW) {
+        dumpctx.dump_packets = true;
+        flags &= ~RNP_JSON_DUMP_RAW;
+    }
+    if (flags & RNP_JSON_DUMP_GRIP) {
+        dumpctx.dump_grips = true;
+        flags &= ~RNP_JSON_DUMP_GRIP;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    ret = stream_dump_packets_json(&dumpctx, src, &jso);
+    if (ret) {
+        goto done;
+    }
+
+    *result = (char *) json_object_to_json_string_ext(jso, JSON_C_TO_STRING_PRETTY);
+    if (!*result) {
+        goto done;
+    }
+    *result = strdup(*result);
+    if (!*result) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    json_object_put(jso);
+    return ret;
+}
+
+rnp_result_t
+rnp_key_packets_to_json(rnp_key_handle_t handle, bool secret, uint32_t flags, char **result)
+{
+    pgp_key_t *  key = NULL;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    pgp_dest_t   memdst = {};
+    pgp_source_t memsrc = {};
+
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    key = secret ? handle->sec : handle->pub;
+    if (!key || (key->format == G10_KEY_STORE)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (init_mem_dest(&memdst, NULL, 0)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (!pgp_key_write_packets(key, &memdst)) {
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto done;
+    }
+
+    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
+        ret = RNP_ERROR_BAD_STATE;
+        goto done;
+    }
+
+    ret = rnp_dump_src_to_json(&memsrc, flags, result);
+done:
+    dst_close(&memdst, true);
+    src_close(&memsrc);
+    return ret;
+}
+
+rnp_result_t
+rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result)
+{
+    if (!input || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    return rnp_dump_src_to_json(&input->src, flags, result);
 }
 
 // move to next key
