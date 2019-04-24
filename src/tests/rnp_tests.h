@@ -200,6 +200,10 @@ void test_ffi_version(void **state);
 
 void test_ffi_key_export(void **state);
 
+void test_ffi_key_dump(void **state);
+
+void test_ffi_pkt_dump(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
