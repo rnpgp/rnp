@@ -232,6 +232,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_enarmor_dearmor),
       cmocka_unit_test(test_ffi_version),
       cmocka_unit_test(test_ffi_key_export),
+      cmocka_unit_test(test_ffi_key_dump),
+      cmocka_unit_test(test_ffi_pkt_dump),
       cmocka_unit_test(test_cli_rnp),
       cmocka_unit_test(test_cli_rnp_keyfile),
       cmocka_unit_test(test_cli_g10_operations),
