@@ -494,5 +494,11 @@ test_cli_redumper(void **state)
     status = system(cmd);
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
+    /* run redumper on some data with json output */
+    chnum = snprintf(cmd, sizeof(cmd), "%s -j \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
+    assert_true(chnum < (int) sizeof(cmd));
+    status = system(cmd);
+    assert_true(WIFEXITED(status));
+    assert_int_equal(WEXITSTATUS(status), 0);
     free(redumper_path);
 }

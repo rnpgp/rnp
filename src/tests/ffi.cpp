@@ -1211,7 +1211,8 @@ test_ffi_key_generate_misc(void **state)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     /* generate encrypted RSA key (primary only) */
     key = NULL;
-    assert_rnp_success(rnp_generate_key_ex(ffi, "RSA", NULL, 1024, 0, NULL, NULL, "rsa_1024", "123", &key));
+    assert_rnp_success(
+      rnp_generate_key_ex(ffi, "RSA", NULL, 1024, 0, NULL, NULL, "rsa_1024", "123", &key));
     assert_non_null(key);
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
@@ -4243,5 +4244,89 @@ test_ffi_key_export(void **state)
     }
 
     // cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_key_dump(void **state)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_key_handle_t key = NULL;
+    char *           json = NULL;
+    json_object *    jso = NULL;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    // locate key
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+    assert_non_null(key);
+
+    // dump public key and check results
+    assert_rnp_success(rnp_key_packets_to_json(
+      key, false, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+    assert_non_null(json);
+    jso = json_tokener_parse(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    json_object_put(jso);
+    rnp_buffer_destroy(json);
+
+    // dump secret key and check results
+    assert_rnp_success(rnp_key_packets_to_json(
+      key, true, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+    assert_non_null(json);
+    jso = json_tokener_parse(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    json_object_put(jso);
+    rnp_buffer_destroy(json);
+
+    // cleanup
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+
+void
+test_ffi_pkt_dump(void **state)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    char *       json = NULL;
+    json_object *jso = NULL;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+
+    // dump
+    assert_rnp_success(rnp_dump_packets_to_json(
+      input, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_non_null(json);
+
+    // check results
+    jso = json_tokener_parse(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    json_object_put(jso);
+
+    // cleanup
+    rnp_buffer_destroy(json);
     rnp_ffi_destroy(ffi);
 }
