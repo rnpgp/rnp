@@ -1256,7 +1256,7 @@ test_stream_verify_no_key(void **state)
 }
 
 static bool
-check_dump_file(const char *file, bool mpi, bool grip)
+check_dump_file_dst(const char *file, bool mpi, bool grip)
 {
     pgp_source_t   src;
     pgp_dest_t     dst;
@@ -1277,6 +1277,36 @@ check_dump_file(const char *file, bool mpi, bool grip)
     src_close(&src);
     dst_close(&dst, false);
     return true;
+}
+
+static bool
+check_dump_file_json(const char *file, bool mpi, bool grip)
+{
+    pgp_source_t   src;
+    rnp_dump_ctx_t ctx = {0};
+    json_object *  jso = NULL;
+
+    ctx.dump_mpi = mpi;
+    ctx.dump_grips = grip;
+
+    if (init_file_src(&src, file)) {
+        return false;
+    }
+    if (stream_dump_packets_json(&ctx, &src, &jso)) {
+        return false;
+    }
+    if (!json_object_is_type(jso, json_type_array)) {
+        return false;
+    }
+    src_close(&src);
+    json_object_put(jso);
+    return true;
+}
+
+static bool
+check_dump_file(const char *file, bool mpi, bool grip)
+{
+    return check_dump_file_dst(file, mpi, grip) && check_dump_file_json(file, mpi, grip);
 }
 
 void
