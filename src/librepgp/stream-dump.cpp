@@ -1286,10 +1286,13 @@ obj_add_field_json(json_object *obj, const char *name, json_object *val)
     if (!val) {
         return false;
     }
-    if (json_object_object_add(obj, name, val)) {
+    // TODO: in JSON-C 0.13 json_object_object_add returns bool instead of void
+    json_object_object_add(obj, name, val);
+    if (!json_object_object_get_ex(obj, name, NULL)) {
         json_object_put(val);
         return false;
     }
+
     return true;
 }
 
