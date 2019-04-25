@@ -89,7 +89,8 @@ main(int argc, char *const argv[])
         json_object *dump = NULL;
         res = stream_dump_packets_json(&ctx, &src, &dump);
         if (res == RNP_SUCCESS) {
-            json_object_to_fd(STDOUT_FILENO, dump, JSON_C_TO_STRING_PRETTY);
+            const char *json = json_object_to_json_string_ext(dump, JSON_C_TO_STRING_PRETTY);
+            fprintf(stdout, "%s\n", json);
             json_object_put(dump);
         }
     }
