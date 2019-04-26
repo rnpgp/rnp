@@ -1347,7 +1347,7 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool 
     if (!contents) {
         return true;
     }
-    snprintf(strname, sizeof(strname), "%s.data", name);
+    snprintf(strname, sizeof(strname), "%s.raw", name);
     return obj_add_hex_json(obj, strname, mpi->mpi, mpi->len);
 }
 
@@ -1581,7 +1581,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *ctx, pgp_sig_subpkt_t *subpkt, jso
     case PGP_SIG_SUBPKT_NOTATION_DATA:
     default:
         if (!ctx->dump_packets) {
-            return obj_add_hex_json(obj, "contents", subpkt->data, subpkt->len);
+            return obj_add_hex_json(obj, "raw", subpkt->data, subpkt->len);
         }
         return true;
     }
@@ -1618,7 +1618,7 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
         }
 
         if (ctx->dump_packets &&
-            !obj_add_hex_json(jso_subpkt, "contents", subpkt->data, subpkt->len)) {
+            !obj_add_hex_json(jso_subpkt, "raw", subpkt->data, subpkt->len)) {
             goto error;
         }
 
@@ -2112,7 +2112,7 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     if (!obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map)) {
         goto error;
     }
-    if (!obj_add_hex_json(jso_hdr, "hdr", hdr->hdr, hdr->hdr_len)) {
+    if (!obj_add_hex_json(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
         goto error;
     }
     if (!hdr->partial && !hdr->indeterminate &&
@@ -2161,6 +2161,27 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         if (!stream_dump_hdr_json(src, &hdr, pkt)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
+        }
+
+        if (ctx->dump_packets) {
+            size_t  rlen = hdr.pkt_len + hdr.hdr_len;
+            uint8_t buf[2048 + sizeof(hdr.hdr)] = {0};
+            bool    part = false;
+
+            if (!hdr.pkt_len || (rlen > 2048 + hdr.hdr_len)) {
+                rlen = 2048 + hdr.hdr_len;
+                part = true;
+            }
+
+            rlen = src_peek(src, buf, rlen);
+            if (rlen < hdr.hdr_len) {
+                ret = RNP_ERROR_READ;
+                goto done;
+            }
+            if (!obj_add_hex_json(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
         }
 
         switch (hdr.tag) {
