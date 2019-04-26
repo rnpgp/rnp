@@ -3857,15 +3857,18 @@ rnp_op_generate_add_pref_cipher(rnp_op_generate_t op, const char *cipher)
 rnp_result_t
 rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver)
 {
-    if (!op || !keyserver) {
+    uint8_t *_keyserver = NULL;
+    if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    uint8_t *_keyserver = (uint8_t *) strdup(keyserver);
-    if (!_keyserver) {
-        return RNP_ERROR_OUT_OF_MEMORY;
+    if (keyserver) {
+        _keyserver = (uint8_t *) strdup(keyserver);
+        if (!_keyserver) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
     }
     free(op->cert.prefs.key_server);
     op->cert.prefs.key_server = _keyserver;

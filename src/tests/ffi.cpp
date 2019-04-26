@@ -1688,7 +1688,7 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 60 * 60 * 24 * 100));
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 60 * 60 * 24 * 300));
     /* preferred key server */
-    assert_rnp_failure(rnp_op_generate_set_pref_keyserver(keygen, NULL));
+    assert_rnp_success(rnp_op_generate_set_pref_keyserver(keygen, NULL));
     assert_rnp_success(rnp_op_generate_set_pref_keyserver(keygen, "hkp://first.server/"));
     assert_rnp_success(rnp_op_generate_set_pref_keyserver(keygen, "hkp://second.server/"));
     /* user id */
