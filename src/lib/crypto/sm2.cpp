@@ -31,7 +31,7 @@
 #include "utils.h"
 
 static bool
-sm2_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata, bool encrypt)
+sm2_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
 {
     const ec_curve_desc_t *curve = NULL;
     botan_mp_t             px = NULL;
@@ -54,8 +54,7 @@ sm2_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata, bool en
         botan_mp_from_bin(py, &keydata->p.mpi[1 + sign_half_len], sign_half_len)) {
         goto end;
     }
-    res = encrypt ? !botan_pubkey_load_sm2_enc(pubkey, px, py, curve->botan_name) :
-                    !botan_pubkey_load_sm2(pubkey, px, py, curve->botan_name);
+    res = !botan_pubkey_load_sm2(pubkey, px, py, curve->botan_name);
 end:
     botan_mp_destroy(px);
     botan_mp_destroy(py);
@@ -63,7 +62,7 @@ end:
 }
 
 static bool
-sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata, bool encrypt)
+sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 {
     const ec_curve_desc_t *curve = NULL;
     bignum_t *             x = NULL;
@@ -75,8 +74,7 @@ sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata, bool e
     if (!(x = mpi2bn(&keydata->x))) {
         return false;
     }
-    res = encrypt ? !botan_privkey_load_sm2_enc(seckey, BN_HANDLE_PTR(x), curve->botan_name) :
-                    !botan_privkey_load_sm2(seckey, BN_HANDLE_PTR(x), curve->botan_name);
+    res = !botan_privkey_load_sm2(seckey, BN_HANDLE_PTR(x), curve->botan_name);
     bn_free(x);
     return res;
 }
@@ -101,7 +99,7 @@ sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_fiel
         goto done;
     }
 
-    if (!sm2_load_public_key(&sm2_key, key, false)) {
+    if (!sm2_load_public_key(&sm2_key, key)) {
         RNP_LOG("Failed to load SM2 key");
         goto done;
     }
@@ -135,7 +133,7 @@ sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     botan_privkey_t bskey = NULL;
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
-    if (!sm2_load_public_key(&bpkey, key, false) ||
+    if (!sm2_load_public_key(&bpkey, key) ||
         botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
         goto done;
     }
@@ -145,7 +143,7 @@ sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
         goto done;
     }
 
-    if (!sm2_load_secret_key(&bskey, key, false) ||
+    if (!sm2_load_secret_key(&bskey, key) ||
         botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
         goto done;
     }
@@ -187,7 +185,7 @@ sm2_sign(rng_t *             rng,
     sign_half_len = BITS_TO_BYTES(curve->bitlen);
     sig_len = 2 * sign_half_len;
 
-    if (!sm2_load_secret_key(&b_key, key, false)) {
+    if (!sm2_load_secret_key(&b_key, key)) {
         RNP_LOG("Can't load private key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
@@ -247,7 +245,7 @@ sm2_verify(const pgp_ec_signature_t *sig,
     }
     sign_half_len = BITS_TO_BYTES(curve->bitlen);
 
-    if (!sm2_load_public_key(&pub, key, false)) {
+    if (!sm2_load_public_key(&pub, key)) {
         RNP_LOG("Failed to load public key");
         goto end;
     }
@@ -316,7 +314,7 @@ sm2_encrypt(rng_t *              rng,
         goto done;
     }
 
-    if (!sm2_load_public_key(&sm2_key, key, true)) {
+    if (!sm2_load_public_key(&sm2_key, key)) {
         RNP_LOG("Failed to load public key");
         goto done;
     }
@@ -362,7 +360,7 @@ sm2_decrypt(uint8_t *                  out,
         goto done;
     }
 
-    if (!sm2_load_secret_key(&b_key, key, true)) {
+    if (!sm2_load_secret_key(&b_key, key)) {
         RNP_LOG("Can't load private key");
         goto done;
     }
