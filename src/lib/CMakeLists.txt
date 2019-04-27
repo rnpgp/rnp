@@ -30,7 +30,7 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
-find_package(Botan2 2.5.0 REQUIRED)
+find_package(Botan2 2.8.0 REQUIRED)
 
 # generate a config.h
 include(CheckIncludeFileCXX)
