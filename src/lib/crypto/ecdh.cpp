@@ -249,8 +249,15 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
         return RNP_ERROR_GENERIC;
     }
 
-    if (botan_privkey_create_ecdh(&eph_prv_key, rng_handle(rng), curve_desc->botan_name)) {
-        goto end;
+    if (!strcmp(curve_desc->botan_name, "curve25519")) {
+        if (botan_privkey_create(&eph_prv_key, "Curve25519", "", rng_handle(rng))) {
+            goto end;
+        }
+    } else {
+        if (botan_privkey_create(
+              &eph_prv_key, "ECDH", curve_desc->botan_name, rng_handle(rng))) {
+            goto end;
+        }
     }
 
     if (!compute_kek(kek,

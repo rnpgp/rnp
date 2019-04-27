@@ -75,8 +75,8 @@
 
 /** \file
  */
-#include <string.h>
-#include <stdbool.h>
+#include <string>
+#include <cstring>
 #include <botan/ffi.h>
 #include "crypto/rsa.h"
 #include "hash.h"
@@ -369,7 +369,8 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
         goto end;
     }
 
-    if (botan_privkey_create_rsa(&rsa_key, rng_handle(rng), numbits) != 0) {
+    if (botan_privkey_create(
+          &rsa_key, "RSA", std::to_string(numbits).c_str(), rng_handle(rng))) {
         goto end;
     }
 
@@ -377,12 +378,13 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
         goto end;
     }
 
-    /* Calls below never fail as calls above were OK */
-    (void) botan_privkey_rsa_get_n(BN_HANDLE_PTR(n), rsa_key);
-    (void) botan_privkey_rsa_get_e(BN_HANDLE_PTR(e), rsa_key);
-    (void) botan_privkey_rsa_get_d(BN_HANDLE_PTR(d), rsa_key);
-    (void) botan_privkey_rsa_get_p(BN_HANDLE_PTR(p), rsa_key);
-    (void) botan_privkey_rsa_get_q(BN_HANDLE_PTR(q), rsa_key);
+    if (botan_privkey_get_field(BN_HANDLE_PTR(n), rsa_key, "n") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(e), rsa_key, "e") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(d), rsa_key, "d") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(p), rsa_key, "p") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(q), rsa_key, "q")) {
+        goto end;
+    }
 
     /* RFC 4880, 5.5.3 tells that p < q. GnuPG relies on this. */
     (void) botan_mp_cmp(&cmp, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q));
