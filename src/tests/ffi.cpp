@@ -1723,6 +1723,13 @@ test_ffi_key_generate_ex(void **state)
     assert_true(flag);
     assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
     assert_false(flag);
+    /* check key creation and expiration */
+    uint32_t create = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &create));
+    assert_true((create != 0) && (create <= time(NULL)));
+    uint32_t expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_true(expiry == 60 * 60 * 24 * 300);
 
     /* generate DSA subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "DSA"));
@@ -1762,6 +1769,14 @@ test_ffi_key_generate_ex(void **state)
     assert_false(flag);
     assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
     assert_false(flag);
+    /* check subkey creation and expiration */
+    create = 0;
+    assert_rnp_success(rnp_key_get_creation(subkey, &create));
+    assert_true((create != 0) && (create <= time(NULL)));
+    expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(subkey, &expiry));
+    assert_true(expiry == 60 * 60 * 24 * 300);
+    /* destroy key handle */
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* generate RSA sign/encrypt subkey */

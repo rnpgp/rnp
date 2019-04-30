@@ -846,6 +846,25 @@ rnp_result_t rnp_key_get_grip(rnp_key_handle_t key, char **grip);
  */
 rnp_result_t rnp_key_allows_usage(rnp_key_handle_t key, const char *usage, bool *result);
 
+/**
+ * @brief Get the key's creation time.
+ * 
+ * @param key key handle, should not be NULL.
+ * @param result creation time will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_get_creation(rnp_key_handle_t key, uint32_t *result);
+
+/**
+ * @brief Get the key's expiration time in seconds.
+ *        Note: 0 means that the key doesn't expire.
+ * 
+ * @param key key handle, should not be NULL
+ * @param result expiration time will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *result);
+
 /** check if a key is currently locked
  *
  *  @param key
