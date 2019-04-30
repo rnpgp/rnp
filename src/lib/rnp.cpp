@@ -4364,6 +4364,34 @@ rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
 }
 
 rnp_result_t
+rnp_key_get_creation(rnp_key_handle_t handle, uint32_t *result)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = pgp_key_get_creation(key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = pgp_key_get_expiration(key);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_is_locked(rnp_key_handle_t handle, bool *result)
 {
     if (handle == NULL || result == NULL)
