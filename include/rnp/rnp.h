@@ -890,6 +890,52 @@ rnp_result_t rnp_key_get_creation(rnp_key_handle_t key, uint32_t *result);
  */
 rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *result);
 
+/**
+ * @brief Check whether key is revoked.
+ * 
+ * @param key key handle, should not be NULL
+ * @param result on success result will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_is_revoked(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Get textual description of the key's revocation reason (if any)
+ * 
+ * @param key key handle, should not be NULL
+ * @param result on success pointer to the NULL-terminated string will be stored here.
+ *               You must free it later using rnp_buffer_destroy() function.
+ * @return RNP_SUCCESSor error code on failure.
+ */
+rnp_result_t rnp_key_get_revocation_reason(rnp_key_handle_t key, char **result);
+
+/**
+ * @brief Check whether revoked key was superseded by other key.
+ * 
+ * @param key key handle, should not be NULL
+ * @param result on success result will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_is_superseded(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Check whether revoked key's material was compromised.
+ * 
+ * @param key key handle, should not be NULL
+ * @param result on success result will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_is_compromised(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Check whether revoked key was retired.
+ * 
+ * @param key key handle, should not be NULL
+ * @param result on success result will be stored here. Could not be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_is_retired(rnp_key_handle_t key, bool *result);
+
 /** check if a key is currently locked
  *
  *  @param key

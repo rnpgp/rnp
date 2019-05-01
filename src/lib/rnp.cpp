@@ -4434,6 +4434,20 @@ rnp_key_get_creation(rnp_key_handle_t handle, uint32_t *result)
 }
 
 rnp_result_t
+rnp_key_is_revoked(rnp_key_handle_t handle, bool *result)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = key->revoked;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
 {
     if (!handle || !result) {
@@ -4445,6 +4459,54 @@ rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
     }
     *result = pgp_key_get_expiration(key);
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key || !key->revoked) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *result = strdup(key->revocation.reason ? key->revocation.reason : "");
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_key_is_revoked_with_code(rnp_key_handle_t handle, bool *result, int code)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key || !key->revoked) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *result = key->revocation.code == code;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_is_superseded(rnp_key_handle_t handle, bool *result)
+{
+    return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_SUPERSEDED);
+}
+
+rnp_result_t
+rnp_key_is_compromised(rnp_key_handle_t handle, bool *result)
+{
+    return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_COMPROMISED);
+}
+
+rnp_result_t
+rnp_key_is_retired(rnp_key_handle_t handle, bool *result)
+{
+    return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_RETIRED);
 }
 
 rnp_result_t
