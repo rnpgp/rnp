@@ -4345,3 +4345,35 @@ test_ffi_pkt_dump(void **state)
     rnp_buffer_destroy(json);
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_load_userattr(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    // init ffi and load key
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-photo-pub.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    // check userid 0 : ecc-25519
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "cc786278981b0728", &key));
+    assert_non_null(key);
+    size_t uid_count = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uid_count));
+    assert_int_equal(uid_count, 2);
+    char *uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "ecc-25519"), 0);
+    rnp_buffer_destroy(uid);
+    // check userattr 1, must be text instead of binary JPEG data
+    assert_rnp_success(rnp_key_get_uid_at(key, 1, &uid));
+    assert_int_equal(strcmp(uid, "(photo)"), 0);
+    rnp_buffer_destroy(uid);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
