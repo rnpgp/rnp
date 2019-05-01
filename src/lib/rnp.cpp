@@ -60,6 +60,12 @@ struct rnp_key_handle_st {
     pgp_key_t *      sec;
 };
 
+struct rnp_uid_handle_st {
+    rnp_ffi_t ffi;
+    pgp_key_t *key;
+    size_t idx;
+};
+
 struct rnp_ffi_st {
     FILE *                  errs;
     rnp_key_store_t *       pubring;
@@ -4177,6 +4183,56 @@ rnp_key_get_uid_at(rnp_key_handle_t handle, size_t idx, char **uid)
 
     pgp_key_t *key = get_key_prefer_public(handle);
     return key_get_uid_at(key, idx, uid);
+}
+
+rnp_result_t
+rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *uid)
+{
+   if (!key || !uid) {
+        return RNP_ERROR_NULL_POINTER;
+   }
+
+    pgp_key_t *akey = get_key_prefer_public(key);
+    if (!akey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (idx >= pgp_key_get_userid_count(akey)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *uid = (rnp_uid_handle_t) malloc(sizeof(**uid));
+    if (!*uid) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    (*uid)->ffi = key->ffi;
+    (*uid)->key = akey;
+    (*uid)->idx = idx;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result)
+{
+    if (!uid || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (!uid->key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_revoke_t *revoke = pgp_key_get_userid_revoke(uid->key, uid->idx);
+    *result = revoke != NULL;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_uid_handle_destroy(rnp_uid_handle_t uid)
+{
+    free(uid);
+    return RNP_SUCCESS;
 }
 
 rnp_result_t

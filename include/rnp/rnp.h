@@ -143,6 +143,7 @@ typedef struct rnp_op_verify_st *          rnp_op_verify_t;
 typedef struct rnp_op_verify_signature_st *rnp_op_verify_signature_t;
 typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
+typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
@@ -731,6 +732,30 @@ rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
  * @return RNP_SUCCESS or error code if failed.
  */
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
+
+/** Get key's user id handle by it's index.
+ * @param key key handle
+ * @param idx zero-based index of the userid.
+ * @param uid user id handle will be stored here on success. You must destroy it
+ *            using the rnp_uid_handle_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *uid);
+
+/** Check whether user id is revoked.
+ * 
+ * @param uid user id handle, should not be NULL.
+ * @param result boolean result will be stored here on success. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result);
+
+/** Destroy previously allocated user id handle.
+ * 
+ * @param uid user id handle. 
+ * @return RNP_SUCCESS or error code
+ */
+rnp_result_t rnp_uid_handle_destroy(rnp_uid_handle_t uid);
 
 /** Get number of the key's subkeys.
  *
