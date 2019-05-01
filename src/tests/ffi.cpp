@@ -4377,3 +4377,99 @@ test_ffi_load_userattr(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_revocations(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load key with revoked userid
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256-revoked-uid.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    // check userid 0 : ecc-p256
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_non_null(key);
+    size_t uid_count = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uid_count));
+    assert_int_equal(uid_count, 2);
+    char *uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, "ecc-p256"), 0);
+    rnp_buffer_destroy(uid);
+    rnp_uid_handle_t uid_handle = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid_handle));
+    assert_non_null(uid_handle);
+    bool revoked = true;
+    assert_rnp_failure(rnp_uid_is_revoked(NULL, &revoked));
+    assert_rnp_failure(rnp_uid_is_revoked(uid_handle, NULL));
+    assert_rnp_success(rnp_uid_is_revoked(uid_handle, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_uid_handle_destroy(uid_handle));
+    // check userid 1: ecc-p256-revoked
+    assert_rnp_success(rnp_key_get_uid_at(key, 1, &uid));
+    assert_int_equal(strcmp(uid, "ecc-p256-revoked"), 0);
+    rnp_buffer_destroy(uid);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 1, &uid_handle));
+    assert_non_null(uid_handle);
+    assert_rnp_success(rnp_uid_is_revoked(uid_handle, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_uid_handle_destroy(uid_handle));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    // load key with revoked subkey
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256-revoked-sub.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    // key is not revoked
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    // subkey is revoked
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "37E285E9E9851491", &key));
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_true(revoked);
+    char *reason = NULL;
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &reason));
+    assert_int_equal(strcmp(reason, "Subkey revocation test."), 0);
+    rnp_buffer_destroy(reason);
+    assert_rnp_success(rnp_key_is_superseded(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_is_compromised(key, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_key_is_retired(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    // load revoked key
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256-revoked-key.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    // key is revoked
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_true(revoked);
+    reason = NULL;
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &reason));
+    assert_int_equal(strcmp(reason, "Superseded key test."), 0);
+    rnp_buffer_destroy(reason);
+    assert_rnp_success(rnp_key_is_superseded(key, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_key_is_compromised(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_is_retired(key, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
