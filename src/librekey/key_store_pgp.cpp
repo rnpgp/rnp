@@ -314,25 +314,30 @@ error:
 bool
 rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 {
-    uint8_t *uidz;
-
     if (!rnp_key_add_uid_rawpacket(key, &uid->uid)) {
         return false;
     }
 
-    if (!(uidz = (uint8_t *) calloc(1, uid->uid.uid_len + 1))) {
-        RNP_LOG("uid alloc failed");
+    if (uid->uid.tag == PGP_PTAG_CT_USER_ID) {
+        uint8_t *uidz = (uint8_t *) calloc(1, uid->uid.uid_len + 1);
+        if (!uidz) {
+            RNP_LOG("uid alloc failed");
+            return false;
+        }
+
+        memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
+        uidz[uid->uid.uid_len] = 0;
+        if (!pgp_key_add_userid(key, uidz)) {
+            RNP_LOG("failed to add user id");
+            free(uidz);
+            return false;
+        }
+        free(uidz);
+    } else if (!pgp_key_add_userid(key, (uint8_t *) "(photo)")) {
+        RNP_LOG("failed to add user attr");
         return false;
     }
 
-    memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
-    uidz[uid->uid.uid_len] = 0;
-    if (!pgp_key_add_userid(key, uidz)) {
-        RNP_LOG("failed to add user id");
-        free(uidz);
-        return false;
-    }
-    free(uidz);
     if (!rnp_key_add_signatures(key, uid->signatures)) {
         return false;
     }
