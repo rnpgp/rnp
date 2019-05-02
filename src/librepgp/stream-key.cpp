@@ -1525,17 +1525,25 @@ validate_pgp_key_signature(const pgp_signature_t *sig, validate_info_t *info)
         res = signature_check_binding(&sinfo, info->key, info->subkey);
         break;
     case PGP_SIG_DIRECT:
+    case PGP_SIG_REV_KEY:
         if (!info->key || info->uid || info->subkey) {
-            RNP_LOG("wrong direct sig parameters");
+            RNP_LOG("wrong %s sig parameters",
+                    sinfo.sig->type == PGP_SIG_DIRECT ? "direct key" : "revocation");
             res = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
         res = signature_check_direct(&sinfo, info->key);
         break;
+    case PGP_SIG_REV_SUBKEY:
+        if (!info->key || info->uid || !info->subkey) {
+            RNP_LOG("wrong subkey revocation sig parameters");
+            res = RNP_ERROR_BAD_PARAMETERS;
+            break;
+        }
+        res = signature_check_subkey_revocation(&sinfo, info->key, info->subkey);
+        break;
     case PGP_SIG_STANDALONE:
     case PGP_SIG_PRIMARY:
-    case PGP_SIG_REV_KEY:
-    case PGP_SIG_REV_SUBKEY:
     case PGP_SIG_TIMESTAMP:
     case PGP_SIG_3RD_PARTY:
         RNP_LOG("signature type %d verification is not supported yet", (int) sinfo.sig->type);
@@ -1628,7 +1636,7 @@ validate_pgp_key_signatures(pgp_signatures_info_t *result,
     info.result = result;
     info.keystore = keyring;
 
-    /* subkey may have only binding signatures */
+    /* subkey may have only binding or revocation signatures */
     if (pgp_key_is_subkey(key)) {
         pgp_key_t *primary =
           rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(key));

@@ -1255,6 +1255,20 @@ signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key)
     return signature_check(sinfo, &hash);
 }
 
+rnp_result_t
+signature_check_subkey_revocation(pgp_signature_info_t *sinfo,
+                                  const pgp_key_pkt_t * key,
+                                  const pgp_key_pkt_t * subkey)
+{
+    pgp_hash_t hash = {};
+
+    if (!signature_hash_binding(sinfo->sig, key, subkey, &hash)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    return signature_check(sinfo, &hash);
+}
+
 bool
 check_signatures_info(const pgp_signatures_info_t *info)
 {
