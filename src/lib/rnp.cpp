@@ -66,6 +66,12 @@ struct rnp_uid_handle_st {
     size_t     idx;
 };
 
+struct rnp_signature_handle_st {
+    rnp_ffi_t     ffi;
+    pgp_key_t *   key;
+    pgp_subsig_t *sig;
+};
+
 struct rnp_ffi_st {
     FILE *                  errs;
     rnp_key_store_t *       pubring;
@@ -4257,6 +4263,207 @@ rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *ui
     (*uid)->ffi = key->ffi;
     (*uid)->key = akey;
     (*uid)->idx = idx;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
+{
+    *count = 0;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        if (pgp_key_get_subsig(key, i)->uid == uid) {
+            (*count)++;
+        }
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+rnp_key_get_signature_at_for_uid(
+  rnp_ffi_t ffi, pgp_key_t *key, size_t idx, uint32_t uid, rnp_signature_handle_t *sig)
+{
+    size_t skipped = 0;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
+        if (subsig->uid != uid) {
+            continue;
+        }
+        if (skipped == idx) {
+            *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
+            if (!*sig) {
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+            (*sig)->ffi = ffi;
+            (*sig)->key = key;
+            (*sig)->sig = subsig;
+            return RNP_SUCCESS;
+        }
+        skipped++;
+    }
+    return RNP_ERROR_BAD_PARAMETERS;
+}
+
+rnp_result_t
+rnp_key_get_signature_count(rnp_key_handle_t handle, size_t *count)
+{
+    if (!handle || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return rnp_key_get_signature_count_for_uid(key, count, (uint32_t) -1);
+}
+
+rnp_result_t
+rnp_key_get_signature_at(rnp_key_handle_t handle, size_t idx, rnp_signature_handle_t *sig)
+{
+    if (!handle || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return rnp_key_get_signature_at_for_uid(handle->ffi, key, idx, (uint32_t) -1, sig);
+}
+
+rnp_result_t
+rnp_uid_get_signature_count(rnp_uid_handle_t handle, size_t *count)
+{
+    if (!handle || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return rnp_key_get_signature_count_for_uid(handle->key, count, handle->idx);
+}
+
+rnp_result_t
+rnp_uid_get_signature_at(rnp_uid_handle_t handle, size_t idx, rnp_signature_handle_t *sig)
+{
+    if (!handle || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return rnp_key_get_signature_at_for_uid(handle->ffi, handle->key, idx, handle->idx, sig);
+}
+
+rnp_result_t
+rnp_signature_get_alg(rnp_signature_handle_t handle, char **alg)
+{
+    if (!handle || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const char *str = NULL;
+    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, handle->sig->sig.palg, str);
+    if (!str) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    char *algcp = strdup(str);
+    if (!algcp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    *alg = algcp;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_signature_get_hash_alg(rnp_signature_handle_t handle, char **alg)
+{
+    if (!handle || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const char *str = NULL;
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, handle->sig->sig.halg, str);
+    if (!str) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    char *algcp = strdup(str);
+    if (!algcp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    *alg = algcp;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_signature_get_creation(rnp_signature_handle_t handle, uint32_t *create)
+{
+    if (!handle || !create) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *create = signature_get_creation(&handle->sig->sig);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
+{
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    uint8_t keyid[PGP_KEY_ID_SIZE] = {0};
+    if (!signature_get_keyid(&handle->sig->sig, keyid)) {
+        *result = NULL;
+        return RNP_SUCCESS;
+    }
+
+    size_t hex_len = PGP_KEY_ID_SIZE * 2 + 1;
+    *result = (char *) malloc(hex_len);
+    if (!*result) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (!rnp_hex_encode(keyid, PGP_KEY_ID_SIZE, *result, hex_len, RNP_HEX_UPPERCASE)) {
+        free(*result);
+        *result = NULL;
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
+{
+    char *       keyid = NULL;
+    rnp_result_t ret = rnp_signature_get_keyid(sig, &keyid);
+    if (ret) {
+        return ret;
+    }
+    if (!keyid) {
+        *key = NULL;
+        return RNP_SUCCESS;
+    }
+
+    ret = rnp_locate_key(sig->ffi, "keyid", keyid, key);
+    rnp_buffer_destroy(keyid);
+    return ret;
+}
+
+rnp_result_t
+rnp_signature_handle_destroy(rnp_signature_handle_t sig)
+{
+    free(sig);
     return RNP_SUCCESS;
 }
 

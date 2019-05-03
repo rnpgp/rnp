@@ -150,6 +150,7 @@ typedef struct rnp_op_verify_signature_st *rnp_op_verify_signature_t;
 typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
+typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
 
 /* Callbacks */
 typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
@@ -751,6 +752,104 @@ rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t  key,
                                        size_t            idx,
                                        rnp_uid_handle_t *uid);
+
+/** Get number of key's signatures.
+ *  Note: this will not count user id certifications and subkey(s) signatures if any.
+ *        I.e. it will return only number of direct-key and key revocation signatures for the
+ *        primary key, and number of subkey bindings/revocation signatures for the subkey.
+ *        Use rnp_uid_get_signature_count() or call this function on subkey's handle.
+ *
+ * @param key key handle
+ * @param count number of key's signatures will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_signature_count(rnp_key_handle_t key, size_t *count);
+
+/** Get key's signature, based on it's index.
+ *  Note: see the rnp_key_get_signature_count() description for the details.
+ *
+ * @param key key handle
+ * @param idx zero-based signature index.
+ * @param sig signature handle will be stored here on success. You must free it after use with
+ *            the rnp_signature_handle_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
+                                      size_t                  idx,
+                                      rnp_signature_handle_t *sig);
+
+/** Get the number of user id's signatures.
+ *
+ * @param uid user id handle.
+ * @param count number of uid's signatures will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_uid_get_signature_count(rnp_uid_handle_t uid, size_t *count);
+
+/** Get user id's signature, based on it's index.
+ *
+ * @param uid uid handle.
+ * @param idx zero-based signature index.
+ * @param sig signature handle will be stored here on success. You must free it after use with
+ *            the rnp_signature_handle_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_uid_get_signature_at(rnp_uid_handle_t        uid,
+                                      size_t                  idx,
+                                      rnp_signature_handle_t *sig);
+
+/** Get signature's algorithm.
+ *
+ * @param sig signature handle.
+ * @param alg on success string with algorithm name will be saved here. Cannot be NULL.
+*            You must free it using the rnp_buffer_destroy().
+
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_signature_get_alg(rnp_signature_handle_t sig, char **alg);
+
+/** Get signature's hash algorithm.
+ *
+ * @param sig signature handle.
+ * @param alg on success string with algorithm name will be saved here. Cannot be NULL.
+ *            You must free it using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_signature_get_hash_alg(rnp_signature_handle_t sig, char **alg);
+
+/** Get the signature creation time as number of seconds since Jan, 1 1970 UTC
+ *
+ * @param sig signature handle.
+ * @param create on success result will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint32_t *create);
+
+/** Get signer's key id from the signature.
+ *  Note: if key id is not available from the signature then NULL value will
+ *        be stored to result.
+ * @param sig signature handle
+ * @param result hex-encoded key id will be stored here. Cannot be NULL. You must free it
+ *               later on using the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_signature_get_keyid(rnp_signature_handle_t sig, char **result);
+
+/** Get signing key handle, if available.
+ *  Note: if signing key is not available then NULL will be stored in key.
+ * @param sig signature handle
+ * @param key on success and key availability will contain signing key's handle. You must
+ *            destroy it using the rnp_key_handle_destroy() function.
+ * @return RNP_SUCCESS or error code if f4ailed.
+ */
+rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key);
+
+/** Free signature handle.
+ *
+ * @param sig signature handle.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_signature_handle_destroy(rnp_signature_handle_t sig);
 
 /** Check whether user id is revoked.
  *
