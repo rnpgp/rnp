@@ -256,6 +256,9 @@ pgp_key_free_data(pgp_key_t *key)
     }
     list_destroy(&key->subsigs);
 
+    for (n = 0; n < pgp_key_get_revoke_count(key); n++) {
+        revoke_free(pgp_key_get_revoke(key, n));
+    }
     list_destroy(&key->revokes);
     revoke_free(&key->revocation);
     free(key->primary_grip);
