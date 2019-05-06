@@ -61,9 +61,9 @@ struct rnp_key_handle_st {
 };
 
 struct rnp_uid_handle_st {
-    rnp_ffi_t ffi;
+    rnp_ffi_t  ffi;
     pgp_key_t *key;
-    size_t idx;
+    size_t     idx;
 };
 
 struct rnp_ffi_st {
@@ -4188,9 +4188,9 @@ rnp_key_get_uid_at(rnp_key_handle_t handle, size_t idx, char **uid)
 rnp_result_t
 rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *uid)
 {
-   if (!key || !uid) {
+    if (!key || !uid) {
         return RNP_ERROR_NULL_POINTER;
-   }
+    }
 
     pgp_key_t *akey = get_key_prefer_public(key);
     if (!akey) {
@@ -4472,7 +4472,15 @@ rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *result = strdup(key->revocation.reason ? key->revocation.reason : "");
+    if (!key->revocation.reason) {
+        *result = NULL;
+        return RNP_SUCCESS;
+    }
+
+    *result = strdup(key->revocation.reason);
+    if (!*result) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     return RNP_SUCCESS;
 }
 

@@ -734,6 +734,8 @@ rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 
 /** Get key's user id handle by it's index.
+ *  Note: user id handle may become invalid once corresponding user id or key is removed.
+ * 
  * @param key key handle
  * @param idx zero-based index of the userid.
  * @param uid user id handle will be stored here on success. You must destroy it
