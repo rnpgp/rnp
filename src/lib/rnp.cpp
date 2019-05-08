@@ -2567,6 +2567,8 @@ rnp_locate_key(rnp_ffi_t         ffi,
         (*handle)->pub = pub;
         (*handle)->sec = sec;
         (*handle)->locator = locator;
+    } else {
+        *handle = NULL;
     }
     return RNP_SUCCESS;
 }

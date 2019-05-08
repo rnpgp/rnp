@@ -3634,15 +3634,15 @@ test_ffi_locate_key(void **state)
             assert_non_null(key);
             rnp_key_handle_destroy(key);
         }
-        // invalid
+        // invalid - value did not change
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_failure(rnp_locate_key(ffi, "keyid", "invalid-keyid", &key));
-            assert_null(key);
+            assert_true(key == (rnp_key_handle_t) 0x111);
         }
-        // valid but non-existent
+        // valid but non-existent - null returned
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_success(rnp_locate_key(ffi, "keyid", "AAAAAAAAAAAAAAAA", &key));
             assert_null(key);
         }
@@ -3661,7 +3661,7 @@ test_ffi_locate_key(void **state)
         }
         // valid but non-existent
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_success(rnp_locate_key(ffi, "userid", "bad-userid", &key));
             assert_null(key);
         }
@@ -3685,13 +3685,13 @@ test_ffi_locate_key(void **state)
         }
         // invalid
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_failure(rnp_locate_key(ffi, "fingerprint", "invalid-fpr", &key));
-            assert_null(key);
+            assert_true(key == (rnp_key_handle_t) 0x111);
         }
         // valid but non-existent
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_success(rnp_locate_key(
               ffi, "fingerprint", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &key));
             assert_null(key);
@@ -3716,13 +3716,13 @@ test_ffi_locate_key(void **state)
         }
         // invalid
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_failure(rnp_locate_key(ffi, "grip", "invalid-fpr", &key));
-            assert_null(key);
+            assert_true(key == (rnp_key_handle_t) 0x111);
         }
         // valid but non-existent
         {
-            rnp_key_handle_t key = NULL;
+            rnp_key_handle_t key = (rnp_key_handle_t) 0x111;
             assert_rnp_success(
               rnp_locate_key(ffi, "grip", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA", &key));
             assert_null(key);
