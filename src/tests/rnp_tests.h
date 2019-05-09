@@ -210,6 +210,8 @@ void test_ffi_revocations(void **state);
 
 void test_ffi_file_output(void **state);
 
+void test_ffi_key_signatures(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
