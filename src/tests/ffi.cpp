@@ -4548,3 +4548,97 @@ test_ffi_file_output(void **state)
     assert_rnp_success(rnp_key_handle_destroy(k521));
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_key_signatures(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load key
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p384-pub.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    // check primary key
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "242A3AA5EA85F44A", &key));
+    // some edge cases
+    size_t                 sigs = 0;
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_failure(rnp_key_get_signature_count(NULL, &sigs));
+    assert_rnp_failure(rnp_key_get_signature_count(key, NULL));
+    assert_rnp_failure(rnp_key_get_signature_at(key, 0, &sig));
+    assert_rnp_failure(rnp_key_get_signature_at(key, 0x10000, &sig));
+    assert_rnp_failure(rnp_key_get_signature_at(NULL, 0x10000, &sig));
+    assert_rnp_failure(rnp_key_get_signature_at(NULL, 0, NULL));
+    // key doesn't have signatures
+    assert_rnp_success(rnp_key_get_signature_count(key, &sigs));
+    assert_int_equal(sigs, 0);
+    // uid must have one signature
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &sigs));
+    assert_int_equal(sigs, 1);
+    assert_rnp_failure(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    uint32_t creation = 0;
+    assert_rnp_success(rnp_signature_get_creation(sig, &creation));
+    assert_int_equal(creation, 1549119505);
+    char *alg = NULL;
+    assert_rnp_failure(rnp_signature_get_alg(NULL, &alg));
+    assert_rnp_failure(rnp_signature_get_alg(sig, NULL));
+    assert_rnp_success(rnp_signature_get_alg(sig, &alg));
+    assert_int_equal(strcmp(alg, "ECDSA"), 0);
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_hash_alg(sig, &alg));
+    assert_int_equal(strcmp(alg, "SHA384"), 0);
+    rnp_buffer_destroy(alg);
+    char *keyid = NULL;
+    assert_rnp_success(rnp_signature_get_keyid(sig, &keyid));
+    assert_non_null(keyid);
+    assert_int_equal(strcmp(keyid, "242A3AA5EA85F44A"), 0);
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_t signer = NULL;
+    assert_rnp_success(rnp_signature_get_signer(sig, &signer));
+    assert_non_null(signer);
+    assert_rnp_success(rnp_key_get_keyid(signer, &keyid));
+    assert_non_null(keyid);
+    assert_int_equal(strcmp(keyid, "242A3AA5EA85F44A"), 0);
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_destroy(signer);
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
+    // subkey must have one signature
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_rnp_success(rnp_key_get_signature_count(subkey, &sigs));
+    assert_int_equal(sigs, 1);
+    assert_rnp_success(rnp_key_get_signature_at(subkey, 0, &sig));
+    assert_rnp_success(rnp_signature_get_creation(sig, &creation));
+    assert_int_equal(creation, 1549119513);
+    assert_rnp_success(rnp_signature_get_alg(sig, &alg));
+    assert_int_equal(strcmp(alg, "ECDSA"), 0);
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_hash_alg(sig, &alg));
+    assert_int_equal(strcmp(alg, "SHA384"), 0);
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_signature_get_keyid(sig, &keyid));
+    assert_non_null(keyid);
+    assert_int_equal(strcmp(keyid, "242A3AA5EA85F44A"), 0);
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_signature_get_signer(sig, &signer));
+    assert_non_null(signer);
+    assert_rnp_success(rnp_key_get_keyid(signer, &keyid));
+    assert_non_null(keyid);
+    assert_int_equal(strcmp(keyid, "242A3AA5EA85F44A"), 0);
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_destroy(signer);
+    rnp_key_handle_destroy(subkey);
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
+    assert_rnp_success(rnp_uid_handle_destroy(uid));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
