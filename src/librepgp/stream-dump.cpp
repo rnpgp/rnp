@@ -1114,10 +1114,10 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
           dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, hdr.tag, msg);
 
         if (ctx->dump_packets) {
-            size_t rlen = hdr.pkt_len + hdr.hdr_len;
-            bool   part = false;
+            ssize_t rlen = hdr.pkt_len + hdr.hdr_len;
+            bool    part = false;
 
-            if (!hdr.pkt_len || (rlen > 1024 + hdr.hdr_len)) {
+            if (!hdr.pkt_len || ((size_t) rlen > 1024 + hdr.hdr_len)) {
                 rlen = 1024 + hdr.hdr_len;
                 part = true;
             }
