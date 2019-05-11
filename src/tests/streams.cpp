@@ -377,16 +377,17 @@ test_stream_signatures(void **state)
 void
 test_stream_signatures_revoked_key(void **state)
 {
-    pgp_signature_t   sig = {(pgp_version_t)0};
-    pgp_source_t      sigsrc = {0};
+    pgp_signature_t sig = {(pgp_version_t) 0};
+    pgp_source_t    sigsrc = {0};
 
     /* load signature */
-    assert_rnp_success(init_file_src(&sigsrc, "data/test_stream_signatures/revoked-key-sig.gpg"));
+    assert_rnp_success(
+      init_file_src(&sigsrc, "data/test_stream_signatures/revoked-key-sig.gpg"));
     assert_rnp_success(stream_parse_signature(&sigsrc, &sig));
     src_close(&sigsrc);
     /* get revocation */
     uint8_t code = 0;
-    char *reason = NULL;
+    char *  reason = NULL;
     assert_true(signature_get_revocation_reason(&sig, &code, &reason));
     assert_non_null(reason);
     /* check revocation */
