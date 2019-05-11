@@ -735,17 +735,19 @@ rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 
 /** Get key's user id handle by it's index.
  *  Note: user id handle may become invalid once corresponding user id or key is removed.
- * 
+ *
  * @param key key handle
  * @param idx zero-based index of the userid.
  * @param uid user id handle will be stored here on success. You must destroy it
  *            using the rnp_uid_handle_destroy().
  * @return RNP_SUCCESS or error code if failed.
  */
-rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *uid);
+rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t  key,
+                                       size_t            idx,
+                                       rnp_uid_handle_t *uid);
 
 /** Check whether user id is revoked.
- * 
+ *
  * @param uid user id handle, should not be NULL.
  * @param result boolean result will be stored here on success. Cannot be NULL.
  * @return RNP_SUCCESS or error code if failed.
@@ -753,8 +755,8 @@ rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid
 rnp_result_t rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result);
 
 /** Destroy previously allocated user id handle.
- * 
- * @param uid user id handle. 
+ *
+ * @param uid user id handle.
  * @return RNP_SUCCESS or error code
  */
 rnp_result_t rnp_uid_handle_destroy(rnp_uid_handle_t uid);
@@ -875,7 +877,7 @@ rnp_result_t rnp_key_allows_usage(rnp_key_handle_t key, const char *usage, bool 
 
 /**
  * @brief Get the key's creation time.
- * 
+ *
  * @param key key handle, should not be NULL.
  * @param result creation time will be stored here. Cannot be NULL.
  * @return RNP_SUCCESS or error code on failure.
@@ -885,7 +887,7 @@ rnp_result_t rnp_key_get_creation(rnp_key_handle_t key, uint32_t *result);
 /**
  * @brief Get the key's expiration time in seconds.
  *        Note: 0 means that the key doesn't expire.
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result expiration time will be stored here. Could not be NULL.
  * @return RNP_SUCCESS or error code on failure.
@@ -894,7 +896,7 @@ rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *result);
 
 /**
  * @brief Check whether key is revoked.
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result on success result will be stored here. Could not be NULL.
  * @return RNP_SUCCESS or error code on failure.
@@ -903,7 +905,7 @@ rnp_result_t rnp_key_is_revoked(rnp_key_handle_t key, bool *result);
 
 /**
  * @brief Get textual description of the key's revocation reason (if any)
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result on success pointer to the NULL-terminated string will be stored here.
  *               You must free it later using rnp_buffer_destroy() function.
@@ -913,7 +915,7 @@ rnp_result_t rnp_key_get_revocation_reason(rnp_key_handle_t key, char **result);
 
 /**
  * @brief Check whether revoked key was superseded by other key.
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result on success result will be stored here. Could not be NULL.
  * @return RNP_SUCCESS or error code on failure.
@@ -922,7 +924,7 @@ rnp_result_t rnp_key_is_superseded(rnp_key_handle_t key, bool *result);
 
 /**
  * @brief Check whether revoked key's material was compromised.
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result on success result will be stored here. Could not be NULL.
  * @return RNP_SUCCESS or error code on failure.
@@ -931,7 +933,7 @@ rnp_result_t rnp_key_is_compromised(rnp_key_handle_t key, bool *result);
 
 /**
  * @brief Check whether revoked key was retired.
- * 
+ *
  * @param key key handle, should not be NULL
  * @param result on success result will be stored here. Could not be NULL.
  * @return RNP_SUCCESS or error code on failure.
