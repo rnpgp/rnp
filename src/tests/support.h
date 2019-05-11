@@ -54,6 +54,8 @@ bool file_exists(const char *path);
  */
 bool file_empty(const char *path);
 
+off_t file_size(const char *path);
+
 /* Check if a directory exists */
 bool dir_exists(const char *path);
 

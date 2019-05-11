@@ -4473,3 +4473,78 @@ test_ffi_revocations(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+#define KEY_OUT_PATH "exported-key.asc"
+
+void
+test_ffi_file_output(void **state)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load two keys
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256-pub.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p521-pub.asc"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+
+    rnp_key_handle_t k256 = NULL;
+    rnp_key_handle_t k521 = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &k256));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p521", &k521));
+
+    rnp_output_t output = NULL;
+    // test output to path - must overwrite if exists
+    assert_rnp_success(rnp_output_to_path(&output, KEY_OUT_PATH));
+    assert_rnp_success(rnp_key_export(
+      k256, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_true(file_exists(KEY_OUT_PATH));
+    off_t sz = file_size(KEY_OUT_PATH);
+    assert_rnp_success(rnp_output_to_path(&output, KEY_OUT_PATH));
+    assert_rnp_success(rnp_key_export(
+      k521, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_true(file_exists(KEY_OUT_PATH));
+    assert_true(sz != file_size(KEY_OUT_PATH));
+    sz = file_size(KEY_OUT_PATH);
+    // test output to file - will fail without overwrite
+    assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0));
+    // fail with wrong flags
+    assert_rnp_failure(rnp_output_to_file(&output, KEY_OUT_PATH, 0x100));
+    // test output to random file - will succeed on creation and export but fail on finish.
+    assert_rnp_success(rnp_output_to_file(&output, KEY_OUT_PATH, RNP_OUTPUT_FILE_RANDOM));
+    assert_true(file_size(KEY_OUT_PATH) == sz);
+    assert_rnp_success(
+      rnp_key_export(k256, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_failure(rnp_output_finish(output));
+    assert_rnp_success(rnp_output_destroy(output));
+    // test output with random + overwrite - will succeed
+    assert_rnp_success(rnp_output_to_file(
+      &output, KEY_OUT_PATH, RNP_OUTPUT_FILE_RANDOM | RNP_OUTPUT_FILE_OVERWRITE));
+    assert_true(file_size(KEY_OUT_PATH) == sz);
+    assert_rnp_success(
+      rnp_key_export(k256, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_finish(output));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_true(file_size(KEY_OUT_PATH) != sz);
+    sz = file_size(KEY_OUT_PATH);
+    // test output with just overwrite - will succeed
+    assert_rnp_success(rnp_output_to_file(&output, KEY_OUT_PATH, RNP_OUTPUT_FILE_OVERWRITE));
+    assert_true(file_size(KEY_OUT_PATH) == 0);
+    assert_rnp_success(
+      rnp_key_export(k521, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_finish(output));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_true(file_size(KEY_OUT_PATH) != sz);
+    assert_int_equal(unlink(KEY_OUT_PATH), 0);
+    // cleanup
+    assert_rnp_success(rnp_key_handle_destroy(k256));
+    assert_rnp_success(rnp_key_handle_destroy(k521));
+    rnp_ffi_destroy(ffi);
+}
