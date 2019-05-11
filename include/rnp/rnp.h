@@ -1387,7 +1387,7 @@ rnp_result_t rnp_input_destroy(rnp_input_t input);
 
 /**
  * @brief Initialize output structure to write to a path. If path is a file
- * that already exists then operation will fail.
+ * that already exists then it will be overwritten.
  *
  * @param output pointer to the opaque output structure.
  * @param path path to the file.
