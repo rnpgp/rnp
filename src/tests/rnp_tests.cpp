@@ -237,6 +237,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_pkt_dump),
       cmocka_unit_test(test_ffi_load_userattr),
       cmocka_unit_test(test_ffi_revocations),
+      cmocka_unit_test(test_ffi_file_output),
       cmocka_unit_test(test_cli_rnp),
       cmocka_unit_test(test_cli_rnp_keyfile),
       cmocka_unit_test(test_cli_g10_operations),
