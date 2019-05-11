@@ -72,6 +72,12 @@ typedef uint32_t rnp_result_t;
 #define RNP_LOAD_SAVE_SECRET_KEYS (1U << 1)
 
 /**
+ * Flags for output structure creation.
+ */
+#define RNP_OUTPUT_FILE_OVERWRITE (1U << 0)
+#define RNP_OUTPUT_FILE_RANDOM (1U << 1)
+
+/**
  * Return a constant string describing the result code
  */
 const char *rnp_result_to_string(rnp_result_t result);
@@ -1397,6 +1403,21 @@ rnp_result_t rnp_input_destroy(rnp_input_t input);
 rnp_result_t rnp_output_to_path(rnp_output_t *output, const char *path);
 
 /**
+ * @brief Initialize structure to write to a file.
+ *        Note: it doesn't allow output to directory like rnp_output_to_path does, but
+ *        allows additional options to be specified.
+ *        When RNP_OUTPUT_FILE_RANDOM flag is included then you may want to call
+ *        rnp_output_finish() to make sure that final rename succeeded.
+ * @param output pointer to the opaque output structure. After use you must free it using the
+ *               rnp_output_destroy() function.
+ * @param path path to the file.
+ * @param flags additional flags, see RNP_OUTPUT_* flags.
+ * @return RNP_SUCCESS if file was opened successfully and ready for writing or error code
+ *         otherwise.
+ */
+rnp_result_t rnp_output_to_file(rnp_output_t *output, const char *path, uint32_t flags);
+
+/**
  * @brief Initialize output structure to write to the memory.
  *
  * @param output pointer to the opaque output structure.
@@ -1443,6 +1464,17 @@ rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
  * @return RNP_SUCCESS if operation succeeded or error code otherwise.
  */
 rnp_result_t rnp_output_to_null(rnp_output_t *output);
+
+/**
+ * @brief Finish writing to the output.
+ *        Note: on most output types you'll need just to call rnp_output_destroy().
+ *        However, for file output with RNP_OUTPUT_FILE_RANDOM flag, you need to call this
+ *        to make sure that rename from random to required name succeeded.
+ *
+ * @param output pointer to the opaque output structure.
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
+rnp_result_t rnp_output_finish(rnp_output_t output);
 
 /**
  * @brief Close previously opened output and free all associated data.
