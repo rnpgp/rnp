@@ -1369,6 +1369,43 @@ rnp_output_to_path(rnp_output_t *output, const char *path)
 }
 
 rnp_result_t
+rnp_output_to_file(rnp_output_t *output, const char *path, uint32_t flags)
+{
+    if (!output || !path) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    bool overwrite = false;
+    bool random = false;
+    if (flags & RNP_OUTPUT_FILE_OVERWRITE) {
+        overwrite = true;
+        flags &= ~RNP_OUTPUT_FILE_OVERWRITE;
+    }
+    if (flags & RNP_OUTPUT_FILE_RANDOM) {
+        random = true;
+        flags &= ~RNP_OUTPUT_FILE_RANDOM;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
+    if (!res) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    if (random) {
+        ret = init_tmpfile_dest(&res->dst, path, overwrite);
+    } else {
+        ret = init_file_dest(&res->dst, path, overwrite);
+    }
+    if (ret) {
+        free(res);
+        return ret;
+    }
+    *output = res;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
 {
     // checks
@@ -1482,6 +1519,15 @@ rnp_output_to_callback(rnp_output_t *       output,
     dst->writeb = 0;
     dst->werr = RNP_SUCCESS;
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_output_finish(rnp_output_t output)
+{
+    if (!output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return dst_finish(&output->dst);
 }
 
 rnp_result_t
