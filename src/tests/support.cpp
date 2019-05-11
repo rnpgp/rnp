@@ -103,6 +103,19 @@ file_contents(const char *path, ssize_t *size)
     return mem;
 }
 
+off_t
+file_size(const char *path)
+{
+    struct stat path_stat;
+    if (stat(path, &path_stat) != -1) {
+        if (S_ISDIR(path_stat.st_mode)) {
+            return -1;
+        }
+        return path_stat.st_size;
+    }
+    return -1;
+}
+
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
  * Must be called in between va_start and va_end.

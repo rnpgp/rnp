@@ -99,19 +99,6 @@ test_stream_memory(void **state)
     free(mown);
 }
 
-static int
-file_size(const char *path)
-{
-    struct stat path_stat;
-    if (stat(path, &path_stat) != -1) {
-        if (S_ISDIR(path_stat.st_mode)) {
-            return -1;
-        }
-        return (int) path_stat.st_size;
-    }
-    return -1;
-}
-
 static void
 copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
 {
