@@ -612,6 +612,40 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     return added_key;
 }
 
+pgp_key_t *
+rnp_key_store_import_key(rnp_key_store_t *        keyring,
+                         pgp_key_t *              srckey,
+                         bool                     pubkey,
+                         pgp_key_import_status_t *status)
+{
+    pgp_key_t  keycp = {};
+    pgp_key_t *exkey = NULL;
+    size_t     expackets = 0;
+    bool       changed = false;
+
+    /* add public key */
+    if (pgp_key_copy(&keycp, srckey, pubkey)) {
+        RNP_LOG("failed to create key copy");
+        return NULL;
+    }
+    exkey = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
+    expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
+    if (!(exkey = rnp_key_store_add_key(keyring, &keycp))) {
+        RNP_LOG("failed to add key to the keyring");
+        pgp_key_free_data(&keycp);
+        return NULL;
+    }
+
+    changed = pgp_key_get_rawpacket_count(exkey) > expackets;
+    if (status) {
+        *status = changed ?
+                    (expackets ? PGP_KEY_IMPORT_STATUS_UPDATED : PGP_KEY_IMPORT_STATUS_NEW) :
+                    PGP_KEY_IMPORT_STATUS_UNCHANGED;
+    }
+
+    return exkey;
+}
+
 bool
 rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
 {
