@@ -302,9 +302,21 @@ rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
  * @param ffi
  * @param flags choose which keys should be unloaded (pubic, secret or both).
  *              See RNP_UNLOAD_PUBLIC_KEYS/RNP_UNLOAD_SECRET_KEYS.
- * @return rnp_result_t 0 on success, or any other value on error.
+ * @return 0 on success, or any other value on error.
  */
 rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
+
+/** import keys to the keyring and receive JSON list of the new/updated keys.
+ *  Note: this will work only with keys in OpenPGP format, use rnp_load_keys for other formats.
+ * @param ffi
+ * @param input source to read from. Cannot be NULL.
+ * @param flags see RNP_LOAD_SAVE_* constants.
+ * @param results if not NULL then after the successfull execution will contain JSON with
+ *                information about new and updated keys. You must free it using the
+ *                rnp_buffer_destroy() function.
+ * @return 0 on success, or any other value on error.
+ */
+rnp_result_t rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results);
 
 /** save keys
  *
