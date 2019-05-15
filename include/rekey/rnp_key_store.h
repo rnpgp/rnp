@@ -114,6 +114,14 @@ typedef enum key_store_format_t {
     G10_KEY_STORE,
 } key_store_format_t;
 
+/* Key import status. Order of elements is important. */
+typedef enum pgp_key_import_status_t {
+    PGP_KEY_IMPORT_STATUS_UNKNOWN = 0,
+    PGP_KEY_IMPORT_STATUS_UNCHANGED,
+    PGP_KEY_IMPORT_STATUS_UPDATED,
+    PGP_KEY_IMPORT_STATUS_NEW,
+} pgp_key_import_status_t;
+
 #define RNP_KEYSTORE_GPG "GPG" /* GPG keystore format */
 #define RNP_KEYSTORE_KBX "KBX" /* KBX keystore format */
 #define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
@@ -149,6 +157,11 @@ pgp_key_t *rnp_key_store_get_key(const rnp_key_store_t *, size_t);
 list       rnp_key_store_get_keys(const rnp_key_store_t *);
 
 pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *, pgp_key_t *);
+
+pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
+                                    pgp_key_t *,
+                                    bool,
+                                    pgp_key_import_status_t *);
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
 bool rnp_key_store_remove_key_by_id(rnp_key_store_t *, const uint8_t *);
