@@ -51,6 +51,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include "utils.h"
+#include "json_utils.h"
 #include "version.h"
 
 struct rnp_key_handle_st {
@@ -356,6 +357,12 @@ static const pgp_map_t armor_type_map[] = {{PGP_ARMORED_MESSAGE, "message"},
                                            {PGP_ARMORED_SECRET_KEY, "secret key"},
                                            {PGP_ARMORED_SIGNATURE, "signature"},
                                            {PGP_ARMORED_CLEARTEXT, "cleartext"}};
+
+static const pgp_map_t key_import_status_map[] = {
+  {PGP_KEY_IMPORT_STATUS_UNKNOWN, "unknown"},
+  {PGP_KEY_IMPORT_STATUS_UNCHANGED, "unchanged"},
+  {PGP_KEY_IMPORT_STATUS_UPDATED, "updated"},
+  {PGP_KEY_IMPORT_STATUS_NEW, "new"}};
 
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
@@ -1090,6 +1097,151 @@ rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags)
     }
 
     return RNP_SUCCESS;
+}
+
+static const char *
+key_status_to_str(pgp_key_import_status_t status)
+{
+    if (status == PGP_KEY_IMPORT_STATUS_UNKNOWN) {
+        return "none";
+    }
+    const char *str = "none";
+    ARRAY_LOOKUP_BY_ID(key_import_status_map, type, string, status, str);
+    return str;
+}
+
+static rnp_result_t
+add_key_status(json_object *           keys,
+               const pgp_key_t *       key,
+               pgp_key_import_status_t pub,
+               pgp_key_import_status_t sec)
+{
+    const pgp_fingerprint_t *fp = pgp_key_get_fp(key);
+
+    json_object *jsokey = json_object_new_object();
+    if (!jsokey) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (!obj_add_field_json(
+          jsokey, "public", json_object_new_string(key_status_to_str(pub))) ||
+        !obj_add_field_json(
+          jsokey, "secret", json_object_new_string(key_status_to_str(sec))) ||
+        !obj_add_hex_json(jsokey, "fingerprint", fp->fingerprint, fp->length) ||
+        !array_add_element_json(keys, jsokey)) {
+        json_object_put(jsokey);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results)
+{
+    if (!ffi || !input) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    bool sec = false;
+    bool pub = false;
+    if (flags & RNP_LOAD_SAVE_SECRET_KEYS) {
+        sec = true;
+        flags &= ~RNP_LOAD_SAVE_SECRET_KEYS;
+    }
+    if (flags & RNP_LOAD_SAVE_PUBLIC_KEYS) {
+        pub = true;
+        flags &= ~RNP_LOAD_SAVE_PUBLIC_KEYS;
+    }
+    if (!pub && !sec) {
+        FFI_LOG(ffi, "bad flags: need to specify public and/or secret keys");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (flags) {
+        FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    rnp_result_t     ret = RNP_ERROR_GENERIC;
+    rnp_key_store_t *tmp_store = NULL;
+    rnp_result_t     tmpret;
+    json_object *    jsores = NULL;
+    json_object *    jsokeys = NULL;
+
+    // load keys to temporary keystore.
+    tmp_store = rnp_key_store_new(RNP_KEYSTORE_GPG, "");
+    if (!tmp_store) {
+        FFI_LOG(ffi, "Failed to create key store.");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    tmpret = load_keys_from_input(ffi, input, tmp_store);
+    if (tmpret) {
+        ret = tmpret;
+        goto done;
+    }
+    jsores = json_object_new_object();
+    if (!jsores) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+    jsokeys = json_object_new_array();
+    if (!obj_add_field_json(jsores, "keys", jsokeys)) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    // import keys to the main keystore.
+    for (list_item *ki = list_front(rnp_key_store_get_keys(tmp_store)); ki;
+         ki = list_next(ki)) {
+        pgp_key_t *             key = (pgp_key_t *) ki;
+        pgp_key_import_status_t pub_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
+        pgp_key_import_status_t sec_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
+        if (pgp_key_is_public(key) && !pub) {
+            continue;
+        }
+        // if we got here then we add public key itself or public part of the secret key
+        if (!rnp_key_store_import_key(ffi->pubring, key, true, &pub_status)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
+        // import secret key part if available and requested
+        if (sec && pgp_key_is_secret(key)) {
+            if (!rnp_key_store_import_key(ffi->secring, key, false, &sec_status)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+            // add uids, certifications and other stuff from the public key if any
+            pgp_key_t *expub =
+              rnp_key_store_get_key_by_grip(ffi->pubring, pgp_key_get_grip(key));
+            if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                goto done;
+            }
+        }
+        // now add key fingerprint to json based on statuses
+        if ((tmpret = add_key_status(jsokeys, key, pub_status, sec_status))) {
+            ret = tmpret;
+            goto done;
+        }
+    }
+
+    if (results) {
+        *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
+        if (!*results) {
+            goto done;
+        }
+        *results = strdup(*results);
+        if (!*results) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+    }
+
+    ret = RNP_SUCCESS;
+done:
+    rnp_key_store_free(tmp_store);
+    json_object_put(jsores);
+    return ret;
 }
 
 static bool
