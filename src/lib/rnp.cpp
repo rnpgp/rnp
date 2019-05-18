@@ -331,6 +331,8 @@ static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, "MD5"},
                                          {PGP_HASH_SHA384, "SHA384"},
                                          {PGP_HASH_SHA512, "SHA512"},
                                          {PGP_HASH_SHA224, "SHA224"},
+                                         {PGP_HASH_SHA3_256, "SHA3-256"},
+                                         {PGP_HASH_SHA3_512, "SHA3-512"},
                                          {PGP_HASH_SM3, "SM3"},
                                          {PGP_HASH_CRC24, "CRC24"}};
 
