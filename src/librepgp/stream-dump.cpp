@@ -1838,6 +1838,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
             goto done;
         }
+        if (key.sec_protection.s2k.usage &&
+            !obj_add_intstr_json(
+              material, "symmetric algorithm", key.sec_protection.symm_alg, symm_alg_map)) {
+            goto done;
+        }
     }
 
     if (pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key) ||
