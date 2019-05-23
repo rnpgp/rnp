@@ -45,6 +45,7 @@
 #include "list.h"
 #include "crypto.h"
 #include "utils.h"
+#include "json_utils.h"
 
 static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_RESERVED, "Reserved"},
@@ -1278,49 +1279,6 @@ finish:
     return ret;
 }
 
-/* Shortcut function to add field checking it for null to avoid allocation failure.
-   Please note that it deallocates val on failure. */
-static bool
-obj_add_field_json(json_object *obj, const char *name, json_object *val)
-{
-    if (!val) {
-        return false;
-    }
-    // TODO: in JSON-C 0.13 json_object_object_add returns bool instead of void
-    json_object_object_add(obj, name, val);
-    if (!json_object_object_get_ex(obj, name, NULL)) {
-        json_object_put(val);
-        return false;
-    }
-
-    return true;
-}
-
-static bool
-obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
-{
-    if (val_len > 1024 * 1024) {
-        RNP_LOG("too large json hex field: %zu", val_len);
-        val_len = 1024 * 1024;
-    }
-
-    char   smallbuf[64] = {0};
-    size_t hexlen = val_len * 2 + 1;
-
-    char *hexbuf = hexlen < sizeof(smallbuf) ? smallbuf : (char *) malloc(hexlen);
-    if (!hexbuf) {
-        return false;
-    }
-
-    bool res = rnp_hex_encode(val, val_len, hexbuf, hexlen, RNP_HEX_LOWERCASE) &&
-               obj_add_field_json(obj, name, json_object_new_string(hexbuf));
-
-    if (hexbuf != smallbuf) {
-        free(hexbuf);
-    }
-    return res;
-}
-
 static bool
 obj_add_intstr_json(json_object *obj, const char *name, int val, pgp_map_t map[])
 {
@@ -1349,19 +1307,6 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool 
     }
     snprintf(strname, sizeof(strname), "%s.raw", name);
     return obj_add_hex_json(obj, strname, mpi->mpi, mpi->len);
-}
-
-static bool
-array_add_element_json(json_object *obj, json_object *val)
-{
-    if (!val) {
-        return false;
-    }
-    if (json_object_array_add(obj, val)) {
-        json_object_put(val);
-        return false;
-    }
-    return true;
 }
 
 static bool
