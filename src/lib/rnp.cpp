@@ -422,6 +422,18 @@ str_to_aead_alg(const char *str, pgp_aead_alg_t *aead_alg)
 }
 
 static bool
+str_to_compression_alg(const char *str, pgp_compression_type_t *zalg)
+{
+    pgp_compression_type_t alg = PGP_C_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, str, alg);
+    if (alg == PGP_C_UNKNOWN) {
+        return false;
+    }
+    *zalg = alg;
+    return true;
+}
+
+static bool
 str_to_cipher_mode(const char *str, pgp_cipher_mode_t *mode)
 {
     pgp_cipher_mode_t c_mode = PGP_CIPHER_MODE_NONE;
@@ -1773,8 +1785,7 @@ rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, i
     }
 
     pgp_compression_type_t zalg = PGP_C_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, zalg);
-    if (zalg == PGP_C_UNKNOWN) {
+    if (!str_to_compression_alg(compression, &zalg)) {
         FFI_LOG(ffi, "Invalid compression: %s", compression);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -2947,9 +2958,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
                     return false;
                 }
                 pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
-                ARRAY_LOOKUP_BY_STRCASE(
-                  compress_alg_map, string, type, json_object_get_string(item), z_alg);
-                if (z_alg == PGP_C_UNKNOWN) {
+                if (!str_to_compression_alg(json_object_get_string(item), &z_alg)) {
                     return false;
                 }
                 if (!pgp_user_prefs_add_z_alg(prefs, z_alg)) {
@@ -4035,8 +4044,7 @@ rnp_op_generate_add_pref_compression(rnp_op_generate_t op, const char *compressi
         return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
-    ARRAY_LOOKUP_BY_STRCASE(compress_alg_map, string, type, compression, z_alg);
-    if (z_alg == PGP_C_UNKNOWN) {
+    if (!str_to_compression_alg(compression, &z_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (!pgp_user_prefs_add_z_alg(&op->cert.prefs, z_alg)) {
