@@ -216,6 +216,8 @@ void test_ffi_keys_import(void **state);
 
 void test_ffi_calculate_iterations(void **state);
 
+void test_ffi_supported_features(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
