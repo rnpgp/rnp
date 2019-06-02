@@ -294,6 +294,31 @@ rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **f
  */
 rnp_result_t rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations);
 
+/** Check whether rnp supports specific feature (algorithm, elliptic curve, whatever else).
+ *
+ * @param type string with the feature type:
+ *             - 'symmetric algorithm'
+ *             - 'aead algorithm'
+ *             - 'protection mode'
+ *             - 'public key algorithm'
+ *             - 'hash algorithm'
+ *             - 'compression algorithm'
+ *             - 'elliptic curve'
+ * @param name value of the feature to check whether it is supported.
+ * @param supported will contain true or false depending whether feature is supported or not.
+ * @return 0 on success or any other value on error.
+ */
+rnp_result_t rnp_supports_feature(const char *type, const char *name, bool *supported);
+
+/** Get the JSON with array of supported rnp feature values (algorithms, curves, etc) by type.
+ *
+ * @param type type of the feature. See rnp_supports_feature() function for possible values.
+ * @param result after successfull execution will contain the JSON with supported feature
+ * values. You must destroy it using the rnp_destroy_buffer() function.
+ * @return 0 on success or any other value on error.
+ */
+rnp_result_t rnp_supported_features(const char *type, char **result);
+
 /** load keys
  *
  * Note that for G10, the input must be a directory (which must already exist).

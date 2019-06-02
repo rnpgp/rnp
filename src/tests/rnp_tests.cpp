@@ -241,6 +241,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_key_signatures),
       cmocka_unit_test(test_ffi_keys_import),
       cmocka_unit_test(test_ffi_calculate_iterations),
+      cmocka_unit_test(test_ffi_supported_features),
       cmocka_unit_test(test_cli_rnp),
       cmocka_unit_test(test_cli_rnp_keyfile),
       cmocka_unit_test(test_cli_g10_operations),

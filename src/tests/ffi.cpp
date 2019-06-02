@@ -4876,3 +4876,189 @@ test_ffi_calculate_iterations(void **state)
     assert_rnp_success(rnp_calculate_iterations("sha256", 500, &iterations));
     assert_true(iterations > 65536);
 }
+
+static bool
+check_features(const char *type, const char *json, size_t count)
+{
+    json_object *features = json_tokener_parse(json);
+    if (!features) {
+        return false;
+    }
+    bool res = false;
+    if (!json_object_is_type(features, json_type_array)) {
+        goto done;
+    }
+    if (json_object_array_length(features) != count) {
+        RNP_LOG("wrong feature count for %s", type);
+        goto done;
+    }
+    for (size_t i = 0; i < count; i++) {
+        json_object *val = json_object_array_get_idx(features, i);
+        const char * str = json_object_get_string(val);
+        bool         supported = false;
+        if (!str || rnp_supports_feature(type, str, &supported) || !supported) {
+            goto done;
+        }
+    }
+
+    res = true;
+done:
+    json_object_put(features);
+    return res;
+}
+
+void
+test_ffi_supported_features(void **state)
+{
+    char *features = NULL;
+    /* some edge cases */
+    assert_rnp_failure(rnp_supported_features(NULL, &features));
+    assert_rnp_failure(rnp_supported_features("something", NULL));
+    assert_rnp_failure(rnp_supported_features("symmetric algorithm", NULL));
+    assert_rnp_failure(rnp_supported_features("something", &features));
+    /* symmetric algorithms */
+    assert_rnp_success(rnp_supported_features("Symmetric Algorithm", &features));
+    assert_non_null(features);
+    assert_true(check_features("symmetric algorithm", features, 12));
+    rnp_buffer_destroy(features);
+    bool supported = false;
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "idea", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "TRIPLEDES", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "CAST5", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "BLOWFISH", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "AES128", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "AES192", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "AES256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "TWOFISH", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "CAMELLIA128", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "CAMELLIA192", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "CAMELLIA256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "SM4", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "wrong", &supported));
+    assert_false(supported);
+    /* aead algorithms */
+    assert_rnp_success(rnp_supported_features("aead algorithm", &features));
+    assert_non_null(features);
+    assert_true(check_features("aead algorithm", features, 2));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature("aead algorithm", "eax", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("aead algorithm", "ocb", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("aead algorithm", "wrong", &supported));
+    assert_false(supported);
+    /* protection mode */
+    assert_rnp_success(rnp_supported_features("protection mode", &features));
+    assert_non_null(features);
+    assert_true(check_features("protection mode", features, 1));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature("protection mode", "cfb", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("protection mode", "wrong", &supported));
+    assert_false(supported);
+    /* public key algorithm */
+    assert_rnp_success(rnp_supported_features("public key algorithm", &features));
+    assert_non_null(features);
+    assert_true(check_features("public key algorithm", features, 7));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "rsa", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "DSA", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ElGamal", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ECDSA", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ECDH", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "EDDSA", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "SM2", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "wrong", &supported));
+    assert_false(supported);
+    /* hash algorithm */
+    assert_rnp_success(rnp_supported_features("hash algorithm", &features));
+    assert_non_null(features);
+    assert_true(check_features("hash algorithm", features, 10));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "md5", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "RIPEMD160", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA384", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA512", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA224", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA3-256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA3-512", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "SM3", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "wrong", &supported));
+    assert_false(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "CRC24", &supported));
+    assert_false(supported);
+    /* compression algorithm */
+    assert_rnp_success(rnp_supported_features("compression algorithm", &features));
+    assert_non_null(features);
+    assert_true(check_features("compression algorithm", features, 4));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(
+      rnp_supports_feature("compression algorithm", "Uncompressed", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("compression algorithm", "Zlib", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("compression algorithm", "ZIP", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("compression algorithm", "BZIP2", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("compression algorithm", "wrong", &supported));
+    assert_false(supported);
+    /* elliptic curve */
+    assert_rnp_success(rnp_supported_features("elliptic curve", &features));
+    assert_non_null(features);
+    assert_true(check_features("elliptic curve", features, 10));
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "NIST P-256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "NIST P-384", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "NIST P-521", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "ed25519", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "curve25519", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "brainpoolP256r1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "brainpoolP384r1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "brainpoolP512r1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "secp256k1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "SM2 P-256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("elliptic curve", "wrong", &supported));
+    assert_false(supported);
+}
