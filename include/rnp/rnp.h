@@ -282,6 +282,18 @@ rnp_result_t rnp_detect_homedir_info(
  */
 rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format);
 
+/** Get the number of s2k hash iterations, based on calculation time requested.
+ *  Number of iterations is used to derive encryption key from password.
+ * 
+ * @param hash hash algorithm to try
+ * @param msec number of milliseconds which will be needed to derive key from the password.
+ *             Since it depends on CPU speed the calculated value will make sense only for the
+ *             system it was calculated for.
+ * @param iterations approximate number of iterations to satisfy time complexity.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations);
+
 /** load keys
  *
  * Note that for G10, the input must be a directory (which must already exist).

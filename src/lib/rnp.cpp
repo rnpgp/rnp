@@ -914,6 +914,21 @@ done:
     return ret;
 }
 
+rnp_result_t
+rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations)
+{
+    if (!hash || !iterations) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_hash_alg_t halg = PGP_HASH_UNKNOWN;
+    if (!str_to_hash_alg(hash, &halg)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    *iterations = pgp_s2k_compute_iters(halg, msec, 0);
+    return RNP_SUCCESS;
+}
+
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
