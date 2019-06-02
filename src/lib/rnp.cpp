@@ -929,6 +929,121 @@ rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations)
     return RNP_SUCCESS;
 }
 
+rnp_result_t
+rnp_supports_feature(const char *type, const char *name, bool *supported)
+{
+    if (!type || !name || !supported) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!rnp_strcasecmp(type, "symmetric algorithm")) {
+        pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
+        *supported = str_to_cipher(name, &alg);
+    } else if (!rnp_strcasecmp(type, "aead algorithm")) {
+        pgp_aead_alg_t alg = PGP_AEAD_UNKNOWN;
+        *supported = str_to_aead_alg(name, &alg);
+    } else if (!rnp_strcasecmp(type, "protection mode")) {
+        // for now we support only CFB for key encryption
+        *supported = rnp_strcasecmp(name, "CFB") == 0;
+    } else if (!rnp_strcasecmp(type, "public key algorithm")) {
+        pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+        *supported = str_to_pubkey_alg(name, &alg);
+    } else if (!rnp_strcasecmp(type, "hash algorithm")) {
+        pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+        *supported = str_to_hash_alg(name, &alg) && (alg != PGP_HASH_CRC24);
+    } else if (!rnp_strcasecmp(type, "compression algorithm")) {
+        pgp_compression_type_t alg = PGP_C_UNKNOWN;
+        *supported = str_to_compression_alg(name, &alg);
+    } else if (!rnp_strcasecmp(type, "elliptic curve")) {
+        pgp_curve_t curve = PGP_CURVE_UNKNOWN;
+        *supported = curve_str_to_type(name, &curve);
+    } else {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
+json_array_add_map_str(json_object *arr, const pgp_map_t *map, int from, int to)
+{
+    while (map->string) {
+        if (map->type < from) {
+            map++;
+            continue;
+        }
+        if (!array_add_element_json(arr, json_object_new_string(map->string))) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        if (map->type >= to) {
+            break;
+        }
+        map++;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_supported_features(const char *type, char **result)
+{
+    if (!type || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    json_object *features = json_object_new_array();
+    if (!features) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
+
+    if (!rnp_strcasecmp(type, "symmetric algorithm")) {
+        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_SM4);
+    } else if (!rnp_strcasecmp(type, "aead algorithm")) {
+        ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_EAX, PGP_AEAD_OCB);
+    } else if (!rnp_strcasecmp(type, "protection mode")) {
+        ret = json_array_add_map_str(
+          features, cipher_mode_map, PGP_CIPHER_MODE_CFB, PGP_CIPHER_MODE_CFB);
+    } else if (!rnp_strcasecmp(type, "public key algorithm")) {
+        // workaround to avoid duplicates, maybe there is a better solution
+        (void) json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_RSA, PGP_PKA_RSA);
+        ret = json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_SM2);
+    } else if (!rnp_strcasecmp(type, "hash algorithm")) {
+        ret = json_array_add_map_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SM3);
+    } else if (!rnp_strcasecmp(type, "compression algorithm")) {
+        ret = json_array_add_map_str(features, compress_alg_map, PGP_C_NONE, PGP_C_BZIP2);
+    } else if (!rnp_strcasecmp(type, "elliptic curve")) {
+        for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
+             curve = (pgp_curve_t)(curve + 1)) {
+            const ec_curve_desc_t *desc = get_curve_desc(curve);
+            if (!desc) {
+                ret = RNP_ERROR_BAD_STATE;
+                goto done;
+            }
+            if (!array_add_element_json(features, json_object_new_string(desc->pgp_name))) {
+                ret = RNP_ERROR_OUT_OF_MEMORY;
+                goto done;
+            }
+        }
+        ret = RNP_SUCCESS;
+    }
+
+    if (ret) {
+        goto done;
+    }
+
+    *result = (char *) json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY);
+    if (!*result) {
+        ret = RNP_ERROR_BAD_STATE;
+        goto done;
+    }
+    *result = strdup(*result);
+    if (!*result) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+    }
+done:
+    json_object_put(features);
+    return ret;
+}
+
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
