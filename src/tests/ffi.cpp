@@ -4868,3 +4868,11 @@ test_ffi_keys_import(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_calculate_iterations(void **state)
+{
+    size_t iterations = 0;
+    assert_rnp_success(rnp_calculate_iterations("sha256", 500, &iterations));
+    assert_true(iterations > 65536);
+}
