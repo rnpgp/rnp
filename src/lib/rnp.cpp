@@ -409,6 +409,19 @@ str_to_hash_alg(const char *str, pgp_hash_alg_t *hash_alg)
 }
 
 static bool
+str_to_aead_alg(const char *str, pgp_aead_alg_t *aead_alg)
+{
+    pgp_aead_alg_t alg = PGP_AEAD_UNKNOWN;
+    ARRAY_LOOKUP_BY_STRCASE(aead_alg_map, string, type, str, alg);
+    if (alg == PGP_AEAD_UNKNOWN) {
+        return false;
+    }
+
+    *aead_alg = alg;
+    return true;
+}
+
+static bool
 str_to_cipher_mode(const char *str, pgp_cipher_mode_t *mode)
 {
     pgp_cipher_mode_t c_mode = PGP_CIPHER_MODE_NONE;
@@ -1980,10 +1993,7 @@ rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    op->rnpctx.aalg = PGP_AEAD_NONE;
-    ARRAY_LOOKUP_BY_STRCASE(aead_alg_map, string, type, alg, op->rnpctx.aalg);
-
-    if ((op->rnpctx.aalg == PGP_AEAD_NONE) && strcmp(alg, aead_alg_map[0].string)) {
+    if (!str_to_aead_alg(alg, &op->rnpctx.aalg)) {
         FFI_LOG(op->ffi, "Invalid AEAD algorithm: %s", alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
