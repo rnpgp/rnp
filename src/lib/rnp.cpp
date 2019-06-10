@@ -2964,7 +2964,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     } else {
         // subkeys flag is only valid for primary
         if (export_subs) {
-            FFI_LOG(handle->ffi, "export with subkeys requested but key is primary");
+            FFI_LOG(handle->ffi, "export with subkeys requested but key is not primary");
             return RNP_ERROR_BAD_PARAMETERS;
         }
         // subkey, write the primary + this subkey only
