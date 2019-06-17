@@ -757,6 +757,12 @@ rnp_version_commit_timestamp()
 }
 
 rnp_result_t
+rnp_enable_debug(const char *file)
+{
+    return rnp_set_debug(file) ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+}
+
+rnp_result_t
 rnp_get_default_homedir(char **homedir)
 {
     // checks
