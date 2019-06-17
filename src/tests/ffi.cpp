@@ -5062,3 +5062,17 @@ test_ffi_supported_features(void **state)
     assert_rnp_success(rnp_supports_feature("elliptic curve", "wrong", &supported));
     assert_false(supported);
 }
+
+void
+test_ffi_enable_debug(void **state)
+{
+    assert_rnp_success(rnp_enable_debug("dummy.c"));
+    assert_rnp_success(rnp_enable_debug("1.c"));
+    assert_true(rnp_get_debug("dummy.c"));
+    assert_true(rnp_get_debug("1.c"));
+    assert_false(rnp_get_debug("dummy"));
+    /* NULL enables debug for all sources */
+    assert_rnp_success(rnp_enable_debug(NULL));
+    assert_true(rnp_get_debug("anything"));
+    assert_rnp_success(rnp_enable_debug("all"));
+}
