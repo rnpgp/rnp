@@ -135,6 +135,14 @@ uint32_t rnp_version_patch(uint32_t version);
  **/
 uint64_t rnp_version_commit_timestamp();
 
+/** Enable debugging for the specified source file. Use 'all' or NULL as parameter to
+ *  enable debug for all sources.
+ *  Note: this must be only used during development since may print out confidential data.
+ *
+ * @param file name of the sourcer file. Use 'all' to enable debug for all code.
+ */
+rnp_result_t rnp_enable_debug(const char *file);
+
 /*
  * Opaque structures
  */
@@ -284,7 +292,7 @@ rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **f
 
 /** Get the number of s2k hash iterations, based on calculation time requested.
  *  Number of iterations is used to derive encryption key from password.
- * 
+ *
  * @param hash hash algorithm to try
  * @param msec number of milliseconds which will be needed to derive key from the password.
  *             Since it depends on CPU speed the calculated value will make sense only for the
