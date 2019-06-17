@@ -4972,6 +4972,37 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
 }
 
 rnp_result_t
+rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
+{
+    if (handle == NULL || grip == NULL) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!pgp_key_is_subkey(key)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_key_get_primary_grip(key)) {
+        *grip = NULL;
+        return RNP_SUCCESS;
+    }
+    size_t hex_len = PGP_KEY_GRIP_SIZE * 2 + 1;
+    *grip = (char *) malloc(hex_len);
+    if (*grip == NULL) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!rnp_hex_encode(pgp_key_get_primary_grip(key),
+                        PGP_KEY_GRIP_SIZE,
+                        *grip,
+                        hex_len,
+                        RNP_HEX_UPPERCASE)) {
+        free(*grip);
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
 {
     if (!handle || !usage || !result) {

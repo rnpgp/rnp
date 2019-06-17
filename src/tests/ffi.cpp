@@ -5083,3 +5083,69 @@ test_ffi_enable_debug(void **state)
     /* need to clean it up afterwards - otherwise tests will go crazy */
     assert_rnp_success(rnp_disable_debug());
 }
+
+void
+test_ffi_rnp_key_get_primary_grip(void **state)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_key_handle_t key = NULL;
+    char *           grip = NULL;
+
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+
+    // locate primary key
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", &key));
+    assert_non_null(key);
+
+    // some edge cases
+    assert_rnp_failure(rnp_key_get_primary_grip(NULL, NULL));
+    assert_rnp_failure(rnp_key_get_primary_grip(NULL, &grip));
+    assert_rnp_failure(rnp_key_get_primary_grip(key, NULL));
+    assert_rnp_failure(rnp_key_get_primary_grip(key, &grip));
+    assert_null(grip);
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 1
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ED63EE56FADC34D", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_grip(key, &grip));
+    assert_non_null(grip);
+    assert_int_equal(strcmp(grip, "66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA"), 0);
+    rnp_buffer_destroy(grip);
+    grip = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 2
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1D7E8A5393C997A8", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_grip(key, &grip));
+    assert_non_null(grip);
+    assert_int_equal(strcmp(grip, "66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA"), 0);
+    rnp_buffer_destroy(grip);
+    grip = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 3
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8A05B89FAD5ADED1", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_grip(key, &grip));
+    assert_non_null(grip);
+    assert_int_equal(strcmp(grip, "66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA"), 0);
+    rnp_buffer_destroy(grip);
+    grip = NULL;
+    rnp_key_handle_destroy(key);
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
