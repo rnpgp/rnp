@@ -1033,6 +1033,17 @@ rnp_result_t rnp_key_get_keyid(rnp_key_handle_t key, char **keyid);
 rnp_result_t rnp_key_get_grip(rnp_key_handle_t key, char **grip);
 
 /**
+ * @brief Get primary's key grip for the subkey, if available.
+ *
+ * @param key key handle, should not be NULL
+ * @param grip pointer to the NULL-terminated string with hex-encoded key grip or NULL will be
+ *        stored here, depending whether primary key is available or not.
+ *        You must free it later using rnp_buffer_destroy function.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_get_primary_grip(rnp_key_handle_t key, char **grip);
+
+/**
  * @brief Check whether certain usage type is allowed for the key.
  *
  * @param key key handle, should not be NULL
