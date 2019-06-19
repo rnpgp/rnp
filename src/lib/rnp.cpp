@@ -763,6 +763,13 @@ rnp_enable_debug(const char *file)
 }
 
 rnp_result_t
+rnp_disable_debug()
+{
+    rnp_clear_debug();
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_get_default_homedir(char **homedir)
 {
     // checks

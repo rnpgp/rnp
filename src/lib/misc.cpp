@@ -199,7 +199,7 @@ rnp_set_debug(const char *f)
         return false;
     }
     debugv[debugc++] = strdup(name);
-    return true;
+    return debugv[debugc - 1] != NULL;
 }
 
 /* get the debugging level per filename */
@@ -224,6 +224,16 @@ rnp_get_debug(const char *f)
         }
     }
     return false;
+}
+
+void
+rnp_clear_debug()
+{
+    for (int i = 0; i < debugc; i++) {
+        free(debugv[i]);
+        debugv[i] = NULL;
+    }
+    debugc = 0;
 }
 
 /* return the version for the library */
