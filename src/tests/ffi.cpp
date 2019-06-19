@@ -4347,6 +4347,39 @@ test_ffi_pkt_dump(void **state)
 }
 
 void
+test_ffi_rsa_v3_dump(void **state)
+{
+    rnp_input_t input = NULL;
+    char *      json = NULL;
+
+    /* dump rsav3 key to json via FFI */
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/4/rsav3-p.asc"));
+    assert_rnp_success(rnp_dump_packets_to_json(input, RNP_JSON_DUMP_GRIP, &json));
+    rnp_input_destroy(input);
+    /* parse dump */
+    json_object *jso = json_tokener_parse(json);
+    rnp_buffer_destroy(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    json_object *rsapkt = json_object_array_get_idx(jso, 0);
+    assert_non_null(rsapkt);
+    assert_true(json_object_is_type(rsapkt, json_type_object));
+    /* check algorithm string */
+    json_object *fld = json_object_object_get(rsapkt, "algorithm.str");
+    assert_non_null(fld);
+    const char *str = json_object_get_string(fld);
+    assert_non_null(str);
+    assert_int_equal(strcmp(str, "RSA (Encrypt or Sign)"), 0);
+    /* check fingerprint */
+    fld = json_object_object_get(rsapkt, "fingerprint");
+    assert_non_null(fld);
+    str = json_object_get_string(fld);
+    assert_non_null(str);
+    assert_int_equal(strcmp(str, "06a044022bb5aa7991077466aeba2ce7"), 0);
+    json_object_put(jso);
+}
+
+void
 test_ffi_load_userattr(void **state)
 {
     rnp_ffi_t   ffi = NULL;

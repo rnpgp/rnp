@@ -235,6 +235,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_key_export),
       cmocka_unit_test(test_ffi_key_dump),
       cmocka_unit_test(test_ffi_pkt_dump),
+      cmocka_unit_test(test_ffi_rsa_v3_dump),
       cmocka_unit_test(test_ffi_load_userattr),
       cmocka_unit_test(test_ffi_revocations),
       cmocka_unit_test(test_ffi_file_output),
