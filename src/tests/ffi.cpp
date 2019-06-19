@@ -5149,3 +5149,52 @@ test_ffi_rnp_key_get_primary_grip(void **state)
     // cleanup
     rnp_ffi_destroy(ffi);
 }
+
+void
+test_ffi_output_to_armor(void **state)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_output_t memory = NULL;
+    rnp_output_t armor = NULL;
+    rnp_input_t  input = NULL;
+
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+    assert_non_null(key);
+
+    assert_rnp_success(rnp_output_to_memory(&memory, 0));
+    /* some edge cases */
+    assert_rnp_failure(rnp_output_to_armor(NULL, &armor, "message"));
+    assert_null(armor);
+    assert_rnp_failure(rnp_output_to_armor(memory, NULL, "message"));
+    assert_null(armor);
+    assert_rnp_failure(rnp_output_to_armor(memory, &armor, "wrong"));
+    assert_null(armor);
+    /* export raw key to armored stream with 'message' header */
+    assert_rnp_success(rnp_output_to_armor(memory, &armor, "message"));
+    assert_rnp_success(rnp_key_export(key, armor, RNP_KEY_EXPORT_PUBLIC));
+    assert_rnp_success(rnp_output_destroy(armor));
+    uint8_t *buf = NULL;
+    size_t   buf_len = 0;
+    /* check contents to make sure it is correct armored stream */
+    assert_rnp_success(rnp_output_memory_get_buf(memory, &buf, &buf_len, false));
+    assert_non_null(buf);
+    const char *hdr = "-----BEGIN PGP MESSAGE-----";
+    assert_true(buf_len > strlen(hdr));
+    assert_int_equal(strncmp((char *) buf, hdr, strlen(hdr)), 0);
+    assert_rnp_success(rnp_input_from_memory(&input, buf, buf_len, false));
+    rnp_output_t memory2 = NULL;
+    assert_rnp_success(rnp_output_to_memory(&memory2, 0));
+    assert_rnp_success(rnp_dearmor(input, memory2));
+    rnp_output_destroy(memory2);
+    rnp_input_destroy(input);
+
+    rnp_key_handle_destroy(key);
+    rnp_output_destroy(memory);
+    rnp_ffi_destroy(ffi);
+}

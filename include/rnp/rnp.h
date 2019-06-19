@@ -1600,6 +1600,18 @@ rnp_result_t rnp_output_to_file(rnp_output_t *output, const char *path, uint32_t
 rnp_result_t rnp_output_to_memory(rnp_output_t *output, size_t max_alloc);
 
 /**
+ * @brief Output data to armored stream (and then output to other destination), allowing
+ *        streamed output.
+ *
+ * @param base initialized output structure, where armored data will be written to.
+ * @param output pointer to the opaque output structure. You must free it later using the
+ *               rnp_output_destroy() function.
+ * @param type type of the armored stream. See rnp_enarmor() for possible values.
+ * @return RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
+rnp_result_t rnp_output_to_armor(rnp_output_t base, rnp_output_t *output, const char *type);
+
+/**
  * @brief Get the pointer to the buffer of output, initialized by rnp_output_to_memory
  *
  * @param output output structure, initialized by rnp_output_to_memory and populated with data

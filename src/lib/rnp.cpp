@@ -1755,6 +1755,34 @@ rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
 }
 
 rnp_result_t
+rnp_output_to_armor(rnp_output_t base, rnp_output_t *output, const char *type)
+{
+    if (!base || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_armored_msg_t msgtype = PGP_ARMORED_MESSAGE;
+    if (type) {
+        msgtype = PGP_ARMORED_UNKNOWN;
+        ARRAY_LOOKUP_BY_STRCASE(armor_type_map, string, type, type, msgtype);
+        if (!msgtype) {
+            RNP_LOG("Unsupported armor type: %s", type);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    *output = (rnp_output_t) calloc(1, sizeof(**output));
+    if (!*output) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    rnp_result_t ret = init_armored_dst(&(*output)->dst, &base->dst, msgtype);
+    if (ret) {
+        free(*output);
+        *output = NULL;
+    }
+    (*output)->app_ctx = base;
+    return ret;
+}
+
+rnp_result_t
 rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool do_copy)
 {
     if (!output || !buf || !len) {
@@ -1862,6 +1890,9 @@ rnp_result_t
 rnp_output_destroy(rnp_output_t output)
 {
     if (output) {
+        if (output->dst.type == PGP_STREAM_ARMORED) {
+            ((rnp_output_t) output->app_ctx)->keep = output->keep;
+        }
         dst_close(&output->dst, !output->keep);
         free(output->dst_directory);
         free(output);
