@@ -204,6 +204,8 @@ void test_ffi_key_dump(void **state);
 
 void test_ffi_pkt_dump(void **state);
 
+void test_ffi_rsa_v3_dump(void **state);
+
 void test_ffi_load_userattr(void **state);
 
 void test_ffi_revocations(void **state);

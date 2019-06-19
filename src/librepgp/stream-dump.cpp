@@ -130,7 +130,7 @@ static pgp_map_t key_type_map[] = {
 };
 
 static pgp_map_t pubkey_alg_map[] = {
-  {PGP_PKA_RSA, "RSA"},
+  {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
   {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA (Encrypt-Only)"},
   {PGP_PKA_RSA_SIGN_ONLY, "RSA (Sign-Only)"},
   {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
@@ -1796,9 +1796,8 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 
     if (ctx->dump_grips) {
-        if ((key.version > PGP_V3) &&
-            (pgp_fingerprint(&keyfp, &key) ||
-             !obj_add_hex_json(pkt, "fingerprint", keyfp.fingerprint, keyfp.length))) {
+        if (pgp_fingerprint(&keyfp, &key) ||
+            !obj_add_hex_json(pkt, "fingerprint", keyfp.fingerprint, keyfp.length)) {
             goto done;
         }
 
