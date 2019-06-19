@@ -5074,5 +5074,12 @@ test_ffi_enable_debug(void **state)
     /* NULL enables debug for all sources */
     assert_rnp_success(rnp_enable_debug(NULL));
     assert_true(rnp_get_debug("anything"));
+    assert_rnp_success(rnp_disable_debug());
+    assert_false(rnp_get_debug("anything"));
+    assert_false(rnp_get_debug("dummy.c"));
+    assert_false(rnp_get_debug("1.c"));
     assert_rnp_success(rnp_enable_debug("all"));
+    assert_true(rnp_get_debug("anything other"));
+    /* need to clean it up afterwards - otherwise tests will go crazy */
+    assert_rnp_success(rnp_disable_debug());
 }

@@ -125,6 +125,7 @@ const char *pgp_str_from_map(int, pgp_map_t *);
 /* debugging, reflection and information */
 bool        rnp_set_debug(const char *);
 bool        rnp_get_debug(const char *);
+void        rnp_clear_debug();
 const char *rnp_get_info(const char *);
 
 /* Portable way to convert bits to bytes */
