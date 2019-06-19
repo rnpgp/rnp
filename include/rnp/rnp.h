@@ -143,6 +143,12 @@ uint64_t rnp_version_commit_timestamp();
  */
 rnp_result_t rnp_enable_debug(const char *file);
 
+/**
+ * @brief Disable previously enabled debug for all files.
+ *
+ */
+rnp_result_t rnp_disable_debug();
+
 /*
  * Opaque structures
  */
