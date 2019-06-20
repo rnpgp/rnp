@@ -9,5 +9,4 @@ brew "cmocka"
 brew "gnupg"
 brew "wget"
 brew "python@2"
-brew "ruby@2.5"
 
