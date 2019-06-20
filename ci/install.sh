@@ -255,7 +255,7 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
     build_gpg_stable 1.6  1.32         1.8.4     2.5.1     1.3.5   1.1.0    2.2.11
   elif [ "$GPG_VERSION" = "beta" ]; then
     #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_beta latest 377c1b9 f4d139b 66d2b7f eac43aa c37cdbd d0eaec8 e154fba
+    build_gpg_beta 0.20.1 377c1b9 f4d139b 66d2b7f eac43aa c37cdbd d0eaec8 e154fba
   else
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
