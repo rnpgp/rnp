@@ -117,6 +117,7 @@ cache:
 before_install:
   - . ci/env.inc.sh
   - ./ci/before_install.sh
+  - rvm use 2.4.6 --install --binary
 
 install:
   - travis_wait 50 ./ci/install.sh
