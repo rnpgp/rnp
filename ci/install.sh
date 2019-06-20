@@ -140,7 +140,7 @@ build_gpg_beta() {
 
   mkdir gettext
   pushd gettext
-  gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys D7E69871
+  gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 2E4616C2
   wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz"
   wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz.sig"
   gpg --verify "gettext-${GETTEXT_VERSION}.tar.xz.sig"
