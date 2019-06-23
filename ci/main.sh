@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -eux
 
+. ci/utils.inc.sh
+
 : "${RNP_TESTS:=all}"
 
 # check for use of uninitialized or unused vars in CMake
@@ -48,6 +50,7 @@ popd
 # don't run ruby-rnp tests when librnp is built with sanitizers (various issues)
 if [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
+  [[ "$(get_os)" = "macos" ]] && cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
   env CI=false \
       LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" \
       bundle exec rspec
