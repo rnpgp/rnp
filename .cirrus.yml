@@ -11,9 +11,10 @@ task:
     GPG_VERSION: stable
     LOCAL_BUILDS: /home/rnpuser/local-builds
     LOCAL_INSTALLS: /home/rnpuser/local-installs
+  install_script: pkg install -y git
   dependencies_cache:
     folder: $LOCAL_INSTALLS
-    fingerprint_script: cat ci/install.sh
+    fingerprint_script: cat ci/install.sh; git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
   script: |
     # add rnpuser
     pkg install -y sudo
