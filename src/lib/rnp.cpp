@@ -3885,6 +3885,26 @@ rnp_generate_key_sm2(rnp_ffi_t         ffi,
     return rnp_generate_key_ex(ffi, "SM2", "SM2", 0, 0, NULL, NULL, userid, password, key);
 }
 
+static pgp_key_flags_t
+default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+        return subkey ? PGP_KF_ENCRYPT : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+    case PGP_PKA_DSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+        return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+    case PGP_PKA_SM2:
+        return subkey ? PGP_KF_ENCRYPT : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ELGAMAL:
+        return PGP_KF_ENCRYPT;
+    default:
+        return PGP_KF_NONE;
+    }
+}
+
 rnp_result_t
 rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg)
 {
@@ -3915,6 +3935,7 @@ rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg)
     (*op)->primary = true;
     (*op)->crypto.key_alg = key_alg;
     (*op)->crypto.rng = &ffi->rng;
+    (*op)->cert.key_flags = default_key_flags(key_alg, false);
 
     return RNP_SUCCESS;
 }
@@ -3961,6 +3982,7 @@ rnp_op_generate_subkey_create(rnp_op_generate_t *op,
     (*op)->primary = false;
     (*op)->crypto.key_alg = key_alg;
     (*op)->crypto.rng = &ffi->rng;
+    (*op)->binding.key_flags = default_key_flags(key_alg, true);
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
 

@@ -1264,6 +1264,16 @@ test_ffi_key_generate_rsa(void **state)
     assert_rnp_success(rnp_key_get_bits(key, &bits));
     assert_int_equal(bits, 1024);
     assert_rnp_failure(rnp_key_get_dsa_qbits(key, &bits));
+    /* key flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
     /* curve - must fail */
     char *curve = NULL;
     assert_rnp_failure(rnp_key_get_curve(key, NULL));
@@ -1306,6 +1316,15 @@ test_ffi_key_generate_rsa(void **state)
     /* key bits */
     assert_rnp_success(rnp_key_get_bits(subkey, &bits));
     assert_int_equal(bits, 2048);
+    /* subkey flags */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -1358,6 +1377,16 @@ test_ffi_key_generate_dsa(void **state)
     assert_int_equal(bits, 1024);
     assert_rnp_success(rnp_key_get_dsa_qbits(key, &bits));
     assert_int_equal(bits, 160);
+    /* key flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
     /* user ids */
     size_t uids = 0;
     char * uid = NULL;
@@ -1390,6 +1419,15 @@ test_ffi_key_generate_dsa(void **state)
     /* key bits */
     assert_rnp_success(rnp_key_get_bits(subkey, &bits));
     assert_int_equal(bits, 1024);
+    /* subkey flags */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
     /* cleanup */
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -1445,6 +1483,16 @@ test_ffi_key_generate_ecdsa(void **state)
     assert_rnp_success(rnp_key_get_curve(key, &curve));
     assert_int_equal(strcasecmp(curve, "secp256k1"), 0);
     rnp_buffer_destroy(curve);
+    /* key flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
     /* user ids */
     size_t uids = 0;
     char * uid = NULL;
@@ -1482,6 +1530,15 @@ test_ffi_key_generate_ecdsa(void **state)
     assert_rnp_success(rnp_key_get_curve(subkey, &curve));
     assert_int_equal(strcasecmp(curve, "secp256k1"), 0);
     rnp_buffer_destroy(curve);
+    /* subkey flags */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
 
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -1524,6 +1581,16 @@ test_ffi_key_generate_eddsa(void **state)
     assert_rnp_success(rnp_key_get_curve(key, &curve));
     assert_int_equal(strcasecmp(curve, "ed25519"), 0);
     rnp_buffer_destroy(curve);
+    /* key flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
     /* user ids */
     size_t uids = 0;
     char * uid = NULL;
@@ -1561,6 +1628,15 @@ test_ffi_key_generate_eddsa(void **state)
     assert_rnp_success(rnp_key_get_curve(subkey, &curve));
     assert_int_equal(strcasecmp(curve, "Curve25519"), 0);
     rnp_buffer_destroy(curve);
+    /* subkey flags */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
 
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -1604,6 +1680,16 @@ test_ffi_key_generate_sm2(void **state)
     assert_rnp_success(rnp_key_get_curve(key, &curve));
     assert_int_equal(strcasecmp(curve, "SM2 P-256"), 0);
     rnp_buffer_destroy(curve);
+    /* key flags */
+    bool flag = false;
+    assert_rnp_success(rnp_key_allows_usage(key, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "certify", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "encrypt", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
+    assert_false(flag);
     /* user ids */
     size_t uids = 0;
     char * uid = NULL;
@@ -1641,6 +1727,15 @@ test_ffi_key_generate_sm2(void **state)
     assert_rnp_success(rnp_key_get_curve(subkey, &curve));
     assert_int_equal(strcasecmp(curve, "SM2 P-256"), 0);
     rnp_buffer_destroy(curve);
+    /* subkey flags */
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
 
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -1661,6 +1756,7 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
     assert_rnp_failure(rnp_op_generate_set_dsa_qbits(keygen, 256));
     /* key usage */
+    assert_rnp_success(rnp_op_generate_clear_usage(keygen));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "usage"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
@@ -1737,7 +1833,6 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_set_dsa_qbits(keygen, 224));
     /* key flags */
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
-    assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "certify"));
     /* these should not work for subkey */
     assert_rnp_failure(rnp_op_generate_clear_pref_ciphers(keygen));
