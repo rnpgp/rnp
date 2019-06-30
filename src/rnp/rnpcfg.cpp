@@ -328,7 +328,7 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
 }
 
 const char *
-rnp_cfg_gethashalg(rnp_cfg_t *cfg)
+rnp_cfg_gethashalg(const rnp_cfg_t *cfg)
 {
     const char *hash_alg = rnp_cfg_getstr(cfg, CFG_HASH);
     if (hash_alg) {
@@ -338,13 +338,13 @@ rnp_cfg_gethashalg(rnp_cfg_t *cfg)
 }
 
 int
-rnp_cfg_getint(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_getint(const rnp_cfg_t *cfg, const char *key)
 {
     return rnp_cfg_getint_default(cfg, key, 0);
 }
 
 int
-rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
+rnp_cfg_getint_default(const rnp_cfg_t *cfg, const char *key, int def)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
@@ -365,7 +365,7 @@ rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def)
 }
 
 bool
-rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key)
+rnp_cfg_getbool(const rnp_cfg_t *cfg, const char *key)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
@@ -448,7 +448,7 @@ rnp_cfg_free(rnp_cfg_t *cfg)
 }
 
 int
-rnp_cfg_get_pswdtries(rnp_cfg_t *cfg)
+rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg)
 {
     const char *numtries;
     int         num;

@@ -172,7 +172,7 @@ const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
  *
  *  @return integer value or 0 if there is no value or it is non-integer
  **/
-int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
+int rnp_cfg_getint(const rnp_cfg_t *cfg, const char *key);
 
 /** @brief return boolean value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
@@ -180,7 +180,7 @@ int rnp_cfg_getint(rnp_cfg_t *cfg, const char *key);
  *
  *  @return true if 'true', 'True', or non-zero integer is stored in value, false otherwise
  **/
-bool rnp_cfg_getbool(rnp_cfg_t *cfg, const char *key);
+bool rnp_cfg_getbool(const rnp_cfg_t *cfg, const char *key);
 
 /** @brief return list value for the key if there is one. Each list's element contains
  *  rnp_cfg_val_t element with the corresponding value. List may be modified.
@@ -218,7 +218,7 @@ const char *rnp_cfg_val_getstr(rnp_cfg_val_t *val);
  *
  *  @return integer value or def if there is no value or it is non-integer
  **/
-int rnp_cfg_getint_default(rnp_cfg_t *cfg, const char *key, int def);
+int rnp_cfg_getint_default(const rnp_cfg_t *cfg, const char *key, int def);
 
 /** @brief Copies or overrides configuration
  *  @param dst resulting configuration object
@@ -234,7 +234,7 @@ void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
  *  @param cfg [in] rnp config, must be allocated and initialized
  *  @return desired hash algorithm, or default value if not set by user
  */
-const char *rnp_cfg_gethashalg(rnp_cfg_t *cfg);
+const char *rnp_cfg_gethashalg(const rnp_cfg_t *cfg);
 
 /** @brief Fill the keyring pathes according to user-specified settings
  *  @param cfg [in] rnp config, must be allocated and initialized
@@ -255,7 +255,7 @@ void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
  *  @param cfg allocated and initalized config
  *  @return number of password tries or INFINITE_ATTEMPTS
  */
-int rnp_cfg_get_pswdtries(rnp_cfg_t *cfg);
+int rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg);
 
 /* rnp CLI helper functions */
 
