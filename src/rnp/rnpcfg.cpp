@@ -166,7 +166,7 @@ rnp_cfg_val_copy(rnp_cfg_val_t *dst, rnp_cfg_val_t *src)
         break;
     case RNP_CFG_VAL_STRING:
         dst->type = RNP_CFG_VAL_STRING;
-        if (!(dst->val._string = strdup(src->val._string))) {
+        if (src->val._string && !(dst->val._string = strdup(src->val._string))) {
             return false;
         }
         break;
