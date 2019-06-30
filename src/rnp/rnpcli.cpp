@@ -111,10 +111,13 @@ disable_core_dumps(void)
 #endif
 
 static bool
-set_pass_fd(rnp_t *rnp, int passfd)
+set_pass_fd(FILE **file, int passfd)
 {
-    rnp->passfp = fdopen(passfd, "r");
-    if (!rnp->passfp) {
+    if (!file) {
+        return false;
+    }
+    *file = fdopen(passfd, "r");
+    if (!*file) {
         RNP_LOG("cannot open fd %d for reading", passfd);
         return false;
     }
@@ -141,14 +144,14 @@ rnp_key_provider_keyring(const pgp_key_request_ctx_t *ctx, void *userdata)
 
 /* Initialize a rnp_t structure */
 rnp_result_t
-rnp_init(rnp_t *rnp, const rnp_params_t *params)
+rnp_init(rnp_t *rnp, const rnp_cfg_t *cfg)
 {
     bool coredumps = true;
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
      */
-    if (!params->enable_coredumps) {
+    if (!rnp_cfg_getbool(cfg, CFG_COREDUMPS)) {
 #ifdef HAVE_SYS_RESOURCE_H
         coredumps = disable_core_dumps() != RNP_SUCCESS;
 #endif
@@ -161,12 +164,13 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     }
 
     /* Configure the results stream. */
-    if (!params->ress || !strcmp(params->ress, "<stderr>")) {
+    const char *ress = rnp_cfg_getstr(cfg, CFG_IO_RESS);
+    if (!ress || !strcmp(ress, "<stderr>")) {
         rnp->resfp = stderr;
-    } else if (strcmp(params->ress, "<stdout>") == 0) {
+    } else if (strcmp(ress, "<stdout>") == 0) {
         rnp->resfp = stdout;
-    } else if (!(rnp->resfp = fopen(params->ress, "w"))) {
-        fprintf(stderr, "cannot open results %s for writing\n", params->ress);
+    } else if (!(rnp->resfp = fopen(ress, "w"))) {
+        fprintf(stderr, "cannot open results %s for writing\n", ress);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -179,40 +183,38 @@ rnp_init(rnp_t *rnp, const rnp_params_t *params)
     rnp->password_provider.userdata = NULL;
 
     // setup file/pipe password input if requested
-    if (params->passfd >= 0) {
-        if (!set_pass_fd(rnp, params->passfd)) {
+    if (rnp_cfg_getint_default(cfg, CFG_PASSFD, -1) >= 0) {
+        if (!set_pass_fd(&rnp->passfp, rnp_cfg_getint(cfg, CFG_PASSFD))) {
             return RNP_ERROR_GENERIC;
         }
         rnp->password_provider.callback = rnp_password_provider_file;
         rnp->password_provider.userdata = rnp->passfp;
     }
 
-    if (params->password_provider.callback) {
-        rnp->password_provider = params->password_provider;
-    }
-
-    if (params->userinputfd >= 0) {
-        rnp->user_input_fp = fdopen(params->userinputfd, "r");
-        if (!rnp->user_input_fp) {
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    }
-
     rnp->pswdtries = MAX_PASSWORD_ATTEMPTS;
 
     /* set keystore type and pathes */
-    if (params->pubpath) {
-        rnp->pubring = rnp_key_store_new(params->ks_pub_format, params->pubpath);
-        if (rnp->pubring == NULL) {
+    if (rnp_cfg_getstr(cfg, CFG_KR_PUB_PATH) && rnp_cfg_getstr(cfg, CFG_KR_PUB_FORMAT)) {
+        rnp->pubring = rnp_key_store_new(rnp_cfg_getstr(cfg, CFG_KR_PUB_FORMAT),
+                                         rnp_cfg_getstr(cfg, CFG_KR_PUB_PATH));
+        if (!rnp->pubring) {
             RNP_LOG("can't create empty pubring keystore");
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
-    if (params->secpath) {
-        rnp->secring = rnp_key_store_new(params->ks_sec_format, params->secpath);
-        if (rnp->secring == NULL) {
+    if (rnp_cfg_getstr(cfg, CFG_KR_SEC_PATH) && rnp_cfg_getstr(cfg, CFG_KR_SEC_FORMAT)) {
+        rnp->secring = rnp_key_store_new(rnp_cfg_getstr(cfg, CFG_KR_SEC_FORMAT),
+                                         rnp_cfg_getstr(cfg, CFG_KR_SEC_PATH));
+        if (!rnp->secring) {
             RNP_LOG("can't create empty secring keystore");
             return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+    if (rnp_cfg_getstr(cfg, CFG_KR_DEF_KEY)) {
+        rnp->defkey = strdup(rnp_cfg_getstr(cfg, CFG_KR_DEF_KEY));
+        if (!rnp->defkey) {
+            RNP_LOG("defkey allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
@@ -294,29 +296,6 @@ rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
     }
 
     return true;
-}
-
-/* rnp_params_t : initialize and free internals */
-void
-rnp_params_init(rnp_params_t *params)
-{
-    memset(params, '\0', sizeof(*params));
-    params->passfd = -1;
-    params->userinputfd = -1;
-}
-
-void
-rnp_params_free(rnp_params_t *params)
-{
-    if (params->pubpath != NULL) {
-        free(params->pubpath);
-    }
-    if (params->secpath != NULL) {
-        free(params->secpath);
-    }
-    if (params->defkey != NULL) {
-        free(params->defkey);
-    }
 }
 
 /* resolve the userid */
@@ -1288,4 +1267,269 @@ rnp_validate_keys_signatures(rnp_t *rnp)
     }
 
     return valid ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+}
+
+/** @brief compose path from dir, subdir and filename, and store it in the res
+ *  @param dir [in] null-terminated directory path, cannot be NULL
+ *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
+ *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
+ *  @param res [out] preallocated buffer
+ *  @param res_size [in] size of output res buffer
+ *
+ *  @return true if path constructed successfully, or false otherwise
+ **/
+static bool
+rnp_path_compose(
+  const char *dir, const char *subdir, const char *filename, char *res, size_t res_size)
+{
+    int pos;
+
+    /* checking input parameters for conrrectness */
+    if (!dir || !filename || !res) {
+        return false;
+    }
+
+    /* concatenating dir, subdir and filename */
+    if (strlen(dir) > res_size - 1) {
+        return false;
+    }
+
+    strcpy(res, dir);
+    pos = strlen(dir);
+
+    if (subdir) {
+        if ((pos > 0) && (res[pos - 1] != '/')) {
+            res[pos++] = '/';
+        }
+
+        if (strlen(subdir) + pos > res_size - 1) {
+            return false;
+        }
+
+        strcpy(res + pos, subdir);
+        pos += strlen(subdir);
+    }
+
+    if ((pos > 0) && (res[pos - 1] != '/')) {
+        res[pos++] = '/';
+    }
+
+    if (strlen(filename) + pos > res_size - 1) {
+        return false;
+    }
+
+    strcpy(res + pos, filename);
+
+    return true;
+}
+
+/* helper function : get key storage subdir in case when user didn't specify homedir */
+static const char *
+rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir, const char *ksfmt)
+{
+    const char *subdir;
+
+    if (!defhomedir) {
+        subdir = NULL;
+    } else {
+        if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG)) == NULL) {
+            subdir = SUBDIRECTORY_RNP;
+        }
+    }
+
+    return subdir;
+}
+
+static bool
+rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
+{
+    bool        defhomedir = false;
+    const char *homedir;
+    const char *subdir;
+    const char *ks_format;
+    char        pubpath[MAXPATHLEN] = {0};
+    char        secpath[MAXPATHLEN] = {0};
+    struct stat st;
+
+    /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
+     * considered as the final path */
+    if (rnp_cfg_getint_default(cfg, CFG_KEYSTORE_DISABLED, 0)) {
+        if (!rnp_cfg_getstr(cfg, CFG_KEYFILE)) {
+            return true;
+        }
+
+        return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, "") &&
+               rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, "") &&
+               rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG) &&
+               rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
+    }
+
+    if (!(homedir = rnp_cfg_getstr(cfg, CFG_HOMEDIR))) {
+        homedir = getenv("HOME");
+        defhomedir = true;
+    }
+
+    /* detecting key storage format */
+    if (!(ks_format = rnp_cfg_getstr(cfg, CFG_KEYSTOREFMT))) {
+        if (!(subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG))) {
+            subdir = SUBDIRECTORY_RNP;
+        }
+        if (!rnp_path_compose(
+              homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath))) {
+            return false;
+        }
+        if (!rnp_path_compose(
+              homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath))) {
+            return false;
+        }
+
+        bool pubpath_exists = stat(pubpath, &st) == 0;
+        bool secpath_exists = stat(secpath, &st) == 0;
+
+        if (pubpath_exists && secpath_exists) {
+            ks_format = RNP_KEYSTORE_GPG21;
+        } else if (secpath_exists) {
+            ks_format = RNP_KEYSTORE_G10;
+        } else if (pubpath_exists) {
+            ks_format = RNP_KEYSTORE_KBX;
+        } else {
+            ks_format = RNP_KEYSTORE_GPG;
+        }
+    }
+
+    /* building pubring/secring pathes */
+    subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir, ks_format);
+
+    /* creating home dir if needed */
+    if (defhomedir && subdir) {
+        if (!rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath))) {
+            return false;
+        }
+        if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
+            RNP_LOG("cannot mkdir '%s' errno = %d", pubpath, errno);
+            return false;
+        }
+    }
+
+    const char *pub_format = RNP_KEYSTORE_GPG;
+    const char *sec_format = RNP_KEYSTORE_GPG;
+
+    if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath, sizeof(secpath))) {
+            return false;
+        }
+        pub_format = RNP_KEYSTORE_GPG;
+        sec_format = RNP_KEYSTORE_GPG;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
+            return false;
+        }
+        pub_format = RNP_KEYSTORE_KBX;
+        sec_format = RNP_KEYSTORE_G10;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath, sizeof(secpath))) {
+            return false;
+        }
+        pub_format = RNP_KEYSTORE_KBX;
+        sec_format = RNP_KEYSTORE_KBX;
+    } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
+        if (!rnp_path_compose(homedir, subdir, PUBRING_G10, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
+            return false;
+        }
+        pub_format = RNP_KEYSTORE_G10;
+        sec_format = RNP_KEYSTORE_G10;
+    } else {
+        RNP_LOG("unsupported keystore format: \"%s\"", ks_format);
+        return false;
+    }
+
+    return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, pubpath) &&
+           rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, secpath) &&
+           rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, pub_format) &&
+           rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, sec_format);
+}
+
+/* read any gpg config file */
+static bool
+conffile(const char *homedir, char *userid, size_t length)
+{
+    regmatch_t matchv[10];
+    regex_t    keyre;
+    char       buf[BUFSIZ];
+    FILE *     fp;
+
+    (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
+    if ((fp = fopen(buf, "r")) == NULL) {
+        return false;
+    }
+    (void) memset(&keyre, 0x0, sizeof(keyre));
+    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
+        RNP_LOG("failed to compile regular expression");
+        fclose(fp);
+        return false;
+    }
+    while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
+        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
+            (void) memcpy(userid,
+                          &buf[(int) matchv[1].rm_so],
+                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
+
+            (void) fprintf(stderr,
+                           "rnp: default key set to \"%.*s\"\n",
+                           (int) (matchv[1].rm_eo - matchv[1].rm_so),
+                           &buf[(int) matchv[1].rm_so]);
+        }
+    }
+    (void) fclose(fp);
+    regfree(&keyre);
+    return true;
+}
+
+static void
+rnp_cfg_set_defkey(rnp_cfg_t *cfg)
+{
+    char        id[MAX_ID_LENGTH];
+    const char *userid;
+    const char *homedir;
+    bool        defhomedir = false;
+
+    if ((homedir = rnp_cfg_getstr(cfg, CFG_HOMEDIR)) == NULL) {
+        homedir = getenv("HOME");
+        defhomedir = true;
+    }
+
+    /* If a userid has been given, we'll use it. */
+    if (!(userid = rnp_cfg_getstr(cfg, CFG_USERID))) {
+        /* also search in config file for default id */
+
+        if (defhomedir) {
+            memset(id, 0, sizeof(id));
+            conffile(homedir, id, sizeof(id));
+            if (id[0] != 0x0) {
+                rnp_cfg_setstr(cfg, CFG_USERID, id);
+                rnp_cfg_setstr(cfg, CFG_KR_DEF_KEY, id);
+            }
+        }
+    } else {
+        rnp_cfg_setstr(cfg, CFG_KR_DEF_KEY, userid);
+    }
+}
+
+bool
+rnp_cfg_set_keystore_info(rnp_cfg_t *cfg)
+{
+    /* detecting keystore pathes and format */
+    if (!rnp_cfg_set_ks_info(cfg)) {
+        RNP_LOG("cannot obtain keystore path(es)");
+        return false;
+    }
+
+    /* default key/userid */
+    rnp_cfg_set_defkey(cfg);
+
+    return true;
 }

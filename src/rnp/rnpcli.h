@@ -28,12 +28,13 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNP_H_
-#define RNP_H_
+#ifndef RNPCLI_H_
+#define RNPCLI_H_
 
 #include <stddef.h>
 #include <stdbool.h>
 #include "rnp.h"
+#include "rnpcfg.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -62,34 +63,22 @@ typedef struct rnp_t {
     rng_t                   rng; /* handle to rng_t */
 } rnp_t;
 
-/* rnp initialization parameters : keyring pathes, flags, whatever else */
-typedef struct rnp_params_t {
-    unsigned enable_coredumps; /* enable coredumps: if it is allowed then they are disabled by
-                                  default to not leak confidential information */
-
-    int         passfd; /* password file descriptor */
-    int         userinputfd;
-    const char *ress; /* results stream : maye be <stdout>, <stderr> or file name/path */
-
-    const char *ks_pub_format;     /* format of the public key store */
-    const char *ks_sec_format;     /* format of the secret key store */
-    char *      pubpath;           /* public keystore path */
-    char *      secpath;           /* secret keystore path */
-    char *      defkey;            /* default/preferred key id */
-    bool        keystore_disabled; /* indicates wether keystore must be initialized */
-    pgp_password_provider_t password_provider;
-} rnp_params_t;
-
 /* initialize rnp using the init structure  */
-rnp_result_t rnp_init(rnp_t *, const rnp_params_t *);
+rnp_result_t rnp_init(rnp_t *, const rnp_cfg_t *);
 /* finish work with rnp and cleanup the memory */
 void rnp_end(rnp_t *);
 /* load keys */
 bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
 
-/* rnp initialization parameters : init and free */
-void rnp_params_init(rnp_params_t *);
-void rnp_params_free(rnp_params_t *);
+/**
+ * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring pathes, types and
+ *        default key.
+ *
+ * @param cfg pointer to the allocated rnp_cfg_t structure
+ * @return true on success or false otherwise.
+ * @return false
+ */
+bool rnp_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
 /* set key store format information */
 int rnp_set_key_store_format(rnp_t *, const char *);
@@ -143,4 +132,4 @@ rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
 }
 #endif
 
-#endif /* !RNP_H_ */
+#endif /* !RNPCLI_H_ */
