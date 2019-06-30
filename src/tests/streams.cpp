@@ -1184,22 +1184,22 @@ test_stream_key_signature_validate(void **state)
 void
 test_stream_verify_no_key(void **state)
 {
-    rnp_ctx_t    ctx = {0};
-    rnp_t        rnp = {0};
-    rnp_params_t params = {0};
-    uint8_t *    data;
-    ssize_t      len;
-    uint8_t *    out_data;
-    size_t       out_alloc = 256 * 1024;
-    size_t       out_len;
+    rnp_ctx_t ctx = {0};
+    rnp_t     rnp = {0};
+    rnp_cfg_t cfg = {};
+    uint8_t * data;
+    ssize_t   len;
+    uint8_t * out_data;
+    size_t    out_alloc = 256 * 1024;
+    size_t    out_len;
 
     /* setup rnp structure and params */
-    rnp_params_init(&params);
-    params.pubpath = strdup("");
-    params.secpath = strdup("");
-    params.ks_pub_format = RNP_KEYSTORE_GPG;
-    params.ks_sec_format = RNP_KEYSTORE_GPG;
-    assert_rnp_success(rnp_init(&rnp, &params));
+    rnp_cfg_init(&cfg);
+    rnp_cfg_setstr(&cfg, CFG_KR_PUB_PATH, "");
+    rnp_cfg_setstr(&cfg, CFG_KR_SEC_PATH, "");
+    rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
+    rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
+    assert_rnp_success(rnp_init(&rnp, &cfg));
 
     /* load signed and encrypted data */
     out_data = (uint8_t *) malloc(out_alloc);
@@ -1237,7 +1237,7 @@ test_stream_verify_no_key(void **state)
 
     /* cleanup */
     rnp_ctx_free(&ctx);
-    rnp_params_free(&params);
+    rnp_cfg_free(&cfg);
     rnp_end(&rnp);
     free(out_data);
     free(data);
