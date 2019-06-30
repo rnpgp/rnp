@@ -431,28 +431,29 @@ end:
 bool
 setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
 {
-    int          res;
-    char         pubpath[MAXPATHLEN];
-    char         secpath[MAXPATHLEN];
-    char         homepath[MAXPATHLEN];
-    rnp_params_t params = {0};
+    int       res;
+    char      pubpath[MAXPATHLEN];
+    char      secpath[MAXPATHLEN];
+    char      homepath[MAXPATHLEN];
+    rnp_cfg_t cfg = {};
 
-    rnp_params_init(&params);
+    rnp_cfg_init(&cfg);
 
     /* set password fd if any */
     if (pipefd) {
         if ((res = setupPasswordfd(pipefd)) != 1) {
             return res;
         }
-        params.passfd = pipefd[0];
+        rnp_cfg_setint(&cfg, CFG_PASSFD, pipefd[0]);
     }
     /* setup keyring pathes */
     if (homedir == NULL) {
         /* if we use default homedir then we append '.rnp' and create directory as well */
         homedir = getenv("HOME");
         paths_concat(homepath, sizeof(homepath), homedir, ".rnp", NULL);
-        if (!dir_exists(homepath))
+        if (!dir_exists(homepath)) {
             path_mkdir(0700, homepath, NULL);
+        }
         homedir = homepath;
     }
 
@@ -460,8 +461,8 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
         return false;
     }
 
-    params.ks_pub_format = ks_format;
-    params.ks_sec_format = ks_format;
+    rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, ks_format);
+    rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, ks_format);
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_GPG, NULL);
@@ -475,22 +476,21 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_KBX, NULL);
         paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
-        params.ks_pub_format = RNP_KEYSTORE_KBX;
-        params.ks_sec_format = RNP_KEYSTORE_G10;
+        rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_KBX);
+        rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_G10);
     } else {
         return false;
     }
 
-    params.pubpath = strdup(pubpath);
-    params.secpath = strdup(secpath);
+    rnp_cfg_setstr(&cfg, CFG_KR_PUB_PATH, pubpath);
+    rnp_cfg_setstr(&cfg, CFG_KR_SEC_PATH, secpath);
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
-    if (rnp_init(rnp, &params) != RNP_SUCCESS) {
+    if (rnp_init(rnp, &cfg) != RNP_SUCCESS) {
         return false;
     }
-    rnp_params_free(&params);
-
+    rnp_cfg_free(&cfg);
     return true;
 }
 

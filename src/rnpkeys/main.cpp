@@ -33,8 +33,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#include "rnp.h"
-#include "crypto.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 

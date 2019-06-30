@@ -841,13 +841,12 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
-    rnp_params_t rnp_params = {0};
-    rnp_t        rnp = {0};
-    rnp_cfg_t    cfg;
-    int          optindex;
-    int          ret = EXIT_ERROR;
-    int          ch;
-    int          i;
+    rnp_t     rnp = {0};
+    rnp_cfg_t cfg;
+    int       optindex;
+    int       ret = EXIT_ERROR;
+    int       ch;
+    int       i;
 
     if (argc < 2) {
         print_usage(usage);
@@ -945,20 +944,19 @@ rnp_main(int argc, char **argv)
     default:;
     }
 
-    rnp_params_init(&rnp_params);
-    if (!rnp_cfg_apply(&cfg, &rnp_params)) {
-        fputs("fatal: cannot apply configuration\n", stderr);
+    if (!rnp_cfg_set_keystore_info(&cfg)) {
+        fputs("fatal: cannot set keystore info\n", stderr);
         ret = EXIT_ERROR;
         goto finish;
     }
 
-    if (rnp_init(&rnp, &rnp_params) != RNP_SUCCESS) {
+    if (rnp_init(&rnp, &cfg) != RNP_SUCCESS) {
         fputs("fatal: cannot initialise\n", stderr);
         ret = EXIT_ERROR;
         goto finish;
     }
 
-    if (!rnp_params.keystore_disabled &&
+    if (!rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) &&
         !rnp_load_keyrings(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
         ret = EXIT_ERROR;
@@ -966,7 +964,7 @@ rnp_main(int argc, char **argv)
     }
 
     /* load the keyfile if any */
-    if (rnp_params.keystore_disabled && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
+    if (rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
         !rnp_add_key(&rnp, rnp_cfg_getstr(&cfg, CFG_KEYFILE), false)) {
         fputs("fatal: failed to load key(s) from the file\n", stderr);
         ret = EXIT_ERROR;
@@ -988,7 +986,6 @@ rnp_main(int argc, char **argv)
     }
 
 finish:
-    rnp_params_free(&rnp_params);
     rnp_cfg_free(&cfg);
     rnp_end(&rnp);
 
