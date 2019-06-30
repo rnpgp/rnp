@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include <sys/param.h>
+#include "../rnp/rnpcli.h"
 
 #define DEFAULT_RSA_NUMBITS 2048
 

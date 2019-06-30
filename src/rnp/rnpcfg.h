@@ -27,7 +27,8 @@
 #define RNP_CFG_H_
 
 #include <stdbool.h>
-#include "rnpcli.h"
+#include <stdint.h>
+#include "list.h"
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
@@ -78,6 +79,13 @@
 #define CFG_SECRET "secret"       /* indicates operation on secret key */
 #define CFG_WITH_SIGS "with-sigs" /* list keys with signatures */
 
+/* rnp keyring setup variables */
+#define CFG_KR_PUB_FORMAT "kr-pub-format"
+#define CFG_KR_SEC_FORMAT "kr-sec-format"
+#define CFG_KR_PUB_PATH "kr-pub-path"
+#define CFG_KR_SEC_PATH "kr-sec-path"
+#define CFG_KR_DEF_KEY "kr-def-key"
+
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
 typedef struct rnp_cfg_t {
@@ -96,15 +104,6 @@ void rnp_cfg_init(rnp_cfg_t *cfg);
  *  @param cfg allocated and initialized rnp_cfg_t structure
  **/
 void rnp_cfg_load_defaults(rnp_cfg_t *cfg);
-
-/** @brief apply configuration from keys-vals storage to rnp_params_t structure
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] this structure will be filled so can be further feed into rnp_init.
- *                Must be later freed using the rnp_params_free even if rnp_cfg_apply fails.
- *
- *  @return true on success, false if something went wrong
- **/
-bool rnp_cfg_apply(rnp_cfg_t *cfg, rnp_params_t *params);
 
 /** @brief set string value for the key in config
  *  @param cfg rnp config, must be allocated and initialized
@@ -235,21 +234,6 @@ void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
  *  @return desired hash algorithm, or default value if not set by user
  */
 const char *rnp_cfg_gethashalg(const rnp_cfg_t *cfg);
-
-/** @brief Fill the keyring pathes according to user-specified settings
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] in this structure public and secret keyring pathes  will be filled
- *  @return true on success or false if something went wrong
- */
-bool rnp_cfg_get_ks_info(rnp_cfg_t *cfg, rnp_params_t *params);
-
-/** @brief Attempt to get the default key id/name in a number of ways
- *  Tries to find via user-specified parameters and  GnuPG conffile.
- *
- *  @param cfg [in] rnp config, must be allocated and initialized
- *  @param params [out] in this structure defkey will be filled if found
- */
-void rnp_cfg_get_defkey(rnp_cfg_t *cfg, rnp_params_t *params);
 
 /** @brief Get number of password tries according to defaults and value, stored in cfg
  *  @param cfg allocated and initalized config

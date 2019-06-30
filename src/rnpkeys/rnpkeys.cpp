@@ -35,14 +35,10 @@
 #include <string.h>
 #include <stdarg.h>
 #include "rnp.h"
-#include "crypto.h"
 #include "pgp-key.h"
 #include "../rnp/rnpcfg.h"
 #include "../rnp/rnpcli.h"
 #include "rnpkeys.h"
-#include <librepgp/stream-common.h>
-#include <librepgp/stream-sig.h>
-#include <librepgp/packet-show.h>
 #include "utils.h"
 
 extern char *__progname;
@@ -490,10 +486,8 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 bool
 rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_generate_key)
 {
-    bool         ret = true;
-    rnp_params_t rnp_params;
+    bool ret = true;
 
-    rnp_params_init(&rnp_params);
     rnp_cfg_init(cfg);
 
     rnp_cfg_load_defaults(cfg);
@@ -504,13 +498,13 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
 
     memset(rnp, '\0', sizeof(rnp_t));
 
-    if (!rnp_cfg_apply(cfg, &rnp_params)) {
-        fputs("fatal: cannot apply configuration\n", stderr);
+    if (!rnp_cfg_set_keystore_info(cfg)) {
+        fputs("fatal: cannot set keystore info\n", stderr);
         ret = false;
         goto end;
     }
 
-    if (rnp_init(rnp, &rnp_params) != RNP_SUCCESS) {
+    if (rnp_init(rnp, cfg) != RNP_SUCCESS) {
         fputs("fatal: failed to initialize rnpkeys\n", stderr);
         ret = false;
         goto end;
@@ -524,7 +518,6 @@ rnpkeys_init(rnp_cfg_t *cfg, rnp_t *rnp, const rnp_cfg_t *override_cfg, bool is_
     }
 
 end:
-    rnp_params_free(&rnp_params);
     if (!ret) {
         rnp_cfg_free(cfg);
         rnp_end(rnp);
