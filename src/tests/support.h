@@ -43,6 +43,7 @@ extern "C" {
 
 #include "rnp.h"
 #include "../rnp/rnpcli.h"
+#include "../rnp/fficli.h"
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
@@ -140,9 +141,14 @@ bool setupPasswordfd(int *pipefd);
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * password fd */
 bool setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
+bool setup_cli_rnp_common(cli_rnp_t * rnp,
+                          const char *ks_format,
+                          const char *homedir,
+                          int *       pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
 void set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg);
+void cli_set_default_rsa_key_desc(rnp_cfg_t *cfg, const char *hash);
 
 // this is a password callback that will always fail
 bool failing_password_callback(const pgp_password_ctx_t *ctx,
