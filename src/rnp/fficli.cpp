@@ -489,6 +489,7 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
         /* userid itself with revocation status */
         fprintf(fp, "uid           %s", uid_str);
         fprintf(fp, "%s\n", revoked ? "[REVOKED]" : "");
+        rnp_buffer_destroy(uid_str);
 
         /* print signatures only if requested */
         if (!psigs) {
@@ -899,14 +900,17 @@ cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret)
         }
         /* check whether key is subkey */
         if (rnp_key_is_sub(handle, &is_subkey)) {
+            rnp_key_handle_destroy(handle);
             goto error;
         }
         if (is_subkey && rnp_key_get_primary_grip(handle, &primary_grip)) {
+            rnp_key_handle_destroy(handle);
             goto error;
         }
         /* if we have primary key then subkey will be printed together with primary */
         if (is_subkey && primary_grip) {
             rnp_buffer_destroy(primary_grip);
+            rnp_key_handle_destroy(handle);
             continue;
         }
 
@@ -961,6 +965,8 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
     rnp_output_t armor = NULL;
     const char * file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
     rnp_result_t ret;
+    uint32_t base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
+    bool     result = false;
 
     if (file) {
         uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
@@ -969,11 +975,9 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
         ret = rnp_output_to_callback(&output, stdout_write, NULL, NULL);
     }
     if (ret) {
-        return false;
+        goto done;
     }
 
-    uint32_t base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
-    bool     result = false;
     if (rnp_output_to_armor(output, &armor, secret ? "secret key" : "public key")) {
         goto done;
     }
@@ -989,7 +993,7 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
         }
 
         /* skip subkeys which have primary key */
-        if (!primary && rnp_key_get_primary_grip(key, &grip)) {
+        if (!primary && !rnp_key_get_primary_grip(key, &grip)) {
             if (grip) {
                 rnp_buffer_destroy(grip);
                 continue;
