@@ -1425,7 +1425,7 @@ test_stream_825_dearmor_blank_line(void **state)
 }
 
 static bool
-try_dearmor(const char *str, size_t len)
+try_dearmor(const char *str, int len)
 {
     pgp_source_t src = {};
     pgp_dest_t   dst = {};
