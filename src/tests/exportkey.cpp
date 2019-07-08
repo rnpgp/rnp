@@ -57,6 +57,7 @@ rnpkeys_exportkey_verifyUserId(void **state)
 
     list keys = cli_rnp_get_keylist(&rnp, getenv("LOGNAME"), false);
     assert_int_equal(list_length(keys), 2);
+    cli_rnp_keylist_destroy(&keys);
 
     /* Try to export the key with specified userid parameter from the env */
     assert_true(cli_rnp_export_keys(&cfg, &rnp, getenv("LOGNAME")));
