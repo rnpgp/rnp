@@ -428,23 +428,22 @@ end:
     return ok;
 }
 
-bool
-setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
+static bool
+setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *pipefd)
 {
-    int       res;
-    char      pubpath[MAXPATHLEN];
-    char      secpath[MAXPATHLEN];
-    char      homepath[MAXPATHLEN];
-    rnp_cfg_t cfg = {};
+    bool res;
+    char pubpath[MAXPATHLEN];
+    char secpath[MAXPATHLEN];
+    char homepath[MAXPATHLEN];
 
-    rnp_cfg_init(&cfg);
+    rnp_cfg_init(cfg);
 
     /* set password fd if any */
     if (pipefd) {
-        if ((res = setupPasswordfd(pipefd)) != 1) {
+        if (!(res = setupPasswordfd(pipefd))) {
             return res;
         }
-        rnp_cfg_setint(&cfg, CFG_PASSFD, pipefd[0]);
+        rnp_cfg_setint(cfg, CFG_PASSFD, pipefd[0]);
     }
     /* setup keyring pathes */
     if (homedir == NULL) {
@@ -461,8 +460,8 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
         return false;
     }
 
-    rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, ks_format);
-    rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, ks_format);
+    rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, ks_format);
+    rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, ks_format);
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_GPG, NULL);
@@ -476,22 +475,47 @@ setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pi
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_KBX, NULL);
         paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
-        rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_KBX);
-        rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_G10);
+        rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_KBX);
+        rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_G10);
     } else {
         return false;
     }
 
-    rnp_cfg_setstr(&cfg, CFG_KR_PUB_PATH, pubpath);
-    rnp_cfg_setstr(&cfg, CFG_KR_SEC_PATH, secpath);
+    rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, pubpath);
+    rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, secpath);
+    return true;
+}
+
+bool
+setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
+{
+    rnp_cfg_t cfg = {};
+
+    if (!setup_rnp_cfg(&cfg, ks_format, homedir, pipefd)) {
+        return false;
+    }
 
     /*initialize the basic RNP structure. */
     memset(rnp, '\0', sizeof(*rnp));
-    if (rnp_init(rnp, &cfg) != RNP_SUCCESS) {
+    bool res = rnp_init(rnp, &cfg) == RNP_SUCCESS;
+    rnp_cfg_free(&cfg);
+    return res;
+}
+
+bool
+setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
+{
+    rnp_cfg_t cfg = {};
+
+    if (!setup_rnp_cfg(&cfg, ks_format, homedir, pipefd)) {
         return false;
     }
+
+    /*initialize the basic RNP structure. */
+    memset(rnp, '\0', sizeof(*rnp));
+    bool res = cli_rnp_init(rnp, &cfg);
     rnp_cfg_free(&cfg);
-    return true;
+    return res;
 }
 
 void
@@ -512,6 +536,15 @@ set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg)
     subkey->crypto.rsa.modulus_bit_len = 1024;
     subkey->crypto.hash_alg = hashalg;
     subkey->crypto.rng = &global_rng;
+}
+
+void
+cli_set_default_rsa_key_desc(rnp_cfg_t *cfg, const char *hashalg)
+{
+    rnp_cfg_setint(cfg, CFG_NUMBITS, 1024);
+    rnp_cfg_setstr(cfg, CFG_HASH, hashalg);
+    rnp_cfg_setint(cfg, CFG_S2K_ITER, 1);
+    cli_rnp_set_generate_params(cfg);
 }
 
 // this is a password callback that will always fail
