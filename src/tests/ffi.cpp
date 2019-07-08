@@ -4460,13 +4460,15 @@ test_ffi_rsa_v3_dump(void **state)
     assert_non_null(rsapkt);
     assert_true(json_object_is_type(rsapkt, json_type_object));
     /* check algorithm string */
-    json_object *fld = json_object_object_get(rsapkt, "algorithm.str");
+    json_object *fld = NULL;
+    assert_true(json_object_object_get_ex(rsapkt, "algorithm.str", &fld));
     assert_non_null(fld);
     const char *str = json_object_get_string(fld);
     assert_non_null(str);
     assert_int_equal(strcmp(str, "RSA (Encrypt or Sign)"), 0);
     /* check fingerprint */
-    fld = json_object_object_get(rsapkt, "fingerprint");
+    fld = NULL;
+    assert_true(json_object_object_get_ex(rsapkt, "fingerprint", &fld));
     assert_non_null(fld);
     str = json_object_get_string(fld);
     assert_non_null(str);
@@ -5016,7 +5018,7 @@ check_features(const char *type, const char *json, size_t count)
     if (!json_object_is_type(features, json_type_array)) {
         goto done;
     }
-    if (json_object_array_length(features) != count) {
+    if ((size_t) json_object_array_length(features) != count) {
         RNP_LOG("wrong feature count for %s", type);
         goto done;
     }
