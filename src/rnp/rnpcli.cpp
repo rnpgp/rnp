@@ -578,62 +578,6 @@ rnp_public_count(rnp_t *rnp)
     return rnp->pubring ? rnp_key_store_get_key_count(rnp->pubring) : 0;
 }
 
-pgp_key_t *
-rnp_generate_key(rnp_t *rnp)
-{
-    rnp_action_keygen_t *action = &rnp->action.generate_key_ctx;
-    pgp_key_t            primary_sec = {0};
-    pgp_key_t            primary_pub = {0};
-    pgp_key_t            subkey_sec = {0};
-    pgp_key_t            subkey_pub = {0};
-    pgp_key_t *          result = NULL;
-    key_store_format_t   key_format = ((rnp_key_store_t *) rnp->secring)->format;
-
-    if (!pgp_generate_keypair(&rnp->rng,
-                              &action->primary.keygen,
-                              &action->subkey.keygen,
-                              true,
-                              &primary_sec,
-                              &primary_pub,
-                              &subkey_sec,
-                              &subkey_pub,
-                              key_format)) {
-        RNP_LOG("failed to generate keys");
-        return NULL;
-    }
-
-    // protect the primary key
-    if (!rnp_key_add_protection(
-          &primary_sec, key_format, &action->primary.protection, &rnp->password_provider)) {
-        return NULL;
-    }
-
-    // protect the subkey
-    if (!rnp_key_add_protection(
-          &subkey_sec, key_format, &action->subkey.protection, &rnp->password_provider)) {
-        RNP_LOG("failed to protect keys");
-        return NULL;
-    }
-
-    // add them all to the key store
-    if (!(result = rnp_key_store_add_key(rnp->secring, &primary_sec)) ||
-        !rnp_key_store_add_key(rnp->secring, &subkey_sec) ||
-        !rnp_key_store_add_key(rnp->pubring, &primary_pub) ||
-        !rnp_key_store_add_key(rnp->pubring, &subkey_pub)) {
-        RNP_LOG("failed to add keys to key store");
-        return NULL;
-    }
-
-    // update the keyring on disk
-    if (!rnp_key_store_write_to_path(rnp->secring) ||
-        !rnp_key_store_write_to_path(rnp->pubring)) {
-        RNP_LOG("failed to write keyring");
-        return NULL;
-    }
-
-    return result;
-}
-
 typedef struct pgp_parse_handler_param_t {
     char         in[PATH_MAX];
     char         out[PATH_MAX];

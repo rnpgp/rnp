@@ -53,11 +53,6 @@ typedef struct rnp_t {
     FILE *           passfp;        /* file pointer for password input */
     char *           defkey;        /* default key id */
     int              pswdtries;     /* number of password tries, -1 for unlimited */
-
-    union {
-        rnp_action_keygen_t generate_key_ctx;
-    } action;
-
     pgp_password_provider_t password_provider;
     pgp_key_provider_t      key_provider;
     rng_t                   rng; /* handle to rng_t */
@@ -87,13 +82,6 @@ char *     rnp_export_key(rnp_t *, const char *, bool);
 bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
 pgp_key_t *resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid);
 
-/**
- * @brief Generate key, based on information passed in rnp->action.generate_key_ctx
- *
- * @param rnp initialized and filled rnp_t structure.
- * @return generated secret key or NULL in case of generation error.
- */
-pgp_key_t *rnp_generate_key(rnp_t *rnp);
 size_t     rnp_secret_count(rnp_t *);
 size_t     rnp_public_count(rnp_t *);
 
