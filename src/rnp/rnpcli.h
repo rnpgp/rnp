@@ -77,9 +77,7 @@ bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
 /* key management */
 void       rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool);
-char *     rnp_export_key(rnp_t *, const char *, bool);
 bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
-pgp_key_t *resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid);
 
 /* file management */
 rnp_result_t rnp_process_file(rnp_t *, rnp_ctx_t *, const char *, const char *);

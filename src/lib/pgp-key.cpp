@@ -1008,38 +1008,6 @@ pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store, size_t id
     return rnp_key_store_get_key_by_grip(store, grip);
 }
 
-char *
-pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key)
-{
-    pgp_dest_t memdst = {};
-    pgp_dest_t armordst = {};
-    char *     cp = NULL;
-    bool       res = false;
-
-    if (!keyring || !key) {
-        return NULL;
-    }
-
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        return NULL;
-    }
-    bool is_public = pgp_key_is_public(key);
-    if (init_armored_dst(
-          &armordst, &memdst, is_public ? PGP_ARMORED_PUBLIC_KEY : PGP_ARMORED_SECRET_KEY)) {
-        dst_close(&memdst, true);
-        return NULL;
-    }
-    res = pgp_write_xfer_key(&armordst, key, keyring);
-    if (res && !dst_finish(&armordst)) {
-        dst_write(&memdst, "\0", 1);
-        dst_finish(&memdst);
-        cp = (char *) mem_dest_own_memory(&memdst);
-    }
-    dst_close(&armordst, true);
-    dst_close(&memdst, true);
-    return cp;
-}
-
 pgp_key_flags_t
 pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 {
