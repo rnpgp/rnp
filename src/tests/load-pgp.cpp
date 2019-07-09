@@ -825,8 +825,8 @@ test_key_import(void **state)
 
     /* import just the public key */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-pub-just-key.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 1);
-    assert_int_equal(rnp_secret_count(&rnp), 0);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -837,8 +837,8 @@ test_key_import(void **state)
 
     /* import public key + 1 userid */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-pub-uid-1-no-sigs.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 1);
-    assert_int_equal(rnp_secret_count(&rnp), 0);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -853,8 +853,8 @@ test_key_import(void **state)
 
     /* import public key + 1 userid + signature */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-pub-uid-1.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 1);
-    assert_int_equal(rnp_secret_count(&rnp), 0);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -869,8 +869,8 @@ test_key_import(void **state)
 
     /* import public key + 1 subkey */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-pub-subkey-1.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 2);
-    assert_int_equal(rnp_secret_count(&rnp), 0);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 2);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 1);
@@ -889,8 +889,8 @@ test_key_import(void **state)
 
     /* import secret key with 1 uid and 1 subkey */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-sec-uid-1-subkey-1.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 2);
-    assert_int_equal(rnp_secret_count(&rnp), 2);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 2);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 2);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 1);
@@ -924,8 +924,8 @@ test_key_import(void **state)
 
     /* import secret key with 2 uids and 2 subkeys */
     assert_true(rnp_import_key(&rnp, MERGE_PATH "key-sec.pgp"));
-    assert_int_equal(rnp_public_count(&rnp), 3);
-    assert_int_equal(rnp_secret_count(&rnp), 3);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 3);
+    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 3);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 2);
