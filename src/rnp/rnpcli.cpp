@@ -566,18 +566,6 @@ rnp_print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, boo
     }
 }
 
-size_t
-rnp_secret_count(rnp_t *rnp)
-{
-    return rnp->secring ? rnp_key_store_get_key_count(rnp->secring) : 0;
-}
-
-size_t
-rnp_public_count(rnp_t *rnp)
-{
-    return rnp->pubring ? rnp_key_store_get_key_count(rnp->pubring) : 0;
-}
-
 typedef struct pgp_parse_handler_param_t {
     char         in[PATH_MAX];
     char         out[PATH_MAX];

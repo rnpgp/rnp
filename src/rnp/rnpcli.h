@@ -82,9 +82,6 @@ char *     rnp_export_key(rnp_t *, const char *, bool);
 bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
 pgp_key_t *resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid);
 
-size_t     rnp_secret_count(rnp_t *);
-size_t     rnp_public_count(rnp_t *);
-
 /* file management */
 rnp_result_t rnp_process_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_protect_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
