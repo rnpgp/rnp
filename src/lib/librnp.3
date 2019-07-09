@@ -106,10 +106,6 @@ The following functions are used for key management:
 .Fa "rnp_t *rnp" "char *userid"
 .Fc
 .Ft int
-.Fo rnp_import_key
-.Fa "rnp_t *rnp" "char *file"
-.Fc
-.Ft int
 .Fo rnp_generate_key
 .Fa "rnp_t *rnp" "char *userid" "int numbits"
 .Fc
@@ -199,7 +195,7 @@ function is used.
 Output is sent to the standard output.
 .Pp
 To import a key onto the public keyring, the
-.Fn rnp_import_key
+.Fn rnp_add_key
 is used.
 The name of the file containing the key to be imported is provided
 as the filename argument.

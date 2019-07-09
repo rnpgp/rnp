@@ -85,7 +85,6 @@ void       rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool
 bool       rnp_find_key(rnp_t *, const char *);
 char *     rnp_export_key(rnp_t *, const char *, bool);
 bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
-bool       rnp_import_key(rnp_t *, const char *);
 pgp_key_t *resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid);
 
 /**

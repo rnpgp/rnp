@@ -456,23 +456,6 @@ done:
     return ret;
 }
 
-/* import a key into our keyring */
-bool
-rnp_import_key(rnp_t *rnp, const char *f)
-{
-    if (!rnp_add_key(rnp, f, true)) {
-        return false;
-    }
-
-    if (!rnp_key_store_write_to_path(rnp->secring) ||
-        !rnp_key_store_write_to_path(rnp->pubring)) {
-        RNP_LOG("failed to write keyring");
-        return false;
-    }
-
-    return true;
-}
-
 /* return the time as a string */
 char *
 ptimestr(char *dest, size_t size, time_t t)
