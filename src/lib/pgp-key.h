@@ -306,16 +306,6 @@ pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-/**
- * @brief Export and armor OpenPGP key, writing it to the NULL-terminated string.
- *
- * @param keyring where key belongs to. Needed to fetch all subkeys as well, not NULL.
- * @param key pointer to the key, cannot be NULL.
- * @return allocated string with armored key, or NULL on failure. Resulting string must be
- *         released by caller.
- */
-char *pgp_export_key(const rnp_key_store_t *keyring, const pgp_key_t *key);
-
 /** check if a key is currently locked
  *
  *  Note: Key locking does not apply to unprotected keys.
