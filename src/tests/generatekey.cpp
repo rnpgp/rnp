@@ -130,7 +130,7 @@ rnpkeys_generatekey_testSignature(void **state)
 
                 /* Load keyring */
                 rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, true));
-                rnp_assert_true(rstate, rnp_secret_count(&rnp) > 0);
+                rnp_assert_true(rstate, rnp_key_store_get_key_count(rnp.secring) > 0);
 
                 /* Setup signing context */
                 rnp_ctx_init(&ctx, &rnp.rng);
@@ -228,7 +228,7 @@ rnpkeys_generatekey_testEncryption(void **state)
 
             /* Load keyring */
             rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, false));
-            rnp_assert_int_equal(rstate, 0, rnp_secret_count(&rnp));
+            rnp_assert_int_equal(rstate, 0, rnp_key_store_get_key_count(rnp.secring));
 
             /* setting the cipher and armored flags */
             rnp_ctx_init(&ctx, &rnp.rng);
