@@ -298,42 +298,6 @@ rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
     return true;
 }
 
-/* resolve the userid */
-pgp_key_t *
-resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
-{
-    pgp_key_t *key;
-
-    if (userid == NULL) {
-        return NULL;
-    }
-    key = rnp_key_store_get_key_by_name(keyring, userid, NULL);
-    if (!key) {
-        (void) fprintf(stderr, "cannot find key '%s'\n", userid);
-        return NULL;
-    }
-    return key;
-}
-
-/* export a given key */
-char *
-rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
-{
-    const pgp_key_t *      key;
-    const rnp_key_store_t *keyring;
-
-    if (!rnp) {
-        return NULL;
-    }
-
-    keyring = secret_key ? rnp->secring : rnp->pubring;
-    key = resolve_userid(rnp, keyring, name);
-    if (!key) {
-        return NULL;
-    }
-    return pgp_export_key(keyring, key);
-}
-
 bool
 rnp_add_key(rnp_t *rnp, const char *path, bool print)
 {
