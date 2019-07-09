@@ -315,23 +315,6 @@ resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
     return key;
 }
 
-/* find a key in a keyring */
-bool
-rnp_find_key(rnp_t *rnp, const char *id)
-{
-    pgp_key_t *key;
-
-    if (id == NULL) {
-        RNP_LOG("NULL id to search for");
-        return false;
-    }
-    key = rnp_key_store_get_key_by_name(rnp->pubring, id, NULL);
-    if (!key) {
-        return false;
-    }
-    return key != NULL;
-}
-
 /* export a given key */
 char *
 rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
