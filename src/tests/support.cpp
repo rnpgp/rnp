@@ -519,26 +519,6 @@ setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir,
 }
 
 void
-set_default_rsa_key_desc(rnp_action_keygen_t *action, pgp_hash_alg_t hashalg)
-{
-    rnp_keygen_primary_desc_t *primary = &action->primary.keygen;
-    rnp_keygen_subkey_desc_t * subkey = &action->subkey.keygen;
-
-    primary->crypto.key_alg = PGP_PKA_RSA;
-    primary->crypto.rsa.modulus_bit_len = 1024;
-    primary->crypto.hash_alg = hashalg;
-    primary->crypto.rng = &global_rng;
-
-    action->primary.protection.iterations = 1;
-    action->subkey.protection.iterations = 1;
-
-    subkey->crypto.key_alg = PGP_PKA_RSA;
-    subkey->crypto.rsa.modulus_bit_len = 1024;
-    subkey->crypto.hash_alg = hashalg;
-    subkey->crypto.rng = &global_rng;
-}
-
-void
 cli_set_default_rsa_key_desc(rnp_cfg_t *cfg, const char *hashalg)
 {
     rnp_cfg_setint(cfg, CFG_NUMBITS, 1024);
