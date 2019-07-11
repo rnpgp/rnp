@@ -95,18 +95,41 @@ set_tests_properties(rnp_tests PROPERTIES
 # cli_tests
 find_package(PythonInterp 2.7 EXACT)
 find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
-add_test(
-  NAME cli_tests
-  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d
+
+function(add_cli_test suite)
+  set(_test_name cli_tests-${suite})
+  add_test(
+    NAME ${_test_name}
+    COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d "${suite}"
+  )
+  set(_env)
+  list(APPEND _env
+    "RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>"
+    "RNP_TESTS_RNPKEYS_PATH=$<TARGET_FILE:rnpkeys>"
+    "RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE}"
+    "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
+  )
+  set_tests_properties(${_test_name} PROPERTIES
+    TIMEOUT 3000
+    FIXTURES_REQUIRED testdata
+    ENVIRONMENT "${_env}"
+  )
+endfunction()
+# get a list of test suites
+execute_process(
+  COMMAND "${PYTHON_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -ls
+  RESULT_VARIABLE _ec
+  OUTPUT_VARIABLE suitelist
+  OUTPUT_STRIP_TRAILING_WHITESPACE
 )
-set_tests_properties(cli_tests PROPERTIES
-  TIMEOUT 3000
-  FIXTURES_REQUIRED testdata
-  ENVIRONMENT "\
-RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>;\
-RNP_TESTS_RNPKEYS_PATH=$<TARGET_FILE:rnpkeys>;\
-RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE};\
-RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE};\
-"
-)
+if (NOT _ec EQUAL 0)
+  message(FATAL_ERROR "Failed to retrieve test suite list for cli_tests")
+endif()
+# convert to a CMake list
+string(REGEX REPLACE ";" "\\\\;" suitelist "${suitelist}")
+string(REGEX REPLACE "\n" ";" suitelist "${suitelist}")
+# create a CTest test for each suite
+foreach(suite IN LISTS suitelist)
+  add_cli_test("${suite}")
+endforeach()
 

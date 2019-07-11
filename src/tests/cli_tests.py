@@ -1621,6 +1621,14 @@ class EncryptSignRSA(Encrypt, Sign):
     def test_rnp_decrypt_sign_2048(self): self.do_rnp_decrypt_sign(2048)
     def test_rnp_decrypt_sign_4096(self): self.do_rnp_decrypt_sign(4096)
 
+def test_suites(tests):
+    if hasattr(tests, '__iter__'):
+        for x in tests:
+            for y in test_suites(x):
+                yield y
+    else:
+        yield tests.__class__.__name__
+
 # Main thinghy
 
 if __name__ == '__main__':
@@ -1639,6 +1647,13 @@ if __name__ == '__main__':
     if "-d" in sys.argv:
         sys.argv.remove('-d')
         LVL = logging.DEBUG
+
+    # list suites
+    if '-ls' in sys.argv:
+        tests = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
+        for suite in set(test_suites(tests)):
+            print(suite)
+        sys.exit(0)
 
     setup(LVL)
     main()
