@@ -24,8 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <setjmp.h>
-#include <stdio.h>
+#include <csetjmp>
+#include <cstdio>
+#include <algorithm>
 
 #include <crypto/rng.h>
 #include "rnp_tests.h"
@@ -120,6 +121,11 @@ teardown_test(void **state)
 int
 main(int argc, char *argv[])
 {
+    if (argc != 1 && argc != 2) {
+        printf("Usage: %s [test]\n", argv[0]);
+        printf("       %s list-tests\n", argv[0]);
+        return 1;
+    }
     assert_non_null(getcwd(original_dir, sizeof(original_dir)));
 
     /* We use LOGNAME in a few places within the tests
@@ -257,11 +263,36 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_cli_redumper),
     };
 
+    if (argc == 2 && !strcmp(argv[1], "list-tests")) {
+        for (auto &test : tests) {
+            printf("%s\n", test.name);
+        }
+        return 0;
+    }
+
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
-    for (size_t i = 0; i < sizeof(tests) / sizeof(tests[0]); i++) {
-        tests[i].setup_func = setup_test;
-        tests[i].teardown_func = teardown_test;
+    for (auto &test : tests) {
+        test.setup_func = setup_test;
+        test.teardown_func = teardown_test;
+    }
+
+    CMUnitTest *testp = tests;
+    size_t      tests_count = ARRAY_SIZE(tests);
+
+    /* run a specific test */
+    if (argc == 2) {
+        const char *desired_test = argv[1];
+        auto        end(tests + ARRAY_SIZE(tests));
+
+        testp = std::find_if(tests, end, [desired_test](const CMUnitTest &test) {
+            return !strcmp(desired_test, test.name);
+        });
+        if (testp == end) {
+            printf("Unknown test specified: %s\n", desired_test);
+            return 1;
+        }
+        tests_count = 1;
     }
 
     const char *re_info =
@@ -275,7 +306,8 @@ main(int argc, char *argv[])
     int ret = 0;
     for (int i = 0; i < iteration; i++) {
         printf("Iteration %d\n", i);
-        ret = cmocka_run_group_tests(tests, setup_test_group, teardown_test_group);
+        ret = _cmocka_run_group_tests(
+          "rnp_tests", testp, tests_count, setup_test_group, teardown_test_group);
         if (ret != 0) {
             break;
         }
