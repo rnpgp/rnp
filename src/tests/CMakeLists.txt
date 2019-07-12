@@ -82,14 +82,38 @@ add_test(
 )
 set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
 
-# rnp_tests
-add_test(
-  NAME rnp_tests
-  COMMAND rnp_tests
-)
-set_tests_properties(rnp_tests PROPERTIES
-  TIMEOUT 3000
-  FIXTURES_REQUIRED testdata
+function(rnp_tests_discover TARGET)
+  cmake_parse_arguments("" "" "" "PROPERTIES" ${ARGN})
+  set(ctest_file_base "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
+  set(ctest_include_file "${ctest_file_base}_include.cmake")
+  set(ctest_tests_file "${ctest_file_base}_tests.cmake")
+  add_custom_command(
+    TARGET ${TARGET} POST_BUILD
+    BYPRODUCTS "${ctest_tests_file}"
+    COMMAND "${CMAKE_COMMAND}"
+            -D "TEST_TARGET=${TARGET}"
+            -D "TEST_EXECUTABLE=$<TARGET_FILE:${TARGET}>"
+            -D "TEST_PROPERTIES=${_PROPERTIES}"
+            -D "CTEST_FILE=${ctest_tests_file}"
+            -P "${CMAKE_SOURCE_DIR}/cmake/rnp_tests_discover.cmake"
+    VERBATIM
+  )
+  file(WRITE "${ctest_include_file}"
+    "if(EXISTS \"${ctest_tests_file}\")\n"
+    "  include(\"${ctest_tests_file}\")\n"
+    "else()\n"
+    "  add_test(${TARGET}_NOT_BUILT ${TARGET}_NOT_BUILT)\n"
+    "endif()\n"
+  )
+  set_property(DIRECTORY
+    APPEND PROPERTY TEST_INCLUDE_FILES "${ctest_include_file}"
+  )
+endfunction()
+
+rnp_tests_discover(rnp_tests
+  PROPERTIES
+    FIXTURES_REQUIRED testdata
+    TIMEOUT 3000
 )
 
 # cli_tests
