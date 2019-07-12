@@ -114,6 +114,8 @@ struct rnp_op_generate_st {
     pgp_key_t *gen_pub;
     /* password used to encrypt the key, if specified */
     char *password;
+    /* request password for key encryption via ffi's password provider */
+    bool request_password;
     /* we don't use top-level keygen action here for easier fields access */
     rnp_keygen_crypto_params_t  crypto;
     rnp_key_protection_params_t protection;
@@ -4076,6 +4078,16 @@ rnp_op_generate_set_protection_password(rnp_op_generate_t op, const char *passwo
 }
 
 rnp_result_t
+rnp_op_generate_set_request_password(rnp_op_generate_t op, bool request)
+{
+    if (!op || !request) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    op->request_password = request;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher)
 {
     if (!op || !cipher) {
@@ -4316,9 +4328,10 @@ rnp_op_generate_execute(rnp_op_generate_t op)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    pgp_key_t    pub = {};
-    pgp_key_t    sec = {};
+    rnp_result_t            ret = RNP_ERROR_GENERIC;
+    pgp_key_t               pub = {};
+    pgp_key_t               sec = {};
+    pgp_password_provider_t prov = {.callback = NULL};
 
     if (op->primary) {
         rnp_keygen_primary_desc_t keygen = {};
@@ -4355,12 +4368,15 @@ rnp_op_generate_execute(rnp_op_generate_t op)
 
     /* encrypt secret key if requested */
     if (op->password) {
-        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = (void *) op->password};
-        if (!rnp_key_add_protection(&sec, op->ffi->secring->format, &op->protection, &prov)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
-        }
+        prov = {.callback = rnp_password_provider_string, .userdata = (void *) op->password};
+    } else if (op->request_password) {
+        prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
+    }
+    if (prov.callback &&
+        !rnp_key_add_protection(&sec, op->ffi->secring->format, &op->protection, &prov)) {
+        FFI_LOG(op->ffi, "failed to encrypt the key");
+        ret = RNP_ERROR_BAD_PARAMETERS;
+        goto done;
     }
 
     /* add secret key to the keyring */
