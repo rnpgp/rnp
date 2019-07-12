@@ -33,7 +33,7 @@ make -j${MAKE_PARALLEL} VERBOSE=1 install
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
-ctest -j${CORES} -R "$RNP_TESTS" --output-on-failure
+ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
 popd
 
 # don't run ruby-rnp tests when librnp is built with sanitizers (various issues)
