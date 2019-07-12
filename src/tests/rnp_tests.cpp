@@ -214,6 +214,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_ffi_key_generate_eddsa),
       cmocka_unit_test(test_ffi_key_generate_sm2),
       cmocka_unit_test(test_ffi_key_generate_ex),
+      cmocka_unit_test(test_ffi_key_generate_protection),
       cmocka_unit_test(test_ffi_add_userid),
       cmocka_unit_test(test_ffi_detect_key_format),
       cmocka_unit_test(test_ffi_encrypt_pass),
