@@ -13,7 +13,7 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
   git clone --depth 1 --branch 2.9.0 https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
   ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
 
@@ -34,7 +34,7 @@ if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
         -DCMAKE_BUILD_TYPE=release \
         -DUNIT_TESTING=OFF \
         "${LOCAL_BUILDS}/cmocka"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
 
@@ -54,7 +54,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
 
   autoreconf -ivf
   env CFLAGS="-fno-omit-frame-pointer -g" ./configure --prefix="${JSONC_INSTALL}"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
 
@@ -80,7 +80,7 @@ build_gpg_stable() {
     pushd ${pkgname}-${version}/
     # autoreconf -ivf
     ./configure --prefix="${GPG_INSTALL}"
-    ${MAKE} -j${CORES} install
+    ${MAKE} -j${MAKE_PARALLEL} install
     popd
   done
 
@@ -95,7 +95,7 @@ build_gpg_stable() {
     pushd ${pkgname}-${version}/
     # autoreconf -ivf
     ./configure --prefix="${GPG_INSTALL}" --with-libgpg-error-prefix="${GPG_INSTALL}"
-    ${MAKE} -j${CORES} install
+    ${MAKE} -j${MAKE_PARALLEL} install
     popd
   done
 
@@ -109,7 +109,7 @@ build_gpg_stable() {
     --with-libassuan-prefix="${GPG_INSTALL}" \
     --enable-pinentry-curses \
     --disable-pinentry-qt4
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${GNUPG_VERSION}.tar.bz2
@@ -124,7 +124,7 @@ build_gpg_stable() {
     --with-ksba-prefix="${GPG_INSTALL}" \
     --with-npth-prefix="${GPG_INSTALL}" \
     --disable-ldap
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 }
 
@@ -146,7 +146,7 @@ build_gpg_beta() {
   gpg --verify "gettext-${GETTEXT_VERSION}.tar.xz.sig"
   tar -xJf "gettext-${GETTEXT_VERSION}.tar.xz" --strip 1
   ./configure --prefix="${GPG_INSTALL}"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
   export GETTEXT_PREFIX="${GPG_INSTALL}/bin/"
 
@@ -159,7 +159,7 @@ build_gpg_beta() {
   git checkout "$NPTH_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/libgpg-error
@@ -167,7 +167,7 @@ build_gpg_beta() {
   git checkout "$LIBGPG_ERROR_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/libgcrypt
@@ -175,7 +175,7 @@ build_gpg_beta() {
   git checkout "$LIBGCRYPT_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/libassuan
@@ -183,7 +183,7 @@ build_gpg_beta() {
   git checkout "$LIBASSUAN_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/libksba
@@ -191,7 +191,7 @@ build_gpg_beta() {
   git checkout "$LIBKSBA_VERSION"
   ./autogen.sh
   ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/pinentry.git
@@ -224,7 +224,7 @@ END
     --disable-pinentry-qt5 \
     --disable-pinentry-tqt \
     --disable-pinentry-fltk
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 
   git clone git://git.gnupg.org/gnupg.git
@@ -240,7 +240,7 @@ END
     --disable-ldap \
     --disable-doc \
     --enable-maintainer-mode
-  ${MAKE} -j${CORES} install
+  ${MAKE} -j${MAKE_PARALLEL} install
   popd
 }
 
