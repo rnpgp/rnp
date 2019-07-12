@@ -28,7 +28,7 @@ pushd "${LOCAL_BUILDS}/rnp-build"
 export LD_LIBRARY_PATH="${GPG_INSTALL}/lib"
 
 cmake "${cmakeopts[@]}" "$rnpsrc"
-make -j${CORES} VERBOSE=1 install
+make -j${MAKE_PARALLEL} VERBOSE=1 install
 
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
