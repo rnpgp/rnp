@@ -3,7 +3,7 @@ set -eux
 
 . ci/utils.inc.sh
 
-: "${RNP_TESTS:=all}"
+: "${RNP_TESTS:=.*}"
 
 # check for use of uninitialized or unused vars in CMake
 function cmake {
@@ -33,18 +33,7 @@ make -j${MAKE_PARALLEL} VERBOSE=1 install
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
-case "$RNP_TESTS" in
-  cmocka)
-    ctest -R rnp_tests --output-on-failure
-    ;;
-  cli)
-    ctest -R cli_tests --output-on-failure
-    ;;
-  all)
-    ctest -j${CORES} --output-on-failure
-    ;;
-  *) exit 1 ;;
-esac
+ctest -j${CORES} -R "$RNP_TESTS" --output-on-failure
 popd
 
 # don't run ruby-rnp tests when librnp is built with sanitizers (various issues)

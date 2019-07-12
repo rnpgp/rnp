@@ -73,18 +73,18 @@ matrix:
       stage: test
 
     # codecov
-    - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
+    - env: BUILD_MODE=coverage RNP_TESTS=rnp_tests GPG_VERSION=beta
       compiler: gcc
       stage: cache
       script: true
-    - env: BUILD_MODE=coverage RNP_TESTS=cmocka GPG_VERSION=beta
+    - env: BUILD_MODE=coverage RNP_TESTS=rnp_tests GPG_VERSION=beta
       compiler: gcc
       stage: test
-    - env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
+    - env: BUILD_MODE=coverage RNP_TESTS=cli_tests GPG_VERSION=beta
       compiler: gcc
       stage: cache
       script: true
-    - env: BUILD_MODE=coverage RNP_TESTS=cli GPG_VERSION=beta
+    - env: BUILD_MODE=coverage RNP_TESTS=cli_tests GPG_VERSION=beta
       compiler: gcc
       stage: test
 
