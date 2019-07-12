@@ -574,6 +574,19 @@ rnp_result_t rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve);
 rnp_result_t rnp_op_generate_set_protection_password(rnp_op_generate_t op,
                                                      const char *      password);
 
+/**
+ * @brief Enable or disable password requesting via ffi's password provider. This password
+ *        then will be used for key encryption.
+ *        Note: this will be ignored if password was set via
+ *        rnp_op_generate_set_protection_password().
+ *
+ * @param op pointer to opaque key generation context.
+ * @param request true to enable password requesting or false otherwise. Default value is false
+ *                (i.e. key will be generated unencrypted).
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_generate_set_request_password(rnp_op_generate_t op, bool request);
+
 /** Set cipher used to encrypt secret key data. If not called then default one will be used.
  *
  * @param op pointer to opaque key generation context.

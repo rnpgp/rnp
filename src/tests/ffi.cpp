@@ -1804,6 +1804,7 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_failure(rnp_op_generate_set_protection_mode(keygen, "unknown"));
     assert_rnp_success(rnp_op_generate_set_protection_mode(keygen, "cfb"));
     /* now execute keygen operation */
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
@@ -1826,6 +1827,15 @@ test_ffi_key_generate_ex(void **state)
     uint32_t expiry = 0;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_true(expiry == 60 * 60 * 24 * 300);
+    /* check whether key is encrypted */
+    assert_rnp_success(rnp_key_is_protected(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(key, "123"));
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_lock(key));
 
     /* generate DSA subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "DSA"));
@@ -1849,6 +1859,7 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes256"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha256"));
     assert_rnp_success(rnp_op_generate_set_protection_iterations(keygen, 65536));
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
     /* now generate the subkey */
     assert_rnp_success(rnp_op_generate_execute(keygen));
     rnp_key_handle_t subkey = NULL;
@@ -1871,6 +1882,15 @@ test_ffi_key_generate_ex(void **state)
     expiry = 0;
     assert_rnp_success(rnp_key_get_expiration(subkey, &expiry));
     assert_true(expiry == 60 * 60 * 24 * 300);
+    /* check whether subkey is encrypted */
+    assert_rnp_success(rnp_key_is_protected(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(subkey, "123"));
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_lock(subkey));
     /* destroy key handle */
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
@@ -1896,6 +1916,9 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
     assert_true(flag);
     assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
+    assert_false(flag);
+    /* check whether subkey is encrypted - it should not */
+    assert_rnp_success(rnp_key_is_protected(subkey, &flag));
     assert_false(flag);
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
@@ -2098,6 +2121,123 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_op_generate_destroy(keygen));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+void
+test_ffi_key_generate_protection(void **state)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "123"));
+
+    /* Generate key and subkey without protection */
+    rnp_op_generate_t keygen = NULL;
+    assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* check whether key is encrypted */
+    bool flag = true;
+    assert_rnp_success(rnp_key_is_protected(key, &flag));
+    assert_false(flag);
+    /* generate subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_is_protected(subkey, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* Generate RSA key with password */
+    assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_set_protection_password(keygen, "password"));
+    /* Line below should not change password from 'password' to '123' */
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    key = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* check whether key is encrypted */
+    assert_rnp_success(rnp_key_is_protected(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_lock(key));
+    /* generate subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_set_protection_password(keygen, "password"));
+    /* this should fail since primary key is locked */
+    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    /* now it should work */
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    subkey = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_is_protected(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(subkey, "password"));
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* Generate RSA key via password request */
+    assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    key = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* check whether key is encrypted */
+    assert_rnp_success(rnp_key_is_protected(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(key, "123"));
+    assert_rnp_success(rnp_key_is_locked(key, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_lock(key));
+    /* generate subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
+    /* this should succeed since password for primary key is returned via provider */
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    subkey = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_is_protected(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_unlock(subkey, "123"));
+    assert_rnp_success(rnp_key_is_locked(subkey, &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
