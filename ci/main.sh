@@ -5,12 +5,22 @@ set -eux
 
 : "${RNP_TESTS:=.*}"
 
+CMAKE=cmake
+
 # check for use of uninitialized or unused vars in CMake
 function cmake {
   log=$(mktemp)
-  command cmake --warn-uninitialized --warn-unused "$@" 2>&1 | tee "$log"
+  command ${CMAKE} --warn-uninitialized --warn-unused "$@" 2>&1 | tee "$log"
   if grep -Fqi 'cmake warning' "$log"; then exit 1; fi
 }
+
+if [[ "$(get_os)" = "linux" ]]; then
+  pushd /
+  sudo curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
+  sudo sh cmake.sh --skip-license
+  popd
+  CMAKE=/bin/cmake
+fi
 
 cmakeopts=(
   "-DCMAKE_BUILD_TYPE=RelWithDebInfo"
