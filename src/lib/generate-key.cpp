@@ -377,6 +377,12 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
         break;
     }
 
+    /* mark it as valid */
+    primary_pub->valid = true;
+    primary_pub->validated = true;
+    primary_sec->valid = true;
+    primary_sec->validated = true;
+
     ok = true;
 end:
     // free any user preferences
@@ -509,6 +515,10 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         break;
     }
 
+    subkey_pub->valid = true;
+    subkey_pub->validated = true;
+    subkey_sec->valid = true;
+    subkey_sec->validated = true;
     ok = true;
 end:
     transferable_subkey_destroy(&tskeysec);

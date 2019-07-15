@@ -574,6 +574,8 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG("failed to merge key or subkey");
             return NULL;
         }
+        added_key->validated = added_key->validated && srckey->validated;
+        added_key->valid = added_key->valid && srckey->valid;
         pgp_key_free_data(srckey);
     } else {
         added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
@@ -592,7 +594,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     RNP_DLOG("keyc %lu", rnp_key_store_get_key_count(keyring));
 
     /* validate all added keys if not disabled */
-    if (!keyring->disable_validation) {
+    if (!keyring->disable_validation && !added_key->validated) {
         added_key->valid = true; // we need to this to check key's signatures
         added_key->valid = !validate_pgp_key(added_key, keyring);
 
