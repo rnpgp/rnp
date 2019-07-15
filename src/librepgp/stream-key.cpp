@@ -1689,14 +1689,8 @@ validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
 {
     pgp_signatures_info_t sinfo = {};
     rnp_result_t          res = RNP_ERROR_GENERIC;
-    rng_t                 rng = {};
 
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        RNP_LOG("RNG init failed");
-        return RNP_ERROR_RNG;
-    }
-
-    /* check signatures first */
+    /* check signatures */
     res = validate_pgp_key_signatures(&sinfo, key, keyring);
     if (!res) {
         bool valid = false;
@@ -1709,11 +1703,5 @@ validate_pgp_key(const pgp_key_t *key, const rnp_key_store_t *keyring)
         res = valid ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
     }
     free_signatures_info(&sinfo);
-    /* if signatures are ok then check key material */
-    if (!res) {
-        res = validate_pgp_key_material(pgp_key_get_material(key), &rng);
-    }
-
-    rng_destroy(&rng);
     return res;
 }

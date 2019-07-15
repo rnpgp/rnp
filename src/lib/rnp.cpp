@@ -1367,6 +1367,11 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
         if (pgp_key_is_public(key) && !pub) {
             continue;
         }
+        if (validate_pgp_key_material(pgp_key_get_material(key), &ffi->rng)) {
+            FFI_LOG(ffi, "attempt to import key with invalid material");
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
         // if we got here then we add public key itself or public part of the secret key
         if (!rnp_key_store_import_key(ffi->pubring, key, true, &pub_status)) {
             ret = RNP_ERROR_BAD_PARAMETERS;

@@ -158,7 +158,7 @@ elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
         goto done;
     }
 
-    if (elgamal_load_secret_key(&bskey, key) ||
+    if (!elgamal_load_secret_key(&bskey, key) ||
         botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
         goto done;
     }
