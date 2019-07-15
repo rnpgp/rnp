@@ -522,6 +522,7 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* key validity */
     dst->valid = src->valid;
+    dst->validated = src->validated;
 
     return RNP_SUCCESS;
 error:
