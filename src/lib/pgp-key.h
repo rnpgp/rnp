@@ -79,6 +79,7 @@ struct pgp_key_t {
     pgp_revoke_t       revocation;   /* revocation reason */
     key_store_format_t format;       /* the format of the key in packets[0] */
     bool               valid;        /* this key is valid and usable */
+    bool               validated;    /* this key was validated */
 };
 
 struct pgp_key_t *pgp_key_new(void);
