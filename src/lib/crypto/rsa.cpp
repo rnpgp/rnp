@@ -105,7 +105,7 @@ rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
         goto done;
     }
 

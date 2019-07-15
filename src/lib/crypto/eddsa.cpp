@@ -77,7 +77,7 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (!eddsa_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 1)) {
+        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
         goto done;
     }
 
@@ -87,7 +87,7 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!eddsa_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 1)) {
+        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
