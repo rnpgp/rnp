@@ -382,7 +382,6 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
     if (!tmp_keystore) {
         goto done;
     }
-
     // load the key(s)
     if (!rnp_key_store_load_from_path(tmp_keystore, &rnp->key_provider)) {
         RNP_LOG("failed to load key from file %s", path);
@@ -402,6 +401,11 @@ rnp_add_key(rnp_t *rnp, const char *path, bool print)
         size_t     expackets = 0;
         bool       changed = false;
 
+        /* validate imported key's material */
+        if (validate_pgp_key_material(pgp_key_get_material(imported), &rnp->rng)) {
+            RNP_LOG("invalid key material in added key");
+            continue;
+        }
         /* add public key */
         if (pgp_key_copy(&keycp, imported, true)) {
             RNP_LOG("failed to create key copy");
