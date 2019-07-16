@@ -11,13 +11,9 @@ task:
     GPG_VERSION: stable
     LOCAL_BUILDS: /home/rnpuser/local-builds
     LOCAL_INSTALLS: /home/rnpuser/local-installs
-  install_script: pkg install -y git
-  dependencies_cache:
-    folder: $LOCAL_INSTALLS
-    fingerprint_script: cat ci/install.sh; git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
-  script: |
-    # add rnpuser
+  user_setup_script: |
     pkg install -y sudo
+    # add rnpuser
     pw useradd -n rnpuser -m
     echo 'rnpuser ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/rnpuser
     # change ownership for the cloned repo
@@ -25,6 +21,18 @@ task:
     # cirrus cache doesn't seem to retain ownership
     mkdir -p "$LOCAL_INSTALLS"
     chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
-    # deps+build+test
-    su rnpuser ci/run.sh
+  before_install_script: |
+    . ci/env.inc.sh
+    su rnpuser -c ci/before_install.sh
+  dependencies_cache:
+    folder: $LOCAL_INSTALLS
+    fingerprint_script: sha256 ci/install.sh && git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
+  install_script: |
+    # install
+    . ci/env.inc.sh
+    su rnpuser -c ci/before_install.sh
+    su rnpuser -c ci/install.sh
+  script: |
+    . ci/env.inc.sh
+    su rnpuser -c ci/main.sh
 
