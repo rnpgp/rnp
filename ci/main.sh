@@ -51,6 +51,8 @@ popd
 if [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
   [[ "$(get_os)" = "macos" ]] && cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
+  # bundle install again, just in case ruby version changed etc (no cost otherwise)
+  bundle install --path .
   env CI=false \
       LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" \
       bundle exec rspec
