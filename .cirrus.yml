@@ -30,7 +30,6 @@ task:
     chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
     # install
     . ci/env.inc.sh
-    su rnpuser -c ci/before_install.sh
     su rnpuser -c ci/install.sh
   script: |
     . ci/env.inc.sh
