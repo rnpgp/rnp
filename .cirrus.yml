@@ -18,9 +18,6 @@ task:
     echo 'rnpuser ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/rnpuser
     # change ownership for the cloned repo
     chown -R rnpuser:rnpuser "$PWD"
-    # cirrus cache doesn't seem to retain ownership
-    mkdir -p "$LOCAL_INSTALLS"
-    chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
   before_install_script: |
     . ci/env.inc.sh
     su rnpuser -c ci/before_install.sh
@@ -28,6 +25,9 @@ task:
     folder: $LOCAL_INSTALLS
     fingerprint_script: sha256 ci/install.sh && git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
   install_script: |
+    # cirrus cache doesn't seem to retain ownership
+    mkdir -p "$LOCAL_INSTALLS"
+    chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
     # install
     . ci/env.inc.sh
     su rnpuser -c ci/before_install.sh
