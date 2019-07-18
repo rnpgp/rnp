@@ -35,7 +35,7 @@ cmakeopts=(
 mkdir -p "${LOCAL_BUILDS}/rnp-build"
 rnpsrc="$PWD"
 pushd "${LOCAL_BUILDS}/rnp-build"
-export LD_LIBRARY_PATH="${GPG_INSTALL}/lib"
+export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib"
 
 cmake "${cmakeopts[@]}" "$rnpsrc"
 make -j${MAKE_PARALLEL} VERBOSE=1 install
@@ -43,20 +43,15 @@ make -j${MAKE_PARALLEL} VERBOSE=1 install
 : "${COVERITY_SCAN_BRANCH:=0}"
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
-ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
-popd
-
-# don't run ruby-rnp tests when librnp is built with sanitizers (various issues)
+# workaround macOS SIP
 if [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
   [[ "$(get_os)" = "macos" ]] && cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
-  # bundle install again, just in case ruby version changed etc (no cost otherwise)
-  bundle install --path .
-  env CI=false \
-      LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib" \
-      bundle exec rspec
   popd
 fi
+
+ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
+popd
 
 exit 0
 
