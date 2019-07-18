@@ -264,10 +264,4 @@ fi
 
 # ruby-rnp
 which bundle || sudo gem install bundler -v 1.16.4
-if [ ! -e "${RUBY_RNP_INSTALL}/Gemfile" ]; then
-  git clone --depth 1 --branch "$RUBY_RNP_VERSION" https://github.com/riboseinc/ruby-rnp "$RUBY_RNP_INSTALL"
-  pushd "$RUBY_RNP_INSTALL"
-  bundle install --path .
-  popd
-fi
 

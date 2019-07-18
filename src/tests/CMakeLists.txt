@@ -157,3 +157,42 @@ foreach(suite IN LISTS suitelist)
   add_cli_test("${suite}")
 endforeach()
 
+# cruby does not currently play nice with ASaN et al.
+if (NOT ENABLE_SANITIZERS)
+  include(ExternalProject)
+  set(_sourcedir "${CMAKE_BINARY_DIR}/ruby-rnp")
+  if (DEFINED ENV{RUBY_RNP_INSTALL})
+    set(_sourcedir "$ENV{RUBY_RNP_INSTALL}")
+  endif()
+  set(_ruby_rnp_ver "master")
+  if (DEFINED ENV{RUBY_RNP_VERSION})
+    set(_ruby_rnp_ver "$ENV{RUBY_RNP_VERSION}")
+  endif()
+  ExternalProject_Add(ruby-rnp
+    GIT_REPOSITORY https://github.com/riboseinc/ruby-rnp.git
+    GIT_TAG "${_ruby_rnp_ver}"
+    GIT_SHALLOW yes
+    SOURCE_DIR "${_sourcedir}"
+    BUILD_IN_SOURCE yes
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND bundle show parallel_tests || bundle add parallel_tests && bundle install --path .
+    INSTALL_COMMAND ""
+    TEST_COMMAND ""
+  )
+  set(_env "CI=false")
+  if (WIN32)
+    list(APPEND _env "PATH=$<TARGET_LINKER_FILE_DIR:librnp>\;$ENV{PATH}")
+  else()
+    list(APPEND _env "LD_LIBRARY_PATH=$<TARGET_LINKER_FILE_DIR:librnp>:$ENV{LD_LIBRARY_PATH}")
+  endif()
+  add_test(
+    NAME ruby-rnp
+    WORKING_DIRECTORY "${_sourcedir}"
+    COMMAND bundle exec parallel_rspec spec/
+  )
+  set_tests_properties(ruby-rnp PROPERTIES
+    TIMEOUT 1000
+    ENVIRONMENT "${_env}"
+  )
+endif()
+
