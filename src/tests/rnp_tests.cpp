@@ -141,6 +141,7 @@ main(int argc, char *argv[])
       cmocka_unit_test(rnp_test_x25519),
       cmocka_unit_test(ecdsa_signverify_success),
       cmocka_unit_test(s2k_iteration_tuning),
+      cmocka_unit_test(test_validate_key_material),
       cmocka_unit_test(rnpkeys_generatekey_testSignature),
       cmocka_unit_test(rnpkeys_generatekey_testEncryption),
       cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
