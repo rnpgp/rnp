@@ -50,6 +50,10 @@ if [ "$BUILD_MODE" != "sanitize" ]; then
   popd
 fi
 
+#  use test costs to prioritize
+mkdir -p "${LOCAL_BUILDS}/rnp-build/Testing/Temporary"
+cp "${rnpsrc}/cmake/CTestCostData.txt" "${LOCAL_BUILDS}/rnp-build/Testing/Temporary"
+
 ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
 popd
 
