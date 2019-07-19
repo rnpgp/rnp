@@ -41,9 +41,14 @@ rng_t global_rng;
 static char *
 get_data_dir(void)
 {
+#if defined(_WIN32) || defined(_WIN64)
+    // TODO: realpath unavailable on Windows, maybe use GetFullPathName?
+    return NULL;
+#else
     char data_dir[PATH_MAX];
     paths_concat(data_dir, sizeof(data_dir), original_dir, "data", NULL);
     return realpath(data_dir, NULL);
+#endif
 }
 
 static int
@@ -92,7 +97,12 @@ setup_test(void **state)
     } else {
         rstate->not_fatal = 0;
     }
+#if !defined(_WIN32) && !defined(_WIN64)
     assert_int_equal(0, setenv("HOME", rstate->home, 1));
+#else
+    // TODO: use alternative for setenv on Windows
+    assert_int_equal(0, 1);
+#endif
     assert_int_equal(0, chdir(rstate->home));
     char *src_data = get_data_dir();
     if (!src_data) {
@@ -125,7 +135,12 @@ main(int argc, char *argv[])
      * and it isn't always set in every environment.
      */
     if (!getenv("LOGNAME")) {
+#if !defined(_WIN32) && !defined(_WIN64)
         setenv("LOGNAME", "test-user", 1);
+#else
+    // TODO: use alternative for setenv on Windows
+    return -1;
+#endif
     }
     int iteration = 1;
     if (getenv("RNP_TEST_ITERATIONS")) {

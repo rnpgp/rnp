@@ -27,6 +27,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <time.h>
 
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
@@ -34,8 +35,6 @@
 #include "librepgp/stream-common.h"
 #include "utils.h"
 #include <json.h>
-#include <vector>
-#include <string>
 
 void
 test_ffi_homedir(void **state)
@@ -617,7 +616,7 @@ test_ffi_save_keys(void **state)
     // save secring
     sec_path = rnp_compose_path(temp_dir, "private-keys-v1.d", NULL);
     assert_false(rnp_dir_exists(sec_path));
-    assert_int_equal(0, mkdir(sec_path, S_IRWXU));
+    assert_int_equal(0, PORTABLE_MKDIR(sec_path, S_IRWXU));
     assert_int_equal(RNP_SUCCESS, rnp_output_to_path(&output, sec_path));
     assert_int_equal(RNP_SUCCESS,
                      rnp_save_keys(ffi, "G10", output, RNP_LOAD_SAVE_SECRET_KEYS));
