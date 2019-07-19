@@ -42,7 +42,7 @@
 #include <time.h>
 #include <errno.h>
 #include <getopt.h>
-#include <regex.h>
+#include <regex>
 #include "rnpcli.h"
 #include <rnp/rnp_sdk.h>
 #include <librepgp/stream-ctx.h>
@@ -60,7 +60,7 @@
 #include "defaults.h"
 #include "utils.h"
 
-extern char *__progname;
+static const char *rnp_prog_name = NULL;
 
 static const char *usage = "--help OR\n"
                            "\t--encrypt [--output=file] [options] files... OR\n"
@@ -224,7 +224,7 @@ static void
 print_usage(const char *usagemsg)
 {
     print_praise();
-    fprintf(stderr, "Usage: %s %s", __progname, usagemsg);
+    fprintf(stderr, "Usage: %s %s", rnp_prog_name, usagemsg);
 }
 
 static void
@@ -599,7 +599,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
 
 /* set an option */
 static bool
-setoption(rnp_cfg_t *cfg, int val, char *arg)
+setoption(rnp_cfg_t *cfg, int val, const char *arg)
 {
     switch (val) {
     /* redirect commands to setcmd */
@@ -795,38 +795,19 @@ setoption(rnp_cfg_t *cfg, int val, char *arg)
 static bool
 parse_option(rnp_cfg_t *cfg, const char *s)
 {
-    static regex_t opt;
-    struct option *op;
-    static int     compiled;
-    regmatch_t     matches[10];
-    char           option[128];
-    char           value[128];
+    static std::regex re("([^=]{1,128})(=(.*))?", std::regex_constants::extended);
+    std::string input = s;
+    std::smatch result;
 
-    if (!compiled) {
-        compiled = 1;
-        if (regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED) != 0) {
-            fprintf(stderr, "Can't compile regex\n");
-            return 0;
+    if (std::regex_match(input, result, re)) {
+        std::string option = result[1];
+        std::string value;
+        if (result.size() >= 4) {
+            value = result[3];
         }
-    }
-    if (regexec(&opt, s, 10, matches, 0) == 0) {
-        snprintf(option,
-                 sizeof(option),
-                 "%.*s",
-                 (int) (matches[1].rm_eo - matches[1].rm_so),
-                 &s[matches[1].rm_so]);
-        if (matches[2].rm_so > 0) {
-            snprintf(value,
-                     sizeof(value),
-                     "%.*s",
-                     (int) (matches[3].rm_eo - matches[3].rm_so),
-                     &s[matches[3].rm_so]);
-        } else {
-            value[0] = 0x0;
-        }
-        for (op = options; op->name; op++) {
-            if (strcmp(op->name, option) == 0)
-                return setoption(cfg, op->val, value);
+        for (struct option *op = options; op->name; op++) {
+            if (strcmp(op->name, option.c_str()) == 0)
+                return setoption(cfg, op->val, value.c_str());
         }
     }
     return 0;
@@ -847,6 +828,8 @@ rnp_main(int argc, char **argv)
     int       ret = EXIT_ERROR;
     int       ch;
     int       i;
+
+    rnp_prog_name = argv[0];
 
     if (argc < 2) {
         print_usage(usage);

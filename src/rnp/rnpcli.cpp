@@ -37,7 +37,7 @@
 #include <stdbool.h>
 
 #include <errno.h>
-#include <regex.h>
+#include <regex>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -50,7 +50,9 @@
 #endif
 
 #include <limits.h>
+#if !defined(_WIN32) && !defined(_WIN64)
 #include <sys/resource.h>
+#endif
 
 #include "rnpcli.h"
 #include <rekey/rnp_key_store.h>
@@ -1409,7 +1411,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         if (!rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath))) {
             return false;
         }
-        if (mkdir(pubpath, 0700) == -1 && errno != EEXIST) {
+        if (PORTABLE_MKDIR(pubpath, 0700) == -1 && errno != EEXIST) {
             RNP_LOG("cannot mkdir '%s' errno = %d", pubpath, errno);
             return false;
         }
@@ -1461,35 +1463,27 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
 static bool
 conffile(const char *homedir, char *userid, size_t length)
 {
-    regmatch_t matchv[10];
-    regex_t    keyre;
     char       buf[BUFSIZ];
     FILE *     fp;
+
+    static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
+                         std::regex_constants::extended);
 
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
     if ((fp = fopen(buf, "r")) == NULL) {
         return false;
     }
-    (void) memset(&keyre, 0x0, sizeof(keyre));
-    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
-        RNP_LOG("failed to compile regular expression");
-        fclose(fp);
-        return false;
-    }
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
-        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
-            (void) memcpy(userid,
-                          &buf[(int) matchv[1].rm_so],
-                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
+        std::smatch result;
+        std::string input = buf;
+        if (std::regex_search(input, result, keyre)) {
+            (void) strncpy(userid, result[1].str().c_str(), length);
 
-            (void) fprintf(stderr,
-                           "rnp: default key set to \"%.*s\"\n",
-                           (int) (matchv[1].rm_eo - matchv[1].rm_so),
-                           &buf[(int) matchv[1].rm_so]);
+            (void) fprintf(stderr, "rnp: default key set to \"%s\"\n",
+                           userid);
         }
     }
     (void) fclose(fp);
-    regfree(&keyre);
     return true;
 }
 

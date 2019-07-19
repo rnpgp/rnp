@@ -39,6 +39,8 @@
 extern struct option options[];
 extern const char *  usage;
 
+const char *rnp_keys_progname = NULL;
+
 #ifndef RNP_RUN_TESTS
 int
 main(int argc, char **argv)
@@ -55,6 +57,8 @@ rnpkeys_main(int argc, char **argv)
     int       optindex = 0;
     int       ret = EXIT_FAILURE;
     int       ch;
+
+    rnp_keys_progname = argv[0];
 
     if (argc < 2) {
         print_usage(usage);

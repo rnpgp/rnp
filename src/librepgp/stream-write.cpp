@@ -51,6 +51,7 @@
 #include "types.h"
 #include "crypto/signatures.h"
 #include <time.h>
+#include <algorithm>
 
 /* 8192 bytes, as GnuPG */
 #define PGP_PARTIAL_PKT_SIZE_BITS (13)
@@ -405,8 +406,8 @@ encrypted_dst_write_aead(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     while (len > 0) {
-        sz = MIN(sizeof(param->cache) - PGP_AEAD_MAX_TAG_LEN - param->cachelen, len);
-        sz = MIN(sz, param->chunklen - param->chunkout - param->cachelen);
+        sz = std::min(sizeof(param->cache) - PGP_AEAD_MAX_TAG_LEN - param->cachelen, len);
+        sz = std::min(sz, param->chunklen - param->chunkout - param->cachelen);
         memcpy(param->cache + param->cachelen, buf, sz);
         param->cachelen += sz;
 

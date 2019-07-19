@@ -113,8 +113,14 @@
 /* for silencing unused parameter warnings */
 #define RNP_USED(x) /*LINTED*/ (void) &(x)
 
-#ifndef RNP_UNCONST
-#define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
+#ifndef RNP_CONST_TO_VOID_PTR
+#define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
+#endif
+
+#if defined(_WIN32) || defined(_WIN64)
+#define PORTABLE_MKDIR(pathname, mode) mkdir(pathname)
+#else
+#define PORTABLE_MKDIR(pathname, mode) mkdir(pathname, mode)
 #endif
 
 /* debugging helpers*/

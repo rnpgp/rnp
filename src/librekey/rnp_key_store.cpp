@@ -34,7 +34,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <regex.h>
+#include <regex>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -186,7 +186,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
                 RNP_LOG("stat(%s): %s", key_store->path, strerror(errno));
                 return false;
             }
-            if (mkdir(key_store->path, S_IRWXU) != 0) {
+            if (PORTABLE_MKDIR(key_store->path, S_IRWXU) != 0) {
                 RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path, strerror(errno));
                 return false;
             }
@@ -812,7 +812,6 @@ get_key_by_name(const rnp_key_store_t *keyring,
     pgp_key_t *kp;
     unsigned   i = 0;
     pgp_key_t *keyp;
-    regex_t    r;
     uint8_t    keyid[PGP_FINGERPRINT_SIZE];
     size_t     len;
     size_t     binlen = 0;
@@ -851,10 +850,8 @@ get_key_by_name(const rnp_key_store_t *keyring,
     RNP_DLOG("regex match '%s' after %p", name, after);
 
     /* match on full name or email address as a NOSUB, ICASE regexp */
-    if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
-        RNP_LOG("Can't compile regex from string: '%s'", name);
-        return false;
-    }
+    std::regex re(name, std::regex_constants::extended | std::regex_constants::icase);
+
     for (list_item *key_item = after ? list_next((list_item *) after) :
                                        list_front(keyring->keys);
          key_item;
@@ -862,17 +859,16 @@ get_key_by_name(const rnp_key_store_t *keyring,
         keyp = (pgp_key_t *) key_item;
 
         for (i = 0; i < pgp_key_get_userid_count(keyp); i++) {
-            if (regexec(&r, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
+            std::string userid = pgp_key_get_userid(keyp, i);
+            if (std::regex_search(userid, re)) {
                 RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
-                         (char *) pgp_key_get_userid(keyp, i),
+                         (char *) userid.c_str(),
                          len);
-                regfree(&r);
                 *key = keyp;
                 return true;
             }
         }
     }
-    regfree(&r);
     return true;
 }
 

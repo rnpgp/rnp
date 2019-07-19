@@ -30,7 +30,7 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <regex.h>
+#include <regex>
 #include <time.h>
 #include <errno.h>
 
@@ -466,25 +466,18 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 static bool
 grabdate(const char *s, int64_t *t)
 {
-    static regex_t r;
-    static int     compiled;
-    regmatch_t     matches[10];
     struct tm      tm;
 
-    if (!compiled) {
-        compiled = 1;
-        if (regcomp(&r,
-                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
-                    REG_EXTENDED) != 0) {
-            RNP_LOG("failed to compile regexp");
-            return false;
-        }
-    }
-    if (regexec(&r, s, 10, matches, 0) == 0) {
+    static std::regex re("([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
+                         std::regex_constants::extended);
+    std::smatch result;
+    std::string input = s;
+
+    if (std::regex_search(input, result, re)) {
         (void) memset(&tm, 0x0, sizeof(tm));
-        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
-        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
-        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+        tm.tm_year = (int) strtol(result[1].str().c_str(), NULL, 10);
+        tm.tm_mon = (int) strtol(result[2].str().c_str(), NULL, 10) - 1;
+        tm.tm_mday = (int) strtol(result[3].str().c_str(), NULL, 10);
         *t = mktime(&tm);
         return true;
     }

@@ -53,6 +53,7 @@
 #include "utils.h"
 #include "json_utils.h"
 #include "version.h"
+#include <algorithm>
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -5219,7 +5220,7 @@ rnp_key_unlock(rnp_key_handle_t handle, const char *password)
     bool ok = false;
     if (password) {
         pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = RNP_UNCONST(password)};
+                                        .userdata = RNP_CONST_TO_VOID_PTR(password)};
         ok = pgp_key_unlock(key, &prov);
     } else {
         ok = pgp_key_unlock(key, &handle->ffi->pass_provider);
@@ -5318,7 +5319,7 @@ rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
     bool ok = false;
     if (password) {
         pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = RNP_UNCONST(password)};
+                                        .userdata = RNP_CONST_TO_VOID_PTR(password)};
         ok = pgp_key_unprotect(key, &prov);
     } else {
         ok = pgp_key_unprotect(key, &handle->ffi->pass_provider);

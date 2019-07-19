@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <time.h>
 #include <rnp/rnp_def.h>
 #include "stream-ctx.h"
@@ -973,7 +974,6 @@ cleartext_parse_headers(pgp_source_t *src)
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     char                       hdr[1024];
     char *                     hval;
-    char *                     hname;
     pgp_hash_alg_t             halg;
     ssize_t                    hdrlen;
 
@@ -990,13 +990,34 @@ cleartext_parse_headers(pgp_source_t *src)
         if (strncmp(hdr, ST_HEADER_HASH, 6) == 0) {
             hval = hdr + 6;
 
-            while ((hname = strsep(&hval, ", \t"))) {
-                if (!*hname) {
-                    continue;
+            const std::string delimiters = ", \t";
+            std::string remainder = hval;
+
+            while (!remainder.empty()) {
+                std::string token;
+                std::string::size_type token_pos =
+                    remainder.find_first_not_of(delimiters);
+
+                if (token_pos == std::string::npos) {
+                    // all remaining characters are delimiters, we are done
+                    break;
+                } else {
+                    remainder.erase(0, token_pos);
+                    std::string::size_type delimiter_pos =
+                        remainder.find_first_of(delimiters);
+
+                    if (delimiter_pos == std::string::npos) {
+                        // no more delimiters, use all remaining chars
+                        token = remainder;
+                        remainder.erase();
+                    } else {
+                        token = remainder.substr(0, delimiter_pos);
+                        remainder.erase(0, delimiter_pos);
+                    }
                 }
 
-                if ((halg = pgp_str_to_hash_alg(hname)) == PGP_HASH_UNKNOWN) {
-                    RNP_LOG("unknown halg: %s", hname);
+                if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
+                    RNP_LOG("unknown halg: %s", token.c_str());
                 }
 
                 pgp_hash_list_add(&param->hashes, halg);
