@@ -134,10 +134,6 @@ main(int argc, char *argv[])
     if (!getenv("LOGNAME")) {
         setenv("LOGNAME", "test-user", 1);
     }
-    int iteration = 1;
-    if (getenv("RNP_TEST_ITERATIONS")) {
-        iteration = atoi(getenv("RNP_TEST_ITERATIONS"));
-    }
 
     struct CMUnitTest tests[] = {
       cmocka_unit_test(hash_test_success),
@@ -303,14 +299,6 @@ main(int argc, char *argv[])
 #endif
     printf("RNP uses regular expression code from: %s\n", re_info);
 
-    int ret = 0;
-    for (int i = 0; i < iteration; i++) {
-        printf("Iteration %d\n", i);
-        ret = _cmocka_run_group_tests(
-          "rnp_tests", testp, tests_count, setup_test_group, teardown_test_group);
-        if (ret != 0) {
-            break;
-        }
-    }
-    return ret;
+    return _cmocka_run_group_tests(
+      "rnp_tests", testp, tests_count, setup_test_group, teardown_test_group);
 }
