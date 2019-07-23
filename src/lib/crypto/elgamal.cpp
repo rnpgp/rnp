@@ -285,28 +285,39 @@ elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits)
     }
 
     botan_privkey_t key_priv = NULL;
-    botan_pubkey_t  key_pub = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     bignum_t *      p = bn_new();
     bignum_t *      g = bn_new();
     bignum_t *      y = bn_new();
     bignum_t *      x = bn_new();
+    size_t          ybytes = 0;
 
     if (!p || !g || !y || !x) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto end;
     }
 
-    if (botan_privkey_create_elgamal(&key_priv, rng_handle(rng), keybits, keybits - 1) ||
-        botan_privkey_export_pubkey(&key_pub, key_priv)) {
+start:
+    if (botan_privkey_create_elgamal(&key_priv, rng_handle(rng), keybits, keybits - 1)) {
         RNP_LOG("Wrong parameters");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;
     }
 
-    if (botan_pubkey_get_field(BN_HANDLE_PTR(p), key_pub, "p") ||
-        botan_pubkey_get_field(BN_HANDLE_PTR(g), key_pub, "g") ||
-        botan_pubkey_get_field(BN_HANDLE_PTR(y), key_pub, "y") ||
+    if (botan_privkey_get_field(BN_HANDLE_PTR(y), key_priv, "y") ||
+        !bn_num_bytes(y, &ybytes)) {
+        RNP_LOG("Failed to obtain public key");
+        goto end;
+    }
+    if (ybytes < BITS_TO_BYTES(keybits)) {
+        RNP_DLOG("Generated ElGamal key has too few bits - retrying");
+        botan_privkey_destroy(key_priv);
+        goto start;
+    }
+
+    if (botan_privkey_get_field(BN_HANDLE_PTR(p), key_priv, "p") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(g), key_priv, "g") ||
+        botan_privkey_get_field(BN_HANDLE_PTR(y), key_priv, "y") ||
         botan_privkey_get_field(BN_HANDLE_PTR(x), key_priv, "x")) {
         RNP_LOG("Botan FFI call failed");
         ret = RNP_ERROR_GENERIC;
@@ -322,6 +333,5 @@ end:
     bn_free(y);
     bn_free(x);
     botan_privkey_destroy(key_priv);
-    botan_pubkey_destroy(key_pub);
     return ret;
 }
