@@ -195,16 +195,115 @@ ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
     return false;
 }
 
+static bool
+ecdh_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *key)
+{
+    bool res = false;
+
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+    if (!curve) {
+        RNP_LOG("unknown curve");
+        return false;
+    }
+
+    if (curve->rnp_curve_id == PGP_CURVE_25519) {
+        if ((key->p.len != 33) || (key->p.mpi[0] != 0x40)) {
+            return false;
+        }
+        uint8_t pkey[32] = {0};
+        memcpy(pkey, key->p.mpi + 1, 32);
+        res = !botan_pubkey_load_x25519(pubkey, pkey);
+        pgp_forget(pkey, sizeof(pkey));
+        return res;
+    }
+
+    if (!mpi_bytes(&key->p) || (key->p.mpi[0] != 0x04)) {
+        RNP_LOG("Failed to load public key");
+        return false;
+    }
+
+    botan_mp_t   px = NULL;
+    botan_mp_t   py = NULL;
+    const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
+
+    if (botan_mp_init(&px) || botan_mp_init(&py) ||
+        botan_mp_from_bin(px, &key->p.mpi[1], curve_order) ||
+        botan_mp_from_bin(py, &key->p.mpi[1 + curve_order], curve_order)) {
+        goto end;
+    }
+
+    if (!(res = !botan_pubkey_load_ecdh(pubkey, px, py, curve->botan_name))) {
+        RNP_LOG("failed to load ecdh public key");
+    }
+end:
+    botan_mp_destroy(px);
+    botan_mp_destroy(py);
+    return res;
+}
+
+static bool
+ecdh_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *key)
+{
+    const ec_curve_desc_t *curve = get_curve_desc(key->curve);
+
+    if (!curve) {
+        return false;
+    }
+
+    if (curve->rnp_curve_id == PGP_CURVE_25519) {
+        uint8_t prkey[32] = {0};
+        if (key->x.len != 32) {
+            RNP_LOG("wrong x25519 key");
+            return false;
+        }
+        /* need to reverse byte order since in mpi we have big-endian */
+        for (int i = 0; i < 32; i++) {
+            prkey[i] = key->x.mpi[31 - i];
+        }
+        bool res = !botan_privkey_load_x25519(seckey, prkey);
+        pgp_forget(prkey, sizeof(prkey));
+        return res;
+    }
+
+    bignum_t *x = NULL;
+    if (!(x = mpi2bn(&key->x))) {
+        return false;
+    }
+    bool res = !botan_privkey_load_ecdh(seckey, BN_HANDLE_PTR(x), curve->botan_name);
+    bn_free(x);
+    return res;
+}
+
 rnp_result_t
 ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
+    botan_pubkey_t  bpkey = NULL;
+    botan_privkey_t bskey = NULL;
+    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
+
     const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
     if (!curve_desc) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    /* botan doesn't seem to have specific checks for ecdh keys yet, probably needs updating */
-    return RNP_SUCCESS;
+    if (!ecdh_load_public_key(&bpkey, key) ||
+        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+        goto done;
+    }
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
+    if (!ecdh_load_secret_key(&bskey, key) ||
+        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    botan_privkey_destroy(bskey);
+    botan_pubkey_destroy(bpkey);
+    return ret;
 }
 
 rnp_result_t
@@ -322,7 +421,6 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
     size_t          deckey_len = sizeof(deckey);
     size_t          offset = 0;
     size_t          kek_len = 0;
-    int             loadres = 0;
 
     if (!out_len || !in || !key || !mpi_bytes(&key->x)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -353,27 +451,8 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
         goto end;
     }
 
-    if (key->curve == PGP_CURVE_25519) {
-        uint8_t prkey[32] = {};
-        if (key->x.len != 32) {
-            RNP_LOG("wrong x25519 key");
-            goto end;
-        }
-        /* need to reverse byte order since in mpi we have big-endian */
-        for (int i = 0; i < 32; i++) {
-            prkey[i] = key->x.mpi[31 - i];
-        }
-        loadres = botan_privkey_load_x25519(&prv_key, prkey);
-        pgp_forget(prkey, sizeof(prkey));
-    } else {
-        bignum_t *x = NULL;
-        if (!(x = mpi2bn(&key->x))) {
-            goto end;
-        }
-        loadres = botan_privkey_load_ecdh(&prv_key, BN_HANDLE_PTR(x), curve_desc->botan_name);
-        bn_free(x);
-    }
-    if (loadres) {
+    if (!ecdh_load_secret_key(&prv_key, key)) {
+        RNP_LOG("failed to load ecdh secret key");
         goto end;
     }
 
