@@ -25,7 +25,6 @@
  */
 
 #include "support.h"
-#include "utils.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -188,7 +187,7 @@ path_mkdir(mode_t mode, const char *first, ...)
     vpaths_concat(buffer, sizeof(buffer), first, ap);
     va_end(ap);
 
-    assert_int_equal(0, PORTABLE_MKDIR(buffer, mode));
+    assert_int_equal(0, mkdir(buffer, mode));
 }
 
 static int
@@ -233,7 +232,6 @@ copy_recursively(const char *src, const char *dst)
 char *
 make_temp_dir()
 {
-#if !defined(_WIN32) && !defined(_WIN64)
     const char *tmplate = "/tmp/rnp-cmocka-XXXXXX";
     char *      buffer = (char *) calloc(1, strlen(tmplate) + 1);
     if (buffer == NULL) {
@@ -241,16 +239,11 @@ make_temp_dir()
     }
     strncpy(buffer, tmplate, strlen(tmplate));
     return mkdtemp(buffer);
-#else
-    // TODO: Use alternative for mkdtemp on Windows
-    return NULL;
-#endif
 }
 
 static char *
 directory_from_absolute_file_path(const char *file_path)
 {
-#if !defined(_WIN32) && !defined(_WIN64)
     const char *last_sep = strrchr(file_path, '/');
     if (!last_sep) {
         return NULL;
@@ -268,16 +261,11 @@ directory_from_absolute_file_path(const char *file_path)
     free(dir);
     dir = NULL;
     return full_dir;
-#else
-    // TODO: realpath unavailable on Windows, maybe use GetFullPathName?
-    return NULL;
-#endif
 }
 
 static char *
 directory_from_relative_file_path(const char *file_path, const char *reldir)
 {
-#if !defined(_WIN32) && !defined(_WIN64)
     const char *last_sep = strrchr(file_path, '/');
     if (!last_sep) {
         return NULL;
@@ -298,10 +286,6 @@ directory_from_relative_file_path(const char *file_path, const char *reldir)
     free(dir);
     dir = NULL;
     return full_dir;
-#else
-    // TODO: realpath unavailable on Windows, maybe use GetFullPathName?
-    return NULL;
-#endif
 }
 
 char *
@@ -427,14 +411,8 @@ bool
 setupPasswordfd(int *pipefd)
 {
     bool ok = false;
-    int result = -1;
 
-#if !defined(_WIN32) && !defined(_WIN64)
-    // TODO: Implement code for Windows, possibly using CreatePipe
-    result = pipe(pipefd);
-#endif
-
-    if (result == -1) {
+    if (pipe(pipefd) == -1) {
         perror("pipe");
         goto end;
     }

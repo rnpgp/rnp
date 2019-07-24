@@ -31,7 +31,6 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 
 /* This test loads a .gpg pubring with a single V3 key,
  * and confirms that appropriate key flags are set.
@@ -821,7 +820,7 @@ test_key_import(void **state)
     pgp_transferable_subkey_t *tskey = NULL;
     pgp_transferable_userid_t *tuid = NULL;
 
-    assert_int_equal(PORTABLE_MKDIR(".rnp", S_IRWXU), 0);
+    assert_int_equal(mkdir(".rnp", S_IRWXU), 0);
     assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, ".rnp", NULL));
 
     /* import just the public key */
