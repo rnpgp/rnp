@@ -22,6 +22,8 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+find_package(Threads)
+
 add_executable(generate generate.c)
 set_target_properties(generate PROPERTIES LINKER_LANGUAGE C)
 
@@ -34,6 +36,7 @@ target_include_directories(generate
 target_link_libraries(generate
   PRIVATE
     librnp
+  Threads::Threads
 )
 
 add_executable(encrypt encrypt.c)
@@ -48,6 +51,7 @@ target_include_directories(encrypt
 target_link_libraries(encrypt
   PRIVATE
     librnp
+  Threads::Threads
 )
 
 add_executable(decrypt decrypt.c)
@@ -62,6 +66,7 @@ target_include_directories(decrypt
 target_link_libraries(decrypt
   PRIVATE
     librnp
+  Threads::Threads
 )
 
 add_executable(sign sign.c)
@@ -76,6 +81,7 @@ target_include_directories(sign
 target_link_libraries(sign
   PRIVATE
     librnp
+  Threads::Threads
 )
 
 add_executable(verify verify.c)
@@ -90,4 +96,5 @@ target_include_directories(verify
 target_link_libraries(verify
   PRIVATE
     librnp
+  Threads::Threads
 )

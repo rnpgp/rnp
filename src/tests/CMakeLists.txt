@@ -25,6 +25,7 @@
 # for rnp_tests
 find_package(cmocka REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
+find_package(Threads)
 
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
@@ -66,6 +67,7 @@ target_link_libraries(rnp_tests
     librnp
     JSON-C::JSON-C
     cmocka::cmocka
+  Threads::Threads
 )
 
 target_compile_definitions(rnp_tests

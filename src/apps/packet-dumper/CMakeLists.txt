@@ -23,6 +23,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 find_package(JSON-C 0.11 REQUIRED)
+find_package(Threads)
 
 add_executable(redumper redumper.cpp)
 target_include_directories(redumper PRIVATE
@@ -33,4 +34,5 @@ target_link_libraries(redumper
   PRIVATE
     librnp
     JSON-C::JSON-C
+  Threads::Threads
 )

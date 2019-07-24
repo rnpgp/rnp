@@ -82,7 +82,11 @@ foreach(feature ${_botan_required_features})
 endforeach()
 set(CMAKE_REQUIRED_INCLUDES)
 
-add_library(librnp
+if (NOT BUILD_SHARED_LIBS)
+  set(STATIC_LIB_TAG STATIC)
+endif()
+
+add_library(librnp ${STATIC_LIB_TAG}
   # librepgp
   ../librepgp/packet-show.cpp
   ../librepgp/stream-armor.cpp

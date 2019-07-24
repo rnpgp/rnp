@@ -24,6 +24,7 @@
 
 # for the headers
 find_package(JSON-C 0.11 REQUIRED)
+find_package(Threads)
 
 add_executable(rnpkeys
   rnpkeys.cpp
@@ -43,6 +44,7 @@ target_include_directories(rnpkeys
 target_link_libraries(rnpkeys
   PRIVATE
     librnp
+  Threads::Threads
 )
 
 include(GNUInstallDirs)
