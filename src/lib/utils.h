@@ -26,6 +26,8 @@
 #ifndef RNP_UTILS_H_
 #define RNP_UTILS_H_
 
+// dummy change
+
 #include <stdio.h>
 #include "types.h"
 #include <limits.h>
