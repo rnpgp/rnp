@@ -34,7 +34,7 @@
 #include <stdint.h>
 #include <rekey/rnp_key_store.h>
 
-void rnp_key_store_format_key(char *buffer, uint8_t *sigid, int len);
+void rnp_key_store_format_key(char *buffer, const uint8_t *sigid, int len);
 bool rnp_key_store_get_first_ring(rnp_key_store_t *ring, char *id, size_t len, int last);
 
 #endif /* KEY_STORE_INTERNAL_H_ */
