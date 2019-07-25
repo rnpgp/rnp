@@ -375,14 +375,54 @@ void
 cli_rnp_set_default_key(cli_rnp_t *rnp)
 {
     rnp_identifier_iterator_t it = NULL;
-    const char *              defkey = NULL;
+    rnp_key_handle_t          handle = NULL;
+    const char *              grip = NULL;
+
+    free(rnp->defkey);
+    rnp->defkey = NULL;
 
     if (rnp_identifier_iterator_create(rnp->ffi, &it, "grip")) {
+        ERR_MSG("failed to create key iterator");
         return;
     }
-    if (rnp_identifier_iterator_next(it, &defkey) == RNP_SUCCESS) {
-        rnp->defkey = strdup(defkey);
+
+    while (rnp_identifier_iterator_next(it, &grip) == RNP_SUCCESS) {
+        bool is_subkey = false;
+        bool is_secret = false;
+
+        if (!grip) {
+            break;
+        }
+        if (rnp_locate_key(rnp->ffi, "grip", grip, &handle)) {
+            ERR_MSG("failed to locate key");
+            continue;
+        }
+        if (rnp_key_is_sub(handle, &is_subkey) || is_subkey) {
+            goto next;
+        }
+        if (rnp_key_have_secret(handle, &is_secret)) {
+            goto next;
+        }
+        if (!rnp->defkey || is_secret) {
+            free(rnp->defkey);
+            rnp->defkey = strdup(grip);
+            if (!rnp->defkey) {
+                ERR_MSG("allocation failed");
+                goto done;
+            }
+        }
+        /* if we have secret primary key then use it as default */
+        if (is_secret) {
+            goto done;
+        }
+
+    next:
+        rnp_key_handle_destroy(handle);
+        handle = NULL;
     }
+
+done:
+    rnp_key_handle_destroy(handle);
     rnp_identifier_iterator_destroy(it);
 }
 
@@ -1003,8 +1043,8 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
     rnp_output_t armor = NULL;
     const char * file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
     rnp_result_t ret;
-    uint32_t base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
-    bool     result = false;
+    uint32_t     base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
+    bool         result = false;
 
     if (file) {
         uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;

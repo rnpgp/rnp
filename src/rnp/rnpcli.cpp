@@ -255,11 +255,48 @@ rnp_end(rnp_t *rnp)
     }
 }
 
+static void
+rnp_set_key_default(rnp_t *rnp, const pgp_key_t *key)
+{
+    const uint8_t *keyid = pgp_key_get_keyid(key);
+    const size_t   idlen = PGP_KEY_ID_SIZE * 2 + 1;
+    char *         defkey = (char *) calloc(1, idlen);
+    if (!defkey) {
+        RNP_LOG("allocation failed");
+        return;
+    }
+    rnp_key_store_format_key(defkey, keyid, idlen);
+    free(rnp->defkey);
+    rnp->defkey = defkey;
+}
+
+static void
+rnp_set_defkey(rnp_t *rnp)
+{
+    free(rnp->defkey);
+    rnp->defkey = NULL;
+
+    /* use first primary secret or public key, using the pubring's key order */
+    for (size_t i = 0; i < rnp_key_store_get_key_count(rnp->pubring); i++) {
+        pgp_key_t *key = rnp_key_store_get_key(rnp->pubring, i);
+        if (pgp_key_is_subkey(key)) {
+            continue;
+        }
+
+        pgp_key_t *seckey = rnp_key_store_get_key_by_grip(rnp->secring, pgp_key_get_grip(key));
+        if (seckey) {
+            rnp_set_key_default(rnp, seckey);
+            return;
+        }
+        if (!rnp->defkey) {
+            rnp_set_key_default(rnp, key);
+        }
+    }
+}
+
 bool
 rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
 {
-    char id[MAX_ID_LENGTH];
-
     rnp_key_store_t *pubring = rnp->pubring;
     rnp_key_store_t *secring = rnp->secring;
 
@@ -287,21 +324,10 @@ rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
             RNP_LOG("sec keyring '%s' is empty", ((rnp_key_store_t *) secring)->path);
             return false;
         }
+    }
 
-        /* Now, if we don't have a valid user, use the first
-         * in secring.
-         */
-        if (!rnp->defkey) {
-            if (rnp_key_store_get_first_ring(secring, id, sizeof(id), 0)) {
-                rnp->defkey = strdup(id);
-            }
-        }
-
-    } else if (!rnp->defkey) {
-        /* encrypting - get first in pubring */
-        if (rnp_key_store_get_first_ring(rnp->pubring, id, sizeof(id), 0)) {
-            rnp->defkey = strdup(id);
-        }
+    if (!rnp->defkey) {
+        rnp_set_defkey(rnp);
     }
 
     return true;
