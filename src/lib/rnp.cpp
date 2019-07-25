@@ -53,7 +53,6 @@
 #include "utils.h"
 #include "json_utils.h"
 #include "version.h"
-#include <algorithm>
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;

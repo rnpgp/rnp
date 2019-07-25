@@ -37,7 +37,6 @@
 #include <stdbool.h>
 
 #include <errno.h>
-#include <regex>
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -50,7 +49,7 @@
 #endif
 
 #include <limits.h>
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
 #include <sys/resource.h>
 #endif
 
@@ -58,6 +57,14 @@
 #include <rekey/rnp_key_store.h>
 
 #include "utils.h"
+
+// must be placed after include "utils.h"
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#include <regex.h>
+#else
+#include <regex>
+#endif
+
 #include "crypto.h"
 #include "crypto/common.h"
 #include "pgp-key.h"
@@ -1411,7 +1418,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         if (!rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath))) {
             return false;
         }
-        if (PORTABLE_MKDIR(pubpath, 0700) == -1 && errno != EEXIST) {
+        if (RNP_MKDIR(pubpath, 0700) == -1 && errno != EEXIST) {
             RNP_LOG("cannot mkdir '%s' errno = %d", pubpath, errno);
             return false;
         }
@@ -1466,14 +1473,39 @@ conffile(const char *homedir, char *userid, size_t length)
     char       buf[BUFSIZ];
     FILE *     fp;
 
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+    regmatch_t matchv[10];
+    regex_t    keyre;
+#else
     static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
                          std::regex_constants::extended);
+#endif
 
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
     if ((fp = fopen(buf, "r")) == NULL) {
         return false;
     }
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+    (void) memset(&keyre, 0x0, sizeof(keyre));
+    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
+        RNP_LOG("failed to compile regular expression");
+        fclose(fp);
+        return false;
+    }
+#endif
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
+            (void) memcpy(userid,
+                          &buf[(int) matchv[1].rm_so],
+                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
+
+            (void) fprintf(stderr,
+                           "rnp: default key set to \"%.*s\"\n",
+                           (int) (matchv[1].rm_eo - matchv[1].rm_so),
+                           &buf[(int) matchv[1].rm_so]);
+        }
+#else
         std::smatch result;
         std::string input = buf;
         if (std::regex_search(input, result, keyre)) {
@@ -1482,8 +1514,12 @@ conffile(const char *homedir, char *userid, size_t length)
             (void) fprintf(stderr, "rnp: default key set to \"%s\"\n",
                            userid);
         }
+#endif
     }
     (void) fclose(fp);
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+    regfree(&keyre);
+#endif
     return true;
 }
 

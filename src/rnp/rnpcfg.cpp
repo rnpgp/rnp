@@ -30,7 +30,6 @@
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/stat.h>
-#include <regex>
 #include <time.h>
 #include <errno.h>
 
@@ -39,6 +38,13 @@
 #include "defaults.h"
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
+
+// must be placed after include "utils.h"
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#include <regex.h>
+#else
+#include <regex>
+#endif
 
 typedef enum rnp_cfg_val_type_t {
     RNP_CFG_VAL_NULL = 0,
@@ -466,6 +472,30 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 static bool
 grabdate(const char *s, int64_t *t)
 {
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+    static regex_t r;
+    static int     compiled;
+    regmatch_t     matches[10];
+    struct tm      tm;
+
+    if (!compiled) {
+        compiled = 1;
+        if (regcomp(&r,
+                    "([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
+                    REG_EXTENDED) != 0) {
+            RNP_LOG("failed to compile regexp");
+            return false;
+        }
+    }
+    if (regexec(&r, s, 10, matches, 0) == 0) {
+        (void) memset(&tm, 0x0, sizeof(tm));
+        tm.tm_year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
+        tm.tm_mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10) - 1;
+        tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+        *t = mktime(&tm);
+        return true;
+    }
+#else
     struct tm      tm;
 
     static std::regex re("([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
@@ -481,6 +511,7 @@ grabdate(const char *s, int64_t *t)
         *t = mktime(&tm);
         return true;
     }
+#endif
     return false;
 }
 

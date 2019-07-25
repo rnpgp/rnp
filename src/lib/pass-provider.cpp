@@ -28,7 +28,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
 #include <termios.h>
 #endif
 
@@ -38,7 +38,7 @@
 static bool
 rnp_getpass(const char *prompt, char *buffer, size_t size)
 {
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
     struct termios saved_flags, noecho_flags;
     bool           restore_ttyflags = false;
 #endif
@@ -53,7 +53,7 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
     // doesn't hurt
     *buffer = '\0';
 
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
     in = fopen("/dev/tty", "w+ce");
 #endif
     if (!in) {
@@ -64,7 +64,7 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
     }
 
     // TODO: Implement alternative for hiding password entry on Windows
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
     // save the original termios
     if (tcgetattr(fileno(in), &saved_flags) == 0) {
         noecho_flags = saved_flags;
@@ -83,7 +83,7 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
     rnp_strip_eol(buffer);
     ok = true;
 end:
-#if !defined(_WIN32) && !defined(_WIN64)
+#ifndef _WIN32
     if (restore_ttyflags) {
         tcsetattr(fileno(in), TCSAFLUSH, &saved_flags);
     }
