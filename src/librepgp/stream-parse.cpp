@@ -29,6 +29,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
+#include <deque>
 #include <time.h>
 #include <rnp/rnp_def.h>
 #include "stream-ctx.h"
@@ -967,13 +969,55 @@ signed_src_finish(pgp_source_t *src)
     return ret;
 }
 
+static void tokenize(const std::string &str, const std::string &delims,
+                     std::deque<std::string> &found_tokens)
+{
+    typename std::string::size_type walk_pos = 0;
+
+    while (walk_pos != std::string::npos && walk_pos < str.length())
+    {
+        typename std::string::size_type token_pos = 0, token_len = 0;
+        typename std::string::size_type delim_pos = str.find_first_of( delims, walk_pos );
+
+        if (delim_pos == std::string::npos)
+        {
+            // no more delims, a token starts at walk_pos
+            token_pos = walk_pos;
+            token_len = str.length() - token_pos;
+            walk_pos += token_len;
+        }
+        else if (delim_pos > walk_pos)
+        {
+            // more tokens / delims left, but a token starts at walk_pos
+            token_pos = walk_pos;
+            token_len = delim_pos - token_pos;
+            walk_pos = delim_pos;
+        }
+        else if (delim_pos == walk_pos)
+        {
+            // delimiters start at walk_pos
+            walk_pos = str.find_first_not_of( delims, walk_pos );
+            if( walk_pos == std::string::npos )
+            {
+                // only delims left in str, no more tokens
+                break;
+            }
+            else
+            {
+                // more tokens left
+                continue;
+            }
+        }
+        found_tokens.push_back(str.substr(token_pos, token_len));
+    }
+}
+
 static bool
 cleartext_parse_headers(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     char                       hdr[1024];
     char *                     hval;
-    char *                     hname;
     pgp_hash_alg_t             halg;
     ssize_t                    hdrlen;
 
@@ -990,15 +1034,18 @@ cleartext_parse_headers(pgp_source_t *src)
         if (strncmp(hdr, ST_HEADER_HASH, 6) == 0) {
             hval = hdr + 6;
 
-            while ((hname = strsep(&hval, ", \t"))) {
-                if (!*hname) {
-                    continue;
-                }
+            std::string remainder = hval;
 
-                if ((halg = pgp_str_to_hash_alg(hname)) == PGP_HASH_UNKNOWN) {
-                    RNP_LOG("unknown halg: %s", hname);
-                }
+            const std::string delimiters = ", \t";
+            std::deque<std::string> tokens;
 
+            tokenize(remainder, delimiters, tokens);
+
+            for (auto iter = tokens.begin(); iter != tokens.end(); ++iter) {
+                const std::string &token = *iter;
+                if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
+                    RNP_LOG("unknown halg: %s", token.c_str());
+                }
                 pgp_hash_list_add(&param->hashes, halg);
             }
         } else {

@@ -113,8 +113,14 @@
 /* for silencing unused parameter warnings */
 #define RNP_USED(x) /*LINTED*/ (void) &(x)
 
-#ifndef RNP_UNCONST
-#define RNP_UNCONST(a) ((void *) (unsigned long) (const void *) (a))
+#ifndef RNP_CONST_TO_VOID_PTR
+#define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
+#endif
+
+#ifdef _WIN32
+#define RNP_MKDIR(pathname, mode) mkdir(pathname)
+#else
+#define RNP_MKDIR(pathname, mode) mkdir(pathname, mode)
 #endif
 
 /* debugging helpers*/
@@ -167,6 +173,12 @@ STORE64BE(uint8_t x[8], uint64_t y)
 
 #ifndef MAX
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#endif
+
+/* Macro _GLIBCXX_USE_CXX11_ABI was first introduced with GCC 5.0, which
+ * we assume to be bundled with a sane implementation of std::regex. */
+#if !defined(__GNUC__) || defined(_GLIBCXX_USE_CXX11_ABI)
+#define RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX 1
 #endif
 
 #endif
