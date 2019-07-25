@@ -34,7 +34,6 @@
 
 #include <assert.h>
 #include <stdio.h>
-#include <regex.h>
 #include <string.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -54,6 +53,13 @@
 #include "fingerprint.h"
 #include "crypto/hash.h"
 #include "utils.h"
+
+// must be placed after include "utils.h"
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#include <regex.h>
+#else
+#include <regex>
+#endif
 
 static bool
 parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
@@ -186,7 +192,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
                 RNP_LOG("stat(%s): %s", key_store->path, strerror(errno));
                 return false;
             }
-            if (mkdir(key_store->path, S_IRWXU) != 0) {
+            if (RNP_MKDIR(key_store->path, S_IRWXU) != 0) {
                 RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path, strerror(errno));
                 return false;
             }
@@ -812,7 +818,6 @@ get_key_by_name(const rnp_key_store_t *keyring,
     pgp_key_t *kp;
     unsigned   i = 0;
     pgp_key_t *keyp;
-    regex_t    r;
     uint8_t    keyid[PGP_FINGERPRINT_SIZE];
     size_t     len;
     size_t     binlen = 0;
@@ -851,10 +856,16 @@ get_key_by_name(const rnp_key_store_t *keyring,
     RNP_DLOG("regex match '%s' after %p", name, after);
 
     /* match on full name or email address as a NOSUB, ICASE regexp */
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+    regex_t    r;
     if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
         RNP_LOG("Can't compile regex from string: '%s'", name);
         return false;
     }
+#else
+    std::regex re(name, std::regex_constants::extended | std::regex_constants::icase);
+#endif
+
     for (list_item *key_item = after ? list_next((list_item *) after) :
                                        list_front(keyring->keys);
          key_item;
@@ -862,6 +873,7 @@ get_key_by_name(const rnp_key_store_t *keyring,
         keyp = (pgp_key_t *) key_item;
 
         for (i = 0; i < pgp_key_get_userid_count(keyp); i++) {
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
             if (regexec(&r, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
                 RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
                          (char *) pgp_key_get_userid(keyp, i),
@@ -870,9 +882,21 @@ get_key_by_name(const rnp_key_store_t *keyring,
                 *key = keyp;
                 return true;
             }
+#else
+            const std::string userid = pgp_key_get_userid(keyp, i);
+            if (std::regex_search(userid, re)) {
+                RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
+                         (char *) userid.c_str(),
+                         len);
+                *key = keyp;
+                return true;
+            }
+#endif
         }
     }
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
     regfree(&r);
+#endif
     return true;
 }
 

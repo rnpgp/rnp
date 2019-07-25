@@ -35,17 +35,30 @@
 #include <string.h>
 #include <ctype.h>
 #include <unistd.h>
+
+#ifndef _WIN32
 #include <termios.h>
+#endif
+
 #include <time.h>
-#include <regex.h>
 #include "config.h"
 #include "fficli.h"
+#include "utils.h"
+
+// must be placed after include "utils.h"
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#include <regex.h>
+#else
+#include <regex>
+#endif
 
 static bool
 stdin_getpass(const char *prompt, char *buffer, size_t size)
 {
+#ifndef _WIN32
     struct termios saved_flags, noecho_flags;
     bool           restore_ttyflags = false;
+#endif
     bool           ok = false;
     FILE *         in = NULL;
     FILE *         out = NULL;
@@ -57,7 +70,9 @@ stdin_getpass(const char *prompt, char *buffer, size_t size)
     // doesn't hurt
     *buffer = '\0';
 
+#ifndef _WIN32
     in = fopen("/dev/tty", "w+ce");
+#endif
     if (!in) {
         in = stdin;
         out = stderr;
@@ -65,6 +80,9 @@ stdin_getpass(const char *prompt, char *buffer, size_t size)
         out = in;
     }
 
+    // TODO: Implement alternative for hiding password entry on Windows
+    // TODO: avoid duplicate termios code with pass-provider.cpp
+#ifndef _WIN32
     // save the original termios
     if (tcgetattr(fileno(in), &saved_flags) == 0) {
         noecho_flags = saved_flags;
@@ -72,6 +90,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size)
         noecho_flags.c_lflag = (noecho_flags.c_lflag & ~ECHO) | ECHONL | ISIG;
         restore_ttyflags = (tcsetattr(fileno(in), TCSANOW, &noecho_flags) == 0);
     }
+#endif
     if (prompt) {
         fputs(prompt, out);
     }
@@ -82,9 +101,11 @@ stdin_getpass(const char *prompt, char *buffer, size_t size)
     rnp_strip_eol(buffer);
     ok = true;
 end:
+#ifndef _WIN32
     if (restore_ttyflags) {
         tcsetattr(fileno(in), TCSAFLUSH, &saved_flags);
     }
+#endif
     if (in != stdin) {
         fclose(in);
     }
@@ -566,7 +587,7 @@ cli_rnp_save_keyrings(cli_rnp_t *rnp)
                 ERR_MSG("stat(%s): %s", rnp->secpath, strerror(errno));
                 return false;
             }
-            if (mkdir(rnp->secpath, S_IRWXU) != 0) {
+            if (RNP_MKDIR(rnp->secpath, S_IRWXU) != 0) {
                 ERR_MSG("mkdir(%s, S_IRWXU): %s", rnp->secpath, strerror(errno));
                 return false;
             }
@@ -744,7 +765,11 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
     char *  id = NULL;
     size_t  idlen = 0;
     size_t  len = str ? strlen(str) : 0;
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
     regex_t r = {};
+#else
+    std::regex re;
+#endif
     size_t  uid_count = 0;
     bool    boolres = false;
 
@@ -834,27 +859,40 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
         goto done;
     }
 
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, str, REG_EXTENDED | REG_ICASE) != 0) {
         goto done;
     }
+#else
+    re.assign(str, std::regex_constants::extended | std::regex_constants::icase);
+#endif
 
     for (size_t idx = 0; idx < uid_count; idx++) {
         if (rnp_key_get_uid_at(handle, idx, &id)) {
             goto regdone;
         }
 
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
         if (regexec(&r, id, 0, NULL, 0) == 0) {
             matches = true;
             goto regdone;
         }
+#else
+        if (std::regex_search(id, re)) {
+            matches = true;
+            goto regdone;
+        }
+#endif
 
         rnp_buffer_destroy(id);
         id = NULL;
     }
 
 regdone:
+#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
     regfree(&r);
+#endif
 done:
     rnp_buffer_destroy(id);
     return matches;

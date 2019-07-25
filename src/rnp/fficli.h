@@ -73,9 +73,7 @@ char *      ptimestr(char *dest, size_t size, time_t t);
 #define RNP_KEYID_SIZE 8
 #define RNP_FP_SIZE 20
 #define RNP_GRIP_SIZE 20
-#define RNP_SUCCESS 0
 
-#define MAX_PASSWORD_LENGTH 256
 #define MAX_PASSWORD_ATTEMPTS 3
 
 #define ERR_MSG(...)                           \
