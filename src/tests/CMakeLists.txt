@@ -158,7 +158,7 @@ foreach(suite IN LISTS suitelist)
 endforeach()
 
 # cruby does not currently play nice with ASaN et al.
-if (NOT ENABLE_SANITIZERS)
+if (NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS)
   include(ExternalProject)
   set(_sourcedir "${CMAKE_BINARY_DIR}/ruby-rnp")
   if (DEFINED ENV{RUBY_RNP_INSTALL})
@@ -175,7 +175,10 @@ if (NOT ENABLE_SANITIZERS)
     SOURCE_DIR "${_sourcedir}"
     BUILD_IN_SOURCE yes
     CONFIGURE_COMMAND ""
-    BUILD_COMMAND bundle show parallel_tests || bundle add parallel_tests && bundle install --path .
+    BUILD_COMMAND
+      COMMAND bundle add ffi --version 1.9.25
+      COMMAND bundle show parallel_tests || bundle add parallel_tests
+      COMMAND bundle install --path .
     INSTALL_COMMAND ""
     TEST_COMMAND ""
   )
