@@ -93,7 +93,7 @@
  * will be set to the result from setrlimit in the event of
  * failure.
  */
-static rnp_result_t
+rnp_result_t
 disable_core_dumps(void)
 {
     struct rlimit limit;
@@ -119,7 +119,7 @@ disable_core_dumps(void)
 
 #endif
 
-static bool
+bool
 set_pass_fd(FILE **file, int passfd)
 {
     if (!file) {
@@ -307,59 +307,6 @@ rnp_load_keyrings(rnp_t *rnp, bool loadsecret)
     return true;
 }
 
-/* resolve the userid */
-pgp_key_t *
-resolve_userid(rnp_t *rnp, const rnp_key_store_t *keyring, const char *userid)
-{
-    pgp_key_t *key;
-
-    if (userid == NULL) {
-        return NULL;
-    }
-    key = rnp_key_store_get_key_by_name(keyring, userid, NULL);
-    if (!key) {
-        (void) fprintf(stderr, "cannot find key '%s'\n", userid);
-        return NULL;
-    }
-    return key;
-}
-
-/* find a key in a keyring */
-bool
-rnp_find_key(rnp_t *rnp, const char *id)
-{
-    pgp_key_t *key;
-
-    if (id == NULL) {
-        RNP_LOG("NULL id to search for");
-        return false;
-    }
-    key = rnp_key_store_get_key_by_name(rnp->pubring, id, NULL);
-    if (!key) {
-        return false;
-    }
-    return key != NULL;
-}
-
-/* export a given key */
-char *
-rnp_export_key(rnp_t *rnp, const char *name, bool secret_key)
-{
-    const pgp_key_t *      key;
-    const rnp_key_store_t *keyring;
-
-    if (!rnp) {
-        return NULL;
-    }
-
-    keyring = secret_key ? rnp->secring : rnp->pubring;
-    key = resolve_userid(rnp, keyring, name);
-    if (!key) {
-        return NULL;
-    }
-    return pgp_export_key(keyring, key);
-}
-
 bool
 rnp_add_key(rnp_t *rnp, const char *path, bool print)
 {
@@ -465,25 +412,8 @@ done:
     return ret;
 }
 
-/* import a key into our keyring */
-bool
-rnp_import_key(rnp_t *rnp, const char *f)
-{
-    if (!rnp_add_key(rnp, f, true)) {
-        return false;
-    }
-
-    if (!rnp_key_store_write_to_path(rnp->secring) ||
-        !rnp_key_store_write_to_path(rnp->pubring)) {
-        RNP_LOG("failed to write keyring");
-        return false;
-    }
-
-    return true;
-}
-
 /* return the time as a string */
-static char *
+char *
 ptimestr(char *dest, size_t size, time_t t)
 {
     struct tm *tm;
@@ -590,74 +520,6 @@ rnp_print_key_info(FILE *fp, rnp_key_store_t *keyring, const pgp_key_t *key, boo
             fprintf(fp, " %s\n", signer ? pgp_key_get_primary_userid(signer) : "[unknown]");
         }
     }
-}
-
-size_t
-rnp_secret_count(rnp_t *rnp)
-{
-    return rnp->secring ? rnp_key_store_get_key_count(rnp->secring) : 0;
-}
-
-size_t
-rnp_public_count(rnp_t *rnp)
-{
-    return rnp->pubring ? rnp_key_store_get_key_count(rnp->pubring) : 0;
-}
-
-pgp_key_t *
-rnp_generate_key(rnp_t *rnp)
-{
-    rnp_action_keygen_t *action = &rnp->action.generate_key_ctx;
-    pgp_key_t            primary_sec = {0};
-    pgp_key_t            primary_pub = {0};
-    pgp_key_t            subkey_sec = {0};
-    pgp_key_t            subkey_pub = {0};
-    pgp_key_t *          result = NULL;
-    key_store_format_t   key_format = ((rnp_key_store_t *) rnp->secring)->format;
-
-    if (!pgp_generate_keypair(&rnp->rng,
-                              &action->primary.keygen,
-                              &action->subkey.keygen,
-                              true,
-                              &primary_sec,
-                              &primary_pub,
-                              &subkey_sec,
-                              &subkey_pub,
-                              key_format)) {
-        RNP_LOG("failed to generate keys");
-        return NULL;
-    }
-
-    // protect the primary key
-    if (!rnp_key_add_protection(
-          &primary_sec, key_format, &action->primary.protection, &rnp->password_provider)) {
-        return NULL;
-    }
-
-    // protect the subkey
-    if (!rnp_key_add_protection(
-          &subkey_sec, key_format, &action->subkey.protection, &rnp->password_provider)) {
-        RNP_LOG("failed to protect keys");
-        return NULL;
-    }
-
-    // add them all to the key store
-    if (!(result = rnp_key_store_add_key(rnp->secring, &primary_sec)) ||
-        !rnp_key_store_add_key(rnp->secring, &subkey_sec) ||
-        !rnp_key_store_add_key(rnp->pubring, &primary_pub) ||
-        !rnp_key_store_add_key(rnp->pubring, &subkey_pub)) {
-        RNP_LOG("failed to add keys to key store");
-        return NULL;
-    }
-
-    // update the keyring on disk
-    if (!rnp_key_store_write_to_path(rnp->secring) ||
-        !rnp_key_store_write_to_path(rnp->pubring)) {
-        RNP_LOG("failed to write keyring");
-        return NULL;
-    }
-
-    return result;
 }
 
 typedef struct pgp_parse_handler_param_t {
@@ -1554,7 +1416,7 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
 }
 
 bool
-rnp_cfg_set_keystore_info(rnp_cfg_t *cfg)
+cli_cfg_set_keystore_info(rnp_cfg_t *cfg)
 {
     /* detecting keystore pathes and format */
     if (!rnp_cfg_set_ks_info(cfg)) {

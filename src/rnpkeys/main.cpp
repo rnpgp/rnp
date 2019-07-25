@@ -50,7 +50,7 @@ int
 rnpkeys_main(int argc, char **argv)
 #endif
 {
-    rnp_t     rnp = {};
+    cli_rnp_t rnp = {};
     rnp_cfg_t opt_cfg = {};
     rnp_cfg_t cfg = {};
     optdefs_t cmd = (optdefs_t) 0;
@@ -121,6 +121,6 @@ rnpkeys_main(int argc, char **argv)
 end:
     rnp_cfg_free(&cfg);
     rnp_cfg_free(&opt_cfg);
-    rnp_end(&rnp);
+    cli_rnp_end(&rnp);
     return ret;
 }

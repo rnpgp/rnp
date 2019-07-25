@@ -76,6 +76,8 @@ void generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail(void **state);
 
 void s2k_iteration_tuning(void **state);
 
+void test_validate_key_material(void **state);
+
 void test_utils_list(void **state);
 
 void test_rnpcfg(void **state);
@@ -159,6 +161,8 @@ void test_ffi_key_generate_eddsa(void **state);
 void test_ffi_key_generate_sm2(void **state);
 
 void test_ffi_key_generate_ex(void **state);
+
+void test_ffi_key_generate_protection(void **state);
 
 void test_ffi_add_userid(void **state);
 

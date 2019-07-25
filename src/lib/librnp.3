@@ -93,25 +93,9 @@ The following functions are used for key management:
 .Fo rnp_match_list_keys
 .Fa "rnp_t *rnp" "char *pattern"
 .Fc
-.Ft int
-.Fo rnp_find_key
-.Fa "rnp_t *rnp" "char *userid"
-.Fc
 .Ft char *
 .Fo rnp_get_key
 .Fa "rnp_t *rnp" "const char *id"
-.Fc
-.Ft int
-.Fo rnp_export_key
-.Fa "rnp_t *rnp" "char *userid"
-.Fc
-.Ft int
-.Fo rnp_import_key
-.Fa "rnp_t *rnp" "char *file"
-.Fc
-.Ft int
-.Fo rnp_generate_key
-.Fa "rnp_t *rnp" "char *userid" "int numbits"
 .Fc
 .Pp
 The following functions are used for file management:
@@ -194,12 +178,12 @@ is appended to the home directory in order to search for
 the keyrings.
 .Pp
 To export a key, the
-.Fn rnp_export_key
+.Fn rnp_key_export
 function is used.
 Output is sent to the standard output.
 .Pp
 To import a key onto the public keyring, the
-.Fn rnp_import_key
+.Fn rnp_add_key
 is used.
 The name of the file containing the key to be imported is provided
 as the filename argument.
