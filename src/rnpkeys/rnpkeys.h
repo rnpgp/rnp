@@ -41,7 +41,7 @@ typedef enum {
 } optdefs_t;
 
 bool rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f);
-bool setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, char *arg);
+bool setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg);
 void print_praise(void);
 void print_usage(const char *usagemsg);
 bool parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);

@@ -30,6 +30,7 @@
 #include <crypto/rng.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include "utils.h"
 
 static char original_dir[PATH_MAX];
 
@@ -253,7 +254,8 @@ main(int argc, char *argv[])
       cmocka_unit_test(test_cli_g10_operations),
       cmocka_unit_test(test_cli_rnpkeys),
       cmocka_unit_test(test_cli_examples),
-      cmocka_unit_test(test_cli_redumper)};
+      cmocka_unit_test(test_cli_redumper),
+    };
 
     /* Each test entry will invoke setup_test before running
      * and teardown_test after running. */
@@ -261,6 +263,14 @@ main(int argc, char *argv[])
         tests[i].setup_func = setup_test;
         tests[i].teardown_func = teardown_test;
     }
+
+    const char *re_info =
+#ifdef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+      "std::regex (C++)";
+#else
+      "POSIX regex (C)";
+#endif
+    printf("RNP uses regular expression code from: %s\n", re_info);
 
     int ret = 0;
     for (int i = 0; i < iteration; i++) {
