@@ -1373,8 +1373,7 @@ conffile(const char *homedir, char *userid, size_t length)
         if (std::regex_search(input, result, keyre)) {
             (void) strncpy(userid, result[1].str().c_str(), length);
 
-            (void) fprintf(stderr, "rnp: default key set to \"%s\"\n",
-                           userid);
+            (void) fprintf(stderr, "rnp: default key set to \"%s\"\n", userid);
         }
 #endif
     }

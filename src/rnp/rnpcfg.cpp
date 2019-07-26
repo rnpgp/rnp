@@ -496,12 +496,12 @@ grabdate(const char *s, int64_t *t)
         return true;
     }
 #else
-    struct tm      tm;
+    struct tm tm;
 
     static std::regex re("([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])",
                          std::regex_constants::extended);
-    std::smatch result;
-    std::string input = s;
+    std::smatch       result;
+    std::string       input = s;
 
     if (std::regex_search(input, result, re)) {
         (void) memset(&tm, 0x0, sizeof(tm));
