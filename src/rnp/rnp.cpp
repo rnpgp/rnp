@@ -839,8 +839,8 @@ parse_option(rnp_cfg_t *cfg, const char *s)
     }
 #else
     static std::regex re("([^=]{1,128})(=(.*))?", std::regex_constants::extended);
-    std::string input = s;
-    std::smatch result;
+    std::string       input = s;
+    std::smatch       result;
 
     if (std::regex_match(input, result, re)) {
         std::string option = result[1];

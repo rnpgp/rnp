@@ -979,7 +979,7 @@ static void
 tokenize(const typename T::value_type &str, const typename T::value_type &delims, T &result)
 {
     typedef typename T::value_type::size_type string_size_t;
-    const string_size_t npos = T::value_type::npos;
+    const string_size_t                       npos = T::value_type::npos;
 
     result.clear();
     string_size_t current;
@@ -1020,12 +1020,12 @@ cleartext_parse_headers(pgp_source_t *src)
 
             std::string remainder = hval;
 
-            const std::string delimiters = ", \t";
+            const std::string        delimiters = ", \t";
             std::vector<std::string> tokens;
 
             tokenize(remainder, delimiters, tokens);
 
-            for (const auto &token: tokens) {
+            for (const auto &token : tokens) {
                 if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
                     RNP_LOG("unknown halg: %s", token.c_str());
                 }
