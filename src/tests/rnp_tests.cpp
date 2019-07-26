@@ -265,7 +265,7 @@ main(int argc, char *argv[])
     }
 
     const char *re_info =
-#ifdef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifdef RNP_USE_STD_REGEX
       "std::regex (C++)";
 #else
       "POSIX regex (C)";

@@ -61,7 +61,7 @@
 #include "utils.h"
 
 // must be placed after include "utils.h"
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
 #include <regex>
@@ -802,7 +802,7 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
 static bool
 parse_option(rnp_cfg_t *cfg, const char *s)
 {
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     static regex_t opt;
     struct option *op;
     static int     compiled;
