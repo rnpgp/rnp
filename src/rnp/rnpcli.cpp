@@ -59,7 +59,7 @@
 #include "utils.h"
 
 // must be placed after include "utils.h"
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
 #include <regex>
@@ -1335,7 +1335,7 @@ conffile(const char *homedir, char *userid, size_t length)
     char       buf[BUFSIZ];
     FILE *     fp;
 
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regmatch_t matchv[10];
     regex_t    keyre;
 #else
@@ -1347,7 +1347,7 @@ conffile(const char *homedir, char *userid, size_t length)
     if ((fp = fopen(buf, "r")) == NULL) {
         return false;
     }
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     (void) memset(&keyre, 0x0, sizeof(keyre));
     if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
         RNP_LOG("failed to compile regular expression");
@@ -1356,7 +1356,7 @@ conffile(const char *homedir, char *userid, size_t length)
     }
 #endif
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
         if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
             (void) memcpy(userid,
                           &buf[(int) matchv[1].rm_so],
@@ -1379,7 +1379,7 @@ conffile(const char *homedir, char *userid, size_t length)
 #endif
     }
     (void) fclose(fp);
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regfree(&keyre);
 #endif
     return true;

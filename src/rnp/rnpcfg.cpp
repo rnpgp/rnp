@@ -40,7 +40,7 @@
 #include <rekey/rnp_key_store.h>
 
 // must be placed after include "utils.h"
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
 #include <regex>
@@ -472,7 +472,7 @@ rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
 static bool
 grabdate(const char *s, int64_t *t)
 {
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     static regex_t r;
     static int     compiled;
     regmatch_t     matches[10];

@@ -55,7 +55,7 @@
 #include "utils.h"
 
 // must be placed after include "utils.h"
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
 #include <regex>
@@ -856,7 +856,7 @@ get_key_by_name(const rnp_key_store_t *keyring,
     RNP_DLOG("regex match '%s' after %p", name, after);
 
     /* match on full name or email address as a NOSUB, ICASE regexp */
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regex_t    r;
     if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
         RNP_LOG("Can't compile regex from string: '%s'", name);
@@ -873,7 +873,7 @@ get_key_by_name(const rnp_key_store_t *keyring,
         keyp = (pgp_key_t *) key_item;
 
         for (i = 0; i < pgp_key_get_userid_count(keyp); i++) {
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
             if (regexec(&r, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
                 RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
                          (char *) pgp_key_get_userid(keyp, i),
@@ -894,7 +894,7 @@ get_key_by_name(const rnp_key_store_t *keyring,
 #endif
         }
     }
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regfree(&r);
 #endif
     return true;
