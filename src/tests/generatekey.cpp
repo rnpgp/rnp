@@ -25,6 +25,7 @@
  */
 
 #include "rnp.h"
+#include <time.h>
 #include <rekey/rnp_key_store.h>
 #include <rnp/rnpcfg.h>
 #include <rnpkeys/rnpkeys.h>
@@ -558,10 +559,15 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     int       pipefd[2] = {0};
     int       user_input_pipefd[2] = {0};
     size_t    rsp_len;
+    int       pipe_result = -1;
 
     rsp_len = strlen(rsp);
     memset(ctx, 0, sizeof(*ctx));
-    if (pipe(pipefd) == -1) {
+#ifndef _WIN32
+    // TODO: Implement code for Windows, possibly using CreatePipe
+    pipe_result = pipe(pipefd);
+#endif
+    if (pipe_result == -1) {
         ret = false;
         goto end;
     }
@@ -572,7 +578,11 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     }
 
     /* Write response to fd */
-    if (pipe(user_input_pipefd) == -1) {
+#ifndef _WIN32
+    // TODO: Implement code for Windows, possibly using CreatePipe
+    pipe_result = pipe(user_input_pipefd);
+#endif
+    if (pipe_result == -1) {
         ret = false;
         goto end;
     }

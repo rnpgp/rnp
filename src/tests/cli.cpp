@@ -24,7 +24,10 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef _WIN32
 #include <sys/wait.h>
+#endif
+
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
@@ -486,19 +489,26 @@ test_cli_redumper(void **state)
     chnum = snprintf(cmd, sizeof(cmd), "%s -h", redumper_path);
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
+    // there are no equivalents for WIFEXITED and WEXITSTATUS on Windows
+#ifndef _WIN32
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 1);
+#endif
     /* run redumper on some data */
     chnum = snprintf(cmd, sizeof(cmd), "%s \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
+#ifndef _WIN32
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
+#endif
     /* run redumper on some data with json output */
     chnum = snprintf(cmd, sizeof(cmd), "%s -j \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
+#ifndef _WIN32
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
+#endif
     free(redumper_path);
 }
