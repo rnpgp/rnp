@@ -46,7 +46,7 @@
 #include "utils.h"
 
 // must be placed after include "utils.h"
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
 #include <regex>
@@ -765,7 +765,7 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
     char *  id = NULL;
     size_t  idlen = 0;
     size_t  len = str ? strlen(str) : 0;
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regex_t r = {};
 #else
     std::regex re;
@@ -859,7 +859,7 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
         goto done;
     }
 
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, str, REG_EXTENDED | REG_ICASE) != 0) {
         goto done;
@@ -873,7 +873,7 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
             goto regdone;
         }
 
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
         if (regexec(&r, id, 0, NULL, 0) == 0) {
             matches = true;
             goto regdone;
@@ -890,7 +890,7 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
     }
 
 regdone:
-#ifndef RNP_ASSUME_SANE_LIBSTDCPLUSPLUS_REGEX
+#ifndef RNP_USE_STD_REGEX
     regfree(&r);
 #endif
 done:
