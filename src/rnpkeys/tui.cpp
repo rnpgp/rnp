@@ -1,4 +1,4 @@
-#include <stdbool.h>
+#include <unistd.h>
 #include <errno.h>
 #include "crypto.h"
 #include "crypto/common.h"
@@ -222,7 +222,13 @@ cli_rnp_set_generate_params(rnp_cfg_t *cfg)
     } else {
         FILE *input = stdin;
         if (rnp_cfg_hasval(cfg, CFG_USERINPUTFD)) {
-            input = fdopen(rnp_cfg_getint(cfg, CFG_USERINPUTFD), "r");
+            int inputfd = dup(rnp_cfg_getint(cfg, CFG_USERINPUTFD));
+            if (inputfd != -1) {
+                input = fdopen(inputfd, "r");
+                if (!input) {
+                    close(inputfd);
+                }
+            }
         }
         res = res && input && rnpkeys_ask_generate_params(cfg, input);
         if (input && (input != stdin)) {
