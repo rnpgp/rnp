@@ -49,7 +49,6 @@ typedef struct rnp_t {
     rnp_key_store_t *pubring;       /* public key ring */
     rnp_key_store_t *secring;       /* s3kr1t key ring */
     FILE *           resfp;         /* where to put result messages, defaults to stdout */
-    FILE *           user_input_fp; /* file pointer for user input */
     FILE *           passfp;        /* file pointer for password input */
     char *           defkey;        /* default key id */
     int              pswdtries;     /* number of password tries, -1 for unlimited */
