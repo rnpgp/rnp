@@ -1012,6 +1012,39 @@ class Misc(unittest.TestCase):
         _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', 'zzzzzzzz'])
         compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
+    def test_rnpkeys_g10_list_order(self):
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
+        compare_file(data_path('test_cli_rnpkeys/g10_list_keys'), out, 'g10 key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--secret', '--list-keys'])
+        compare_file(data_path('test_cli_rnpkeys/g10_list_keys_sec'), out, 'g10 secret key listing failed')
+        return
+
+    def test_rnpkeys_g10_def_key(self):
+        RE_SIG = r'(?s)^.*' \
+        r'Good signature made .*' \
+        r'using (.*) key (.*)' \
+        r'pub .*' \
+        r'b54fdebbb673423a5d0aa54423674f21b2441527.*' \
+        r'uid\s+(ecc-p256)\s*' \
+        r'Signature\(s\) verified successfully.*$'
+
+        src, dst = reg_workfiles('cleartext', '.txt', '.rnp')
+        random_text(src, 1000)
+        # Sign file with rnp using the default g10 key
+        params = ['--homedir', data_path('test_cli_g10_defkey/g10'), '--password', PASSWORD, '--output', dst, '-s', src]
+        ret, _, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('rnp signing failed', err)
+        # List packets
+        params = ['--homedir', data_path('test_cli_g10_defkey/g10'), '-v', dst]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing failed', err)
+        match = re.match(RE_SIG, err)
+        if not match:
+            raise_err('wrong rnp g19 verification output', err)
+        return
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
