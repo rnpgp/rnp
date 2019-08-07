@@ -4493,9 +4493,13 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
 
-    // load our keyrings
+    // setup input
     assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
 
+    // try with wrong parameters
+    assert_rnp_failure(rnp_dump_packets_to_json(input, 0, NULL));
+    assert_rnp_failure(rnp_dump_packets_to_json(NULL, 0, &json));
+    assert_rnp_failure(rnp_dump_packets_to_json(input, 117, &json));
     // dump
     assert_rnp_success(rnp_dump_packets_to_json(
       input, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
@@ -4508,9 +4512,24 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     assert_non_null(jso);
     assert_true(json_object_is_type(jso, json_type_array));
     json_object_put(jso);
+    rnp_buffer_destroy(json);
+
+    // setup input and output
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+
+    // try with wrong parameters
+    assert_rnp_failure(rnp_dump_packets_to_output(input, NULL, 0));
+    assert_rnp_failure(rnp_dump_packets_to_output(NULL, output, 0));
+    assert_rnp_failure(rnp_dump_packets_to_output(input, output, 117));
+    // dump
+    assert_rnp_success(
+      rnp_dump_packets_to_output(input, output, RNP_DUMP_MPI | RNP_DUMP_RAW | RNP_DUMP_GRIP));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
 
     // cleanup
-    rnp_buffer_destroy(json);
     rnp_ffi_destroy(ffi);
 }
 
