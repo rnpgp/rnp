@@ -65,6 +65,10 @@ typedef uint32_t rnp_result_t;
 #define RNP_JSON_DUMP_RAW (1U << 1)
 #define RNP_JSON_DUMP_GRIP (1U << 2)
 
+#define RNP_DUMP_MPI (1U << 0)
+#define RNP_DUMP_RAW (1U << 1)
+#define RNP_DUMP_GRIP (1U << 2)
+
 /**
  * Flags for the key loading/saving functions.
  */
@@ -1254,6 +1258,16 @@ rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
  * @return 0 on success, or any other value on error
  */
 rnp_result_t rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result);
+
+/** Dump OpenPGP packets stream information to output in humand-readable format.
+ * @param input source with OpenPGP data
+ * @param output text, describing packet sequence, will be written here
+ * @param flags see RNP_DUMP_MPI and other RNP_DUMP_* constants.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_dump_packets_to_output(rnp_input_t  input,
+                                        rnp_output_t output,
+                                        uint32_t     flags);
 
 /* Signing operations */
 

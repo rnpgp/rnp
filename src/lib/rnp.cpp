@@ -6206,6 +6206,34 @@ rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result)
     return rnp_dump_src_to_json(&input->src, flags, result);
 }
 
+rnp_result_t
+rnp_dump_packets_to_output(rnp_input_t input, rnp_output_t output, uint32_t flags)
+{
+    if (!input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    rnp_dump_ctx_t dumpctx = {};
+
+    if (flags & RNP_DUMP_MPI) {
+        dumpctx.dump_mpi = true;
+        flags &= ~RNP_DUMP_MPI;
+    }
+    if (flags & RNP_DUMP_RAW) {
+        dumpctx.dump_packets = true;
+        flags &= ~RNP_DUMP_RAW;
+    }
+    if (flags & RNP_DUMP_GRIP) {
+        dumpctx.dump_grips = true;
+        flags &= ~RNP_DUMP_GRIP;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return stream_dump_packets(&dumpctx, &input->src, &output->dst);
+}
+
 // move to next key
 static bool
 key_iter_next_key(rnp_identifier_iterator_t it)
