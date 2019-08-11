@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -29,8 +29,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-void
-test_key_prefs(void **state)
+TEST_F(rnp_tests, test_key_prefs)
 {
     pgp_user_prefs_t pref1 = {};
     pgp_user_prefs_t pref2 = {};
@@ -99,7 +98,7 @@ test_key_prefs(void **state)
     assert_int_equal(pref1.ks_prefs[0], 0x20);
     assert_int_equal(pref1.ks_prefs[1], 0x40);
     /* ks url */
-    pref1.key_server = (uint8_t*) strdup("hkp://something/");
+    pref1.key_server = (uint8_t *) strdup("hkp://something/");
     /* now free prefs */
     pgp_free_user_prefs(&pref1);
     pgp_free_user_prefs(&pref2);

@@ -17,27 +17,6 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
   popd
 fi
 
-# cmocka
-cmocka_build=${LOCAL_BUILDS}/cmocka
-if [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.so" ] && \
-   [ ! -e "${CMOCKA_INSTALL}/lib/libcmocka.dylib" ]; then
-
-  if [ -d "${cmocka_build}" ]; then
-    rm -rf "${cmocka_build}"
-  fi
-
-  git clone --depth 1 --branch cmocka-1.1.1 git://git.cryptomilk.org/projects/cmocka.git ${cmocka_build}
-  cd "${LOCAL_BUILDS}"
-  mkdir -p cmocka-build
-  pushd cmocka-build
-  cmake -DCMAKE_INSTALL_PREFIX="${CMOCKA_INSTALL}" \
-        -DCMAKE_BUILD_TYPE=release \
-        -DUNIT_TESTING=OFF \
-        "${LOCAL_BUILDS}/cmocka"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-fi
-
 # json-c
 jsonc_build=${LOCAL_BUILDS}/json-c
 if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \

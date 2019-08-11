@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -57,8 +57,7 @@ validate_int_list(list l, const int *expected, size_t count)
     assert_int_equal(list_length(l), length);
 }
 
-void
-test_utils_list(void **state)
+TEST_F(rnp_tests, test_utils_list)
 {
     list l = NULL;
     assert_int_equal(0, list_length(l));
@@ -67,7 +66,7 @@ test_utils_list(void **state)
     {
         int        i = 3;
         list_item *item = list_append(&l, &i, sizeof(i));
-        assert_ptr_equal(item, list_back(l));
+        assert_int_equal(item, list_back(l));
         assert_int_equal(*(int *) item, i);
         static const int expected[] = {3};
         assert_non_null(l);
@@ -78,7 +77,7 @@ test_utils_list(void **state)
     {
         for (int i = 4; i < 9; i++) {
             list_item *item = list_append(&l, &i, sizeof(i));
-            assert_ptr_equal(item, list_back(l));
+            assert_int_equal(item, list_back(l));
             assert_int_equal(*(int *) item, i);
         }
         static const int expected[] = {3, 4, 5, 6, 7, 8};
@@ -89,7 +88,7 @@ test_utils_list(void **state)
     {
         int        i = 1;
         list_item *item = list_insert(&l, &i, sizeof(i));
-        assert_ptr_equal(item, list_front(l));
+        assert_int_equal(item, list_front(l));
         assert_int_equal(*(int *) item, i);
         static const int expected[] = {1, 3, 4, 5, 6, 7, 8};
         validate_int_list(l, expected, ARRAY_SIZE(expected));
@@ -100,7 +99,7 @@ test_utils_list(void **state)
         int        i = 0;
         list_item *where = list_front(l);
         list_item *item = list_insert_before(where, &i, sizeof(i));
-        assert_ptr_equal(item, list_front(l));
+        assert_int_equal(item, list_front(l));
         assert_int_equal(*(int *) item, i);
         static const int expected[] = {0, 1, 3, 4, 5, 6, 7, 8};
         validate_int_list(l, expected, ARRAY_SIZE(expected));
@@ -111,8 +110,8 @@ test_utils_list(void **state)
         int        i = 2;
         list_item *where = list_next(list_next(list_front(l)));
         list_item *item = list_insert_before(where, &i, sizeof(i));
-        assert_ptr_equal(list_prev(where), item);
-        assert_ptr_equal(list_next(item), where);
+        assert_int_equal(list_prev(where), item);
+        assert_int_equal(list_next(item), where);
         assert_int_equal(*(int *) item, i);
         static const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
         validate_int_list(l, expected, ARRAY_SIZE(expected));
@@ -121,7 +120,7 @@ test_utils_list(void **state)
     // append (NULL data)
     {
         list_item *item = list_append(&l, NULL, sizeof(int));
-        assert_ptr_equal(item, list_back(l));
+        assert_int_equal(item, list_back(l));
         assert_non_null(item);
         assert_int_equal(*(int *) item, 0);
         *(int *) item = 10;
@@ -134,7 +133,7 @@ test_utils_list(void **state)
         int        i = 9;
         list_item *where = list_prev(list_back(l));
         list_item *item = list_insert_after(where, &i, sizeof(i));
-        assert_ptr_equal(list_next(where), item);
+        assert_int_equal(list_next(where), item);
         static const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
         validate_int_list(l, expected, ARRAY_SIZE(expected));
     }
@@ -144,7 +143,7 @@ test_utils_list(void **state)
         int        i = 11;
         list_item *where = list_back(l);
         list_item *item = list_insert_after(where, &i, sizeof(i));
-        assert_ptr_equal(item, list_back(l));
+        assert_int_equal(item, list_back(l));
         static const int expected[] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
         validate_int_list(l, expected, ARRAY_SIZE(expected));
     }
@@ -196,7 +195,7 @@ test_utils_list(void **state)
         list_item *second = list_find_next(first, &i, sizeof(i));
         assert_non_null(second);
         assert_int_equal(*(int *) second, i);
-        assert_ptr_not_equal(first, second);
+        assert_int_not_equal(first, second);
 
         assert_null(list_find_next(second, &i, sizeof(i)));
 

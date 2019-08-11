@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -66,8 +66,7 @@ call_rnp(const char *cmd, ...)
 #define FILES "data/test_cli"
 #define G10KEYS "data/test_stream_key_load/g10"
 
-void
-test_cli_rnp_keyfile(void **state)
+TEST_F(rnp_tests, test_cli_rnp_keyfile)
 {
     int ret;
 
@@ -230,8 +229,7 @@ test_cli_g10_key_encrypt(const char *userid)
     return true;
 }
 
-void
-test_cli_g10_operations(void **state)
+TEST_F(rnp_tests, test_cli_g10_operations)
 {
     int ret;
 
@@ -326,8 +324,7 @@ test_cli_g10_operations(void **state)
     assert_true(test_cli_g10_key_encrypt("7635401f90d3e533"));
 }
 
-void
-test_cli_rnp(void **state)
+TEST_F(rnp_tests, test_cli_rnp)
 {
     int ret;
     assert_int_equal(0, call_rnp("rnp", "--version", NULL));
@@ -386,11 +383,9 @@ test_cli_rnp(void **state)
     assert_int_equal(ret, 0);
 }
 
-void
-test_cli_examples(void **state)
+TEST_F(rnp_tests, test_cli_examples)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char *examples_path = rnp_compose_path(rstate->original_dir, "../examples", NULL);
+    char *examples_path = rnp_compose_path(original_dir(), "../examples", NULL);
     char *example_path = NULL;
     /* key generation example */
     example_path = rnp_compose_path(examples_path, "generate", NULL);
@@ -425,8 +420,7 @@ test_cli_examples(void **state)
     free(examples_path);
 }
 
-void
-test_cli_rnpkeys(void **state)
+TEST_F(rnp_tests, test_cli_rnpkeys)
 {
     int ret;
     assert_int_equal(0, call_rnp("rnpkeys", "--version", NULL));
@@ -473,12 +467,10 @@ test_cli_rnpkeys(void **state)
     assert_int_not_equal(ret, 0);
 }
 
-void
-test_cli_redumper(void **state)
+TEST_F(rnp_tests, test_cli_redumper)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char *            redumper_path =
-      rnp_compose_path(rstate->original_dir, "../apps/packet-dumper/redumper", NULL);
+    char *redumper_path =
+      rnp_compose_path(original_dir(), "../apps/packet-dumper/redumper", NULL);
     char cmd[512] = {0};
     int  chnum;
     int  status;

@@ -4,7 +4,6 @@ export LOCAL_BUILDS
 export LOCAL_INSTALLS
 
 export BOTAN_INSTALL="${LOCAL_INSTALLS}/botan-install"
-export CMOCKA_INSTALL="${LOCAL_INSTALLS}/cmocka-install"
 export JSONC_INSTALL="${LOCAL_INSTALLS}/jsonc-install"
 export GPG_INSTALL="${LOCAL_INSTALLS}/gpg-install"
 export RNP_INSTALL="${LOCAL_INSTALLS}/rnp-install"

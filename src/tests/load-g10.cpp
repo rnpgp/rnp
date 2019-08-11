@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -53,8 +53,7 @@ test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
 /* This test loads G10 keyrings and verifies certain properties
  * of the keys are correct.
  */
-void
-test_load_g10(void **state)
+TEST_F(rnp_tests, test_load_g10)
 {
     rnp_key_store_t *  pub_store = NULL;
     rnp_key_store_t *  sec_store = NULL;

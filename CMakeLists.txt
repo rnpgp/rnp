@@ -25,7 +25,7 @@
 # 3.7+ for the BZip2 target in the cmake-bundled finder (basic build)
 # 3.8+ for CPACK_RPM_MAIN_COMPONENT (RPM packaging)
 # 3.10+ for CPackFreeBSD (FreeBSD packaging)
-# 3.10+ for TEST_INCLUDE_FILES (parallel rnp_tests)
+# 3.10+ for gtest_discover_tests (parallel rnp_tests)
 # 3.12+ for NAMELINK_COMPONENT (for better RPM packaging)
 cmake_minimum_required(VERSION 3.10)
 
