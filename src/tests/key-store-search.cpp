@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,8 +34,7 @@
 /* This test adds some fake keys to a key store and tests some of
  * the search functions.
  */
-void
-test_key_store_search(void **state)
+TEST_F(rnp_tests, test_key_store_search)
 {
     // create our store
     rnp_key_store_t *store = rnp_key_store_new("GPG", "");
@@ -171,8 +170,7 @@ test_key_store_search(void **state)
     rnp_key_store_free(store);
 }
 
-void
-test_key_store_search_by_name(void **state)
+TEST_F(rnp_tests, test_key_store_search_by_name)
 {
     const pgp_key_t *key;
     pgp_key_t *      primsec;

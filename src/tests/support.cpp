@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -25,6 +25,7 @@
  */
 
 #include "support.h"
+#include "rnp_tests.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
@@ -32,7 +33,6 @@
 
 #include <stdarg.h>
 #include <stddef.h>
-#include <setjmp.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -180,9 +180,6 @@ path_mkdir(mode_t mode, const char *first, ...)
     va_list ap;
     char    buffer[512];
 
-    /* sanity check - should always be an absolute path */
-    assert_true(first[0] == '/');
-
     va_start(ap, first);
     vpaths_concat(buffer, sizeof(buffer), first, ap);
     va_end(ap);
@@ -201,16 +198,25 @@ remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ft
 }
 
 /* Recursively remove a directory.
- * The path must be a full path and must be located in /tmp, for safety.
+ * The path must be located in /tmp, for safety.
  */
 void
 delete_recursively(const char *path)
 {
+    char *fullpath = const_cast<char *>(path);
+    if (*path != '/') {
+        char *cwd = getcwd(NULL, 0);
+        fullpath = rnp_compose_path(cwd, path, NULL);
+        free(cwd);
+    }
     /* sanity check, we should only be purging things from /tmp/ */
-    assert_int_equal(strncmp(path, "/tmp/", 5), 0);
-    assert_true(strlen(path) > 5);
+    assert_int_equal(strncmp(fullpath, "/tmp/", 5), 0);
+    assert_true(strlen(fullpath) > 5);
 
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
+    if (*path != '/') {
+        free(fullpath);
+    }
 }
 
 void
@@ -232,7 +238,7 @@ copy_recursively(const char *src, const char *dst)
 char *
 make_temp_dir()
 {
-    const char *tmplate = "/tmp/rnp-cmocka-XXXXXX";
+    const char *tmplate = "/tmp/rnp-gtest-XXXXXX";
     char *      buffer = (char *) calloc(1, strlen(tmplate) + 1);
     if (buffer == NULL) {
         return NULL;

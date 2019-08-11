@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -35,20 +35,15 @@
 /* This test loads a .gpg pubring with a single V3 key,
  * and confirms that appropriate key flags are set.
  */
-void
-test_load_v3_keyring_pgp(void **state)
+TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char              path[PATH_MAX];
-    pgp_source_t      src = {};
-
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/2/pubring.gpg", NULL);
+    pgp_source_t src = {};
 
     rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load pubring in to the key store
-    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(init_file_src(&src, "data/keyrings/2/pubring.gpg"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
     src_close(&src);
     assert_int_equal(1, rnp_key_store_get_key_count(key_store));
@@ -66,12 +61,11 @@ test_load_v3_keyring_pgp(void **state)
     rnp_key_store_free(key_store);
 
     // load secret keyring and decrypt the key
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/4/secring.pgp", NULL);
 
     key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
-    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(init_file_src(&src, "data/keyrings/4/secring.pgp"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
     src_close(&src);
     assert_int_equal(1, rnp_key_store_get_key_count(key_store));
@@ -104,20 +98,15 @@ test_load_v3_keyring_pgp(void **state)
  * finds a particular key of interest, and confirms that
  * the appropriate key flags are set.
  */
-void
-test_load_v4_keyring_pgp(void **state)
+TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char              path[PATH_MAX];
-    pgp_source_t      src = {};
-
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/pubring.gpg", NULL);
+    pgp_source_t src = {};
 
     rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
     assert_non_null(key_store);
 
     // load it in to the key store
-    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
     src_close(&src);
     assert_int_equal(7, rnp_key_store_get_key_count(key_store));
@@ -183,29 +172,22 @@ check_pgp_keyring_counts(const char *   path,
  * that it contains the expected number of primary keys
  * and the expected number of subkeys for each primary key.
  */
-void
-test_load_keyring_and_count_pgp(void **state)
+TEST_F(rnp_tests, test_load_keyring_and_count_pgp)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char              path[PATH_MAX];
-
     unsigned int primary_count = 2;
     unsigned int subkey_counts[2] = {3, 2};
 
     // check pubring
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/pubring.gpg", NULL);
-    check_pgp_keyring_counts(path, primary_count, subkey_counts);
+    check_pgp_keyring_counts("data/keyrings/1/pubring.gpg", primary_count, subkey_counts);
 
     // check secring
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
-    check_pgp_keyring_counts(path, primary_count, subkey_counts);
+    check_pgp_keyring_counts("data/keyrings/1/secring.gpg", primary_count, subkey_counts);
 }
 
 /* This test loads a V4 keyring and confirms that certain
  * bitfields and time fields are set correctly.
  */
-void
-test_load_check_bitfields_and_times(void **state)
+TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 {
     uint8_t                keyid[PGP_KEY_ID_SIZE];
     uint8_t                signer_id[PGP_KEY_ID_SIZE] = {0};
@@ -369,8 +351,7 @@ test_load_check_bitfields_and_times(void **state)
 /* This test loads a V3 keyring and confirms that certain
  * bitfields and time fields are set correctly.
  */
-void
-test_load_check_bitfields_and_times_v3(void **state)
+TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 {
     uint8_t                keyid[PGP_KEY_ID_SIZE];
     uint8_t                signer_id[PGP_KEY_ID_SIZE];
@@ -413,8 +394,7 @@ test_load_check_bitfields_and_times_v3(void **state)
 
 #define MERGE_PATH "data/test_stream_key_merge/"
 
-void
-test_load_armored_pub_sec(void **state)
+TEST_F(rnp_tests, test_load_armored_pub_sec)
 {
     pgp_key_t *      key;
     uint8_t          keyid[PGP_KEY_ID_SIZE];
@@ -501,8 +481,7 @@ check_subkey_grip(pgp_key_t *key, pgp_key_t *subkey, size_t index)
     return !memcmp(pgp_key_get_grip(key), pgp_key_get_primary_grip(subkey), PGP_KEY_GRIP_SIZE);
 }
 
-void
-test_load_merge(void **state)
+TEST_F(rnp_tests, test_load_merge)
 {
     pgp_key_t *               key, *skey1, *skey2;
     uint8_t                   keyid[PGP_KEY_ID_SIZE];
@@ -729,8 +708,7 @@ test_load_merge(void **state)
     rnp_key_store_free(key_store);
 }
 
-void
-test_load_public_from_secret(void **state)
+TEST_F(rnp_tests, test_load_public_from_secret)
 {
     pgp_key_t *      key, *skey1, *skey2, keycp;
     uint8_t          keyid[PGP_KEY_ID_SIZE];
@@ -812,8 +790,7 @@ test_load_public_from_secret(void **state)
     rnp_key_store_free(secstore);
 }
 
-void
-test_key_import(void **state)
+TEST_F(rnp_tests, test_key_import)
 {
     rnp_t                      rnp = {};
     pgp_transferable_key_t     tkey = {};
@@ -983,8 +960,7 @@ test_key_import(void **state)
     rnp_end(&rnp);
 }
 
-void
-test_load_subkey(void **state)
+TEST_F(rnp_tests, test_load_subkey)
 {
     pgp_key_t *      key, *skey1, *skey2;
     uint8_t          keyid[PGP_KEY_ID_SIZE];

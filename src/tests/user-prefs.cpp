@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -55,28 +55,22 @@ find_subsig(const pgp_key_t *key, const char *userid)
     return NULL;
 }
 
-void
-test_load_user_prefs(void **state)
+TEST_F(rnp_tests, test_load_user_prefs)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_t             rnp;
-    int               pipefd[2];
-    char              homedir[PATH_MAX];
+    rnp_t rnp;
+    int   pipefd[2];
 
-    paths_concat(homedir, sizeof(homedir), rstate->data_dir, "keyrings/1", NULL);
-
-    rnp_assert_ok(rstate, setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, homedir, pipefd));
-    rnp_assert_ok(rstate, rnp_load_keyrings(&rnp, false));
-    rnp_assert_true(rstate, rnp_key_store_get_key_count(rnp.secring) == 0);
-    rnp_assert_true(rstate, rnp_key_store_get_key_count(rnp.pubring) == 7);
+    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1", pipefd));
+    assert_true(rnp_load_keyrings(&rnp, false));
+    assert_true(rnp_key_store_get_key_count(rnp.secring) == 0);
+    assert_true(rnp_key_store_get_key_count(rnp.pubring) == 7);
 
     {
         const char *userid = "key1-uid0";
 
         // find the key
         pgp_key_t *key = NULL;
-        rnp_assert_non_null(rstate,
-                            key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
+        assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
@@ -121,8 +115,7 @@ test_load_user_prefs(void **state)
 
         // find the key
         pgp_key_t *key = NULL;
-        rnp_assert_non_null(rstate,
-                            key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
+        assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);

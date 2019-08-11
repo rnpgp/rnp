@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,11 +34,8 @@
 
 /* This test loads a pgp keyring and adds a few userids to the key.
  */
-void
-test_key_add_userid(void **state)
+TEST_F(rnp_tests, test_key_add_userid)
 {
-    rnp_test_state_t * rstate = (rnp_test_state_t *) *state;
-    char               path[PATH_MAX];
     pgp_key_t *        key = NULL;
     pgp_source_t       src = {};
     pgp_dest_t         dst = {};
@@ -53,8 +50,7 @@ test_key_add_userid(void **state)
     rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
     assert_non_null(ks);
 
-    paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
-    assert_rnp_success(init_file_src(&src, path));
+    assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
     src_close(&src);
 

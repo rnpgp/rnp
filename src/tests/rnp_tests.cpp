@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -24,10 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <csetjmp>
-#include <cstdio>
-#include <algorithm>
-
+#include "gtest/gtest.h"
 #include <crypto/rng.h>
 #include "rnp_tests.h"
 #include "support.h"
@@ -40,265 +37,34 @@ static char original_dir[PATH_MAX];
  */
 rng_t global_rng;
 
-static char *
-get_data_dir(void)
+rnp_tests::rnp_tests() : m_dir(make_temp_dir())
 {
-    char data_dir[PATH_MAX];
-    paths_concat(data_dir, sizeof(data_dir), original_dir, "data", NULL);
-    return realpath(data_dir, NULL);
-}
-
-static int
-setup_test_group(void **state)
-{
-    rnp_test_state_t *rstate = (rnp_test_state_t *) calloc(1, sizeof(*rstate));
-
-    if (!rstate) {
-        return -1;
-    }
-    *state = rstate;
-    return 0;
-}
-
-static int
-teardown_test_group(void **state)
-{
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-
-    if (!rstate) {
-        return -1;
-    }
-
-    free(rstate);
-
-    *state = NULL;
-    return 0;
-}
-
-static int
-setup_test(void **state)
-{
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-
-    rstate->home = make_temp_dir();
-    if (rstate->home == NULL) {
-        return -1;
-    }
-    rstate->data_dir = rnp_compose_path(rstate->home, "data", NULL);
-    if (!rstate->data_dir) {
-        return -1;
-    }
-    rstate->original_dir = original_dir;
-    if (getenv("RNP_TEST_NOT_FATAL")) {
-        rstate->not_fatal = 1;
-    } else {
-        rstate->not_fatal = 0;
-    }
-    assert_int_equal(0, setenv("HOME", rstate->home, 1));
-    assert_int_equal(0, chdir(rstate->home));
-    char *src_data = get_data_dir();
-    if (!src_data) {
-        return -1;
-    }
-    copy_recursively(src_data, rstate->data_dir);
-    free(src_data);
-    return 0;
-}
-
-static int
-teardown_test(void **state)
-{
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    delete_recursively(rstate->home);
-    free(rstate->home);
-    rstate->home = NULL;
-    free(rstate->data_dir);
-    rstate->data_dir = NULL;
-    rng_destroy(&global_rng);
-    return 0;
-}
-
-int
-main(int argc, char *argv[])
-{
-    if (argc != 1 && argc != 2) {
-        printf("Usage: %s [test]\n", argv[0]);
-        printf("       %s list-tests\n", argv[0]);
-        return 1;
-    }
-    assert_non_null(getcwd(original_dir, sizeof(original_dir)));
-
     /* We use LOGNAME in a few places within the tests
      * and it isn't always set in every environment.
      */
     if (!getenv("LOGNAME")) {
         setenv("LOGNAME", "test-user", 1);
     }
+    EXPECT_EQ(0, setenv("HOME", m_dir, 1));
+    EXPECT_EQ(0, chdir(m_dir));
+    copy_recursively(getenv("RNP_TEST_DATA"), m_dir);
+}
 
-    struct CMUnitTest tests[] = {
-      cmocka_unit_test(hash_test_success),
-      cmocka_unit_test(cipher_test_success),
-      cmocka_unit_test(pkcs1_rsa_test_success),
-      cmocka_unit_test(raw_elgamal_random_key_test_success),
-      cmocka_unit_test(rnp_test_eddsa),
-      cmocka_unit_test(rnp_test_x25519),
-      cmocka_unit_test(ecdsa_signverify_success),
-      cmocka_unit_test(s2k_iteration_tuning),
-      cmocka_unit_test(test_validate_key_material),
-      cmocka_unit_test(rnpkeys_generatekey_testSignature),
-      cmocka_unit_test(rnpkeys_generatekey_testEncryption),
-      cmocka_unit_test(rnpkeys_generatekey_verifySupportedHashAlg),
-      cmocka_unit_test(rnpkeys_generatekey_verifyUserIdOption),
-      cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirOption),
-      cmocka_unit_test(rnpkeys_generatekey_verifykeyKBXHomeDirOption),
-      cmocka_unit_test(rnpkeys_generatekey_verifykeyNonexistingHomeDir),
-      cmocka_unit_test(rnpkeys_generatekey_verifykeyHomeDirNoPermission),
-      cmocka_unit_test(rnpkeys_exportkey_verifyUserId),
-      cmocka_unit_test(rnpkeys_generatekey_testExpertMode),
-      cmocka_unit_test(generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted),
-      cmocka_unit_test(generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed),
-      cmocka_unit_test(generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail),
-      cmocka_unit_test(test_utils_list),
-      cmocka_unit_test(test_rnpcfg),
-      cmocka_unit_test(test_load_user_prefs),
-      cmocka_unit_test(ecdh_roundtrip),
-      cmocka_unit_test(ecdh_decryptionNegativeCases),
-      cmocka_unit_test(sm2_roundtrip),
-      cmocka_unit_test(sm2_sm3_signature_test),
-      cmocka_unit_test(sm2_sha256_signature_test),
-      cmocka_unit_test(test_dsa_roundtrip),
-      cmocka_unit_test(test_dsa_verify_negative),
-      cmocka_unit_test(test_load_v3_keyring_pgp),
-      cmocka_unit_test(test_load_v4_keyring_pgp),
-      cmocka_unit_test(test_load_keyring_and_count_pgp),
-      cmocka_unit_test(test_load_check_bitfields_and_times),
-      cmocka_unit_test(test_load_check_bitfields_and_times_v3),
-      cmocka_unit_test(test_load_g10),
-      cmocka_unit_test(test_load_armored_pub_sec),
-      cmocka_unit_test(test_load_merge),
-      cmocka_unit_test(test_load_public_from_secret),
-      cmocka_unit_test(test_key_import),
-      cmocka_unit_test(test_key_grip),
-      cmocka_unit_test(test_key_prefs),
-      cmocka_unit_test(test_load_subkey),
-      cmocka_unit_test(test_key_unlock_pgp),
-      cmocka_unit_test(test_key_protect_load_pgp),
-      cmocka_unit_test(test_key_add_userid),
-      cmocka_unit_test(test_key_validate),
-      cmocka_unit_test(test_forged_key_validate),
-      cmocka_unit_test(test_generated_key_sigs),
-      cmocka_unit_test(test_key_store_search),
-      cmocka_unit_test(test_key_store_search_by_name),
-      cmocka_unit_test(test_stream_memory),
-      cmocka_unit_test(test_stream_file),
-      cmocka_unit_test(test_stream_signatures),
-      cmocka_unit_test(test_stream_signatures_revoked_key),
-      cmocka_unit_test(test_stream_key_load),
-      cmocka_unit_test(test_stream_key_decrypt),
-      cmocka_unit_test(test_stream_key_encrypt),
-      cmocka_unit_test(test_stream_key_signatures),
-      cmocka_unit_test(test_stream_dumper),
-      cmocka_unit_test(test_stream_z),
-      cmocka_unit_test(test_stream_verify_no_key),
-      cmocka_unit_test(test_stream_key_signature_validate),
-      cmocka_unit_test(test_stream_key_load_errors),
-      cmocka_unit_test(test_stream_814_dearmor_double_free),
-      cmocka_unit_test(test_stream_825_dearmor_blank_line),
-      cmocka_unit_test(test_stream_dearmor_edge_cases),
-      cmocka_unit_test(test_ffi_homedir),
-      cmocka_unit_test(test_ffi_keygen_json_pair),
-      cmocka_unit_test(test_ffi_keygen_json_primary),
-      cmocka_unit_test(test_ffi_keygen_json_pair_dsa_elg),
-      cmocka_unit_test(test_ffi_keygen_json_sub),
-      cmocka_unit_test(test_ffi_keygen_json_sub_pass_required),
-      cmocka_unit_test(test_ffi_key_generate_misc),
-      cmocka_unit_test(test_ffi_key_generate_rsa),
-      cmocka_unit_test(test_ffi_key_generate_dsa),
-      cmocka_unit_test(test_ffi_key_generate_ecdsa),
-      cmocka_unit_test(test_ffi_key_generate_eddsa),
-      cmocka_unit_test(test_ffi_key_generate_sm2),
-      cmocka_unit_test(test_ffi_key_generate_ex),
-      cmocka_unit_test(test_ffi_key_generate_protection),
-      cmocka_unit_test(test_ffi_add_userid),
-      cmocka_unit_test(test_ffi_detect_key_format),
-      cmocka_unit_test(test_ffi_encrypt_pass),
-      cmocka_unit_test(test_ffi_encrypt_pk),
-      cmocka_unit_test(test_ffi_encrypt_and_sign),
-      cmocka_unit_test(test_ffi_signatures_memory),
-      cmocka_unit_test(test_ffi_signatures_detached_memory),
-      cmocka_unit_test(test_ffi_signatures_detached),
-      cmocka_unit_test(test_ffi_signatures),
-      cmocka_unit_test(test_ffi_load_keys),
-      cmocka_unit_test(test_ffi_clear_keys),
-      cmocka_unit_test(test_ffi_save_keys),
-      cmocka_unit_test(test_ffi_key_to_json),
-      cmocka_unit_test(test_ffi_key_iter),
-      cmocka_unit_test(test_ffi_locate_key),
-      cmocka_unit_test(test_ffi_signatures_detached_memory_g10),
-      cmocka_unit_test(test_ffi_enarmor_dearmor),
-      cmocka_unit_test(test_ffi_version),
-      cmocka_unit_test(test_ffi_key_export),
-      cmocka_unit_test(test_ffi_key_dump),
-      cmocka_unit_test(test_ffi_pkt_dump),
-      cmocka_unit_test(test_ffi_rsa_v3_dump),
-      cmocka_unit_test(test_ffi_load_userattr),
-      cmocka_unit_test(test_ffi_revocations),
-      cmocka_unit_test(test_ffi_file_output),
-      cmocka_unit_test(test_ffi_key_signatures),
-      cmocka_unit_test(test_ffi_keys_import),
-      cmocka_unit_test(test_ffi_calculate_iterations),
-      cmocka_unit_test(test_ffi_supported_features),
-      cmocka_unit_test(test_ffi_enable_debug),
-      cmocka_unit_test(test_ffi_rnp_key_get_primary_grip),
-      cmocka_unit_test(test_ffi_output_to_armor),
-      cmocka_unit_test(test_cli_rnp),
-      cmocka_unit_test(test_cli_rnp_keyfile),
-      cmocka_unit_test(test_cli_g10_operations),
-      cmocka_unit_test(test_cli_rnpkeys),
-      cmocka_unit_test(test_cli_examples),
-      cmocka_unit_test(test_cli_redumper),
-    };
+rnp_tests::~rnp_tests()
+{
+    free(m_dir);
+}
 
-    if (argc == 2 && !strcmp(argv[1], "list-tests")) {
-        for (auto &test : tests) {
-            printf("%s\n", test.name);
-        }
-        return 0;
-    }
+const char *
+rnp_tests::original_dir() const
+{
+    return ::original_dir;
+}
 
-    /* Each test entry will invoke setup_test before running
-     * and teardown_test after running. */
-    for (auto &test : tests) {
-        test.setup_func = setup_test;
-        test.teardown_func = teardown_test;
-    }
-
-    CMUnitTest *testp = tests;
-    size_t      tests_count = ARRAY_SIZE(tests);
-
-    /* run a specific test */
-    if (argc == 2) {
-        const char *desired_test = argv[1];
-        auto        end(tests + ARRAY_SIZE(tests));
-
-        testp = std::find_if(tests, end, [desired_test](const CMUnitTest &test) {
-            return !strcmp(desired_test, test.name);
-        });
-        if (testp == end) {
-            printf("Unknown test specified: %s\n", desired_test);
-            return 1;
-        }
-        tests_count = 1;
-    }
-
-    const char *re_info =
-#ifdef RNP_USE_STD_REGEX
-      "std::regex (C++)";
-#else
-      "POSIX regex (C)";
-#endif
-    printf("RNP uses regular expression code from: %s\n", re_info);
-
-    return _cmocka_run_group_tests(
-      "rnp_tests", testp, tests_count, setup_test_group, teardown_test_group);
+int
+main(int argc, char *argv[])
+{
+    EXPECT_NE(nullptr, getcwd(original_dir, sizeof(original_dir)));
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
 }

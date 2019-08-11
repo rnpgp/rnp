@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018-2019 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -23,8 +23,36 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 # for rnp_tests
-find_package(cmocka REQUIRED)
 find_package(JSON-C 0.11 REQUIRED)
+# for cli_tests
+# Note that we do this call early because Google Test will also do
+# this but with less strict version requirements, which will cause
+# problems for us.
+find_package(PythonInterp 2.7 EXACT)
+find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
+
+include(GoogleTest)
+
+# download and buld googletest
+configure_file(gtest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
+execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+if(result)
+  message(FATAL_ERROR "CMake step for googletest failed: ${result}")
+endif()
+execute_process(COMMAND ${CMAKE_COMMAND} --build .
+  RESULT_VARIABLE result
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
+if(result)
+  message(FATAL_ERROR "Build step for googletest failed: ${result}")
+endif()
+# maintain compiler/linker settings on Windows
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+# add to our build (provides gtest_main target)
+add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
+                 ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
+                 EXCLUDE_FROM_ALL)
 
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
@@ -66,7 +94,7 @@ target_link_libraries(rnp_tests
   PRIVATE
     librnp
     JSON-C::JSON-C
-    cmocka::cmocka
+    gtest_main
 )
 
 target_compile_definitions(rnp_tests
@@ -82,43 +110,12 @@ add_test(
 )
 set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
 
-function(rnp_tests_discover TARGET)
-  cmake_parse_arguments("" "" "" "PROPERTIES" ${ARGN})
-  set(ctest_file_base "${CMAKE_CURRENT_BINARY_DIR}/${TARGET}")
-  set(ctest_include_file "${ctest_file_base}_include.cmake")
-  set(ctest_tests_file "${ctest_file_base}_tests.cmake")
-  add_custom_command(
-    TARGET ${TARGET} POST_BUILD
-    BYPRODUCTS "${ctest_tests_file}"
-    COMMAND "${CMAKE_COMMAND}"
-            -D "TEST_TARGET=${TARGET}"
-            -D "TEST_EXECUTABLE=$<TARGET_FILE:${TARGET}>"
-            -D "TEST_PROPERTIES=${_PROPERTIES}"
-            -D "CTEST_FILE=${ctest_tests_file}"
-            -P "${CMAKE_SOURCE_DIR}/cmake/rnp_tests_discover.cmake"
-    VERBATIM
-  )
-  file(WRITE "${ctest_include_file}"
-    "if(EXISTS \"${ctest_tests_file}\")\n"
-    "  include(\"${ctest_tests_file}\")\n"
-    "else()\n"
-    "  add_test(${TARGET}_NOT_BUILT ${TARGET}_NOT_BUILT)\n"
-    "endif()\n"
-  )
-  set_property(DIRECTORY
-    APPEND PROPERTY TEST_INCLUDE_FILES "${ctest_include_file}"
-  )
-endfunction()
-
-rnp_tests_discover(rnp_tests
+gtest_discover_tests(rnp_tests
   PROPERTIES
     FIXTURES_REQUIRED testdata
     TIMEOUT 3000
+    ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
-
-# cli_tests
-find_package(PythonInterp 2.7 EXACT)
-find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
 
 function(add_cli_test suite)
   set(_test_name cli_tests-${suite})

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-void
-rnpkeys_exportkey_verifyUserId(void **state)
+TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
 {
     /* Generate the key and export it */
     cli_rnp_t rnp = {};
