@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -26,6 +26,20 @@
 
 #ifndef RNP_TESTS_H
 #define RNP_TESTS_H
+
+#include <gtest/gtest.h>
+#include "support.h"
+
+class rnp_tests : public ::testing::Test {
+  public:
+    rnp_tests();
+    virtual ~rnp_tests();
+
+    const char *original_dir() const;
+
+  protected:
+    char *m_dir;
+};
 
 typedef struct {
     char *original_dir;
@@ -278,82 +292,16 @@ void test_cli_examples(void **state);
 
 void test_cli_redumper(void **state);
 
-#define rnp_assert_int_equal(state, a, b)           \
-    do {                                            \
-        int _rnp_a = (a);                           \
-        int _rnp_b = (b);                           \
-        if (state->not_fatal && _rnp_a != _rnp_b) { \
-            return;                                 \
-        }                                           \
-        assert_int_equal(_rnp_a, _rnp_b);           \
-    } while (0)
-
-#define rnp_assert_int_not_equal(state, a, b)       \
-    do {                                            \
-        int _rnp_a = (a);                           \
-        int _rnp_b = (b);                           \
-        if (state->not_fatal && _rnp_a == _rnp_b) { \
-            return;                                 \
-        }                                           \
-        assert_int_not_equal(_rnp_a, _rnp_b);       \
-    } while (0)
-
-#define rnp_assert_true(state, a)          \
-    do {                                   \
-        int _rnp_a = (a);                  \
-        if (state->not_fatal && !_rnp_a) { \
-            return;                        \
-        }                                  \
-        assert_true(_rnp_a);               \
-    } while (0)
-
-#define rnp_assert_false(state, a)        \
-    do {                                  \
-        int _rnp_a = (a);                 \
-        if (state->not_fatal && _rnp_a) { \
-            return;                       \
-        }                                 \
-        assert_false(_rnp_a);             \
-    } while (0)
-
-#define rnp_assert_non_null(state, a)             \
-    do {                                          \
-        void *_rnp_a = (void *) (a);              \
-        if (state->not_fatal && _rnp_a == NULL) { \
-            return;                               \
-        }                                         \
-        assert_non_null(_rnp_a);                  \
-    } while (0)
-
-#define rnp_assert_null(state, a)                 \
-    do {                                          \
-        void *_rnp_a = (void *) (a);              \
-        if (state->not_fatal && _rnp_a != NULL) { \
-            return;                               \
-        }                                         \
-        assert_null(_rnp_a);                      \
-    } while (0)
-
-#define rnp_assert_ok(state, a)                   \
-    {                                             \
-        int _rnp_a = (a);                         \
-        if (state->not_fatal && _rnp_a != true) { \
-            return;                               \
-        }                                         \
-        assert_int_equal(_rnp_a, true);           \
-    }
-
-#define rnp_assert_fail(state, a)         \
-    {                                     \
-        int _rnp_a = (a);                 \
-        if (state->not_fatal && _rnp_a) { \
-            return;                       \
-        }                                 \
-        assert_int_equal(_rnp_a, false);  \
-    }
-
-#define assert_rnp_success(a) assert_int_equal(RNP_SUCCESS, a)
-
-#define assert_rnp_failure(a) assert_int_not_equal(RNP_SUCCESS, a)
+#define assert_true(a) EXPECT_TRUE((a))
+#define assert_false(a) EXPECT_FALSE((a))
+#define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
+#define assert_int_equal(a, b) EXPECT_EQ((a), (b))
+#define assert_int_not_equal(a, b) EXPECT_NE((a), (b))
+#define assert_non_null(a) EXPECT_NE((a), nullptr)
+#define assert_null(a) EXPECT_EQ((a), nullptr)
+#define assert_rnp_success(a) EXPECT_EQ((a), RNP_SUCCESS)
+#define assert_rnp_failure(a) EXPECT_NE((a), RNP_SUCCESS)
+#define assert_memory_equal(a, b, sz) EXPECT_EQ(0, memcmp((a), (b), (sz)))
+#define assert_memory_not_equal(a, b, sz) EXPECT_NE(0, memcmp((a), (b), (sz)))
 
 #endif // RNP_TESTS_H

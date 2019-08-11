@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -52,8 +52,7 @@ all_keys_valid(const rnp_key_store_t *keyring)
     return true;
 }
 
-void
-test_key_validate(void **state)
+TEST_F(rnp_tests, test_key_validate)
 {
     rnp_key_store_t *pubring;
     rnp_key_store_t *secring;
@@ -144,8 +143,7 @@ key_store_add(rnp_key_store_t *keyring, const char *keypath)
     src_close(&keysrc);
 }
 
-void
-test_forged_key_validate(void **state)
+TEST_F(rnp_tests, test_forged_key_validate)
 {
     rnp_key_store_t *pubring;
     pgp_key_t *      key = NULL;

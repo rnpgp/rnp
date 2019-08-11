@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -37,45 +37,33 @@
 #include <vector>
 #include <string>
 
-void
-test_ffi_homedir(void **state)
+TEST_F(rnp_tests, test_ffi_homedir)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    char *            homedir = NULL;
-    size_t            homedir_size = 0;
-    char *            path = NULL;
-    size_t            path_size = 0;
-    char *            pub_format = NULL;
-    char *            pub_path = NULL;
-    char *            sec_format = NULL;
-    char *            sec_path = NULL;
-    rnp_input_t       input = NULL;
+    rnp_ffi_t   ffi = NULL;
+    char *      pub_format = NULL;
+    char *      pub_path = NULL;
+    char *      sec_format = NULL;
+    char *      sec_path = NULL;
+    rnp_input_t input = NULL;
 
     // get the default homedir (not a very thorough test)
-    homedir = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_get_default_homedir(&homedir));
-    assert_non_null(homedir);
-    rnp_buffer_destroy(homedir);
-    homedir = NULL;
+    {
+        char *homedir = NULL;
+        assert_int_equal(RNP_SUCCESS, rnp_get_default_homedir(&homedir));
+        assert_non_null(homedir);
+        rnp_buffer_destroy(homedir);
+    }
 
-    // homedir tests/data/keyrings/1
-    assert_non_null(
-      rnp_compose_path_ex(&homedir, &homedir_size, rstate->data_dir, "keyrings/1", NULL));
     // detect the formats+paths
-    assert_int_equal(
-      RNP_SUCCESS,
-      rnp_detect_homedir_info(homedir, &pub_format, &pub_path, &sec_format, &sec_path));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_detect_homedir_info(
+                       "data/keyrings/1", &pub_format, &pub_path, &sec_format, &sec_path));
     // check formats
     assert_int_equal(0, strcmp(pub_format, "GPG"));
     assert_int_equal(0, strcmp(sec_format, "GPG"));
     // check paths
-    assert_non_null(rnp_compose_path_ex(
-      &path, &path_size, rstate->data_dir, "keyrings/1/pubring.gpg", NULL));
-    assert_int_equal(0, strcmp(pub_path, path));
-    assert_non_null(rnp_compose_path_ex(
-      &path, &path_size, rstate->data_dir, "keyrings/1/secring.gpg", NULL));
-    assert_int_equal(0, strcmp(sec_path, path));
+    assert_int_equal(0, strcmp(pub_path, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(0, strcmp(sec_path, "data/keyrings/1/secring.gpg"));
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, pub_format, sec_format));
     // load our keyrings
@@ -106,13 +94,10 @@ test_ffi_homedir(void **state)
     rnp_ffi_destroy(ffi);
     ffi = NULL;
 
-    // homedir tests/data/keyrings/3
-    assert_non_null(
-      rnp_compose_path_ex(&homedir, &homedir_size, rstate->data_dir, "keyrings/3", NULL));
     // detect the formats+paths
-    assert_int_equal(
-      RNP_SUCCESS,
-      rnp_detect_homedir_info(homedir, &pub_format, &pub_path, &sec_format, &sec_path));
+    assert_int_equal(RNP_SUCCESS,
+                     rnp_detect_homedir_info(
+                       "data/keyrings/3", &pub_format, &pub_path, &sec_format, &sec_path));
     // check formats
     assert_int_equal(0, strcmp(pub_format, "KBX"));
     assert_int_equal(0, strcmp(sec_format, "G10"));
@@ -170,23 +155,18 @@ test_ffi_homedir(void **state)
     key = NULL;
     // cleanup
     rnp_ffi_destroy(ffi);
-
-    // final cleanup
-    free(homedir);
-    free(path);
 }
 
 static void
-load_test_data(const char *data_dir, const char *file, char **data, size_t *size)
+load_test_data(const char *file, char **data, size_t *size)
 {
     char *      path = NULL;
     struct stat st = {0};
 
-    assert_non_null(data_dir);
     assert_non_null(file);
     assert_non_null(data);
 
-    path = rnp_compose_path(data_dir, file, NULL);
+    path = rnp_compose_path("data", file, NULL);
     assert_non_null(path);
 
     assert_int_equal(0, stat(path, &st));
@@ -203,18 +183,16 @@ load_test_data(const char *data_dir, const char *file, char **data, size_t *size
     free(path);
 }
 
-void
-test_ffi_detect_key_format(void **state)
+TEST_F(rnp_tests, test_ffi_detect_key_format)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char *            data = NULL;
-    size_t            data_size = 0;
-    char *            format = NULL;
+    char * data = NULL;
+    size_t data_size = 0;
+    char * format = NULL;
 
     // GPG
     data = NULL;
     format = NULL;
-    load_test_data(rstate->data_dir, "keyrings/1/pubring.gpg", &data, &data_size);
+    load_test_data("keyrings/1/pubring.gpg", &data, &data_size);
     assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
     assert_int_equal(0, strcmp(format, "GPG"));
     free(data);
@@ -223,7 +201,7 @@ test_ffi_detect_key_format(void **state)
     // GPG
     data = NULL;
     format = NULL;
-    load_test_data(rstate->data_dir, "keyrings/1/secring.gpg", &data, &data_size);
+    load_test_data("keyrings/1/secring.gpg", &data, &data_size);
     assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
     assert_int_equal(0, strcmp(format, "GPG"));
     free(data);
@@ -233,7 +211,7 @@ test_ffi_detect_key_format(void **state)
     // GPG (armored)
     data = NULL;
     format = NULL;
-    load_test_data(rstate->data_dir, "keyrings/4/rsav3-p.asc", &data, &data_size);
+    load_test_data("keyrings/4/rsav3-p.asc", &data, &data_size);
     assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
     assert_int_equal(0, strcmp(format, "GPG"));
     free(data);
@@ -242,7 +220,7 @@ test_ffi_detect_key_format(void **state)
     // KBX
     data = NULL;
     format = NULL;
-    load_test_data(rstate->data_dir, "keyrings/3/pubring.kbx", &data, &data_size);
+    load_test_data("keyrings/3/pubring.kbx", &data, &data_size);
     assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
     assert_int_equal(0, strcmp(format, "KBX"));
     free(data);
@@ -251,8 +229,7 @@ test_ffi_detect_key_format(void **state)
     // G10
     data = NULL;
     format = NULL;
-    load_test_data(rstate->data_dir,
-                   "keyrings/3/private-keys-v1.d/63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59.key",
+    load_test_data("keyrings/3/private-keys-v1.d/63E59092E4B1AE9F8E675B2F98AA2B8BD9F4EA59.key",
                    &data,
                    &data_size);
     assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
@@ -266,13 +243,11 @@ test_ffi_detect_key_format(void **state)
     assert_null(format);
 }
 
-void
-test_ffi_load_keys(void **state)
+TEST_F(rnp_tests, test_ffi_load_keys)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    rnp_input_t       input = NULL;
-    size_t            count;
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    size_t      count;
 
     /* load public keys from pubring */
     // setup FFI
@@ -365,8 +340,8 @@ test_ffi_load_keys(void **state)
     size_t sec_buf_len = 0;
     FILE * fp = fopen("combined-rings.gpg", "wb");
     assert_non_null(fp);
-    load_test_data(rstate->data_dir, "keyrings/1/pubring.gpg", &pub_buf, &pub_buf_len);
-    load_test_data(rstate->data_dir, "keyrings/1/secring.gpg", &sec_buf, &sec_buf_len);
+    load_test_data("keyrings/1/pubring.gpg", &pub_buf, &pub_buf_len);
+    load_test_data("keyrings/1/secring.gpg", &sec_buf, &sec_buf_len);
     size_t   buf_len = pub_buf_len + sec_buf_len;
     uint8_t *buf = (uint8_t *) malloc(buf_len);
     memcpy(buf, pub_buf, pub_buf_len);
@@ -400,8 +375,7 @@ test_ffi_load_keys(void **state)
     free(buf);
 }
 
-void
-test_ffi_clear_keys(void **state)
+TEST_F(rnp_tests, test_ffi_clear_keys)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -474,8 +448,7 @@ test_ffi_clear_keys(void **state)
     ffi = NULL;
 }
 
-void
-test_ffi_save_keys(void **state)
+TEST_F(rnp_tests, test_ffi_save_keys)
 {
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
@@ -783,14 +756,12 @@ check_key_properties(rnp_key_handle_t key,
     assert_true(have_secret == have_secret_expected);
 }
 
-void
-test_ffi_keygen_json_pair(void **state)
+TEST_F(rnp_tests, test_ffi_keygen_json_pair)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
+    rnp_ffi_t ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -798,7 +769,7 @@ test_ffi_keygen_json_pair(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-pair.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-pair.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -863,14 +834,12 @@ test_ffi_keygen_json_pair(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_keygen_json_pair_dsa_elg(void **state)
+TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
+    rnp_ffi_t ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -878,7 +847,7 @@ test_ffi_keygen_json_pair_dsa_elg(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-pair-dsa-elg.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-pair-dsa-elg.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -945,14 +914,12 @@ test_ffi_keygen_json_pair_dsa_elg(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_keygen_json_primary(void **state)
+TEST_F(rnp_tests, test_ffi_keygen_json_primary)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
+    rnp_ffi_t ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -960,7 +927,7 @@ test_ffi_keygen_json_primary(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-primary.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -1007,14 +974,12 @@ test_ffi_keygen_json_primary(void **state)
 
 /* This test generates a primary key, and then a subkey (separately).
  */
-void
-test_ffi_keygen_json_sub(void **state)
+TEST_F(rnp_tests, test_ffi_keygen_json_sub)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
-    rnp_ffi_t         ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
+    rnp_ffi_t ffi = NULL;
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1022,7 +987,7 @@ test_ffi_keygen_json_sub(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // generate our primary key
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-primary.json", &json, NULL);
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     free(json);
     assert_non_null(results);
@@ -1057,7 +1022,7 @@ test_ffi_keygen_json_sub(void **state)
     parsed_results = NULL;
 
     // load our JSON template
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-sub.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-sub.json", &json, NULL);
     // modify our JSON
     {
         // parse
@@ -1135,8 +1100,7 @@ test_ffi_keygen_json_sub(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_key_generate_misc(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_misc)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1226,8 +1190,7 @@ test_ffi_key_generate_misc(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_rsa(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_rsa)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1339,8 +1302,7 @@ test_ffi_key_generate_rsa(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_dsa(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_dsa)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1442,8 +1404,7 @@ test_ffi_key_generate_dsa(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_ecdsa(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_ecdsa)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1545,8 +1506,7 @@ test_ffi_key_generate_ecdsa(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_eddsa(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_eddsa)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1643,8 +1603,7 @@ test_ffi_key_generate_eddsa(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_sm2(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_sm2)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -1742,8 +1701,7 @@ test_ffi_key_generate_sm2(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_ex(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_ex)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2125,8 +2083,7 @@ test_ffi_key_generate_ex(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_key_generate_protection(void **state)
+TEST_F(rnp_tests, test_ffi_key_generate_protection)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2242,14 +2199,12 @@ test_ffi_key_generate_protection(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_add_userid(void **state)
+TEST_F(rnp_tests, test_ffi_add_userid)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    rnp_ffi_t         ffi = NULL;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
+    rnp_ffi_t ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
 
     const char *new_userid = "my new userid <user@example.com>";
 
@@ -2258,7 +2213,7 @@ test_ffi_add_userid(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
 
     // load our JSON
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-primary.json", &json, NULL);
 
     // generate the keys
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
@@ -2308,14 +2263,12 @@ test_ffi_add_userid(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_keygen_json_sub_pass_required(void **state)
+TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
 {
-    rnp_test_state_t *rstate = (rnp_test_state_t *) *state;
-    char *            json = NULL;
-    char *            results = NULL;
-    size_t            count = 0;
-    rnp_ffi_t         ffi = NULL;
+    char *    json = NULL;
+    char *    results = NULL;
+    size_t    count = 0;
+    rnp_ffi_t ffi = NULL;
 
     // setup FFI
     assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2323,7 +2276,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, unused_getpasscb, NULL));
 
     // generate our primary key
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-primary.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-primary.json", &json, NULL);
     assert_int_equal(RNP_SUCCESS, rnp_generate_key_json(ffi, json, &results));
     free(json);
     assert_non_null(results);
@@ -2364,7 +2317,7 @@ test_ffi_keygen_json_sub_pass_required(void **state)
     primary = NULL;
 
     // load our JSON template
-    load_test_data(rstate->data_dir, "test_ffi_json/generate-sub.json", &json, NULL);
+    load_test_data("test_ffi_json/generate-sub.json", &json, NULL);
     // modify our JSON
     {
         // parse
@@ -2461,8 +2414,7 @@ file_equals(const char *filename, const void *data, size_t len)
     return res;
 }
 
-void
-test_ffi_encrypt_pass(void **state)
+TEST_F(rnp_tests, test_ffi_encrypt_pass)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -2587,8 +2539,7 @@ test_ffi_encrypt_pass(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_encrypt_pk(void **state)
+TEST_F(rnp_tests, test_ffi_encrypt_pk)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -2696,8 +2647,7 @@ test_ffi_encrypt_pk(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_encrypt_pk_key_provider(void **state)
+TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -2827,8 +2777,7 @@ test_ffi_encrypt_pk_key_provider(void **state)
     free(primary_sec_key_data);
 }
 
-void
-test_ffi_encrypt_and_sign(void **state)
+TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
 {
     rnp_ffi_t               ffi = NULL;
     rnp_input_t             input = NULL;
@@ -3011,7 +2960,7 @@ test_ffi_encrypt_and_sign(void **state)
 }
 
 static void
-test_ffi_init(void **state, rnp_ffi_t *ffi)
+test_ffi_init(rnp_ffi_t *ffi)
 {
     // setup FFI
     assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
@@ -3031,7 +2980,7 @@ test_ffi_init(void **state, rnp_ffi_t *ffi)
 }
 
 static void
-test_ffi_init_sign_file_input(void **state, rnp_input_t *input, rnp_output_t *output)
+test_ffi_init_sign_file_input(rnp_input_t *input, rnp_output_t *output)
 {
     const char *plaintext = "this is some data that will be signed";
 
@@ -3049,7 +2998,7 @@ test_ffi_init_sign_file_input(void **state, rnp_input_t *input, rnp_output_t *ou
 }
 
 static void
-test_ffi_init_sign_memory_input(void **state, rnp_input_t *input, rnp_output_t *output)
+test_ffi_init_sign_memory_input(rnp_input_t *input, rnp_output_t *output)
 {
     const char *plaintext = "this is some data that will be signed";
 
@@ -3063,7 +3012,7 @@ test_ffi_init_sign_memory_input(void **state, rnp_input_t *input, rnp_output_t *
 }
 
 static void
-test_ffi_init_verify_file_input(void **state, rnp_input_t *input, rnp_output_t *output)
+test_ffi_init_verify_file_input(rnp_input_t *input, rnp_output_t *output)
 {
     // create input+output
     assert_rnp_success(rnp_input_from_path(input, "signed"));
@@ -3073,9 +3022,7 @@ test_ffi_init_verify_file_input(void **state, rnp_input_t *input, rnp_output_t *
 }
 
 static void
-test_ffi_init_verify_detached_file_input(void **      state,
-                                         rnp_input_t *input,
-                                         rnp_input_t *signature)
+test_ffi_init_verify_detached_file_input(rnp_input_t *input, rnp_input_t *signature)
 {
     assert_rnp_success(rnp_input_from_path(input, "plaintext"));
     assert_non_null(*input);
@@ -3084,8 +3031,7 @@ test_ffi_init_verify_detached_file_input(void **      state,
 }
 
 static void
-test_ffi_init_verify_memory_input(void **       state,
-                                  rnp_input_t * input,
+test_ffi_init_verify_memory_input(rnp_input_t * input,
                                   rnp_output_t *output,
                                   uint8_t *     signed_buf,
                                   size_t        signed_len)
@@ -3098,7 +3044,7 @@ test_ffi_init_verify_memory_input(void **       state,
 }
 
 static void
-test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
+test_ffi_setup_signatures(rnp_ffi_t *ffi, rnp_op_sign_t *op)
 {
     rnp_key_handle_t        key = NULL;
     rnp_op_sign_signature_t sig = NULL;
@@ -3131,7 +3077,7 @@ test_ffi_setup_signatures(void **state, rnp_ffi_t *ffi, rnp_op_sign_t *op)
 }
 
 static void
-test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
+test_ffi_check_signatures(rnp_op_verify_t *verify)
 {
     rnp_op_verify_signature_t sig;
     size_t                    sig_count;
@@ -3166,7 +3112,7 @@ test_ffi_check_signatures(void **state, rnp_op_verify_t *verify)
 }
 
 static bool
-test_ffi_check_recovered(void **state)
+test_ffi_check_recovered()
 {
     pgp_source_t msrc1 = {};
     pgp_source_t msrc2 = {};
@@ -3188,8 +3134,7 @@ finish:
     return res;
 }
 
-void
-test_ffi_signatures_memory(void **state)
+TEST_F(rnp_tests, test_ffi_signatures_memory)
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -3202,13 +3147,13 @@ test_ffi_signatures_memory(void **state)
     size_t          verified_len;
 
     // init ffi
-    test_ffi_init(state, &ffi);
+    test_ffi_init(&ffi);
     // init input
-    test_ffi_init_sign_memory_input(state, &input, &output);
+    test_ffi_init_sign_memory_input(&input, &output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
     // setup signature(s)
-    test_ffi_setup_signatures(state, &ffi, &op);
+    test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
@@ -3228,12 +3173,12 @@ test_ffi_signatures_memory(void **state)
     // make sure it is correctly armored
     assert_int_equal(memcmp(signed_buf, "-----BEGIN PGP MESSAGE-----", 27), 0);
     // create input and output
-    test_ffi_init_verify_memory_input(state, &input, &output, signed_buf, signed_len);
+    test_ffi_init_verify_memory_input(&input, &output, signed_buf, signed_len);
     // call verify
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
     // check signatures
-    test_ffi_check_signatures(state, &verify);
+    test_ffi_check_signatures(&verify);
     // get output
     assert_rnp_success(rnp_output_memory_get_buf(output, &verified_buf, &verified_len, true));
     assert_non_null(verified_buf);
@@ -3249,8 +3194,7 @@ test_ffi_signatures_memory(void **state)
     rnp_buffer_destroy(verified_buf);
 }
 
-void
-test_ffi_signatures(void **state)
+TEST_F(rnp_tests, test_ffi_signatures)
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -3259,13 +3203,13 @@ test_ffi_signatures(void **state)
     rnp_op_verify_t verify;
 
     // init ffi
-    test_ffi_init(state, &ffi);
+    test_ffi_init(&ffi);
     // init file input
-    test_ffi_init_sign_file_input(state, &input, &output);
+    test_ffi_init_sign_file_input(&input, &output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
     // setup signature(s)
-    test_ffi_setup_signatures(state, &ffi, &op);
+    test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
@@ -3282,12 +3226,12 @@ test_ffi_signatures(void **state)
     /* now verify */
 
     // create input and output
-    test_ffi_init_verify_file_input(state, &input, &output);
+    test_ffi_init_verify_file_input(&input, &output);
     // call verify
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
     // check signatures
-    test_ffi_check_signatures(state, &verify);
+    test_ffi_check_signatures(&verify);
     // cleanup
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -3296,11 +3240,10 @@ test_ffi_signatures(void **state)
     output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     // check output
-    assert_true(test_ffi_check_recovered(state));
+    assert_true(test_ffi_check_recovered());
 }
 
-void
-test_ffi_signatures_detached_memory(void **state)
+TEST_F(rnp_tests, test_ffi_signatures_detached_memory)
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -3312,13 +3255,13 @@ test_ffi_signatures_detached_memory(void **state)
     size_t          signed_len;
 
     // init ffi
-    test_ffi_init(state, &ffi);
+    test_ffi_init(&ffi);
     // init input
-    test_ffi_init_sign_memory_input(state, &input, &output);
+    test_ffi_init_sign_memory_input(&input, &output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
     // setup signature(s)
-    test_ffi_setup_signatures(state, &ffi, &op);
+    test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
@@ -3337,14 +3280,14 @@ test_ffi_signatures_detached_memory(void **state)
     // make sure it is correctly armored
     assert_int_equal(memcmp(signed_buf, "-----BEGIN PGP SIGNATURE-----", 29), 0);
     // create input and output
-    test_ffi_init_sign_memory_input(state, &input, NULL);
+    test_ffi_init_sign_memory_input(&input, NULL);
     assert_rnp_success(rnp_input_from_memory(&signature, signed_buf, signed_len, true));
     assert_non_null(signature);
     // call verify
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
     assert_rnp_success(rnp_op_verify_execute(verify));
     // check signatures
-    test_ffi_check_signatures(state, &verify);
+    test_ffi_check_signatures(&verify);
     // cleanup
     rnp_buffer_destroy(signed_buf);
     assert_rnp_success(rnp_op_verify_destroy(verify));
@@ -3355,8 +3298,7 @@ test_ffi_signatures_detached_memory(void **state)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
-void
-test_ffi_signatures_detached(void **state)
+TEST_F(rnp_tests, test_ffi_signatures_detached)
 {
     rnp_ffi_t       ffi = NULL;
     rnp_input_t     input = NULL;
@@ -3366,13 +3308,13 @@ test_ffi_signatures_detached(void **state)
     rnp_op_verify_t verify;
 
     // init ffi
-    test_ffi_init(state, &ffi);
+    test_ffi_init(&ffi);
     // init file input
-    test_ffi_init_sign_file_input(state, &input, &output);
+    test_ffi_init_sign_file_input(&input, &output);
     // create signature operation
     assert_rnp_success(rnp_op_sign_detached_create(&op, ffi, input, output));
     // setup signature(s)
-    test_ffi_setup_signatures(state, &ffi, &op);
+    test_ffi_setup_signatures(&ffi, &op);
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
@@ -3389,12 +3331,12 @@ test_ffi_signatures_detached(void **state)
     /* now verify */
 
     // create input and output
-    test_ffi_init_verify_detached_file_input(state, &input, &signature);
+    test_ffi_init_verify_detached_file_input(&input, &signature);
     // call verify
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
     assert_rnp_success(rnp_op_verify_execute(verify));
     // check signatures
-    test_ffi_check_signatures(state, &verify);
+    test_ffi_check_signatures(&verify);
     // cleanup
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -3446,8 +3388,7 @@ get_json_obj(json_object *jso, const char *field)
  * on json-c sorting the keys consistently, across versions,
  * etc.
  */
-void
-test_ffi_key_to_json(void **state)
+TEST_F(rnp_tests, test_ffi_key_to_json)
 {
     rnp_ffi_t        ffi = NULL;
     char *           pub_format = NULL;
@@ -3646,8 +3587,7 @@ test_ffi_key_to_json(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_key_iter(void **state)
+TEST_F(rnp_tests, test_ffi_key_iter)
 {
     rnp_ffi_t   ffi = NULL;
     char *      pub_format = NULL;
@@ -3838,8 +3778,7 @@ test_ffi_key_iter(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_locate_key(void **state)
+TEST_F(rnp_tests, test_ffi_locate_key)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -3968,8 +3907,7 @@ test_ffi_locate_key(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_signatures_detached_memory_g10(void **state)
+TEST_F(rnp_tests, test_ffi_signatures_detached_memory_g10)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -4075,8 +4013,7 @@ test_ffi_signatures_detached_memory_g10(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_enarmor_dearmor(void **state)
+TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
 {
     std::string data;
 
@@ -4193,8 +4130,7 @@ test_ffi_enarmor_dearmor(void **state)
     }
 }
 
-void
-test_ffi_version(void **state)
+TEST_F(rnp_tests, test_ffi_version)
 {
     const uint32_t version = rnp_version();
     const uint32_t major = rnp_version_major(version);
@@ -4281,8 +4217,7 @@ check_loaded_keys(const char *                    format,
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_key_export(void **state)
+TEST_F(rnp_tests, test_ffi_key_export)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -4497,8 +4432,7 @@ test_ffi_key_export(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_key_dump(void **state)
+TEST_F(rnp_tests, test_ffi_key_dump)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -4549,8 +4483,7 @@ test_ffi_key_dump(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_pkt_dump(void **state)
+TEST_F(rnp_tests, test_ffi_pkt_dump)
 {
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
@@ -4581,8 +4514,7 @@ test_ffi_pkt_dump(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_rsa_v3_dump(void **state)
+TEST_F(rnp_tests, test_ffi_rsa_v3_dump)
 {
     rnp_input_t input = NULL;
     char *      json = NULL;
@@ -4616,8 +4548,7 @@ test_ffi_rsa_v3_dump(void **state)
     json_object_put(jso);
 }
 
-void
-test_ffi_load_userattr(void **state)
+TEST_F(rnp_tests, test_ffi_load_userattr)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -4648,8 +4579,7 @@ test_ffi_load_userattr(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_revocations(void **state)
+TEST_F(rnp_tests, test_ffi_revocations)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -4746,8 +4676,7 @@ test_ffi_revocations(void **state)
 
 #define KEY_OUT_PATH "exported-key.asc"
 
-void
-test_ffi_file_output(void **state)
+TEST_F(rnp_tests, test_ffi_file_output)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -4819,8 +4748,7 @@ test_ffi_file_output(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_key_signatures(void **state)
+TEST_F(rnp_tests, test_ffi_key_signatures)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -5000,8 +4928,7 @@ check_key_status(json_object *key, const char *pub, const char *sec, const char 
     return true;
 }
 
-void
-test_ffi_keys_import(void **state)
+TEST_F(rnp_tests, test_ffi_keys_import)
 {
     rnp_ffi_t   ffi = NULL;
     rnp_input_t input = NULL;
@@ -5139,8 +5066,7 @@ test_ffi_keys_import(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_calculate_iterations(void **state)
+TEST_F(rnp_tests, test_ffi_calculate_iterations)
 {
     size_t iterations = 0;
     assert_rnp_success(rnp_calculate_iterations("sha256", 500, &iterations));
@@ -5177,8 +5103,7 @@ done:
     return res;
 }
 
-void
-test_ffi_supported_features(void **state)
+TEST_F(rnp_tests, test_ffi_supported_features)
 {
     char *features = NULL;
     /* some edge cases */
@@ -5333,8 +5258,7 @@ test_ffi_supported_features(void **state)
     assert_false(supported);
 }
 
-void
-test_ffi_enable_debug(void **state)
+TEST_F(rnp_tests, test_ffi_enable_debug)
 {
     assert_rnp_success(rnp_enable_debug("dummy.c"));
     assert_rnp_success(rnp_enable_debug("1.c"));
@@ -5354,8 +5278,7 @@ test_ffi_enable_debug(void **state)
     assert_rnp_success(rnp_disable_debug());
 }
 
-void
-test_ffi_rnp_key_get_primary_grip(void **state)
+TEST_F(rnp_tests, test_ffi_rnp_key_get_primary_grip)
 {
     rnp_ffi_t        ffi = NULL;
     rnp_input_t      input = NULL;
@@ -5420,8 +5343,7 @@ test_ffi_rnp_key_get_primary_grip(void **state)
     rnp_ffi_destroy(ffi);
 }
 
-void
-test_ffi_output_to_armor(void **state)
+TEST_F(rnp_tests, test_ffi_output_to_armor)
 {
     rnp_ffi_t    ffi = NULL;
     rnp_output_t memory = NULL;
