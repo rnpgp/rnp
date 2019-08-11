@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -42,11 +42,8 @@ mpi_empty(const pgp_mpi_t *val)
  * There is also some lock/unlock testing in here, since the two are
  * somewhat related.
  */
-void
-test_key_protect_load_pgp(void **state)
+TEST_F(rnp_tests, test_key_protect_load_pgp)
 {
-    rnp_test_state_t * rstate = (rnp_test_state_t *) *state;
-    char               path[PATH_MAX];
     pgp_key_t *        key = NULL;
     static const char *keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
@@ -62,8 +59,7 @@ test_key_protect_load_pgp(void **state)
         rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
         assert_non_null(ks);
 
-        paths_concat(path, sizeof(path), rstate->data_dir, "keyrings/1/secring.gpg", NULL);
-        assert_rnp_success(init_file_src(&src, path));
+        assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
         assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
         src_close(&src);
 

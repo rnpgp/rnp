@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2019 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,8 +32,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-void
-test_key_grip(void **state)
+TEST_F(rnp_tests, key_grip)
 {
     uint8_t          grip[PGP_KEY_GRIP_SIZE];
     const pgp_key_t *key;
