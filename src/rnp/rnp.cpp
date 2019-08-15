@@ -44,6 +44,7 @@
 #include <getopt.h>
 
 #include "rnpcli.h"
+#include "fficli.h"
 #include <rnp/rnp_sdk.h>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-parse.h>
@@ -503,7 +504,7 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
         ret = rnp_process_file(rnp, &ctx, infile, outfile) == RNP_SUCCESS;
         break;
     case CMD_LIST_PACKETS:
-        ret = rnp_dump_file(&ctx, infile, outfile) == RNP_SUCCESS;
+        ret = cli_rnp_dump_file(cfg);
         break;
     case CMD_DEARMOR:
         ret = rnp_armor_stream(&ctx, false, infile, outfile) == RNP_SUCCESS;
