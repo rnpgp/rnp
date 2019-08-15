@@ -81,7 +81,6 @@ bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
 /* file management */
 rnp_result_t rnp_process_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
 rnp_result_t rnp_protect_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
-rnp_result_t rnp_dump_file(rnp_ctx_t *, const char *, const char *);
 
 /* memory signing and encryption */
 rnp_result_t rnp_process_mem(
