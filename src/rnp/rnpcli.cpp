@@ -932,31 +932,6 @@ rnp_process_mem(rnp_t *     rnp,
     return result;
 }
 
-rnp_result_t
-rnp_dump_file(rnp_ctx_t *ctx, const char *in, const char *out)
-{
-    pgp_source_t   src;
-    pgp_dest_t     dst;
-    rnp_dump_ctx_t dumpctx = {0};
-    rnp_result_t   result;
-
-    if (rnp_initialize_io(ctx, &src, &dst, in, out)) {
-        return RNP_ERROR_READ;
-    }
-
-    /* process source */
-    dumpctx.dump_grips = true;
-    if ((result = stream_dump_packets(&dumpctx, &src, &dst))) {
-        RNP_LOG("error 0x%x", result);
-    }
-
-    /* cleanup */
-    src_close(&src);
-    dst_close(&dst, result);
-
-    return result;
-}
-
 typedef struct pgp_write_handler_param_t {
     pgp_source_t src;
     pgp_dest_t   dst;
