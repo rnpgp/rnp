@@ -1,11 +1,9 @@
 #include <stdio.h>
 #include <unistd.h> /* getopt() */
 #include <getopt.h>
-#include <librepgp/stream-ctx.h>
-#include <librepgp/stream-dump.h>
-#include "utils.h"
-#include "rnp.h"    /* rnp_ctx_t et. all */
+#include <rnp/rnp.h>
 #include <libgen.h> /* basename() */
+#include "../../rnp/fficli.h"
 
 #define PFX "redumper: "
 
@@ -24,15 +22,26 @@ print_usage(char *program_name)
             basename(program_name));
 }
 
+ssize_t
+stdin_reader(void *app_ctx, void *buf, size_t len)
+{
+    return read(STDIN_FILENO, buf, len);
+}
+
+bool
+stdout_writer(void *app_ctx, const void *buf, size_t len)
+{
+    ssize_t wlen = write(STDOUT_FILENO, buf, len);
+    return (wlen >= 0) && (size_t) wlen == len;
+}
+
 int
 main(int argc, char *const argv[])
 {
-    pgp_source_t   src = {0};
-    pgp_dest_t     dst = {0};
-    rnp_result_t   res = RNP_ERROR_GENERIC;
-    rnp_dump_ctx_t ctx = {0};
-    char *         input_file = NULL;
-    bool           json = false;
+    char *   input_file = NULL;
+    uint32_t flags = 0;
+    uint32_t jflags = 0;
+    bool     json = false;
 
     /* Parse command line options:
         -i input_file [mandatory]: specifies name of the file with PGP packets
@@ -46,13 +55,16 @@ main(int argc, char *const argv[])
     while ((opt = getopt(argc, argv, "dmgjh")) != -1) {
         switch (opt) {
         case 'd':
-            ctx.dump_packets = true;
+            flags |= RNP_DUMP_RAW;
+            jflags |= RNP_JSON_DUMP_RAW;
             break;
         case 'm':
-            ctx.dump_mpi = true;
+            flags |= RNP_DUMP_MPI;
+            jflags |= RNP_JSON_DUMP_MPI;
             break;
         case 'g':
-            ctx.dump_grips = true;
+            flags |= RNP_DUMP_GRIP;
+            jflags |= RNP_JSON_DUMP_GRIP;
             break;
         case 'j':
             json = true;
@@ -68,37 +80,40 @@ main(int argc, char *const argv[])
         input_file = argv[optind];
     }
 
-    res = input_file ? init_file_src(&src, input_file) : init_stdin_src(&src);
-    if (res) {
-        RNP_LOG("failed to open source: error 0x%x", (int) res);
+    rnp_input_t  input = NULL;
+    rnp_result_t ret = 0;
+    if (input_file) {
+        ret = rnp_input_from_path(&input, input_file);
+    } else {
+        ret = rnp_input_from_callback(&input, stdin_reader, NULL, NULL);
+    }
+    if (ret) {
+        ERR_MSG("failed to open source: error 0x%x", (int) ret);
         return 1;
     }
 
     if (!json) {
-        res = init_stdout_dest(&dst);
-        if (res) {
-            RNP_LOG("failed to open stdout: error 0x%x", (int) res);
-            src_close(&src);
+        rnp_output_t output = NULL;
+        ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
+        if (ret) {
+            ERR_MSG("failed to open stdout: error 0x%x", (int) ret);
+            rnp_input_destroy(input);
             return 1;
         }
-
-        res = stream_dump_packets(&ctx, &src, &dst);
-
-        dst_close(&dst, false);
+        ret = rnp_dump_packets_to_output(input, output, flags);
+        rnp_output_destroy(output);
     } else {
-        json_object *dump = NULL;
-        res = stream_dump_packets_json(&ctx, &src, &dump);
-        if (res == RNP_SUCCESS) {
-            const char *json = json_object_to_json_string_ext(dump, JSON_C_TO_STRING_PRETTY);
+        char *json = NULL;
+        ret = rnp_dump_packets_to_json(input, jflags, &json);
+        if (!ret) {
             fprintf(stdout, "%s\n", json);
-            json_object_put(dump);
         }
     }
-    src_close(&src);
+    rnp_input_destroy(input);
 
     /* Inform in case of error occured during parsing */
-    if (res != RNP_SUCCESS) {
-        fprintf(stderr, PFX "Operation failed [error code: 0x%X]\n", res);
+    if (ret) {
+        ERR_MSG(PFX "Operation failed [error code: 0x%X]\n", ret);
         return 1;
     }
 
