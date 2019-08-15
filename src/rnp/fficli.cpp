@@ -1093,3 +1093,63 @@ done:
     cli_rnp_keylist_destroy(&keys);
     return result;
 }
+
+ssize_t
+stdin_reader(void *app_ctx, void *buf, size_t len)
+{
+    return read(STDIN_FILENO, buf, len);
+}
+
+bool
+stdout_writer(void *app_ctx, const void *buf, size_t len)
+{
+    ssize_t wlen = write(STDOUT_FILENO, buf, len);
+    return (wlen >= 0) && (size_t) wlen == len;
+}
+
+static bool
+cli_rnp_init_io(rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
+{
+    if (input) {
+        const char * in = rnp_cfg_getstr(cfg, CFG_INFILE);
+        bool         is_stdin = !in || !in[0] || !strcmp(in, "-");
+        rnp_result_t res = is_stdin ?
+                             rnp_input_from_callback(input, stdin_reader, NULL, NULL) :
+                             rnp_input_from_path(input, in);
+
+        if (res) {
+            return false;
+        }
+    }
+
+    if (!output) {
+        return true;
+    }
+    const char * out = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    bool         is_stdout = !out || !out[0] || !strcmp(out, "-");
+    rnp_result_t res = is_stdout ? rnp_output_to_callback(output, stdout_writer, NULL, NULL) :
+                                   rnp_output_to_file(output, out, RNP_OUTPUT_FILE_OVERWRITE);
+
+    if (res && input) {
+        rnp_input_destroy(*input);
+    }
+    return !res;
+}
+
+bool
+cli_rnp_dump_file(rnp_cfg_t *cfg)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    if (!cli_rnp_init_io(cfg, &input, &output)) {
+        ERR_MSG("failed to open source or create output");
+        return false;
+    }
+
+    rnp_result_t ret = rnp_dump_packets_to_output(input, output, RNP_DUMP_GRIP);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    return !ret;
+}
