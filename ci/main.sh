@@ -7,13 +7,6 @@ set -eux
 
 CMAKE=cmake
 
-# check for use of uninitialized or unused vars in CMake
-function cmake {
-  log=$(mktemp)
-  command ${CMAKE} --warn-uninitialized --warn-unused "$@" 2>&1 | tee "$log"
-  if grep -Fqi 'cmake warning' "$log"; then exit 1; fi
-}
-
 if [[ "$(get_os)" = "linux" ]]; then
   pushd /
   sudo curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
@@ -36,7 +29,7 @@ rnpsrc="$PWD"
 pushd "${LOCAL_BUILDS}/rnp-build"
 export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib"
 
-cmake "${cmakeopts[@]}" "$rnpsrc"
+${CMAKE} "${cmakeopts[@]}" "$rnpsrc"
 make -j${MAKE_PARALLEL} VERBOSE=1 install
 
 : "${COVERITY_SCAN_BRANCH:=0}"
