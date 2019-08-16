@@ -71,8 +71,7 @@ finish:
     return res;
 }
 
-void
-test_stream_memory(void **state)
+TEST_F(rnp_tests, test_stream_memory)
 {
     const char *data = "Sample data to test memory streams";
     size_t      datalen;
@@ -113,8 +112,7 @@ copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
     strncpy(buf, param->path, buflen);
 }
 
-void
-test_stream_file(void **state)
+TEST_F(rnp_tests, test_stream_file)
 {
     const char * filename = "dummyfile.dat";
     const char * dirname = "dummydir";
@@ -268,8 +266,7 @@ test_stream_file(void **state)
     assert_int_equal(unlink(dirname), 0);
 }
 
-void
-test_stream_signatures(void **state)
+TEST_F(rnp_tests, test_stream_signatures)
 {
     rnp_key_store_t * pubring;
     rnp_key_store_t * secring;
@@ -361,8 +358,7 @@ test_stream_signatures(void **state)
     rng_destroy(&rng);
 }
 
-void
-test_stream_signatures_revoked_key(void **state)
+TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 {
     pgp_signature_t sig = {(pgp_version_t) 0};
     pgp_source_t    sigsrc = {0};
@@ -385,8 +381,7 @@ test_stream_signatures_revoked_key(void **state)
     free_signature(&sig);
 }
 
-void
-test_stream_key_load(void **state)
+TEST_F(rnp_tests, test_stream_key_load)
 {
     pgp_source_t               keysrc = {0};
     pgp_dest_t                 keydst = {0};
@@ -764,8 +759,7 @@ buggy_key_load_single(const void *keydata, size_t keylen)
 }
 
 /* check for memory leaks during buggy key loads */
-void
-test_stream_key_load_errors(void **state)
+TEST_F(rnp_tests, test_stream_key_load_errors)
 {
     pgp_source_t fsrc = {0};
     pgp_source_t armorsrc = {0};
@@ -811,8 +805,7 @@ test_stream_key_load_errors(void **state)
     }
 }
 
-void
-test_stream_key_decrypt(void **state)
+TEST_F(rnp_tests, test_stream_key_decrypt)
 {
     pgp_source_t               keysrc = {0};
     pgp_key_sequence_t         keyseq;
@@ -914,8 +907,7 @@ test_stream_key_decrypt(void **state)
     src_close(&keysrc);
 }
 
-void
-test_stream_key_encrypt(void **state)
+TEST_F(rnp_tests, test_stream_key_encrypt)
 {
     pgp_source_t               keysrc = {0};
     pgp_dest_t                 keydst = {0};
@@ -1002,8 +994,7 @@ test_stream_key_encrypt(void **state)
     rng_destroy(&rng);
 }
 
-void
-test_stream_key_signatures(void **state)
+TEST_F(rnp_tests, test_stream_key_signatures)
 {
     rnp_key_store_t *          pubring;
     pgp_source_t               keysrc = {0};
@@ -1117,8 +1108,7 @@ validate_key_sigs(const char *path)
     rnp_key_store_free(pubring);
 }
 
-void
-test_stream_key_signature_validate(void **state)
+TEST_F(rnp_tests, test_stream_key_signature_validate)
 {
     rnp_key_store_t *     pubring;
     pgp_key_t *           pkey = NULL;
@@ -1181,8 +1171,7 @@ test_stream_key_signature_validate(void **state)
     }
 }
 
-void
-test_stream_verify_no_key(void **state)
+TEST_F(rnp_tests, test_stream_verify_no_key)
 {
     rnp_ctx_t ctx = {0};
     rnp_t     rnp = {0};
@@ -1297,8 +1286,7 @@ check_dump_file(const char *file, bool mpi, bool grip)
     return check_dump_file_dst(file, mpi, grip) && check_dump_file_json(file, mpi, grip);
 }
 
-void
-test_stream_dumper(void **state)
+TEST_F(rnp_tests, test_stream_dumper)
 {
     pgp_source_t   src;
     pgp_dest_t     dst;
@@ -1344,8 +1332,7 @@ test_stream_dumper(void **state)
     dst_close(&dst, false);
 }
 
-void
-test_stream_z(void **state)
+TEST_F(rnp_tests, test_stream_z)
 {
     pgp_source_t   src;
     pgp_dest_t     dst;
@@ -1394,8 +1381,7 @@ test_stream_z(void **state)
 
 /* This test checks for GitHub issue #814.
  */
-void
-test_stream_814_dearmor_double_free(void **state)
+TEST_F(rnp_tests, test_stream_814_dearmor_double_free)
 {
     pgp_source_t src;
     pgp_dest_t   dst;
@@ -1408,8 +1394,7 @@ test_stream_814_dearmor_double_free(void **state)
     dst_close(&dst, true);
 }
 
-void
-test_stream_825_dearmor_blank_line(void **state)
+TEST_F(rnp_tests, test_stream_825_dearmor_blank_line)
 {
     rnp_key_store_t *keystore = NULL;
     pgp_source_t     src = {};
@@ -1447,8 +1432,7 @@ done:
     return res;
 }
 
-void
-test_stream_dearmor_edge_cases(void **state)
+TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
 {
     const char *HDR = "-----BEGIN PGP PUBLIC KEY BLOCK-----";
     const char *B1 = "mDMEWsN6MBYJKwYBBAHaRw8BAQdAAS+nkv9BdVi0JX7g6d+O201bdKhdowbielOo";
