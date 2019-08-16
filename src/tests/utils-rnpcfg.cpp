@@ -30,8 +30,7 @@
 #include "utils.h"
 #include <rnp/rnpcfg.h>
 
-void
-test_rnpcfg(void **state)
+TEST_F(rnp_tests, test_rnpcfg)
 {
     rnp_cfg_t  cfg1 = {0}, cfg2 = {0};
     rnp_cfg_t *cfgs[2] = {&cfg1, &cfg2};
