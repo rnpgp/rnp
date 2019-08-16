@@ -46,7 +46,7 @@ build_gpg_stable() {
   local PINENTRY_VERSION=$6
   local GNUPG_VERSION=$7
 
-  gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
+  gpg --keyserver hkp://keys.gnupg.net --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
 
   for archive in npth:${NPTH_VERSION} libgpg-error:${LIBGPG_ERROR_VERSION}; do
     pkgname="${archive%:*}"
