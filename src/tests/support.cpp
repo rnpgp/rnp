@@ -210,8 +210,7 @@ delete_recursively(const char *path)
         free(cwd);
     }
     /* sanity check, we should only be purging things from /tmp/ */
-    assert_int_equal(strncmp(fullpath, "/tmp/", 5), 0);
-    assert_true(strlen(fullpath) > 5);
+    assert_true(!strncmp(fullpath, "/tmp/", 5) || !strncmp(fullpath, "/private/tmp/", 13));
 
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
     if (*path != '/') {
