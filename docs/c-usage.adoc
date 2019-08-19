@@ -9,7 +9,7 @@ you can use the examples below to see how it may be done.
 .Where to find the examples
 ====
 Find the source code for these examples
-under `https://github.com/riboseinc/rnp/blob/master/src/examples/[src/examples]`.
+under `https://github.com/rnpgp/rnp/blob/master/src/examples/[src/examples]`.
 
 If you’re building from source, the examples are built together with the RNP library
 and are available in `src/examples` directory of your build folder.
@@ -18,7 +18,7 @@ and are available in `src/examples` directory of your build folder.
 [TIP]
 ====
 All samples below use APIs exposed via header file
-`https://github.com/riboseinc/rnp/blob/master/include/rnp/rnp.h[include/rnp/rnp.h]`,
+`https://github.com/rnpgp/rnp/blob/master/include/rnp/rnp.h[include/rnp/rnp.h]`,
 check it out for more documentation.
 ====
 
@@ -34,7 +34,7 @@ Following sample applications are available:
 
 `verify`:: Shows how to verify signed messages using dynamic keys fetching (sample key provider implementation).
 
-=== https://github.com/riboseinc/rnp/blob/master/src/examples/generate.c[generate.c]
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/generate.c[generate.c]
 
 This example is composed from 2 functions:
 
@@ -49,7 +49,7 @@ You can use `rnp --list-packets pubring.pgp` to check the properties of the gene
    search for the keys (in helper functions `ffi_print_key()`/`ffi_export_key()`),
    and export them to memory or file in armored format.
 
-=== https://github.com/riboseinc/rnp/blob/master/src/examples/encrypt.c[encrypt.c]
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/encrypt.c[encrypt.c]
 
 This code sample first loads public keyring (`pubring.pgp`) (created by the “generate.c” example),
 then creates encryption operation structure and configures it with various options
@@ -61,7 +61,7 @@ It is saved to the file `encrypted.asc` in current directory.
 You can investigate it via the `rnp --list-packets encrypted.asc` command.
 Also, you may want to decrypt saved file via `rnp --keyfile secring.pgp -d encrypted.asc`.
 
-=== https://github.com/riboseinc/rnp/blob/master/src/examples/decrypt.c[decrypt.c]
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/decrypt.c[decrypt.c]
 
 This example uses keyrings generated in the “generate.c” sample to decrypt messages
 encrypted by the “encrypt.c” sample.
@@ -71,7 +71,7 @@ and implements custom password provider for decryption or key password.
 
 Decrypted message is saved to the memory and then printed to the stdout.
 
-=== https://github.com/riboseinc/rnp/blob/master/src/examples/sign.c[sign.c]
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/sign.c[sign.c]
 
 This sample uses keyrings generated in the preceding “generate.c” sample.
 
@@ -81,7 +81,7 @@ Attached signature is used, i.e. the data is encapsulated into the resulting mes
 You can investigate the signed message by issuing `rnp --list-packets signed.asc` command.
 To verify message, use `rnp --keyfile pubring.pgp -v signed.asc`.
 
-=== https://github.com/riboseinc/rnp/blob/master/src/examples/verify.c[verify.c]
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/verify.c[verify.c]
 
 This example uses keyrings generated in the “generate.c” sample.
 
