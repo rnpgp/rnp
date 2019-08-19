@@ -2,7 +2,7 @@
 
 ## Overview
 
-**redumper** parses input formated as OpenPGP packets ([RFC4880-bis-02](https://tools.ietf.org/html/draft-ietf-openpgp-rfc4880bis-02)) and prints it out in human readable form. **redumper** is based on [rnp](https://github.com/riboseinc/rnp) library (by [Ribose Inc](https://www.ribose.com)).
+**redumper** parses input formated as OpenPGP packets ([RFC4880-bis-02](https://tools.ietf.org/html/draft-ietf-openpgp-rfc4880bis-02)) and prints it out in human readable form. **redumper** is based on [rnp](https://github.com/rnpgp/rnp) library (by [Ribose Inc](https://www.ribose.com)).
 
 ## Usage
 

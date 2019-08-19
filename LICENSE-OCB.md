@@ -2,7 +2,7 @@ License for OCB Usage
 =====================
 
 This license has been graciously granted by Professor Phillip Rogaway to allow
-users of [`rnp`](https://github.com/riboseinc/rnp) to utilize the patented
+users of [`rnp`](https://github.com/rnpgp/rnp) to utilize the patented
 [OCB](http://web.cs.ucdavis.edu/~rogaway/ocb/) blockcipher mode of operation,
 which simultaneously provides privacy and authenticity.
 

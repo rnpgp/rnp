@@ -9,7 +9,7 @@ Binaries that will be installed:
 
 [source,console]
 ----
-brew tap riboseinc/rnp
+brew tap rnpgp/rnp
 brew install rnp
 ----
 
@@ -17,8 +17,8 @@ brew install rnp
 
 [source,console]
 ----
-rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
-curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+rpm --import https://github.com/rnpgp/yum/raw/master/ribose-packages.pub
+curl -L https://github.com/rnpgp/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
 yum install -y rnp
 ----
 
@@ -28,7 +28,7 @@ yum install -y rnp
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
 sudo apt install git
-git clone https://github.com/riboseinc/rnp.git -b v0.12.0
+git clone https://github.com/rnpgp/rnp.git -b v0.12.0
 
 # Enable access to `testing` packages by editing /etc/apt/sources.list
 # deb http://deb.debian.org/debian testing main
