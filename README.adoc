@@ -15,7 +15,7 @@ of NetBSD.
 
 == Status
 
-image:https://travis-ci.org/rnpgp/rnp.svg?branch=master["Travis CI Build Status", link="https://travis-ci.org/rnpgp/rnp"]
+image:https://travis-ci.com/rnpgp/rnp.svg?branch=master["Travis CI Build Status", link="https://travis-ci.com/rnpgp/rnp"]
 image:https://img.shields.io/coverity/scan/12616.svg["Coverity Scan Build Status", link="https://scan.coverity.com/projects/rnpgp-rnp"]
 image:https://codecov.io/gh/rnpgp/rnp/branch/master/graph/badge.svg["Code coverage", link="https://codecov.io/gh/rnpgp/rnp"]
 
