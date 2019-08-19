@@ -166,7 +166,7 @@ if (NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS)
     set(_ruby_rnp_ver "$ENV{RUBY_RNP_VERSION}")
   endif()
   ExternalProject_Add(ruby-rnp
-    GIT_REPOSITORY https://github.com/riboseinc/ruby-rnp.git
+    GIT_REPOSITORY https://github.com/rnpgp/ruby-rnp.git
     GIT_TAG "${_ruby_rnp_ver}"
     GIT_SHALLOW yes
     SOURCE_DIR "${_sourcedir}"
