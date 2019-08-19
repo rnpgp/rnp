@@ -24,7 +24,7 @@
 
 # this file contains things that are likely to change occasionally
 set(PACKAGE_VENDOR "Ribose Inc.")
-set(PACKAGE_URL "https://github.com/riboseinc/rnp")
+set(PACKAGE_URL "https://github.com/rnpgp/rnp")
 
 set(PACKAGING_EMAIL "Ribose Inc. <packaging@ribose.com>")
 set(BUGREPORT_EMAIL "${PACKAGING_EMAIL}")

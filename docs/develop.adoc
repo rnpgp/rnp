@@ -7,7 +7,7 @@ contributors.
 
 === Pull Requests
 
-See also: https://github.com/riboseinc/guides/tree/master/code-review[Guides - Code Review]
+See also: https://github.com/rnpgp/guides/tree/master/code-review[Guides - Code Review]
 
 Pull Requests should be used for any non-trivial changes. This presents
 an opportunity for feedback and allows the CI tests to complete prior to
@@ -31,11 +31,11 @@ Pull Requests should be:
   (Updates related to policies, like this section, should be approved by
   the project owner)
 * Merged by a reviewer via the most appropriate method
-  (see https://github.com/riboseinc/guides/tree/master/protocol/git[here]).
+  (see https://github.com/rnpgp/guides/tree/master/protocol/git[here]).
 
 === Branches
 
-See also: https://github.com/riboseinc/guides/tree/master/protocol/git[Guides - Protocol / Git]
+See also: https://github.com/rnpgp/guides/tree/master/protocol/git[Guides - Protocol / Git]
 
 Git branches should be used generously. Most branches should be topic branches,
 created for adding a specific feature or fixing a specific bug.
@@ -107,7 +107,7 @@ env GPG_VERSION=beta BUILD_MODE=sanitize ci/local.sh
 == Code Coverage
 
 CodeCov is used for assessing our test coverage.
-The current coverage can always be viewed here: https://codecov.io/github/riboseinc/rnp/
+The current coverage can always be viewed here: https://codecov.io/github/rnpgp/rnp/
 
 == Security / Bug Hunting
 
@@ -124,9 +124,9 @@ You may wish to perform a clean clone for this, like so:
 --
 cd /tmp
 
-git clone https://github.com/riboseinc/rnp
+git clone https://github.com/rnpgp/rnp
 # or
-# git clone git@github.com:riboseinc/rnp.git
+# git clone git@github.com:rnpgp/rnp.git
 cd rnp
 
 # switch to the coverity_scan branch
@@ -145,8 +145,8 @@ general, the `coverity_scan` branch's `.travis.yml` is identical to
 `master`'s, but with a build matrix of only one entry.
 
 The results can be accessed on
-https://scan.coverity.com/projects/riboseinc-rnp. You will need to
-create an account and request access to the riboseinc/rnp project.
+https://scan.coverity.com/projects/rnpgp-rnp. You will need to
+create an account and request access to the rnpgp/rnp project.
 
 Since the scan results are not updated live, line numbers may no longer
 be accurate against the `master` branch, issues may already be resolved,
