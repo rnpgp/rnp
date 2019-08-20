@@ -17,7 +17,6 @@ librnp-*.pc
 rpm-ldconfig
 src/lib/rnp-config-version.cmake
 src/lib/rnp-config.cmake
-src/apps/packet-dumper/redumper
 src/rnp/rnp
 src/rnpkeys/rnpkeys
 src/tests/rnp_tests
