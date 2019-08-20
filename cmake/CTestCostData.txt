@@ -19,7 +19,7 @@ rnp_tests.test_cli_g10_operations 1 2.49793
 rnp_tests.test_cli_rnp 1 0.099639
 rnp_tests.test_cli_examples 1 1.47322
 rnp_tests.test_cli_rnpkeys 1 0.20789
-rnp_tests.test_cli_redumper 1 0.0385612
+rnp_tests.test_cli_dump 1 0.0385612
 rnp_tests.rnpkeys_exportkey_verifyUserId 1 0.121611
 rnp_tests.test_ffi_homedir 1 0.0375779
 rnp_tests.test_ffi_detect_key_format 1 0.0122771
