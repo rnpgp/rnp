@@ -34,6 +34,8 @@ Following sample applications are available:
 
 `verify`:: Shows how to verify signed messages using dynamic keys fetching (sample key provider implementation).
 
+`dump`:: Shows how to dump OpenPGP packet information.
+
 === https://github.com/rnpgp/rnp/blob/master/src/examples/generate.c[generate.c]
 
 This example is composed from 2 functions:
@@ -89,4 +91,11 @@ However, instead of loading the whole keyring, it implements dynamic key fetchin
 via custom key provider (see function `example_key_provider`).
 
 After verification this sample outputs the verified embedded message
-and all signatures with signing key ids and statueses.
+and all signatures with signing key ids and statuses.
+
+=== https://github.com/rnpgp/rnp/blob/master/src/examples/dump.c[dump.c]
+
+This example dumps OpenPGP packet information from the input stream (stdin or filename), 
+tuned with flags passed via command line interface.
+
+Resulting human-readable text or JSON is dumped to stdout.

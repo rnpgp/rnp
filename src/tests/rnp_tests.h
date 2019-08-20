@@ -290,7 +290,7 @@ void test_cli_g10_operations(void **state);
 
 void test_cli_examples(void **state);
 
-void test_cli_redumper(void **state);
+void test_cli_dump(void **state);
 
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))

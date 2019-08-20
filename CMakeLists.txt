@@ -106,7 +106,6 @@ if (ENABLE_SANITIZERS)
 endif()
 
 # everything else is in subdirs
-add_subdirectory(src/apps/packet-dumper)
 add_subdirectory(src/examples)
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
