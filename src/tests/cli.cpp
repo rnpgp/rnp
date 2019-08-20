@@ -467,30 +467,29 @@ TEST_F(rnp_tests, test_cli_rnpkeys)
     assert_int_not_equal(ret, 0);
 }
 
-TEST_F(rnp_tests, test_cli_redumper)
+TEST_F(rnp_tests, test_cli_dump)
 {
-    char *redumper_path =
-      rnp_compose_path(original_dir(), "../apps/packet-dumper/redumper", NULL);
-    char cmd[512] = {0};
-    int  chnum;
-    int  status;
-    /* call redumper's help */
-    chnum = snprintf(cmd, sizeof(cmd), "%s -h", redumper_path);
+    char *dump_path = rnp_compose_path(original_dir(), "../examples/dump", NULL);
+    char  cmd[512] = {0};
+    int   chnum;
+    int   status;
+    /* call dump's help */
+    chnum = snprintf(cmd, sizeof(cmd), "%s -h", dump_path);
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 1);
-    /* run redumper on some data */
-    chnum = snprintf(cmd, sizeof(cmd), "%s \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
+    /* run dump on some data */
+    chnum = snprintf(cmd, sizeof(cmd), "%s \"%s\"", dump_path, KEYS "/1/pubring.gpg");
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
-    /* run redumper on some data with json output */
-    chnum = snprintf(cmd, sizeof(cmd), "%s -j \"%s\"", redumper_path, KEYS "/1/pubring.gpg");
+    /* run dump on some data with json output */
+    chnum = snprintf(cmd, sizeof(cmd), "%s -j \"%s\"", dump_path, KEYS "/1/pubring.gpg");
     assert_true(chnum < (int) sizeof(cmd));
     status = system(cmd);
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
-    free(redumper_path);
+    free(dump_path);
 }

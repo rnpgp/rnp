@@ -91,3 +91,17 @@ target_link_libraries(verify
   PRIVATE
     librnp
 )
+
+add_executable(dump dump.c)
+set_target_properties(dump PROPERTIES LINKER_LANGUAGE C)
+
+target_include_directories(dump
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(dump
+  PRIVATE
+    librnp
+)
