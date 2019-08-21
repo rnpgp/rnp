@@ -78,6 +78,10 @@
 #define CFG_FORCE "force"         /* force command to succeed operation */
 #define CFG_SECRET "secret"       /* indicates operation on secret key */
 #define CFG_WITH_SIGS "with-sigs" /* list keys with signatures */
+#define CFG_JSON "json"           /* list packets with JSON output */
+#define CFG_GRIPS "grips"         /* dump grips when dumping key packets */
+#define CFG_MPIS "mpis"           /* dump MPI values when dumping packets */
+#define CFG_RAW "raw"             /* dump raw packet contents */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"
