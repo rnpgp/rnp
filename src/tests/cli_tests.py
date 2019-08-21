@@ -133,13 +133,20 @@ def compare_file(src, string, message):
     if file_text(src) != string:
         raise_err(message)
 
+def compare_file_ex(src, string, message, symbol='?'):
+    ftext = file_text(src)
+    if len(ftext) != len(string):
+        raise_err(message)
+    for i in range(0, len(ftext)):
+        if (ftext[i] != symbol[0]) and (ftext[i] != string[i]):
+            raise_err(message)
+
 def remove_files(*args):
     try:
         for fpath in args:
             os.remove(fpath)
     except:
         pass
-
 
 def reg_workfiles(mainname, *exts):
     global TEST_WORKFILES
@@ -1035,14 +1042,78 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('rnp signing failed', err)
-        # List packets
+        # Verify signed file
         params = ['--homedir', data_path('test_cli_g10_defkey/g10'), '-v', dst]
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
-            raise_err('packet listing failed', err)
+            raise_err('verification failed', err)
         match = re.match(RE_SIG, err)
         if not match:
-            raise_err('wrong rnp g19 verification output', err)
+            raise_err('wrong rnp g10 verification output', err)
+        return
+    
+    def test_rnp_list_packets(self):
+        # List packets in humand-readable format
+        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_standard.txt'), out, 'standard listing mismatch')
+        # List packets with mpi values
+        params = ['--mpi', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing with mpi failed', err)
+        compare_file_ex(data_path('test_list_packets/list_mpi.txt'), out, 'mpi listing mismatch')
+        # List packets with grip/fingerprint values
+        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--grips']
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing with grips failed', err)
+        compare_file_ex(data_path('test_list_packets/list_grips.txt'), out, 'grips listing mismatch')
+        # List packets with raw packet contents
+        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--raw']
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing with raw packets failed', err)
+        compare_file_ex(data_path('test_list_packets/list_raw.txt'), out, 'raw listing mismatch')
+        # List packets with all options enabled
+        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--grips', '--raw', '--mpi']
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing with all options failed', err)
+        compare_file_ex(data_path('test_list_packets/list_all.txt'), out, 'all listing mismatch')
+
+        # List packets with JSON output
+        params = ['--json', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('json packet listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_json.txt'), out, 'json listing mismatch')
+        # List packets with mpi values, JSON output
+        params = ['--json', '--mpi', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('json mpi packet listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_json_mpi.txt'), out, 'json mpi listing mismatch')
+        # List packets with grip/fingerprint values, JSON output
+        params = ['--json', '--grips', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('json grips packet listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_json_grips.txt'), out, 'json grips listing mismatch')
+        # List packets with raw packet values, JSON output
+        params = ['--json', '--raw', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('json raw packet listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_json_raw.txt'), out, 'json raw listing mismatch')
+        # List packets with all values, JSON output
+        params = ['--json', '--raw', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--mpi', '--grips']
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('json all listing failed', err)
+        compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out, 'json all listing mismatch')
         return
 
 class Encryption(unittest.TestCase):
