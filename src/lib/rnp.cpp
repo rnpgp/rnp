@@ -1856,6 +1856,27 @@ rnp_output_to_null(rnp_output_t *output)
 }
 
 rnp_result_t
+rnp_output_write(rnp_output_t output, const void *data, size_t size, size_t *written)
+{
+    if (!output || (!data && size)) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!data && !size) {
+        if (written) {
+            *written = 0;
+        }
+        return RNP_SUCCESS;
+    }
+    size_t old = output->dst.writeb + output->dst.clen;
+    dst_write(&output->dst, data, size);
+    if (!output->dst.werr && written) {
+        *written = output->dst.writeb + output->dst.clen - old;
+    }
+    output->keep = !output->dst.werr;
+    return output->dst.werr;
+}
+
+rnp_result_t
 rnp_output_to_callback(rnp_output_t *       output,
                        rnp_output_writer_t *writer,
                        rnp_output_closer_t *closer,
