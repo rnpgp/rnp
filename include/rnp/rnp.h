@@ -1678,6 +1678,20 @@ rnp_result_t rnp_output_to_callback(rnp_output_t *       output,
 rnp_result_t rnp_output_to_null(rnp_output_t *output);
 
 /**
+ * @brief write some data to the output structure.
+ *
+ * @param output pointer to the initialized opaque output structure.
+ * @param data pointer to data which should be written.
+ * @param size number of bytes to write.
+ * @param written on success will contain the number of bytes written. May be NULL.
+ * @return rnp_result_t RNP_SUCCESS if operation succeeded or error code otherwise.
+ */
+rnp_result_t rnp_output_write(rnp_output_t output,
+                              const void * data,
+                              size_t       size,
+                              size_t *     written);
+
+/**
  * @brief Finish writing to the output.
  *        Note: on most output types you'll need just to call rnp_output_destroy().
  *        However, for file output with RNP_OUTPUT_FILE_RANDOM flag, you need to call this
