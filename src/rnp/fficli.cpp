@@ -1108,7 +1108,7 @@ stdout_writer(void *app_ctx, const void *buf, size_t len)
 }
 
 static bool
-cli_rnp_init_io(rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
+cli_rnp_init_io(const rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
 {
     if (input) {
         const char * in = rnp_cfg_getstr(cfg, CFG_INFILE);
@@ -1137,17 +1137,54 @@ cli_rnp_init_io(rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
 }
 
 bool
-cli_rnp_dump_file(rnp_cfg_t *cfg)
+cli_rnp_dump_file(const rnp_cfg_t *cfg)
 {
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
+    uint32_t     flags = 0;
+    uint32_t     jflags = 0;
+
+    if (rnp_cfg_getbool(cfg, CFG_GRIPS)) {
+        flags |= RNP_DUMP_GRIP;
+        jflags |= RNP_JSON_DUMP_GRIP;
+    }
+    if (rnp_cfg_getbool(cfg, CFG_MPIS)) {
+        flags |= RNP_DUMP_MPI;
+        jflags |= RNP_JSON_DUMP_MPI;
+    }
+    if (rnp_cfg_getbool(cfg, CFG_RAW)) {
+        flags |= RNP_DUMP_RAW;
+        jflags |= RNP_JSON_DUMP_RAW;
+    }
 
     if (!cli_rnp_init_io(cfg, &input, &output)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
 
-    rnp_result_t ret = rnp_dump_packets_to_output(input, output, RNP_DUMP_GRIP);
+    rnp_result_t ret;
+    if (rnp_cfg_getbool(cfg, CFG_JSON)) {
+        char *json = NULL;
+        ret = rnp_dump_packets_to_json(input, jflags, &json);
+        if (!ret) {
+            size_t len = strlen(json);
+            size_t written = 0;
+            ret = rnp_output_write(output, json, len, &written);
+            if (written < len) {
+                ret = RNP_ERROR_WRITE;
+            }
+            // add trailing empty line
+            if (!ret) {
+                ret = rnp_output_write(output, "\n", 1, &written);
+            }
+            if (written < 1) {
+                ret = RNP_ERROR_WRITE;
+            }
+            rnp_buffer_destroy(json);
+        }
+    } else {
+        ret = rnp_dump_packets_to_output(input, output, flags);
+    }
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
