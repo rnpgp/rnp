@@ -6252,7 +6252,9 @@ rnp_dump_packets_to_output(rnp_input_t input, rnp_output_t output, uint32_t flag
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    return stream_dump_packets(&dumpctx, &input->src, &output->dst);
+    rnp_result_t ret = stream_dump_packets(&dumpctx, &input->src, &output->dst);
+    output->keep = !ret;
+    return ret;
 }
 
 // move to next key
