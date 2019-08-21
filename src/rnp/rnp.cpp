@@ -80,7 +80,8 @@ static const char *usage = "--help OR\n"
                            "\t--clearsign [--output=file] [options] files... OR\n"
                            "\t--list-packets [options] OR\n"
                            "\t--dearmor [--output=file] file OR\n"
-                           "\t--enarmor=<msg|pubkey|seckey|sign> \n"
+                           "\t--enarmor=<msg|pubkey|seckey|sign> OR\n"
+                           "\t--list-packets [--json] [--grips] [--mpi] [--raw] OR\n"
                            "\t\t[--output=file] file OR\n"
                            "\t--version\n"
                            "where options are:\n"
@@ -148,6 +149,10 @@ enum optdefs {
     OPT_AEAD,
     OPT_AEAD_CHUNK,
     OPT_KEYFILE,
+    OPT_JSON,
+    OPT_GRIPS,
+    OPT_MPIS,
+    OPT_RAW,
 
     /* debug */
     OPT_DEBUG
@@ -214,6 +219,10 @@ static struct option options[] = {
   {"overwrite", no_argument, NULL, OPT_OVERWRITE},
   {"aead", optional_argument, NULL, OPT_AEAD},
   {"aead-chunk-bits", required_argument, NULL, OPT_AEAD_CHUNK},
+  {"json", no_argument, NULL, OPT_JSON},
+  {"grips", no_argument, NULL, OPT_GRIPS},
+  {"mpi", no_argument, NULL, OPT_MPIS},
+  {"raw", no_argument, NULL, OPT_RAW},
 
   {NULL, 0, NULL, 0},
 };
@@ -566,6 +575,8 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         newcmd = CMD_PROCESS;
         break;
     case CMD_LIST_PACKETS:
+        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+        break;
     case CMD_SHOW_KEYS:
         break;
     case CMD_DEARMOR:
@@ -780,11 +791,22 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
         }
 
         rnp_cfg_setint(cfg, CFG_AEAD_CHUNK, bits);
-
         break;
     }
     case OPT_OVERWRITE:
         rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
+        break;
+    case OPT_JSON:
+        rnp_cfg_setbool(cfg, CFG_JSON, true);
+        break;
+    case OPT_GRIPS:
+        rnp_cfg_setbool(cfg, CFG_GRIPS, true);
+        break;
+    case OPT_MPIS:
+        rnp_cfg_setbool(cfg, CFG_MPIS, true);
+        break;
+    case OPT_RAW:
+        rnp_cfg_setbool(cfg, CFG_RAW, true);
         break;
     case OPT_DEBUG:
         rnp_set_debug(arg);
