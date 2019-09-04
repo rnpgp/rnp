@@ -1023,10 +1023,17 @@ done:
     return result;
 }
 
-static bool
-stdout_write(void *app_ctx, const void *buf, size_t len)
+static ssize_t
+stdin_reader(void *app_ctx, void *buf, size_t len)
 {
-    return write(STDOUT_FILENO, buf, len) >= 0;
+    return read(STDIN_FILENO, buf, len);
+}
+
+static bool
+stdout_writer(void *app_ctx, const void *buf, size_t len)
+{
+    ssize_t wlen = write(STDOUT_FILENO, buf, len);
+    return (wlen >= 0) && (size_t) wlen == len;
 }
 
 bool
@@ -1050,7 +1057,7 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
         uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file, flags);
     } else {
-        ret = rnp_output_to_callback(&output, stdout_write, NULL, NULL);
+        ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
     }
     if (ret) {
         goto done;
@@ -1092,19 +1099,6 @@ done:
     rnp_output_destroy(output);
     cli_rnp_keylist_destroy(&keys);
     return result;
-}
-
-ssize_t
-stdin_reader(void *app_ctx, void *buf, size_t len)
-{
-    return read(STDIN_FILENO, buf, len);
-}
-
-bool
-stdout_writer(void *app_ctx, const void *buf, size_t len)
-{
-    ssize_t wlen = write(STDOUT_FILENO, buf, len);
-    return (wlen >= 0) && (size_t) wlen == len;
 }
 
 static bool
