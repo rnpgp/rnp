@@ -774,6 +774,17 @@ rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, uint32_t 
  */
 rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
 
+/** guess contents of the OpenPGP data stream.
+ *
+ * @param input stream with data. Must be opened and cannot be NULL.
+ * @param contents string with guessed data format will be stored here.
+ *                 Possible values: 'message', 'public key', 'secret key', 'signature',
+ * 'unknown'. May be used as type in rnp_enarmor() function. Must be deallocated with
+ * rnp_buffer_destroy() call.
+ * @return 0 on success, or any other value on error.
+ */
+rnp_result_t rnp_guess_contents(rnp_input_t input, char **contents);
+
 /** Add ASCII Armor
  *
  *  @param input stream to read data from
