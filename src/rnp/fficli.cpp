@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <string>
 #include <ctype.h>
 #include <unistd.h>
 
@@ -1102,14 +1103,41 @@ done:
 }
 
 static bool
-cli_rnp_init_io(const rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
+strip_extension(std::string &src)
 {
+    size_t dpos = src.find_last_of('.');
+    if (dpos == std::string::npos) {
+        return false;
+    }
+    src.resize(dpos);
+    return true;
+}
+
+static std::string
+replace_extension(const std::string src, const std::string ext)
+{
+    std::string res = src;
+
+    while (strip_extension(res)) {
+        ;
+    }
+
+    return res + "." + ext;
+}
+
+static bool
+cli_rnp_init_io(const rnp_cfg_t *  cfg,
+                const std::string &op,
+                rnp_input_t *      input,
+                rnp_output_t *     output)
+{
+    const char *incstr = rnp_cfg_getstr(cfg, CFG_INFILE);
+    std::string in = incstr ? incstr : "";
+    bool        is_stdin = in.empty() || (in == "-");
     if (input) {
-        const char * in = rnp_cfg_getstr(cfg, CFG_INFILE);
-        bool         is_stdin = !in || !in[0] || !strcmp(in, "-");
         rnp_result_t res = is_stdin ?
                              rnp_input_from_callback(input, stdin_reader, NULL, NULL) :
-                             rnp_input_from_path(input, in);
+                             rnp_input_from_path(input, in.c_str());
 
         if (res) {
             return false;
@@ -1119,10 +1147,24 @@ cli_rnp_init_io(const rnp_cfg_t *cfg, rnp_input_t *input, rnp_output_t *output)
     if (!output) {
         return true;
     }
-    const char * out = rnp_cfg_getstr(cfg, CFG_OUTFILE);
-    bool         is_stdout = !out || !out[0] || !strcmp(out, "-");
-    rnp_result_t res = is_stdout ? rnp_output_to_callback(output, stdout_writer, NULL, NULL) :
-                                   rnp_output_to_file(output, out, RNP_OUTPUT_FILE_OVERWRITE);
+    const char *outcstr = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    std::string out = outcstr ? outcstr : "";
+    bool        is_stdout = out.empty() || (out == "-");
+
+    if (is_stdout && !is_stdin) {
+        std::string ext = "";
+        if (op == "armor") {
+            ext = EXT_ASC;
+        }
+        if (!ext.empty()) {
+            out = replace_extension(in, ext);
+            is_stdout = false;
+        }
+    }
+
+    rnp_result_t res = is_stdout ?
+                         rnp_output_to_callback(output, stdout_writer, NULL, NULL) :
+                         rnp_output_to_file(output, out.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
 
     if (res && input) {
         rnp_input_destroy(*input);
@@ -1151,7 +1193,7 @@ cli_rnp_dump_file(const rnp_cfg_t *cfg)
         jflags |= RNP_JSON_DUMP_RAW;
     }
 
-    if (!cli_rnp_init_io(cfg, &input, &output)) {
+    if (!cli_rnp_init_io(cfg, "dump", &input, &output)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
@@ -1182,5 +1224,40 @@ cli_rnp_dump_file(const rnp_cfg_t *cfg)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    return !ret;
+}
+
+bool
+cli_rnp_armor_file(const rnp_cfg_t *cfg)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    if (!cli_rnp_init_io(cfg, "armor", &input, &output)) {
+        ERR_MSG("failed to open source or create output");
+        return false;
+    }
+
+    rnp_result_t ret = rnp_enarmor(input, output, rnp_cfg_getstr(cfg, CFG_ARMOR_DATA_TYPE));
+
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    return !ret;
+}
+
+bool
+cli_rnp_dearmor_file(const rnp_cfg_t *cfg)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    if (!cli_rnp_init_io(cfg, "dearmor", &input, &output)) {
+        ERR_MSG("failed to open source or create output");
+        return false;
+    }
+
+    rnp_result_t ret = rnp_dearmor(input, output);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
     return !ret;
 }
