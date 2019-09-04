@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <string>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdbool.h>
@@ -516,11 +517,10 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
         ret = cli_rnp_dump_file(cfg);
         break;
     case CMD_DEARMOR:
-        ret = rnp_armor_stream(&ctx, false, infile, outfile) == RNP_SUCCESS;
+        ret = cli_rnp_dearmor_file(cfg);
         break;
     case CMD_ENARMOR:
-        ctx.armortype = rnp_cfg_getint_default(cfg, CFG_ARMOR_DATA_TYPE, PGP_ARMORED_UNKNOWN);
-        ret = rnp_armor_stream(&ctx, true, infile, outfile) == RNP_SUCCESS;
+        ret = cli_rnp_armor_file(cfg);
         break;
     case CMD_SHOW_KEYS:
         ret = rnp_validate_keys_signatures(rnp) == RNP_SUCCESS;
@@ -583,24 +583,27 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
     case CMD_ENARMOR: {
-        pgp_armored_msg_t msgt = PGP_ARMORED_UNKNOWN;
+        std::string msgt = "";
 
         if (arg) {
-            if (!strncmp("msg", arg, strlen(arg))) {
-                msgt = PGP_ARMORED_MESSAGE;
-            } else if (!strncmp("pubkey", arg, strlen(arg))) {
-                msgt = PGP_ARMORED_PUBLIC_KEY;
-            } else if (!strncmp("seckey", arg, strlen(arg))) {
-                msgt = PGP_ARMORED_SECRET_KEY;
-            } else if (!strncmp("sign", arg, strlen(arg))) {
-                msgt = PGP_ARMORED_SIGNATURE;
+            msgt = arg;
+            if (msgt == "msg") {
+                msgt = "message";
+            } else if (msgt == "pubkey") {
+                msgt = "public key";
+            } else if (msgt == "seckey") {
+                msgt = "secret key";
+            } else if (msgt == "sign") {
+                msgt = "signature";
             } else {
                 fprintf(stderr, "Wrong enarmor argument: %s\n", arg);
                 return false;
             }
         }
 
-        rnp_cfg_setint(cfg, CFG_ARMOR_DATA_TYPE, msgt);
+        if (!msgt.empty()) {
+            rnp_cfg_setstr(cfg, CFG_ARMOR_DATA_TYPE, msgt.c_str());
+        }
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
         break;
     }

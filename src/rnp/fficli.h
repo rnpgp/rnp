@@ -64,6 +64,8 @@ list cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret);
 void cli_rnp_keylist_destroy(list *keys);
 bool cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter);
 bool cli_rnp_dump_file(const rnp_cfg_t *cfg);
+bool cli_rnp_armor_file(const rnp_cfg_t *cfg);
+bool cli_rnp_dearmor_file(const rnp_cfg_t *cfg);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
 int64_t     json_obj_get_int64(json_object *obj, const char *key);
@@ -82,6 +84,11 @@ char *      ptimestr(char *dest, size_t size, time_t t);
         (void) fprintf((stderr), __VA_ARGS__); \
         (void) fprintf((stderr), "\n");        \
     } while (0)
+
+#define EXT_ASC (".asc")
+#define EXT_SIG (".sig")
+#define EXT_PGP (".pgp")
+#define EXT_GPG (".gpg")
 
 rnp_result_t disable_core_dumps(void);
 char *       rnp_strip_eol(char *s);
