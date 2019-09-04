@@ -497,8 +497,10 @@ rnp_armor_guess_type(pgp_source_t *src)
     case PGP_PTAG_CT_LITDATA:
         return PGP_ARMORED_MESSAGE;
     case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
         return PGP_ARMORED_PUBLIC_KEY;
     case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
         return PGP_ARMORED_SECRET_KEY;
     case PGP_PTAG_CT_SIGNATURE:
         return PGP_ARMORED_SIGNATURE;

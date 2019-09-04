@@ -6493,6 +6493,25 @@ rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
 }
 
 rnp_result_t
+rnp_guess_contents(rnp_input_t input, char **contents)
+{
+    if (!input || !contents) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_armored_msg_t msgtype = rnp_armor_guess_type(&input->src);
+    const char *      msg = "unknown";
+    ARRAY_LOOKUP_BY_ID(armor_type_map, type, string, msgtype, msg);
+    size_t len = strlen(msg);
+    *contents = (char *) calloc(1, len + 1);
+    if (!*contents) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(*contents, msg, len);
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type)
 {
     pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
