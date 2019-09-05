@@ -82,8 +82,6 @@ typedef struct rnp_signer_info_t {
  *  - sig_cb_param: parameter to be passed to on_signatures callback.
  *  - discard: dicard the output data (i.e. just decrypt and/or verify signatures)
  *
- *  For enarmor/dearmor:
- *  - armortype: type of the armor headers (message, key, whatever else)
  */
 
 typedef struct rnp_ctx_t {
@@ -104,7 +102,6 @@ typedef struct rnp_ctx_t {
     list            recipients;    /* recipients of the encrypted message */
     list            passwords;     /* list of rnp_symmetric_pass_info_t */
     list            signers;       /* list of rnp_signer_info_t structures */
-    unsigned        armortype;     /* type of the armored message, used in enarmor command */
     bool            discard;       /* discard the output */
     void *          on_signatures; /* handler for signed messages */
     void *          sig_cb_param;  /* callback data passed to on_signatures */
