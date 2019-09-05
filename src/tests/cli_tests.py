@@ -958,11 +958,19 @@ class Misc(unittest.TestCase):
 
     def test_armor(self):
         src_beg, dst_beg, dst_mid, dst_fin = reg_workfiles('beg','.src','.dst', '.mid.dst', '.fin.dst')
+        armor_types = [('msg', 'MESSAGE'), ('pubkey', 'PUBLIC KEY BLOCK'), ('seckey', 'PRIVATE KEY BLOCK'), ('sign', 'SIGNATURE')]
 
-        for data_type in ['msg', 'pubkey', 'seckey', 'sign']:
+        for data_type, header in armor_types:
             random_text(src_beg, 1000)
+            prefix = '-----BEGIN PGP ' + header + '-----'
+            suffix = '-----END PGP ' + header + '-----'
 
             run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
+            txt = file_text(dst_beg).strip('\r\n')
+
+            if not (txt.startswith(prefix) and txt.endswith(suffix)):
+                raise_err('wrong armor header or trailer', txt)
+
             run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
             run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
 
