@@ -6512,7 +6512,9 @@ rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type)
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }
-    return rnp_armor_source(&input->src, &output->dst, msgtype);
+    rnp_result_t ret = rnp_armor_source(&input->src, &output->dst, msgtype);
+    output->keep = !ret;
+    return ret;
 }
 
 rnp_result_t
@@ -6521,5 +6523,7 @@ rnp_dearmor(rnp_input_t input, rnp_output_t output)
     if (!input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_dearmor_source(&input->src, &output->dst);
+    rnp_result_t ret = rnp_dearmor_source(&input->src, &output->dst);
+    output->keep = !ret;
+    return ret;
 }
