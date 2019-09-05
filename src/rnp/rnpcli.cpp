@@ -1070,42 +1070,6 @@ rnp_protect_mem(rnp_t *     rnp,
 }
 
 rnp_result_t
-rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out)
-{
-    pgp_source_t      src;
-    pgp_dest_t        dst;
-    rnp_result_t      result;
-    pgp_armored_msg_t msgtype;
-
-    ctx->operation = RNP_OP_ARMOR;
-    ctx->armor = armor;
-
-    if ((result = rnp_initialize_io(ctx, &src, &dst, in, out))) {
-        RNP_LOG("failed to initialize reading or writing");
-        return result;
-    }
-
-    if (armor) {
-        msgtype = (pgp_armored_msg_t) ctx->armortype;
-        if (msgtype == PGP_ARMORED_UNKNOWN) {
-            msgtype = rnp_armor_guess_type(&src);
-        }
-
-        result = rnp_armor_source(&src, &dst, msgtype);
-    } else {
-        result = rnp_dearmor_source(&src, &dst);
-    }
-
-    if (result != RNP_SUCCESS) {
-        RNP_LOG("error code 0x%x", result);
-    }
-
-    src_close(&src);
-    dst_close(&dst, result != RNP_SUCCESS);
-    return result;
-}
-
-rnp_result_t
 rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx)
 {
     rnp_result_t       ret = RNP_ERROR_GENERIC;

@@ -88,18 +88,6 @@ rnp_result_t rnp_process_mem(
 rnp_result_t rnp_protect_mem(
   rnp_t *, rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 
-/**
- * @brief   Armor (convert to ASCII) or dearmor (convert back to binary) PGP data
- *
- * @param   ctx  Initialized rnp context. Field armortype may specify the type of armor
- *               header used, otherwise it will be detected automatically from the source.
- * @param   in   Input file path
- * @param   out  Output file path
- *
- * @return  RNP_SUCCESS on success, error code on failure
- */
-rnp_result_t rnp_armor_stream(rnp_ctx_t *ctx, bool armor, const char *in, const char *out);
-
 rnp_result_t rnp_validate_keys_signatures(rnp_t *rnp);
 
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
