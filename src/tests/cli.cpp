@@ -491,5 +491,12 @@ TEST_F(rnp_tests, test_cli_dump)
     status = system(cmd);
     assert_true(WIFEXITED(status));
     assert_int_equal(WEXITSTATUS(status), 0);
+    /* run dump on directory - must fail but not crash */
+    chnum = snprintf(cmd, sizeof(cmd), "%s \"%s\"", dump_path, KEYS "/1/");
+    assert_true(chnum < (int) sizeof(cmd));
+    status = system(cmd);
+    assert_true(WIFEXITED(status));
+    assert_int_not_equal(WEXITSTATUS(status), 0);
+
     free(dump_path);
 }

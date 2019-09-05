@@ -1565,6 +1565,8 @@ rnp_input_from_path(rnp_input_t *input, const char *path)
             free(ob);
             return RNP_ERROR_OUT_OF_MEMORY;
         }
+        // return error on attempt to read from this source
+        (void) init_null_src(&ob->src);
     } else {
         // simple input from a file
         rnp_result_t ret = init_file_src(&ob->src, path);
