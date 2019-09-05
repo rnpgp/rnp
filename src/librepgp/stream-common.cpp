@@ -138,7 +138,6 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
 {
     ssize_t             read;
     pgp_source_cache_t *cache = src->cache;
-    bool                readahead = cache->readahead;
 
     if (!cache || (len > sizeof(cache->buf))) {
         return -1;
@@ -148,6 +147,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
         return 0;
     }
 
+    bool readahead = cache->readahead;
     // Do not read more then available if source size is known
     if (src->knownsize && (src->readb + len > src->size)) {
         len = src->size - src->readb;
@@ -496,6 +496,22 @@ init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
     src->knownsize = 1;
     src->type = PGP_STREAM_MEMORY;
 
+    return RNP_SUCCESS;
+}
+
+static ssize_t
+null_src_read(pgp_source_t *src, void *buf, size_t len)
+{
+    return -1;
+}
+
+rnp_result_t
+init_null_src(pgp_source_t *src)
+{
+    memset(src, 0, sizeof(*src));
+    src->read = null_src_read;
+    src->type = PGP_STREAM_NULL;
+    src->error = true;
     return RNP_SUCCESS;
 }
 

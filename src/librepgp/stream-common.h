@@ -191,6 +191,12 @@ rnp_result_t init_stdin_src(pgp_source_t *src);
  **/
 rnp_result_t init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free);
 
+/** @brief init NULL source, which doesn't allow to read anything and always returns an error.
+ *  @param src pre-allocated source structure
+ *  @return always RNP_SUCCESS
+ **/
+rnp_result_t init_null_src(pgp_source_t *src);
+
 /** @brief init memory source with contents of other source
  *  @param src pre-allocated source structure
  *  @param readsrc opened source with data
