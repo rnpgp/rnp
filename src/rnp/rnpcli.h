@@ -88,8 +88,6 @@ rnp_result_t rnp_process_mem(
 rnp_result_t rnp_protect_mem(
   rnp_t *, rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 
-rnp_result_t rnp_validate_keys_signatures(rnp_t *rnp);
-
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
 
 rnp_result_t disable_core_dumps(void);
