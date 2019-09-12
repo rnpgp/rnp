@@ -1084,31 +1084,6 @@ rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx)
     return ret;
 }
 
-rnp_result_t
-rnp_validate_keys_signatures(rnp_t *rnp)
-{
-    const rnp_key_store_t *ring = rnp->pubring;
-    pgp_signatures_info_t  result = {0};
-    rnp_result_t           ret;
-    bool                   valid = true;
-
-    if (!rnp) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    for (list_item *key = list_front(rnp_key_store_get_keys(ring)); key;
-         key = list_next(key)) {
-        ret = validate_pgp_key_signatures(&result, (pgp_key_t *) key, ring);
-        valid &= check_signatures_info(&result);
-        free_signatures_info(&result);
-        if (ret) {
-            break;
-        }
-    }
-
-    return valid ? RNP_SUCCESS : RNP_ERROR_GENERIC;
-}
-
 /** @brief compose path from dir, subdir and filename, and store it in the res
  *  @param dir [in] null-terminated directory path, cannot be NULL
  *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
