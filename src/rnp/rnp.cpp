@@ -115,7 +115,6 @@ enum optdefs {
     CMD_DEARMOR,
     CMD_ENARMOR,
     CMD_LIST_PACKETS,
-    CMD_SHOW_KEYS,
     CMD_VERSION,
     CMD_HELP,
 
@@ -182,8 +181,6 @@ static struct option options[] = {
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
   {"debug", required_argument, NULL, OPT_DEBUG},
-  {"show-keys", no_argument, NULL, CMD_SHOW_KEYS},
-  {"showkeys", no_argument, NULL, CMD_SHOW_KEYS},
   /* options */
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
@@ -522,9 +519,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
     case CMD_ENARMOR:
         ret = cli_rnp_armor_file(cfg);
         break;
-    case CMD_SHOW_KEYS:
-        ret = rnp_validate_keys_signatures(rnp) == RNP_SUCCESS;
-        break;
     case CMD_VERSION:
         print_praise();
         ret = true;
@@ -576,8 +570,6 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         break;
     case CMD_LIST_PACKETS:
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
-        break;
-    case CMD_SHOW_KEYS:
         break;
     case CMD_DEARMOR:
         rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
@@ -633,7 +625,6 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     case CMD_VERIFY:
     case CMD_VERIFY_CAT:
     case CMD_LIST_PACKETS:
-    case CMD_SHOW_KEYS:
     case CMD_DEARMOR:
     case CMD_ENARMOR:
     case CMD_HELP:
