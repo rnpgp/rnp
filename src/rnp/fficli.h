@@ -93,6 +93,7 @@ char *      ptimestr(char *dest, size_t size, time_t t);
 rnp_result_t disable_core_dumps(void);
 char *       rnp_strip_eol(char *s);
 void         pgp_forget(void *vp, size_t size);
+bool rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite);
 
 #if defined(__cplusplus)
 }
