@@ -28,6 +28,7 @@
 
 #include <stdbool.h>
 #include <stdint.h>
+#include <string>
 #include "list.h"
 
 /* cfg variables known by rnp */
@@ -180,6 +181,14 @@ bool rnp_cfg_hasval(const rnp_cfg_t *cfg, const char *key);
  *  @return stored string if item is found and has string value or NULL otherwise
  **/
 const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
+
+/** @brief return C++ string value for the key if there is one
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *
+ *  @return stored string if item is found and has string value or empty string otherwise
+ **/
+const std::string rnp_cfg_getstring(const rnp_cfg_t *cfg, const std::string &key);
 
 /** @brief return integer value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized

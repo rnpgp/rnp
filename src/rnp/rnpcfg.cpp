@@ -296,6 +296,13 @@ rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
+const std::string
+rnp_cfg_getstring(const rnp_cfg_t *cfg, const std::string &key)
+{
+    const char *val = rnp_cfg_getstr(cfg, key.c_str());
+    return val ? val : "";
+}
+
 const char *
 rnp_cfg_gethashalg(const rnp_cfg_t *cfg)
 {
