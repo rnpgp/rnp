@@ -90,6 +90,8 @@ rnp_result_t rnp_protect_mem(
 
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
 
+bool rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite);
+
 rnp_result_t disable_core_dumps(void);
 
 bool set_pass_fd(FILE **file, int passfd);
