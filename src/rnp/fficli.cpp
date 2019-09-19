@@ -1114,7 +1114,7 @@ strip_extension(std::string &src)
 }
 
 static std::string
-replace_extension(const std::string src, const std::string ext)
+replace_extension(const std::string &src, const std::string &ext)
 {
     std::string res = src;
 
@@ -1125,14 +1125,46 @@ replace_extension(const std::string src, const std::string ext)
     return res + "." + ext;
 }
 
+static std::string
+output_extension(const rnp_cfg_t *cfg, const std::string &op)
+{
+    if (op == "encrypt_sign") {
+        bool armor = rnp_cfg_getbool(cfg, CFG_ARMOR);
+        if (rnp_cfg_getbool(cfg, CFG_DETACHED)) {
+            return armor ? EXT_ASC : EXT_SIG;
+        }
+        if (rnp_cfg_getbool(cfg, CFG_CLEARTEXT)) {
+            return EXT_ASC;
+        }
+        return armor ? EXT_ASC : EXT_PGP;
+    }
+    if (op == "armor") {
+        return EXT_ASC;
+    }
+    return "";
+}
+
+/* TODO: replace temporary stub with C++ function */
+static bool
+adjust_output_path(std::string &path, bool overwrite)
+{
+    char pathbuf[PATH_MAX] = {0};
+
+    if (!rnp_get_output_filename(path.c_str(), pathbuf, sizeof(pathbuf), overwrite)) {
+        return false;
+    }
+
+    path = pathbuf;
+    return true;
+}
+
 static bool
 cli_rnp_init_io(const rnp_cfg_t *  cfg,
                 const std::string &op,
                 rnp_input_t *      input,
                 rnp_output_t *     output)
 {
-    const char *incstr = rnp_cfg_getstr(cfg, CFG_INFILE);
-    std::string in = incstr ? incstr : "";
+    std::string in = rnp_cfg_getstring(cfg, CFG_INFILE);
     bool        is_stdin = in.empty() || (in == "-");
     if (input) {
         rnp_result_t res = is_stdin ?
@@ -1147,24 +1179,26 @@ cli_rnp_init_io(const rnp_cfg_t *  cfg,
     if (!output) {
         return true;
     }
-    const char *outcstr = rnp_cfg_getstr(cfg, CFG_OUTFILE);
-    std::string out = outcstr ? outcstr : "";
+    std::string out = rnp_cfg_getstring(cfg, CFG_OUTFILE);
     bool        is_stdout = out.empty() || (out == "-");
 
     if (is_stdout && !is_stdin) {
-        std::string ext = "";
-        if (op == "armor") {
-            ext = EXT_ASC;
-        }
+        std::string ext = output_extension(cfg, op);
         if (!ext.empty()) {
             out = replace_extension(in, ext);
             is_stdout = false;
         }
     }
 
-    rnp_result_t res = is_stdout ?
-                         rnp_output_to_callback(output, stdout_writer, NULL, NULL) :
-                         rnp_output_to_file(output, out.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
+    rnp_result_t res = RNP_ERROR_GENERIC;
+    if (is_stdout) {
+        res = rnp_output_to_callback(output, stdout_writer, NULL, NULL);
+    } else if (!adjust_output_path(out, rnp_cfg_getbool(cfg, CFG_OVERWRITE))) {
+        ERR_MSG("Operation failed: file '%s' already exists.", out.c_str());
+        res = RNP_ERROR_BAD_PARAMETERS;
+    } else {
+        res = rnp_output_to_file(output, out.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
+    }
 
     if (res && input) {
         rnp_input_destroy(*input);

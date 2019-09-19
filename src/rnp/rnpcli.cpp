@@ -566,7 +566,7 @@ typedef struct pgp_parse_handler_param_t {
  *  @return true on success, or false otherwise (user cancels the operation)
  **/
 
-static bool
+bool
 rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite)
 {
     char reply[10];
