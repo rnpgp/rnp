@@ -355,7 +355,7 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 
     /* options used for signing */
     if (cmd == CMD_PROTECT) {
-        ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
+        //ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
         ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
 
         /* setting signing parameters if needed */
@@ -413,8 +413,6 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
         if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
             ctx->ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
             ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
-            ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-            ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
             ctx->aalg = (pgp_aead_alg_t) rnp_cfg_getint(cfg, CFG_AEAD);
             ctx->abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
 
@@ -489,26 +487,25 @@ setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
 
 /* do a command once for a specified config */
 static bool
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp)
+rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, cli_rnp_t *clirnp)
 {
     bool        ret = false;
     rnp_ctx_t   ctx = {0};
-    const char *infile;
-    const char *outfile;
 
     if (!(ret = setup_ctx(cfg, rnp, &ctx))) {
         goto done;
     }
 
-    infile = rnp_cfg_getstr(cfg, CFG_INFILE);
-    outfile = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    if (!cli_rnp_setup(cfg, clirnp)) {
+        goto done;
+    }
 
     switch (rnp_cfg_getint(cfg, CFG_COMMAND)) {
     case CMD_PROTECT:
-        ret = rnp_protect_file(rnp, &ctx, infile, outfile) == RNP_SUCCESS;
+        ret = cli_rnp_protect_file(cfg, clirnp);
         break;
     case CMD_PROCESS:
-        ret = rnp_process_file(rnp, &ctx, infile, outfile) == RNP_SUCCESS;
+        ret = cli_rnp_process_file(cfg, clirnp);
         break;
     case CMD_LIST_PACKETS:
         ret = cli_rnp_dump_file(cfg);
@@ -629,80 +626,70 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     case CMD_ENARMOR:
     case CMD_HELP:
     case CMD_VERSION:
-        if (!setcmd(cfg, val, arg)) {
-            return false;
-        }
-        break;
+        return setcmd(cfg, val, arg);
     /* options */
     case OPT_COREDUMPS:
-        rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
     case OPT_USERID:
         if (arg == NULL) {
             fputs("No userid argument provided\n", stderr);
             return false;
         }
-        rnp_cfg_addstr(cfg, CFG_SIGNERS, arg);
-        break;
+        return rnp_cfg_addstr(cfg, CFG_SIGNERS, arg);
     case OPT_RECIPIENT:
         if (arg == NULL) {
             fputs("No recipient argument provided\n", stderr);
             return false;
         }
-        rnp_cfg_addstr(cfg, CFG_RECIPIENTS, arg);
-        break;
+        return rnp_cfg_addstr(cfg, CFG_RECIPIENTS, arg);
     case OPT_ARMOR:
-        rnp_cfg_setint(cfg, CFG_ARMOR, 1);
-        break;
+        return rnp_cfg_setint(cfg, CFG_ARMOR, 1);
     case OPT_DETACHED:
-        rnp_cfg_setbool(cfg, CFG_DETACHED, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_DETACHED, true);
     case OPT_VERBOSE:
-        rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
-        break;
+        return rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
     case OPT_HOMEDIR:
         if (arg == NULL) {
             (void) fprintf(stderr, "No home directory argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
     case OPT_KEYFILE:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyfile argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_KEYFILE, arg);
-        rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
-        break;
-    case OPT_HASH_ALG:
+        return rnp_cfg_setstr(cfg, CFG_KEYFILE, arg) && rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
+    case OPT_HASH_ALG: {
         if (arg == NULL) {
-            (void) fprintf(stderr, "No hash algorithm argument provided\n");
+            ERR_MSG("No hash algorithm argument provided");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_HASH, arg);
-        break;
+        bool supported = false;
+        if (rnp_supports_feature("hash algorithm", arg, &supported) || !supported) {
+            ERR_MSG("Unsupported hash algorithm: %s", arg);
+            return false;
+        }
+        return rnp_cfg_setstr(cfg, CFG_HASH, arg);
+    }
     case OPT_PASSWDFD:
         if (arg == NULL) {
             (void) fprintf(stderr, "No pass-fd argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
     case OPT_PASSWD:
         if (arg == NULL) {
             (void) fprintf(stderr, "No password argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
     case OPT_PASSWORDS: {
         int count;
         if (arg == NULL) {
@@ -716,60 +703,60 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
             return false;
         }
 
-        rnp_cfg_setint(cfg, CFG_PASSWORDC, count);
+        bool ret = rnp_cfg_setint(cfg, CFG_PASSWORDC, count);
         if (count > 0) {
-            rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
+            ret = ret && rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
         }
-        break;
+        return ret;
     }
     case OPT_OUTPUT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
     case OPT_RESULTS:
         if (arg == NULL) {
             (void) fprintf(stderr, "No output filename argument provided\n");
             return false;
         }
-        rnp_cfg_setstr(cfg, CFG_RESULTS, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_RESULTS, arg);
     case OPT_EXPIRATION:
-        rnp_cfg_setstr(cfg, CFG_EXPIRATION, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_EXPIRATION, arg);
     case OPT_CREATION:
-        rnp_cfg_setstr(cfg, CFG_CREATION, arg);
-        break;
-    case OPT_CIPHER:
-        rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_CREATION, arg);
+    case OPT_CIPHER: {
+        if (arg == NULL) {
+            ERR_MSG("No encryption algorithm argument provided");
+            return false;
+        }
+        bool supported = false;
+        if (rnp_supports_feature("symmetric algorithm", arg, &supported) || !supported) {
+            ERR_MSG("Warning, unsupported encryption algorithm: %s", arg);
+            arg = DEFAULT_SYMM_ALG;
+        }
+        return rnp_cfg_setstr(cfg, CFG_CIPHER, arg);
+    }
     case OPT_NUMTRIES:
-        rnp_cfg_setstr(cfg, CFG_NUMTRIES, arg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_NUMTRIES, arg);
     case OPT_ZALG_ZIP:
-        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZIP);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_ZALG, "ZIP");
     case OPT_ZALG_ZLIB:
-        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_ZLIB);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_ZALG, "ZLib");
     case OPT_ZALG_BZIP:
-        rnp_cfg_setint(cfg, CFG_ZALG, PGP_C_BZIP2);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_ZALG, "BZip2");
     case OPT_AEAD: {
-        pgp_aead_alg_t alg = PGP_AEAD_NONE;
+        const char *alg = NULL;
         if (!arg || !strcmp(arg, "1") || !rnp_strcasecmp(arg, "eax")) {
-            alg = PGP_AEAD_EAX;
+            alg = "EAX";
         } else if (!strcmp(arg, "2") || !rnp_strcasecmp(arg, "ocb")) {
-            alg = PGP_AEAD_OCB;
+            alg = "OCB";
         } else {
             (void) fprintf(stderr, "Wrong AEAD algorithm: %s\n", arg);
             return false;
         }
 
-        rnp_cfg_setint(cfg, CFG_AEAD, alg);
-        break;
+        return rnp_cfg_setstr(cfg, CFG_AEAD, alg);
     }
     case OPT_AEAD_CHUNK: {
         if (!arg) {
@@ -784,35 +771,25 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
             return false;
         }
 
-        rnp_cfg_setint(cfg, CFG_AEAD_CHUNK, bits);
-        break;
+        return rnp_cfg_setint(cfg, CFG_AEAD_CHUNK, bits);
     }
     case OPT_OVERWRITE:
-        rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
     case OPT_JSON:
-        rnp_cfg_setbool(cfg, CFG_JSON, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_JSON, true);
     case OPT_GRIPS:
-        rnp_cfg_setbool(cfg, CFG_GRIPS, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_GRIPS, true);
     case OPT_MPIS:
-        rnp_cfg_setbool(cfg, CFG_MPIS, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_MPIS, true);
     case OPT_RAW:
-        rnp_cfg_setbool(cfg, CFG_RAW, true);
-        break;
+        return rnp_cfg_setbool(cfg, CFG_RAW, true);
     case OPT_DEBUG:
-        rnp_set_debug(arg);
-        break;
+        return rnp_set_debug(arg);
     default:
-        if (!setcmd(cfg, CMD_HELP, arg)) {
-            return false;
-        }
-        break;
+        return setcmd(cfg, CMD_HELP, arg);
     }
 
-    return true;
+    return false;
 }
 
 /* we have -o option=value -- parse, and process */
@@ -884,6 +861,7 @@ rnp_main(int argc, char **argv)
 #endif
 {
     rnp_t     rnp = {0};
+    cli_rnp_t clirnp = {};
     rnp_cfg_t cfg;
     int       optindex;
     int       ret = EXIT_ERROR;
@@ -983,7 +961,7 @@ rnp_main(int argc, char **argv)
     switch (rnp_cfg_getint(&cfg, CFG_COMMAND)) {
     case CMD_HELP:
     case CMD_VERSION:
-        ret = rnp_cmd(&cfg, &rnp) ? EXIT_SUCCESS : EXIT_FAILURE;
+        ret = rnp_cmd(&cfg, &rnp, &clirnp) ? EXIT_SUCCESS : EXIT_FAILURE;
         goto finish;
     default:;
     }
@@ -1000,9 +978,22 @@ rnp_main(int argc, char **argv)
         goto finish;
     }
 
+    if (!cli_rnp_init(&clirnp, &cfg)) {
+        ERR_MSG("fatal: cannot initialise");
+        ret = EXIT_ERROR;
+        goto finish;
+    }
+
     if (!rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) &&
         !rnp_load_keyrings(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
         fputs("fatal: failed to load keys\n", stderr);
+        ret = EXIT_ERROR;
+        goto finish;
+    }
+
+    if (!rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) &&
+        !cli_rnp_load_keyrings(&clirnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
+        ERR_MSG("fatal: failed to load keys");
         ret = EXIT_ERROR;
         goto finish;
     }
@@ -1015,15 +1006,22 @@ rnp_main(int argc, char **argv)
         goto finish;
     }
 
+    if (rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
+        !cli_rnp_add_key(&cfg, &clirnp)) {
+        ERR_MSG("fatal: failed to load key(s) from the file");
+        ret = EXIT_ERROR;
+        goto finish;
+    }
+
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&cfg, &rnp))
+        if (!rnp_cmd(&cfg, &rnp, &clirnp))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
             rnp_cfg_setstr(&cfg, CFG_INFILE, argv[i]);
-            if (!rnp_cmd(&cfg, &rnp)) {
+            if (!rnp_cmd(&cfg, &rnp, &clirnp)) {
                 ret = EXIT_FAILURE;
             }
         }
@@ -1032,6 +1030,7 @@ rnp_main(int argc, char **argv)
 finish:
     rnp_cfg_free(&cfg);
     rnp_end(&rnp);
+    cli_rnp_end(&clirnp);
 
     return ret;
 }
