@@ -63,9 +63,13 @@ bool cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username);
 list cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret);
 void cli_rnp_keylist_destroy(list *keys);
 bool cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter);
+bool cli_rnp_add_key(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 bool cli_rnp_dump_file(const rnp_cfg_t *cfg);
 bool cli_rnp_armor_file(const rnp_cfg_t *cfg);
 bool cli_rnp_dearmor_file(const rnp_cfg_t *cfg);
+bool cli_rnp_setup(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
+bool cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
+bool cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
 int64_t     json_obj_get_int64(json_object *obj, const char *key);
