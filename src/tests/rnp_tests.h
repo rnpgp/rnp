@@ -246,6 +246,8 @@ void test_ffi_output_to_armor(void **state);
 
 void test_ffi_rnp_guess_contents(void **state);
 
+void test_ffi_literal_filename(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
