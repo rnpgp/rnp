@@ -50,7 +50,7 @@
 #define DEFAULT_S2K_TUNE_MSEC 10
 
 /* Default compression algorithm and level */
-#define DEFAULT_Z_ALG PGP_C_ZIP
+#define DEFAULT_Z_ALG "ZIP"
 #define DEFAULT_Z_LEVEL 6
 
 /* Default AEAD algorithm */
