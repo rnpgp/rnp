@@ -2038,7 +2038,16 @@ rnp_op_set_file_name(rnp_ctx_t *ctx, const char *filename)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    free(ctx->filename);
+    if (!filename) {
+        ctx->filename = NULL;
+        return RNP_SUCCESS;
+    }
+    ctx->filename = strdup(filename);
+    if (!ctx->filename) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
@@ -2047,7 +2056,8 @@ rnp_op_set_file_mtime(rnp_ctx_t *ctx, uint32_t mtime)
     if (!ctx) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    ctx->filemtime = mtime;
+    return RNP_SUCCESS;
 }
 
 static void

@@ -5461,3 +5461,56 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
 }
+
+TEST_F(rnp_tests, test_ffi_literal_filename)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    uint8_t *       signed_buf;
+    size_t          signed_len;
+
+    // init ffi
+    test_ffi_init(&ffi);
+    // init input
+    test_ffi_init_sign_memory_input(&input, &output);
+    // create signature operation
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(&ffi, &op);
+    // setup filename and modification time
+    assert_rnp_success(rnp_op_sign_set_file_name(op, "checkleak.dat"));
+    assert_rnp_success(rnp_op_sign_set_file_name(op, NULL));
+    assert_rnp_success(rnp_op_sign_set_file_name(op, "testfile.dat"));
+    assert_rnp_success(rnp_op_sign_set_file_mtime(op, 12345678));
+    // execute the operation
+    assert_rnp_success(rnp_op_sign_execute(op));
+    // make sure the output file was created
+    assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
+    assert_non_null(signed_buf);
+    assert_true(signed_len > 0);
+
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_rnp_success(rnp_op_sign_destroy(op));
+    op = NULL;
+
+    // check the resulting stream for correct name/time
+    assert_rnp_success(rnp_input_from_memory(&input, signed_buf, signed_len, false));
+    char *json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_non_null(json);
+
+    std::string jstr = json;
+    assert_true(jstr.find("\"filename\":\"testfile.dat\"") != std::string::npos);
+    assert_true(jstr.find("\"timestamp\":12345678") != std::string::npos);
+
+    assert_rnp_success(rnp_input_destroy(input));
+    rnp_buffer_destroy(signed_buf);
+    rnp_buffer_destroy(json);
+    rnp_ffi_destroy(ffi);
+}
