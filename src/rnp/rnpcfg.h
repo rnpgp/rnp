@@ -29,6 +29,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string>
+#include <vector>
 #include "list.h"
 
 /* cfg variables known by rnp */
@@ -222,7 +223,18 @@ list *rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key);
  *
  *  @return true on success or false otherwise
  **/
-bool rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key);
+bool rnp_cfg_copylist_str(const rnp_cfg_t *cfg, list *dst, const char *key);
+
+/** @brief copy string values to destination vector of the strings
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param dst vector where strings will be stored
+ *  @param key string with key name
+ *
+ *  @return true on success or false otherwise
+ **/
+bool rnp_cfg_copylist_string(const rnp_cfg_t *         cfg,
+                             std::vector<std::string> &dst,
+                             const std::string &       key);
 
 /** @brief free the memory allocated in rnp_cfg_t
  *  @param cfg rnp config, must be allocated and initialized
