@@ -2226,6 +2226,19 @@ rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
 }
 
 rnp_result_t
+rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits)
+{
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if ((bits < 0) || (bits > 56)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    op->rnpctx.abits = bits;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int level)
 {
     // checks

@@ -1823,6 +1823,16 @@ rnp_result_t rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher);
 rnp_result_t rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg);
 
 /**
+ * @brief set chunk length for AEAD mode via number of chunk size bits (refer OpenPGP
+ * specificationf for the details).
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param bits number of bits, currently it must be between 0 to 56.
+ * @return RNP_SUCCESS or error code if failed
+ */
+rnp_result_t rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits);
+
+/**
  * @brief set the compression algorithm and level for the inner raw data
  *
  * @param op opaque encrypted context. Must be allocated and initialized
