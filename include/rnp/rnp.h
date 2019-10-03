@@ -1777,7 +1777,8 @@ rnp_result_t rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t ex
  * @brief Add password which is used to encrypt data. Multiple passwords can be added.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
- * @param password NULL-terminated password string
+ * @param password NULL-terminated password string, or NULL if password should be requested
+ *                 via password provider.
  * @param s2k_hash hash algorithm, used in key-from-password derivation. Pass NULL for default
  *        value. See rnp_op_encrypt_set_hash for possible values.
  * @param iterations number of iterations, used iin key derivation function. Pass 0 for default
