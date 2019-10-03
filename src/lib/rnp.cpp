@@ -53,6 +53,7 @@
 #include "utils.h"
 #include "json_utils.h"
 #include "version.h"
+#include <botan/secmem.h>
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -2152,13 +2153,11 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                             size_t           iterations,
                             const char *     s2k_cipher)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     // checks
-    if (!op || !password) {
+    if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!*password) {
+    if (password && !*password) {
         // no blank passwords
         FFI_LOG(op->ffi, "Blank password");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -2182,9 +2181,20 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         FFI_LOG(op->ffi, "Invalid cipher: %s", s2k_hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    // derive key, etc
-    ret = rnp_ctx_add_encryption_password(&op->rnpctx, password, hash_alg, symm_alg, 0);
-    return ret;
+    try {
+        Botan::secure_vector<char> ask_pass(MAX_PASSWORD_LENGTH, '\0');
+        if (!password) {
+            pgp_password_ctx_t pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
+            if (!pgp_request_password(
+                &op->ffi->pass_provider, &pswdctx, &ask_pass[0], ask_pass.size())) {
+                return RNP_ERROR_BAD_PASSWORD;
+            }
+            password = ask_pass.data();
+        }
+        return rnp_ctx_add_encryption_password(&op->rnpctx, password, hash_alg, symm_alg, iterations);
+    } catch (...) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 }
 
 rnp_result_t
