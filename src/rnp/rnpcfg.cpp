@@ -375,7 +375,7 @@ rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key)
 }
 
 bool
-rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key)
+rnp_cfg_copylist_str(const rnp_cfg_t *cfg, list *dst, const char *key)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
@@ -404,6 +404,42 @@ rnp_cfg_copylist_str(rnp_cfg_t *cfg, list *dst, const char *key)
 
 fail:
     list_destroy(dst);
+    return false;
+}
+
+bool
+rnp_cfg_copylist_string(const rnp_cfg_t *cfg, std::vector<std::string> &dst, const std::string &key)
+{
+    dst.clear();
+
+    rnp_cfg_item_t *it = rnp_cfg_find(cfg, key.c_str());
+
+    if (!it) {
+        /* copy empty list is okay */
+        return true;
+    }
+
+    if (it->val.type != RNP_CFG_VAL_LIST) {
+        return false;
+    }
+
+    for (list_item *li = list_front(it->val.val._list); li; li = list_next(li)) {
+        rnp_cfg_val_t *val = (rnp_cfg_val_t *) li;
+        if ((val->type != RNP_CFG_VAL_STRING) || !val->val._string) {
+            RNP_LOG("wrong item in string list");
+            goto fail;
+        }
+        try {
+            dst.emplace_back(val->val._string);
+        } catch (...) {
+            RNP_LOG("allocation failed");
+            goto fail;
+        }
+    }
+
+    return true;
+fail:
+    dst.clear();
     return false;
 }
 
