@@ -142,11 +142,8 @@ struct rnp_op_sign_signature_st {
 
 struct rnp_op_verify_signature_st {
     rnp_ffi_t      ffi;
-    uint8_t        keyid[PGP_KEY_ID_SIZE];
-    pgp_hash_alg_t halg;
-    uint32_t       sig_create;
-    uint32_t       sig_expires;
     rnp_result_t   verify_status;
+    pgp_signature_t sig_pkt;
 };
 
 struct rnp_op_verify_st {
@@ -2573,10 +2570,8 @@ rnp_op_verify_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
     for (int i = 0; i < count; i++) {
         memset(&res, 0, sizeof(res));
 
-        res.sig_create = signature_get_creation(sigs[i].sig);
-        res.sig_expires = signature_get_expiration(sigs[i].sig);
-        signature_get_keyid(sigs[i].sig, res.keyid);
-        res.halg = sigs[i].sig->halg;
+        /* ignore copy result - NULL signature on out of memory error will work for us */
+        (void) copy_signature_packet(&res.sig_pkt, sigs[i].sig);
 
         if (sigs[i].unknown) {
             res.verify_status = RNP_ERROR_KEY_NOT_FOUND;
@@ -2730,6 +2725,9 @@ rnp_op_verify_destroy(rnp_op_verify_t op)
 {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
+        for (size_t i = 0; i < op->signature_count; i++) {
+            free_signature(&op->signatures[i].sig_pkt);
+        }
         free(op->signatures);
         free(op->filename);
         free(op);
@@ -2754,7 +2752,7 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
     }
 
     const char *hname = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->halg, hname);
+    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->sig_pkt.halg, hname);
     if (hname) {
         *hash = strdup(hname);
         return RNP_SUCCESS;
@@ -2768,9 +2766,13 @@ rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t 
     rnp_ffi_t        ffi = sig->ffi;
     pgp_key_search_t search;
 
+    uint8_t keyid[PGP_KEY_ID_SIZE] = {0};
+    if (!signature_get_keyid(&sig->sig_pkt, keyid)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     // create a search (since we'll use this later anyways)
     search.type = PGP_KEY_SEARCH_KEYID;
-    memcpy(search.by.keyid, sig->keyid, PGP_KEY_ID_SIZE);
+    memcpy(search.by.keyid, keyid, PGP_KEY_ID_SIZE);
 
     // search the stores
     pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &search, NULL);
@@ -2797,10 +2799,10 @@ rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
                                   uint32_t *                expires)
 {
     if (create) {
-        *create = sig->sig_create;
+        *create = signature_get_creation(&sig->sig_pkt);
     }
     if (expires) {
-        *expires = sig->sig_expires;
+        *expires = signature_get_expiration(&sig->sig_pkt);
     }
 
     return RNP_SUCCESS;
