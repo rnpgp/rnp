@@ -271,6 +271,10 @@ size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
 pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 
+rnp_result_t pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src);
+
+void pgp_subsig_free(pgp_subsig_t *subsig);
+
 pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_content_enum);
 
 size_t pgp_key_get_rawpacket_count(const pgp_key_t *);

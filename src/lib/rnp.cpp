@@ -72,6 +72,7 @@ struct rnp_signature_handle_st {
     rnp_ffi_t     ffi;
     pgp_key_t *   key;
     pgp_subsig_t *sig;
+    bool own_sig;
 };
 
 struct rnp_ffi_st {
@@ -2745,6 +2746,32 @@ rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
 }
 
 rnp_result_t
+rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig, rnp_signature_handle_t *handle)
+{
+    if (!sig || !handle) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *handle = (rnp_signature_handle_t) calloc(1, sizeof(**handle));
+    if (!*handle) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    pgp_subsig_t *subsig = (pgp_subsig_t *) calloc(1, sizeof(*subsig));
+    if (!copy_signature_packet(&subsig->sig, &sig->sig_pkt)) {
+        free(subsig);
+        free(*handle);
+        *handle = NULL;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*handle)->sig = subsig;
+    (*handle)->ffi = sig->ffi;
+    (*handle)->key = NULL;
+    (*handle)->own_sig = true;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
 {
     if (!sig || !hash) {
@@ -4910,6 +4937,10 @@ rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
 rnp_result_t
 rnp_signature_handle_destroy(rnp_signature_handle_t sig)
 {
+    if (sig && sig->own_sig) {
+        pgp_subsig_free(sig->sig);
+        free(sig->sig);
+    }
     free(sig);
     return RNP_SUCCESS;
 }
