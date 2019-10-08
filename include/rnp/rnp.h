@@ -1517,6 +1517,18 @@ rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
  */
 rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig);
 
+/** Get the signature handle from the verified signature. This would allow to query extended
+ * information on the signature.
+ *
+ * @param sig verified signature context, cannot be NULL.
+ * @param handle signature handle will be stored here on success. You must free it after use
+ * with
+ *            the rnp_signature_handle_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+rnp_result_t rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
+                                                rnp_signature_handle_t *  handle);
+
 /** @brief Get hash function used to calculate signature
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
  *  @param hash pointer to string with hash algorithm name will be put here on success.
