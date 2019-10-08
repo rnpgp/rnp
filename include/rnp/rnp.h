@@ -935,6 +935,19 @@ rnp_result_t rnp_signature_get_keyid(rnp_signature_handle_t sig, char **result);
  */
 rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key);
 
+/** Dump signature packet to JSON, obtaining the whole information about it.
+ *
+ * @param sig sigmature handle, cannot be NULL
+ * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
+ *              RNP_JSON_DUMP_* flags)
+ * @param result resulting JSON string will be stored here. You must free it using the
+ *               rnp_buffer_destroy() function.
+ * @return 0 on success, or any other value on error
+ */
+rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
+                                          uint32_t               flags,
+                                          char **                json);
+
 /** Free signature handle.
  *
  * @param sig signature handle.

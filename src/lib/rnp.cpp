@@ -222,6 +222,8 @@ static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
                                    size_t                    password_size,
                                    void *                    userdata_void);
 
+static rnp_result_t rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result);
+
 static pgp_key_t *
 find_key(rnp_ffi_t               ffi,
          const pgp_key_search_t *search,
@@ -4931,6 +4933,35 @@ rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
 
     ret = rnp_locate_key(sig->ffi, "keyid", keyid, key);
     rnp_buffer_destroy(keyid);
+    return ret;
+}
+
+rnp_result_t
+rnp_signature_packet_to_json(rnp_signature_handle_t sig, uint32_t flags, char **json)
+{
+    if (!sig || !json) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_dest_t   memdst = {};
+    if (init_mem_dest(&memdst, NULL, 0)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!stream_write_signature(&sig->sig->sig, &memdst)) {
+        dst_close(&memdst, true);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_source_t memsrc = {};
+    rnp_result_t ret = RNP_ERROR_BAD_STATE;
+    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
+        goto done;
+    }
+
+    ret = rnp_dump_src_to_json(&memsrc, flags, json);
+done:
+    dst_close(&memdst, true);
+    src_close(&memsrc);
     return ret;
 }
 
