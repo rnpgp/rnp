@@ -169,8 +169,8 @@ pgp_free_user_prefs(pgp_user_prefs_t *prefs)
     memset(prefs, 0, sizeof(*prefs));
 }
 
-static void
-subsig_free(pgp_subsig_t *subsig)
+void
+pgp_subsig_free(pgp_subsig_t *subsig)
 {
     if (!subsig) {
         return;
@@ -252,7 +252,7 @@ pgp_key_free_data(pgp_key_t *key)
     list_destroy(&key->packets);
 
     for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
-        subsig_free(pgp_key_get_subsig(key, n));
+        pgp_subsig_free(pgp_key_get_subsig(key, n));
     }
     list_destroy(&key->subsigs);
 
@@ -412,7 +412,7 @@ error:
     return ret;
 }
 
-static rnp_result_t
+rnp_result_t
 pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src)
 {
     memcpy(dst, src, sizeof(*dst));
