@@ -1,7 +1,5 @@
 #include <unistd.h>
 #include <errno.h>
-#include "crypto.h"
-#include "crypto/common.h"
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "utils.h"

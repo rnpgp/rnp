@@ -64,19 +64,9 @@ void rnp_end(rnp_t *);
 /* load keys */
 bool rnp_load_keyrings(rnp_t *rnp, bool loadsecret);
 
-/**
- * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring pathes, types and
- *        default key.
- *
- * @param cfg pointer to the allocated rnp_cfg_t structure
- * @return true on success or false otherwise.
- * @return false
- */
-bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
-
 /* key management */
-void       rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool);
-bool       rnp_add_key(rnp_t *rnp, const char *path, bool print);
+void rnp_print_key_info(FILE *, rnp_key_store_t *, const pgp_key_t *, bool);
+bool rnp_add_key(rnp_t *rnp, const char *path, bool print);
 
 /* file management */
 rnp_result_t rnp_process_file(rnp_t *, rnp_ctx_t *, const char *, const char *);
@@ -89,14 +79,6 @@ rnp_result_t rnp_protect_mem(
   rnp_t *, rnp_ctx_t *, const void *, size_t, void *, size_t, size_t *);
 
 rnp_result_t rnp_encrypt_add_password(rnp_t *rnp, rnp_ctx_t *ctx);
-
-bool rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite);
-
-rnp_result_t disable_core_dumps(void);
-
-bool set_pass_fd(FILE **file, int passfd);
-
-char *ptimestr(char *dest, size_t size, time_t t);
 
 #if defined(__cplusplus)
 }
