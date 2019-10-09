@@ -2001,7 +2001,7 @@ rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, i
 static rnp_result_t
 rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *hash)
 {
-    if (!ctx) {
+    if (!ctx || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
 
