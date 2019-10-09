@@ -31,7 +31,6 @@ add_executable(rnpkeys
   main.cpp
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
-  ../rnp/rnpcli.cpp
 )
 
 target_include_directories(rnpkeys

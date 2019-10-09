@@ -40,6 +40,7 @@
 
 #ifndef _WIN32
 #include <termios.h>
+#include <sys/resource.h>
 #endif
 
 #include <time.h>
@@ -53,6 +54,131 @@
 #else
 #include <regex>
 #endif
+
+#define RNP_KEYSTORE_GPG ("GPG") /* GPG keystore format */
+#define RNP_KEYSTORE_KBX ("KBX") /* KBX keystore format */
+#define RNP_KEYSTORE_G10 ("G10") /* G10 keystore format */
+
+// combinated keystores
+#define RNP_KEYSTORE_GPG21 ("GPG21") /* KBX + G10 keystore format */
+
+#ifdef HAVE_SYS_RESOURCE_H
+/* When system resource consumption limit controls are available this
+ * can be used to attempt to disable core dumps which may leak
+ * sensitive data.
+ *
+ * Returns 0 if disabling core dumps failed, returns 1 if disabling
+ * core dumps succeeded, and returns -1 if an error occurred. errno
+ * will be set to the result from setrlimit in the event of
+ * failure.
+ */
+static rnp_result_t
+disable_core_dumps(void)
+{
+    struct rlimit limit;
+    int           error;
+
+    errno = 0;
+    memset(&limit, 0, sizeof(limit));
+    error = setrlimit(RLIMIT_CORE, &limit);
+
+    if (error == 0) {
+        error = getrlimit(RLIMIT_CORE, &limit);
+        if (error) {
+            RNP_LOG("Warning - cannot turn off core dumps");
+            return RNP_ERROR_GENERIC;
+        } else if (limit.rlim_cur == 0) {
+            return RNP_SUCCESS; // disabling core dumps ok
+        } else {
+            return RNP_ERROR_GENERIC; // failed for some reason?
+        }
+    }
+    return RNP_ERROR_GENERIC;
+}
+#endif
+
+static bool
+set_pass_fd(FILE **file, int passfd)
+{
+    if (!file) {
+        return false;
+    }
+    *file = fdopen(passfd, "r");
+    if (!*file) {
+        RNP_LOG("cannot open fd %d for reading", passfd);
+        return false;
+    }
+    return true;
+}
+
+static char *
+ptimestr(char *dest, size_t size, time_t t)
+{
+    struct tm *tm;
+
+    tm = gmtime(&t);
+    (void) snprintf(
+      dest, size, "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+    return dest;
+}
+
+/** @brief checks whether file exists already and asks user for the new filename
+ *  @param path output file name with path. May be NULL, then user is asked for it.
+ *  @param newpath preallocated pointer which will store the result on success
+ *  @param maxlen maximum number of chars in newfile, including the trailing \0
+ *  @param overwrite whether it is allowed to overwrite output file by default
+ *  @return true on success, or false otherwise (user cancels the operation)
+ **/
+
+static bool
+rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool overwrite)
+{
+    char reply[10];
+
+    if (!path || !path[0]) {
+        fprintf(stdout, "Please enter the output filename: ");
+        if (fgets(newpath, maxlen, stdin) == NULL) {
+            return false;
+        }
+        rnp_strip_eol(newpath);
+    } else {
+        strncpy(newpath, path, maxlen);
+    }
+
+    while (true) {
+        if (rnp_file_exists(newpath)) {
+            if (overwrite) {
+                unlink(newpath);
+                return true;
+            }
+
+            fprintf(stdout,
+                    "File '%s' already exists. Would you like to overwrite it (y/N)?",
+                    newpath);
+
+            if (fgets(reply, sizeof(reply), stdin) == NULL) {
+                return false;
+            }
+            if (strlen(reply) > 0 && toupper(reply[0]) == 'Y') {
+                unlink(newpath);
+                return true;
+            }
+
+            fprintf(stdout, "Please enter the new filename: ");
+            if (fgets(newpath, maxlen, stdin) == NULL) {
+                return false;
+            }
+
+            rnp_strip_eol(newpath);
+
+            if (strlen(newpath) == 0) {
+                return false;
+            }
+        } else {
+            return true;
+        }
+    }
+}
 
 static bool
 stdin_getpass(const char *prompt, char *buffer, size_t size)

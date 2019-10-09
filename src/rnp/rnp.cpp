@@ -44,21 +44,10 @@
 #include <errno.h>
 #include <getopt.h>
 
-#include "rnpcli.h"
 #include "fficli.h"
-#include <rnp/rnp_sdk.h>
-#include <librepgp/stream-ctx.h>
-#include <librepgp/stream-parse.h>
-#include <librepgp/stream-armor.h>
-#include <librepgp/stream-packet.h>
-#include <librepgp/stream-dump.h>
-#include <librepgp/stream-sig.h>
-#include <librepgp/packet-show.h>
-#include <rekey/rnp_key_store.h>
 #include "rnpcfg.h"
 #include "crypto/common.h"
 #include "rnpcfg.h"
-#include "pgp-key.h"
 #include "defaults.h"
 #include "utils.h"
 
@@ -242,262 +231,14 @@ print_usage(const char *usagemsg)
     fprintf(stderr, "Usage: %s %s", rnp_prog_name, usagemsg);
 }
 
-static void
-rnp_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
-{
-    unsigned         invalidc = 0;
-    unsigned         unknownc = 0;
-    unsigned         validc = 0;
-    time_t           create;
-    uint32_t         expiry;
-    uint8_t          keyid[PGP_KEY_ID_SIZE];
-    char             id[MAX_ID_LENGTH + 1];
-    const pgp_key_t *key;
-    const char *     title = "UNKNOWN signature";
-    rnp_t *          rnp = (rnp_t *) param;
-    FILE *           resfp = rnp->resfp;
-
-    for (int i = 0; i < count; i++) {
-        if (sigs[i].unknown || sigs[i].no_signer) {
-            unknownc++;
-        } else {
-            if (!sigs[i].valid) {
-                if (sigs[i].no_signer) {
-                    title = "NO PUBLIC KEY for signature";
-                } else {
-                    title = "BAD signature";
-                }
-                invalidc++;
-            } else {
-                if (sigs[i].expired) {
-                    title = "EXPIRED signature";
-                    invalidc++;
-                } else {
-                    title = "Good signature";
-                    validc++;
-                }
-            }
-        }
-
-        create = signature_get_creation(sigs[i].sig);
-        expiry = signature_get_expiration(sigs[i].sig);
-
-        if (create > 0) {
-            fprintf(resfp, "%s made %s", title, ctime(&create));
-            if (expiry > 0) {
-                create += expiry;
-                fprintf(resfp, "Valid until %s\n", ctime(&create));
-            }
-        } else {
-            fprintf(resfp, "%s\n", title);
-        }
-
-        signature_get_keyid(sigs[i].sig, keyid);
-        fprintf(resfp,
-                "using %s key %s\n",
-                pgp_show_pka(sigs[i].sig->palg),
-                userid_to_id(keyid, id));
-
-        if (!sigs[i].no_signer) {
-            key = rnp_key_store_get_key_by_id(rnp->pubring, keyid, NULL);
-            rnp_print_key_info(resfp, rnp->pubring, key, false);
-        }
-    }
-
-    if (count == 0) {
-        fprintf(stderr, "No signature(s) found - is this a signed file?\n");
-    } else if (invalidc > 0 || unknownc > 0) {
-        fprintf(
-          stderr,
-          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)\n",
-          invalidc,
-          unknownc);
-    } else {
-        fprintf(stderr, "Signature(s) verified successfully\n");
-    }
-}
-
-static bool
-add_signing_key(rnp_cfg_t *cfg, rnp_ctx_t *ctx, pgp_key_t *key)
-{
-    rnp_signer_info_t sinfo = {};
-    sinfo.key = key;
-    sinfo.sigcreate = get_creation(rnp_cfg_getstr(cfg, CFG_CREATION));
-    sinfo.sigexpire = get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION));
-    sinfo.halg = ctx->halg;
-    return list_append(&ctx->signers, &sinfo, sizeof(sinfo));
-}
-
-static bool
-setup_ctx(rnp_cfg_t *cfg, rnp_t *rnp, rnp_ctx_t *ctx)
-{
-    int         cmd;
-    const char *fname;
-
-    /* some rnp_t setup */
-    if (rnp_cfg_getstr(cfg, CFG_PASSWD)) {
-        rnp->password_provider.callback = rnp_password_provider_string;
-        rnp->password_provider.userdata = (void *) rnp_cfg_getstr(cfg, CFG_PASSWD);
-    }
-    rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
-
-    /* operation context initialization */
-    rnp_ctx_init(ctx, &rnp->rng);
-    ctx->armor = rnp_cfg_getint(cfg, CFG_ARMOR);
-    ctx->overwrite = rnp_cfg_getbool(cfg, CFG_OVERWRITE);
-    if ((fname = rnp_cfg_getstr(cfg, CFG_INFILE))) {
-        ctx->filename = strdup(rnp_filename(fname));
-        ctx->filemtime = rnp_filemtime(fname);
-    }
-
-    /* get the ongoing command. OpenPGP commands are only ENCRYPT/ENCRYPT_SIGN/SIGN/DECRYPT */
-    cmd = rnp_cfg_getint(cfg, CFG_COMMAND);
-
-    /* options used for signing */
-    if (cmd == CMD_PROTECT) {
-        //ctx->zalg = rnp_cfg_getint(cfg, CFG_ZALG);
-        ctx->zlevel = rnp_cfg_getint(cfg, CFG_ZLEVEL);
-
-        /* setting signing parameters if needed */
-        if (rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
-            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_gethashalg(cfg));
-
-            if (ctx->halg == PGP_HASH_UNKNOWN) {
-                fprintf(stderr, "Unknown hash algorithm: %s\n", rnp_cfg_getstr(cfg, CFG_HASH));
-                return false;
-            }
-
-            list signers = NULL;
-            if (!rnp_cfg_copylist_str(cfg, &signers, CFG_SIGNERS)) {
-                fprintf(stderr, "Failed to copy signers list\n");
-                return false;
-            }
-            for (list_item *signer = list_front(signers); signer; signer = list_next(signer)) {
-                const char *keyname = (const char *) signer;
-                pgp_key_t * key = rnp_key_store_get_key_by_name(rnp->secring, keyname, NULL);
-                if (!key) {
-                    fprintf(stderr, "Invalid or unavailable signer: %s\n", keyname);
-                    list_destroy(&signers);
-                    return false;
-                }
-                if (!add_signing_key(cfg, ctx, key)) {
-                    list_destroy(&signers);
-                    return false;
-                }
-            }
-            list_destroy(&signers);
-
-            if (!list_length(ctx->signers)) {
-                if (!rnp->defkey) {
-                    fprintf(stderr, "No userid or default key for signing\n");
-                    return false;
-                }
-                pgp_key_t *key =
-                  rnp_key_store_get_key_by_name(rnp->secring, rnp->defkey, NULL);
-                if (!key) {
-                    return false;
-                }
-                if (!add_signing_key(cfg, ctx, key)) {
-                    RNP_LOG("allocation failed");
-                    return false;
-                }
-            }
-
-            ctx->sigcreate = get_creation(rnp_cfg_getstr(cfg, CFG_CREATION));
-            ctx->sigexpire = get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION));
-            ctx->clearsign = rnp_cfg_getbool(cfg, CFG_CLEARTEXT);
-            ctx->detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
-        }
-
-        /* setting encryption parameters if needed */
-        if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
-            ctx->ealg = pgp_str_to_cipher(rnp_cfg_getstr(cfg, CFG_CIPHER));
-            ctx->halg = pgp_str_to_hash_alg(rnp_cfg_getstr(cfg, CFG_HASH));
-            ctx->aalg = (pgp_aead_alg_t) rnp_cfg_getint(cfg, CFG_AEAD);
-            ctx->abits = rnp_cfg_getint_default(cfg, CFG_AEAD_CHUNK, DEFAULT_AEAD_CHUNK_BITS);
-
-            /* adding passwords if password-based encryption is used */
-            if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
-                int passwordc = rnp_cfg_getint_default(cfg, CFG_PASSWORDC, 1);
-
-                for (int i = 0; i < passwordc; i++) {
-                    if (rnp_encrypt_add_password(rnp, ctx)) {
-                        RNP_LOG("Failed to add password");
-                        return false;
-                    }
-                }
-            }
-
-            /* adding recipients if public-key encryption is used */
-            if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK)) {
-                list recipients = NULL;
-                if (!rnp_cfg_copylist_str(cfg, &recipients, CFG_RECIPIENTS)) {
-                    RNP_LOG("Failed to copy recipients list");
-                    return false;
-                }
-                for (list_item *recipient = list_front(recipients); recipient;
-                     recipient = list_next(recipient)) {
-                    pgp_key_t *key = rnp_key_store_get_key_by_name(
-                      rnp->pubring, (const char *) recipient, NULL);
-                    if (!key) {
-                        fprintf(stderr,
-                                "Invalid or unavailable recipient: %s\n",
-                                (const char *) recipient);
-                        list_destroy(&recipients);
-                        return false;
-                    }
-                    if (!list_append(&ctx->recipients, &key, sizeof(key))) {
-                        RNP_LOG("Failed to add key to recipient list");
-                        list_destroy(&recipients);
-                        return false;
-                    }
-                }
-                list_destroy(&recipients);
-
-                if (!list_length(ctx->recipients)) {
-                    if (!rnp->defkey) {
-                        fprintf(stderr, "No userid or default key for encryption\n");
-                        return false;
-                    }
-                    pgp_key_t *key = rnp_key_store_get_key_by_name(
-                      rnp->pubring, (const char *) rnp->defkey, NULL);
-                    if (!key) {
-                        fprintf(stderr,
-                                "Invalid or unavailable recipient: %s\n",
-                                (const char *) rnp->defkey);
-                        return false;
-                    }
-
-                    if (!list_append(&ctx->recipients, &key, sizeof(key))) {
-                        RNP_LOG("allocation failed");
-                        return false;
-                    }
-                }
-            }
-        }
-    } else if (cmd == CMD_PROCESS) {
-        ctx->discard =
-          rnp_cfg_getbool(cfg, CFG_NO_OUTPUT) && !rnp_cfg_getstr(cfg, CFG_OUTFILE);
-        ctx->on_signatures = (void *) rnp_on_signatures;
-        ctx->sig_cb_param = rnp;
-    }
-
-    return true;
-}
-
 /* do a command once for a specified config */
 static bool
-rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, cli_rnp_t *clirnp)
+rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *clirnp)
 {
     bool        ret = false;
-    rnp_ctx_t   ctx = {0};
-
-    if (!(ret = setup_ctx(cfg, rnp, &ctx))) {
-        goto done;
-    }
 
     if (!cli_rnp_setup(cfg, clirnp)) {
-        goto done;
+        return false;
     }
 
     switch (rnp_cfg_getint(cfg, CFG_COMMAND)) {
@@ -525,8 +266,6 @@ rnp_cmd(rnp_cfg_t *cfg, rnp_t *rnp, cli_rnp_t *clirnp)
         ret = true;
     }
 
-done:
-    rnp_ctx_free(&ctx);
     return ret;
 }
 
@@ -860,7 +599,6 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
-    rnp_t     rnp = {0};
     cli_rnp_t clirnp = {};
     rnp_cfg_t cfg;
     int       optindex;
@@ -961,7 +699,7 @@ rnp_main(int argc, char **argv)
     switch (rnp_cfg_getint(&cfg, CFG_COMMAND)) {
     case CMD_HELP:
     case CMD_VERSION:
-        ret = rnp_cmd(&cfg, &rnp, &clirnp) ? EXIT_SUCCESS : EXIT_FAILURE;
+        ret = rnp_cmd(&cfg, &clirnp) ? EXIT_SUCCESS : EXIT_FAILURE;
         goto finish;
     default:;
     }
@@ -972,21 +710,8 @@ rnp_main(int argc, char **argv)
         goto finish;
     }
 
-    if (rnp_init(&rnp, &cfg) != RNP_SUCCESS) {
-        fputs("fatal: cannot initialise\n", stderr);
-        ret = EXIT_ERROR;
-        goto finish;
-    }
-
     if (!cli_rnp_init(&clirnp, &cfg)) {
         ERR_MSG("fatal: cannot initialise");
-        ret = EXIT_ERROR;
-        goto finish;
-    }
-
-    if (!rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) &&
-        !rnp_load_keyrings(&rnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
-        fputs("fatal: failed to load keys\n", stderr);
         ret = EXIT_ERROR;
         goto finish;
     }
@@ -1000,13 +725,6 @@ rnp_main(int argc, char **argv)
 
     /* load the keyfile if any */
     if (rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
-        !rnp_add_key(&rnp, rnp_cfg_getstr(&cfg, CFG_KEYFILE), false)) {
-        fputs("fatal: failed to load key(s) from the file\n", stderr);
-        ret = EXIT_ERROR;
-        goto finish;
-    }
-
-    if (rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
         !cli_rnp_add_key(&cfg, &clirnp)) {
         ERR_MSG("fatal: failed to load key(s) from the file");
         ret = EXIT_ERROR;
@@ -1016,12 +734,12 @@ rnp_main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&cfg, &rnp, &clirnp))
+        if (!rnp_cmd(&cfg, &clirnp))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
             rnp_cfg_setstr(&cfg, CFG_INFILE, argv[i]);
-            if (!rnp_cmd(&cfg, &rnp, &clirnp)) {
+            if (!rnp_cmd(&cfg, &clirnp)) {
                 ret = EXIT_FAILURE;
             }
         }
@@ -1029,7 +747,6 @@ rnp_main(int argc, char **argv)
 
 finish:
     rnp_cfg_free(&cfg);
-    rnp_end(&rnp);
     cli_rnp_end(&clirnp);
 
     return ret;
