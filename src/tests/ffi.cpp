@@ -5858,3 +5858,23 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     // final cleanup
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_detached_verify_input)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+
+    // init ffi
+    test_ffi_init(&ffi);
+    /* verify detached signature via rnp_op_verify_create - should not crash */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_signatures/source.txt.sig"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
