@@ -509,6 +509,25 @@ rnp_armor_guess_type(pgp_source_t *src)
     }
 }
 
+pgp_armored_msg_t
+rnp_armored_get_type(pgp_source_t *src)
+{
+    char                        hdr[128];
+    const char *                armhdr;
+    size_t                      armhdrlen;
+    ssize_t                     read;
+
+    read = src_peek(src, hdr, sizeof(hdr));
+    if (read < 20) {
+        return PGP_ARMORED_UNKNOWN;
+    }
+    if (!(armhdr = find_armor_header(hdr, read, &armhdrlen))) {
+        return PGP_ARMORED_UNKNOWN;
+    }
+
+    return armor_str_to_data_type(armhdr + 5, armhdrlen - 10);
+}
+
 static bool
 armor_parse_header(pgp_source_t *src)
 {
