@@ -5625,11 +5625,17 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
 
     assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-pub.asc"));
     assert_rnp_success(rnp_guess_contents(input, &msgt));
-    assert_int_equal(strcmp(msgt, "unknown"), 0);
+    assert_int_equal(strcmp(msgt, "public key"), 0);
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
 
     assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-sec.pgp"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "secret key"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-sec.asc"));
     assert_rnp_success(rnp_guess_contents(input, &msgt));
     assert_int_equal(strcmp(msgt, "secret key"), 0);
     rnp_buffer_destroy(msgt);
@@ -5648,10 +5654,36 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
 
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_z/4gb.bzip2.asc"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "message"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_stream_signatures/source.txt.sig"));
     assert_rnp_success(rnp_guess_contents(input, &msgt));
     assert_int_equal(strcmp(msgt, "signature"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_signatures/source.txt.sig.asc"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "signature"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_signatures/source.txt.asc.asc"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "cleartext"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_signatures/source.txt"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "unknown"), 0);
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
 }
