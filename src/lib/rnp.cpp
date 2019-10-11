@@ -2595,6 +2595,9 @@ rnp_verify_src_provider(pgp_parse_handler_t *handler, pgp_source_t *src)
 {
     /* this one is called only when input for detached signature is needed */
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
+    if (!op->detached_input) {
+        return false;
+    }
     *src = op->detached_input->src;
     /* we should give ownership on src to caller */
     memset(&op->detached_input->src, 0, sizeof(op->detached_input->src));
