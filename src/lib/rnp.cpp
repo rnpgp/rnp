@@ -6598,7 +6598,12 @@ rnp_guess_contents(rnp_input_t input, char **contents)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_armored_msg_t msgtype = rnp_armor_guess_type(&input->src);
+    pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN; 
+    if (is_armored_source(&input->src)) {
+        msgtype = rnp_armored_get_type(&input->src);
+    } else {
+        msgtype = rnp_armor_guess_type(&input->src);
+    }
     const char *      msg = "unknown";
     ARRAY_LOOKUP_BY_ID(armor_type_map, type, string, msgtype, msg);
     size_t len = strlen(msg);
