@@ -93,6 +93,26 @@ TEST_F(rnp_tests, test_rnpcfg)
         }
     }
 
+    /* get values back as C++ strings */
+    assert_true(rnp_cfg_getstring(&cfg1, "key_str") == "val");
+    assert_true(rnp_cfg_getstring(&cfg1, "key_unknown") == "");
+    assert_true(rnp_cfg_getstring(&cfg1, "") == "");
+    assert_true(rnp_cfg_getstring(&cfg1, "key_true") == "true");
+    assert_true(rnp_cfg_getstring(&cfg1, "key_True") == "True");
+
+    /* get C++ string list */
+    std::vector<std::string> keylist;
+    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list"));
+    assert_int_equal(keylist.size(), 10);
+    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list11"));
+    assert_int_equal(keylist.size(), 0);
+    keylist = {"1", "2", "3"};
+    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list"));
+    assert_int_equal(keylist.size(), 10);
+    for (size_t i = 0; i < keylist.size(); i++) {
+        assert_true(keylist[i] == "val" + std::to_string(i));
+    }
+
     /* override value */
     assert_true(rnp_cfg_setint(&cfg1, "key_int", 222));
     assert_int_equal(rnp_cfg_getint(&cfg1, "key_int"), 222);
