@@ -101,15 +101,6 @@ typedef struct pgp_crypt_t {
     rng_t *        rng;
 } pgp_crypt_t;
 
-typedef struct pgp_aead_params_t {
-    pgp_symm_alg_t ealg;                       /* underlying symmetric algorithm */
-    pgp_aead_alg_t aalg;                       /* AEAD algorithm, i.e. EAX, OCB, etc */
-    uint8_t        iv[PGP_AEAD_MAX_NONCE_LEN]; /* initial vector for the message */
-    size_t         ivlen;                      /* iv length */
-    uint8_t        ad[PGP_AEAD_MAX_AD_LEN];    /* additional data */
-    size_t         adlen;                      /* length of the additional data */
-} pgp_aead_params_t;
-
 pgp_symm_alg_t pgp_str_to_cipher(const char *name);
 unsigned       pgp_block_size(pgp_symm_alg_t);
 unsigned       pgp_key_size(pgp_symm_alg_t);

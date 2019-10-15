@@ -95,4 +95,11 @@ rnp_result_t init_literal_src(pgp_source_t *src, pgp_source_t *readsrc);
  */
 bool get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr);
 
+/* @brief Get the AEAD-encrypted packet information fields (not the OpenPGP packet header)
+ * @param src AEAD-encrypted data source (starting from packet data itself, not the header)
+ * @param hdr pointer to header structure, where result will be stored
+ * @return true on success or false otherwise
+ */
+bool get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr);
+
 #endif
