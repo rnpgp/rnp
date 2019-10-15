@@ -246,6 +246,14 @@ void packet_body_part_from_mem(pgp_packet_body_t *body, const void *mem, size_t 
 
 /* Packet handling functions */
 
+/** @brief read OpenPGP packet from the stream, and write it's contents to another stream.
+ *  @param src source with packet data
+ *  @param dst destination to write packet contents. All write failures on dst
+ *             will be ignored. Can be NULL if you need just to skip packet.
+ *  @return RNP_SUCCESS or error code if operation failed.
+ */
+rnp_result_t stream_read_packet(pgp_source_t *src, pgp_dest_t *dst);
+
 rnp_result_t stream_skip_packet(pgp_source_t *src);
 
 /* Symmetric-key encrypted session key */
