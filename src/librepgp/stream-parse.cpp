@@ -97,8 +97,10 @@ typedef struct pgp_source_encrypted_param_t {
     size_t                    chunkidx;       /* index of the current chunk */
     uint8_t                   cache[PGP_AEAD_CACHE_LEN]; /* read cache */
     size_t                    cachelen;                  /* number of bytes in the cache */
-    size_t                    cachepos;    /* index of first unread byte in the cache */
-    pgp_aead_params_t         aead_params; /* AEAD encryption parameters */
+    size_t                    cachepos;       /* index of first unread byte in the cache */
+    pgp_aead_hdr_t            aead_hdr;       /* AEAD encryption parameters */
+    uint8_t                   aead_ad[PGP_AEAD_MAX_AD_LEN];    /* additional data */
+    size_t                    aead_adlen;                      /* length of the additional data */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
@@ -424,7 +426,7 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     size_t  nlen;
 
     /* set chunk index for additional data */
-    STORE64BE(param->aead_params.ad + param->aead_params.adlen - 8, idx);
+    STORE64BE(param->aead_ad + param->aead_adlen - 8, idx);
 
     if (last) {
         uint64_t total = idx * param->chunklen;
@@ -436,12 +438,12 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
             /* reset the crypto in case we had empty chunk before the last one */
             pgp_cipher_aead_reset(&param->decrypt);
         }
-        STORE64BE(param->aead_params.ad + param->aead_params.adlen, total);
-        param->aead_params.adlen += 8;
+        STORE64BE(param->aead_ad + param->aead_adlen, total);
+        param->aead_adlen += 8;
     }
 
     if (!pgp_cipher_aead_set_ad(
-          &param->decrypt, param->aead_params.ad, param->aead_params.adlen)) {
+          &param->decrypt, param->aead_ad, param->aead_adlen)) {
         RNP_LOG("failed to set ad");
         return false;
     }
@@ -451,9 +453,9 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     param->chunkin = 0;
 
     /* set chunk index for nonce */
-    nlen = pgp_cipher_aead_nonce(param->aead_params.aalg, param->aead_params.iv, nonce, idx);
+    nlen = pgp_cipher_aead_nonce(param->aead_hdr.aalg, param->aead_hdr.iv, nonce, idx);
 
-    RNP_DHEX("authenticated data: ", param->aead_params.ad, param->aead_params.adlen);
+    RNP_DHEX("authenticated data: ", param->aead_ad, param->aead_adlen);
     RNP_DHEX("nonce: ", nonce, nlen);
 
     /* start cipher */
@@ -479,7 +481,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     }
 
     /* it is always 16 for defined EAX and OCB, however this may change in future */
-    taglen = pgp_cipher_aead_tag_len(param->aead_params.aalg);
+    taglen = pgp_cipher_aead_tag_len(param->aead_hdr.aalg);
     read = sizeof(param->cache) - 2 * PGP_AEAD_MAX_TAG_LEN;
 
     if ((size_t) read >= param->chunklen - param->chunkin) {
@@ -1249,13 +1251,13 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 {
     size_t gran;
 
-    if (alg != param->aead_params.ealg) {
+    if (alg != param->aead_hdr.ealg) {
         return false;
     }
 
     /* initialize cipher with key */
     if (!pgp_cipher_aead_init(
-          &param->decrypt, param->aead_params.ealg, param->aead_params.aalg, key, true)) {
+          &param->decrypt, param->aead_hdr.ealg, param->aead_hdr.aalg, key, true)) {
         return false;
     }
 
@@ -1465,7 +1467,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
                      pgp_cipher_aead_finish(&crypt, keybuf, skey->enckey, skey->enckeylen);
 
             if (decres) {
-                RNP_DHEX("decrypted key: ", keybuf, pgp_key_size(param->aead_params.ealg));
+                RNP_DHEX("decrypted key: ", keybuf, pgp_key_size(param->aead_hdr.ealg));
             }
 
             pgp_cipher_aead_destroy(&crypt);
@@ -1482,7 +1484,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         if (!param->aead && !encrypted_decrypt_cfb_header(param, alg, keybuf)) {
             continue;
         }
-        if (param->aead && !encrypted_start_aead(param, param->aead_params.ealg, keybuf)) {
+        if (param->aead && !encrypted_start_aead(param, param->aead_hdr.ealg, keybuf)) {
             continue;
         }
 
@@ -1729,6 +1731,28 @@ get_compressed_src_alg(pgp_source_t *src, uint8_t *alg)
     return true;
 }
 
+bool
+get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
+{
+    uint8_t hdrbt[4] = {0};
+
+    if (!src_read_eq(src, hdrbt, 4)) {
+        return false;
+    }
+
+    hdr->version = hdrbt[0];
+    hdr->ealg = (pgp_symm_alg_t) hdrbt[1];
+    hdr->aalg = (pgp_aead_alg_t) hdrbt[2];
+    hdr->csize = hdrbt[3];
+
+    if (!(hdr->ivlen = pgp_cipher_aead_nonce_len(hdr->aalg))) {
+        RNP_LOG("wrong aead nonce length: alg %d", (int) hdr->aalg);
+        return false;
+    }
+
+    return src_read_eq(src, hdr->iv, hdr->ivlen);
+}
+
 static rnp_result_t
 encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 {
@@ -1782,46 +1806,35 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     /* Reading header of encrypted packet */
     if (ptype == PGP_PTAG_CT_AEAD_ENCRYPTED) {
         param->aead = true;
-        /* read AEAD encrypted data packet header */
-
-        if (!src_read_eq(param->pkt.readsrc, hdr, 4)) {
+        if (src_peek(param->pkt.readsrc, hdr, 4) != 4) {
             return RNP_ERROR_READ;
         }
 
-        if (hdr[0] != 1) {
-            RNP_LOG("unknown aead ver: %d", (int) hdr[0]);
-            return RNP_ERROR_BAD_FORMAT;
-        }
-
-        if ((hdr[2] != PGP_AEAD_EAX) && (hdr[2] != PGP_AEAD_OCB)) {
-            RNP_LOG("unknown aead alg: %d", (int) hdr[2]);
-            return RNP_ERROR_BAD_FORMAT;
-        }
-
-        if (hdr[3] > 56) {
-            RNP_LOG("too large chunk size: %d", (int) hdr[3]);
-            return RNP_ERROR_BAD_FORMAT;
-        }
-
-        param->aead_params.ealg = (pgp_symm_alg_t) hdr[1];
-        param->aead_params.aalg = (pgp_aead_alg_t) hdr[2];
-        param->chunklen = 1L << (hdr[3] + 6);
-
-        if (!(param->aead_params.ivlen = pgp_cipher_aead_nonce_len(param->aead_params.aalg))) {
-            RNP_LOG("wrong aead nonce length");
-            return RNP_ERROR_BAD_STATE;
-        }
-
-        if (!src_read_eq(
-              param->pkt.readsrc, param->aead_params.iv, param->aead_params.ivlen)) {
+        if (!get_aead_src_hdr(param->pkt.readsrc, &param->aead_hdr)) {
+            RNP_LOG("failed to read AEAD header");
             return RNP_ERROR_READ;
         }
+
+        /* check AEAD encrypted data packet header */
+        if (param->aead_hdr.version != 1) {
+            RNP_LOG("unknown aead ver: %d", param->aead_hdr.version);
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if ((param->aead_hdr.aalg != PGP_AEAD_EAX) && (param->aead_hdr.aalg != PGP_AEAD_OCB)) {
+            RNP_LOG("unknown aead alg: %d", (int) param->aead_hdr.aalg);
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if (param->aead_hdr.csize > 56) {
+            RNP_LOG("too large chunk size: %d", param->aead_hdr.csize);
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        param->chunklen = 1L << (param->aead_hdr.csize + 6);
 
         /* build additional data */
-        param->aead_params.adlen = 13;
-        param->aead_params.ad[0] = param->pkt.hdr[0];
-        memcpy(param->aead_params.ad + 1, hdr, 4);
-        memset(param->aead_params.ad + 5, 0, 8);
+        param->aead_adlen = 13;
+        param->aead_ad[0] = param->pkt.hdr[0];
+        memcpy(param->aead_ad + 1, hdr, 4);
+        memset(param->aead_ad + 5, 0, 8);
     } else if (ptype == PGP_PTAG_CT_SE_IP_DATA) {
         if (!src_read_eq(param->pkt.readsrc, &mdcver, 1)) {
             return RNP_ERROR_READ;

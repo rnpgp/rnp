@@ -301,6 +301,15 @@ typedef struct pgp_literal_hdr_t {
     uint32_t timestamp;
 } pgp_literal_hdr_t;
 
+typedef struct pgp_aead_hdr_t {
+    int            version;                    /* version of the AEAD packet */
+    pgp_symm_alg_t ealg;                       /* underlying symmetric algorithm */
+    pgp_aead_alg_t aalg;                       /* AEAD algorithm, i.e. EAX, OCB, etc */
+    int            csize;                      /* chunk size bits */
+    uint8_t        iv[PGP_AEAD_MAX_NONCE_LEN]; /* initial vector for the message */
+    size_t         ivlen;                      /* iv length */
+} pgp_aead_hdr_t;
+
 /** litdata_type_t */
 typedef enum {
     PGP_LDT_BINARY = 'b',
