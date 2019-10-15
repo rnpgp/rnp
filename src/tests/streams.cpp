@@ -98,6 +98,67 @@ TEST_F(rnp_tests, test_stream_memory)
     free(mown);
 }
 
+TEST_F(rnp_tests, test_stream_memory_discard)
+{
+    pgp_dest_t memdst = {};
+    char mem[32];
+    const char *hexes = "123456789ABCDEF";
+    const size_t hexes_len = 15;
+
+    /* init mem dst and write some data */
+    assert_rnp_success(init_mem_dest(&memdst, mem, sizeof(mem)));
+    dst_write(&memdst, "Hello", 5);
+    assert_int_equal(memdst.writeb, 5);
+    dst_write(&memdst, ", ", 2);
+    assert_int_equal(memdst.writeb, 7);
+    dst_write(&memdst, "world!\n", 7);
+    assert_int_equal(memdst.writeb, 14);
+    /* Now discard overflowing data and attempt to overflow it */
+    mem_dest_discard_overflow(&memdst, true);
+    dst_write(&memdst, "Hello, world!\n", 14);
+    assert_int_equal(memdst.writeb, 28);
+    assert_int_equal(memdst.werr, RNP_SUCCESS);
+    dst_write(&memdst, hexes, hexes_len);
+    /* While extra data is discarded, writeb is still incremented by hexes_len */
+    assert_int_equal(memdst.writeb, 43);
+    assert_int_equal(memdst.werr, RNP_SUCCESS);
+    assert_int_equal(memcmp(mem, "Hello, world!\nHello, world!\n1234", 32), 0);
+    dst_write(&memdst, hexes, hexes_len);
+    assert_int_equal(memdst.writeb, 58);
+    assert_int_equal(memdst.werr, RNP_SUCCESS);
+    assert_int_equal(memcmp(mem, "Hello, world!\nHello, world!\n1234", 32), 0);
+    /* Now make sure that error is generated */
+    mem_dest_discard_overflow(&memdst, false);
+    dst_write(&memdst, hexes, hexes_len);
+    assert_int_equal(memdst.writeb, 58);
+    assert_int_not_equal(memdst.werr, RNP_SUCCESS);
+
+    dst_close(&memdst, true);
+    assert_int_equal(memcmp(mem, "Hello, world!\nHello, world!\n1234", 32), 0);
+
+    /* Now do tests with dynamic memory allocation */
+    const size_t bytes = 12345;
+    assert_rnp_success(init_mem_dest(&memdst, NULL, bytes));
+    for (size_t i = 0; i < bytes / hexes_len; i++) {
+        dst_write(&memdst, hexes, hexes_len);
+        assert_int_equal(memdst.writeb, (i + 1) * hexes_len);
+        assert_int_equal(memdst.werr, RNP_SUCCESS);
+    }
+
+    mem_dest_discard_overflow(&memdst, true);
+    dst_write(&memdst, hexes, hexes_len);
+    assert_int_equal(memdst.writeb, bytes - bytes % hexes_len + hexes_len);
+    assert_int_equal(memdst.werr, RNP_SUCCESS);
+    mem_dest_discard_overflow(&memdst, false);
+    dst_write(&memdst, hexes, hexes_len);
+    assert_int_equal(memdst.writeb, bytes - bytes % hexes_len + hexes_len);
+    assert_int_not_equal(memdst.werr, RNP_SUCCESS);
+    dst_write(&memdst, hexes, hexes_len);
+    assert_int_equal(memdst.writeb, bytes - bytes % hexes_len + hexes_len);
+    assert_int_not_equal(memdst.werr, RNP_SUCCESS);
+    dst_close(&memdst, true);
+}
+
 static void
 copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
 {
