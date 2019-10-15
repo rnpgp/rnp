@@ -46,6 +46,7 @@
 #include "crypto.h"
 #include "utils.h"
 #include "json_utils.h"
+#include <algorithm>
 
 static pgp_map_t packet_tag_map[] = {
   {PGP_PTAG_CT_RESERVED, "Reserved"},
@@ -979,6 +980,56 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     return RNP_SUCCESS;
 }
 
+static bool
+stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
+{
+    pgp_dest_t encdst = {};
+    uint8_t encpkt[64] = {};
+
+    if (init_mem_dest(&encdst, &encpkt, sizeof(encpkt))) {
+        return false;
+    }
+    mem_dest_discard_overflow(&encdst, true);
+
+    if (stream_read_packet(src, &encdst)) {
+        dst_close(&encdst, false);
+        return false;
+    }
+    size_t len = std::min(encdst.writeb, sizeof(encpkt));
+    dst_close(&encdst, false);
+
+    pgp_source_t memsrc = {};
+    if (init_mem_src(&memsrc, encpkt, len, false)) {
+        return false;
+    }
+    bool res = get_aead_src_hdr(&memsrc, hdr);
+    src_close(&memsrc);
+    return res;
+}
+
+static rnp_result_t
+stream_dump_aead_encrypted(pgp_source_t *src, pgp_dest_t *dst)
+{
+    dst_printf(dst, "AEAD-encrypted data packet\n");
+
+    pgp_aead_hdr_t aead = {};
+    if (!stream_dump_get_aead_hdr(src, &aead)) {
+        dst_printf(dst, "ERROR: failed to read AEAD header\n");
+        return RNP_ERROR_READ;
+    }
+
+    indent_dest_increase(dst);
+
+    dst_printf(dst, "version: %d\n", (int) aead.version);
+    dst_print_salg(dst, NULL, aead.ealg);
+    dst_print_aalg(dst, NULL, aead.aalg);
+    dst_printf(dst, "chunk size: %d\n", (int) aead.csize);
+    dst_print_hex(dst, "initialization vector", aead.iv, aead.ivlen, true);
+
+    indent_dest_decrease(dst);
+    return RNP_SUCCESS;
+}
+
 static rnp_result_t
 stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
 {
@@ -990,8 +1041,7 @@ stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
         dst_printf(dst, "Symmetrically-encrypted integrity protected data packet\n\n");
         break;
     case PGP_PTAG_CT_AEAD_ENCRYPTED:
-        dst_printf(dst, "AEAD-encrypted data packet\n\n");
-        break;
+        return stream_dump_aead_encrypted(src, dst);
     default:
         dst_printf(dst, "Unknown encrypted data packet\n\n");
         break;
@@ -1934,8 +1984,26 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
 static rnp_result_t
 stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum tag)
 {
-    /* packet header with tag is already in pkt */
-    return stream_skip_packet(src);
+    if (tag != PGP_PTAG_CT_AEAD_ENCRYPTED) {
+        /* packet header with tag is already in pkt */
+        return stream_skip_packet(src);
+    }
+
+    /* dumping AEAD data */ 
+    pgp_aead_hdr_t aead = {};
+    if (!stream_dump_get_aead_hdr(src, &aead)) {
+        return RNP_ERROR_READ;
+    }
+
+    if (!obj_add_field_json(pkt, "version", json_object_new_int(aead.version)) ||
+        !obj_add_intstr_json(pkt, "algorithm", aead.ealg, symm_alg_map) ||
+        !obj_add_intstr_json(pkt, "aead algorithm", aead.aalg, aead_alg_map) ||
+        !obj_add_field_json(pkt, "chunk size", json_object_new_int(aead.csize)) ||
+        !obj_add_hex_json(pkt, "aead iv", aead.iv, aead.ivlen)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
