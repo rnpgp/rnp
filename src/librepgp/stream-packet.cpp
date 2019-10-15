@@ -36,6 +36,7 @@
 #include "stream-packet.h"
 #include "stream-key.h"
 #include "utils.h"
+#include <algorithm>
 
 uint32_t
 read_uint32(const uint8_t *buf)
@@ -696,52 +697,98 @@ packet_body_part_from_mem(pgp_packet_body_t *body, const void *mem, size_t len)
     body->allocated = len;
 }
 
-rnp_result_t
-stream_skip_packet(pgp_source_t *src)
+static rnp_result_t
+stream_read_packet_indeterminate(pgp_source_t *src, pgp_dest_t *dst)
 {
-    ssize_t len;
-    ssize_t partlen;
-    bool    last = true;
-
-    if (stream_intedeterminate_pkt_len(src)) {
-        while (!src_eof(src)) {
-            if (src_skip(src, PGP_MAX_PKT_SIZE) < 0) {
-                return RNP_ERROR_READ;
-            }
+    uint8_t *buf = NULL;
+    buf = (uint8_t*) malloc(PGP_INPUT_CACHE_SIZE);
+    if (!buf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    while (!src_eof(src)) {
+        ssize_t len = src_read(src, buf, PGP_INPUT_CACHE_SIZE);
+        if (len < 0) {
+            free(buf);
+            return RNP_ERROR_READ;
         }
-        return RNP_SUCCESS;
+        if (dst) {
+            dst_write(dst, buf, len);
+        }
     }
 
-    if (stream_partial_pkt_len(src)) {
-        src_skip(src, 1);
-        partlen = stream_read_partial_chunk_len(src, &last);
-        while (partlen > 0) {
-            if (src_skip(src, partlen) != partlen) {
-                return RNP_ERROR_READ;
-            }
-            if (last) {
-                break;
-            }
-            partlen = stream_read_partial_chunk_len(src, &last);
-            if (partlen < 0) {
-                return RNP_ERROR_BAD_FORMAT;
-            }
-        }
-        return RNP_SUCCESS;
-    }
+    free(buf);
+    return RNP_SUCCESS;
+}
 
-    len = stream_read_pkt_len(src);
-    if (len <= 0) {
+static rnp_result_t
+stream_read_packet_partial(pgp_source_t *src, pgp_dest_t *dst)
+{
+    if (src_skip(src, 1) != 1) {
         return RNP_ERROR_READ;
-    } else if (len > PGP_MAX_PKT_SIZE) {
-        RNP_LOG("too large packet");
+    }
+
+    bool last = false;
+    ssize_t partlen = stream_read_partial_chunk_len(src, &last);
+    if (partlen < 0) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (src_skip(src, len) != len) {
-        return RNP_ERROR_READ;
+    uint8_t *buf = (uint8_t*) malloc(PGP_INPUT_CACHE_SIZE);
+    if (!buf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    return RNP_SUCCESS;
+
+    while (partlen > 0) {
+        ssize_t read = std::min(partlen, (ssize_t) PGP_INPUT_CACHE_SIZE);
+        if (src_read(src, buf, read) != read) {
+            free(buf);
+            return RNP_ERROR_READ;
+        }
+        if (dst) {
+            dst_write(dst, buf, read);
+        }
+        partlen -= read;
+        if (partlen > 0) {
+            continue;
+        }
+        if (last) {
+            break;
+        }
+        partlen = stream_read_partial_chunk_len(src, &last);
+        if (partlen < 0) {
+            free(buf);
+            return RNP_ERROR_BAD_FORMAT;
+        }
+    }
+    free(buf);
+    return RNP_SUCCESS;   
+}
+
+rnp_result_t
+stream_read_packet(pgp_source_t *src, pgp_dest_t *dst)
+{
+    if (stream_intedeterminate_pkt_len(src)) {
+        return stream_read_packet_indeterminate(src, dst);
+    }
+
+    if (stream_partial_pkt_len(src)) {
+        return stream_read_packet_partial(src, dst);
+    }
+
+    pgp_packet_body_t body = {};
+    rnp_result_t ret = stream_read_packet_body(src, &body);
+    if (dst) {
+        dst_write(dst, body.data, body.len);
+    }
+
+    free_packet_body(&body);
+    return ret;
+}
+
+rnp_result_t
+stream_skip_packet(pgp_source_t *src)
+{
+    return stream_read_packet(src, NULL);
 }
 
 bool
