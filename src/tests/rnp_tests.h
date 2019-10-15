@@ -256,6 +256,8 @@ void test_dsa_verify_negative(void **state);
 
 void test_stream_memory(void **state);
 
+void test_stream_memory_discard(void **state);
+
 void test_stream_file(void **state);
 
 void test_stream_signatures(void **state);

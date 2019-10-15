@@ -314,6 +314,12 @@ rnp_result_t init_stdout_dest(pgp_dest_t *dst);
  **/
 rnp_result_t init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len);
 
+/** @brief set whether to silently discard bytes which overflow memory of the dst.
+ *  @param dst pre-allocated and initialized memory dest
+ *  @param discard true to discard or false to return an error on overflow.
+ **/
+void mem_dest_discard_overflow(pgp_dest_t *dst, bool discard);
+
 /** @brief get the pointer to the memory where data is written.
  *  Do not retain the result, it may change betweeen calls due to realloc
  *  @param dst pre-allocated and initialized memory dest

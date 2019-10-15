@@ -441,6 +441,7 @@ typedef struct pgp_dest_mem_param_t {
     unsigned allocated;
     void *   memory;
     bool     free;
+    bool     discard_overflow;
 } pgp_dest_mem_param_t;
 
 static ssize_t
@@ -624,7 +625,9 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         /* here everything will fit into the cache or cache is empty */
         if (dst->no_cache || (len > sizeof(dst->cache))) {
             dst->werr = dst->write(dst, buf, len);
-            dst->writeb += len;
+            if (!dst->werr) {
+                dst->writeb += len;
+            }
         } else {
             memcpy(dst->cache + dst->clen, buf, len);
             dst->clen += len;
@@ -918,7 +921,14 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    /* checking whether we need to realloc */
+    /* checking whether we need to realloc or discard extra bytes */
+    if (param->discard_overflow && (dst->writeb >= param->allocated)) {
+        return RNP_SUCCESS;
+    }
+    if (param->discard_overflow && (dst->writeb + len > param->allocated)) {
+        len = param->allocated - dst->writeb;
+    }
+
     if (dst->writeb + len > param->allocated) {
         if ((param->maxalloc > 0) && (dst->writeb + len > param->maxalloc)) {
             RNP_LOG("attempt to alloc more then allowed");
@@ -940,7 +950,6 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     memcpy((uint8_t *) param->memory + dst->writeb, buf, len);
-
     return RNP_SUCCESS;
 }
 
@@ -981,6 +990,20 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
     dst->no_cache = true;
 
     return RNP_SUCCESS;
+}
+
+void
+mem_dest_discard_overflow(pgp_dest_t *dst, bool discard)
+{
+    if (dst->type != PGP_STREAM_MEMORY) {
+        RNP_LOG("wrong function call");
+        return;
+    }
+
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
+    if (param) {
+        param->discard_overflow = discard;
+    }
 }
 
 void *
