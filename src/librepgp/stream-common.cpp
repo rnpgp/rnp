@@ -42,6 +42,7 @@
 #include "stream-common.h"
 #include "types.h"
 #include "utils.h"
+#include <algorithm>
 
 ssize_t
 src_read(pgp_source_t *src, void *buf, size_t len)
@@ -198,7 +199,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len)
 ssize_t
 src_skip(pgp_source_t *src, size_t len)
 {
-    ssize_t res;
+    ssize_t res = 0;
     void *  buf;
     uint8_t sbuf[16];
 
@@ -210,17 +211,24 @@ src_skip(pgp_source_t *src, size_t len)
 
     if (len < sizeof(sbuf)) {
         return src_read(src, sbuf, len);
-    } else {
-        buf = calloc(1, len);
-
-        if (buf == NULL) {
-            return -1;
-        } else {
-            res = src_read(src, buf, len);
-            free(buf);
-            return res;
-        }
     }
+    
+    buf = calloc(1, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
+    if (!buf) {
+        return -1;
+    }
+    
+    while ((len > 0) && !src_eof(src)) {
+        ssize_t opres = src_read(src, buf, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
+        if (opres < 0) {
+            free(buf);
+            return opres;
+        }
+        res += opres;
+        len -= opres;
+    }
+    free(buf);
+    return res;
 }
 
 rnp_result_t
