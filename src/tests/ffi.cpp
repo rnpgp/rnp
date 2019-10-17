@@ -736,6 +736,21 @@ getpasscb_once(rnp_ffi_t        ffi,
     return true;
 }
 
+static bool
+getpasscb_inc(rnp_ffi_t        ffi,
+               void *           app_ctx,
+               rnp_key_handle_t key,
+               const char *     pgp_context,
+               char *           buf,
+               size_t           buf_len)
+{
+    int *num = (int *) app_ctx;
+    std::string pass = "pass" + std::to_string(*num);
+    (*num)++;
+    strncpy(buf, pass.c_str(), buf_len - 1);
+    return true;
+}
+
 static void
 check_key_properties(rnp_key_handle_t key,
                      bool             primary_exptected,
@@ -2536,6 +2551,76 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     // compare the decrypted file
     assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
     // final cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_encrypt_pass_provider)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    const char *     plaintext = "Data encrypted with password provided via password provider.";
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // write out some data
+    FILE *fp = fopen("plaintext", "w");
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
+    // create input + output
+    assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    // create encrypt operation
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    // add password with NULL password provider set - should fail
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
+    assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, NULL, 0, NULL));
+    // add password with password provider set.
+    int pswdnum = 1;
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_inc, &pswdnum));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, NULL, 0, NULL));
+    // add another password with different encryption parameters
+    assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "Twofish"));
+    // set the data encryption cipher
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "Camellia256"));
+    // execute the operation
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    // make sure the output file was created
+    assert_true(rnp_file_exists("encrypted"));
+
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    op = NULL;
+
+    /* decrypt with pass1 */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass1"));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    input = NULL;
+    rnp_output_destroy(output);
+    output = NULL;
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    unlink("decrypted");
+
+    /* decrypt with pass2 via provider */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    pswdnum = 2;
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_inc, &pswdnum));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    unlink("decrypted");
+
     rnp_ffi_destroy(ffi);
 }
 

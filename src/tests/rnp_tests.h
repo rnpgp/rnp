@@ -190,6 +190,8 @@ void test_ffi_save_keys(void **state);
 
 void test_ffi_encrypt_pass(void **state);
 
+void test_ffi_encrypt_pass_provider(void **state);
+
 void test_ffi_encrypt_pk(void **state);
 
 void test_ffi_encrypt_and_sign(void **state);
