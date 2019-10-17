@@ -250,6 +250,8 @@ void test_ffi_literal_filename(void **state);
 
 void test_ffi_op_set_hash(void **state);
 
+void test_ffi_aead_params(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
