@@ -600,3 +600,36 @@ fmt(const char *format, ...)
     buf.resize(size);
     return buf;
 }
+
+bool
+check_json_field_str(json_object *obj, const std::string &field, const std::string &value)
+{
+    if (!obj || !json_object_is_type(obj, json_type_object)) {
+      return false;
+    }
+    json_object *fld = NULL;
+    if (!json_object_object_get_ex(obj, field.c_str(), &fld)) {
+      return false;
+    }
+    if (!json_object_is_type(fld, json_type_string)) {
+        return false;
+    }
+    const char *jsoval = json_object_get_string(fld);
+    return jsoval && (value == jsoval);
+}
+
+bool
+check_json_field_int(json_object *obj, const std::string &field, int value)
+{
+    if (!obj || !json_object_is_type(obj, json_type_object)) {
+      return false;
+    }
+    json_object *fld = NULL;
+    if (!json_object_object_get_ex(obj, field.c_str(), &fld)) {
+      return false;
+    }
+    if (!json_object_is_type(fld, json_type_int)) {
+        return false;
+    }
+    return json_object_get_int(fld) == value;
+}
