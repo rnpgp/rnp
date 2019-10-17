@@ -5551,3 +5551,116 @@ TEST_F(rnp_tests, test_ffi_op_set_hash)
     rnp_buffer_destroy(signed_buf);
     rnp_ffi_destroy(ffi);
 }
+
+static bool
+check_json_pkt_type(json_object *pkt, int tag)
+{
+    if (!pkt || !json_object_is_type(pkt, json_type_object)) {
+      return false;
+    }
+    json_object *hdr = NULL;
+    if (!json_object_object_get_ex(pkt, "header", &hdr)) {
+      return false;
+    }
+    if (!json_object_is_type(hdr, json_type_object)) {
+      return false;
+    }
+    return check_json_field_int(hdr, "tag", tag);
+}
+
+TEST_F(rnp_tests, test_ffi_aead_params)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_encrypt_t op = NULL;
+    const char *     plaintext = "Some data to encrypt using the AEAD-EAX and AEAD-OCB encryption.";
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    // write out some data
+    FILE *fp = fopen("plaintext", "w");
+    assert_non_null(fp);
+    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
+    assert_int_equal(0, fclose(fp));
+
+    // create input+output
+    assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    assert_non_null(output);
+    // create encrypt operation
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    // setup AEAD params
+    assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
+    assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, -1));
+    assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, 60));
+    assert_rnp_success(rnp_op_encrypt_set_aead_bits(op, 10));
+    // add password (using all defaults)
+    assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
+    // execute the operation
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+    // make sure the output file was created
+    assert_true(rnp_file_exists("encrypted"));
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+    op = NULL;
+
+    // list packets
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_non_null(input);
+    char *json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_rnp_success(rnp_input_destroy(input));
+    input = NULL;
+    json_object *jso = json_tokener_parse(json);
+    rnp_buffer_destroy(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    /* check the symmetric-key encrypted session key packet */
+    json_object *pkt = json_object_array_get_idx(jso, 0);
+    assert_true(check_json_pkt_type(pkt, PGP_PTAG_CT_SK_SESSION_KEY));
+    assert_true(check_json_field_int(pkt, "version", 5));
+    assert_true(check_json_field_str(pkt, "aead algorithm.str", "OCB"));
+    /* check the aead-encrypted packet */
+    pkt = json_object_array_get_idx(jso, 1);
+    assert_true(check_json_pkt_type(pkt, PGP_PTAG_CT_AEAD_ENCRYPTED));
+    assert_true(check_json_field_int(pkt, "version", 1));
+    assert_true(check_json_field_str(pkt, "aead algorithm.str", "OCB"));
+    assert_true(check_json_field_int(pkt, "chunk size", 10));
+    json_object_put(jso);
+
+    /* decrypt */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_non_null(output);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass1"));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    // cleanup
+    rnp_input_destroy(input);
+    input = NULL;
+    rnp_output_destroy(output);
+    output = NULL;
+    // compare the decrypted file
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    unlink("decrypted");
+
+    // final cleanup
+    rnp_ffi_destroy(ffi);
+}
