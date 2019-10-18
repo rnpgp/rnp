@@ -424,6 +424,7 @@ TEST_F(rnp_tests, test_cli_rnpkeys)
 {
     int ret;
     assert_int_equal(0, call_rnp("rnpkeys", "--version", NULL));
+    assert_int_equal(0, call_rnp("rnpkeys", "--version", NULL));
 
     /* test keys listing */
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", NULL);
