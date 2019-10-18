@@ -204,6 +204,8 @@ void test_ffi_signatures_detached(void **state);
 
 void test_ffi_signatures(void **state);
 
+void test_ffi_signatures_dump(void **state);
+
 void test_ffi_encrypt_pk_key_provider(void **state);
 
 void test_ffi_key_to_json(void **state);
