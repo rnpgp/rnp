@@ -169,5 +169,8 @@ bool ends_with(const std::string &data, const std::string &match);
 
 std::string fmt(const char *format, ...);
 
-bool check_json_field_str(json_object *obj, const std::string &field, const std::string &value);
+bool check_json_field_str(json_object *      obj,
+                          const std::string &field,
+                          const std::string &value);
 bool check_json_field_int(json_object *obj, const std::string &field, int value);
+bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
