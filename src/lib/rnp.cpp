@@ -156,6 +156,7 @@ struct rnp_op_verify_st {
     /* these fields are filled after operation execution */
     rnp_op_verify_signature_t signatures;
     size_t                    signature_count;
+    bool                      is_signed;
     char *                    filename;
     uint32_t                  file_mtime;
 };
@@ -2563,6 +2564,7 @@ rnp_op_verify_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
     struct rnp_op_verify_signature_st res;
     rnp_op_verify_t                   op = (rnp_op_verify_t) param;
 
+    op->is_signed = true;
     op->signatures = (rnp_op_verify_signature_t) calloc(count, sizeof(*op->signatures));
     if (!op->signatures) {
         // TODO: report allocation error?
@@ -2683,6 +2685,17 @@ rnp_op_verify_execute(rnp_op_verify_t op)
         op->output->keep = ret == RNP_SUCCESS;
     }
     return ret;
+}
+
+rnp_result_t
+rnp_op_verify_is_signed(rnp_op_verify_t op, bool *is_signed)
+{
+    if (!op || !is_signed) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    *is_signed = op->is_signed;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t

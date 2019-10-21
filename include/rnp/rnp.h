@@ -1487,6 +1487,14 @@ rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
  */
 rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
 
+/** @brief Check whether underlying data of verification operation was actually signed.
+ *         This is needed to distinguish just encrypted data from encrypted and signed/just signed.
+ *  @param op opaque verification context. Must be initialized and have execute() called on it.
+ *  @param signed true will be stored here if .
+ *  @return RNP_SUCCESS if call succeeded.
+ */
+rnp_result_t rnp_op_verify_is_signed(rnp_op_verify_t op, bool *is_signed);
+
 /** @brief Get number of the signatures for verified data.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
  *  @param count result will be stored here on success.
