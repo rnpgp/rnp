@@ -601,15 +601,21 @@ fmt(const char *format, ...)
     return buf;
 }
 
-bool
-check_json_field_str(json_object *obj, const std::string &field, const std::string &value)
+static bool
+jso_get_field(json_object *obj, json_object **fld, const std::string &name)
 {
     if (!obj || !json_object_is_type(obj, json_type_object)) {
       return false;
     }
+    return json_object_object_get_ex(obj, name.c_str(), fld);
+}
+
+bool
+check_json_field_str(json_object *obj, const std::string &field, const std::string &value)
+{
     json_object *fld = NULL;
-    if (!json_object_object_get_ex(obj, field.c_str(), &fld)) {
-      return false;
+    if (!jso_get_field(obj, &fld, field)) {
+        return false;
     }
     if (!json_object_is_type(fld, json_type_string)) {
         return false;
@@ -621,15 +627,25 @@ check_json_field_str(json_object *obj, const std::string &field, const std::stri
 bool
 check_json_field_int(json_object *obj, const std::string &field, int value)
 {
-    if (!obj || !json_object_is_type(obj, json_type_object)) {
-      return false;
-    }
     json_object *fld = NULL;
-    if (!json_object_object_get_ex(obj, field.c_str(), &fld)) {
-      return false;
+    if (!jso_get_field(obj, &fld, field)) {
+        return false;
     }
     if (!json_object_is_type(fld, json_type_int)) {
         return false;
     }
     return json_object_get_int(fld) == value;
+}
+
+bool
+check_json_field_bool(json_object *obj, const std::string &field, bool value)
+{
+    json_object *fld = NULL;
+    if (!jso_get_field(obj, &fld, field)) {
+        return false;
+    }
+    if (!json_object_is_type(fld, json_type_boolean)) {
+        return false;
+    }
+    return json_object_get_boolean(fld) == value;
 }
