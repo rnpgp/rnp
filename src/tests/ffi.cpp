@@ -5514,3 +5514,40 @@ TEST_F(rnp_tests, test_ffi_literal_filename)
     rnp_buffer_destroy(json);
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_op_set_hash)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_sign_t   op = NULL;
+    uint8_t *       signed_buf;
+    size_t          signed_len;
+
+    // init ffi
+    test_ffi_init(&ffi);
+    // init input
+    test_ffi_init_sign_memory_input(&input, &output);
+    // create signature operation
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(&ffi, &op);
+    // make sure it doesn't fail on NULL hash value
+    assert_rnp_failure(rnp_op_sign_set_hash(op, NULL));
+    assert_rnp_failure(rnp_op_sign_set_hash(op, "Unknown"));
+    assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
+    // execute the operation
+    assert_rnp_success(rnp_op_sign_execute(op));
+    // make sure the output file was created
+    assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
+    assert_non_null(signed_buf);
+    assert_true(signed_len > 0);
+
+    // cleanup
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_sign_destroy(op));
+
+    rnp_buffer_destroy(signed_buf);
+    rnp_ffi_destroy(ffi);
+}
