@@ -124,7 +124,8 @@ cache:
 before_install:
   - . ci/env.inc.sh
   - ./ci/before_install.sh
-  - rvm use 2.4.6 --install --binary
+  - rvm use 2.4.6 --install --disable-binary
+  - rvm 2.4.6 --verbose do gem install bundler -v 1.16.4
 
 install:
   - . ci/env.inc.sh
