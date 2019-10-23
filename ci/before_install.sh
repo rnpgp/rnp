@@ -21,11 +21,14 @@ freebsd_install() {
     libtool
     gettext-tools
     python
-    ruby
-    devel/ruby-gems
+    ruby25
 "
   # Note: we assume sudo is already installed
   sudo pkg install -y ${packages}
+
+  cd /usr/ports/devel/ruby-gems
+  sudo make -DBATCH RUBY_VER=2.5 install
+  cd
 
   mkdir -p ~/.gnupg
   echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
