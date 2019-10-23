@@ -26,6 +26,9 @@ freebsd_install() {
 "
   # Note: we assume sudo is already installed
   sudo pkg install -y ${packages}
+
+  mkdir -p ~/.gnupg
+  echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
   dirmngr </dev/null
   dirmngr --daemon
 }
