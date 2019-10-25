@@ -5910,3 +5910,75 @@ TEST_F(rnp_tests, test_ffi_detached_verify_input)
     rnp_output_destroy(output);
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_op_verify_is_signed)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+
+    // init ffi
+    test_ffi_init(&ffi);
+
+    /* signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    bool is_signed = false;
+    assert_rnp_failure(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_failure(rnp_op_verify_is_signed(verify, NULL));
+    assert_rnp_success(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_true(is_signed);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* detached signature */
+    rnp_input_t source = NULL;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_true(is_signed);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    /* encrypted message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.encrypted"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_false(is_signed);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* encrypted and signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed-encrypted"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_true(is_signed);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* cleartext signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_is_signed(verify, &is_signed));
+    assert_true(is_signed);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
