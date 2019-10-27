@@ -74,7 +74,6 @@ rnp_tests.rnpkeys_generatekey_verifySupportedHashAlg 1 0.795177
 rnp_tests.rnpkeys_generatekey_verifyUserIdOption 1 0.770186
 rnp_tests.rnpkeys_generatekey_verifykeyHomeDirOption 1 0.340555
 rnp_tests.rnpkeys_generatekey_verifykeyKBXHomeDirOption 1 0.273257
-rnp_tests.rnpkeys_generatekey_verifykeyNonexistingHomeDir 1 0.0117318
 rnp_tests.rnpkeys_generatekey_verifykeyHomeDirNoPermission 1 0.104627
 rnp_tests.rnpkeys_generatekey_testExpertMode 1 3.44712
 rnp_tests.generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted 1 0.0239689
