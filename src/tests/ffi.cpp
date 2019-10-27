@@ -5910,3 +5910,168 @@ TEST_F(rnp_tests, test_ffi_detached_verify_input)
     rnp_output_destroy(output);
     rnp_ffi_destroy(ffi);
 }
+
+static bool
+check_signature(rnp_op_verify_t op, size_t idx, rnp_result_t status)
+{
+    rnp_op_verify_signature_t sig = NULL;
+    if (rnp_op_verify_get_signature_at(op, idx, &sig)) {
+        return false;
+    }
+    return rnp_op_verify_signature_get_status(sig) == status;
+}
+
+TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+
+    // init ffi
+    test_ffi_init(&ffi);
+
+    /* signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    size_t sigcount = 0;
+    assert_rnp_failure(rnp_op_verify_get_signature_count(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* signed with unknown key */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed.unknown"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_KEY_NOT_FOUND));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* signed with malformed signature (bad version) */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed.malfsig"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* signed with invalid signature (modified hash alg) */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed.invsig"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* signed without the signature */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed.nosig"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* detached signature */
+    rnp_input_t source = NULL;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    /* malformed detached signature */
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig.malf"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    /* encrypted message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.encrypted"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* encrypted and signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed-encrypted"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* cleartext signed message */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* cleartext signed with malformed signature (wrong mpi len) */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-malf"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* cleartext signed without the signature */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-nosig"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}
