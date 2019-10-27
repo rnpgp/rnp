@@ -39,6 +39,7 @@
 #include "librepgp/stream-key.h"
 #include "defaults.h"
 #include "utils.h"
+#include <fstream>
 
 extern rng_t global_rng;
 
@@ -97,24 +98,18 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
      */
 
     const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
-    rnp_t        rnp;
-    rnp_ctx_t    ctx;
-    rnp_result_t ret;
-    size_t       reslen;
-    size_t       siglen;
     int          pipefd[2];
     char         memToSign[] = "A simple test message";
-    char         signatureBuf[4096] = {0};
-    char         recoveredSig[4096] = {0};
-    char         userId[128];
+    cli_rnp_t    rnp;
+
+    std::ofstream out("dummyfile.dat");
+    out << memToSign;
+    out.close();
 
     for (int i = 0; hashAlg[i] != NULL; i++) {
+        std::string userId = std::string("sigtest_") + hashAlg[i];
         /* Generate key for test */
-        memset(userId, 0, sizeof(userId));
-        strcpy(userId, "sigtest_");
-        strcat(userId, hashAlg[i]);
-
-        assert_true(generate_test_key(RNP_KEYSTORE_GPG, userId, DEFAULT_HASH_ALG, NULL));
+        assert_true(generate_test_key(RNP_KEYSTORE_GPG, userId.c_str(), DEFAULT_HASH_ALG, NULL));
 
         for (unsigned int cleartext = 0; cleartext <= 1; ++cleartext) {
             for (unsigned int armored = 0; armored <= 1; ++armored) {
@@ -122,75 +117,69 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                     // This combination doesn't make sense
                     continue;
                 }
-
                 /* Setup password input and rnp structure */
-                assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
-
+                assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
                 /* Load keyring */
-                assert_true(rnp_load_keyrings(&rnp, true));
-                assert_true(rnp_key_store_get_key_count(rnp.secring) > 0);
+                assert_true(cli_rnp_load_keyrings(&rnp, true));
+                size_t seccount = 0;
+                assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
+                assert_true(seccount > 0);
 
                 /* Setup signing context */
-                rnp_ctx_init(&ctx, &rnp.rng);
-                ctx.armor = armored;
-                ctx.halg = pgp_str_to_hash_alg(hashAlg[i]);
-                ctx.filename = strdup("dummyfile.dat");
-                ctx.clearsign = cleartext;
-                assert_int_not_equal(ctx.halg, PGP_HASH_UNKNOWN);
-                rnp_signer_info_t sinfo = {};
-                sinfo.key = rnp_key_store_get_key_by_name(rnp.secring, userId, NULL);
-                sinfo.halg = ctx.halg;
-                assert_non_null(sinfo.key);
-                assert_non_null(list_append(&ctx.signers, &sinfo, sizeof(sinfo)));
+                rnp_cfg_t cfg = {};
+                rnp_cfg_init(&cfg);
+                rnp_cfg_load_defaults(&cfg);
+                rnp_cfg_setbool(&cfg, CFG_ARMOR, armored);
+                rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
+                rnp_cfg_setstr(&cfg, CFG_HASH, hashAlg[i]);
+                rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+                rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+                rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+                rnp_cfg_setbool(&cfg, CFG_CLEARTEXT, cleartext);
+                rnp_cfg_addstr(&cfg, CFG_SIGNERS, userId.c_str());
 
-                /* Signing the memory */
-                ret = rnp_protect_mem(&rnp,
-                                      &ctx,
-                                      memToSign,
-                                      strlen(memToSign),
-                                      signatureBuf,
-                                      sizeof(signatureBuf),
-                                      &siglen);
-
-                /* Make sure operation succeeded, and cleanup */
-                assert_int_equal(ret, RNP_SUCCESS);
+                /* Sign the file */
+                assert_true(cli_rnp_protect_file(&cfg, &rnp));
                 close(pipefd[0]);
-                rnp_ctx_free(&ctx);
+                rnp_cfg_free(&cfg);
 
-                /* Verify the memory */
-                rnp_ctx_init(&ctx, &rnp.rng);
-                ctx.armor = armored;
-                ret = rnp_process_mem(&rnp,
-                                      &ctx,
-                                      signatureBuf,
-                                      siglen,
-                                      recoveredSig,
-                                      sizeof(recoveredSig),
-                                      &reslen);
+                /* Verify the file */
+                rnp_cfg_init(&cfg);
+                rnp_cfg_load_defaults(&cfg);
+                rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+                rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
+                rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.verify");
+                assert_true(cli_rnp_process_file(&cfg, &rnp));
+
                 /* Ensure signature verification passed */
-                assert_int_equal(ret, RNP_SUCCESS);
+                std::string verify = file_to_str("dummyfile.verify");
                 if (cleartext) {
-                    rnp_strip_eol(recoveredSig);
+                    verify = strip_eol(verify);
                 }
-                assert_string_equal(recoveredSig, memToSign);
+                assert_true(verify == memToSign);
 
-                /* Corrupt the signature */
-                /* TODO be smarter about this */
-                signatureBuf[siglen / 2] ^= 0x0C;
+                /* Corrupt the signature if not armored/cleartext */
+                if (!cleartext && !armored) {
+                    std::fstream verf("dummyfile.dat.pgp", std::ios_base::binary | std::ios_base::out | std::ios_base::in);
+                    off_t versize = file_size("dummyfile.dat.pgp");
+                    verf.seekg(versize - 10, std::ios::beg);
+                    char sigch = 0;
+                    verf.read(&sigch, 1);
+                    sigch = sigch ^ 0xff;
+                    verf.seekg(versize - 10, std::ios::beg);
+                    verf.write(&sigch, 1);
+                    verf.close();
+                    assert_false(cli_rnp_process_file(&cfg, &rnp));
+                }
 
-                ret = rnp_process_mem(&rnp,
-                                      &ctx,
-                                      signatureBuf,
-                                      siglen,
-                                      recoveredSig,
-                                      sizeof(recoveredSig),
-                                      &reslen);
-                /* Ensure that signature verification fails */
-                assert_int_not_equal(ret, RNP_SUCCESS);
-                rnp_end(&rnp);
+                cli_rnp_end(&rnp);
+                rnp_cfg_free(&cfg);
+                assert_int_equal(unlink("dummyfile.dat.pgp"), 0);
+                unlink("dummyfile.verify");
             }
         }
     }
+    assert_int_equal(unlink("dummyfile.dat"), 0);
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
@@ -207,76 +196,66 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
                                "Camellia256",
                                NULL};
 
-    rnp_t       rnp = {};
-    rnp_ctx_t   ctx = {};
+    cli_rnp_t   rnp = {};
     char        memToEncrypt[] = "A simple test message";
-    char        ciphertextBuf[4096] = {0};
-    char        plaintextBuf[4096] = {0};
     int         pipefd[2] = {0};
     const char *userid = "ciphertest";
 
-    assert_true(generate_test_key(RNP_KEYSTORE_GPG, userid, "SHA256", NULL));
+    std::ofstream out("dummyfile.dat");
+    out << memToEncrypt;
+    out.close();
 
+    assert_true(generate_test_key(RNP_KEYSTORE_GPG, userid, "SHA256", NULL));
     for (int i = 0; cipherAlg[i] != NULL; i++) {
         for (unsigned int armored = 0; armored <= 1; ++armored) {
-            /* setting up rnp and encrypting memory */
-            assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
-
+            /* Set up rnp and encrypt the dataa */
+            assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
             /* Load keyring */
-            assert_true(rnp_load_keyrings(&rnp, false));
-            assert_int_equal(0, rnp_key_store_get_key_count(rnp.secring));
+            assert_true(cli_rnp_load_keyrings(&rnp, false));
+            size_t seccount = 0;
+            assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
+            assert_true(seccount == 0);
+            /* Set the cipher and armored flags */
+            rnp_cfg_t cfg = {};
+            rnp_cfg_init(&cfg);
+            rnp_cfg_load_defaults(&cfg);
+            rnp_cfg_setbool(&cfg, CFG_ARMOR, armored);
+            rnp_cfg_setbool(&cfg, CFG_ENCRYPT_PK, true);
+            rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+            rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+            rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+            rnp_cfg_setstr(&cfg, CFG_CIPHER, cipherAlg[i]);
+            rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, userid);
+            /* Encrypt the file */
+            assert_true(cli_rnp_protect_file(&cfg, &rnp));
+            rnp_cfg_free(&cfg);
+            cli_rnp_end(&rnp);
 
-            /* setting the cipher and armored flags */
-            rnp_ctx_init(&ctx, &rnp.rng);
-            ctx.armor = armored;
-            ctx.filename = strdup("dummyfile.dat");
-            ctx.ealg = pgp_str_to_cipher(cipherAlg[i]);
-            /* checking whether we have correct cipher constant */
-            assert_true((ctx.ealg != DEFAULT_PGP_SYMM_ALG) ||
-                        (strcmp(cipherAlg[i], "AES256") == 0));
-            pgp_key_t *key;
-            assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
-            assert_non_null(list_append(&ctx.recipients, &key, sizeof(key)));
-            /* Encrypting the memory */
-            size_t       reslen = 0;
-            rnp_result_t ret = rnp_protect_mem(&rnp,
-                                               &ctx,
-                                               memToEncrypt,
-                                               strlen(memToEncrypt),
-                                               ciphertextBuf,
-                                               sizeof(ciphertextBuf),
-                                               &reslen);
-            assert_int_equal(ret, RNP_SUCCESS);
-            rnp_ctx_free(&ctx);
-            rnp_end(&rnp);
-
-            /* Setting up rnp again and decrypting memory */
-            assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
-
-            /* Loading the keyrings */
-            assert_true(rnp_load_keyrings(&rnp, true));
-            assert_true(rnp_key_store_get_key_count(rnp.secring) > 0);
-
-            /* Setting the decryption context */
-            rnp_ctx_init(&ctx, &rnp.rng);
-            ctx.armor = armored;
-
-            /* Decrypting the memory */
-            size_t tmp = sizeof(plaintextBuf);
-            assert_int_equal(
-
-              rnp_process_mem(
-                &rnp, &ctx, ciphertextBuf, reslen, plaintextBuf, sizeof(plaintextBuf), &tmp),
-              RNP_SUCCESS);
+            /* Set up rnp again and decrypt the file */
+            assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
+            /* Load the keyrings */
+            assert_true(cli_rnp_load_keyrings(&rnp, true));
+            assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
+            assert_true(seccount > 0);
+            /* Setup the decryption context and decrypt */
+            rnp_cfg_init(&cfg);
+            rnp_cfg_load_defaults(&cfg);
+            rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+            rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
+            rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.decrypt");
+            assert_true(cli_rnp_process_file(&cfg, &rnp));
+            rnp_cfg_free(&cfg);
+            cli_rnp_end(&rnp);
+            close(pipefd[0]);
 
             /* Ensure plaintext recovered */
-            assert_int_equal(tmp, strlen(memToEncrypt));
-            assert_string_equal(memToEncrypt, plaintextBuf);
-            close(pipefd[0]);
-            rnp_ctx_free(&ctx);
-            rnp_end(&rnp);
+            std::string decrypt = file_to_str("dummyfile.decrypt");
+            assert_true(decrypt == memToEncrypt);
+            assert_int_equal(unlink("dummyfile.dat.pgp"), 0);
+            assert_int_equal(unlink("dummyfile.decrypt"), 0);
         }
     }
+    assert_int_equal(unlink("dummyfile.dat"), 0);
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
@@ -286,8 +265,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
 
     const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
-    rnp_t       rnp;
-    int         pipefd[2];
+    cli_rnp_t   rnp = {};
 
     for (size_t i = 0; i < ARRAY_SIZE(hashAlg); i++) {
         const char *keystore = keystores[i % ARRAY_SIZE(keystores)];
@@ -297,28 +275,21 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         /* Generate key with specified hash algorithm */
         assert_true(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL));
         /* Load and check key */
-        assert_true(setup_rnp_common(&rnp, keystore, NULL, pipefd));
+        assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
         /* Loading the keyrings */
-        assert_true(rnp_load_keyrings(&rnp, true));
+        assert_true(cli_rnp_load_keyrings(&rnp, true));
         /* Some minor checks */
-        assert_true(rnp_key_store_get_key_count(rnp.pubring) > 0);
-        assert_true(rnp_key_store_get_key_count(rnp.secring) > 0);
-        for (size_t i = 0; i < rnp_key_store_get_key_count(rnp.pubring); i++) {
-            assert_true(pgp_key_is_public(rnp_key_store_get_key(rnp.pubring, i)));
-        }
-
-        for (size_t i = 0; i < rnp_key_store_get_key_count(rnp.secring); i++) {
-            assert_true(pgp_key_is_secret(rnp_key_store_get_key(rnp.secring, i)));
-        }
-
-        // G10 doesn't support metadata
-        if (strcmp(keystore, RNP_KEYSTORE_G10) != 0) {
-            assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, hashAlg[i], NULL));
-        }
-
-        /* Close pipe and free allocated memory */
-        close(pipefd[0]);
-        rnp_end(&rnp); // Free memory and other allocated resources.
+        size_t keycount = 0;
+        assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+        assert_true(keycount > 0);
+        keycount = 0;
+        assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+        assert_true(keycount > 0);
+        rnp_key_handle_t handle = NULL;
+        assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", hashAlg[i], &handle));
+        assert_non_null(handle);
+        rnp_key_handle_destroy(handle);
+        cli_rnp_end(&rnp);
     }
 }
 
@@ -337,8 +308,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
                              "rnpkeys_generatekey_verifyUserIdOption_SHA224"};
 
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
-    rnp_t       rnp;
-    int         pipefd[2];
+    cli_rnp_t   rnp = {};
 
     for (size_t i = 0; i < ARRAY_SIZE(userIds); i++) {
         const char *keystore = keystores[i % ARRAY_SIZE(keystores)];
@@ -347,33 +317,32 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
         assert_true(generate_test_key(keystore, userIds[i], "SHA256", NULL));
 
         /* Initialize the basic RNP structure. */
-        assert_true(setup_rnp_common(&rnp, keystore, NULL, pipefd));
+        assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
         /* Load the newly generated rnp key*/
-        assert_true(rnp_load_keyrings(&rnp, true));
-        assert_true(rnp_key_store_get_key_count(rnp.pubring) > 0);
-        assert_true(rnp_key_store_get_key_count(rnp.secring) > 0);
+        assert_true(cli_rnp_load_keyrings(&rnp, true));
+        size_t keycount = 0;
+        assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+        assert_true(keycount > 0);
+        keycount = 0;
+        assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+        assert_true(keycount > 0);
 
-        // G10 doesn't support metadata
-        if (strcmp(keystore, RNP_KEYSTORE_G10) != 0) {
-            assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, userIds[i], NULL));
-        }
-
-        /* Close pipe and free allocated memory */
-        close(pipefd[0]);
-        rnp_end(&rnp); // Free memory and other allocated resources.
+        rnp_key_handle_t handle = NULL;
+        assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userIds[i], &handle));
+        assert_non_null(handle);
+        rnp_key_handle_destroy(handle);
+        cli_rnp_end(&rnp);
     }
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
 {
     /* Try to generate keypair in different home directories */
-
     char  newhome[256];
-    rnp_t rnp;
-    int   pipefd[2];
+    cli_rnp_t rnp = {};
 
     /* Initialize the rnp structure. */
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
 
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(".rnp/pubring.gpg", NULL));
@@ -387,28 +356,29 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(path_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(rnp_load_keyrings(&rnp, true));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.secring));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.pubring));
-    char userid[256] = {0};
-    snprintf(userid,
-             sizeof(userid),
-             "RSA (Encrypt or Sign) 1024-bit key <%s@localhost>",
-             getenv("LOGNAME"));
-    assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, userid, NULL));
+    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    size_t keycount = 0;
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
 
-    close(pipefd[0]);
-    rnp_end(&rnp);
+    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv("LOGNAME"));
+    rnp_key_handle_t handle = NULL;
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
+    assert_non_null(handle);
+    rnp_key_handle_destroy(handle);
+    cli_rnp_end(&rnp);
 
     /* Now we start over with a new home. When home is specified explicitly then it should
      * include .rnp as well */
-
     strcpy(newhome, "newhome/.rnp");
     path_mkdir(0700, "newhome", NULL);
     path_mkdir(0700, "newhome/.rnp", NULL);
 
     /* Initialize the rnp structure. */
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome, pipefd));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome, NULL));
 
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
@@ -422,39 +392,39 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(path_file_exists(newhome, "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(rnp_load_keyrings(&rnp, true));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.secring));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.pubring));
+    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    keycount = 0;
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
 
     /* We should not find this key */
-    assert_null(rnp_key_store_get_key_by_userid(rnp.pubring, userid, NULL));
-    assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, "newhomekey", NULL));
-
-    close(pipefd[0]);
-    rnp_end(&rnp); // Free memory and other allocated resources.
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
+    assert_null(handle);
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", "newhomekey", &handle));
+    assert_non_null(handle);
+    rnp_key_handle_destroy(handle);
+    cli_rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
 {
     /* Try to generate keypair in different home directories for KBX keystorage */
-
     const char *newhome = "newhome";
-    rnp_t       rnp;
-    int         pipefd[2];
+    cli_rnp_t   rnp = {};
 
     /* Initialize the rnp structure. */
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_KBX, NULL, pipefd));
-
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_KBX, NULL, NULL));
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(".rnp/pubring.kbx", NULL));
     assert_false(path_file_exists(".rnp/secring.kbx", NULL));
     assert_false(path_file_exists(".rnp/pubring.gpg", NULL));
     assert_false(path_file_exists(".rnp/secring.gpg", NULL));
-
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_KBX, NULL, "SHA256", NULL));
-
     /* Pubring and secring should now exist, but only for the KBX */
     assert_true(path_file_exists(".rnp/pubring.kbx", NULL));
     assert_true(path_file_exists(".rnp/secring.kbx", NULL));
@@ -462,25 +432,24 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     assert_false(path_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(rnp_load_keyrings(&rnp, true));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.secring));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.pubring));
-    char userid[256] = {0};
-    snprintf(userid,
-             sizeof(userid),
-             "RSA (Encrypt or Sign) 1024-bit key <%s@localhost>",
-             getenv("LOGNAME"));
-    assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, userid, NULL));
-
-    close(pipefd[0]);
-    rnp_end(&rnp);
+    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    size_t keycount = 0;
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv("LOGNAME"));
+    rnp_key_handle_t handle = NULL;
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
+    assert_non_null(handle);
+    rnp_key_handle_destroy(handle);
+    cli_rnp_end(&rnp);
 
     /* Now we start over with a new home. */
     path_mkdir(0700, newhome, NULL);
-
     /* Initialize the rnp structure. */
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_KBX, newhome, pipefd));
-
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_KBX, newhome, NULL));
     /* Pubring and secring should not exist yet */
     assert_false(path_file_exists(newhome, "pubring.kbx", NULL));
     assert_false(path_file_exists(newhome, "secring.kbx", NULL));
@@ -489,36 +458,32 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
 
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_KBX, "newhomekey", "SHA256", newhome));
-
     /* Pubring and secring should now exist, but only for the KBX */
     assert_true(path_file_exists(newhome, "pubring.kbx", NULL));
     assert_true(path_file_exists(newhome, "secring.kbx", NULL));
     assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
     assert_false(path_file_exists(newhome, "secring.gpg", NULL));
-
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(rnp_load_keyrings(&rnp, true));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.secring));
-    assert_int_equal(2, rnp_key_store_get_key_count(rnp.pubring));
+    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    keycount = 0;
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
     /* We should not find this key */
-    assert_null(rnp_key_store_get_key_by_userid(rnp.pubring, userid, NULL));
-    assert_non_null(rnp_key_store_get_key_by_userid(rnp.pubring, "newhomekey", NULL));
-
-    close(pipefd[0]);
-    rnp_end(&rnp);
-}
-
-TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyNonexistingHomeDir)
-{
-    /* This test is empty now since meaning of homedir was changed */
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
+    assert_null(handle);
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", "newhomekey", &handle));
+    assert_non_null(handle);
+    rnp_key_handle_destroy(handle);
+    cli_rnp_end(&rnp);
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirNoPermission)
 {
     const char *nopermsdir = "noperms";
-
     path_mkdir(0000, nopermsdir, NULL);
-
     /* Try to generate key in the directory and make sure generation fails */
     assert_false(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", nopermsdir));
 }
@@ -899,17 +864,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
     pgp_key_t *       primary_pub = NULL, *primary_sec = NULL;
     pgp_key_t *       sub_pub = NULL, *sub_sec = NULL;
     pgp_userid_pkt_t  uid = {0};
-    rnp_t             rnp;
-    rnp_ctx_t         rnp_ctx;
 
     // create a couple keyrings
     pubring = (rnp_key_store_t *) calloc(1, sizeof(*pubring));
     secring = (rnp_key_store_t *) calloc(1, sizeof(*secring));
     assert_non_null(pubring);
     assert_non_null(secring);
-
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
-    rnp_ctx_init(&rnp_ctx, &rnp.rng);
 
     uid.tag = PGP_PTAG_CT_USER_ID;
 
@@ -1134,6 +1094,4 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     rnp_key_store_free(pubring);
     rnp_key_store_free(secring);
-    rnp_ctx_free(&rnp_ctx);
-    rnp_end(&rnp);
 }
