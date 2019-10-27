@@ -45,6 +45,7 @@
 
 #include <crypto.h>
 #include <pgp-key.h>
+#include <fstream>
 
 extern rng_t global_rng;
 
@@ -101,6 +102,13 @@ file_contents(const char *path, ssize_t *size)
     }
     close(fd);
     return mem;
+}
+
+std::string
+file_to_str(const std::string &path)
+{
+    std::ifstream infile(path);
+    return std::string(std::istreambuf_iterator<char>(infile), std::istreambuf_iterator<char>());
 }
 
 off_t
@@ -599,6 +607,16 @@ fmt(const char *format, ...)
     // drop terminating null
     buf.resize(size);
     return buf;
+}
+
+std::string
+strip_eol(const std::string &str)
+{
+    size_t endpos = str.find_last_not_of("\r\n");
+    if (endpos != std::string::npos) {
+        return str.substr(0, endpos + 1);
+    }
+    return str;
 }
 
 static bool
