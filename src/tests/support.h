@@ -59,6 +59,9 @@ bool dir_exists(const char *path);
 /* Read file contents into the memory */
 uint8_t *file_contents(const char *path, ssize_t *size);
 
+/* Read file contents into the std::string */
+std::string file_to_str(const std::string &path);
+
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
  * Must be called in between va_start and va_end.
@@ -168,6 +171,7 @@ bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
 
 std::string fmt(const char *format, ...);
+std::string strip_eol(const std::string &str);
 
 bool check_json_field_str(json_object *      obj,
                           const std::string &field,
