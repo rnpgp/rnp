@@ -550,6 +550,19 @@ failing_password_callback(const pgp_password_ctx_t *ctx,
     return false;
 }
 
+bool
+ffi_failing_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    return false;
+}
+
+bool
+ffi_asserting_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    assert_false(true);
+    return false;
+}
+
 // this is a password callback that should never be called
 bool
 asserting_password_callback(const pgp_password_ctx_t *ctx,
