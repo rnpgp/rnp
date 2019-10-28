@@ -38,7 +38,6 @@
 #include <sys/stat.h>
 
 #include "rnp.h"
-#include "../rnp/rnpcli.h"
 #include "../rnp/fficli.h"
 
 /* Check if a file exists.
@@ -139,7 +138,6 @@ bool setupPasswordfd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * password fd */
-bool setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 bool setup_cli_rnp_common(cli_rnp_t * rnp,
                           const char *ks_format,
                           const char *homedir,
