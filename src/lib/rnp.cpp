@@ -1985,7 +1985,7 @@ rnp_op_set_armor(rnp_ctx_t *ctx, bool armored)
 static rnp_result_t
 rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, int level)
 {
-    if (!ctx) {
+    if (!ctx || !compression) {
         return RNP_ERROR_NULL_POINTER;
     }
 
