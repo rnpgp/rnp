@@ -57,20 +57,19 @@ find_subsig(const pgp_key_t *key, const char *userid)
 
 TEST_F(rnp_tests, test_load_user_prefs)
 {
-    rnp_t rnp;
-    int   pipefd[2];
+    rnp_key_store_t *pubring = NULL;
 
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1", pipefd));
-    assert_true(rnp_load_keyrings(&rnp, false));
-    assert_true(rnp_key_store_get_key_count(rnp.secring) == 0);
-    assert_true(rnp_key_store_get_key_count(rnp.pubring) == 7);
+    pubring = rnp_key_store_new("GPG", "data/keyrings/1/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_int_equal(rnp_key_store_get_key_count(pubring), 7);
 
     {
         const char *userid = "key1-uid0";
 
         // find the key
         pgp_key_t *key = NULL;
-        assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
+        assert_non_null(key = rnp_key_store_get_key_by_name(pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
@@ -115,7 +114,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
 
         // find the key
         pgp_key_t *key = NULL;
-        assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, userid, NULL));
+        assert_non_null(key = rnp_key_store_get_key_by_name(pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
@@ -163,6 +162,5 @@ TEST_F(rnp_tests, test_load_user_prefs)
     }
 
     /* Cleanup */
-    close(pipefd[0]);
-    rnp_end(&rnp);
+    rnp_key_store_free(pubring);
 }
