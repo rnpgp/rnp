@@ -67,12 +67,11 @@
  * can be used to attempt to disable core dumps which may leak
  * sensitive data.
  *
- * Returns 0 if disabling core dumps failed, returns 1 if disabling
- * core dumps succeeded, and returns -1 if an error occurred. errno
- * will be set to the result from setrlimit in the event of
- * failure.
+ * Returns false if disabling core dumps failed, returns true if disabling
+ * core dumps succeeded. errno will be set to the result from setrlimit in
+ * the event of failure.
  */
-static rnp_result_t
+static bool
 disable_core_dumps(void)
 {
     struct rlimit limit;
@@ -85,15 +84,15 @@ disable_core_dumps(void)
     if (error == 0) {
         error = getrlimit(RLIMIT_CORE, &limit);
         if (error) {
-            RNP_LOG("Warning - cannot turn off core dumps");
-            return RNP_ERROR_GENERIC;
+            ERR_MSG("Warning - cannot turn off core dumps");
+            return false;
         } else if (limit.rlim_cur == 0) {
-            return RNP_SUCCESS; // disabling core dumps ok
+            return true; // disabling core dumps ok
         } else {
-            return RNP_ERROR_GENERIC; // failed for some reason?
+            return false; // failed for some reason?
         }
     }
-    return RNP_ERROR_GENERIC;
+    return false;
 }
 #endif
 
@@ -105,7 +104,7 @@ set_pass_fd(FILE **file, int passfd)
     }
     *file = fdopen(passfd, "r");
     if (!*file) {
-        RNP_LOG("cannot open fd %d for reading", passfd);
+        ERR_MSG("cannot open fd %d for reading", passfd);
         return false;
     }
     return true;
@@ -350,7 +349,7 @@ cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
      */
     if (!rnp_cfg_getbool(cfg, CFG_COREDUMPS)) {
 #ifdef HAVE_SYS_RESOURCE_H
-        coredumps = disable_core_dumps() != RNP_SUCCESS;
+        coredumps = !disable_core_dumps();
 #endif
     }
 
@@ -535,7 +534,7 @@ cli_rnp_set_default_key(cli_rnp_t *rnp)
         return;
     }
 
-    while (rnp_identifier_iterator_next(it, &grip) == RNP_SUCCESS) {
+    while (!rnp_identifier_iterator_next(it, &grip)) {
         bool is_subkey = false;
         bool is_secret = false;
 
@@ -1124,7 +1123,7 @@ key_matching_string(cli_rnp_t *rnp, const std::string &str, bool secret)
         return NULL;
     }
 
-    while (rnp_identifier_iterator_next(it, &grip) == RNP_SUCCESS) {
+    while (!rnp_identifier_iterator_next(it, &grip)) {
         if (!grip) {
             goto done;
         }
@@ -1155,7 +1154,7 @@ cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret)
         return NULL;
     }
 
-    while (rnp_identifier_iterator_next(it, &grip) == RNP_SUCCESS) {
+    while (!rnp_identifier_iterator_next(it, &grip)) {
         size_t sub_count = 0;
         bool   is_subkey = false;
         char * primary_grip = NULL;
@@ -1351,7 +1350,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
             return false;
         }
         if (RNP_MKDIR(pubpath, 0700) == -1 && errno != EEXIST) {
-            RNP_LOG("cannot mkdir '%s' errno = %d", pubpath, errno);
+            ERR_MSG("cannot mkdir '%s' errno = %d", pubpath, errno);
             return false;
         }
     }
@@ -1388,7 +1387,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         pub_format = RNP_KEYSTORE_G10;
         sec_format = RNP_KEYSTORE_G10;
     } else {
-        RNP_LOG("unsupported keystore format: \"%s\"", ks_format);
+        ERR_MSG("unsupported keystore format: \"%s\"", ks_format);
         return false;
     }
 
@@ -1420,7 +1419,7 @@ conffile(const char *homedir, char *userid, size_t length)
 #ifndef RNP_USE_STD_REGEX
     (void) memset(&keyre, 0x0, sizeof(keyre));
     if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
-        RNP_LOG("failed to compile regular expression");
+        ERR_MSG("failed to compile regular expression");
         fclose(fp);
         return false;
     }
@@ -1489,7 +1488,7 @@ cli_cfg_set_keystore_info(rnp_cfg_t *cfg)
 {
     /* detecting keystore pathes and format */
     if (!rnp_cfg_set_ks_info(cfg)) {
-        RNP_LOG("cannot obtain keystore path(es)");
+        ERR_MSG("cannot obtain keystore path(es)");
         return false;
     }
 
