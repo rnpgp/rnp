@@ -44,6 +44,7 @@
 #include <errno.h>
 #include <getopt.h>
 
+#include "config.h"
 #include "fficli.h"
 #include "rnpcfg.h"
 #include "crypto/common.h"
@@ -219,8 +220,8 @@ print_praise(void)
 {
     fprintf(stderr,
             "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-            rnp_get_info("version"),
-            rnp_get_info("maintainer"));
+            PACKAGE_STRING,
+            PACKAGE_BUGREPORT);
 }
 
 /* print a usage message */
