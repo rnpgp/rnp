@@ -563,6 +563,14 @@ ffi_asserting_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t k
     return false;
 }
 
+bool
+ffi_string_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    const char *str = (const char *) app_ctx;
+    strncpy(buf, str, buf_len - 1);
+    return true;
+}
+
 // this is a password callback that should never be called
 bool
 asserting_password_callback(const pgp_password_ctx_t *ctx,

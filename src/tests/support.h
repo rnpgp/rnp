@@ -181,6 +181,13 @@ bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
                                    size_t                    password_size,
                                    void *                    userdata);
 
+bool ffi_string_password_provider(rnp_ffi_t        ffi,
+                                  void *           app_ctx,
+                                  rnp_key_handle_t key,
+                                  const char *     pgp_context,
+                                  char *           buf,
+                                  size_t           buf_len);
+
 bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
 
