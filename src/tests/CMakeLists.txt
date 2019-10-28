@@ -56,7 +56,6 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
-  ../rnp/rnpcli.cpp
   ../rnp/fficli.cpp
   ../rnp/rnp.cpp
   ../rnpkeys/rnpkeys.cpp
