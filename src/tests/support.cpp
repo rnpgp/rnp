@@ -500,22 +500,6 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
 }
 
 bool
-setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
-{
-    rnp_cfg_t cfg = {};
-
-    if (!setup_rnp_cfg(&cfg, ks_format, homedir, pipefd)) {
-        return false;
-    }
-
-    /*initialize the basic RNP structure. */
-    memset(rnp, '\0', sizeof(*rnp));
-    bool res = rnp_init(rnp, &cfg) == RNP_SUCCESS;
-    rnp_cfg_free(&cfg);
-    return res;
-}
-
-bool
 setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
 {
     rnp_cfg_t cfg = {};

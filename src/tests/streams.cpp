@@ -1234,14 +1234,8 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
 
 TEST_F(rnp_tests, test_stream_verify_no_key)
 {
-    rnp_ctx_t ctx = {0};
-    rnp_t     rnp = {0};
+    cli_rnp_t rnp = {0};
     rnp_cfg_t cfg = {};
-    uint8_t * data;
-    ssize_t   len;
-    uint8_t * out_data;
-    size_t    out_alloc = 256 * 1024;
-    size_t    out_len;
 
     /* setup rnp structure and params */
     rnp_cfg_init(&cfg);
@@ -1249,48 +1243,38 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
     rnp_cfg_setstr(&cfg, CFG_KR_SEC_PATH, "");
     rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
     rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
-    assert_rnp_success(rnp_init(&rnp, &cfg));
+    assert_true(cli_rnp_init(&rnp, &cfg));
 
-    /* load signed and encrypted data */
-    out_data = (uint8_t *) malloc(out_alloc);
-    assert_non_null(out_data);
-
-    data = file_contents("data/test_stream_verification/verify_encrypted_no_key.pgp", &len);
-    assert_non_null(data);
-    assert_true(len > 0);
-
+    /* setup cfg for verification */
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "data/test_stream_verification/verify_encrypted_no_key.pgp");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "output.dat");
+    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
     /* setup operation context */
-    rnp.password_provider.callback = rnp_password_provider_string;
-    rnp.password_provider.userdata = (void *) "pass1";
-    rnp_ctx_init(&ctx, &rnp.rng);
-
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass1"));
     /* operation should success if output is not discarded, i.e. operation = decrypt */
-    ctx.discard = false;
-    assert_rnp_success(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
-    assert_int_equal(out_len, 4);
+    rnp_cfg_setbool(&cfg, CFG_NO_OUTPUT, false);
+    assert_true(cli_rnp_process_file(&cfg, &rnp));
+    assert_int_equal(file_size("output.dat"), 4);
     /* try second password */
-    rnp.password_provider.userdata = (void *) "pass2";
-    assert_rnp_success(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
-    assert_int_equal(out_len, 4);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass2"));
+    assert_true(cli_rnp_process_file(&cfg, &rnp));
+    assert_int_equal(file_size("output.dat"), 4);
     /* decryption/verification fails without password */
-    rnp.password_provider.userdata = NULL;
-    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
-    assert_int_equal(out_len, 0);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    assert_int_equal(file_size("output.dat"), -1);
     /* decryption/verification fails with wrong password */
-    rnp.password_provider.userdata = (void *) "pass_wrong";
-    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
-    assert_int_equal(out_len, 0);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass_wrong"));
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    assert_int_equal(file_size("output.dat"), -1);
     /* verification fails if output is discarded, i.e. operation = verify */
-    ctx.discard = true;
-    assert_rnp_failure(rnp_process_mem(&rnp, &ctx, data, len, out_data, out_alloc, &out_len));
-    assert_int_equal(out_len, 0);
+    rnp_cfg_setbool(&cfg, CFG_NO_OUTPUT, true);
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    assert_int_equal(file_size("output.dat"), -1);
 
     /* cleanup */
-    rnp_ctx_free(&ctx);
     rnp_cfg_free(&cfg);
-    rnp_end(&rnp);
-    free(out_data);
-    free(data);
+    cli_rnp_end(&rnp);
 }
 
 static bool
