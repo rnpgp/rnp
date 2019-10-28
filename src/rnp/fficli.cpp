@@ -595,6 +595,21 @@ json_obj_get_int64(json_object *obj, const char *key)
     return json_object_get_int64(fld);
 }
 
+bool
+rnp_casecmp(const std::string &str1, const std::string &str2)
+{
+    if (str1.size() != str2.size()) {
+        return false;
+    }
+
+    for (size_t i = 0; i < str1.size(); i++) {
+        if (tolower(str1[i]) != tolower(str2[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
 static char *
 cli_key_usage_str(rnp_key_handle_t key, char *buf)
 {
@@ -2194,7 +2209,7 @@ cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
     std::vector<rnp_op_verify_signature_t> sigs;
     size_t scount = 0;
 
-    if (!rnp_strcasecmp(contents, "signature")) {
+    if (rnp_casecmp(contents, "signature")) {
         /* detached signature */
         std::string in = rnp_cfg_getstring(cfg, CFG_INFILE);
         if (in.empty() || in == "-") {
