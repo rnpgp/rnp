@@ -47,8 +47,6 @@ extern "C" {
 
 typedef enum { RNP_HEX_LOWERCASE, RNP_HEX_UPPERCASE } rnp_hex_format_t;
 
-const char *rnp_get_info(const char *type);
-
 void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
 
 int rnp_strcasecmp(const char *, const char *);
