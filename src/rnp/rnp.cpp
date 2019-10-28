@@ -47,10 +47,6 @@
 #include "config.h"
 #include "fficli.h"
 #include "rnpcfg.h"
-#include "crypto/common.h"
-#include "rnpcfg.h"
-#include "defaults.h"
-#include "utils.h"
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX
@@ -487,15 +483,15 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
         return rnp_cfg_setstr(cfg, CFG_ZALG, "BZip2");
     case OPT_AEAD: {
         const char *alg = NULL;
-        if (!arg || !strcmp(arg, "1") || !rnp_strcasecmp(arg, "eax")) {
+        std::string argstr = arg ? arg : "";
+        if (argstr.empty() || (argstr == "1") || rnp_casecmp(argstr, "eax")) {
             alg = "EAX";
-        } else if (!strcmp(arg, "2") || !rnp_strcasecmp(arg, "ocb")) {
+        } else if ((argstr == "2") || rnp_casecmp(argstr, "ocb")) {
             alg = "OCB";
         } else {
             (void) fprintf(stderr, "Wrong AEAD algorithm: %s\n", arg);
             return false;
         }
-
         return rnp_cfg_setstr(cfg, CFG_AEAD, alg);
     }
     case OPT_AEAD_CHUNK: {
@@ -524,7 +520,7 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     case OPT_RAW:
         return rnp_cfg_setbool(cfg, CFG_RAW, true);
     case OPT_DEBUG:
-        return rnp_set_debug(arg);
+        return rnp_enable_debug(arg);
     default:
         return setcmd(cfg, CMD_HELP, arg);
     }

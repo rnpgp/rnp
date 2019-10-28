@@ -82,6 +82,7 @@ bool cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
 int64_t json_obj_get_int64(json_object *obj, const char *key);
+bool rnp_casecmp(const std::string &str1, const std::string &str2);
 
 /* TODO: we should decide what to do with functions/constants/defines below */
 #define RNP_KEYID_SIZE 8
@@ -89,6 +90,8 @@ int64_t json_obj_get_int64(json_object *obj, const char *key);
 #define RNP_GRIP_SIZE 20
 
 #define MAX_PASSWORD_ATTEMPTS 3
+
+#define DEFAULT_SYMM_ALG "AES256"
 
 #define ERR_MSG(...)                           \
     do {                                       \
