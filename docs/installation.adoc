@@ -17,8 +17,8 @@ brew install rnp
 
 [source,console]
 ----
-rpm --import https://github.com/rnpgp/yum/raw/master/ribose-packages.pub
-curl -L https://github.com/rnpgp/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
 yum install -y rnp
 ----
 
