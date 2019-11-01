@@ -24,18 +24,8 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <fstream>
-#include <vector>
-#include <string>
-
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
-#include "support.h"
-#include "librepgp/stream-common.h"
-#include "utils.h"
-#include <json.h>
-#include <vector>
-#include <string>
 
 /* code needed to generate the test file
 typedef struct {
