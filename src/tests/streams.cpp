@@ -189,7 +189,7 @@ TEST_F(rnp_tests, test_stream_file)
     assert_rnp_failure(init_file_src(&src, filename));
     assert_rnp_failure(init_file_src(&src, dirname));
     /* create dir */
-    assert_int_equal(mkdir(dirname, S_IRWXU), 0);
+    assert_int_equal(RNP_MKDIR(dirname, S_IRWXU), 0);
     /* attempt to read or create file in place of directory */
     assert_rnp_failure(init_file_src(&src, dirname));
     assert_rnp_failure(init_file_dest(&dst, dirname, false));
@@ -198,7 +198,7 @@ TEST_F(rnp_tests, test_stream_file)
     assert_int_equal(file_size(dirname), 0);
     dst_close(&dst, true);
     /* create dir back */
-    assert_int_equal(mkdir(dirname, S_IRWXU), 0);
+    assert_int_equal(RNP_MKDIR(dirname, S_IRWXU), 0);
 
     /* write some data to the file and the discard it */
     assert_rnp_success(init_file_dest(&dst, filename, false));

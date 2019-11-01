@@ -24,9 +24,20 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <sys/wait.h>
 #include "rnp_tests.h"
 #include "support.h"
+
+#ifdef HAVE_SYS_WAIT_H
+#include <sys/wait.h>
+#else
+#ifndef WIFEXITED
+#   define WIFEXITED(stat)  (((*((int *) &(stat))) & 0xC0000000) == 0)
+#endif
+
+#ifndef WEXITSTATUS
+#   define WEXITSTATUS(stat) (*((int *) &(stat)))
+#endif
+#endif
 
 int rnp_main(int argc, char **argv);
 int rnpkeys_main(int argc, char **argv);

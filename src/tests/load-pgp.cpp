@@ -28,6 +28,7 @@
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-sig.h"
 #include "pgp-key.h"
+#include "utils.h"
 
 #include "rnp_tests.h"
 #include "support.h"
@@ -797,7 +798,7 @@ TEST_F(rnp_tests, test_key_import)
     pgp_transferable_subkey_t *tskey = NULL;
     pgp_transferable_userid_t *tuid = NULL;
 
-    assert_int_equal(mkdir(".rnp", S_IRWXU), 0);
+    assert_int_equal(RNP_MKDIR(".rnp", S_IRWXU), 0);
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, ".rnp", NULL));
 
     /* import just the public key */

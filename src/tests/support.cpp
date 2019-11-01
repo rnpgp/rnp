@@ -26,28 +26,45 @@
 
 #include "support.h"
 #include "rnp_tests.h"
+#include "utils.h"
 
 #include <sys/types.h>
 #include <sys/param.h>
-#include <sys/stat.h>
-
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
 #include <stdio.h>
-#include <unistd.h>
-#include <limits.h>
-#include <ftw.h>
-#include <fcntl.h>
 
 #include <crypto.h>
 #include <pgp-key.h>
 #include <fstream>
 
 extern rng_t global_rng;
+
+#ifdef _WIN32
+int
+setenv(const char *name, const char *value, int overwrite)
+{
+    if (getenv(name) && !overwrite) {
+        return 0;
+    }
+    char varbuf[512] = {0};
+    snprintf(varbuf, sizeof(varbuf) - 1, "%s=%s", name, value);
+    return _putenv(varbuf);
+}
+#endif
+
+#ifndef HAVE_MKDTEMP
+char *
+mkdtemp(char *templ)
+{
+    char *dirpath = mktemp(templ);
+    if (!dirpath) {
+        return NULL;
+    }
+    return !RNP_MKDIR(dirpath, S_IRWXU) ? dirpath : NULL;
+}
+#endif
+
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
@@ -192,7 +209,7 @@ path_mkdir(mode_t mode, const char *first, ...)
     vpaths_concat(buffer, sizeof(buffer), first, ap);
     va_end(ap);
 
-    assert_int_equal(0, mkdir(buffer, mode));
+    assert_int_equal(0, RNP_MKDIR(buffer, mode));
 }
 
 static int

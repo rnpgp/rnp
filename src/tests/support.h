@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <string>
 #include <stdarg.h>
 #include <stddef.h>
@@ -32,13 +33,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#endif
+#ifdef HAVE_LIMITS_H
 #include <limits.h>
+#endif
 #include <ftw.h>
+#ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 
 #include "rnp.h"
 #include "../rnp/fficli.h"
+
+#ifdef _WIN32
+#define pipe(fds) _pipe(fds, 256, O_BINARY)
+
+int setenv(const char *name, const char *value, int overwrite);
+#endif
+#ifndef HAVE_MKDTEMP
+char *mkdtemp(char *templ);
+#endif
+#ifndef HAVE_REALPATH
+#define realpath(N, R) _fullpath((R), (N), _MAX_PATH)
+#endif
 
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
