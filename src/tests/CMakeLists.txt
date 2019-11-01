@@ -74,6 +74,7 @@ add_executable(rnp_tests
   key-store-search.cpp
   key-unlock.cpp
   key-validate.cpp
+  large-packet.cpp
   load-g10.cpp
   load-pgp.cpp
   rnp_tests.cpp

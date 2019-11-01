@@ -312,6 +312,8 @@ void test_cli_examples(void **state);
 
 void test_cli_dump(void **state);
 
+void test_large_packet(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
