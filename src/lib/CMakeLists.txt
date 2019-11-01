@@ -34,6 +34,7 @@ find_package(Botan2 2.8.0 REQUIRED)
 
 # generate a config.h
 include(CheckIncludeFileCXX)
+include(CheckCXXSymbolExists)
 check_include_file_cxx(fcntl.h HAVE_FCNTL_H)
 check_include_file_cxx(inttypes.h HAVE_INTTYPES_H)
 check_include_file_cxx(limits.h HAVE_LIMITS_H)
@@ -45,6 +46,9 @@ check_include_file_cxx(sys/resource.h HAVE_SYS_RESOURCE_H)
 check_include_file_cxx(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file_cxx(sys/types.h HAVE_SYS_TYPES_H)
 check_include_file_cxx(unistd.h HAVE_UNISTD_H)
+check_include_file_cxx(sys/wait.h HAVE_SYS_WAIT_H)
+check_cxx_symbol_exists(mkdtemp stdlib.h HAVE_MKDTEMP)
+check_cxx_symbol_exists(realpath stdlib.h HAVE_REALPATH)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
 configure_file(config.h.in config.h)
@@ -73,7 +77,6 @@ set(_botan_required_features
     # public-key operations etc
     EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
 )
-include(CheckCXXSymbolExists)
 foreach(feature ${_botan_required_features})
   check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
   if (NOT _botan_has_${feature})
