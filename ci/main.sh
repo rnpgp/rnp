@@ -10,9 +10,9 @@ CMAKE=cmake
 if [[ "$(get_os)" = "linux" ]]; then
   pushd /
   sudo curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
-  sudo sh cmake.sh --skip-license
+  sudo sh cmake.sh --skip-license --prefix=/usr
   popd
-  CMAKE=/bin/cmake
+  CMAKE=/usr/bin/cmake
 fi
 
 cmakeopts=(
