@@ -4,6 +4,7 @@ set -eux
 . ci/utils.inc.sh
 
 : "${RNP_TESTS:=.*}"
+: "${LD_LIBRARY_PATH:=}"
 
 CMAKE=cmake
 
@@ -27,7 +28,7 @@ cmakeopts=(
 mkdir -p "${LOCAL_BUILDS}/rnp-build"
 rnpsrc="$PWD"
 pushd "${LOCAL_BUILDS}/rnp-build"
-export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib"
+export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
 
 ${CMAKE} "${cmakeopts[@]}" "$rnpsrc"
 make -j${MAKE_PARALLEL} VERBOSE=1 install
