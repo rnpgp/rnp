@@ -39,78 +39,8 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   popd
 fi
 
-build_gpg_stable() {
-  local NPTH_VERSION=$1
-  local LIBGPG_ERROR_VERSION=$2
-  local LIBGCRYPT_VERSION=$3
-  local LIBASSUAN_VERSION=$4
-  local LIBKSBA_VERSION=$5
-  local PINENTRY_VERSION=$6
-  local GNUPG_VERSION=$7
-
-  gpg --keyserver hkp://keys.gnupg.net --recv-keys 249B39D24F25E3B6 04376F3EE0856959 2071B08A33BD3F06 8A861B1C7EFD60D9
-
-  for archive in npth:${NPTH_VERSION} libgpg-error:${LIBGPG_ERROR_VERSION}; do
-    pkgname="${archive%:*}"
-    version="${archive#*:}"
-
-    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
-    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-    gpg --verify ${pkgname}-${version}.tar.bz2.sig
-    tar -xjf ${pkgname}-${version}.tar.bz2
-    pushd ${pkgname}-${version}/
-    # autoreconf -ivf
-    ./configure --prefix="${GPG_INSTALL}"
-    ${MAKE} -j${MAKE_PARALLEL} install
-    popd
-  done
-
-  for archive in libgcrypt:${LIBGCRYPT_VERSION} libassuan:${LIBASSUAN_VERSION} libksba:${LIBKSBA_VERSION}; do
-    pkgname="${archive%:*}"
-    version="${archive#*:}"
-
-    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2
-    wget -c https://www.gnupg.org/ftp/gcrypt/${pkgname}/${pkgname}-${version}.tar.bz2.sig
-    gpg --verify ${pkgname}-${version}.tar.bz2.sig
-    tar -xjf ${pkgname}-${version}.tar.bz2
-    pushd ${pkgname}-${version}/
-    # autoreconf -ivf
-    ./configure --prefix="${GPG_INSTALL}" --with-libgpg-error-prefix="${GPG_INSTALL}"
-    ${MAKE} -j${MAKE_PARALLEL} install
-    popd
-  done
-
-  wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-${PINENTRY_VERSION}.tar.bz2
-  wget -c https://www.gnupg.org/ftp/gcrypt/pinentry/pinentry-${PINENTRY_VERSION}.tar.bz2.sig
-  gpg --verify pinentry-${PINENTRY_VERSION}.tar.bz2.sig
-  tar -xjf pinentry-${PINENTRY_VERSION}.tar.bz2
-  pushd pinentry-${PINENTRY_VERSION}
-  ./configure --prefix="${GPG_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG_INSTALL}" \
-    --with-libassuan-prefix="${GPG_INSTALL}" \
-    --enable-pinentry-curses \
-    --disable-pinentry-qt4
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${GNUPG_VERSION}.tar.bz2
-  wget -c https://www.gnupg.org/ftp/gcrypt/gnupg/gnupg-${GNUPG_VERSION}.tar.bz2.sig
-  gpg --verify gnupg-${GNUPG_VERSION}.tar.bz2.sig
-  tar -xjf gnupg-${GNUPG_VERSION}.tar.bz2
-  pushd gnupg-${GNUPG_VERSION}
-  ./configure --prefix="${GPG_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG_INSTALL}" \
-    --with-libgcrypt-prefix="${GPG_INSTALL}" \
-    --with-libassuan-prefix="${GPG_INSTALL}" \
-    --with-ksba-prefix="${GPG_INSTALL}" \
-    --with-npth-prefix="${GPG_INSTALL}" \
-    --disable-ldap
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-}
-
-build_gpg_beta() {
-  local GETTEXT_VERSION=$1
+_install_gpg() {
+  local VERSION_SWITCH=$1
   local NPTH_VERSION=$2
   local LIBGPG_ERROR_VERSION=$3
   local LIBGCRYPT_VERSION=$4
@@ -119,111 +49,51 @@ build_gpg_beta() {
   local PINENTRY_VERSION=$7
   local GNUPG_VERSION=$8
 
-  mkdir gettext
-  pushd gettext
-  gpg --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys 2E4616C2
-  wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz"
-  wget -c "https://ftp.gnu.org/pub/gnu/gettext/gettext-${GETTEXT_VERSION}.tar.xz.sig"
-  gpg --verify "gettext-${GETTEXT_VERSION}.tar.xz.sig"
-  tar -xJf "gettext-${GETTEXT_VERSION}.tar.xz" --strip 1
-  ./configure --prefix="${GPG_INSTALL}"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-  export GETTEXT_PREFIX="${GPG_INSTALL}/bin/"
+  gpg_build="$PWD"
+  gpg_install="$GPG_INSTALL"
+  mkdir -p "$gpg_build" "${gpg_install}"
+  git clone --depth 1 https://github.com/riboseinc/gpg-build-scripts
+  pushd gpg-build-scripts
+  configure_opts="\
+      --prefix=${gpg_install} \
+      --with-libgpg-error-prefix=${gpg_install} \
+      --with-libassuan-prefix=${gpg_install} \
+      --with-libgcrypt-prefix=${gpg_install} \
+      --with-ksba-prefix=${gpg_install} \
+      --with-npth-prefix=${gpg_install} \
+      --disable-doc \
+      --enable-pinentry-curses \
+      --disable-pinentry-emacs \
+      --disable-pinentry-gtk2 \
+      --disable-pinentry-gnome3 \
+      --disable-pinentry-qt \
+      --disable-pinentry-qt4 \
+      --disable-pinentry-qt5 \
+      --disable-pinentry-tqt \
+      --disable-pinentry-fltk \
+      --enable-maintainer-mode"
+  common_args=(
+      --build-dir "$gpg_build" \
+      --configure-opts "$configure_opts"
+  )
 
-  # workaround https://github.com/travis-ci/travis-ci/issues/8613
-  # alternatively, forcing the libgpg-error build to use gcc should work
-  export LD_LIBRARY_PATH="/usr/local/clang/lib"
-
-  git clone git://git.gnupg.org/npth
-  pushd npth
-  git checkout "$NPTH_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" --disable-doc
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/libgpg-error
-  pushd libgpg-error
-  git checkout "$LIBGPG_ERROR_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" --disable-doc
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/libgcrypt
-  pushd libgcrypt
-  git checkout "$LIBGCRYPT_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/libassuan
-  pushd libassuan
-  git checkout "$LIBASSUAN_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/libksba
-  pushd libksba
-  git checkout "$LIBKSBA_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" --disable-doc --with-libgpg-error-prefix="${GPG_INSTALL}"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/pinentry.git
-  pushd pinentry
-  git checkout "$PINENTRY_VERSION"
-  cat << 'END' | git apply -
-diff --git a/Makefile.am b/Makefile.am
-index 8c8b8e5..412244c 100644
---- a/Makefile.am
-+++ b/Makefile.am
-@@ -85,7 +85,7 @@ endif
- SUBDIRS = m4 secmem pinentry ${pinentry_curses} ${pinentry_tty} \
- 	${pinentry_emacs} ${pinentry_gtk_2} ${pinentry_gnome_3} \
- 	${pinentry_qt} ${pinentry_tqt} ${pinentry_w32} \
--	${pinentry_fltk} ${pinentry_efl} doc
-+	${pinentry_fltk} ${pinentry_efl}
- 
- 
- install-exec-local:
-END
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG_INSTALL}" \
-    --with-libassuan-prefix="${GPG_INSTALL}" \
-    --enable-pinentry-curses \
-    --disable-pinentry-emacs \
-    --disable-pinentry-gtk2 \
-    --disable-pinentry-gnome3 \
-    --disable-pinentry-qt \
-    --disable-pinentry-qt5 \
-    --disable-pinentry-tqt \
-    --disable-pinentry-fltk
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-
-  git clone git://git.gnupg.org/gnupg.git
-  pushd gnupg
-  git checkout "$GNUPG_VERSION"
-  ./autogen.sh
-  ./configure --prefix="${GPG_INSTALL}" \
-    --with-libgpg-error-prefix="${GPG_INSTALL}" \
-    --with-libgcrypt-prefix="${GPG_INSTALL}" \
-    --with-libassuan-prefix="${GPG_INSTALL}" \
-    --with-ksba-prefix="${GPG_INSTALL}" \
-    --with-npth-prefix="${GPG_INSTALL}" \
-    --disable-ldap \
-    --disable-doc \
-    --enable-maintainer-mode
-  ${MAKE} -j${MAKE_PARALLEL} install
+  for component in libgpg-error:$LIBGPG_ERROR_VERSION \
+                   libgcrypt:$LIBGCRYPT_VERSION \
+                   libassuan:$LIBASSUAN_VERSION \
+                   libksba:$LIBKSBA_VERSION \
+                   npth:$NPTH_VERSION \
+                   pinentry:$PINENTRY_VERSION \
+                   gnupg:$GNUPG_VERSION; do
+    name="${component%:*}"
+    version="${component#*:}"
+    bash -x ./install_gpg_component.sh \
+      --component-name "$name" \
+      --$VERSION_SWITCH "$version" \
+      "${common_args[@]}"
+  done
   popd
 }
+
 
 # gpg
 gpg_build=${LOCAL_BUILDS}/gpg
@@ -232,11 +102,11 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
   cd "${gpg_build}"
 
   if [ "$GPG_VERSION" = "stable" ]; then
-    #                npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_stable 1.6  1.32         1.8.4     2.5.1     1.3.5   1.1.0    2.2.11
+    #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+    _install_gpg component-version 1.6  1.32         1.8.4     2.5.1     1.3.5   1.1.0    2.2.11
   elif [ "$GPG_VERSION" = "beta" ]; then
-    #              gettext npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    build_gpg_beta 0.20.1 377c1b9 f4d139b 66d2b7f eac43aa c37cdbd d0eaec8 e154fba
+    #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
+    _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
   else
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
