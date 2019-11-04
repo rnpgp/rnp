@@ -157,26 +157,32 @@ bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
     const char * hash_name = pgp_hash_name_botan(alg);
-    size_t       outlen;
     int          rc;
 
     if (hash_name == NULL) {
         return false;
     }
 
-    std::unique_ptr<Botan::HashFunction> hash_fn = Botan::HashFunction::create(hash_name);
-    if(hash_fn == NULL) {
+    std::unique_ptr<Botan::HashFunction> hash_fn;
+    try
+    {
+        hash_fn = Botan::HashFunction::create(hash_name);
+    }
+    catch(std::exception& ex)
+    {
+        RNP_LOG("Error creating HashFunction ('%s')", ex.what());
+    }
+    if(!hash_fn) {
         RNP_LOG("Error creating hash object for '%s'", hash_name);
         return false;
     }
 
-    outlen = hash_fn->output_length();
-    if(outlen == 0) {
+    hash->_output_len = hash_fn->output_length();
+    if(hash->_output_len == 0) {
         RNP_LOG("In pgp_hash_create, botan_hash_output_length failed");
         return false;
     }
 
-    hash->_output_len = outlen;
     hash->_alg = alg;
     hash->handle = hash_fn.release();
     return true;
@@ -190,8 +196,20 @@ pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src)
     }
 
     Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(src->handle);
-    std::unique_ptr<Botan::HashFunction> handle = hash_fn->copy_state();
-    if(handle ==NULL) {
+    if(!hash_fn) {
+        return false;
+    }
+
+    std::unique_ptr<Botan::HashFunction> handle;
+    try
+    {
+        handle = hash_fn->copy_state();
+    }
+    catch(std::exception& ex)
+    {
+        RNP_LOG("Error copying HashFunction ('%s')", ex.what());
+    }
+    if(!handle) {
         return false;
     }
 
@@ -222,8 +240,21 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
 int
 pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
 {
-    static_cast<Botan::HashFunction*>(hash->handle)->update((const uint8_t*)buf, len);
-    return 0;
+    if(!hash->handle) {
+        return -1;
+    }
+    
+    int error = 0;
+    try
+    {
+        static_cast<Botan::HashFunction*>(hash->handle)->update(static_cast<const uint8_t*>(buf), len);
+    }
+    catch(std::exception& ex)
+    {
+        RNP_LOG("Error adding to HashFunction ('%s')", ex.what());
+        error = -2;
+    }
+    return error;
 }
 
 size_t
@@ -234,15 +265,22 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
         return 0;
     }
 
-    if(out == NULL) {
+    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(hash->handle);
+    if(!out || !hash_fn) {
         RNP_LOG("Hash finalization failed");
         return 0;
     }
 
-    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(hash->handle);
-    hash_fn->final(out);
     hash->handle = NULL;
-    delete hash_fn;
+    try
+    {
+        hash_fn->final(out);
+        delete hash_fn;
+    }
+    catch(std::exception& ex)
+    {
+ 
+    }
     hash->_output_len = 0;
     return outlen;
 }
