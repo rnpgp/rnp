@@ -27,85 +27,18 @@
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
 
-/* code needed to generate the test file
-typedef struct {
-    uint32_t      remaining;
-    uint8_t       dummy;
-} dummy_reader_ctx_st;
-
-static ssize_t
-dummy_reader(void *app_ctx, void *buf, size_t len)
-{
-    size_t filled = 0;
-    dummy_reader_ctx_st *ctx = NULL;
-
-    ctx = (dummy_reader_ctx_st *)app_ctx;
-    filled = (len > ctx->remaining) ? ctx->remaining : len;
-    if (filled > 0) {
-        memset(buf, ctx->dummy, filled);
-        ctx->remaining -= filled;
-    }
-    return filled;
-}
-
-static bool
-getpasscb(rnp_ffi_t        ffi,
-          void *           app_ctx,
-          rnp_key_handle_t key,
-          const char *     pgp_context,
-          char *           buf,
-          size_t           buf_len)
-{
-    strcpy(buf, (const char *) app_ctx);
-    return true;
-}
-*/
-
 TEST_F(rnp_tests, test_large_packet)
 {
     rnp_ffi_t           ffi = NULL;
     rnp_input_t         input = NULL;
     rnp_output_t        output = NULL;
     rnp_op_verify_t     verify;
-    /*
-    rnp_key_handle_t    key = NULL;
-    rnp_op_sign_t       sign;
-    dummy_reader_ctx_st reader_ctx;
-    */
 
     /* init ffi and inputs */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_input_destroy(input));
-
-    /* Compress and Sign part 
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    assert_rnp_success(rnp_input_destroy(input));
-
-    reader_ctx.dummy = 'X';
-    reader_ctx.remaining = UINT32_MAX; // gives 4G-1 bytes 
-    assert_rnp_success(rnp_input_from_callback(&input, dummy_reader, NULL, &reader_ctx));
-    assert_rnp_success(rnp_output_to_path(&output, "data/test_large_packet/4g.bzip2.gpg"));
-
-    // Prepare the signing key
-    assert_rnp_success(rnp_locate_key(ffi, "keyid", "5873BD738E575398", &key));
-    assert_non_null(key);
-
-    assert_rnp_success(rnp_op_sign_create(&sign, ffi, input, output));
-    assert_rnp_success(rnp_op_sign_set_compression(sign, "BZip2", 9));
-    assert_rnp_success(rnp_op_sign_add_signature(sign, key, NULL));
-
-    assert_rnp_success(rnp_op_sign_execute(sign));
-
-    assert_rnp_success(rnp_op_sign_destroy(sign));
-    assert_rnp_success(rnp_key_handle_destroy(key));
-    key = NULL;
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_input_destroy(input));
-    */
 
     // Verify part
     assert_rnp_success(rnp_input_from_path(&input, "data/test_large_packet/4g.bzip2.gpg"));
