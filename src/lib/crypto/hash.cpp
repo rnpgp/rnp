@@ -279,7 +279,8 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     }
     catch(std::exception& ex)
     {
- 
+         RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
+	 outlen = 0;
     }
     hash->_output_len = 0;
     return outlen;
