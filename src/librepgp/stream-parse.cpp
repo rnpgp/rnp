@@ -1621,7 +1621,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
                            ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
 
     if (!param->pkt.indeterminate && !param->pkt.partial) {
-        src->size = param->pkt.len - (1 + 1 + bt + 4);
+        src->size = param->pkt.len;
         src->knownsize = 1;
     }
 
