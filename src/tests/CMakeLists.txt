@@ -66,6 +66,7 @@ add_executable(rnp_tests
   cli.cpp
   exportkey.cpp
   ffi.cpp
+  large-lines.cpp
   generatekey.cpp
   key-add-userid.cpp
   key-grip.cpp

@@ -120,6 +120,9 @@ rnp_tests.test_stream_dearmor_edge_cases 1 0.0135663
 rnp_tests.test_load_user_prefs 1 0.0203191
 rnp_tests.test_utils_list 1 0.0144059
 rnp_tests.test_rnpcfg 1 0.00989314
+rnp_tests.test_large_lines_detect_key_format 1 0.0403672
+rnp_tests.test_large_pre_header_detect_key_format 1 0.0403672
+rnp_tests.test_large_lines_enarmor_dearmor 1 0.0403672
 setupTestData 1 0.0229036
 cli_tests-Keystore 1 3.97077
 cli_tests-SignECDSA 1 2.80252
