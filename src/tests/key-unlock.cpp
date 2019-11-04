@@ -27,20 +27,12 @@
 #include "../librekey/key_store_pgp.h"
 #include "../librepgp/stream-ctx.h"
 #include "pgp-key.h"
-
+#include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
 #include "crypto/hash.h"
 #include <fstream>
-
-/* we'll need direct access to secret key's pgp_key_t, should be ok for tests */
-struct rnp_key_handle_st {
-    rnp_ffi_t        ffi;
-    pgp_key_search_t locator;
-    pgp_key_t *      pub;
-    pgp_key_t *      sec;
-};
 
 TEST_F(rnp_tests, test_key_unlock_pgp)
 {
