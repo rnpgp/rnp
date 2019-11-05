@@ -110,6 +110,11 @@ add_test(
 )
 set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
 
+add_test(
+  NAME gpgVerifyLargePacket
+  COMMAND gpg --keyring "${CMAKE_CURRENT_BINARY_DIR}/data/keyrings/1/pubring.gpg" --verify "${CMAKE_CURRENT_BINARY_DIR}/data/test_large_packet/4g.bzip2.gpg"
+)
+
 gtest_discover_tests(rnp_tests
   PROPERTIES
     FIXTURES_REQUIRED testdata
