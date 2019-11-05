@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2019 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -156,28 +156,25 @@ pgp_str_to_hash_alg(const char *hash)
 bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
-    const char * hash_name = pgp_hash_name_botan(alg);
+    const char *hash_name = pgp_hash_name_botan(alg);
 
     if (hash_name == NULL) {
         return false;
     }
 
     std::unique_ptr<Botan::HashFunction> hash_fn;
-    try
-    {
+    try {
         hash_fn = Botan::HashFunction::create(hash_name);
-    }
-    catch(std::exception& ex)
-    {
+    } catch (std::exception &ex) {
         RNP_LOG("Error creating HashFunction ('%s')", ex.what());
     }
-    if(!hash_fn) {
+    if (!hash_fn) {
         RNP_LOG("Error creating hash object for '%s'", hash_name);
         return false;
     }
 
     hash->_output_len = hash_fn->output_length();
-    if(hash->_output_len == 0) {
+    if (hash->_output_len == 0) {
         RNP_LOG("In pgp_hash_create, botan_hash_output_length failed");
         return false;
     }
@@ -194,21 +191,18 @@ pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src)
         return false;
     }
 
-    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(src->handle);
-    if(!hash_fn) {
+    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction *>(src->handle);
+    if (!hash_fn) {
         return false;
     }
 
     std::unique_ptr<Botan::HashFunction> handle;
-    try
-    {
+    try {
         handle = hash_fn->copy_state();
-    }
-    catch(std::exception& ex)
-    {
+    } catch (std::exception &ex) {
         RNP_LOG("Error copying HashFunction ('%s')", ex.what());
     }
-    if(!handle) {
+    if (!handle) {
         return false;
     }
 
@@ -239,17 +233,15 @@ pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
 int
 pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
 {
-    if(!hash->handle) {
+    if (!hash->handle) {
         return -1;
     }
-    
+
     int error = 0;
-    try
-    {
-        static_cast<Botan::HashFunction*>(hash->handle)->update(static_cast<const uint8_t*>(buf), len);
-    }
-    catch(std::exception& ex)
-    {
+    try {
+        static_cast<Botan::HashFunction *>(hash->handle)
+          ->update(static_cast<const uint8_t *>(buf), len);
+    } catch (std::exception &ex) {
         RNP_LOG("Error adding to HashFunction ('%s')", ex.what());
         error = -2;
     }
@@ -264,25 +256,21 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
         return 0;
     }
 
-    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(hash->handle);
+    Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction *>(hash->handle);
     hash->handle = NULL;
-    if(hash_fn)
-    {
-        try
-        {
-            if(out)
+    if (hash_fn) {
+        try {
+            if (out)
                 hash_fn->final(out);
             delete hash_fn;
-        }
-        catch(std::exception& ex)
-        {
+        } catch (std::exception &ex) {
             RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
             outlen = 0;
         }
     }
     hash->_output_len = 0;
 
-    if(!out || !hash_fn) {
+    if (!out || !hash_fn) {
         RNP_LOG("Hash finalization failed");
         return 0;
     }
