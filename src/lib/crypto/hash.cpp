@@ -157,7 +157,6 @@ bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
     const char * hash_name = pgp_hash_name_botan(alg);
-    int          rc;
 
     if (hash_name == NULL) {
         return false;
@@ -266,23 +265,27 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     }
 
     Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction*>(hash->handle);
+    hash->handle = NULL;
+    if(hash_fn)
+    {
+        try
+        {
+            if(out)
+                hash_fn->final(out);
+            delete hash_fn;
+        }
+        catch(std::exception& ex)
+        {
+            RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
+            outlen = 0;
+        }
+    }
+    hash->_output_len = 0;
+
     if(!out || !hash_fn) {
         RNP_LOG("Hash finalization failed");
         return 0;
     }
-
-    hash->handle = NULL;
-    try
-    {
-        hash_fn->final(out);
-        delete hash_fn;
-    }
-    catch(std::exception& ex)
-    {
-         RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
-	 outlen = 0;
-    }
-    hash->_output_len = 0;
     return outlen;
 }
 
