@@ -237,15 +237,14 @@ pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
         return -1;
     }
 
-    int error = 0;
     try {
         static_cast<Botan::HashFunction *>(hash->handle)
           ->update(static_cast<const uint8_t *>(buf), len);
     } catch (std::exception &ex) {
         RNP_LOG("Error adding to HashFunction ('%s')", ex.what());
-        error = -2;
+        return -2;
     }
-    return error;
+    return 0;
 }
 
 size_t
