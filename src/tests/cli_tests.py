@@ -1060,6 +1060,13 @@ class Misc(unittest.TestCase):
             raise_err('wrong rnp g10 verification output', err)
         return
     
+    def test_large_packet(self):
+        # Verifying large packet file with GnuPG
+        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_large_packet/4g.bzip2.gpg')])
+        if ret != 0:
+            raise_err('large packet verification failed', err)
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
