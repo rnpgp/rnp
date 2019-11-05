@@ -23,7 +23,6 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 add_executable(generate generate.c)
-set_target_properties(generate PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(generate
   PRIVATE
@@ -37,7 +36,6 @@ target_link_libraries(generate
 )
 
 add_executable(encrypt encrypt.c)
-set_target_properties(encrypt PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(encrypt
   PRIVATE
@@ -51,7 +49,6 @@ target_link_libraries(encrypt
 )
 
 add_executable(decrypt decrypt.c)
-set_target_properties(decrypt PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(decrypt
   PRIVATE
@@ -65,7 +62,6 @@ target_link_libraries(decrypt
 )
 
 add_executable(sign sign.c)
-set_target_properties(sign PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(sign
   PRIVATE
@@ -79,7 +75,6 @@ target_link_libraries(sign
 )
 
 add_executable(verify verify.c)
-set_target_properties(verify PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(verify
   PRIVATE
@@ -93,7 +88,6 @@ target_link_libraries(verify
 )
 
 add_executable(dump dump.c)
-set_target_properties(dump PROPERTIES LINKER_LANGUAGE C)
 
 target_include_directories(dump
   PRIVATE
@@ -105,3 +99,10 @@ target_link_libraries(dump
   PRIVATE
     librnp
 )
+
+if (ENABLE_SANITIZERS)
+  foreach(tgt generate encrypt decrypt sign verify dump)
+    set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
+  endforeach()
+endif()
+
