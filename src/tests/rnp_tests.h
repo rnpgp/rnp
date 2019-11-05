@@ -62,6 +62,8 @@ void rnpkeys_generatekey_verifykeyHomeDirOption(void **state);
 
 void rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state);
 
+void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state);
+
 void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state);
 
 void rnp_test_eddsa(void **state);
@@ -235,6 +237,8 @@ void test_ffi_file_output(void **state);
 void test_ffi_key_signatures(void **state);
 
 void test_ffi_keys_import(void **state);
+
+void test_ffi_import_keys_check_pktlen(void **state);
 
 void test_ffi_calculate_iterations(void **state);
 

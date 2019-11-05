@@ -5279,6 +5279,124 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+static bool
+fake_key_invalid_length(const char *valid_key_path,
+    const char *invalid_key_0_path, const char *invalid_key_1_path, const char *invalid_key_2_path)
+{
+    FILE *fp;
+    size_t read_len;
+    unsigned char pkt[2048];
+    unsigned char pkt_bit;
+
+    unsigned char fake_pkt[2048];
+
+    /* open key file for binary reading mode */
+    fp = fopen(valid_key_path, "rb");
+    if (!fp) {
+        return false;
+    }
+
+    /* 
+     * check tag
+     * we are assuming that original key uses old format and packet length type is 0x01
+     */
+    read_len = fread(pkt, 1, sizeof(pkt), fp);
+    fclose(fp);
+    if (read_len < 5) {
+        return false;
+    }
+    pkt_bit = (pkt[0] & ( 1 << 6 )) >> 6;
+    if (pkt_bit != 0) {
+        return false;
+    }
+    if ((pkt[0] & 0x03) != 0x01) {
+        return false;
+    }
+
+    /*
+     * fake a packet with len = 0x00
+     * set packet length type as 0x00 and remove one octet from length header
+     */
+    fake_pkt[0] = pkt[0] & 0xFC;
+    fake_pkt[1] = 0x00;
+    memcpy(&fake_pkt[2], &pkt[3], read_len - 3);
+    fp = fopen(invalid_key_0_path, "wb");
+    if (!fp) {
+        return false;
+    }
+    fwrite(fake_pkt, 1, read_len - 1, fp);
+    fclose(fp);
+
+    /* fake a packet with len = 0xEEEE */
+    fake_pkt[0] = pkt[0];
+    fake_pkt[1] = 0xEE;
+    fake_pkt[2] = 0xEE;
+    memcpy(&fake_pkt[3], &pkt[3], read_len - 3);
+    fp = fopen(invalid_key_1_path, "wb");
+    if (!fp) {
+        return false;
+    }
+    fwrite(fake_pkt, 1, read_len, fp);
+    fclose(fp);
+
+    /*
+     * fake a packet with len = 0xEEEEEEEE
+     * set packet length type as 0x10 and insert two octets to length header
+     */
+    fake_pkt[0] = (pkt[0] & 0xFC0) | 0x02;
+    fake_pkt[1] = 0xEE;
+    fake_pkt[2] = 0xEE;
+    fake_pkt[3] = 0xEE;
+    fake_pkt[4] = 0xEE;
+    memcpy(&fake_pkt[5], &pkt[3], read_len - 3);
+    fp = fopen(invalid_key_2_path, "wb");
+    if (!fp) {
+        return false;
+    }
+    fwrite(fake_pkt, 1, read_len + 2, fp);
+    fclose(fp);
+
+    return true;
+}
+
+TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(fake_key_invalid_length("data/test_stream_key_invalid_length/key_valid.pgp",
+            "data/test_stream_key_invalid_length/key_invalid_0.pgp",
+            "data/test_stream_key_invalid_length/key_invalid_1.pgp",
+            "data/test_stream_key_invalid_length/key_invalid_2.pgp"));
+
+    /* load invalid key with length 0 */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_invalid_length/key_invalid_0.pgp"));
+    assert_rnp_failure(rnp_import_keys(NULL, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, NULL, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0x31, NULL));
+    rnp_input_destroy(input);
+
+    /* load invalid key with length 0xEEEE */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_invalid_length/key_invalid_1.pgp"));
+    assert_rnp_failure(rnp_import_keys(NULL, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, NULL, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0x31, NULL));
+    rnp_input_destroy(input);
+
+    /* load invalid key with length 0xEEEEEEEE */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_invalid_length/key_invalid_2.pgp"));
+    assert_rnp_failure(rnp_import_keys(NULL, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, NULL, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0, NULL));
+    assert_rnp_failure(rnp_import_keys(ffi, input, 0x31, NULL));
+    rnp_input_destroy(input);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_calculate_iterations)
 {
     size_t iterations = 0;
