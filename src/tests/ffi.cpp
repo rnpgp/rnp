@@ -5453,6 +5453,133 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+static std::vector<uint8_t>
+read_file_to_vector(const char *valid_key_path)
+{
+    std::ifstream        stream(valid_key_path, std::ios::in | std::ios::binary);
+    std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)),
+                                  std::istreambuf_iterator<char>());
+    return contents;
+}
+
+/* shrink the length to 1 packet
+ * set packet length type as PGP_PTAG_OLD_LEN_1 and remove one octet from length header
+ */
+static std::vector<uint8_t>
+shrink_len_2_to_1(const std::vector<uint8_t> &src)
+{
+    std::vector<uint8_t> dst = std::vector<uint8_t>();
+    dst.reserve(src.size() - 1);
+    dst.insert(dst.end(),
+               PGP_PTAG_ALWAYS_SET |
+                 (PGP_PTAG_CT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+                 PGP_PTAG_OLD_LEN_1);
+    // make sure the most significant octet of 2-octet length is actually zero
+    assert_int_equal(src[1], 0);
+    dst.insert(dst.end(), src[2]);
+    dst.insert(dst.end(), src.begin() + 3, src.end());
+    return dst;
+}
+
+/*
+ * fake a packet with len = 0xEEEE
+ */
+static std::vector<uint8_t>
+fake_len_EEEE(const std::vector<uint8_t> &src)
+{
+    std::vector<uint8_t> dst = std::vector<uint8_t>(src);
+    dst[1] = 0xEE;
+    dst[2] = 0xEE;
+    return dst;
+}
+
+/*
+ * fake a packet with len = 0x00
+ */
+static std::vector<uint8_t>
+fake_len_0(const std::vector<uint8_t> &src)
+{
+    std::vector<uint8_t> dst = shrink_len_2_to_1(src);
+    // erase subsequent octets for the packet to correspond the length
+    uint8_t old_length = dst[1];
+    dst.erase(dst.begin() + 2, dst.begin() + 2 + old_length);
+    dst[1] = 0;
+    return dst;
+}
+
+/* extend the length to 4 octets (preserving the value)
+ * set packet length type as PGP_PTAG_OLD_LEN_4 and set 4 octet length instead of 2
+ */
+static std::vector<uint8_t>
+extend_len_2_to_4(const std::vector<uint8_t> &src)
+{
+    std::vector<uint8_t> dst = std::vector<uint8_t>();
+    dst.reserve(src.size() + 2);
+    dst.insert(dst.end(), src.begin(), src.begin() + 3);
+    dst[0] &= ~PGP_PTAG_OF_LENGTH_TYPE_MASK;
+    dst[0] |= PGP_PTAG_OLD_LEN_4;
+    dst.insert(dst.begin() + 1, 2, 0);
+    dst.insert(dst.end(), src.begin() + 3, src.end());
+    return dst;
+}
+
+static rnp_result_t
+import_public_keys_from_vector(std::vector<uint8_t> keyring)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_memory(&input, &keyring[0], keyring.size(), true));
+    rnp_result_t result = rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL);
+    rnp_input_destroy(input);
+    rnp_ffi_destroy(ffi);
+    return result;
+}
+
+TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
+{
+    std::vector<uint8_t> keyring = read_file_to_vector("data/keyrings/2/pubring.gpg");
+    // check tag
+    // we are assuming that original key uses old format and packet length type is
+    // PGP_PTAG_OLD_LEN_2
+    assert_true(keyring.size() >= 5);
+    uint8_t expected_tag = PGP_PTAG_ALWAYS_SET |
+                           (PGP_PTAG_CT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+                           PGP_PTAG_OLD_LEN_2;
+    assert_int_equal(expected_tag, 0x99);
+    assert_int_equal(keyring[0], expected_tag);
+    // original file can be loaded correctly
+    assert_rnp_success(import_public_keys_from_vector(keyring));
+    {
+        // Shrink the packet length to 1 octet
+        std::vector<uint8_t> keyring_valid_1 = shrink_len_2_to_1(keyring);
+        assert_int_equal(keyring_valid_1.size(), keyring.size() - 1);
+        assert_rnp_success(import_public_keys_from_vector(keyring_valid_1));
+    }
+    {
+        // get invalid key with length 0
+        std::vector<uint8_t> keyring_invalid_0 = fake_len_0(keyring);
+        assert_rnp_failure(import_public_keys_from_vector(keyring_invalid_0));
+    }
+    {
+        // get invalid key with length 0xEEEE
+        std::vector<uint8_t> keyring_invalid_EEEE = fake_len_EEEE(keyring);
+        assert_int_equal(keyring_invalid_EEEE.size(), keyring.size());
+        assert_rnp_failure(import_public_keys_from_vector(keyring_invalid_EEEE));
+    }
+    {
+        std::vector<uint8_t> keyring_len_4 = extend_len_2_to_4(keyring);
+        assert_int_equal(keyring_len_4.size(), keyring.size() + 2);
+        assert_rnp_success(import_public_keys_from_vector(keyring_len_4));
+        // get invalid key with length 0xEEEEEEEE
+        keyring_len_4[1] = 0xEE;
+        keyring_len_4[2] = 0xEE;
+        keyring_len_4[3] = 0xEE;
+        keyring_len_4[4] = 0xEE;
+        assert_rnp_failure(import_public_keys_from_vector(keyring_len_4));
+    }
+}
+
 TEST_F(rnp_tests, test_ffi_calculate_iterations)
 {
     size_t iterations = 0;
