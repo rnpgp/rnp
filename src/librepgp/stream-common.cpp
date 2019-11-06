@@ -836,6 +836,12 @@ file_tmpdst_finish(pgp_dest_t *dst)
             RNP_LOG("target path already exists");
             return RNP_ERROR_BAD_STATE;
         }
+        #ifdef _WIN32
+        /* rename() call on Windows fails if destination exists */
+        else {
+            unlink(origpath);
+        }
+        #endif
 
         /* we should remove dir if overwriting, file will be unlinked in rename call */
         if (S_ISDIR(st.st_mode) && rmdir(origpath)) {
