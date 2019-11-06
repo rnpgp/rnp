@@ -276,7 +276,7 @@ copy_recursively(const char *src, const char *dst)
     #ifndef _WIN32
     snprintf(buf, sizeof(buf), "/bin/cp -a '%s' '%s'", src, dst);
     #else
-    snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /Q /E /Y", src, dst);
+    snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /I /Q /E /Y", src, dst);
     #endif
     assert_int_equal(0, system(buf));
 }

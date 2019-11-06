@@ -46,7 +46,9 @@ rnp_tests::rnp_tests() : m_dir(make_temp_dir())
     }
     EXPECT_EQ(0, setenv("HOME", m_dir, 1));
     EXPECT_EQ(0, chdir(m_dir));
-    copy_recursively(getenv("RNP_TEST_DATA"), m_dir);
+    /* fully specified path works correctly here with cp and xcopy */
+    std::string data_str = std::string(m_dir) + "/data";
+    copy_recursively(getenv("RNP_TEST_DATA"), data_str.c_str());
 }
 
 rnp_tests::~rnp_tests()
