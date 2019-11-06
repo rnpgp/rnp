@@ -484,7 +484,12 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirNoPermission)
     const char *nopermsdir = "noperms";
     path_mkdir(0000, nopermsdir, NULL);
     /* Try to generate key in the directory and make sure generation fails */
+    #ifndef _WIN32
     assert_false(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", nopermsdir));
+    #else
+    /* There are no permissions for mkdir() under the Windows */
+    assert_true(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", nopermsdir));
+    #endif
 }
 
 static bool
