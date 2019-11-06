@@ -175,7 +175,7 @@ load_test_data(const char *file, char **data, size_t *size)
     *data = (char *) calloc(1, st.st_size + 1);
     assert_non_null(*data);
 
-    FILE *fp = fopen(path, "r");
+    FILE *fp = fopen(path, "rb");
     assert_non_null(fp);
     assert_int_equal(st.st_size, fread(*data, 1, st.st_size, fp));
     assert_int_equal(0, fclose(fp));
@@ -2450,7 +2450,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     input = NULL;
 
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -2564,7 +2564,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass_provider)
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -2645,7 +2645,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     input = NULL;
 
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -2757,7 +2757,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     rnp_input_destroy(input);
     input = NULL;
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -2889,7 +2889,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     input = NULL;
 
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -3069,7 +3069,7 @@ test_ffi_init_sign_file_input(rnp_input_t *input, rnp_output_t *output)
     const char *plaintext = "this is some data that will be signed";
 
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
@@ -5853,7 +5853,7 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     input = NULL;
 
     // write out some data
-    FILE *fp = fopen("plaintext", "w");
+    FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
     assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
     assert_int_equal(0, fclose(fp));
