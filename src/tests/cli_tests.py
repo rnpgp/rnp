@@ -83,7 +83,7 @@ r'pub\s+rsa.+' \
 r'\s+([0-9A-F]{40})\s*' \
 r'uid\s+.+rsakey@gpg.*'
 
-RE_GPG_GOOD_SIGNATURE = r'(?s)^\s*' \
+RE_GPG_GOOD_SIGNATURE = r'(?s)^.*' \
 r'gpg: Signature made .*' \
 r'gpg: Good signature from "(.*)".*'
 
