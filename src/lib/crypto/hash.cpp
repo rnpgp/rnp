@@ -259,8 +259,9 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     hash->handle = NULL;
     if (hash_fn) {
         try {
-            if (out)
+            if (out) {
                 hash_fn->final(out);
+	    }
             delete hash_fn;
         } catch (std::exception &ex) {
             RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
