@@ -1,8 +1,9 @@
 #!/bin/sh
 set -eux
 
-. ci/env.inc.sh
 ci/before_install.sh
+. ci/env.inc.sh
 ci/install.sh
 ci/main.sh
+ci/success.sh
 
