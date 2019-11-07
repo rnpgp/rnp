@@ -16,3 +16,11 @@ get_os() {
   esac
 }
 
+get_linux_dist() {
+  if [ -f /etc/os-release ]; then
+    sh -c '. /etc/os-release && echo $ID'
+  elif type lsb_release >/dev/null 2>&1; then
+    lsb_release -si | tr '[:upper:]' '[:lower:]'
+  fi
+}
+
