@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -exu
 
+. ci/utils.inc.sh
+
 # botan
 botan_build=${LOCAL_BUILDS}/botan
 if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
@@ -242,5 +244,7 @@ if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
 fi
 
 # ruby-rnp
-which bundle || sudo gem install bundler -v 1.16.4
+SUDO=
+[ "$(get_os)" = "freebsd" ] && SUDO=sudo
+which bundle || ${SUDO} gem install bundler -v 1.16.4
 
