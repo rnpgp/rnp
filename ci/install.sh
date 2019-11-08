@@ -52,7 +52,7 @@ _install_gpg() {
   gpg_build="$PWD"
   gpg_install="$GPG_INSTALL"
   mkdir -p "$gpg_build" "${gpg_install}"
-  git clone --depth 1 https://github.com/riboseinc/gpg-build-scripts
+  git clone --depth 1 https://github.com/rnpgp/gpg-build-scripts
   pushd gpg-build-scripts
   configure_opts="\
       --prefix=${gpg_install} \
