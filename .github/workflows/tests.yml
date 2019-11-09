@@ -7,6 +7,9 @@ on:
       - master
       - 'release/**'
 
+env:
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+
 jobs:
   centos7:
     runs-on: ubuntu-latest
