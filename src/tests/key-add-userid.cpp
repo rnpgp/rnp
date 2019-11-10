@@ -55,7 +55,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     src_close(&src);
 
     // locate our key
-    assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
+    assert_non_null(key = rnp_test_key_by_name(ks, keyids[0], NULL));
     assert_non_null(key);
 
     // unlock the key
@@ -133,7 +133,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
     src_close(&src);
     dst_close(&dst, true);
-    assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
+    assert_non_null(key = rnp_test_key_by_name(ks, keyids[0], NULL));
 
     // confirm that the counts have increased as expected
     assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);

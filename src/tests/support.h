@@ -197,3 +197,7 @@ bool check_json_field_str(json_object *      obj,
                           const std::string &value);
 bool check_json_field_int(json_object *obj, const std::string &field, int value);
 bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
+
+pgp_key_t* rnp_test_key_by_name(const rnp_key_store_t *keyring,
+                                const char *           name,
+                                pgp_key_t *            after);

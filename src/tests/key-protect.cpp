@@ -66,7 +66,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
             pgp_key_t * key = NULL;
             const char *keyid = keyids[i];
-            assert_non_null(key = rnp_key_store_get_key_by_name(ks, keyid, NULL));
+            assert_non_null(key = rnp_test_key_by_name(ks, keyid, NULL));
             assert_non_null(key);
             // all keys in this keyring are encrypted and thus should be both protected and
             // locked initially
@@ -75,7 +75,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         }
 
         pgp_key_t *tmp = NULL;
-        assert_non_null(tmp = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
+        assert_non_null(tmp = rnp_test_key_by_name(ks, keyids[0], NULL));
         assert_non_null(tmp);
 
         // steal this key from the store
@@ -147,7 +147,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;
-        assert_non_null(reloaded_key = rnp_key_store_get_key_by_name(ks, keyids[0], NULL));
+        assert_non_null(reloaded_key = rnp_test_key_by_name(ks, keyids[0], NULL));
         assert_non_null(reloaded_key);
 
         // should not be locked, nor protected

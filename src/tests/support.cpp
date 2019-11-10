@@ -672,3 +672,52 @@ check_json_field_bool(json_object *obj, const std::string &field, bool value)
     }
     return json_object_get_boolean(fld) == value;
 }
+
+/* return the next key which matches, starting searching after *after */
+pgp_key_t* 
+rnp_test_key_by_name(const rnp_key_store_t *keyring,
+                const char *           name,
+                pgp_key_t *            after)
+{
+    pgp_key_t *key = NULL;
+    uint8_t    keyid[PGP_FINGERPRINT_SIZE];
+    size_t     len;
+    size_t     binlen = 0;
+
+    if (!keyring || !name) {
+        return NULL;
+    }
+
+    len = strlen(name);
+    if (ishex(name, len) && hex2bin(name, len, keyid, sizeof(keyid), &binlen)) {
+        if (binlen <= PGP_KEY_ID_SIZE) {
+            key = rnp_key_store_get_key_by_id(keyring, keyid, after);
+        } else if (binlen <= PGP_FINGERPRINT_SIZE) {
+            pgp_fingerprint_t fp = {};
+            memcpy(fp.fingerprint, keyid, binlen);
+            fp.length = binlen;
+            key = rnp_key_store_get_key_by_fpr(keyring, &fp);
+        } 
+    }
+    
+    if (!key) {
+        regex_t    re;
+        if (regcomp(&re, name, REG_EXTENDED | REG_ICASE) != 0) {
+            return NULL;
+        }
+
+        for (list_item *key_item = after? list_next((list_item*)after) : list_front(keyring->keys); 
+             !key && key_item; 
+             key_item = list_next(key_item)) {
+            pgp_key_t *keyp = (pgp_key_t *) key_item;
+            for (size_t i = 0; !key && i < pgp_key_get_userid_count(keyp); i++) {
+                if (regexec(&re, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
+                    key = keyp;
+                }
+            }
+        }
+
+        regfree(&re);
+    }
+    return key;
+}
