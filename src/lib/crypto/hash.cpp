@@ -256,24 +256,22 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
     }
 
     Botan::HashFunction *hash_fn = static_cast<Botan::HashFunction *>(hash->handle);
-    hash->handle = NULL;
-    if (hash_fn) {
-        try {
-            if (out) {
-                hash_fn->final(out);
-	    }
-            delete hash_fn;
-        } catch (std::exception &ex) {
-            RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
-            outlen = 0;
-        }
-    }
-    hash->_output_len = 0;
-
-    if (!out || !hash_fn) {
+    if (!hash_fn) {
         RNP_LOG("Hash finalization failed");
         return 0;
     }
+
+    hash->handle = NULL;
+    try {
+        if (out) {
+            hash_fn->final(out);
+        }
+        delete hash_fn;
+    } catch (std::exception &ex) {
+        RNP_LOG("Error finishing HashFunction ('%s')", ex.what());
+        outlen = 0;
+    }
+    hash->_output_len = 0;
     return outlen;
 }
 
