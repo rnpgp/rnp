@@ -76,6 +76,7 @@ add_executable(rnp_tests
   large-packet.cpp
   load-g10.cpp
   load-pgp.cpp
+  partial-length.cpp
   rnp_tests.cpp
   streams.cpp
   support.cpp
