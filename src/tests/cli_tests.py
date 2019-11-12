@@ -1081,6 +1081,13 @@ class Misc(unittest.TestCase):
             raise_err('partial length public key packet should result in failure but did not')
         return
 
+    def test_partial_length_zero_last_chunk(self):
+        # Verifying message in partial packets having 0-size last chunk with GnuPG
+        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-zero-last')])
+        if ret != 0:
+            raise_err('message in partial packets having 0-size last chunk verification failed', err)
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
