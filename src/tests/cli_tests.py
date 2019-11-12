@@ -1074,6 +1074,13 @@ class Misc(unittest.TestCase):
             raise_err('partial length signature packet should result in failure but did not')
         return
 
+    def test_partial_length_public_key(self):
+        # Reading keyring that has a public key packet with partial length using GnuPG
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('test_partial_length/pubring.gpg.partial'), '--list-keys'])
+        if ret == 0:
+            raise_err('partial length public key packet should result in failure but did not')
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
