@@ -314,6 +314,8 @@ void test_large_packet(void **state);
 
 void test_partial_length_signature(void **state);
 
+void test_partial_length_public_key(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
