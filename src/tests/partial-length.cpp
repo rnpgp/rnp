@@ -83,3 +83,26 @@ TEST_F(rnp_tests, test_partial_length_signature)
     assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_partial_length_first_packet_256)
+{
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+
+    // init ffi
+    test_partial_length_init(&ffi);
+
+    // message having first partial length packet of 256 bytes
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-256"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+
+    // cleanup
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
