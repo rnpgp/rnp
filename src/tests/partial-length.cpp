@@ -110,6 +110,18 @@ test_partial_length_init(rnp_ffi_t *ffi)
 >>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 }
 
+TEST_F(rnp_tests, test_partial_length_public_key)
+{
+    rnp_input_t     input = NULL;
+    rnp_ffi_t       ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/pubring.gpg.partial"));
+    assert_int_equal(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS), RNP_ERROR_BAD_FORMAT);
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
 TEST_F(rnp_tests, test_partial_length_signature)
 {
     rnp_ffi_t       ffi = NULL;

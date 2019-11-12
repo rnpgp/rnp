@@ -1075,6 +1075,9 @@ class Misc(unittest.TestCase):
         return
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Added tests for keyring having public key in partial length packets #939 (part two)
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
         ret, _, _ = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('test_partial_length/pubring.gpg.partial'), '--list-keys'])
@@ -1082,6 +1085,7 @@ class Misc(unittest.TestCase):
             raise_err('partial length public key packet should result in failure but did not')
         return
 
+<<<<<<< HEAD
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
         ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-zero-last')])
@@ -1098,6 +1102,8 @@ class Misc(unittest.TestCase):
 
 =======
 >>>>>>> Added tests for message having signature in partial length packets #939 (part one)
+=======
+>>>>>>> Added tests for keyring having public key in partial length packets #939 (part two)
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
