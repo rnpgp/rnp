@@ -180,6 +180,9 @@ TEST_F(rnp_tests, test_partial_length_first_packet_256)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Added a tests for message in partial packets having 0-size last chunk #939 (part four)
 
 TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
 {
@@ -188,7 +191,11 @@ TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
     rnp_output_t    output = NULL;
 
     // init ffi
+<<<<<<< HEAD
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
+=======
+    test_partial_length_init(&ffi);
+>>>>>>> Added a tests for message in partial packets having 0-size last chunk #939 (part four)
 
     // message in partial packets having 0-size last chunk
     assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-zero-last"));
@@ -203,6 +210,7 @@ TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
     assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+<<<<<<< HEAD
 
 TEST_F(rnp_tests, test_partial_length_largest)
 {
@@ -292,3 +300,5 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
 >>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 =======
 >>>>>>> Added a test for message having first partial packet of size 256 #939 (part three)
+=======
+>>>>>>> Added a tests for message in partial packets having 0-size last chunk #939 (part four)
