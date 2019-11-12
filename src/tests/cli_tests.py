@@ -1074,6 +1074,7 @@ class Misc(unittest.TestCase):
             raise_err('partial length signature packet should result in failure but did not')
         return
 
+<<<<<<< HEAD
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
         ret, _, _ = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('test_partial_length/pubring.gpg.partial'), '--list-keys'])
@@ -1095,6 +1096,8 @@ class Misc(unittest.TestCase):
             raise_err('message having largest possible partial packet verification failed', err)
         return
 
+=======
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]

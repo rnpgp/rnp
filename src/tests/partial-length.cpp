@@ -32,12 +32,16 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "librepgp/stream-common.h"
+<<<<<<< HEAD
 #include "librepgp/stream-packet.h"
+=======
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 #include "utils.h"
 #include <json.h>
 #include <vector>
 #include <string>
 
+<<<<<<< HEAD
 // structure for filling input
 typedef struct {
     uint32_t      remaining;
@@ -92,6 +96,18 @@ TEST_F(rnp_tests, test_partial_length_public_key)
     assert_int_equal(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS), RNP_ERROR_BAD_FORMAT);
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_ffi_destroy(ffi));
+=======
+static void
+test_partial_length_init(rnp_ffi_t *ffi)
+{
+    rnp_input_t     input = NULL;
+
+    /* init ffi and inputs */
+    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(*ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_input_destroy(input));
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 }
 
 TEST_F(rnp_tests, test_partial_length_signature)
@@ -101,7 +117,11 @@ TEST_F(rnp_tests, test_partial_length_signature)
     rnp_output_t    output = NULL;
 
     // init ffi
+<<<<<<< HEAD
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
+=======
+    test_partial_length_init(&ffi);
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 
     // message having partial length signature packet
     assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-signed"));
@@ -116,6 +136,7 @@ TEST_F(rnp_tests, test_partial_length_signature)
     assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+<<<<<<< HEAD
 
 TEST_F(rnp_tests, test_partial_length_first_packet_256)
 {
@@ -247,3 +268,5 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+=======
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)

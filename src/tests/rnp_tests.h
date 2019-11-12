@@ -314,6 +314,7 @@ void test_large_packet(void **state);
 
 void test_partial_length_signature(void **state);
 
+<<<<<<< HEAD
 void test_partial_length_public_key(void **state);
 
 void test_partial_length_first_packet_256(void **state);
@@ -324,6 +325,8 @@ void test_partial_length_largest(void **state);
 
 void test_partial_length_first_packet_length(void **state);
 
+=======
+>>>>>>> Added tests for message having signature in partial length packets #939 (part one)
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
