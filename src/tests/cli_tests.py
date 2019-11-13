@@ -1088,6 +1088,13 @@ class Misc(unittest.TestCase):
             raise_err('message in partial packets having 0-size last chunk verification failed', err)
         return
 
+    def test_partial_length_largest(self):
+        # Verifying message having largest possible partial packet with GnuPG
+        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-1g')])
+        if ret != 0:
+            raise_err('message having largest possible partial packet verification failed', err)
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
