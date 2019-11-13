@@ -68,7 +68,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
 
         // find the key
         pgp_key_t *key = NULL;
-        assert_non_null(key = rnp_key_store_get_key_by_name(pubring, userid, NULL));
+        assert_non_null(key = rnp_tests_key_search(pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
@@ -113,7 +113,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
 
         // find the key
         pgp_key_t *key = NULL;
-        assert_non_null(key = rnp_key_store_get_key_by_name(pubring, userid, NULL));
+        assert_non_null(key = rnp_tests_key_search(pubring, userid, NULL));
         assert_non_null(key);
 
         const pgp_subsig_t *subsig = find_subsig(key, userid);
