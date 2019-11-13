@@ -722,27 +722,6 @@ rnp_key_store_get_key_by_id(const rnp_key_store_t *keyring,
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_userid(const rnp_key_store_t *keyring,
-                                const char *           userid,
-                                pgp_key_t *            after)
-{
-    if (!keyring || !userid) {
-        return NULL;
-    }
-
-    // if after is provided, make sure it is a member of the appropriate list
-    assert(!after || list_is_member(keyring->keys, (list_item *) after));
-    list_item *start = after ? list_next((list_item *) after) : list_front(keyring->keys);
-    for (list_item *key_item = start; key_item; key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_key_has_userid(key, userid)) {
-            return key;
-        }
-    }
-    return NULL;
-}
-
-pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *grip)
 {
     RNP_DLOG("looking keyring %p", keyring);
@@ -805,108 +784,6 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
     }
 
     return NULL;
-}
-
-/* return the next key which matches, starting searching after *after */
-static bool
-get_key_by_name(const rnp_key_store_t *keyring,
-                const char *           name,
-                pgp_key_t *            after,
-                pgp_key_t **           key)
-{
-    pgp_key_t *kp;
-    unsigned   i = 0;
-    pgp_key_t *keyp;
-    uint8_t    keyid[PGP_FINGERPRINT_SIZE];
-    size_t     len;
-    size_t     binlen = 0;
-
-    *key = NULL;
-
-    if (!keyring || !name) {
-        RNP_LOG("keyring, name and after shouldn't be NULL");
-        return false;
-    }
-    assert(!after || list_is_member(keyring->keys, (list_item *) after));
-    len = strlen(name);
-    RNP_DLOG("[%p] name '%s', len %zu", after, name, len);
-
-    /* first try name as a keyid */
-    (void) memset(keyid, 0x0, sizeof(keyid));
-    if (ishex(name, len) && hex2bin(name, len, keyid, sizeof(keyid), &binlen)) {
-        RNP_DHEX("keyid", keyid, 4);
-
-        if (binlen <= PGP_KEY_ID_SIZE) {
-            kp = rnp_key_store_get_key_by_id(keyring, keyid, after);
-        } else if (binlen <= PGP_FINGERPRINT_SIZE) {
-            pgp_fingerprint_t fp = {};
-            memcpy(fp.fingerprint, keyid, binlen);
-            fp.length = binlen;
-            kp = rnp_key_store_get_key_by_fpr(keyring, &fp);
-        } else {
-            kp = NULL;
-        }
-
-        if (kp) {
-            *key = kp;
-            return true;
-        }
-    }
-    RNP_DLOG("regex match '%s' after %p", name, after);
-
-    /* match on full name or email address as a NOSUB, ICASE regexp */
-#ifndef RNP_USE_STD_REGEX
-    regex_t    r;
-    if (regcomp(&r, name, REG_EXTENDED | REG_ICASE) != 0) {
-        RNP_LOG("Can't compile regex from string: '%s'", name);
-        return false;
-    }
-#else
-    std::regex re(name, std::regex_constants::extended | std::regex_constants::icase);
-#endif
-
-    for (list_item *key_item = after ? list_next((list_item *) after) :
-                                       list_front(keyring->keys);
-         key_item;
-         key_item = list_next(key_item)) {
-        keyp = (pgp_key_t *) key_item;
-
-        for (i = 0; i < pgp_key_get_userid_count(keyp); i++) {
-#ifndef RNP_USE_STD_REGEX
-            if (regexec(&r, (char *) pgp_key_get_userid(keyp, i), 0, NULL, 0) == 0) {
-                RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
-                         (char *) pgp_key_get_userid(keyp, i),
-                         len);
-                regfree(&r);
-                *key = keyp;
-                return true;
-            }
-#else
-            const std::string userid = pgp_key_get_userid(keyp, i);
-            if (std::regex_search(userid, re)) {
-                RNP_DLOG("MATCHED keyid \"%s\" len %" PRIsize "u",
-                         (char *) userid.c_str(),
-                         len);
-                *key = keyp;
-                return true;
-            }
-#endif
-        }
-    }
-#ifndef RNP_USE_STD_REGEX
-    regfree(&r);
-#endif
-    return true;
-}
-
-pgp_key_t *
-rnp_key_store_get_key_by_name(const rnp_key_store_t *keyring,
-                              const char *           name,
-                              pgp_key_t *            after)
-{
-    pgp_key_t *key = NULL;
-    get_key_by_name(keyring, name, after, &key);
-    return key;
 }
 
 static bool
