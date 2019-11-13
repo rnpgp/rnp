@@ -170,10 +170,6 @@ pgp_key_t *rnp_key_store_get_key_by_id(const rnp_key_store_t *,
                                        const unsigned char *,
                                        pgp_key_t *);
 
-pgp_key_t *rnp_key_store_get_key_by_name(const rnp_key_store_t *, const char *, pgp_key_t *);
-
-pgp_key_t *rnp_key_store_get_key_by_userid(const rnp_key_store_t *, const char *, pgp_key_t *);
-
 bool rnp_key_store_get_key_grip(const pgp_key_material_t *, uint8_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_grip(const rnp_key_store_t *, const uint8_t *);
