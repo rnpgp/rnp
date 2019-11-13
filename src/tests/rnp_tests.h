@@ -320,6 +320,10 @@ void test_partial_length_first_packet_256(void **state);
 
 void test_partial_length_zero_last_chunk(void **state);
 
+void test_partial_length_largest(void **state);
+
+void test_partial_length_first_packet_length(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
