@@ -438,8 +438,8 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_SIGNATURE);
 
     /* both user ids should be present */
-    assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-1", NULL));
-    assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-2", NULL));
+    assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-1"));
+    assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
     rnp_key_store_free(key_store);
 }
@@ -520,7 +520,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key, 0)->tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_USER_ID);
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1", NULL));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
 
     /* load key + user id 1 with sigs */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1.pgp"));
@@ -534,7 +534,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket(key, 0)->tag, PGP_PTAG_CT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_rawpacket(key, 1)->tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(pgp_key_get_rawpacket(key, 2)->tag, PGP_PTAG_CT_SIGNATURE);
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1", NULL));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
 
     /* load key + user id 2 with sigs */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-2.pgp"));
@@ -552,8 +552,8 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket(key, 2)->tag, PGP_PTAG_CT_SIGNATURE);
     assert_int_equal(pgp_key_get_rawpacket(key, 3)->tag, PGP_PTAG_CT_USER_ID);
     assert_int_equal(pgp_key_get_rawpacket(key, 4)->tag, PGP_PTAG_CT_SIGNATURE);
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1", NULL));
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2", NULL));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
     /* load key + subkey 1 without sigs */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-subkey-1-no-sigs.pgp"));
@@ -702,8 +702,8 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(skey2), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey2, 0)->tag, PGP_PTAG_CT_SECRET_SUBKEY);
     assert_int_equal(pgp_key_get_rawpacket(skey2, 1)->tag, PGP_PTAG_CT_SIGNATURE);
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1", NULL));
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2", NULL));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
+    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
     rnp_key_store_free(key_store);
 }
