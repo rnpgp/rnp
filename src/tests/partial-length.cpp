@@ -242,6 +242,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     pgp_packet_body_t body;
     assert_rnp_success(stream_read_packet_body(&src, &body));
     assert_int_equal(body.tag, PGP_PTAG_CT_1_PASS_SIG);
+    free_packet_body(&body);
 
     // checking next packet header (should be partial length literal data)
     uint8_t flags = 0;
@@ -249,7 +250,7 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_int_equal(flags, PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | PGP_PTAG_CT_LITDATA);
     // checking length
     bool last = true; // should be reset by stream_read_partial_chunk_len()
-    assert_true(stream_read_partial_chunk_len(&src, &last) >= 512);
+    assert_true(stream_read_partial_chunk_len(&src, &last) >= PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
     assert_false(last);
 
     // cleanup
