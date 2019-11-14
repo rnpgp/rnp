@@ -38,19 +38,6 @@
 #include <vector>
 #include <string>
 
-// pass provider always returns 'password'
-static bool
-pass_provider(rnp_ffi_t         ffi,
-            void *           app_ctx,
-            rnp_key_handle_t key,
-            const char *     pgp_context,
-            char             buf[],
-            size_t           buf_len)
-{
-    strncpy(buf, "password", buf_len);
-    return true;
-}
-
 // structure for filling input
 typedef struct {
     uint32_t      remaining;
@@ -80,7 +67,7 @@ test_partial_length_init(rnp_ffi_t *ffi, uint32_t key_flags)
     /* init ffi */
     assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
 
-    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, pass_provider, NULL));
+    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, ffi_string_password_provider, (void *) "password"));
 
     if (key_flags & RNP_LOAD_SAVE_SECRET_KEYS) {
         assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
