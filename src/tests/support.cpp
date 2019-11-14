@@ -677,40 +677,37 @@ pgp_key_t*
 rnp_tests_get_key_by_id(const rnp_key_store_t* keyring, const std::string& keyid, pgp_key_t* after)
 {
     pgp_key_t *key = NULL;
-    uint8_t keyid_bin[PGP_KEY_ID_SIZE];
+    std::vector<uint8_t> keyid_bin(PGP_KEY_ID_SIZE, 0);
     size_t binlen = 0;
 
-    if (!keyring || keyid.length() == 0) {
+    if (!keyring || keyid.empty()) {
         return NULL;
     }
     assert(!after || list_is_member(keyring->keys, (list_item *) after));
 
-    memset(keyid_bin, 0x0, sizeof(keyid_bin));
-    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin, sizeof(keyid_bin), &binlen)) {
+    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_KEY_ID_SIZE) {
-            key = rnp_key_store_get_key_by_id(keyring, keyid_bin, after);
+            key = rnp_key_store_get_key_by_id(keyring, keyid_bin.data(), after);
         }
     }
     return key;
 }
 
 pgp_key_t*
-rnp_tests_get_key_by_fpr(const rnp_key_store_t* keyring, const std::string& keyid, pgp_key_t* after)
+rnp_tests_get_key_by_fpr(const rnp_key_store_t* keyring, const std::string& keyid)
 {
     pgp_key_t *key = NULL;
-    uint8_t keyid_bin[PGP_FINGERPRINT_SIZE];
+    std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
     size_t binlen = 0;
 
-    if (!keyring || keyid.length() == 0) {
+    if (!keyring || keyid.empty()) {
         return NULL;
     }
-    assert(!after || list_is_member(keyring->keys, (list_item *) after));
 
-    memset(keyid_bin, 0x0, sizeof(keyid_bin));
-    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin, sizeof(keyid_bin), &binlen)) {
+    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_FINGERPRINT_SIZE) {
             pgp_fingerprint_t fp = { {}, static_cast<unsigned>(binlen) };
-            memcpy(fp.fingerprint, keyid_bin, binlen);
+            memcpy(fp.fingerprint, keyid_bin.data(), binlen);
             key = rnp_key_store_get_key_by_fpr(keyring, &fp);
         } 
     }
@@ -718,14 +715,13 @@ rnp_tests_get_key_by_fpr(const rnp_key_store_t* keyring, const std::string& keyi
 }
 
 pgp_key_t*
-rnp_tests_key_search(const rnp_key_store_t* keyring, const std::string& keyid, pgp_key_t* after)
+rnp_tests_key_search(const rnp_key_store_t* keyring, const std::string& keyid)
 {
-    if (!keyring || keyid.length() == 0) {
+    if (!keyring || keyid.empty()) {
         return NULL;
     }
-    assert(!after || list_is_member(keyring->keys, (list_item *) after));
 
     pgp_key_search_t srch_userid = { PGP_KEY_SEARCH_USERID };
     strncpy(srch_userid.by.userid, keyid.c_str(), sizeof(srch_userid.by.userid));
-    return rnp_key_store_search(keyring, &srch_userid, after);
+    return rnp_key_store_search(keyring, &srch_userid, NULL);
 }
