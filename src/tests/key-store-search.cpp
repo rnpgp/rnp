@@ -122,7 +122,7 @@ TEST_F(rnp_tests, test_key_store_search)
             list        seen_keys = NULL;
             pgp_key_t * key = NULL;
             const char *userid = testdata[i].userids[uidn];
-            key = rnp_tests_key_search(store, userid, NULL);
+            key = rnp_tests_key_search(store, userid);
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
@@ -199,34 +199,34 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
 
     /* Find keys and subkeys by fingerprint, id and userid */
     primsec = rnp_tests_get_key_by_fpr(
-      sec_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60", NULL);
+      sec_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60");
     assert_non_null(primsec);
     key = rnp_tests_get_key_by_id(sec_store, "4BE147BB22DF1E60", NULL);
     assert_true(key == primsec);
     subsec = rnp_tests_get_key_by_fpr(
-      sec_store, "10793E367EE867C32E358F2AA49BAE05C16E8BC8", NULL);
+      sec_store, "10793E367EE867C32E358F2AA49BAE05C16E8BC8");
     assert_non_null(subsec);
     assert_true(primsec != subsec);
     key = rnp_tests_get_key_by_id(sec_store, "A49BAE05C16E8BC8", NULL);
     assert_true(key == subsec);
 
     primpub = rnp_tests_get_key_by_fpr(
-      pub_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60", NULL);
+      pub_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60");
     assert_non_null(primpub);
     assert_true(primsec != primpub);
     subpub = rnp_tests_get_key_by_fpr(
-      pub_store, "10793E367EE867C32E358F2AA49BAE05C16E8BC8", NULL);
+      pub_store, "10793E367EE867C32E358F2AA49BAE05C16E8BC8");
     assert_true(primpub != subpub);
     assert_true(subpub != subsec);
-    key = rnp_tests_key_search(pub_store, "test1", NULL);
+    key = rnp_tests_key_search(pub_store, "test1");
     assert_true(key == primpub);
 
     /* Try other searches */
     key = rnp_tests_get_key_by_fpr(
-      sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e60", NULL);
+      sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e60");
     assert_true(key = primsec);
     key = rnp_tests_get_key_by_fpr(
-      sec_store, "0x4f2e62b74e6a4cd333bc19004be147bb22df1e60", NULL);
+      sec_store, "0x4f2e62b74e6a4cd333bc19004be147bb22df1e60");
     assert_true(key = primsec);
     key = rnp_tests_get_key_by_id(pub_store, "4BE147BB22DF1E60", NULL);
     assert_true(key = primsec);
@@ -248,9 +248,9 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
     assert_true(key = primsec);
     /* Try negative searches */
     assert_null(rnp_tests_get_key_by_fpr(
-      sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e", NULL));
+      sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e"));
     assert_null(rnp_tests_get_key_by_fpr(
-      sec_store, "2e62b74e6a4cd333bc19004be147bb22df1e60", NULL));
+      sec_store, "2e62b74e6a4cd333bc19004be147bb22df1e60"));
     assert_null(rnp_tests_get_key_by_id(sec_store, "4be147bb22dfle60", NULL));
     assert_null(rnp_tests_get_key_by_id(sec_store, "", NULL));
     assert_null(rnp_tests_get_key_by_id(sec_store, "test11", NULL));

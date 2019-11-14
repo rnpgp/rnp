@@ -172,7 +172,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "C8A10A7D78273E10", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "dsa-eg", NULL);
+    key = rnp_tests_key_search(pubring, "dsa-eg");
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
@@ -203,7 +203,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
     /* load eddsa key with forged key material */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-material.pgp");
-    key = rnp_tests_key_search(pubring, "ecc-25519", NULL);
+    key = rnp_tests_key_search(pubring, "ecc-25519");
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
@@ -232,7 +232,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "23674F21B2441527", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "ecc-p256", NULL);
+    key = rnp_tests_key_search(pubring, "ecc-p256");
     assert_non_null(key);
     assert_false(key->valid);
     key = rnp_tests_get_key_by_id(pubring, "37E285E9E9851491", NULL);
@@ -294,7 +294,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "2FB9179118898E8B", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "rsa-rsa", NULL);
+    key = rnp_tests_key_search(pubring, "rsa-rsa");
     assert_non_null(key);
     assert_false(key->valid);
     key = rnp_tests_get_key_by_id(pubring, "6E2F73008F8B8D6E", NULL);
