@@ -34,7 +34,6 @@
 #include <errno.h>
 
 #include "rnpcfg.h"
-#include "utils.h"
 #include "defaults.h"
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>

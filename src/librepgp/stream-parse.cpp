@@ -46,7 +46,6 @@
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
-#include "utils.h"
 
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>

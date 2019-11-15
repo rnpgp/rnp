@@ -28,7 +28,6 @@
 #include <rekey/rnp_key_store.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 #include "pgp-key.h"
 
 static const pgp_subsig_t *

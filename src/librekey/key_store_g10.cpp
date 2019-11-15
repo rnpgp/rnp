@@ -38,7 +38,6 @@
 
 #include "crypto/common.h"
 #include "pgp-key.h"
-#include "utils.h"
 
 #define G10_CBC_IV_SIZE 16
 

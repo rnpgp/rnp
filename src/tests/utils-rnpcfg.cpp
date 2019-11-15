@@ -27,7 +27,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "list.h"
-#include "utils.h"
 #include <rnp/rnpcfg.h>
 
 TEST_F(rnp_tests, test_rnpcfg)

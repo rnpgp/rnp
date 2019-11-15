@@ -31,7 +31,6 @@
 #include <string.h>
 #include <rnp/rnp_def.h>
 #include "types.h"
-#include "utils.h"
 #include "stream-sig.h"
 #include "stream-packet.h"
 #include "pgp-key.h"

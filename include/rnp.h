@@ -39,5 +39,6 @@
 #include "crypto/rng.h"
 #include <rnp/rnp_def.h>
 #include <rekey/rnp_key_store.h>
+#include "utils.h"
 
 #endif // RNP_RNP_H
