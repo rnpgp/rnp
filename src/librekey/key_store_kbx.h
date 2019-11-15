@@ -27,7 +27,6 @@
 #ifndef RNP_KEY_STORE_KBX_H
 #define RNP_KEY_STORE_KBX_H
 
-#include "rnp.h"
 #include <rekey/rnp_key_store.h>
 
 bool rnp_key_store_kbx_from_src(rnp_key_store_t *, pgp_source_t *, const pgp_key_provider_t *);

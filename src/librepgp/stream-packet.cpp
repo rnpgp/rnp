@@ -35,7 +35,6 @@
 #include "crypto.h"
 #include "stream-packet.h"
 #include "stream-key.h"
-#include "utils.h"
 #include <algorithm>
 
 uint32_t

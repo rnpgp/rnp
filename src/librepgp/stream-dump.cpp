@@ -44,7 +44,6 @@
 #include "pgp-key.h"
 #include "list.h"
 #include "crypto.h"
-#include "utils.h"
 #include "json_utils.h"
 #include <algorithm>
 

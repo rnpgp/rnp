@@ -29,7 +29,6 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 #include "../librepgp/stream-packet.h"
 
 static bool

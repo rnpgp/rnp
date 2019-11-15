@@ -52,7 +52,6 @@
 #include "pgp-key.h"
 #include "fingerprint.h"
 #include "crypto/hash.h"
-#include "utils.h"
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX

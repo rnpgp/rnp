@@ -56,6 +56,7 @@
 #define PACKET_SHOW_H_
 
 #include "types.h"
+#include "rnp.h"
 
 /** pgp_bit_map_t
  */

@@ -38,7 +38,6 @@
 #include "librepgp/stream-sig.h"
 #include "librepgp/stream-key.h"
 #include "defaults.h"
-#include "utils.h"
 #include <fstream>
 
 extern rng_t global_rng;
