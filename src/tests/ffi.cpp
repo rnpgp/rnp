@@ -32,7 +32,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "librepgp/stream-common.h"
-#include "utils.h"
 #include <json.h>
 #include <vector>
 #include <string>

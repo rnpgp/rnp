@@ -31,6 +31,7 @@
 #include <string>
 #include <vector>
 #include "list.h"
+#include "rnp/rnp.h"
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */

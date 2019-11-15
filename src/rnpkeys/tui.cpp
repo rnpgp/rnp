@@ -2,7 +2,6 @@
 #include <errno.h>
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
-#include "utils.h"
 #include "defaults.h"
 
 /* -----------------------------------------------------------------------------

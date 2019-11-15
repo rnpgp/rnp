@@ -39,9 +39,9 @@
 #include <limits.h>
 #endif
 #include <rnp/rnp_def.h>
+#include "rnp.h"
 #include "stream-common.h"
 #include "types.h"
-#include "utils.h"
 #include <algorithm>
 
 ssize_t

@@ -30,7 +30,6 @@
 #include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 #include "crypto/hash.h"
 #include <fstream>
 

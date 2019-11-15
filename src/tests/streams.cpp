@@ -26,7 +26,6 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 #include "rnp.h"
 #include "crypto/hash.h"
 #include "crypto/signatures.h"
