@@ -34,7 +34,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "fingerprint.h"
-#include "utils.h"
 
 extern rng_t global_rng;
 

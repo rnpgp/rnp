@@ -1963,4 +1963,7 @@ rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
 
 #if defined(__cplusplus)
 }
+
+#include "utils.h"
+
 #endif

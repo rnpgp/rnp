@@ -28,7 +28,6 @@
 #include <crypto/rng.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 
 static char original_dir[PATH_MAX];
 

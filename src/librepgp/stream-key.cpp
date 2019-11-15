@@ -40,7 +40,6 @@
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "list.h"
-#include "utils.h"
 #include "crypto.h"
 #include "crypto/signatures.h"
 #include "../librekey/key_store_pgp.h"

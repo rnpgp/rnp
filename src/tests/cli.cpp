@@ -27,7 +27,6 @@
 #include <sys/wait.h>
 #include "rnp_tests.h"
 #include "support.h"
-#include "utils.h"
 
 int rnp_main(int argc, char **argv);
 int rnpkeys_main(int argc, char **argv);
