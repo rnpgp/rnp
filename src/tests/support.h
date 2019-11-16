@@ -38,7 +38,6 @@
 #include <sys/stat.h>
 
 #include "rnp.h"
-#include "../rnp/rnpcli.h"
 #include "../rnp/fficli.h"
 
 /* Check if a file exists.
@@ -58,6 +57,9 @@ bool dir_exists(const char *path);
 
 /* Read file contents into the memory */
 uint8_t *file_contents(const char *path, ssize_t *size);
+
+/* Read file contents into the std::string */
+std::string file_to_str(const std::string &path);
 
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
@@ -136,7 +138,6 @@ bool setupPasswordfd(int *pipefd);
 
 /* Common initialization of rnp structure : home path, keystore format and pointer to store
  * password fd */
-bool setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd);
 bool setup_cli_rnp_common(cli_rnp_t * rnp,
                           const char *ks_format,
                           const char *homedir,
@@ -151,11 +152,25 @@ bool failing_password_callback(const pgp_password_ctx_t *ctx,
                                size_t                    password_size,
                                void *                    userdata);
 
+bool ffi_failing_password_provider(rnp_ffi_t        ffi,
+                                   void *           app_ctx,
+                                   rnp_key_handle_t key,
+                                   const char *     pgp_context,
+                                   char *           buf,
+                                   size_t           buf_len);
+
 // this is a password callback that should never be called
 bool asserting_password_callback(const pgp_password_ctx_t *ctx,
                                  char *                    password,
                                  size_t                    password_size,
                                  void *                    userdata);
+
+bool ffi_asserting_password_provider(rnp_ffi_t        ffi,
+                                     void *           app_ctx,
+                                     rnp_key_handle_t key,
+                                     const char *     pgp_context,
+                                     char *           buf,
+                                     size_t           buf_len);
 
 // this is a password callback that just copies the string in userdata to
 // the password buffer
@@ -164,10 +179,18 @@ bool string_copy_password_callback(const pgp_password_ctx_t *ctx,
                                    size_t                    password_size,
                                    void *                    userdata);
 
+bool ffi_string_password_provider(rnp_ffi_t        ffi,
+                                  void *           app_ctx,
+                                  rnp_key_handle_t key,
+                                  const char *     pgp_context,
+                                  char *           buf,
+                                  size_t           buf_len);
+
 bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
 
 std::string fmt(const char *format, ...);
+std::string strip_eol(const std::string &str);
 
 bool check_json_field_str(json_object *      obj,
                           const std::string &field,

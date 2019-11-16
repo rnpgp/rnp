@@ -1,0 +1,56 @@
+name: tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+env:
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+
+jobs:
+  centos7:
+    runs-on: ubuntu-latest
+    container:
+      image: centos:7
+    timeout-minutes: 50
+    strategy:
+      matrix:
+        env:
+          - BUILD_MODE: normal
+            GPG_VERSION: stable
+          - BUILD_MODE: normal
+            GPG_VERSION: beta
+          - BUILD_MODE: sanitize
+            GPG_VERSION: stable
+          - BUILD_MODE: sanitize
+            GPG_VERSION: beta
+          - BUILD_MODE: coverage
+            GPG_VERSION: beta
+            RNP_TESTS: cli_tests
+          - BUILD_MODE: coverage
+            GPG_VERSION: beta
+            RNP_TESTS: rnp_tests
+    steps:
+      - uses: actions/checkout@v1
+      - name: tests
+        run: |
+          useradd rnpuser
+          yum -y -q install sudo
+          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+          exec su rnpuser -c ./ci/run.sh
+        env: ${{ matrix.env }}
+  macos-latest:
+    runs-on: macOS-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v1
+      - name: tests
+        run: ./ci/run.sh
+        env:
+          BUILD_MODE: normal
+          GPG_VERSION: stable
+

@@ -4,15 +4,16 @@ set -eux
 . ci/utils.inc.sh
 
 : "${RNP_TESTS:=.*}"
+: "${LD_LIBRARY_PATH:=}"
 
 CMAKE=cmake
 
 if [[ "$(get_os)" = "linux" ]]; then
   pushd /
   sudo curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
-  sudo sh cmake.sh --skip-license
+  sudo sh cmake.sh --skip-license --prefix=/usr
   popd
-  CMAKE=/bin/cmake
+  CMAKE=/usr/bin/cmake
 fi
 
 cmakeopts=(
@@ -27,7 +28,7 @@ cmakeopts=(
 mkdir -p "${LOCAL_BUILDS}/rnp-build"
 rnpsrc="$PWD"
 pushd "${LOCAL_BUILDS}/rnp-build"
-export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib"
+export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
 
 ${CMAKE} "${cmakeopts[@]}" "$rnpsrc"
 make -j${MAKE_PARALLEL} VERBOSE=1 install

@@ -27,26 +27,17 @@
 #include "../librekey/key_store_pgp.h"
 #include "../librepgp/stream-ctx.h"
 #include "pgp-key.h"
-
+#include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"
 #include "utils.h"
 #include "crypto/hash.h"
+#include <fstream>
 
 TEST_F(rnp_tests, test_key_unlock_pgp)
 {
-    rnp_t                   rnp;
-    pgp_key_t *             key = NULL;
-    rnp_ctx_t               ctx;
-    rnp_signer_info_t       signer = {};
-    rnp_result_t            ret;
+    cli_rnp_t               rnp = {};
     const char *            data = "my test data";
-    char                    signature[512] = {0};
-    size_t                  siglen = 0;
-    size_t                  enclen = 0;
-    size_t                  declen = 0;
-    char                    encrypted[512] = {0};
-    char                    decrypted[512] = {0};
     pgp_password_provider_t provider = {0};
     static const char *     keyids[] = {"7bc6709b15c23a4a", // primary
                                    "1ed63ee56fadc34d",
@@ -56,169 +47,179 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
                                    "54505a936a4a970e",
                                    "326ef111425d14a5"};
 
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1/", NULL));
-    assert_true(rnp_load_keyrings(&rnp, true));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1/", NULL));
+    assert_true(cli_rnp_load_keyrings(&rnp, true));
 
     for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
-        const char *keyid = keyids[i];
-        assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyid, NULL));
-        assert_non_null(key);
+        rnp_key_handle_t handle = NULL;
+        assert_rnp_success(rnp_locate_key(rnp.ffi, "keyid", keyids[i], &handle));
+        assert_non_null(handle);
+        bool locked = false;
+        assert_rnp_success(rnp_key_is_locked(handle, &locked));
         // all keys in this keyring are encrypted and thus should be locked initially
-        assert_true(pgp_key_is_locked(key));
+        assert_true(locked);
+        rnp_key_handle_destroy(handle);
     }
 
+    std::ofstream out("dummyfile.dat");
+    out << data;
+    out.close();
+
     // try signing with a failing password provider (should fail)
-    rnp.password_provider =
-      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    signer.key = key;
-    signer.halg = ctx.halg;
-    assert_non_null(list_append(&ctx.signers, &signer, sizeof(signer)));
-    memset(signature, 0, sizeof(signature));
-    ret =
-      rnp_protect_mem(&rnp, &ctx, data, strlen(data), signature, sizeof(signature), &siglen);
-    assert_int_not_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
+    rnp_cfg_t cfg = {};
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
+    rnp_cfg_setstr(&cfg, CFG_HASH, "SHA1");
+    rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+    rnp_cfg_addstr(&cfg, CFG_SIGNERS, keyids[0]);
+    assert_false(cli_rnp_protect_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
 
     // grab the signing key to unlock
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "keyid", keyids[0], &key));
     assert_non_null(key);
-
+    char *alg = NULL;
     // confirm that this key is indeed RSA first
-    assert_int_equal(pgp_key_get_alg(key), PGP_PKA_RSA);
+    assert_rnp_success(rnp_key_get_alg(key, &alg));
+    assert_int_equal(strcmp(alg, "RSA"), 0);
+    rnp_buffer_destroy(alg);
+    
     // confirm the secret MPIs are NULL
-    assert_int_equal(pgp_key_get_material(key)->rsa.d.len, 0);
-    assert_int_equal(pgp_key_get_material(key)->rsa.p.len, 0);
-    assert_int_equal(pgp_key_get_material(key)->rsa.q.len, 0);
-    assert_int_equal(pgp_key_get_material(key)->rsa.u.len, 0);
+    assert_int_equal(pgp_key_get_material(key->sec)->rsa.d.len, 0);
+    assert_int_equal(pgp_key_get_material(key->sec)->rsa.p.len, 0);
+    assert_int_equal(pgp_key_get_material(key->sec)->rsa.q.len, 0);
+    assert_int_equal(pgp_key_get_material(key->sec)->rsa.u.len, 0);
 
     // try to unlock with a failing password provider
     provider =
       (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
-    assert_false(pgp_key_unlock(key, &provider));
-    assert_true(pgp_key_is_locked(key));
+    assert_false(pgp_key_unlock(key->sec, &provider));
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
 
     // try to unlock with an incorrect password
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
                                          .userdata = (void *) "badpass"};
-    assert_false(pgp_key_unlock(key, &provider));
-    assert_true(pgp_key_is_locked(key));
+    assert_false(pgp_key_unlock(key->sec, &provider));
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
 
     // unlock the signing key
     provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
                                          .userdata = (void *) "password"};
-    assert_true(pgp_key_unlock(key, &provider));
-    assert_false(pgp_key_is_locked(key));
+    assert_true(pgp_key_unlock(key->sec, &provider));
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_false(locked);
 
     // confirm the secret MPIs are now filled in
-    assert_int_not_equal(pgp_key_get_material(key)->rsa.d.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key)->rsa.p.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key)->rsa.q.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key)->rsa.u.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.d.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.p.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.q.len, 0);
+    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.u.len, 0);
 
     // now the signing key is unlocked, confirm that no password is required for signing
-    rnp.password_provider =
-      (pgp_password_provider_t){.callback = asserting_password_callback, .userdata = NULL};
-
-    // sign, with no password
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    signer.halg = ctx.halg;
-    signer.key = key;
-    assert_non_null(list_append(&ctx.signers, &signer, sizeof(signer)));
-    memset(signature, 0, sizeof(signature));
-    ret =
-      rnp_protect_mem(&rnp, &ctx, data, strlen(data), signature, sizeof(signature), &siglen);
-    assert_int_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_asserting_password_provider, NULL));
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
+    rnp_cfg_setstr(&cfg, CFG_HASH, "SHA1");
+    rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+    rnp_cfg_addstr(&cfg, CFG_SIGNERS, keyids[0]);
+    assert_true(cli_rnp_protect_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
 
     // verify
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ctx.armor = false;
-    ret = rnp_process_mem(&rnp, &ctx, signature, siglen, NULL, 0, NULL);
-    assert_int_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.verify");
+    assert_true(cli_rnp_process_file(&cfg, &rnp));
 
     // verify (negative)
-    rnp_ctx_init(&ctx, &rnp.rng);
-    signature[siglen / 2] ^= 0xff;
-    ret = rnp_process_mem(&rnp, &ctx, signature, siglen, NULL, 0, NULL);
-    assert_int_not_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    std::fstream verf("dummyfile.dat.pgp", std::ios_base::binary | std::ios_base::out | std::ios_base::in);
+    off_t versize = file_size("dummyfile.dat.pgp");
+    verf.seekg(versize - 3, std::ios::beg);
+    verf.write("0x0C", 1);
+    verf.close();
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
 
     // lock the signing key
-    assert_true(pgp_key_lock(key));
-    assert_true(pgp_key_is_locked(key));
-    rnp.password_provider =
-      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
+    assert_rnp_success(rnp_key_lock(key));
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
 
     // sign, with no password (should now fail)
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ctx.halg = pgp_str_to_hash_alg("SHA1");
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[0], NULL));
-    signer.key = key;
-    signer.halg = ctx.halg;
-    assert_non_null(list_append(&ctx.signers, &signer, sizeof(signer)));
-    memset(signature, 0, sizeof(signature));
-    ret =
-      rnp_protect_mem(&rnp, &ctx, data, strlen(data), signature, sizeof(signature), &siglen);
-    assert_int_not_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
+    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+    rnp_cfg_setstr(&cfg, CFG_HASH, "SHA1");
+    rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+    rnp_cfg_addstr(&cfg, CFG_SIGNERS, keyids[0]);
+    assert_false(cli_rnp_protect_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
 
     // encrypt
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ctx.ealg = PGP_SA_AES_256;
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.pubring, keyids[1], NULL));
-    list_append(&ctx.recipients, &key, sizeof(key));
-    // Note: keyids[1] is an encrypting subkey
-    ret =
-      rnp_protect_mem(&rnp, &ctx, data, strlen(data), encrypted, sizeof(encrypted), &enclen);
-    assert_int_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_ENCRYPT_PK, true);
+    rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+    rnp_cfg_setstr(&cfg, CFG_CIPHER, "AES256");
+    rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, keyids[1]);
+    assert_true(cli_rnp_protect_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
 
     // try decrypting with a failing password provider (should fail)
-    rnp.password_provider =
-      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ret =
-      rnp_process_mem(&rnp, &ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
-    assert_int_not_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
+    rnp_cfg_init(&cfg);
+    rnp_cfg_load_defaults(&cfg);
+    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+    rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
+    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.decrypt");
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
 
     // grab the encrypting key to unlock
-    assert_non_null(key = rnp_key_store_get_key_by_name(rnp.secring, keyids[1], NULL));
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_locate_key(rnp.ffi, "keyid", keyids[1], &subkey));
+    assert_non_null(subkey);
 
     // unlock the encrypting key
-    provider = (pgp_password_provider_t){.callback = string_copy_password_callback,
-                                         .userdata = (void *) "password"};
-    assert_true(pgp_key_unlock(key, &provider));
-    assert_false(pgp_key_is_locked(key));
+    assert_rnp_success(rnp_key_unlock(subkey, "password"));
+    assert_rnp_success(rnp_key_is_locked(subkey, &locked));
+    assert_false(locked);
 
     // decrypt, with no password
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ret =
-      rnp_process_mem(&rnp, &ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
-    assert_int_equal(ret, RNP_SUCCESS);
-    assert_int_equal(declen, strlen(data));
-    assert_string_equal(data, decrypted);
-    rnp_ctx_free(&ctx);
+    assert_true(cli_rnp_process_file(&cfg, &rnp));
+
+    std::string decrypt = file_to_str("dummyfile.decrypt");
+    assert_true(decrypt == data);
 
     // lock the encrypting key
-    assert_true(pgp_key_lock(key));
-    assert_true(pgp_key_is_locked(key));
-    rnp.password_provider =
-      (pgp_password_provider_t){.callback = failing_password_callback, .userdata = NULL};
+    assert_rnp_success(rnp_key_lock(subkey));
+    assert_rnp_success(rnp_key_is_locked(subkey, &locked));
+    assert_true(locked);
 
     // decrypt, with no password (should now fail)
-    rnp_ctx_init(&ctx, &rnp.rng);
-    ret =
-      rnp_process_mem(&rnp, &ctx, encrypted, enclen, decrypted, sizeof(decrypted), &declen);
-    assert_int_not_equal(ret, RNP_SUCCESS);
-    rnp_ctx_free(&ctx);
-
+    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    rnp_cfg_free(&cfg);
     // cleanup
-    rnp_end(&rnp);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    cli_rnp_end(&rnp);
+    assert_int_equal(unlink("dummyfile.dat"), 0);
 }

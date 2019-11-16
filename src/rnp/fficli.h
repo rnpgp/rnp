@@ -50,7 +50,16 @@ typedef struct cli_rnp_t {
     char *    defkey;    /* default key id */
 } cli_rnp_t;
 
+/**
+ * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring pathes, types and
+ *        default key.
+ *
+ * @param cfg pointer to the allocated rnp_cfg_t structure
+ * @return true on success or false otherwise.
+ * @return false
+ */
 bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
+
 bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
 void cli_rnp_end(cli_rnp_t *);
 bool cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret);
@@ -63,14 +72,17 @@ bool cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username);
 list cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret);
 void cli_rnp_keylist_destroy(list *keys);
 bool cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter);
+bool cli_rnp_add_key(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 bool cli_rnp_dump_file(const rnp_cfg_t *cfg);
 bool cli_rnp_armor_file(const rnp_cfg_t *cfg);
 bool cli_rnp_dearmor_file(const rnp_cfg_t *cfg);
+bool cli_rnp_setup(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
+bool cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
+bool cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
-int64_t     json_obj_get_int64(json_object *obj, const char *key);
-bool        set_pass_fd(FILE **file, int passfd);
-char *      ptimestr(char *dest, size_t size, time_t t);
+int64_t json_obj_get_int64(json_object *obj, const char *key);
+bool rnp_casecmp(const std::string &str1, const std::string &str2);
 
 /* TODO: we should decide what to do with functions/constants/defines below */
 #define RNP_KEYID_SIZE 8
@@ -78,6 +90,8 @@ char *      ptimestr(char *dest, size_t size, time_t t);
 #define RNP_GRIP_SIZE 20
 
 #define MAX_PASSWORD_ATTEMPTS 3
+
+#define DEFAULT_SYMM_ALG "AES256"
 
 #define ERR_MSG(...)                           \
     do {                                       \
@@ -90,9 +104,8 @@ char *      ptimestr(char *dest, size_t size, time_t t);
 #define EXT_PGP (".pgp")
 #define EXT_GPG (".gpg")
 
-rnp_result_t disable_core_dumps(void);
-char *       rnp_strip_eol(char *s);
-void         pgp_forget(void *vp, size_t size);
+char *rnp_strip_eol(char *s);
+void pgp_forget(void *vp, size_t size);
 
 #if defined(__cplusplus)
 }

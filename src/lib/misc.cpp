@@ -234,19 +234,6 @@ rnp_clear_debug()
     debugc = 0;
 }
 
-/* return the version for the library */
-const char *
-rnp_get_info(const char *type)
-{
-    if (strcmp(type, "version") == 0) {
-        return PACKAGE_STRING;
-    }
-    if (strcmp(type, "maintainer") == 0) {
-        return PACKAGE_BUGREPORT;
-    }
-    return "[unknown]";
-}
-
 void
 rnp_log(const char *fmt, ...)
 {

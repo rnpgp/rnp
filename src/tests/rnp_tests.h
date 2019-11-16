@@ -62,8 +62,6 @@ void rnpkeys_generatekey_verifykeyHomeDirOption(void **state);
 
 void rnpkeys_generatekey_verifykeyKBXHomeDirOption(void **state);
 
-void rnpkeys_generatekey_verifykeyNonexistingHomeDir(void **state);
-
 void rnpkeys_generatekey_verifykeyHomeDirNoPermission(void **state);
 
 void rnp_test_eddsa(void **state);
@@ -319,6 +317,8 @@ void test_large_lines_detect_key_format(void **state);
 void test_large_pre_header_detect_key_format(void **state);
 
 void test_long_armored_line_detect_key_format(void **state);
+
+void test_large_packet(void **state);
 
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))

@@ -44,9 +44,20 @@ netbsd_install() {
   echo ""
 }
 
+linux_install_centos() {
+  sudo yum -y update
+  sudo yum -y -q install epel-release centos-release-scl
+  sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+  sudo curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo -o /etc/yum.repos.d/ribose.repo
+  sudo yum -y -q install sudo wget git cmake3 gcc gcc-c++ make autoconf automake libtool bzip2 gzip \
+    ncurses-devel which rh-ruby25 rh-ruby25-ruby-devel bzip2-devel zlib-devel byacc gettext-devel \
+    bison ribose-automake116 llvm-toolset-7.0
+}
+
 linux_install() {
-  echo ""
+  local dist=$(get_linux_dist)
+  type "linux_install_$dist" | grep -qwi 'function' && "linux_install_$dist"
+  true
 }
 
 "$(get_os)_install"
-

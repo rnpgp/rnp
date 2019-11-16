@@ -792,19 +792,25 @@ TEST_F(rnp_tests, test_load_public_from_secret)
 
 TEST_F(rnp_tests, test_key_import)
 {
-    rnp_t                      rnp = {};
+    cli_rnp_t                      rnp = {};
     pgp_transferable_key_t     tkey = {};
     pgp_transferable_subkey_t *tskey = NULL;
     pgp_transferable_userid_t *tuid = NULL;
 
     assert_int_equal(mkdir(".rnp", S_IRWXU), 0);
-    assert_true(setup_rnp_common(&rnp, RNP_KEYSTORE_GPG, ".rnp", NULL));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, ".rnp", NULL));
 
     /* import just the public key */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-pub-just-key.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
+    rnp_cfg_t cfg = {};
+    rnp_cfg_init(&cfg);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-pub-just-key.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    size_t keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 1);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -814,10 +820,13 @@ TEST_F(rnp_tests, test_key_import)
     transferable_key_destroy(&tkey);
 
     /* import public key + 1 userid */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-pub-uid-1-no-sigs.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-pub-uid-1-no-sigs.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 1);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -831,10 +840,13 @@ TEST_F(rnp_tests, test_key_import)
     transferable_key_destroy(&tkey);
 
     /* import public key + 1 userid + signature */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-pub-uid-1.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 1);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-pub-uid-1.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 1);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 0);
@@ -848,10 +860,13 @@ TEST_F(rnp_tests, test_key_import)
     transferable_key_destroy(&tkey);
 
     /* import public key + 1 subkey */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-pub-subkey-1.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 2);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 0);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-pub-subkey-1.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 0);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 1);
@@ -865,15 +880,16 @@ TEST_F(rnp_tests, test_key_import)
     assert_non_null(tskey = (pgp_transferable_subkey_t *) list_front(tkey.subkeys));
     assert_int_equal(list_length(tskey->signatures), 1);
     assert_int_equal(tskey->subkey.tag, PGP_PTAG_CT_PUBLIC_SUBKEY);
-
     transferable_key_destroy(&tkey);
 
     /* import secret key with 1 uid and 1 subkey */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-sec-uid-1-subkey-1.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_true(rnp_key_store_write_to_path(rnp.secring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 2);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 2);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-sec-uid-1-subkey-1.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 2);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 1);
@@ -906,11 +922,13 @@ TEST_F(rnp_tests, test_key_import)
     transferable_key_destroy(&tkey);
 
     /* import secret key with 2 uids and 2 subkeys */
-    assert_true(rnp_add_key(&rnp, MERGE_PATH "key-sec.pgp", false));
-    assert_true(rnp_key_store_write_to_path(rnp.pubring));
-    assert_true(rnp_key_store_write_to_path(rnp.secring));
-    assert_int_equal(rnp_key_store_get_key_count(rnp.pubring), 3);
-    assert_int_equal(rnp_key_store_get_key_count(rnp.secring), 3);
+    rnp_cfg_setstr(&cfg, CFG_KEYFILE, MERGE_PATH "key-sec.pgp");
+    assert_true(cli_rnp_add_key(&cfg, &rnp));
+    assert_true(cli_rnp_save_keyrings(&rnp));
+    assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 3);
+    assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
+    assert_int_equal(keycount, 3);
 
     assert_true(load_transferable_key(&tkey, ".rnp/pubring.gpg"));
     assert_int_equal(list_length(tkey.subkeys), 2);
@@ -957,7 +975,8 @@ TEST_F(rnp_tests, test_key_import)
     assert_rnp_success(decrypt_secret_key(&tskey->subkey, "password"));
     transferable_key_destroy(&tkey);
 
-    rnp_end(&rnp);
+    rnp_cfg_free(&cfg);
+    cli_rnp_end(&rnp);
 }
 
 TEST_F(rnp_tests, test_load_subkey)

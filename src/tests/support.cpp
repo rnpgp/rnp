@@ -45,6 +45,7 @@
 
 #include <crypto.h>
 #include <pgp-key.h>
+#include <fstream>
 
 extern rng_t global_rng;
 
@@ -101,6 +102,13 @@ file_contents(const char *path, ssize_t *size)
     }
     close(fd);
     return mem;
+}
+
+std::string
+file_to_str(const std::string &path)
+{
+    std::ifstream infile(path);
+    return std::string(std::istreambuf_iterator<char>(infile), std::istreambuf_iterator<char>());
 }
 
 off_t
@@ -492,22 +500,6 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
 }
 
 bool
-setup_rnp_common(rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
-{
-    rnp_cfg_t cfg = {};
-
-    if (!setup_rnp_cfg(&cfg, ks_format, homedir, pipefd)) {
-        return false;
-    }
-
-    /*initialize the basic RNP structure. */
-    memset(rnp, '\0', sizeof(*rnp));
-    bool res = rnp_init(rnp, &cfg) == RNP_SUCCESS;
-    rnp_cfg_free(&cfg);
-    return res;
-}
-
-bool
 setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
 {
     rnp_cfg_t cfg = {};
@@ -540,6 +532,27 @@ failing_password_callback(const pgp_password_ctx_t *ctx,
                           void *                    userdata)
 {
     return false;
+}
+
+bool
+ffi_failing_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    return false;
+}
+
+bool
+ffi_asserting_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    assert_false(true);
+    return false;
+}
+
+bool
+ffi_string_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+{
+    const char *str = (const char *) app_ctx;
+    strncpy(buf, str, buf_len - 1);
+    return true;
 }
 
 // this is a password callback that should never be called
@@ -599,6 +612,16 @@ fmt(const char *format, ...)
     // drop terminating null
     buf.resize(size);
     return buf;
+}
+
+std::string
+strip_eol(const std::string &str)
+{
+    size_t endpos = str.find_last_not_of("\r\n");
+    if (endpos != std::string::npos) {
+        return str.substr(0, endpos + 1);
+    }
+    return str;
 }
 
 static bool
