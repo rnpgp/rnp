@@ -38,6 +38,7 @@
 #define BLANKFILE_ASC "data/test_large_lines/blankfile.txt.asc"
 #define BLANKFILE_HEADER_ASC "data/test_large_lines/long_header_blankfile.txt.asc"
 #define BLANKFILE_PRE_HEADER_ASC "data/test_large_lines/pre_header_blankfile.txt.asc"
+#define BLANKFILE_LONG_ARMORED_ASC "data/test_large_lines/long_armored_blankfile.txt.asc"
 
 static void
 load_test_data(const char *file, char **data, size_t *size)
@@ -45,13 +46,13 @@ load_test_data(const char *file, char **data, size_t *size)
     char *      path = NULL;
     struct stat st = {0};
 
-    assert_non_null(file);
-    assert_non_null(data);
+    assert_rnp_success(file != NULL);
+    assert_rnp_success(data != NULL);
 
     path = rnp_compose_path("data", file, NULL);
-    assert_non_null(path);
+    assert_rnp_success(path != NULL);
 
-    assert_int_equal(0, stat(path, &st));
+    assert_rnp_success(stat(path, &st) == 0);
     if (size) {
         *size = st.st_size;
     }
@@ -59,10 +60,29 @@ load_test_data(const char *file, char **data, size_t *size)
     assert_non_null(*data);
 
     FILE *fp = fopen(path, "r");
-    assert_non_null(fp);
-    assert_int_equal(st.st_size, fread(*data, 1, st.st_size, fp));
-    assert_int_equal(0, fclose(fp));
+    assert_rnp_success(fp != NULL);
+    assert_rnp_success(fread(*data, 1, st.st_size, fp) == st.st_size);
+    assert_rnp_success(fclose(fp) == 0);
     free(path);
+}
+
+TEST_F(rnp_tests, test_long_header_line_detect_key_format)
+{
+    char * data = NULL;
+    size_t data_size = 0;
+    char * format = NULL;
+
+    // GPG (armored)
+    load_test_data(BLANKFILE_HEADER_ASC, &data, &data_size);
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_rnp_success(strcmp(format, "GPG") == 0);
+    free(data);
+    free(format);
+
+    // invalid
+    format = NULL;
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
+    assert_rnp_success(format == NULL);
 }
 
 TEST_F(rnp_tests, test_large_lines_detect_key_format)
@@ -72,18 +92,16 @@ TEST_F(rnp_tests, test_large_lines_detect_key_format)
     char * format = NULL;
 
     // GPG (armored)
-    data = NULL;
-    format = NULL;
     load_test_data(BLANKFILE_ASC, &data, &data_size);
-    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
-    assert_int_equal(0, strcmp(format, "GPG"));
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_rnp_success(strcmp(format, "GPG") == 0);
     free(data);
     free(format);
 
     // invalid
     format = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
-    assert_null(format);
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
+    assert_rnp_success(format == NULL);
 }
 
 TEST_F(rnp_tests, test_large_pre_header_detect_key_format)
@@ -93,48 +111,36 @@ TEST_F(rnp_tests, test_large_pre_header_detect_key_format)
     char * format = NULL;
 
     // GPG (armored)
-    data = NULL;
-    format = NULL;
     load_test_data(BLANKFILE_PRE_HEADER_ASC, &data, &data_size);
-    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) data, data_size, &format));
-    assert_int_equal(0, strcmp(format, "GPG"));
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_rnp_success(strcmp(format, "GPG") == 0);
     free(data);
     free(format);
 
     // invalid
     format = NULL;
-    assert_int_equal(RNP_SUCCESS, rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
-    assert_null(format);
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
+    assert_rnp_success(format == 0);
 }
 
 
-TEST_F(rnp_tests, test_large_lines_enarmor_dearmor)
+TEST_F(rnp_tests, test_long_armored_line_detect_key_format)
 {
-    std::string data;
+    char * data = NULL;
+    size_t data_size = 0;
+    char * format = NULL;
 
-    // enarmor plain message
-    const std::string msg("this is a test");
-    data.clear();
-    // test truncated armored data
-    {
-        std::ifstream keyf(BLANKFILE_HEADER_ASC,std::ios::binary | std::ios::ate);
-        std::string   keystr(keyf.tellg(), ' ');
-        keyf.seekg(0);
-        keyf.read(&keystr[0], keystr.size());
-        keyf.close();
-        for (size_t sz = keystr.size() - 2; sz > 0; sz--) {
-            rnp_input_t  input = NULL;
-            rnp_output_t output = NULL;
+    // GPG (armored)
+    load_test_data(BLANKFILE_LONG_ARMORED_ASC, &data, &data_size);
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) data, data_size, &format));
+    assert_rnp_success(strcmp(format, "GPG") == 0);
+    free(data);
+    free(format);
 
-            assert_rnp_success(
-              rnp_input_from_memory(&input, (const uint8_t *) keystr.data(), sz, true));
-            assert_rnp_success(rnp_output_to_memory(&output, 0));
-            assert_rnp_failure(rnp_dearmor(input, output));
-
-            rnp_input_destroy(input);
-            rnp_output_destroy(output);
-        }
-    }
+    // invalid
+    format = NULL;
+    assert_rnp_success(rnp_detect_key_format((uint8_t *) "ABC", 3, &format));
+    assert_rnp_success(format == 0);
 }
 
 

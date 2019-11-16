@@ -312,11 +312,13 @@ void test_cli_examples(void **state);
 
 void test_cli_dump(void **state);
 
+void test_long_header_line_detect_key_format(void **state);
+
 void test_large_lines_detect_key_format(void **state);
 
 void test_large_pre_header_detect_key_format(void **state);
 
-void test_large_lines_enarmor_dearmor(void **state);
+void test_long_armored_line_detect_key_format(void **state);
 
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
