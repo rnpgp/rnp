@@ -254,6 +254,10 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
     case CMD_GENERATE_KEY: {
         if (f == NULL) {
             f = rnp_cfg_getstr(cfg, CFG_USERID);
+            if(rnp_cfg_getstr(cfg, CFG_USERID, 2) != NULL) {
+                fprintf(stderr, "only userid is supported for generated keys\n");
+                return false;
+            }
         }
         return cli_rnp_generate_key(cfg, rnp, f);
     }

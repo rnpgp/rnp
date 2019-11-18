@@ -179,10 +179,11 @@ bool rnp_cfg_hasval(const rnp_cfg_t *cfg, const char *key);
 /** @brief return string value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
  *  @param key must be null-terminated string
+ *  @param itemIdx zero based index of values for the same key
  *
  *  @return stored string if item is found and has string value or NULL otherwise
  **/
-const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key);
+const char *rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key, const size_t itemIdx=0);
 
 /** @brief return C++ string value for the key if there is one
  *  @param cfg rnp config, must be allocated and initialized
