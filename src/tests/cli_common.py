@@ -4,6 +4,7 @@ import random
 import string
 import logging
 import os
+import platform
 from os import path
 from subprocess import Popen, PIPE
 
@@ -17,6 +18,9 @@ class CLIError(Exception):
     def __str__(self):
         logging.info(self.message)
         logging.debug(self.log.strip())
+
+def is_windows():
+    return sys.platform.startswith('win') or sys.platform.startswith('msys')
 
 def raise_err(msg, log = None):
     raise CLIError(msg, log)
@@ -41,7 +45,12 @@ def pswd_pipe(password):
         fw.write('\n')
         fw.write(password)
 
-    return pr
+    if not is_windows():
+        return pr
+    # On Windows pipe is not inheritable so dup() is needed
+    prd = os.dup(pr)
+    os.close(pr)
+    return prd
 
 def random_text(path, size):
     # Generate random text, with 50% probability good-compressible
@@ -78,6 +87,12 @@ def rnp_file_path(relpath, check = True):
     return fpath
 
 def run_proc(proc, params):
+    # On Windows we need to use spawnv() for handle inheritance in pswd_pipe()
+    if is_windows():
+        print ('Attempting to spawnv:\n' + proc + ' ' + ' '.join(params)).strip()
+        retcode = os.spawnv(os.P_WAIT, proc, params)
+        return (retcode, "", "")
+
     logging.debug((proc + ' ' + ' '.join(params)).strip())
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
     output, errout = process.communicate()
