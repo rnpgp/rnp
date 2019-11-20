@@ -86,12 +86,45 @@ def rnp_file_path(relpath, check = True):
 
     return fpath
 
+def run_proc_windows(proc, params):
+    logging.debug((proc + ' ' + ' '.join(params)).strip())
+    exe = os.path.basename(proc)
+    params = [exe] + params
+    sys.stdout.flush()
+
+    # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
+    # so we'll need to poll process
+    stdout_fl = os.open('stdout.txt', os.O_CREAT | os.O_RDWR | os.O_BINARY)
+    stdout_no = sys.stdout.fileno()
+    stdout_cp = os.dup(stdout_no)
+    stderr_fl = os.open('stderr.txt', os.O_CREAT | os.O_RDWR | os.O_BINARY)
+    stderr_no = sys.stderr.fileno()
+    stderr_cp = os.dup(stderr_no)
+
+    try:
+        os.dup2(stdout_fl, stdout_no)
+        os.close(stdout_fl)
+        os.dup2(stderr_fl, stderr_no)
+        os.close(stderr_fl)
+        retcode = os.spawnv(os.P_WAIT, proc, params)
+    finally:
+        os.dup2(stdout_cp, stdout_no)
+        os.close(stdout_cp)
+        os.dup2(stderr_cp, stderr_no)
+        os.close(stderr_cp)
+
+    out = file_text('stdout.txt').replace('\r\n', '\n')
+    err = file_text('stderr.txt').replace('\r\n', '\n')
+    os.unlink('stdout.txt')
+    os.unlink('stderr.txt')
+    logging.debug(err.strip())
+    logging.debug(out.strip())
+    return (retcode, out, err)
+
 def run_proc(proc, params):
     # On Windows we need to use spawnv() for handle inheritance in pswd_pipe()
     if is_windows():
-        print ('Attempting to spawnv:\n' + proc + ' ' + ' '.join(params)).strip()
-        retcode = os.spawnv(os.P_WAIT, proc, params)
-        return (retcode, "", "")
+        return run_proc_windows(proc, params)
 
     logging.debug((proc + ' ' + ' '.join(params)).strip())
     process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
