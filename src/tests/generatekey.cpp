@@ -798,6 +798,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
+    rnp_cfg_free(&tops);
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted)
