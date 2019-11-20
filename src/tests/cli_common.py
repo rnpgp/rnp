@@ -93,7 +93,7 @@ def rnp_file_path(relpath, check = True):
 
     return fpath
 
-def run_proc_windows(proc, params):
+def run_proc_windows(proc, params, stdin=None):
     logging.debug((proc + ' ' + ' '.join(params)).strip())
     exe = os.path.basename(proc)
     params = [exe] + params
@@ -101,6 +101,12 @@ def run_proc_windows(proc, params):
 
     # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
     # so we'll need to poll process
+    if stdin:
+        with open('stdin.txt', "wb+") as stdinf:
+            stdinf.write(stdin)
+        stdin_fl = os.open('stdin.txt', os.O_RDONLY | os.O_BINARY)
+        stdin_no = sys.stdin.fileno()
+        stdin_cp = os.dup(stdin_no)
     stdout_fl = os.open('stdout.txt', os.O_CREAT | os.O_RDWR | os.O_BINARY)
     stdout_no = sys.stdout.fileno()
     stdout_cp = os.dup(stdout_no)
@@ -113,29 +119,36 @@ def run_proc_windows(proc, params):
         os.close(stdout_fl)
         os.dup2(stderr_fl, stderr_no)
         os.close(stderr_fl)
+        if stdin:
+            os.dup2(stdin_fl, stdin_no)
+            os.close(stdin_fl)
         retcode = os.spawnv(os.P_WAIT, proc, params)
     finally:
         os.dup2(stdout_cp, stdout_no)
         os.close(stdout_cp)
         os.dup2(stderr_cp, stderr_no)
         os.close(stderr_cp)
-
+        if stdin:
+            os.dup2(stdin_cp, stdin_no)
+            os.close(stdin_cp)
     out = file_text('stdout.txt').replace('\r\n', '\n')
     err = file_text('stderr.txt').replace('\r\n', '\n')
     os.unlink('stdout.txt')
     os.unlink('stderr.txt')
+    if stdin: 
+        os.unlink('stdin.txt')
     logging.debug(err.strip())
     logging.debug(out.strip())
     return (retcode, out, err)
 
-def run_proc(proc, params):
+def run_proc(proc, params, stdin=None):
     # On Windows we need to use spawnv() for handle inheritance in pswd_pipe()
     if is_windows():
-        return run_proc_windows(proc, params)
+        return run_proc_windows(proc, params, stdin)
 
     logging.debug((proc + ' ' + ' '.join(params)).strip())
-    process = Popen([proc] + params, stdout=PIPE, stderr=PIPE)
-    output, errout = process.communicate()
+    process = Popen([proc] + params, stdout=PIPE, stderr=PIPE, stdin=PIPE if stdin else None)
+    output, errout = process.communicate(stdin)
     retcode = process.poll()
     logging.debug(errout.strip())
     logging.debug(output.strip())

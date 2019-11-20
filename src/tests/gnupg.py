@@ -1,5 +1,7 @@
 import logging
 import copy
+import os
+from cli_common import run_proc
 
 class GnuPG(object):
     def __init__(self, homedir, gpg_path):
@@ -45,15 +47,8 @@ class GnuPG(object):
     def copy(self):
         return copy.deepcopy(self)
 
-    def _run(self, cmd, batch_input = None):
-        import subprocess
-        logging.debug((' '.join(cmd)).strip())
-        process = subprocess.Popen(cmd,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        output, errout = process.communicate(input = batch_input)
-        retcode = process.poll()
-        logging.debug(errout.strip())
-        logging.debug(output.strip())
+    def _run(self, cmd, params, batch_input = None):
+        retcode, _, _ = run_proc(cmd, params, batch_input)
         return retcode == 0
 
     def generate_key_batch(self, batch_input):
@@ -63,7 +58,7 @@ class GnuPG(object):
             params += ['--passphrase', self.password]
         if self.hash:
             params += ['--cert-digest-algo', self.hash]
-        return self._run([self.__gpg] + params, batch_input)
+        return self._run(self.__gpg, params, batch_input)
 
     def export_key(self, out_filename, secret=False):
         params = ['--armor']
@@ -75,7 +70,7 @@ class GnuPG(object):
 
         params = self.common_params + \
             params + ['-o', out_filename, self.userid]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)
 
     def import_key(self, filename, secret = False):
         params = self.common_params
@@ -84,7 +79,7 @@ class GnuPG(object):
             params += ['--batch']
             params += ['--passphrase', self.password]
         params += ['--import', filename]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)
 
     def sign(self, out, input):
         params = self.common_params
@@ -95,14 +90,14 @@ class GnuPG(object):
         params += ['--sign', input]
         if self.hash:
             params += ['--digest-algo', self.hash]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)
 
     def verify(self, input):
         params = self.common_params
         params += ['--verify', input]
         if self.hash:
             params += ['--digest-algo', self.hash]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)
 
     def encrypt(self, recipient, out, input):
         params = self.common_params
@@ -112,7 +107,7 @@ class GnuPG(object):
         # Blindely trust the key without asking
         params += ['--always-trust']
         params += ['--encrypt', input]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)
 
     def decrypt(self, out, input):
         params = self.common_params
@@ -120,4 +115,4 @@ class GnuPG(object):
         params += ['--pinentry-mode', 'loopback']
         params += ['-o', out]
         params += ['--decrypt', input]
-        return self._run([self.__gpg] + params)
+        return self._run(self.__gpg, params)

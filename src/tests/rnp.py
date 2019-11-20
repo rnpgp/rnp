@@ -1,7 +1,8 @@
 from cli_common import (
-    pswd_pipe
+    pswd_pipe,
+    run_proc
 )
-
+import os
 import logging
 import copy
 
@@ -53,15 +54,8 @@ class Rnp(object):
     def copy(self):
         return copy.deepcopy(self)
 
-    def _run(self, cmd, batch_input = None):
-        import subprocess
-        logging.debug((' '.join(cmd)).strip())
-        process = subprocess.Popen(cmd,
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, stdin=subprocess.PIPE)
-        output, errout = process.communicate(input = batch_input)
-        retcode = process.poll()
-        logging.debug(errout.strip())
-        logging.debug(output.strip())
+    def _run(self, cmd, params, batch_input = None):
+        retcode, _, _ = run_proc(cmd, params, batch_input)
         return retcode == 0
 
     def generate_key_batch(self, batch_input):
@@ -73,9 +67,8 @@ class Rnp(object):
         if self.hash:
             params += ['--hash', self.hash]
         try:
-            ret = self._run([self.__key_mgm_bin] + params, batch_input)
+            ret = self._run(self.__key_mgm_bin, params, batch_input)
         finally:
-            import os
             os.close(pipe)
         return ret
 
@@ -88,12 +81,12 @@ class Rnp(object):
         if secure:
             params += ["--secret"]
         params += [self.userid]
-        return self._run([self.key_mgm_bin] + params)
+        return self._run(self.key_mgm_bin, params)
 
     def import_key(self, filename, secure = False):
         params = self.common_params
         params += ['--import-key', filename]
-        return self._run([self.key_mgm_bin] + params)
+        return self._run(self.key_mgm_bin, params)
 
     def sign(self, output, input):
         pipe = pswd_pipe(self.password)
@@ -105,9 +98,8 @@ class Rnp(object):
         if self.hash:
             params += ['--hash', self.hash]
         try:
-            ret = self._run([self.rnp_bin] + params)
+            ret = self._run(self.rnp_bin, params)
         finally:
-            import os
             os.close(pipe)
         return ret
 
@@ -116,7 +108,7 @@ class Rnp(object):
         params += ['--verify', input]
         if self.hash:
             params += ['--hash', self.hash]
-        return self._run([self.rnp_bin] + params)
+        return self._run(self.rnp_bin, params)
 
     def encrypt(self, recipient, output, input):
         pipe = pswd_pipe(self.password)
@@ -126,9 +118,8 @@ class Rnp(object):
         params += ['--encrypt', input]
         params += ['--output', output]
         try:
-            ret = self._run([self.rnp_bin] + params)
+            ret = self._run(self.rnp_bin, params)
         finally:
-            import os
             os.close(pipe)
         return ret
 
@@ -140,8 +131,7 @@ class Rnp(object):
         params += ['--decrypt', input]
         params += ['--output', output]
         try:
-            ret = self._run([self.rnp_bin] + params)
+            ret = self._run(self.rnp_bin, params)
         finally:
-            import os
             os.close(pipe)
         return ret
