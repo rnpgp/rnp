@@ -246,7 +246,7 @@ rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val)
         free(_val.val._string);
         return false;
     }
-    
+
     std::string mkey("\x01");
     mkey.append(key);
     rnp_cfg_addstr(cfg, mkey.c_str(), val? val : "");
