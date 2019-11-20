@@ -242,7 +242,7 @@ typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
  *         RNP_KEYSTORE_* constant
  *  @param sec_format the format of the secret keyring, RNP_KEYSTORE_GPG or other
  *         RNP_KEYSTORE_* constant
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format);
 
@@ -252,7 +252,7 @@ rnp_result_t rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *
  *  objects associated with this particular object.
  *
  *  @param ffi the ffi object
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_ffi_destroy(rnp_ffi_t ffi);
 
@@ -270,7 +270,7 @@ rnp_result_t rnp_ffi_set_pass_provider(rnp_ffi_t       ffi,
  *
  * @param homedir pointer that will be set to the homedir path.
  *        The caller should free this with rnp_buffer_free.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_get_default_homedir(char **homedir);
 
@@ -285,7 +285,7 @@ rnp_result_t rnp_get_default_homedir(char **homedir);
  *        The caller should free this with rnp_buffer_free.
  * @param sec_path pointer that will be set to the path to the secret keyring.
  *        The caller should free this with rnp_buffer_free.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_detect_homedir_info(
   const char *homedir, char **pub_format, char **pub_path, char **sec_format, char **sec_path);
@@ -296,7 +296,7 @@ rnp_result_t rnp_detect_homedir_info(
  * @param buf_len the size of the buffer, must be > 0
  * @param format pointer that will be set to the format of the keyring.
  *        Must not be NULL. The caller should free this with rnp_buffer_free.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format);
 
@@ -324,7 +324,7 @@ rnp_result_t rnp_calculate_iterations(const char *hash, size_t msec, size_t *ite
  *             - 'elliptic curve'
  * @param name value of the feature to check whether it is supported.
  * @param supported will contain true or false depending whether feature is supported or not.
- * @return 0 on success or any other value on error.
+ * @return RNP_SUCCESS on success or any other value on error.
  */
 rnp_result_t rnp_supports_feature(const char *type, const char *name, bool *supported);
 
@@ -333,7 +333,7 @@ rnp_result_t rnp_supports_feature(const char *type, const char *name, bool *supp
  * @param type type of the feature. See rnp_supports_feature() function for possible values.
  * @param result after successfull execution will contain the JSON with supported feature
  * values. You must destroy it using the rnp_destroy_buffer() function.
- * @return 0 on success or any other value on error.
+ * @return RNP_SUCCESS on success or any other value on error.
  */
 rnp_result_t rnp_supported_features(const char *type, char **result);
 
@@ -345,7 +345,7 @@ rnp_result_t rnp_supported_features(const char *type, char **result);
  * @param format the key format of the data (GPG, KBX, G10). Must not be NULL.
  * @param input source to read from.
  * @param flags the flags. See RNP_LOAD_SAVE_*.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
                            const char *format,
@@ -357,7 +357,7 @@ rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
  * @param ffi
  * @param flags choose which keys should be unloaded (pubic, secret or both).
  *              See RNP_UNLOAD_PUBLIC_KEYS/RNP_UNLOAD_SECRET_KEYS.
- * @return 0 on success, or any other value on error.
+ * @return RNP_SUCCESS on success, or any other value on error.
  */
 rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
 
@@ -369,7 +369,7 @@ rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  * @param results if not NULL then after the successfull execution will contain JSON with
  *                information about new and updated keys. You must free it using the
  *                rnp_buffer_destroy() function.
- * @return 0 on success, or any other value on error.
+ * @return RNP_SUCCESS on success, or any other value on error.
  */
 rnp_result_t rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results);
 
@@ -381,7 +381,7 @@ rnp_result_t rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, c
  * @param format the key format of the data (GPG, KBX, G10). Must not be NULL.
  * @param output the output destination to write to.
  * @param flags the flags. See RNP_LOAD_SAVE_*.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_save_keys(rnp_ffi_t    ffi,
                            const char * format,
@@ -399,7 +399,7 @@ rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
  *         representation of the value
  *  @param key if key was found then the resulting key handle will be stored here, otherwise it
  *         will contain NULL value. You must free handle after use with rnp_key_handle_destroy.
- *  @return 0 on success (including case where key is not found), or any other value on error
+ *  @return RNP_SUCCESS on success (including case where key is not found), or any other value on error
  */
 rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             const char *      identifier_type,
@@ -418,7 +418,7 @@ rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
  *         Must not be NULL.
  *  @param results pointer that will be set to the JSON results.
  *         Must not be NULL. The caller should free this with rnp_buffer_destroy.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
 
@@ -761,7 +761,7 @@ rnp_result_t rnp_op_generate_destroy(rnp_op_generate_t op);
  *  @param key the key to export
  *  @param output the stream to write to
  *  @param flags see RNP_KEY_EXPORT_*.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, uint32_t flags);
 
@@ -781,7 +781,7 @@ rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
  *                 Possible values: 'message', 'public key', 'secret key', 'signature',
  * 'unknown'. May be used as type in rnp_enarmor() function. Must be deallocated with
  * rnp_buffer_destroy() call.
- * @return 0 on success, or any other value on error.
+ * @return RNP_SUCCESS on success, or any other value on error.
  */
 rnp_result_t rnp_guess_contents(rnp_input_t input, char **contents);
 
@@ -792,7 +792,7 @@ rnp_result_t rnp_guess_contents(rnp_input_t input, char **contents);
  *  @param type the type of armor to add ("message", "public key",
  *         "secret key", "signature", "cleartext"). Use NULL to try
  *         to guess the type.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type);
 
@@ -800,7 +800,7 @@ rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *typ
  *
  *  @param input stream to read armored data from
  *  @param output stream to write dearmored data to
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
 
@@ -942,7 +942,7 @@ rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
  *               rnp_buffer_destroy() function.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
                                           uint32_t               flags,
@@ -1033,6 +1033,7 @@ rnp_result_t rnp_key_get_curve(rnp_key_handle_t key, char **curve);
  *  @param key_flags usage flags, see section 5.2.3.21 of RFC 4880
  *         or just provide zero to indicate no special handling.
  *  @param primary indicates if this is the primary UID
+ *  @return RNP_SUCCESS or error code if failed.
  */
 rnp_result_t rnp_key_add_uid(rnp_key_handle_t key,
                              const char *     uid,
@@ -1129,7 +1130,7 @@ rnp_result_t rnp_key_is_revoked(rnp_key_handle_t key, bool *result);
  * @param key key handle, should not be NULL
  * @param result on success pointer to the NULL-terminated string will be stored here.
  *               You must free it later using rnp_buffer_destroy() function.
- * @return RNP_SUCCESSor error code on failure.
+ * @return RNP_SUCCESS or error code on failure.
  */
 rnp_result_t rnp_key_get_revocation_reason(rnp_key_handle_t key, char **result);
 
@@ -1165,7 +1166,7 @@ rnp_result_t rnp_key_is_retired(rnp_key_handle_t key, bool *result);
  *  @param key
  *  @param result pointer to hold the result. This will be set to true if
  *         the key is currently locked, or false otherwise. Must not be NULL.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
 
@@ -1179,7 +1180,7 @@ rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
  *  Generally lock/unlock are not useful for unencrypted (not protected) keys.
  *
  *  @param key
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_lock(rnp_key_handle_t key);
 
@@ -1195,7 +1196,7 @@ rnp_result_t rnp_key_lock(rnp_key_handle_t key);
  *         provider will be used.
  *  @param result pointer to hold the result. This will be set to true if
  *         the key is currently locked, or false otherwise. Must not be NULL.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_unlock(rnp_key_handle_t key, const char *password);
 
@@ -1207,7 +1208,7 @@ rnp_result_t rnp_key_unlock(rnp_key_handle_t key, const char *password);
  *  @param key
  *  @param result pointer to hold the result. This will be set to true if
  *         the key is currently protected, or false otherwise. Must not be NULL.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_is_protected(rnp_key_handle_t key, bool *result);
 
@@ -1230,7 +1231,7 @@ rnp_result_t rnp_key_is_protected(rnp_key_handle_t key, bool *result);
  *         derivation. May be NULL, in which case a default will be used.
  *  @param iterations the number of iterations used for the String-to-Key key
  *         derivation. Use 0 to select a reasonable default.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
                              const char *     password,
@@ -1246,7 +1247,7 @@ rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
  *  @param key
  *  @param password the password to unlock the key. If NULL, the password
  *         provider will be used.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  **/
 rnp_result_t rnp_key_unprotect(rnp_key_handle_t key, const char *password);
 
@@ -1266,7 +1267,7 @@ rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
  *               rnp_buffer_destroy() function.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
                                      bool             secret,
@@ -1279,7 +1280,7 @@ rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
  *              RNP_JSON_DUMP_* flags)
  * @result resulting JSON string will be stored here. You must free it using the
  *         rnp_buffer_destroy() function.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result);
 
@@ -1287,7 +1288,7 @@ rnp_result_t rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **
  * @param input source with OpenPGP data
  * @param output text, describing packet sequence, will be written here
  * @param flags see RNP_DUMP_MPI and other RNP_DUMP_* constants.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_dump_packets_to_output(rnp_input_t  input,
                                         rnp_output_t output,
@@ -1866,7 +1867,7 @@ rnp_result_t rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits);
  *        "ZLIB", "BZip2". Please note that ZIP is not PkWare's ZIP file format but just a
  *        DEFLATE compressed data (RFC 1951).
  * @param level 0 - 9, where 0 is no compression and 9 is maximum compression level.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
                                             const char *     compression,
@@ -1878,7 +1879,7 @@ rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
  * @param op opaque encrypted context. Must be allocated and initialized
  * @param filename file name as NULL-terminated string. May be empty string. Value "_CONSOLE"
  * may have specific processing (see RFC 4880 for the details), depending on implementation.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename);
 
@@ -1887,7 +1888,7 @@ rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filen
  *
  * @param op opaque encrypted context. Must be allocated and initialized
  * @param mtime time in seconds since Jan, 1 1970.
- * @return 0 on success, or any other value on error
+ * @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime);
 
@@ -1903,7 +1904,7 @@ rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
  *  @param handle the key handle
  *  @param buf
  *  @param buf_len
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 
@@ -1917,7 +1918,7 @@ rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, siz
  *  @param handle the key handle
  *  @param buf
  *  @param buf_len
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len);
 
@@ -1936,7 +1937,7 @@ rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **res
  *  @param ffi
  *  @param it pointer that will be set to the created iterator
  *  @param identifier_type the type of identifier ("userid", "keyid", "grip")
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                             rnp_identifier_iterator_t *it,
@@ -1949,7 +1950,7 @@ rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
  *         Must not be NULL. This buffer should not be freed by the application.
  *         It will be modified by subsequent calls to this function, and its
  *         life is tied to the iterator.
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it,
                                           const char **             identifier);
@@ -1957,7 +1958,7 @@ rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it,
 /** destroy an identifier iterator
  *
  *  @param it the iterator object
- *  @return 0 on success, or any other value on error
+ *  @return RNP_SUCCESS on success, or any other value on error
  */
 rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
 
