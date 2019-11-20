@@ -752,6 +752,10 @@ class Keystore(unittest.TestCase):
     def setUpClass(cls):
         clear_keyrings()
 
+    @classmethod
+    def tearDownClass(cls):
+        clear_keyrings()
+
     def tearDown(self):
         clear_workfiles()
 
@@ -919,6 +923,10 @@ class Misc(unittest.TestCase):
         rnp_genkey_rsa(KEY_SIGN_GPG)
         gpg_import_pubring()
         gpg_import_secring()
+
+    @classmethod
+    def tearDownClass(cls):
+        clear_keyrings()
 
     def tearDown(self):
         clear_workfiles()
@@ -1363,16 +1371,20 @@ class Encryption(unittest.TestCase):
 
 
 class Compression(unittest.TestCase):
-
-    def setUp(self):
+    @classmethod
+    def setUpClass(cls):
         # Compression is currently implemented only for encrypted messages
         rnp_genkey_rsa(KEY_ENCRYPT)
         rnp_genkey_rsa(KEY_SIGN_GPG)
         gpg_import_pubring()
         gpg_import_secring()
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         clear_keyrings()
+
+    def tearDown(self):
+        clear_workfiles()
 
     def test_rnp_compression(self):
         levels = [None, 0, 2, 4, 6, 9]
