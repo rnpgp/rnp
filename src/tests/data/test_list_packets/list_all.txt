@@ -10,7 +10,7 @@
 
 Public key packet
     version: 4
-    creation time: 1522762293 (??? ???  ? ??:??:?? 2018)
+    creation time: 1522762293 (??? ??? ?? ??:??:?? 2018)
     public key algorithm: 19 (ECDSA)
     public key material:
         ecc p: 515 bits, 0412e46ea69f97616a667aebbf125c4d5acdabea7fc048b563bd42ff15752d6f104a03d78babaf93902932ee1e10d18ef49075ac51b647f4b08e754fbdb7d2c4f7
@@ -80,7 +80,7 @@ Signature packet
         :type 2, len 4
         :subpacket contents:
             00000 | 5c 55 af e7                                      | \U..            
-        signature creation time: 1549119463 (??? ???  ? ??:??:?? 2019)
+        signature creation time: 1549119463 (??? ??? ?? ??:??:?? 2019)
     unhashed subpackets:
         :type 16, len 8
         :subpacket contents:
@@ -101,7 +101,7 @@ Signature packet
 
 Public subkey packet
     version: 4
-    creation time: 1522762293 (??? ???  ? ??:??:?? 2018)
+    creation time: 1522762293 (??? ??? ?? ??:??:?? 2018)
     public key algorithm: 18 (ECDH)
     public key material:
         ecdh p: 515 bits, 042c3380acb206f3900142ed48c2040ca6222e5308fe37b89b8067a74d1724e5d901a57e3c78ade56e3a2f5e7e189019de03bcf5e227b3dfe49d83a50500c155d9
@@ -140,7 +140,7 @@ Signature packet
         :type 2, len 4
         :subpacket contents:
             00000 | 5c 55 af ef                                      | \U..            
-        signature creation time: 1549119471 (??? ???  ? ??:??:?? 2019)
+        signature creation time: 1549119471 (??? ??? ?? ??:??:?? 2019)
     unhashed subpackets:
         :type 16, len 8
         :subpacket contents:

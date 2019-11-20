@@ -2,7 +2,7 @@
 :off 0: packet header 0x9852 (tag 6, len 82)
 Public key packet
     version: 4
-    creation time: 1522762293 (??? ???  ? ??:??:?? 2018)
+    creation time: 1522762293 (??? ??? ?? ??:??:?? 2018)
     public key algorithm: 19 (ECDSA)
     public key material:
         ecc p: 515 bits
@@ -38,7 +38,7 @@ Signature packet
         :type 33, len 21
         issuer fingerprint: 0xb54fdebbb673423a5d0aa54423674f21b2441527 (20 bytes)
         :type 2, len 4
-        signature creation time: 1549119463 (??? ???  ? ??:??:?? 2019)
+        signature creation time: 1549119463 (??? ??? ?? ??:??:?? 2019)
     unhashed subpackets:
         :type 16, len 8
         issuer key ID: 0x23674f21b2441527
@@ -49,7 +49,7 @@ Signature packet
 :off 244: packet header 0xb856 (tag 14, len 86)
 Public subkey packet
     version: 4
-    creation time: 1522762293 (??? ???  ? ??:??:?? 2018)
+    creation time: 1522762293 (??? ??? ?? ??:??:?? 2018)
     public key algorithm: 18 (ECDH)
     public key material:
         ecdh p: 515 bits
@@ -71,7 +71,7 @@ Signature packet
         :type 33, len 21
         issuer fingerprint: 0xb54fdebbb673423a5d0aa54423674f21b2441527 (20 bytes)
         :type 2, len 4
-        signature creation time: 1549119471 (??? ???  ? ??:??:?? 2019)
+        signature creation time: 1549119471 (??? ??? ?? ??:??:?? 2019)
     unhashed subpackets:
         :type 16, len 8
         issuer key ID: 0x23674f21b2441527
