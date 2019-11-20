@@ -5,6 +5,7 @@ import string
 import logging
 import os
 import platform
+import re
 from os import path
 from subprocess import Popen, PIPE
 
@@ -21,6 +22,12 @@ class CLIError(Exception):
 
 def is_windows():
     return sys.platform.startswith('win') or sys.platform.startswith('msys')
+
+def path_for_gpg(path):
+    # GPG built for mingw/msys doesn't work with Windows pathes
+    if re.match(r'^[a-z]:[\\\/].*', path.lower()):
+        path = '/' + path[0] + '/' + path[3:].replace('\\', '/')
+    return path
 
 def raise_err(msg, log = None):
     raise CLIError(msg, log)
