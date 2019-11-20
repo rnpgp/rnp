@@ -56,7 +56,7 @@ class GnuPG(object):
         logging.debug(output.strip())
         return retcode == 0
 
-    def generte_key_batch(self, batch_input):
+    def generate_key_batch(self, batch_input):
         params = ['--gen-key', '--expert', '--batch',
                   '--pinentry-mode', 'loopback'] + self.common_params
         if self.password:

@@ -64,7 +64,7 @@ class Rnp(object):
         logging.debug(output.strip())
         return retcode == 0
 
-    def generte_key_batch(self, batch_input):
+    def generate_key_batch(self, batch_input):
         pipe = pswd_pipe(self.__password)
         params = self.common_params
         params += ['--generate-key', '--expert']

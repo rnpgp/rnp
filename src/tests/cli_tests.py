@@ -1487,7 +1487,7 @@ class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
             self.assertTrue(e1.import_key(self.operation_key_location[0]))
             self.assertTrue(e1.import_key(self.operation_key_location[1], True))
         else:
-            self.assertTrue(e1.generte_key_batch(self.operation_key_gencmd))
+            self.assertTrue(e1.generate_key_batch(self.operation_key_gencmd))
 
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
@@ -1622,7 +1622,7 @@ class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
             self.assertTrue(e1.import_key(self.operation_key_location[0]))
             self.assertTrue(e1.import_key(self.operation_key_location[1], True))
         else:
-            self.assertTrue(e1.generte_key_batch(self.operation_key_gencmd))
+            self.assertTrue(e1.generate_key_batch(self.operation_key_gencmd))
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
         self.assertTrue(e1.sign(output, input))

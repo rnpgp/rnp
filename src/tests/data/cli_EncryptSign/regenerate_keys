@@ -99,7 +99,7 @@ def keygen(obj, formatter):
     obj.userid = key_name+USERID_PFX
 
     # generate and export
-    if not obj.generte_key_batch(formatter.format(obj)): raise "Generation failed"
+    if not obj.generate_key_batch(formatter.format(obj)): raise "Generation failed"
     if not obj.export_key(key_name+"-sec.gpg", True): raise "Generation failed"
     if not obj.export_key(key_name+".gpg", False): raise "Generation failed"
 
