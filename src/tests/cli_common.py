@@ -96,7 +96,8 @@ def rnp_file_path(relpath, check = True):
 def run_proc_windows(proc, params, stdin=None):
     logging.debug((proc + ' ' + ' '.join(params)).strip())
     exe = os.path.basename(proc)
-    params = [exe] + params
+    # Not sure why but empty string is not passed to underlying spawnv call
+    params = map(lambda st: st if st else '""', [exe] + params)
     sys.stdout.flush()
 
     # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
