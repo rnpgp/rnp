@@ -66,7 +66,6 @@ typedef struct rnp_cfg_val_t {
 typedef struct rnp_cfg_item_t {
     char *        key;
     rnp_cfg_val_t val;
-    std::vector<rnp_cfg_val_t> *multiVal;
 } rnp_cfg_item_t;
 
 void
@@ -111,13 +110,6 @@ rnp_cfg_val_free(rnp_cfg_val_t *val)
 static void
 rnp_cfg_item_free(rnp_cfg_item_t *item)
 {
-    if (item->multiVal) {
-        for (auto i = item->multiVal->begin(); i != item->multiVal->end(); i++) {
-            rnp_cfg_val_free(&*i);
-        }
-        delete item->multiVal;
-        item->multiVal = NULL;
-    }
     rnp_cfg_val_free(&item->val);
     free(item->key);
     item->key = NULL;
@@ -194,24 +186,16 @@ rnp_cfg_set(rnp_cfg_t *cfg, const char *key, rnp_cfg_val_t *val)
 
     if (!(it = rnp_cfg_find(cfg, key))) {
         it = (rnp_cfg_item_t *) list_append(&cfg->vals, NULL, sizeof(*it));
-        if (it) {
-            it->multiVal = new std::vector<rnp_cfg_val_t>();
-        }
 
-        if (!it || !it->multiVal || !(it->key = strdup(key))) {
+        if (!it || !(it->key = strdup(key))) {
             RNP_LOG("bad alloc");
             return NULL;
         }
     } else {
         rnp_cfg_val_free(&it->val);
     }
+
     it->val = *val;
-    
-    if (it->multiVal) {
-        rnp_cfg_val_t vcopy;
-        rnp_cfg_val_copy(&vcopy, val);
-        it->multiVal->push_back(vcopy);
-    }
     return it;
 }
 
@@ -262,6 +246,10 @@ rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val)
         free(_val.val._string);
         return false;
     }
+    
+    std::string mkey("\x01");
+    mkey.append(key);
+    rnp_cfg_addstr(cfg, mkey.c_str(), val? val : "");
 
     return true;
 }
@@ -300,15 +288,25 @@ rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str)
 }
 
 const char *
-rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key, const size_t itemIdx)
+rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key, const size_t item_idx)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
     if (it && (it->val.type == RNP_CFG_VAL_STRING)) {
-        if (itemIdx == 0) {
+        if (item_idx == 0) {
             return it->val.val._string;
-        } else if (it->multiVal && itemIdx <= it->multiVal->size()) {
-            return it->multiVal->at(itemIdx-1).val._string;
+        } else {
+            std::string mkey("\x01");
+            mkey.append(key);
+            rnp_cfg_item_t *mit = rnp_cfg_find(cfg, mkey.c_str());
+            if (mit && (mit->val.type == RNP_CFG_VAL_LIST)) {
+                if (item_idx <= list_length(mit->val.val._list)) {
+                    rnp_cfg_val_t *val = (rnp_cfg_val_t*)list_at(mit->val.val._list, item_idx-1);
+                    if (val && (val->type == RNP_CFG_VAL_STRING)) {
+                        return val->val._string;
+                    }
+                }
+            }
         }
     }
 
@@ -632,25 +630,11 @@ rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
         return;
     }
 
-    for (list_item *li = list_front(src->vals); res && li; li = list_next(li)) {
+    for (list_item *li = list_front(src->vals); li; li = list_next(li)) {
         if (!rnp_cfg_val_copy(&val, &((rnp_cfg_item_t *) li)->val) ||
             !rnp_cfg_set(dst, ((rnp_cfg_item_t *) li)->key, &val)) {
             res = false;
-        }
-
-        rnp_cfg_item_t *di = rnp_cfg_find(dst, ((rnp_cfg_item_t *) li)->key);
-        if (di->multiVal) {
-            for (auto i = di->multiVal->begin(); i != di->multiVal->end(); i++) {
-                rnp_cfg_val_free(&*i);
-            }
-            di->multiVal->clear();
-            if (((rnp_cfg_item_t*)li)->multiVal) {
-                for (auto i = ((rnp_cfg_item_t*)li)->multiVal->begin(); res && i != ((rnp_cfg_item_t*)li)->multiVal->end(); i++) {
-                    if(rnp_cfg_val_copy(&val, &*i)) {
-                        di->multiVal->push_back(val);
-                    }
-                }
-            }
+            break;
         }
     }
 
