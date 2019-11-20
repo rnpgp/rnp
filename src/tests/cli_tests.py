@@ -1,26 +1,19 @@
 #!/usr/bin/env python2
 
-import sys
-import tempfile
-import os
-from os import path
-import shutil
-import re
-import time
-import unittest
 import itertools
 import logging
+import os
+import re
+import shutil
+import sys
+import tempfile
+import time
+import unittest
+from os import path
 
-from cli_common import (
-    find_utility,
-    run_proc,
-    pswd_pipe,
-    rnp_file_path,
-    random_text,
-    file_text,
-    raise_err,
-    list_upto
-)
+from cli_common import (file_text, find_utility, is_windows, list_upto,
+                        path_for_gpg, pswd_pipe, raise_err, random_text,
+                        rnp_file_path, run_proc)
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
 
@@ -30,6 +23,7 @@ RNPK = ''
 GPG = ''
 GPGCONF = ''
 RNPDIR = ''
+GPGHOME = None
 PASSWORD = 'password'
 RMWORKDIR = True
 TESTS_SUCCEEDED = []
@@ -101,7 +95,7 @@ RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256'
         'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5', 'BLOWFISH' : 'blowfish'}
 
 def check_packets(fname, regexp):
-    ret, output, err = run_proc(GPG, ['--list-packets', fname])
+    ret, output, err = run_proc(GPG, ['--list-packets', path_for_gpg(fname)])
     if ret != 0:
         logging.error(err)
         return None
@@ -117,7 +111,7 @@ def clear_keyrings():
     shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0700)
 
-    run_proc(GPGCONF, ['--homedir', GPGDIR, '--kill', 'gpg-agent'])
+    run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
     while os.path.isdir(GPGDIR):
         try:
             shutil.rmtree(GPGDIR)
@@ -331,7 +325,7 @@ def gpg_import_pubring(kpath=None):
     if not kpath:
         kpath = path.join(RNPDIR, 'pubring.gpg')
     ret, _, err = run_proc(
-        GPG, ['--batch', '--homedir', GPGDIR, '--import', kpath])
+        GPG, ['--batch', '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
         raise_err('gpg key import failed', err)
 
@@ -340,14 +334,14 @@ def gpg_import_secring(kpath=None, password = PASSWORD):
     if not kpath:
         kpath = path.join(RNPDIR, 'secring.gpg')
     ret, _, err = run_proc(
-        GPG, ['--batch', '--passphrase', password, '--homedir', GPGDIR, '--import', kpath])
+        GPG, ['--batch', '--passphrase', password, '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
         raise_err('gpg secret key import failed', err)
 
 
 def gpg_export_secret_key(userid, password, keyfile):
-    ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--pinentry-mode=loopback', '--yes',
-        '--passphrase', password, '--output', keyfile, '--export-secret-key', userid])
+    ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--pinentry-mode=loopback', '--yes',
+        '--passphrase', password, '--output', path_for_gpg(keyfile), '--export-secret-key', userid])
 
     if ret != 0:
         raise_err('gpg secret key export failed', err)
@@ -360,7 +354,9 @@ def gpg_params_insert_z(params, pos, z):
             params[pos:pos] = ['-z', str(z[1])]
 
 def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
-    params = ['--homedir', GPGDIR, '-e', '-r', KEY_ENCRYPT, '--batch', '--trust-model', 'always', '--output', dst, src]
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    params = ['--homedir', GPGHOME, '-e', '-r', KEY_ENCRYPT, '--batch', '--trust-model', 'always', '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
     if armor: params[2:2] = ['--armor']
@@ -371,7 +367,9 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
 
 
 def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
-    params = ['--homedir', GPGDIR, '-c', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    params = ['--homedir', GPGHOME, '-c', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
     if armor: params[2:2] = ['--armor']
@@ -388,14 +386,18 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
 
 
 def gpg_decrypt_file(src, dst, keypass):
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch',
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch',
                                    '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
     if ret != 0:
         raise_err('gpg decryption failed', err)
 
 
 def gpg_verify_file(src, dst, signer=None):
-    ret, out, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch',
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch',
                                    '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
     if ret != 0:
         raise_err('gpg verification failed', err)
@@ -408,7 +410,9 @@ def gpg_verify_file(src, dst, signer=None):
 
 
 def gpg_verify_detached(src, sig, signer=None):
-    ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--batch',
+    src = path_for_gpg(src)
+    sig = path_for_gpg(sig)
+    ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch',
                                    '--yes', '--trust-model', 'always', '--verify', sig, src])
     if ret != 0:
         raise_err('gpg detached verification failed', err)
@@ -421,8 +425,9 @@ def gpg_verify_detached(src, sig, signer=None):
 
 
 def gpg_verify_cleartext(src, signer=None):
+    src = path_for_gpg(src)
     ret, _, err = run_proc(
-        GPG, ['--homedir', GPGDIR, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
+        GPG, ['--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
     if ret != 0:
         raise_err('gpg cleartext verification failed', err)
     # Check GPG output
@@ -434,7 +439,9 @@ def gpg_verify_cleartext(src, signer=None):
 
 
 def gpg_sign_file(src, dst, signer, z=None, armor=False):
-    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes',
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes',
               '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
     if z: gpg_params_insert_z(params, 3, z)
     if armor: params.insert(2, '--armor')
@@ -444,7 +451,8 @@ def gpg_sign_file(src, dst, signer, z=None, armor=False):
 
 
 def gpg_sign_detached(src, signer, armor=False):
-    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes',
+    src = path_for_gpg(src)
+    params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes',
               '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src]
     if armor: params.insert(2, '--armor')
     ret, _, err = run_proc(GPG, params)
@@ -453,7 +461,9 @@ def gpg_sign_detached(src, signer, armor=False):
 
 
 def gpg_sign_cleartext(src, dst, signer):
-    params = ['--homedir', GPGDIR, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase',
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes', '--passphrase',
               PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '--clearsign', src]
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
@@ -461,7 +471,7 @@ def gpg_sign_cleartext(src, dst, signer):
 
 
 def gpg_agent_clear_cache():
-    run_proc(GPGCONF, ['--homedir', GPGDIR, '--kill', 'gpg-agent'])
+    run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
 
 '''
     Things to try here later on:
@@ -668,7 +678,7 @@ def gpg_supports_aead():
 
 def setup(loglvl):
     # Setting up directories.
-    global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR, GPGCONF
+    global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR, GPGHOME, GPGCONF
     logging.basicConfig(stream=sys.stderr, format="%(message)s")
     logging.getLogger().setLevel(loglvl)
     WORKDIR = os.getcwd()
@@ -684,6 +694,7 @@ def setup(loglvl):
     os.mkdir(RNPDIR, 0700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
+    GPGHOME =  path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
     os.mkdir(GPGDIR, 0700)
@@ -786,8 +797,9 @@ class Keystore(unittest.TestCase):
         if not match.group(1) == str(bits):
             raise_err('wrong key bits in list')
         # Import key to the gnupg
-        ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGDIR,
-                                    '--import', path.join(RNPDIR, 'pubring.gpg'), path.join(RNPDIR, 'secring.gpg')])
+        ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGHOME,
+                                    '--import', path_for_gpg(path.join(RNPDIR, 'pubring.gpg')), 
+                                    path_for_gpg(path.join(RNPDIR, 'secring.gpg'))])
         if ret != 0:
             raise_err('gpg key import failed', err)
         # Cleanup and return
@@ -838,20 +850,20 @@ class Keystore(unittest.TestCase):
         Generate key with GnuPG and import it to rnp
         '''
         # Generate key in GnuPG
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR,
+        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME,
                                     '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         if ret != 0:
             raise_err('gpg key generation failed, error ' + str(ret) , err)
         # Getting fingerprint of the generated key
         ret, out, err = run_proc(
-            GPG, ['--batch', '--homedir', GPGDIR, '--list-keys'])
+            GPG, ['--batch', '--homedir', GPGHOME, '--list-keys'])
         match = re.match(RE_GPG_SINGLE_RSA_KEY, out)
         if not match:
             raise_err('wrong gpg key list output', out)
         keyfp = match.group(1)
         # Exporting generated public key
         ret, out, err = run_proc(
-            GPG, ['--batch', '--homedir', GPGDIR, '--armor', '--export', keyfp])
+            GPG, ['--batch', '--homedir', GPGHOME, '--armor', '--export', keyfp])
         if ret != 0:
             raise_err('gpg : public key export failed', err)
         pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
@@ -859,7 +871,7 @@ class Keystore(unittest.TestCase):
             f.write(out)
         # Exporting generated secret key
         ret, out, err = run_proc(
-            GPG, ['--batch', '--homedir', GPGDIR, '--armor', '--export-secret-key', keyfp])
+            GPG, ['--batch', '--homedir', GPGHOME, '--armor', '--export-secret-key', keyfp])
         if ret != 0:
             raise_err('gpg : secret key export failed', err)
         secpath = path.join(RNPDIR, keyfp + '-sec.asc')
@@ -895,7 +907,7 @@ class Keystore(unittest.TestCase):
         with open(pubpath, 'w+') as f:
             f.write(out)
         # Import key with GPG
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGDIR, '--import', pubpath])
+        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', path_for_gpg(pubpath)])
         if ret != 0: raise_err('gpg : public key import failed', err)
 
 
@@ -916,7 +928,7 @@ class Misc(unittest.TestCase):
         # Generate random file of required size
         random_text(src, 64000)
         # Encrypt cleartext file with GPG
-        params = ['--homedir', GPGDIR, '-c', '-z', '0', '--disable-mdc', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+        params = ['--homedir', GPGHOME, '-c', '-z', '0', '--disable-mdc', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', path_for_gpg(dst), path_for_gpg(src)]
         ret, _, err = run_proc(GPG, params)
         if ret != 0:
             raise_err('gpg symmetric encryption failed', err)
@@ -934,7 +946,7 @@ class Misc(unittest.TestCase):
         s2kmodes = [0, 1, 3]
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
-            params = ['--homedir', GPGDIR, '-c', '--s2k-cipher-algo', cipher, '--s2k-digest-algo',
+            params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, '--s2k-digest-algo',
                     hash_alg, '--batch', '--passphrase', PASSWORD, '--output', dst, src]
 
             if s2k is not None:
@@ -1062,7 +1074,9 @@ class Misc(unittest.TestCase):
     
     def test_large_packet(self):
         # Verifying large packet file with GnuPG
-        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_large_packet/4g.bzip2.gpg')])
+        kpath = path_for_gpg(data_path('keyrings/1/pubring.gpg'))
+        dpath = path_for_gpg(data_path('test_large_packet/4g.bzip2.gpg'))
+        ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', dpath])
         if ret != 0:
             raise_err('large packet verification failed', err)
         return
@@ -1471,7 +1485,7 @@ class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
 
     def setUp(self):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
-        self.gpg = GnuPG(GPGDIR, GPG)
+        self.gpg = GnuPG(GPGHOME, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
         self.rnp.userid = self.gpg.userid = self.test_id+'@example.com'
 
@@ -1605,7 +1619,7 @@ class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
 
     def setUp(self):
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
-        self.gpg = GnuPG(GPGDIR, GPG)
+        self.gpg = GnuPG(GPGHOME, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
         self.rnp.userid = self.gpg.userid = self.test_id+'@example.com'
 
