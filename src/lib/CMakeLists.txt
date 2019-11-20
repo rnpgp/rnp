@@ -197,6 +197,16 @@ install(
   RENAME
     rnp.h
 )
+install(
+  FILES
+    "${PROJECT_SOURCE_DIR}/include/rnp/rnp_err.h"
+  COMPONENT
+    development
+  DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}"
+  RENAME
+    rnp_err.h
+)
 
 # .cmake installs
 set(INSTALL_CMAKEDIR "${CMAKE_INSTALL_LIBDIR}/cmake/rnp")
