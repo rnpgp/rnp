@@ -10,6 +10,7 @@ from os import path
 from subprocess import Popen, PIPE
 
 RNP_ROOT = None
+WORKDIR = ''
 
 class CLIError(Exception):
     def __init__(self, message, log = None):
@@ -95,23 +96,28 @@ def rnp_file_path(relpath, check = True):
 
 def run_proc_windows(proc, params, stdin=None):
     logging.debug((proc + ' ' + ' '.join(params)).strip())
+    logging.debug('Working directory: ' + os.getcwd())
+
     exe = os.path.basename(proc)
     # Not sure why but empty string is not passed to underlying spawnv call
     params = map(lambda st: st if st else '""', [exe] + params)
     sys.stdout.flush()
 
+    stdin_path = os.path.join(WORKDIR, 'stdin.txt')
+    stdout_path = os.path.join(WORKDIR, 'stdout.txt')
+    stderr_path = os.path.join(WORKDIR, 'stderr.txt')
     # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
     # so we'll need to poll process
     if stdin:
-        with open('stdin.txt', "wb+") as stdinf:
+        with open(stdin_path, "wb+") as stdinf:
             stdinf.write(stdin)
-        stdin_fl = os.open('stdin.txt', os.O_RDONLY | os.O_BINARY)
+        stdin_fl = os.open(stdin_path, os.O_RDONLY | os.O_BINARY)
         stdin_no = sys.stdin.fileno()
         stdin_cp = os.dup(stdin_no)
-    stdout_fl = os.open('stdout.txt', os.O_CREAT | os.O_RDWR | os.O_BINARY)
+    stdout_fl = os.open(stdout_path, os.O_CREAT | os.O_RDWR | os.O_BINARY)
     stdout_no = sys.stdout.fileno()
     stdout_cp = os.dup(stdout_no)
-    stderr_fl = os.open('stderr.txt', os.O_CREAT | os.O_RDWR | os.O_BINARY)
+    stderr_fl = os.open(stderr_path, os.O_CREAT | os.O_RDWR | os.O_BINARY)
     stderr_no = sys.stderr.fileno()
     stderr_cp = os.dup(stderr_no)
 
@@ -132,12 +138,12 @@ def run_proc_windows(proc, params, stdin=None):
         if stdin:
             os.dup2(stdin_cp, stdin_no)
             os.close(stdin_cp)
-    out = file_text('stdout.txt').replace('\r\n', '\n')
-    err = file_text('stderr.txt').replace('\r\n', '\n')
-    os.unlink('stdout.txt')
-    os.unlink('stderr.txt')
+    out = file_text(stdout_path).replace('\r\n', '\n')
+    err = file_text(stderr_path).replace('\r\n', '\n')
+    os.unlink(stdout_path)
+    os.unlink(stderr_path)
     if stdin: 
-        os.unlink('stdin.txt')
+        os.unlink(stdin_path)
     logging.debug(err.strip())
     logging.debug(out.strip())
     return (retcode, out, err)
