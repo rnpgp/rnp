@@ -11,6 +11,7 @@ import time
 import unittest
 from os import path
 
+import cli_common
 from cli_common import (file_text, find_utility, is_windows, list_upto,
                         path_for_gpg, pswd_pipe, raise_err, random_text,
                         rnp_file_path, run_proc)
@@ -688,6 +689,7 @@ def setup(loglvl):
 
     logging.info('Running in ' + WORKDIR)
 
+    cli_common.WORKDIR = WORKDIR
     RNPDIR = path.join(WORKDIR, '.rnp')
     RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
