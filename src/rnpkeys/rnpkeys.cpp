@@ -230,15 +230,27 @@ bool
 rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
 {
     const char *key;
+    std::string fs;
 
     switch (cmd) {
     case CMD_LIST_KEYS:
         if (!f) {
-            f = rnp_cfg_getstr(cfg, CFG_USERID);
+            list ids = NULL;
+            if (rnp_cfg_copylist_str(cfg, &ids, CFG_USERID) && list_length(ids) > 0) {
+                f = (fs = (char*)list_front(ids)).c_str();
+            }
+            list_destroy(&ids);
         }
         return print_keys_info(cfg, rnp, stdout, f);
     case CMD_EXPORT_KEY: {
-        key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
+        key = f;
+        if (!key) {
+            list ids = NULL;
+            if (rnp_cfg_copylist_str(cfg, &ids, CFG_USERID) && list_length(ids) > 0) {
+                key = (fs = (char*)list_front(ids)).c_str();
+            }
+            list_destroy(&ids);
+        }
         if (!key) {
             (void) fprintf(stderr, "key '%s' not found\n", f);
             return 0;
@@ -253,11 +265,17 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         return import_keys(cfg, rnp, f);
     case CMD_GENERATE_KEY: {
         if (f == NULL) {
-            f = rnp_cfg_getstr(cfg, CFG_USERID);
-            if(rnp_cfg_getstr(cfg, CFG_USERID, 2) != NULL) {
-                fprintf(stderr, "only userid is supported for generated keys\n");
-                return false;
+            list ids = NULL;
+            if (rnp_cfg_copylist_str(cfg, &ids, CFG_USERID) && list_length(ids) > 0) {
+                if (list_length(ids) == 1) {
+                    f = (fs = (char*)list_front(ids)).c_str();
+                } else {
+                    fprintf(stderr, "only userid is supported for generated keys\n");
+                    list_destroy(&ids);
+                    return false;
+                }
             }
+            list_destroy(&ids);
         }
         return cli_rnp_generate_key(cfg, rnp, f);
     }
@@ -309,7 +327,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
             (void) fprintf(stderr, "no userid argument provided\n");
             break;
         }
-        ret = rnp_cfg_setstr(cfg, CFG_USERID, arg);
+        ret = rnp_cfg_addstr(cfg, CFG_USERID, arg);
         break;
     case OPT_VERBOSE:
         ret = rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);

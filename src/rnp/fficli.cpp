@@ -1466,20 +1466,27 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
     }
 
     /* If a userid has been given, we'll use it. */
-    if (!(userid = rnp_cfg_getstr(cfg, CFG_USERID))) {
+    userid = NULL;
+    list ids = NULL;
+    if (rnp_cfg_copylist_str(cfg, &ids, CFG_USERID)) {
+        userid = (char*)list_front(ids);
+    }
+    if (!userid) {
         /* also search in config file for default id */
 
         if (defhomedir) {
             memset(id, 0, sizeof(id));
             conffile(homedir, id, sizeof(id));
             if (id[0] != 0x0) {
-                rnp_cfg_setstr(cfg, CFG_USERID, id);
+                rnp_cfg_unset(cfg, CFG_USERID);
+                rnp_cfg_addstr(cfg, CFG_USERID, id);
                 rnp_cfg_setstr(cfg, CFG_KR_DEF_KEY, id);
             }
         }
     } else {
         rnp_cfg_setstr(cfg, CFG_KR_DEF_KEY, userid);
     }
+    list_destroy(&ids);
 }
 
 bool

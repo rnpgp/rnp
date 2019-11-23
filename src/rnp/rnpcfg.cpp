@@ -247,10 +247,6 @@ rnp_cfg_setstr(rnp_cfg_t *cfg, const char *key, const char *val)
         return false;
     }
 
-    std::string mkey("\x01");
-    mkey.append(key);
-    rnp_cfg_addstr(cfg, mkey.c_str(), val? val : "");
-
     return true;
 }
 
@@ -288,26 +284,12 @@ rnp_cfg_addstr(rnp_cfg_t *cfg, const char *key, const char *str)
 }
 
 const char *
-rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key, const size_t item_idx)
+rnp_cfg_getstr(const rnp_cfg_t *cfg, const char *key)
 {
     rnp_cfg_item_t *it = rnp_cfg_find(cfg, key);
 
     if (it && (it->val.type == RNP_CFG_VAL_STRING)) {
-        if (item_idx == 0) {
-            return it->val.val._string;
-        } else {
-            std::string mkey("\x01");
-            mkey.append(key);
-            rnp_cfg_item_t *mit = rnp_cfg_find(cfg, mkey.c_str());
-            if (mit && (mit->val.type == RNP_CFG_VAL_LIST)) {
-                if (item_idx <= list_length(mit->val.val._list)) {
-                    rnp_cfg_val_t *val = (rnp_cfg_val_t*)list_at(mit->val.val._list, item_idx-1);
-                    if (val && (val->type == RNP_CFG_VAL_STRING)) {
-                        return val->val._string;
-                    }
-                }
-            }
-        }
+        return it->val.val._string;
     }
 
     return NULL;

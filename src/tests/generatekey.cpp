@@ -650,15 +650,13 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 {
     cli_rnp_t rnp;
     rnp_cfg_t ops = {0};
-    rnp_cfg_t tops = {0};
 
-    assert_true(rnp_cfg_setbool(&tops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&tops, CFG_S2K_ITER, 1));
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
     /* ecdsa/ecdh p256 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p256"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p256"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n1\n"));
     assert_false(check_cfg_props(&ops, "ECDH", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
     assert_false(check_cfg_props(&ops, "ECDSA", "ECDSA", "NIST P-256", "NIST P-256", 0, 0));
@@ -672,9 +670,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p384 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p384"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p384"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
     assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_false(check_key_props(
@@ -684,9 +681,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p521 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p521"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p521"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n3\n"));
     assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0));
     assert_true(check_key_props(
@@ -694,9 +690,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool256 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp256"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp256"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n4\n"));
     assert_true(
       check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
@@ -712,9 +707,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool384 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp384"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp384"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n5\n"));
     assert_true(
       check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
@@ -730,9 +724,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool512 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_bp512"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp512"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n6\n"));
     assert_true(
       check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
@@ -748,9 +741,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh secp256k1 keypair */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_ecdsa_p256k1"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p256k1"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n7\n"));
     assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
     assert_true(check_key_props(
@@ -759,8 +751,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 
     /* eddsa/x25519 keypair */
     rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_eddsa_ecdh"));
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_eddsa_ecdh"));
     assert_true(ask_expert_details(&rnp, &ops, "22\n"));
     assert_true(check_cfg_props(&ops, "EDDSA", "ECDH", NULL, "Curve25519", 0, 0));
     assert_true(check_key_props(
@@ -769,8 +763,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 
     /* rsa/rsa 1024 key */
     rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_rsa_1024"));
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_rsa_1024"));
     assert_true(ask_expert_details(&rnp, &ops, "1\n1024\n"));
     assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 1024, 1024));
     assert_true(check_key_props(
@@ -778,9 +774,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* rsa 4096 key, asked twice */
-    rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_rsa_4096"));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_rsa_4096"));
     assert_true(ask_expert_details(&rnp, &ops, "1\n1023\n4096\n"));
     assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 4096, 4096));
     assert_true(check_key_props(
@@ -789,8 +784,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 
     /* sm2 key */
     rnp_cfg_free(&ops);
-    rnp_cfg_copy(&ops, &tops);
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_sm2"));
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    rnp_cfg_unset(&ops, CFG_USERID);
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_sm2"));
     assert_true(ask_expert_details(&rnp, &ops, "99\n"));
     assert_true(check_cfg_props(&ops, "SM2", "SM2", NULL, NULL, 0, 0));
     assert_true(check_key_props(
@@ -798,7 +795,6 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     rnp_cfg_free(&ops);
-    rnp_cfg_free(&tops);
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted)
@@ -810,7 +806,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
     assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
     assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_small_digest"));
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_small_digest"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
     assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_true(check_key_props(&rnp,
@@ -836,7 +832,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuc
     assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
     assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
 
-    assert_true(rnp_cfg_setstr(&ops, CFG_USERID, "expert_large_digest"));
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_large_digest"));
     assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
     assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_true(check_key_props(&rnp,
