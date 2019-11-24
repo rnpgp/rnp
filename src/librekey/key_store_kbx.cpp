@@ -515,6 +515,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     uint32_t   pt;
     pgp_hash_t hash = {0};
     bool       result = false;
+    list       subkey_sig_expirations = NULL; // expirations (uint32_t) of subkey signatures
+    uint32_t   expiration = 0;
 
     if (init_mem_dest(&memdst, NULL, BLOB_SIZE_LIMIT)) {
         RNP_LOG("alloc failed");
@@ -562,6 +564,14 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
             !pu16(&memdst, 0)) {                 // RFU
             goto finish;
         }
+        // load signature expirations while we're at it
+        for (i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
+            expiration = signature_get_key_expiration(&pgp_key_get_subsig(subkey, i)->sig);
+            if (list_append(&subkey_sig_expirations, &expiration, sizeof(expiration)) ==
+                NULL) {
+                goto finish;
+            };
+        }
     }
 
     if (!pu16(&memdst, 0)) { // Zero size of serial number
@@ -591,14 +601,20 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         }
     }
 
-    // TODO: add subkey subsigc too, or leave this field zero
-    // since it seems to be deprecated in GnuPG
-    if (!pu16(&memdst, pgp_key_get_subsig_count(key)) || !pu16(&memdst, 4)) {
+    if (!pu16(&memdst, pgp_key_get_subsig_count(key) + list_length(subkey_sig_expirations)) ||
+        !pu16(&memdst, 4)) {
         goto finish;
     }
 
     for (i = 0; i < pgp_key_get_subsig_count(key); i++) {
         if (!pu32(&memdst, signature_get_key_expiration(&pgp_key_get_subsig(key, i)->sig))) {
+            goto finish;
+        }
+    }
+    for (list_item *expiration_entry = list_front(subkey_sig_expirations); expiration_entry;
+         expiration_entry = list_next(expiration_entry)) {
+        expiration = *(uint32_t *) expiration_entry;
+        if (!pu32(&memdst, expiration)) {
             goto finish;
         }
     }
@@ -692,7 +708,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     result = dst->werr == RNP_SUCCESS;
 finish:
     dst_close(&memdst, true);
-    return true;
+    list_destroy(&subkey_sig_expirations);
+    return result;
 }
 
 static bool
