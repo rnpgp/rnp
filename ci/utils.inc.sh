@@ -12,6 +12,8 @@ get_os() {
     darwin*) echo "macos" ;;
     linux*) echo "linux" ;;
     cygwin*) echo "cygwin" ;;
+    msys*) echo "msys" ;;
+    mingw*) echo "win" ;;
     *) echo "unknown"; exit 1 ;;
   esac
 }
