@@ -134,8 +134,8 @@ set_target_properties(librnp
   PROPERTIES
     VERSION "${RNP_VERSION}"
     SOVERSION "${RNP_VERSION_MAJOR}"
-    PREFIX ""
-    OUTPUT_NAME "librnp-${RNP_VERSION_MAJOR}"
+    PREFIX "lib"
+    OUTPUT_NAME "rnp-${RNP_VERSION_MAJOR}"
 )
 
 target_include_directories(librnp
@@ -187,6 +187,15 @@ install(TARGETS librnp
   ARCHIVE DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES DESTINATION "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}"
 )
+
+# install dll only for windows
+if (WIN32)
+  install(TARGETS librnp
+    RUNTIME
+      DESTINATION "${CMAKE_INSTALL_BINDIR}"
+      COMPONENT runtime
+  )
+endif()
 
 # install headers
 install(
