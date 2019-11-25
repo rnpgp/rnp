@@ -74,6 +74,17 @@ add_compile_options(
   -Wno-unused-parameter
   -Wno-missing-field-initializers
 )
+# MSYS-specific options
+if(MSYS)
+  add_compile_options(
+    -fstack-protector
+    -fopenmp
+  )
+  link_libraries(
+    -fstack-protector
+    -fopenmp
+  )
+endif()
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 99)
