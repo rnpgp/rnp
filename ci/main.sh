@@ -25,10 +25,20 @@ cmakeopts=(
 [ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
 [ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
 
+if [[ "$(get_os)" = "win" ]]; then
+  cmakeopts+=("-G")
+  cmakeopts+=("MSYS Makefiles")
+fi
+
 mkdir -p "${LOCAL_BUILDS}/rnp-build"
 rnpsrc="$PWD"
 pushd "${LOCAL_BUILDS}/rnp-build"
 export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
+
+# update dll search path for windows
+if [[ "$(get_os)" = "win" ]]; then
+  export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
+fi
 
 ${CMAKE} "${cmakeopts[@]}" "$rnpsrc"
 make -j${MAKE_PARALLEL} VERBOSE=1 install

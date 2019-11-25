@@ -5,8 +5,10 @@ set -exu
 
 # botan
 botan_build=${LOCAL_BUILDS}/botan
-if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
-   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ]; then
+if [ "$(get_os)" != "win" ] && \
+   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
+   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ] && \
+   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.a" ]; then
 
   if [ -d "${botan_build}" ]; then
     rm -rf "${botan_build}"
@@ -14,15 +16,23 @@ if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
 
   git clone --depth 1 --branch 2.9.0 https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
-  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer"
+
+  osparam=
+  if [ $(get_os) == "win" ]; then
+    osparam="--os=mingw"
+  fi
+
+  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" $osparam
   ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
 
 # json-c
 jsonc_build=${LOCAL_BUILDS}/json-c
-if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
-   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ]; then
+if [ "$(get_os)" != "win" ] && \
+   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
+   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ] && \
+   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.a" ]; then
 
    if [ -d "${jsonc_build}" ]; then
      rm -rf "${jsonc_build}"
@@ -34,7 +44,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   tar xzf json-c.tar.gz --strip 1
 
   autoreconf -ivf
-  env CFLAGS="-fno-omit-frame-pointer -g" ./configure --prefix="${JSONC_INSTALL}"
+  env CFLAGS="-fno-omit-frame-pointer -g -Wimplicit-fallthrough=0 -Wno-error=unknown-pragmas" ./configure --prefix="${JSONC_INSTALL}"
   ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
@@ -95,15 +105,16 @@ _install_gpg() {
 }
 
 
-# gpg
+# gpg - for msys/windows we use shipped gpg2 version
 gpg_build=${LOCAL_BUILDS}/gpg
-if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
+if [ "$(get_os)" != "win" ] && \
+   [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
   mkdir -p "${gpg_build}"
   cd "${gpg_build}"
 
   if [ "$GPG_VERSION" = "stable" ]; then
     #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    _install_gpg component-version 1.6  1.32         1.8.4     2.5.1     1.3.5   1.1.0    2.2.11
+    _install_gpg component-version 1.6  1.36         1.8.5     2.5.3     1.3.5   1.1.0    2.2.17
   elif [ "$GPG_VERSION" = "beta" ]; then
     #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
     _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7

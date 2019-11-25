@@ -11,7 +11,9 @@ get_os() {
     openbsd*) echo "openbsd" ;;
     darwin*) echo "macos" ;;
     linux*) echo "linux" ;;
-    cygwin*) echo "cygwin" ;;
+    cygwin*) echo "win" ;;
+    msys*) echo "win" ;;
+    mingw*) echo "win" ;;
     *) echo "unknown"; exit 1 ;;
   esac
 }
