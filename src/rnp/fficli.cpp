@@ -1467,9 +1467,9 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
 
     /* If a userid has been given, we'll use it. */
     userid = NULL;
-    list ids = NULL;
-    if (rnp_cfg_copylist_str(cfg, &ids, CFG_USERID)) {
-        userid = (char*)list_front(ids);
+    std::string uis = rnp_cfg_getlist_string(cfg, CFG_USERID, 0);
+    if (uis.length() > 0) {
+        userid = uis.c_str();
     }
     if (!userid) {
         /* also search in config file for default id */
@@ -1486,7 +1486,6 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
     } else {
         rnp_cfg_setstr(cfg, CFG_KR_DEF_KEY, userid);
     }
-    list_destroy(&ids);
 }
 
 bool
