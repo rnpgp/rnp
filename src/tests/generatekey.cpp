@@ -823,6 +823,22 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
     rnp_cfg_free(&ops);
 }
 
+TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
+{
+    cli_rnp_t         rnp;
+    rnp_cfg_t         ops = {0};
+
+    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
+    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "multi_userid_1"));
+    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "multi_userid_2"));
+    assert_false(ask_expert_details(&rnp, &ops, "1\n1024\n"));
+    cli_rnp_end(&rnp);
+
+    rnp_cfg_free(&ops);
+}
+
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed)
 {
     cli_rnp_t         rnp;

@@ -1468,7 +1468,7 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
     /* If a userid has been given, we'll use it. */
     userid = NULL;
     std::string uis = rnp_cfg_getlist_string(cfg, CFG_USERID, 0);
-    if (uis.length() > 0) {
+    if (!uis.empty()) {
         userid = uis.c_str();
     }
     if (!userid) {
