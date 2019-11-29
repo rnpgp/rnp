@@ -1,0 +1,25 @@
+name: macos
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+env:
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+
+jobs:
+
+  tests:
+    runs-on: macOS-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v1
+      - name: tests
+        run: ./ci/run.sh
+        env:
+          BUILD_MODE: normal
+          GPG_VERSION: stable
+
