@@ -656,8 +656,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
 
     /* write keyblock and fix the offset/length */
     key_start = memdst.writeb;
-    /* absolute offset in output stream */
-    pt = key_start + dst->writeb;
+    pt = key_start;
     p = (uint8_t *) mem_dest_get_memory(&memdst) + 8;
     STORE32BE(p, pt);
 
