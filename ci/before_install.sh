@@ -56,7 +56,7 @@ linux_install_centos() {
 
 linux_install_ubuntu() {
   apt-get update
-  apt-get -y install gettext
+  apt-get -y install gettext libjson-c-dev
 }
 
 linux_install() {

@@ -22,5 +22,8 @@ case "$(get_linux_dist)" in
       . /opt/rh/llvm-toolset-7.0/enable
     fi
     ;;
+  ubuntu)
+    # TODO if necessary
+    ;;
 esac
 
