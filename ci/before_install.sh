@@ -54,6 +54,11 @@ linux_install_centos() {
     bison ribose-automake116 llvm-toolset-7.0
 }
 
+linux_install_ubuntu() {
+  apt-get update
+  apt-get -y install gettext
+}
+
 linux_install() {
   local dist=$(get_linux_dist)
   type "linux_install_$dist" | grep -qwi 'function' && "linux_install_$dist"
