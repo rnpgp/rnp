@@ -916,6 +916,21 @@ class Keystore(unittest.TestCase):
         ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', path_for_gpg(pubpath)])
         if ret != 0: raise_err('gpg : public key import failed', err)
 
+    def test_generate_to_kbx(self):
+        '''
+        Generate KBX with RNP and ensurethat the key can be read with GnuPG
+        '''
+        clear_keyrings()
+        kbx_userid_tracker = 'kbx_userid_tracker@rnp'
+        # Run key generation
+        ret, out, err = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21', '--userid', kbx_userid_tracker,
+                                '--homedir', RNPDIR])
+        if ret != 0: raise_err('key generation failed', err)
+        # Read KBX with GPG
+        ret, out, err = run_proc(GPG, ['--homedir', RNPDIR, '--list-keys'])
+        if ret != 0: raise_err('gpg : failed to read KBX', err)
+        if kbx_userid_tracker not in out: raise_err('gpg : failed to read expected key from KBX')
+        clear_keyrings()
 
 class Misc(unittest.TestCase):
 

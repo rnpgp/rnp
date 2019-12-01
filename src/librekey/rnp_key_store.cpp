@@ -342,12 +342,7 @@ rnp_key_store_clear(rnp_key_store_t *keyring)
         kbx_blob_t *blob = *((kbx_blob_t **) item);
         if (blob->type == KBX_PGP_BLOB) {
             kbx_pgp_blob_t *pgpblob = (kbx_pgp_blob_t *) blob;
-            list_destroy(&pgpblob->keys);
-            if (pgpblob->sn_size > 0) {
-                free(pgpblob->sn);
-            }
-            list_destroy(&pgpblob->uids);
-            list_destroy(&pgpblob->sigs);
+            free_kbx_pgp_blob(pgpblob);
         }
         free(blob);
     }

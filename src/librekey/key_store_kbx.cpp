@@ -755,3 +755,14 @@ rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 
     return true;
 }
+
+void
+free_kbx_pgp_blob(kbx_pgp_blob_t *pgp_blob)
+{
+    list_destroy(&pgp_blob->keys);
+    if (pgp_blob->sn_size > 0) {
+        free(pgp_blob->sn);
+    }
+    list_destroy(&pgp_blob->uids);
+    list_destroy(&pgp_blob->sigs);
+}
