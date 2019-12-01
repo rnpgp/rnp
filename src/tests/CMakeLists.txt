@@ -66,6 +66,7 @@ add_executable(rnp_tests
   exportkey.cpp
   ffi.cpp
   generatekey.cpp
+  kbx-nsigs-test.cpp
   key-add-userid.cpp
   key-grip.cpp
   key-prefs.cpp
