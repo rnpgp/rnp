@@ -382,50 +382,10 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     return 0;
 }
 
-pgp_symm_alg_t
-pgp_cipher_alg_id(pgp_crypt_t *crypt)
-{
-    return crypt->alg;
-}
-
 size_t
 pgp_cipher_block_size(pgp_crypt_t *crypt)
 {
     return crypt->blocksize;
-}
-
-/* structure to map string to cipher def */
-typedef struct str2cipher_t {
-    const char *   s; /* cipher name */
-    pgp_symm_alg_t i; /* cipher def */
-} str2cipher_t;
-
-static str2cipher_t str2cipher[] = {{"cast5", PGP_SA_CAST5},
-                                    {"idea", PGP_SA_IDEA},
-                                    {"blowfish", PGP_SA_BLOWFISH},
-                                    {"twofish", PGP_SA_TWOFISH},
-                                    {"sm4", PGP_SA_SM4},
-                                    {"aes128", PGP_SA_AES_128},
-                                    {"aes192", PGP_SA_AES_192},
-                                    {"aes256", PGP_SA_AES_256},
-                                    {"camellia128", PGP_SA_CAMELLIA_128},
-                                    {"camellia192", PGP_SA_CAMELLIA_192},
-                                    {"camellia256", PGP_SA_CAMELLIA_256},
-                                    {"tripledes", PGP_SA_TRIPLEDES},
-                                    {NULL, (pgp_symm_alg_t) 0}};
-
-/* convert from a string to a cipher definition */
-pgp_symm_alg_t
-pgp_str_to_cipher(const char *cipher)
-{
-    str2cipher_t *sp;
-
-    for (sp = str2cipher; cipher && sp->s; sp++) {
-        if (rnp_strcasecmp(cipher, sp->s) == 0) {
-            return sp->i;
-        }
-    }
-    return DEFAULT_PGP_SYMM_ALG;
 }
 
 unsigned
