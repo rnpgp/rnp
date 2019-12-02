@@ -297,7 +297,7 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t *desc)
                  "%s %d-bit key <%s@localhost>",
                  pgp_show_pka(desc->crypto.key_alg),
                  get_numbits(&desc->crypto),
-                 getenv("LOGNAME"));
+                 getenv_logname());
     }
 }
 

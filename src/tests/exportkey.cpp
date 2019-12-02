@@ -54,12 +54,12 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    list keys = cli_rnp_get_keylist(&rnp, getenv("LOGNAME"), false);
+    list keys = cli_rnp_get_keylist(&rnp, getenv_logname(), false);
     assert_int_equal(list_length(keys), 2);
     cli_rnp_keylist_destroy(&keys);
 
     /* Try to export the key with specified userid parameter from the env */
-    assert_true(cli_rnp_export_keys(&cfg, &rnp, getenv("LOGNAME")));
+    assert_true(cli_rnp_export_keys(&cfg, &rnp, getenv_logname()));
 
     /* try to export the key with specified userid parameter (which is wrong) */
     assert_false(cli_rnp_export_keys(&cfg, &rnp, "LOGNAME"));
