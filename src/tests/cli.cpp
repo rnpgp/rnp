@@ -499,3 +499,24 @@ TEST_F(rnp_tests, test_cli_dump)
 
     free(dump_path);
 }
+
+TEST_F(rnp_tests, test_cli_logname)
+{
+    char *logname = getenv("LOGNAME");
+    char *user = getenv("USER");
+    std::string testname(user? user : "user");
+    testname.append("-test-user");
+
+    setenv("LOGNAME", testname.c_str(), 1);
+    assert_string_equal(getenv_logname(), testname.c_str());
+    if (user) {
+        unsetenv("LOGNAME");
+        assert_string_equal(getenv_logname(), user);
+    }
+
+    if (logname) {
+        setenv("LOGNAME", logname, 1);
+    } else {
+        unsetenv("LOGNAME");
+    }
+}
