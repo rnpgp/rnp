@@ -58,7 +58,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <string.h>
 
 #include <rnp/rnp_sdk.h>
-#include <librepgp/packet-show.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
@@ -68,6 +67,15 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "types.h"
 #include "key_store_pgp.h"
 #include "pgp-key.h"
+
+static pgp_map_t ss_rr_code_map[] = {
+  {0x00, "No reason specified"},
+  {0x01, "Key is superseded"},
+  {0x02, "Key material has been compromised"},
+  {0x03, "Key is retired and no longer used"},
+  {0x20, "User ID information is no longer valid"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
 
 void print_packet_hex(const pgp_rawpacket_t *pkt);
 
@@ -255,7 +263,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
         signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
         if (!strlen(revocation->reason)) {
             free(revocation->reason);
-            revocation->reason = strdup(pgp_show_ss_rr_code(revocation->code));
+            revocation->reason = strdup(pgp_str_from_map(revocation->code, ss_rr_code_map));
         }
     }
 
