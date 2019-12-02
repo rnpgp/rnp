@@ -363,7 +363,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv("LOGNAME"));
+    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
     rnp_key_handle_t handle = NULL;
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
@@ -438,7 +438,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     keycount = 0;
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
-    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv("LOGNAME"));
+    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
     rnp_key_handle_t handle = NULL;
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
