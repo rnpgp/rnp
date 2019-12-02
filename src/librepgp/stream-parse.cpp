@@ -264,7 +264,7 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_PARLEN_PACKET;
 
     if (param->psize < PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE) {
-        RNP_LOG("first part of partial length packet sequence has size %d and that's less than allowed by the protocol", param->psize);
+        RNP_LOG("first part of partial length packet sequence has size %d and that's less than allowed by the protocol", (int) param->psize);
     }
 
     return RNP_SUCCESS;
