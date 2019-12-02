@@ -180,4 +180,14 @@ STORE64BE(uint8_t x[8], uint64_t y)
 #define RNP_USE_STD_REGEX 1
 #endif
 
+inline char *
+getenv_logname(void)
+{
+    char *name = getenv("LOGNAME");
+    if (!name) {
+        name = getenv("USER");
+    }
+    return name;
+}
+
 #endif
