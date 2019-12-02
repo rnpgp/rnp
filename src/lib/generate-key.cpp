@@ -30,7 +30,6 @@
 #include <rekey/rnp_key_store.h>
 #include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
-#include <librepgp/packet-show.h>
 #include <librepgp/stream-packet.h>
 #include "crypto.h"
 #include "pgp-key.h"
@@ -44,6 +43,32 @@ static const uint8_t DEFAULT_HASH_ALGS[] = {
   PGP_HASH_SHA256, PGP_HASH_SHA384, PGP_HASH_SHA512, PGP_HASH_SHA224, PGP_HASH_SHA1};
 static const uint8_t DEFAULT_COMPRESS_ALGS[] = {
   PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
+
+static pgp_map_t pubkey_alg_map[] = {
+  {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
+  {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA Encrypt-Only"},
+  {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
+  {PGP_PKA_ELGAMAL, "Elgamal (Encrypt-Only)"},
+  {PGP_PKA_DSA, "DSA"},
+  {PGP_PKA_ECDH, "ECDH"},
+  {PGP_PKA_ECDSA, "ECDSA"},
+  {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "Reserved (formerly Elgamal Encrypt or Sign"},
+  {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
+  {PGP_PKA_EDDSA, "EdDSA"},
+  {PGP_PKA_SM2, "SM2"},
+  {PGP_PKA_PRIVATE00, "Private/Experimental"},
+  {PGP_PKA_PRIVATE01, "Private/Experimental"},
+  {PGP_PKA_PRIVATE02, "Private/Experimental"},
+  {PGP_PKA_PRIVATE03, "Private/Experimental"},
+  {PGP_PKA_PRIVATE04, "Private/Experimental"},
+  {PGP_PKA_PRIVATE05, "Private/Experimental"},
+  {PGP_PKA_PRIVATE06, "Private/Experimental"},
+  {PGP_PKA_PRIVATE07, "Private/Experimental"},
+  {PGP_PKA_PRIVATE08, "Private/Experimental"},
+  {PGP_PKA_PRIVATE09, "Private/Experimental"},
+  {PGP_PKA_PRIVATE10, "Private/Experimental"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
 
 static bool
 load_generated_g10_key(pgp_key_t *    dst,
@@ -279,6 +304,12 @@ set_default_user_prefs(pgp_user_prefs_t *prefs)
         return false;
     }
     return true;
+}
+
+static const char *
+pgp_show_pka(pgp_pubkey_alg_t pka)
+{
+    return pgp_str_from_map(pka, pubkey_alg_map);
 }
 
 static void

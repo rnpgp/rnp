@@ -33,7 +33,6 @@
 #include <assert.h>
 #include <json_object.h>
 #include <json.h>
-#include <librepgp/packet-show.h>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-armor.h>
