@@ -69,6 +69,11 @@ typedef struct {
     const char *string;
 } pgp_map_t;
 
+typedef struct {
+    uint8_t     mask;
+    const char *string;
+} pgp_bit_map_t;
+
 typedef struct pgp_crypt_t pgp_crypt_t;
 
 /** pgp_hash_t */
