@@ -22,6 +22,35 @@ curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos
 yum install -y rnp
 ----
 
+== On Ubuntu 18
+
+[source,console]
+----
+# Clone the repository by version tag (or omit it to get the latest sources)
+sudo apt install git
+git clone https://github.com/rnpgp/rnp.git -b v0.12.0
+
+# Install required packages
+sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential python-minimal
+
+# Download, build and install Botan2
+wget -qO- https://botan.randombit.net/releases/Botan-2.12.1.tar.xz | tar xvJ
+cd Botan-2.12.1
+./configure.py --prefix=/usr
+make
+sudo make install
+cd ..
+
+# Cmake recommend out-of-source builds
+mkdir rnp-build
+cd rnp-build
+
+# Cmake it
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off ../rnp/
+make
+sudo make install
+----
+
 == On Debian
 
 [source,console]
