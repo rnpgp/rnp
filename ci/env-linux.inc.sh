@@ -23,7 +23,7 @@ case "$(get_linux_dist)" in
     fi
     ;;
   ubuntu)
-    # TODO if necessary
+    export GPG_INSTALL="/usr"
     ;;
 esac
 
