@@ -56,7 +56,7 @@ linux_install_centos() {
 
 linux_install_ubuntu() {
   sudo apt-get update
-  sudo apt-get -y install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential gettext
+  sudo apt-get -y install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential gettext ruby-bundler
 
 }
 
