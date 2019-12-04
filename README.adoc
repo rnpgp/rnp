@@ -9,11 +9,6 @@ image:https://codecov.io/gh/rnpgp/rnp/branch/master/graph/badge.svg["Code covera
 
 == Introduction
 
-image:https://img.shields.io/coverity/scan/12616.svg["Coverity Scan Build Status", link="https://scan.coverity.com/projects/rnpgp-rnp"]
-image:https://codecov.io/gh/rnpgp/rnp/branch/master/graph/badge.svg["Code coverage", link="https://codecov.io/gh/rnpgp/rnp"]
-
-== Introduction
-
 RNP is a set of OpenPGP (RFC4880) tools that works on Linux, macOS, Windows and
 *BSD built with C++.
 
