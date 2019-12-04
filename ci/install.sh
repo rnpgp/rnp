@@ -34,7 +34,7 @@ if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
   tar xzf json-c.tar.gz --strip 1
 
   autoreconf -ivf
-  env CFLAGS="-fno-omit-frame-pointer -g" ./configure --prefix="${JSONC_INSTALL}"
+  env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure --prefix="${JSONC_INSTALL}"
   ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi

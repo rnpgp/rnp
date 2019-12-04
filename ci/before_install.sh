@@ -54,6 +54,12 @@ linux_install_centos() {
     bison ribose-automake116 llvm-toolset-7.0
 }
 
+linux_install_ubuntu() {
+  sudo apt-get update
+  sudo apt-get install ruby`ruby -e 'puts RUBY_VERSION[/\d+\.\d+/]'`-dev
+  sudo apt-get -y install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential gettext ruby-bundler
+}
+
 linux_install() {
   local dist=$(get_linux_dist)
   type "linux_install_$dist" | grep -qwi 'function' && "linux_install_$dist"
