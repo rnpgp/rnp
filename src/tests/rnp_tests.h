@@ -84,6 +84,8 @@ void generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted(void **st
 
 void generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed(void **state);
 
+void generatekey_multipleUserIds_ShouldFail(void **state);
+
 void generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail(void **state);
 
 void s2k_iteration_tuning(void **state);

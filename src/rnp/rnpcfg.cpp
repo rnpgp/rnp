@@ -373,6 +373,22 @@ rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
+std::string rnp_cfg_getlist_string(const rnp_cfg_t *cfg, const std::string &key, size_t index) {
+    list *lval = rnp_cfg_getlist(const_cast<rnp_cfg_t*>(cfg), key.c_str());
+    if (!lval) {
+        return "";
+    }
+
+    if (!(index < list_length(*lval))) {
+        RNP_LOG("wrong item index");
+        return "";
+    }
+
+    rnp_cfg_val_t *val = (rnp_cfg_val_t*)list_at(*lval, index);
+    const char *sval = rnp_cfg_val_getstr(val);
+    return sval? sval : "";
+}
+
 bool
 rnp_cfg_copylist_str(const rnp_cfg_t *cfg, list *dst, const char *key)
 {
