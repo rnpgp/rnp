@@ -24,7 +24,6 @@ case "$(get_linux_dist)" in
     ;;
   ubuntu)
     export GPG_INSTALL="/usr"
-    export JSONC_INSTALL="/usr"
     ;;
 esac
 
