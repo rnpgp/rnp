@@ -230,15 +230,25 @@ bool
 rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
 {
     const char *key;
+    std::string fs;
 
     switch (cmd) {
     case CMD_LIST_KEYS:
         if (!f) {
-            f = rnp_cfg_getstr(cfg, CFG_USERID);
+            list *ids = NULL;
+            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
+                f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+            }
         }
         return print_keys_info(cfg, rnp, stdout, f);
     case CMD_EXPORT_KEY: {
-        key = f ? f : rnp_cfg_getstr(cfg, CFG_USERID);
+        key = f;
+        if (!key) {
+            list *ids = NULL;
+            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
+                f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+            }
+        }
         if (!key) {
             (void) fprintf(stderr, "key '%s' not found\n", f);
             return 0;
@@ -253,7 +263,15 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         return import_keys(cfg, rnp, f);
     case CMD_GENERATE_KEY: {
         if (f == NULL) {
-            f = rnp_cfg_getstr(cfg, CFG_USERID);
+            list *ids = NULL;
+            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
+                if (list_length(*ids) == 1) {
+                    f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+                }  else {
+                    fprintf(stderr, "Only single userid is supported for generated keys\n");
+                    return false;
+                }
+            }
         }
         return cli_rnp_generate_key(cfg, rnp, f);
     }
@@ -305,7 +323,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
             (void) fprintf(stderr, "no userid argument provided\n");
             break;
         }
-        ret = rnp_cfg_setstr(cfg, CFG_USERID, arg);
+        ret = rnp_cfg_addstr(cfg, CFG_USERID, arg);
         break;
     case OPT_VERBOSE:
         ret = rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
