@@ -217,6 +217,15 @@ bool rnp_cfg_getbool(const rnp_cfg_t *cfg, const char *key);
  **/
 list *rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key);
 
+/** @brief returns a string at index of list value for the key
+ *  @param cfg rnp config, must be allocated and initialized
+ *  @param key must be null-terminated string
+ *  @param index zero based index of the string
+ *
+ *  @return string or an empty string if value was not found
+ **/
+std::string rnp_cfg_getlist_string(const rnp_cfg_t *cfg, const std::string &key, size_t index);
+
 /** @brief copy string values as char * from the list to destination
  *  @param cfg rnp config, must be allocated and initialized
  *  @param dst pointer to the list structure, where strings will be stored
