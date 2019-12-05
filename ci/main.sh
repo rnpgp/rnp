@@ -46,7 +46,8 @@ make -j${MAKE_PARALLEL} VERBOSE=1 install
 [[ ${COVERITY_SCAN_BRANCH} = 1 ]] && exit 0
 
 # workaround macOS SIP
-if [ "$BUILD_MODE" != "sanitize" ]; then
+if [ "$(get_os)" != "msys" ] && \
+   [ "$BUILD_MODE" != "sanitize" ]; then
   pushd "$RUBY_RNP_INSTALL"
   [[ "$(get_os)" = "macos" ]] && cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
   popd
