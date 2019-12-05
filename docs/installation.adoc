@@ -82,3 +82,32 @@ Clone this repo, or download a release and expand it. Then:
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off .
 make install
 ----
+
+== On Windows using MSYS/MinGW
+
+Having the clean MSYS2 installation, you'll first need to update pacman and install needed packages via msys console:
+
+[source, console]
+----
+pacman -Syu --noconfirm --needed
+# Then most likely you'll need to close msys console and run it agian:
+pacman -Syu --noconfirm --needed
+# Install packages
+pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python2
+----
+
+Then clone the repository, say to rnp folder, and:
+[source, console]
+----
+# CMake encourages out-of source builds.
+mkdir rnp-build
+cd rnp-build
+# Add MinGW's lib and bin to PATH so dependency dll/lib can be found
+export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PATH"
+# Run cmake
+cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" ../rnp
+make && make install
+----
+
+Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that librnp-0.dll is on path or in the same folder as well as all dependencies.
+You may check dependenices and their pathes via ntldd.exe in MSYS command prompt. 
