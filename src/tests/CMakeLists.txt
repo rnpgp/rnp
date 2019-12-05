@@ -104,6 +104,11 @@ target_compile_definitions(rnp_tests
     RNP_RUN_TESTS
 )
 
+if (WIN32)
+  add_custom_command(TARGET rnp_tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:librnp>" "$<TARGET_FILE_DIR:rnp_tests>")
+endif()
+
 # fixture to copy the test data directory
 add_test(
   NAME setupTestData
