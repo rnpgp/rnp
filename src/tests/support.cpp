@@ -51,6 +51,14 @@ setenv(const char *name, const char *value, int overwrite)
     snprintf(varbuf, sizeof(varbuf) - 1, "%s=%s", name, value);
     return _putenv(varbuf);
 }
+
+int
+unsetenv(const char *name)
+{
+    char varbuf[512] = {0};
+    snprintf(varbuf, sizeof(varbuf) - 1, "%s=", name);
+    return _putenv(varbuf);
+}
 #endif
 
 #ifndef HAVE_MKDTEMP
