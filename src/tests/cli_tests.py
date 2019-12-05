@@ -927,7 +927,7 @@ class Keystore(unittest.TestCase):
                                 '--homedir', RNPDIR])
         if ret != 0: raise_err('key generation failed', err)
         # Read KBX with GPG
-        ret, out, err = run_proc(GPG, ['--homedir', RNPDIR, '--list-keys'])
+        ret, out, err = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
         if ret != 0: raise_err('gpg : failed to read KBX', err)
         if kbx_userid_tracker not in out: raise_err('gpg : failed to read expected key from KBX')
         clear_keyrings()
@@ -1108,28 +1108,35 @@ class Misc(unittest.TestCase):
 
     def test_partial_length_signature(self):
         # Verifying partial length signature with GnuPG
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-signed')])
+        kpath = path_for_gpg(data_path('keyrings/1/pubring.gpg'))
+        mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-signed'))
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
         if ret == 0:
             raise_err('partial length signature packet should result in failure but did not')
         return
 
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('test_partial_length/pubring.gpg.partial'), '--list-keys'])
+        kpath = data_path('test_partial_length/pubring.gpg.partial')
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--list-keys'])
         if ret == 0:
             raise_err('partial length public key packet should result in failure but did not')
         return
 
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
-        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-zero-last')])
+        kpath = path_for_gpg(data_path('keyrings/1/pubring.gpg'))
+        mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-zero-last'))
+        ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
         if ret != 0:
             raise_err('message in partial packets having 0-size last chunk verification failed', err)
         return
 
     def test_partial_length_largest(self):
         # Verifying message having largest possible partial packet with GnuPG
-        ret, _, err = run_proc(GPG, ['--homedir', GPGDIR, '--keyring', data_path('keyrings/1/pubring.gpg'), '--verify', data_path('test_partial_length/message.txt.partial-1g')])
+        kpath = path_for_gpg(data_path('keyrings/1/pubring.gpg'))
+        mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-1g'))
+        ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
         if ret != 0:
             raise_err('message having largest possible partial packet verification failed', err)
         return
