@@ -52,8 +52,8 @@
 
 #ifdef _WIN32
 #define pipe(fds) _pipe(fds, 256, O_BINARY)
-
 int setenv(const char *name, const char *value, int overwrite);
+int unsetenv(const char *name);
 #endif
 #ifndef HAVE_MKDTEMP
 char *mkdtemp(char *templ);
