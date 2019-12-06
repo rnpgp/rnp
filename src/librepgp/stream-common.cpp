@@ -393,11 +393,16 @@ init_file_src(pgp_source_t *src, const char *path)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-#ifdef O_BINARY
-    fd = open(path, O_RDONLY | O_BINARY);
+    int flags = O_RDONLY;
+#ifdef HAVE_O_BINARY
+    flags |= O_BINARY;
 #else
-    fd = open(path, O_RDONLY);
+#ifdef HAVE__O_BINARY
+    flags |= _O_BINARY;
 #endif
+#endif
+    fd = open(path, flags);
+
     if (fd < 0) {
         RNP_LOG("can't open '%s'", path);
         return RNP_ERROR_READ;
@@ -781,8 +786,12 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
 
     flags = O_WRONLY | O_CREAT;
     flags |= overwrite ? O_TRUNC : O_EXCL;
-#ifdef O_BINARY
+#ifdef HAVE_O_BINARY
     flags |= O_BINARY;
+#else
+#ifdef HAVE__O_BINARY
+    flags |= _O_BINARY;
+#endif
 #endif
     fd = open(path, flags, 0600);
     if (fd < 0) {
