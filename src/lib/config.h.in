@@ -44,3 +44,5 @@
 #cmakedefine HAVE_SYS_WAIT_H
 #cmakedefine HAVE_MKDTEMP
 #cmakedefine HAVE_REALPATH
+#cmakedefine HAVE_O_BINARY
+#cmakedefine HAVE__O_BINARY
