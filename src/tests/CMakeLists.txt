@@ -79,6 +79,7 @@ add_executable(rnp_tests
   load-pgp.cpp
   partial-length.cpp
   rnp_tests.cpp
+  s2k-iterations.cpp
   streams.cpp
   support.cpp
   user-prefs.cpp
