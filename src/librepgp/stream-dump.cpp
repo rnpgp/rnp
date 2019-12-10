@@ -441,7 +441,7 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
         size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
-        dst_printf(dst, "s2k iterations: %d (%zu)\n", (int) s2k->iterations, real_iter);
+        dst_printf(dst, "s2k iterations: %zu (encoded as %u)\n", real_iter, s2k->iterations);
     }
 }
 
