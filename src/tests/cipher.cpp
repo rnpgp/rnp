@@ -696,7 +696,30 @@ TEST_F(rnp_tests, s2k_iteration_tuning)
     /// TODO test that hashing iters_xx data takes roughly requested time
 }
 
-bool
+TEST_F(rnp_tests, s2k_iteration_encode_decode)
+{
+    const size_t MAX_ITER = 0x3e00000; // 0x1F << (0xF + 6);
+    // encoding tests
+    assert_int_equal(pgp_s2k_encode_iterations(0), 0);
+    assert_int_equal(pgp_s2k_encode_iterations(512), 0);
+    assert_int_equal(pgp_s2k_encode_iterations(1024), 0);
+    assert_int_equal(pgp_s2k_encode_iterations(1024), 0);
+    assert_int_equal(pgp_s2k_encode_iterations(1025), 1);
+    assert_int_equal(pgp_s2k_encode_iterations(1088), 1);
+    assert_int_equal(pgp_s2k_encode_iterations(1089), 2);
+    assert_int_equal(pgp_s2k_encode_iterations(2048), 16);
+    assert_int_equal(pgp_s2k_encode_iterations(MAX_ITER - 1), 0xFF);
+    assert_int_equal(pgp_s2k_encode_iterations(MAX_ITER), 0xFF);
+    assert_int_equal(pgp_s2k_encode_iterations(MAX_ITER + 1), 0xFF);
+    assert_int_equal(pgp_s2k_encode_iterations(SIZE_MAX), 0xFF);
+    // decoding tests
+    assert_int_equal(pgp_s2k_decode_iterations(0), 1024);
+    assert_int_equal(pgp_s2k_decode_iterations(1), 1088);
+    assert_int_equal(pgp_s2k_decode_iterations(16), 2048);
+    assert_int_equal(pgp_s2k_decode_iterations(0xFF), MAX_ITER);
+}
+
+static bool
 read_key_pkt(pgp_key_pkt_t *key, const char *path)
 {
     pgp_source_t src = {};
