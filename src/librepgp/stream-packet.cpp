@@ -1609,6 +1609,12 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
         goto finish;
     }
 
+    if (res != RNP_SUCCESS) {
+        goto finish;
+    }
+
+    res = RNP_ERROR_BAD_FORMAT;
+
     /* left 16 bits of the hash */
     if (!get_packet_body_buf(pkt, sig->lbits, 2)) {
         RNP_LOG("not enough data for hash left bits");
