@@ -1807,10 +1807,13 @@ rnp_result_t rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t ex
  *                 via password provider.
  * @param s2k_hash hash algorithm, used in key-from-password derivation. Pass NULL for default
  *        value. See rnp_op_encrypt_set_hash for possible values.
- * @param iterations number of iterations, used in key derivation function. Pass 0 for default
- *        value. Only 256 distinct values within the range [1024..0x3e00000] can be encoded.
- *        Thus, the number will be increased to the closest encodable value.
- *        In case it exceeds the maximum encodable value, it will be decreased to the maximum encodable value.
+ * @param iterations number of iterations, used in key derivation function.
+ *        According to RFC 4880, chapter 3.7.1.3, only 256 distinct values within the range
+ *        [1024..0x3e00000] can be encoded. Thus, the number will be increased to the closest
+ *        encodable value. In case it exceeds the maximum encodable value, it will be decreased
+ *        to the maximum encodable value.
+ *        If 0 is passed, an optimal number (greater or equal to 1024) will be calculated based
+ *        on performance measurement.
  * @param s2k_cipher symmetric cipher, used for key encryption. Pass NULL for default value.
  * See rnp_op_encrypt_set_cipher for possible values.
  * @return RNP_SUCCESS or error code if failed
