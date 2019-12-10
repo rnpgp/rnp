@@ -734,6 +734,22 @@ check_json_field_bool(json_object *obj, const std::string &field, bool value)
     return json_object_get_boolean(fld) == value;
 }
 
+bool
+check_json_pkt_type(json_object *pkt, int tag)
+{
+    if (!pkt || !json_object_is_type(pkt, json_type_object)) {
+      return false;
+    }
+    json_object *hdr = NULL;
+    if (!json_object_object_get_ex(pkt, "header", &hdr)) {
+      return false;
+    }
+    if (!json_object_is_type(hdr, json_type_object)) {
+      return false;
+    }
+    return check_json_field_int(hdr, "tag", tag);
+}
+
 pgp_key_t*
 rnp_tests_get_key_by_id(const rnp_key_store_t* keyring, const std::string& keyid, pgp_key_t* after)
 {

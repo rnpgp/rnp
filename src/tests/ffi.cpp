@@ -6046,22 +6046,6 @@ TEST_F(rnp_tests, test_ffi_op_set_compression)
     rnp_ffi_destroy(ffi);
 }
 
-static bool
-check_json_pkt_type(json_object *pkt, int tag)
-{
-    if (!pkt || !json_object_is_type(pkt, json_type_object)) {
-      return false;
-    }
-    json_object *hdr = NULL;
-    if (!json_object_object_get_ex(pkt, "header", &hdr)) {
-      return false;
-    }
-    if (!json_object_is_type(hdr, json_type_object)) {
-      return false;
-    }
-    return check_json_field_int(hdr, "tag", tag);
-}
-
 TEST_F(rnp_tests, test_ffi_aead_params)
 {
     rnp_ffi_t        ffi = NULL;

@@ -89,6 +89,9 @@ void generatekey_multipleUserIds_ShouldFail(void **state);
 void generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail(void **state);
 
 void s2k_iteration_tuning(void **state);
+void s2k_iteration_encode_decode(void **state);
+
+void test_s2k_iterations(void **state);
 
 void test_validate_key_material(void **state);
 
