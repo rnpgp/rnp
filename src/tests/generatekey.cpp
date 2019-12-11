@@ -96,7 +96,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
      * Sign a message, then verify it
      */
 
-    const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", NULL};
+    const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", "sha1", "sha224", "sha256", "sha384", "sha512", "sm3", NULL};
     int          pipefd[2];
     char         memToSign[] = "A simple test message";
     cli_rnp_t    rnp;
@@ -183,16 +183,26 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
 {
-    const char *cipherAlg[] = {"Blowfish",
-                               "Twofish",
+    const char *cipherAlg[] = {"BLOWFISH",
+                               "TWOFISH",
                                "CAST5",
-                               "TripleDES",
+                               "TRIPLEDES",
                                "AES128",
                                "AES192",
                                "AES256",
-                               "Camellia128",
-                               "Camellia192",
-                               "Camellia256",
+                               "CAMELLIA128",
+                               "CAMELLIA192",
+                               "CAMELLIA256",
+                               "blowfish",
+                               "twofish",
+                               "cast5",
+                               "tripledes",
+                               "aes128",
+                               "aes192",
+                               "aes256",
+                               "camellia128",
+                               "camellia192",
+                               "camellia256",
                                NULL};
 
     cli_rnp_t   rnp = {};
@@ -262,7 +272,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
     /* Generate key for each of the hash algorithms. Check whether key was generated
      * successfully */
 
-    const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3"};
+    const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3", "md5", "sha1", "sha256", "sha384", "sha512", "sha224", "sm3"};
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     cli_rnp_t   rnp = {};
 
