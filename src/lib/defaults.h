@@ -27,18 +27,8 @@
 #ifndef DEFAULTS_H_
 #define DEFAULTS_H_
 
-/* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
- * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.
- * Let's pre-empt this by specifying SHA256 - gpg interoperates just fine with SHA256 - agc,
- * 20090522
- */
-#define DEFAULT_HASH_ALG "SHA256"
-
 /* Default hash algorithm as PGP constant */
 #define DEFAULT_PGP_HASH_ALG PGP_HASH_SHA256
-
-/* Default symmetric algorithm */
-#define DEFAULT_SYMM_ALG "AES256"
 
 /* Default symmetric algorithm as PGP constant */
 #define DEFAULT_PGP_SYMM_ALG PGP_SA_AES_256

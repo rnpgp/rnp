@@ -146,47 +146,47 @@ rnpkeys_ask_generate_params(rnp_cfg_t *cfg, FILE *input_fp)
         switch (option) {
         case 1: {
             long bits = ask_rsa_bitlen(input_fp);
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "RSA") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA") &&
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_RSA) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA) &&
                   rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
                   rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
             break;
         }
         case 16: {
             long bits = ask_dsa_bitlen(input_fp);
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "DSA") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ElGamal") &&
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DSA) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ELGAMAL) &&
                   rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
                   rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
             break;
         }
         case 17: {
             long bits = ask_dsa_bitlen(input_fp);
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "DSA") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA") &&
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DSA) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA) &&
                   rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, bits) &&
                   rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, bits);
             break;
         }
         case 19: {
             const char *curve = ask_curve_name(input_fp);
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "ECDSA") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ECDH") &&
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_ECDSA) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH) &&
                   rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_CURVE, curve) &&
                   rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_CURVE, curve);
             break;
         }
         case 22: {
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "EDDSA") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "ECDH") &&
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_EDDSA) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH) &&
                   rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_CURVE, "Curve25519");
             break;
         }
         case 99: {
-            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "SM2") &&
-                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "SM2");
+            res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SM2) &&
+                  rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_SM2);
             if (!rnp_cfg_hasval(cfg, CFG_KG_HASH)) {
-                res = res && rnp_cfg_setstr(cfg, CFG_KG_HASH, "SM3");
+                res = res && rnp_cfg_setstr(cfg, CFG_KG_HASH, RNP_ALGNAME_SM3);
             }
             break;
         }
@@ -211,10 +211,10 @@ cli_rnp_set_generate_params(rnp_cfg_t *cfg)
 
     // key and subkey algorithms, bit length/curve
     if (!rnp_cfg_getbool(cfg, CFG_EXPERT)) {
-        res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, "RSA");
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_PRIMARY_ALG, RNP_ALGNAME_RSA);
         res =
           res && rnp_cfg_setint(cfg, CFG_KG_PRIMARY_BITS, rnp_cfg_getint(cfg, CFG_NUMBITS));
-        res = res && rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, "RSA");
+        res = res && rnp_cfg_setstr(cfg, CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA);
         res = res && rnp_cfg_setint(cfg, CFG_KG_SUBKEY_BITS, rnp_cfg_getint(cfg, CFG_NUMBITS));
     } else {
         FILE *input = stdin;

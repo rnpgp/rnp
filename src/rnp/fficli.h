@@ -91,8 +91,6 @@ bool rnp_casecmp(const std::string &str1, const std::string &str2);
 
 #define MAX_PASSWORD_ATTEMPTS 3
 
-#define DEFAULT_SYMM_ALG "AES256"
-
 #define ERR_MSG(...)                           \
     do {                                       \
         (void) fprintf((stderr), __VA_ARGS__); \

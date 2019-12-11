@@ -84,7 +84,7 @@ ffi_encrypt()
     rnp_op_encrypt_set_file_name(encrypt, "message.txt");
     rnp_op_encrypt_set_file_mtime(encrypt, time(NULL));
     rnp_op_encrypt_set_compression(encrypt, "ZIP", 6);
-    rnp_op_encrypt_set_cipher(encrypt, "AES256");
+    rnp_op_encrypt_set_cipher(encrypt, RNP_ALGNAME_AES_256);
     rnp_op_encrypt_set_aead(encrypt, "None");
 
     /* locate recipient's key and add it to the operation context. While we search by userid
@@ -102,7 +102,7 @@ ffi_encrypt()
     key = NULL;
 
     /* add encryption password as well */
-    if (rnp_op_encrypt_add_password(encrypt, "encpassword", "SHA256", 0, "AES256") !=
+    if (rnp_op_encrypt_add_password(encrypt, "encpassword", RNP_ALGNAME_SHA256, 0, RNP_ALGNAME_AES_256) !=
         RNP_SUCCESS) {
         fprintf(stdout, "failed to add encryption password\n");
         goto finish;

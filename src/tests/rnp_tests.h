@@ -176,6 +176,8 @@ void test_ffi_key_generate_sm2(void **state);
 
 void test_ffi_key_generate_ex(void **state);
 
+void test_ffi_key_generate_algnamecase(void **state);
+
 void test_ffi_key_generate_protection(void **state);
 
 void test_ffi_add_userid(void **state);

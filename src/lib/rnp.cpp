@@ -149,29 +149,29 @@ static const pgp_map_t sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
                                          {PGP_SIG_TIMESTAMP, "timestamp"},
                                          {PGP_SIG_3RD_PARTY, "third-party"}};
 
-static const pgp_map_t pubkey_alg_map[] = {{PGP_PKA_RSA, "RSA"},
-                                           {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA"},
-                                           {PGP_PKA_RSA_SIGN_ONLY, "RSA"},
-                                           {PGP_PKA_ELGAMAL, "ELGAMAL"},
-                                           {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, "ELGAMAL"},
-                                           {PGP_PKA_DSA, "DSA"},
-                                           {PGP_PKA_ECDH, "ECDH"},
-                                           {PGP_PKA_ECDSA, "ECDSA"},
-                                           {PGP_PKA_EDDSA, "EDDSA"},
-                                           {PGP_PKA_SM2, "SM2"}};
+static const pgp_map_t pubkey_alg_map[] = {{PGP_PKA_RSA, RNP_ALGNAME_RSA},
+                                           {PGP_PKA_RSA_ENCRYPT_ONLY, RNP_ALGNAME_RSA},
+                                           {PGP_PKA_RSA_SIGN_ONLY, RNP_ALGNAME_RSA},
+                                           {PGP_PKA_ELGAMAL, RNP_ALGNAME_ELGAMAL},
+                                           {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, RNP_ALGNAME_ELGAMAL},
+                                           {PGP_PKA_DSA, RNP_ALGNAME_DSA},
+                                           {PGP_PKA_ECDH, RNP_ALGNAME_ECDH},
+                                           {PGP_PKA_ECDSA, RNP_ALGNAME_ECDSA},
+                                           {PGP_PKA_EDDSA, RNP_ALGNAME_EDDSA},
+                                           {PGP_PKA_SM2, RNP_ALGNAME_SM2}};
 
-static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, "IDEA"},
-                                         {PGP_SA_TRIPLEDES, "TRIPLEDES"},
-                                         {PGP_SA_CAST5, "CAST5"},
-                                         {PGP_SA_BLOWFISH, "BLOWFISH"},
-                                         {PGP_SA_AES_128, "AES128"},
-                                         {PGP_SA_AES_192, "AES192"},
-                                         {PGP_SA_AES_256, "AES256"},
-                                         {PGP_SA_TWOFISH, "TWOFISH"},
-                                         {PGP_SA_CAMELLIA_128, "CAMELLIA128"},
-                                         {PGP_SA_CAMELLIA_192, "CAMELLIA192"},
-                                         {PGP_SA_CAMELLIA_256, "CAMELLIA256"},
-                                         {PGP_SA_SM4, "SM4"}};
+static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
+                                         {PGP_SA_TRIPLEDES, RNP_ALGNAME_TRIPLEDES},
+                                         {PGP_SA_CAST5, RNP_ALGNAME_CAST5},
+                                         {PGP_SA_BLOWFISH, RNP_ALGNAME_BLOWFISH},
+                                         {PGP_SA_AES_128, RNP_ALGNAME_AES_128},
+                                         {PGP_SA_AES_192, RNP_ALGNAME_AES_192},
+                                         {PGP_SA_AES_256, RNP_ALGNAME_AES_256},
+                                         {PGP_SA_TWOFISH, RNP_ALGNAME_TWOFISH},
+                                         {PGP_SA_CAMELLIA_128, RNP_ALGNAME_CAMELLIA_128},
+                                         {PGP_SA_CAMELLIA_192, RNP_ALGNAME_CAMELLIA_192},
+                                         {PGP_SA_CAMELLIA_256, RNP_ALGNAME_CAMELLIA_256},
+                                         {PGP_SA_SM4, RNP_ALGNAME_SM4}};
 
 static const pgp_map_t aead_alg_map[] = {
   {PGP_AEAD_NONE, "None"}, {PGP_AEAD_EAX, "EAX"}, {PGP_AEAD_OCB, "OCB"}};
@@ -184,17 +184,17 @@ static const pgp_map_t compress_alg_map[] = {{PGP_C_NONE, "Uncompressed"},
                                              {PGP_C_ZLIB, "ZLIB"},
                                              {PGP_C_BZIP2, "BZip2"}};
 
-static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, "MD5"},
-                                         {PGP_HASH_SHA1, "SHA1"},
-                                         {PGP_HASH_RIPEMD, "RIPEMD160"},
-                                         {PGP_HASH_SHA256, "SHA256"},
-                                         {PGP_HASH_SHA384, "SHA384"},
-                                         {PGP_HASH_SHA512, "SHA512"},
-                                         {PGP_HASH_SHA224, "SHA224"},
-                                         {PGP_HASH_SHA3_256, "SHA3-256"},
-                                         {PGP_HASH_SHA3_512, "SHA3-512"},
-                                         {PGP_HASH_SM3, "SM3"},
-                                         {PGP_HASH_CRC24, "CRC24"}};
+static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
+                                         {PGP_HASH_SHA1, RNP_ALGNAME_SHA1},
+                                         {PGP_HASH_RIPEMD, RNP_ALGNAME_RIPEMD160},
+                                         {PGP_HASH_SHA256, RNP_ALGNAME_SHA256},
+                                         {PGP_HASH_SHA384, RNP_ALGNAME_SHA384},
+                                         {PGP_HASH_SHA512, RNP_ALGNAME_SHA512},
+                                         {PGP_HASH_SHA224, RNP_ALGNAME_SHA224},
+                                         {PGP_HASH_SHA3_256, RNP_ALGNAME_SHA3_256},
+                                         {PGP_HASH_SHA3_512, RNP_ALGNAME_SHA3_512},
+                                         {PGP_HASH_SM3, RNP_ALGNAME_SM3},
+                                         {PGP_HASH_CRC24, RNP_ALGNAME_CRC24}};
 
 static const pgp_bit_map_t key_usage_map[] = {{PGP_KF_SIGN, "sign"},
                                               {PGP_KF_CERTIFY, "certify"},
@@ -3785,7 +3785,7 @@ rnp_generate_key_rsa(rnp_ffi_t         ffi,
                      rnp_key_handle_t *key)
 {
     return rnp_generate_key_ex(
-      ffi, "RSA", subbits ? "RSA" : NULL, bits, subbits, NULL, NULL, userid, password, key);
+      ffi, RNP_ALGNAME_RSA, subbits ? RNP_ALGNAME_RSA : NULL, bits, subbits, NULL, NULL, userid, password, key);
 }
 
 rnp_result_t
@@ -3797,8 +3797,8 @@ rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
                         rnp_key_handle_t *key)
 {
     return rnp_generate_key_ex(ffi,
-                               "DSA",
-                               subbits ? "ElGamal" : NULL,
+                               RNP_ALGNAME_DSA,
+                               subbits ? RNP_ALGNAME_ELGAMAL : NULL,
                                bits,
                                subbits,
                                NULL,
@@ -3816,7 +3816,7 @@ rnp_generate_key_ec(rnp_ffi_t         ffi,
                     rnp_key_handle_t *key)
 {
     return rnp_generate_key_ex(
-      ffi, "ECDSA", "ECDH", 0, 0, curve, curve, userid, password, key);
+      ffi, RNP_ALGNAME_ECDSA, RNP_ALGNAME_ECDH, 0, 0, curve, curve, userid, password, key);
 }
 
 rnp_result_t
@@ -3826,7 +3826,7 @@ rnp_generate_key_25519(rnp_ffi_t         ffi,
                        rnp_key_handle_t *key)
 {
     return rnp_generate_key_ex(
-      ffi, "EDDSA", "ECDH", 0, 0, NULL, "Curve25519", userid, password, key);
+      ffi, RNP_ALGNAME_EDDSA, RNP_ALGNAME_ECDH, 0, 0, NULL, "Curve25519", userid, password, key);
 }
 
 rnp_result_t
@@ -3835,7 +3835,7 @@ rnp_generate_key_sm2(rnp_ffi_t         ffi,
                      const char *      password,
                      rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(ffi, "SM2", "SM2", 0, 0, NULL, NULL, userid, password, key);
+    return rnp_generate_key_ex(ffi, RNP_ALGNAME_SM2, RNP_ALGNAME_SM2, 0, 0, NULL, NULL, userid, password, key);
 }
 
 static pgp_key_flags_t

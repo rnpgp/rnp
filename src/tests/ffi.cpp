@@ -1390,7 +1390,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_dsa)
     assert_false(boolres);
     /* algorithm */
     assert_rnp_success(rnp_key_get_alg(subkey, &alg));
-    assert_int_equal(strcasecmp(alg, "ElGamal"), 0);
+    assert_int_equal(strcasecmp(alg, "ELGAMAL"), 0);
     rnp_buffer_destroy(alg);
     /* key bits */
     assert_rnp_success(rnp_key_get_bits(subkey, &bits));
@@ -1735,10 +1735,10 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* preferred ciphers */
     assert_rnp_success(rnp_op_generate_clear_pref_ciphers(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_cipher(keygen, "unknown"));
-    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "blowfish"));
+    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "BLOWFISH"));
     assert_rnp_success(rnp_op_generate_clear_pref_ciphers(keygen));
-    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "camellia256"));
-    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "aes256"));
+    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "CAMELLIA256"));
+    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "AES256"));
     /* preferred compression algorithms */
     assert_rnp_success(rnp_op_generate_clear_pref_compression(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_compression(keygen, "unknown"));
@@ -1749,10 +1749,10 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* preferred hash algorithms */
     assert_rnp_success(rnp_op_generate_clear_pref_hashes(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_hash(keygen, "unknown"));
-    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_clear_pref_hashes(keygen));
-    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "sha512"));
-    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "sha256"));
+    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "SHA512"));
+    assert_rnp_success(rnp_op_generate_add_pref_hash(keygen, "SHA256"));
     /* key expiration */
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 60 * 60 * 24 * 100));
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 60 * 60 * 24 * 300));
@@ -1767,10 +1767,10 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* protection */
     assert_rnp_failure(rnp_op_generate_set_protection_cipher(keygen, NULL));
     assert_rnp_failure(rnp_op_generate_set_protection_cipher(keygen, "unknown"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes256"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES256"));
     assert_rnp_failure(rnp_op_generate_set_protection_hash(keygen, NULL));
     assert_rnp_failure(rnp_op_generate_set_protection_hash(keygen, "unknown"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha256"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA256"));
     assert_rnp_success(rnp_op_generate_set_protection_iterations(keygen, 65536));
     assert_rnp_failure(rnp_op_generate_set_protection_mode(keygen, NULL));
     assert_rnp_failure(rnp_op_generate_set_protection_mode(keygen, "unknown"));
@@ -1818,7 +1818,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "certify"));
     /* these should not work for subkey */
     assert_rnp_failure(rnp_op_generate_clear_pref_ciphers(keygen));
-    assert_rnp_failure(rnp_op_generate_add_pref_cipher(keygen, "aes256"));
+    assert_rnp_failure(rnp_op_generate_add_pref_cipher(keygen, "AES256"));
     assert_rnp_failure(rnp_op_generate_clear_pref_compression(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_compression(keygen, "zlib"));
     assert_rnp_failure(rnp_op_generate_clear_pref_hashes(keygen));
@@ -1828,8 +1828,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* key expiration */
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 60 * 60 * 24 * 300));
     /* key protection */
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes256"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha256"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES256"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA256"));
     assert_rnp_success(rnp_op_generate_set_protection_iterations(keygen, 65536));
     assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
     /* now generate the subkey */
@@ -1872,8 +1872,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 0));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     /* set bits for iterations instead of exact iterations number */
     assert_rnp_success(rnp_op_generate_set_protection_iterations(keygen, 12));
     assert_rnp_success(rnp_op_generate_execute(keygen));
@@ -1895,13 +1895,13 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* generate ElGamal subkey */
-    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ElGamal"));
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ELGAMAL"));
     assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_expiration(keygen, 0));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1924,8 +1924,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1943,8 +1943,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-384"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1953,8 +1953,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-521"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1963,8 +1963,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1973,8 +1973,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1983,8 +1983,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -1993,8 +1993,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "secp256k1"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -2022,8 +2022,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_failure(rnp_op_generate_set_curve(keygen, "secp256k1"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "encrypt"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -2044,8 +2044,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -2066,8 +2066,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "Curve25519"));
     assert_rnp_failure(rnp_op_generate_add_usage(keygen, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(keygen, "encrypt"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
     assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
     assert_non_null(subkey);
@@ -2085,6 +2085,179 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
 
     /* Add SM2 subkey */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "SM2"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "123"));
+
+    /* Generate RSA key with misc options set */
+    rnp_op_generate_t keygen = NULL;
+    assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "rsa"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    
+    /* generate DSA subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "dsa"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1536));
+    /* now generate the subkey */
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* destroy key handle */
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* generate ElGamal subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "elgamal"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* generate ECDSA subkeys for each curve */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_failure(rnp_op_generate_set_bits(keygen, 1024));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-384"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-521"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "secp256k1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* These curves will not work with ECDSA*/
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "Ed25519"));
+    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "Curve25519"));
+    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
+    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+
+    /* Add EDDSA subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "eddsa"));
+    assert_rnp_failure(rnp_op_generate_set_curve(keygen, "secp256k1"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* Add ECDH subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdh"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* Add ECDH x25519 subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdh"));
+    assert_rnp_success(rnp_op_generate_set_curve(keygen, "Curve25519"));
+    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    assert_rnp_success(rnp_key_handle_destroy(subkey));
+
+    /* Add SM2 subkey */
+    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "sm2"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
     assert_rnp_success(rnp_op_generate_execute(keygen));
@@ -2473,7 +2646,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
     // add password
     assert_int_equal(RNP_SUCCESS,
-                     rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "Twofish"));
+                     rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
     // set the data encryption cipher
     assert_int_equal(RNP_SUCCESS, rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -2581,9 +2754,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass_provider)
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_inc, &pswdnum));
     assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, NULL, 0, NULL));
     // add another password with different encryption parameters
-    assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "Twofish"));
+    assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
     // set the data encryption cipher
-    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "Camellia256"));
+    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAMELLIA256"));
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
     // make sure the output file was created
@@ -5281,7 +5454,7 @@ TEST_F(rnp_tests, test_ffi_keys_import)
 TEST_F(rnp_tests, test_ffi_calculate_iterations)
 {
     size_t iterations = 0;
-    assert_rnp_success(rnp_calculate_iterations("sha256", 500, &iterations));
+    assert_rnp_success(rnp_calculate_iterations("SHA256", 500, &iterations));
     assert_true(iterations > 65536);
 }
 
@@ -5329,7 +5502,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_true(check_features("symmetric algorithm", features, 12));
     rnp_buffer_destroy(features);
     bool supported = false;
-    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "idea", &supported));
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "IDEA", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("symmetric algorithm", "TRIPLEDES", &supported));
     assert_true(supported);
@@ -5352,6 +5525,30 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature("symmetric algorithm", "CAMELLIA256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("symmetric algorithm", "SM4", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "idea", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "tripledes", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "cast5", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "blowfish", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "aes128", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "aes192", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "aes256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "twofish", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "camellia128", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "camellia192", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "camellia256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("symmetric algorithm", "sm4", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("symmetric algorithm", "wrong", &supported));
     assert_false(supported);
@@ -5380,11 +5577,11 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_non_null(features);
     assert_true(check_features("public key algorithm", features, 7));
     rnp_buffer_destroy(features);
-    assert_rnp_success(rnp_supports_feature("public key algorithm", "rsa", &supported));
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "RSA", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("public key algorithm", "DSA", &supported));
     assert_true(supported);
-    assert_rnp_success(rnp_supports_feature("public key algorithm", "ElGamal", &supported));
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ELGAMAL", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("public key algorithm", "ECDSA", &supported));
     assert_true(supported);
@@ -5394,6 +5591,20 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("public key algorithm", "SM2", &supported));
     assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "rsa", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "dsa", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "elgamal", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ecdsa", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "ecdh", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "eddsa", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("public key algorithm", "sm2", &supported));
+    assert_true(supported);
     assert_rnp_success(rnp_supports_feature("public key algorithm", "wrong", &supported));
     assert_false(supported);
     /* hash algorithm */
@@ -5401,7 +5612,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_non_null(features);
     assert_true(check_features("hash algorithm", features, 10));
     rnp_buffer_destroy(features);
-    assert_rnp_success(rnp_supports_feature("hash algorithm", "md5", &supported));
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "MD5", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA1", &supported));
     assert_true(supported);
@@ -5420,6 +5631,26 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature("hash algorithm", "SHA3-512", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("hash algorithm", "SM3", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "md5", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha1", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "ripemd160", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha384", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha512", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha224", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha3-256", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sha3-512", &supported));
+    assert_true(supported);
+    assert_rnp_success(rnp_supports_feature("hash algorithm", "sm3", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature("hash algorithm", "wrong", &supported));
     assert_false(supported);
