@@ -25,6 +25,7 @@
  */
 
 #include <rnp/rnp.h>
+#include <repgp/repgp_def.h>
 #include <string.h>
 #include <time.h>
 
@@ -109,7 +110,7 @@ ffi_sign()
     /* signatures expiration time - by default will be 0, i.e. never expire */
     rnp_op_sign_set_expiration_time(sign, 365 * 24 * 60 * 60);
     /* set hash algorithm - should be compatible for all signatures */
-    rnp_op_sign_set_hash(sign, "SHA256");
+    rnp_op_sign_set_hash(sign, RNP_ALGNAME_SHA256);
 
     /* now add signatures. First locate the signing key, then add and setup signature */
     /* RSA signature */
