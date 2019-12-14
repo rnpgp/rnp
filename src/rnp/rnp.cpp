@@ -234,7 +234,7 @@ print_usage(const char *usagemsg)
 static bool
 rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *clirnp)
 {
-    bool        ret = false;
+    bool ret = false;
 
     if (!cli_rnp_setup(cfg, clirnp)) {
         return false;
@@ -403,7 +403,8 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
             (void) fprintf(stderr, "No keyfile argument provided\n");
             return false;
         }
-        return rnp_cfg_setstr(cfg, CFG_KEYFILE, arg) && rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
+        return rnp_cfg_setstr(cfg, CFG_KEYFILE, arg) &&
+               rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
     case OPT_HASH_ALG: {
         if (arg == NULL) {
             ERR_MSG("No hash algorithm argument provided");

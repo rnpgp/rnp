@@ -73,7 +73,6 @@ mkdtemp(char *templ)
 }
 #endif
 
-
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
@@ -133,7 +132,8 @@ std::string
 file_to_str(const std::string &path)
 {
     std::ifstream infile(path);
-    return std::string(std::istreambuf_iterator<char>(infile), std::istreambuf_iterator<char>());
+    return std::string(std::istreambuf_iterator<char>(infile),
+                       std::istreambuf_iterator<char>());
 }
 
 off_t
@@ -281,11 +281,11 @@ copy_recursively(const char *src, const char *dst)
 
     // TODO: maybe use fts or something less hacky
     char buf[2048];
-    #ifndef _WIN32
+#ifndef _WIN32
     snprintf(buf, sizeof(buf), "/bin/cp -a '%s' '%s'", src, dst);
-    #else
+#else
     snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /I /Q /E /Y", src, dst);
-    #endif
+#endif
     assert_int_equal(0, system(buf));
 }
 
@@ -596,20 +596,35 @@ failing_password_callback(const pgp_password_ctx_t *ctx,
 }
 
 bool
-ffi_failing_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+ffi_failing_password_provider(rnp_ffi_t        ffi,
+                              void *           app_ctx,
+                              rnp_key_handle_t key,
+                              const char *     pgp_context,
+                              char *           buf,
+                              size_t           buf_len)
 {
     return false;
 }
 
 bool
-ffi_asserting_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+ffi_asserting_password_provider(rnp_ffi_t        ffi,
+                                void *           app_ctx,
+                                rnp_key_handle_t key,
+                                const char *     pgp_context,
+                                char *           buf,
+                                size_t           buf_len)
 {
     assert_false(true);
     return false;
 }
 
 bool
-ffi_string_password_provider(rnp_ffi_t ffi, void *app_ctx, rnp_key_handle_t key, const char *pgp_context, char *buf, size_t buf_len)
+ffi_string_password_provider(rnp_ffi_t        ffi,
+                             void *           app_ctx,
+                             rnp_key_handle_t key,
+                             const char *     pgp_context,
+                             char *           buf,
+                             size_t           buf_len)
 {
     const char *str = (const char *) app_ctx;
     strncpy(buf, str, buf_len - 1);
@@ -689,7 +704,7 @@ static bool
 jso_get_field(json_object *obj, json_object **fld, const std::string &name)
 {
     if (!obj || !json_object_is_type(obj, json_type_object)) {
-      return false;
+        return false;
     }
     return json_object_object_get_ex(obj, name.c_str(), fld);
 }
@@ -738,31 +753,34 @@ bool
 check_json_pkt_type(json_object *pkt, int tag)
 {
     if (!pkt || !json_object_is_type(pkt, json_type_object)) {
-      return false;
+        return false;
     }
     json_object *hdr = NULL;
     if (!json_object_object_get_ex(pkt, "header", &hdr)) {
-      return false;
+        return false;
     }
     if (!json_object_is_type(hdr, json_type_object)) {
-      return false;
+        return false;
     }
     return check_json_field_int(hdr, "tag", tag);
 }
 
-pgp_key_t*
-rnp_tests_get_key_by_id(const rnp_key_store_t* keyring, const std::string& keyid, pgp_key_t* after)
+pgp_key_t *
+rnp_tests_get_key_by_id(const rnp_key_store_t *keyring,
+                        const std::string &    keyid,
+                        pgp_key_t *            after)
 {
-    pgp_key_t *key = NULL;
+    pgp_key_t *          key = NULL;
     std::vector<uint8_t> keyid_bin(PGP_KEY_ID_SIZE, 0);
-    size_t binlen = 0;
+    size_t               binlen = 0;
 
     if (!keyring || keyid.empty()) {
         return NULL;
     }
     assert(!after || list_is_member(keyring->keys, (list_item *) after));
 
-    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
+    if (ishex(keyid.c_str(), keyid.size()) &&
+        hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_KEY_ID_SIZE) {
             key = rnp_key_store_get_key_by_id(keyring, keyid_bin.data(), after);
         }
@@ -770,35 +788,36 @@ rnp_tests_get_key_by_id(const rnp_key_store_t* keyring, const std::string& keyid
     return key;
 }
 
-pgp_key_t*
-rnp_tests_get_key_by_fpr(const rnp_key_store_t* keyring, const std::string& keyid)
+pgp_key_t *
+rnp_tests_get_key_by_fpr(const rnp_key_store_t *keyring, const std::string &keyid)
 {
-    pgp_key_t *key = NULL;
+    pgp_key_t *          key = NULL;
     std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
-    size_t binlen = 0;
+    size_t               binlen = 0;
 
     if (!keyring || keyid.empty()) {
         return NULL;
     }
 
-    if (ishex(keyid.c_str(), keyid.size()) && hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
+    if (ishex(keyid.c_str(), keyid.size()) &&
+        hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_FINGERPRINT_SIZE) {
-            pgp_fingerprint_t fp = { {}, static_cast<unsigned>(binlen) };
+            pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
             memcpy(fp.fingerprint, keyid_bin.data(), binlen);
             key = rnp_key_store_get_key_by_fpr(keyring, &fp);
-        } 
+        }
     }
     return key;
 }
 
-pgp_key_t*
-rnp_tests_key_search(const rnp_key_store_t* keyring, const std::string& keyid)
+pgp_key_t *
+rnp_tests_key_search(const rnp_key_store_t *keyring, const std::string &keyid)
 {
     if (!keyring || keyid.empty()) {
         return NULL;
     }
 
-    pgp_key_search_t srch_userid = { PGP_KEY_SEARCH_USERID };
+    pgp_key_search_t srch_userid = {PGP_KEY_SEARCH_USERID};
     strncpy(srch_userid.by.userid, keyid.c_str(), sizeof(srch_userid.by.userid));
     return rnp_key_store_search(keyring, &srch_userid, NULL);
 }

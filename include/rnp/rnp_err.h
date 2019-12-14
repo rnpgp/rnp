@@ -26,7 +26,6 @@
 #ifndef RNP_ERR_H_
 #define RNP_ERR_H_
 
-
 /*
  * Error code definitions
  */

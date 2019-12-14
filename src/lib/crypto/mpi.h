@@ -63,7 +63,7 @@ bool bn2mpi(bignum_t *bn, pgp_mpi_t *val);
 
 bool mem2mpi(pgp_mpi_t *val, const void *mem, size_t len);
 
-bool hex2mpi(pgp_mpi_t *val, const char* hex);
+bool hex2mpi(pgp_mpi_t *val, const char *hex);
 
 void mpi2mem(const pgp_mpi_t *val, void *mem);
 
