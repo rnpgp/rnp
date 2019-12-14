@@ -1693,6 +1693,10 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 bool
 copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
 {
+    if (!src) {
+        return false;
+    }
+
     memcpy(dst, src, sizeof(*src));
     dst->hashed_data = NULL;
     dst->subpkts = NULL;
