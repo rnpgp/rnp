@@ -29,10 +29,10 @@
 
 TEST_F(rnp_tests, test_large_packet)
 {
-    rnp_ffi_t           ffi = NULL;
-    rnp_input_t         input = NULL;
-    rnp_output_t        output = NULL;
-    rnp_op_verify_t     verify;
+    rnp_ffi_t       ffi = NULL;
+    rnp_input_t     input = NULL;
+    rnp_output_t    output = NULL;
+    rnp_op_verify_t verify;
 
     /* init ffi and inputs */
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));

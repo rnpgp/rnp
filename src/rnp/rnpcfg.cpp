@@ -373,8 +373,10 @@ rnp_cfg_getlist(rnp_cfg_t *cfg, const char *key)
     return NULL;
 }
 
-std::string rnp_cfg_getlist_string(const rnp_cfg_t *cfg, const std::string &key, size_t index) {
-    list *lval = rnp_cfg_getlist(const_cast<rnp_cfg_t*>(cfg), key.c_str());
+std::string
+rnp_cfg_getlist_string(const rnp_cfg_t *cfg, const std::string &key, size_t index)
+{
+    list *lval = rnp_cfg_getlist(const_cast<rnp_cfg_t *>(cfg), key.c_str());
     if (!lval) {
         return "";
     }
@@ -384,9 +386,9 @@ std::string rnp_cfg_getlist_string(const rnp_cfg_t *cfg, const std::string &key,
         return "";
     }
 
-    rnp_cfg_val_t *val = (rnp_cfg_val_t*)list_at(*lval, index);
-    const char *sval = rnp_cfg_val_getstr(val);
-    return sval? sval : "";
+    rnp_cfg_val_t *val = (rnp_cfg_val_t *) list_at(*lval, index);
+    const char *   sval = rnp_cfg_val_getstr(val);
+    return sval ? sval : "";
 }
 
 bool
@@ -423,7 +425,9 @@ fail:
 }
 
 bool
-rnp_cfg_copylist_string(const rnp_cfg_t *cfg, std::vector<std::string> &dst, const std::string &key)
+rnp_cfg_copylist_string(const rnp_cfg_t *         cfg,
+                        std::vector<std::string> &dst,
+                        const std::string &       key)
 {
     dst.clear();
 

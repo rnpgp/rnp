@@ -793,7 +793,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
 
 TEST_F(rnp_tests, test_key_import)
 {
-    cli_rnp_t                      rnp = {};
+    cli_rnp_t                  rnp = {};
     pgp_transferable_key_t     tkey = {};
     pgp_transferable_subkey_t *tskey = NULL;
     pgp_transferable_userid_t *tuid = NULL;

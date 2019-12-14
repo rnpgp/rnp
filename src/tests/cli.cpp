@@ -31,11 +31,11 @@
 #include <sys/wait.h>
 #else
 #ifndef WIFEXITED
-#   define WIFEXITED(stat)  (((*((int *) &(stat))) & 0xC0000000) == 0)
+#define WIFEXITED(stat) (((*((int *) &(stat))) & 0xC0000000) == 0)
 #endif
 
 #ifndef WEXITSTATUS
-#   define WEXITSTATUS(stat) (*((int *) &(stat)))
+#define WEXITSTATUS(stat) (*((int *) &(stat)))
 #endif
 #endif
 
@@ -513,9 +513,9 @@ TEST_F(rnp_tests, test_cli_dump)
 
 TEST_F(rnp_tests, test_cli_logname)
 {
-    char *logname = getenv("LOGNAME");
-    char *user = getenv("USER");
-    std::string testname(user? user : "user");
+    char *      logname = getenv("LOGNAME");
+    char *      user = getenv("USER");
+    std::string testname(user ? user : "user");
     testname.append("-test-user");
 
     setenv("LOGNAME", testname.c_str(), 1);

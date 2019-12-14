@@ -96,10 +96,22 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
      * Sign a message, then verify it
      */
 
-    const char * hashAlg[] = {"SHA1", "SHA224", "SHA256", "SHA384", "SHA512", "SM3", "sha1", "sha224", "sha256", "sha384", "sha512", "sm3", NULL};
-    int          pipefd[2];
-    char         memToSign[] = "A simple test message";
-    cli_rnp_t    rnp;
+    const char *hashAlg[] = {"SHA1",
+                             "SHA224",
+                             "SHA256",
+                             "SHA384",
+                             "SHA512",
+                             "SM3",
+                             "sha1",
+                             "sha224",
+                             "sha256",
+                             "sha384",
+                             "sha512",
+                             "sm3",
+                             NULL};
+    int         pipefd[2];
+    char        memToSign[] = "A simple test message";
+    cli_rnp_t   rnp;
 
     std::ofstream out("dummyfile.dat");
     out << memToSign;
@@ -108,7 +120,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
     for (int i = 0; hashAlg[i] != NULL; i++) {
         std::string userId = std::string("sigtest_") + hashAlg[i];
         /* Generate key for test */
-        assert_true(generate_test_key(RNP_KEYSTORE_GPG, userId.c_str(), DEFAULT_HASH_ALG, NULL));
+        assert_true(
+          generate_test_key(RNP_KEYSTORE_GPG, userId.c_str(), DEFAULT_HASH_ALG, NULL));
 
         for (unsigned int cleartext = 0; cleartext <= 1; ++cleartext) {
             for (unsigned int armored = 0; armored <= 1; ++armored) {
@@ -159,8 +172,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 
                 /* Corrupt the signature if not armored/cleartext */
                 if (!cleartext && !armored) {
-                    std::fstream verf("dummyfile.dat.pgp", std::ios_base::binary | std::ios_base::out | std::ios_base::in);
-                    off_t versize = file_size("dummyfile.dat.pgp");
+                    std::fstream verf("dummyfile.dat.pgp",
+                                      std::ios_base::binary | std::ios_base::out |
+                                        std::ios_base::in);
+                    off_t        versize = file_size("dummyfile.dat.pgp");
                     verf.seekg(versize - 10, std::ios::beg);
                     char sigch = 0;
                     verf.read(&sigch, 1);
@@ -183,27 +198,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
 {
-    const char *cipherAlg[] = {"BLOWFISH",
-                               "TWOFISH",
-                               "CAST5",
-                               "TRIPLEDES",
-                               "AES128",
-                               "AES192",
-                               "AES256",
-                               "CAMELLIA128",
-                               "CAMELLIA192",
-                               "CAMELLIA256",
-                               "blowfish",
-                               "twofish",
-                               "cast5",
-                               "tripledes",
-                               "aes128",
-                               "aes192",
-                               "aes256",
-                               "camellia128",
-                               "camellia192",
-                               "camellia256",
-                               NULL};
+    const char *cipherAlg[] = {
+      "BLOWFISH",    "TWOFISH",     "CAST5",       "TRIPLEDES",   "AES128",   "AES192",
+      "AES256",      "CAMELLIA128", "CAMELLIA192", "CAMELLIA256", "blowfish", "twofish",
+      "cast5",       "tripledes",   "aes128",      "aes192",      "aes256",   "camellia128",
+      "camellia192", "camellia256", NULL};
 
     cli_rnp_t   rnp = {};
     char        memToEncrypt[] = "A simple test message";
@@ -272,7 +271,20 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
     /* Generate key for each of the hash algorithms. Check whether key was generated
      * successfully */
 
-    const char *hashAlg[] = {"MD5", "SHA1", "SHA256", "SHA384", "SHA512", "SHA224", "SM3", "md5", "sha1", "sha256", "sha384", "sha512", "sha224", "sm3"};
+    const char *hashAlg[] = {"MD5",
+                             "SHA1",
+                             "SHA256",
+                             "SHA384",
+                             "SHA512",
+                             "SHA224",
+                             "SM3",
+                             "md5",
+                             "sha1",
+                             "sha256",
+                             "sha384",
+                             "sha512",
+                             "sha224",
+                             "sm3"};
     const char *keystores[] = {RNP_KEYSTORE_GPG, RNP_KEYSTORE_GPG21, RNP_KEYSTORE_KBX};
     cli_rnp_t   rnp = {};
 
@@ -347,7 +359,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
 {
     /* Try to generate keypair in different home directories */
-    char  newhome[256];
+    char      newhome[256];
     cli_rnp_t rnp = {};
 
     /* Initialize the rnp structure. */
@@ -373,7 +385,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
+    std::string userid =
+      fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
     rnp_key_handle_t handle = NULL;
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
@@ -418,7 +431,6 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     cli_rnp_end(&rnp); // Free memory and other allocated resources.
 }
 
-
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
 {
     /* Try to generate keypair in different home directories for KBX keystorage */
@@ -448,7 +460,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     keycount = 0;
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
-    std::string userid = fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
+    std::string userid =
+      fmt("RSA (Encrypt or Sign) 1024-bit key <%s@localhost>", getenv_logname());
     rnp_key_handle_t handle = NULL;
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
@@ -493,13 +506,13 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirNoPermission)
 {
     const char *nopermsdir = "noperms";
     path_mkdir(0000, nopermsdir, NULL);
-    /* Try to generate key in the directory and make sure generation fails */
-    #ifndef _WIN32
+/* Try to generate key in the directory and make sure generation fails */
+#ifndef _WIN32
     assert_false(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", nopermsdir));
-    #else
+#else
     /* There are no permissions for mkdir() under the Windows */
     assert_true(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", nopermsdir));
-    #endif
+#endif
 }
 
 static bool
@@ -814,8 +827,8 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted)
 {
-    cli_rnp_t         rnp;
-    rnp_cfg_t         ops = {0};
+    cli_rnp_t rnp;
+    rnp_cfg_t ops = {0};
 
     assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
@@ -840,8 +853,8 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
 
 TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
 {
-    cli_rnp_t         rnp;
-    rnp_cfg_t         ops = {0};
+    cli_rnp_t rnp;
+    rnp_cfg_t ops = {0};
 
     assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
@@ -856,8 +869,8 @@ TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed)
 {
-    cli_rnp_t         rnp;
-    rnp_cfg_t         ops = {0};
+    cli_rnp_t rnp;
+    rnp_cfg_t ops = {0};
 
     assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
@@ -882,8 +895,8 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuc
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
 {
-    cli_rnp_t         rnp;
-    rnp_cfg_t         ops = {0};
+    cli_rnp_t rnp;
+    rnp_cfg_t ops = {0};
 
     assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
     assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
@@ -900,11 +913,11 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    rnp_key_store_t * pubring = NULL;
-    rnp_key_store_t * secring = NULL;
-    pgp_key_t *       primary_pub = NULL, *primary_sec = NULL;
-    pgp_key_t *       sub_pub = NULL, *sub_sec = NULL;
-    pgp_userid_pkt_t  uid = {0};
+    rnp_key_store_t *pubring = NULL;
+    rnp_key_store_t *secring = NULL;
+    pgp_key_t *      primary_pub = NULL, *primary_sec = NULL;
+    pgp_key_t *      sub_pub = NULL, *sub_sec = NULL;
+    pgp_userid_pkt_t uid = {0};
 
     // create a couple keyrings
     pubring = (rnp_key_store_t *) calloc(1, sizeof(*pubring));

@@ -96,10 +96,10 @@ typedef struct pgp_source_encrypted_param_t {
     size_t                    chunkidx;       /* index of the current chunk */
     uint8_t                   cache[PGP_AEAD_CACHE_LEN]; /* read cache */
     size_t                    cachelen;                  /* number of bytes in the cache */
-    size_t                    cachepos;       /* index of first unread byte in the cache */
-    pgp_aead_hdr_t            aead_hdr;       /* AEAD encryption parameters */
-    uint8_t                   aead_ad[PGP_AEAD_MAX_AD_LEN];    /* additional data */
-    size_t                    aead_adlen;                      /* length of the additional data */
+    size_t                    cachepos; /* index of first unread byte in the cache */
+    pgp_aead_hdr_t            aead_hdr; /* AEAD encryption parameters */
+    uint8_t                   aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
+    size_t                    aead_adlen;                   /* length of the additional data */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
@@ -264,7 +264,9 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_PARLEN_PACKET;
 
     if (param->psize < PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE) {
-        RNP_LOG("first part of partial length packet sequence has size %d and that's less than allowed by the protocol", (int) param->psize);
+        RNP_LOG("first part of partial length packet sequence has size %d and that's less "
+                "than allowed by the protocol",
+                (int) param->psize);
     }
 
     return RNP_SUCCESS;
@@ -445,8 +447,7 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
         param->aead_adlen += 8;
     }
 
-    if (!pgp_cipher_aead_set_ad(
-          &param->decrypt, param->aead_ad, param->aead_adlen)) {
+    if (!pgp_cipher_aead_set_ad(&param->decrypt, param->aead_ad, param->aead_adlen)) {
         RNP_LOG("failed to set ad");
         return false;
     }

@@ -32,7 +32,10 @@
 #include "librepgp/stream-packet.h"
 
 static void
-test_s2k_iterations_value(rnp_ffi_t ffi, size_t input_iterations, size_t expected_iterations, bool exact_match)
+test_s2k_iterations_value(rnp_ffi_t ffi,
+                          size_t    input_iterations,
+                          size_t    expected_iterations,
+                          bool      exact_match)
 {
     rnp_input_t      input = NULL;
     rnp_output_t     output = NULL;

@@ -399,7 +399,8 @@ rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
  *         representation of the value
  *  @param key if key was found then the resulting key handle will be stored here, otherwise it
  *         will contain NULL value. You must free handle after use with rnp_key_handle_destroy.
- *  @return RNP_SUCCESS on success (including case where key is not found), or any other value on error
+ *  @return RNP_SUCCESS on success (including case where key is not found), or any other value
+ * on error
  */
 rnp_result_t rnp_locate_key(rnp_ffi_t         ffi,
                             const char *      identifier_type,
@@ -1978,37 +1979,37 @@ rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
  */
 #ifndef RNP_ALGNAME_PLAINTEXT
 
-#define RNP_ALGNAME_PLAINTEXT       "PLAINTEXT"
-#define RNP_ALGNAME_RSA             "RSA"
-#define RNP_ALGNAME_ELGAMAL         "ELGAMAL"
-#define RNP_ALGNAME_DSA             "DSA"
-#define RNP_ALGNAME_ECDH            "ECDH"
-#define RNP_ALGNAME_ECDSA           "ECDSA"
-#define RNP_ALGNAME_EDDSA           "EDDSA"
-#define RNP_ALGNAME_IDEA            "IDEA"
-#define RNP_ALGNAME_TRIPLEDES       "TRIPLEDES"
-#define RNP_ALGNAME_CAST5           "CAST5"
-#define RNP_ALGNAME_BLOWFISH        "BLOWFISH"
-#define RNP_ALGNAME_TWOFISH         "TWOFISH"
-#define RNP_ALGNAME_AES_128         "AES128"
-#define RNP_ALGNAME_AES_192         "AES192"
-#define RNP_ALGNAME_AES_256         "AES256"
-#define RNP_ALGNAME_CAMELLIA_128    "CAMELLIA128"
-#define RNP_ALGNAME_CAMELLIA_192    "CAMELLIA192"
-#define RNP_ALGNAME_CAMELLIA_256    "CAMELLIA256"
-#define RNP_ALGNAME_SM2             "SM2"
-#define RNP_ALGNAME_SM3             "SM3"
-#define RNP_ALGNAME_SM4             "SM4"
-#define RNP_ALGNAME_MD5             "MD5"
-#define RNP_ALGNAME_SHA1            "SHA1"
-#define RNP_ALGNAME_SHA256          "SHA256"
-#define RNP_ALGNAME_SHA384          "SHA384"
-#define RNP_ALGNAME_SHA512          "SHA512"
-#define RNP_ALGNAME_SHA224          "SHA224"
-#define RNP_ALGNAME_SHA3_256        "SHA3-256"
-#define RNP_ALGNAME_SHA3_512        "SHA3-512"
-#define RNP_ALGNAME_RIPEMD160       "RIPEMD160"
-#define RNP_ALGNAME_CRC24           "CRC24"
+#define RNP_ALGNAME_PLAINTEXT "PLAINTEXT"
+#define RNP_ALGNAME_RSA "RSA"
+#define RNP_ALGNAME_ELGAMAL "ELGAMAL"
+#define RNP_ALGNAME_DSA "DSA"
+#define RNP_ALGNAME_ECDH "ECDH"
+#define RNP_ALGNAME_ECDSA "ECDSA"
+#define RNP_ALGNAME_EDDSA "EDDSA"
+#define RNP_ALGNAME_IDEA "IDEA"
+#define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"
+#define RNP_ALGNAME_CAST5 "CAST5"
+#define RNP_ALGNAME_BLOWFISH "BLOWFISH"
+#define RNP_ALGNAME_TWOFISH "TWOFISH"
+#define RNP_ALGNAME_AES_128 "AES128"
+#define RNP_ALGNAME_AES_192 "AES192"
+#define RNP_ALGNAME_AES_256 "AES256"
+#define RNP_ALGNAME_CAMELLIA_128 "CAMELLIA128"
+#define RNP_ALGNAME_CAMELLIA_192 "CAMELLIA192"
+#define RNP_ALGNAME_CAMELLIA_256 "CAMELLIA256"
+#define RNP_ALGNAME_SM2 "SM2"
+#define RNP_ALGNAME_SM3 "SM3"
+#define RNP_ALGNAME_SM4 "SM4"
+#define RNP_ALGNAME_MD5 "MD5"
+#define RNP_ALGNAME_SHA1 "SHA1"
+#define RNP_ALGNAME_SHA256 "SHA256"
+#define RNP_ALGNAME_SHA384 "SHA384"
+#define RNP_ALGNAME_SHA512 "SHA512"
+#define RNP_ALGNAME_SHA224 "SHA224"
+#define RNP_ALGNAME_SHA3_256 "SHA3-256"
+#define RNP_ALGNAME_SHA3_512 "SHA3-512"
+#define RNP_ALGNAME_RIPEMD160 "RIPEMD160"
+#define RNP_ALGNAME_CRC24 "CRC24"
 
 /* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
  * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.

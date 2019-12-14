@@ -101,10 +101,10 @@ typedef struct pgp_crypt_t {
     rng_t *        rng;
 } pgp_crypt_t;
 
-unsigned       pgp_block_size(pgp_symm_alg_t);
-unsigned       pgp_key_size(pgp_symm_alg_t);
-bool           pgp_is_sa_supported(pgp_symm_alg_t);
-size_t         pgp_cipher_block_size(pgp_crypt_t *crypt);
+unsigned pgp_block_size(pgp_symm_alg_t);
+unsigned pgp_key_size(pgp_symm_alg_t);
+bool     pgp_is_sa_supported(pgp_symm_alg_t);
+size_t   pgp_cipher_block_size(pgp_crypt_t *crypt);
 
 /**
  * Initialize a cipher object.

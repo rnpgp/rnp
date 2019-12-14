@@ -40,17 +40,17 @@
 
 // structure for filling input
 typedef struct {
-    uint32_t      remaining;
-    uint8_t       dummy;
+    uint32_t remaining;
+    uint8_t  dummy;
 } dummy_reader_ctx_st;
 
 // reader of sequence of dummy bytes
 static ssize_t
 dummy_reader(void *app_ctx, void *buf, size_t len)
 {
-    size_t filled = 0;
+    size_t               filled = 0;
     dummy_reader_ctx_st *ctx = NULL;
-    ctx = (dummy_reader_ctx_st *)app_ctx;
+    ctx = (dummy_reader_ctx_st *) app_ctx;
     filled = (len > ctx->remaining) ? ctx->remaining : len;
     if (filled > 0) {
         memset(buf, ctx->dummy, filled);
@@ -62,10 +62,11 @@ dummy_reader(void *app_ctx, void *buf, size_t len)
 static void
 test_partial_length_init(rnp_ffi_t *ffi, uint32_t key_flags)
 {
-    rnp_input_t     input = NULL;
+    rnp_input_t input = NULL;
     // init ffi
     assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, ffi_string_password_provider, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(*ffi, ffi_string_password_provider, (void *) "password"));
     if (key_flags & RNP_LOAD_SAVE_SECRET_KEYS) {
         assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
         assert_rnp_success(rnp_load_keys(*ffi, "GPG", input, key_flags));
@@ -80,24 +81,27 @@ test_partial_length_init(rnp_ffi_t *ffi, uint32_t key_flags)
 
 TEST_F(rnp_tests, test_partial_length_public_key)
 {
-    rnp_input_t     input = NULL;
-    rnp_ffi_t       ffi = NULL;
+    rnp_input_t input = NULL;
+    rnp_ffi_t   ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/pubring.gpg.partial"));
-    assert_int_equal(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS), RNP_ERROR_BAD_FORMAT);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_partial_length/pubring.gpg.partial"));
+    assert_int_equal(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS),
+                     RNP_ERROR_BAD_FORMAT);
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
 TEST_F(rnp_tests, test_partial_length_signature)
 {
-    rnp_ffi_t       ffi = NULL;
-    rnp_input_t     input = NULL;
-    rnp_output_t    output = NULL;
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
     // init ffi
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
     // message having partial length signature packet
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-signed"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-signed"));
     assert_rnp_success(rnp_output_to_null(&output));
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -111,13 +115,14 @@ TEST_F(rnp_tests, test_partial_length_signature)
 
 TEST_F(rnp_tests, test_partial_length_first_packet_256)
 {
-    rnp_ffi_t       ffi = NULL;
-    rnp_input_t     input = NULL;
-    rnp_output_t    output = NULL;
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
     // init ffi
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
     // message having first partial length packet of 256 bytes
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-256"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-256"));
     assert_rnp_success(rnp_output_to_null(&output));
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -131,13 +136,14 @@ TEST_F(rnp_tests, test_partial_length_first_packet_256)
 
 TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
 {
-    rnp_ffi_t       ffi = NULL;
-    rnp_input_t     input = NULL;
-    rnp_output_t    output = NULL;
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
     // init ffi
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
     // message in partial packets having 0-size last chunk
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-zero-last"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-zero-last"));
     assert_rnp_success(rnp_output_to_null(&output));
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -151,13 +157,14 @@ TEST_F(rnp_tests, test_partial_length_zero_last_chunk)
 
 TEST_F(rnp_tests, test_partial_length_largest)
 {
-    rnp_ffi_t       ffi = NULL;
-    rnp_input_t     input = NULL;
-    rnp_output_t    output = NULL;
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
     // init ffi
     test_partial_length_init(&ffi, RNP_LOAD_SAVE_PUBLIC_KEYS);
     // message having largest possible partial packet
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-1g"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_partial_length/message.txt.partial-1g"));
     assert_rnp_success(rnp_output_to_null(&output));
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
@@ -171,11 +178,11 @@ TEST_F(rnp_tests, test_partial_length_largest)
 
 TEST_F(rnp_tests, test_partial_length_first_packet_length)
 {
-    rnp_ffi_t           ffi = NULL;
-    rnp_input_t         input = NULL;
-    rnp_output_t        output = NULL;
-    rnp_op_sign_t       sign = NULL;
-    rnp_key_handle_t    key = NULL;
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_output_t     output = NULL;
+    rnp_op_sign_t    sign = NULL;
+    rnp_key_handle_t key = NULL;
     // uncacheable size will emulate unknown length from callback source
     size_t uncacheable_size = PGP_INPUT_CACHE_SIZE + 1;
     // init ffi
@@ -194,9 +201,9 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     // signing
     assert_rnp_success(rnp_op_sign_execute(sign));
     // read from the saved packets
-    pgp_source_t    src;
-    uint8_t         *mem = NULL;
-    size_t          len = 0;
+    pgp_source_t src;
+    uint8_t *    mem = NULL;
+    size_t       len = 0;
     assert_rnp_success(rnp_output_memory_get_buf(output, &mem, &len, false));
     assert_rnp_success(init_mem_src(&src, mem, len, false));
     // skip first packet (one-pass signature)
@@ -210,7 +217,8 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_int_equal(flags, PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | PGP_PTAG_CT_LITDATA);
     // checking length
     bool last = true; // should be reset by stream_read_partial_chunk_len()
-    assert_true(stream_read_partial_chunk_len(&src, &last) >= PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
+    assert_true(stream_read_partial_chunk_len(&src, &last) >=
+                PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
     assert_false(last);
     // cleanup
     src_close(&src);

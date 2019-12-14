@@ -101,26 +101,26 @@ mpi2mem(const pgp_mpi_t *val, void *mem)
 }
 
 bool
-hex2mpi(pgp_mpi_t *val, const char* hex)
-   {
-   const size_t hex_len = strlen(hex);
-   size_t buf_len = hex_len / 2;
-   bool ok;
+hex2mpi(pgp_mpi_t *val, const char *hex)
+{
+    const size_t hex_len = strlen(hex);
+    size_t       buf_len = hex_len / 2;
+    bool         ok;
 
-   uint8_t* buf = NULL;
+    uint8_t *buf = NULL;
 
-   buf = (uint8_t*)malloc(buf_len);
+    buf = (uint8_t *) malloc(buf_len);
 
-   if(buf == NULL) {
-      return false;
-   }
+    if (buf == NULL) {
+        return false;
+    }
 
-   rnp_hex_decode(hex, buf, buf_len);
+    rnp_hex_decode(hex, buf, buf_len);
 
-   ok = mem2mpi(val, buf, buf_len);
-   free(buf);
-   return ok;
-   }
+    ok = mem2mpi(val, buf, buf_len);
+    free(buf);
+    return ok;
+}
 
 char *
 mpi2hex(const pgp_mpi_t *val)

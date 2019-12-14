@@ -102,8 +102,8 @@ ffi_encrypt()
     key = NULL;
 
     /* add encryption password as well */
-    if (rnp_op_encrypt_add_password(encrypt, "encpassword", RNP_ALGNAME_SHA256, 0, RNP_ALGNAME_AES_256) !=
-        RNP_SUCCESS) {
+    if (rnp_op_encrypt_add_password(
+          encrypt, "encpassword", RNP_ALGNAME_SHA256, 0, RNP_ALGNAME_AES_256) != RNP_SUCCESS) {
         fprintf(stdout, "failed to add encryption password\n");
         goto finish;
     }
