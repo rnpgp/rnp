@@ -1632,6 +1632,7 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
         if (sig->version < PGP_V4) {
             RNP_LOG("Warning! v3 EdDSA signature.");
         }
+        /* FALLTHROUGH */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:

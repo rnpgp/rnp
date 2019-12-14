@@ -47,13 +47,13 @@ print_usage(char *program_name)
             basename(program_name));
 }
 
-ssize_t
+static ssize_t
 stdin_reader(void *app_ctx, void *buf, size_t len)
 {
     return read(STDIN_FILENO, buf, len);
 }
 
-bool
+static bool
 stdout_writer(void *app_ctx, const void *buf, size_t len)
 {
     ssize_t wlen = write(STDOUT_FILENO, buf, len);

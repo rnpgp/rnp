@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <algorithm>
 #include <rnp/rnp_def.h>
 #include "stream-def.h"
 #include "stream-armor.h"
@@ -193,10 +194,15 @@ armor_read_trailer(pgp_source_t *src)
     }
 
     stlen = strlen(param->armorhdr);
-    strncpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
-    strncpy(st + 8, param->armorhdr + 5, stlen - 5);
-    strncpy(st + stlen + 3, ST_DASHES, 5);
-    stlen += 8;
+    if (stlen + 8 + 1 <= sizeof(st)) {
+        memcpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
+        memcpy(st + 8, param->armorhdr + 5, stlen - 5);
+        memcpy(st + stlen + 3, ST_DASHES, 5);
+        stlen += 8;
+    } else {
+        RNP_LOG("Internal error");
+        return false;
+    }
     read = src_peek(param->readsrc, str, stlen);
     if ((read < (ssize_t) stlen) || strncmp(str, st, stlen)) {
         return false;
@@ -680,7 +686,7 @@ armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
 {
     const char *str;
     str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
-    strncpy(buf, str, strlen(str));
+    memcpy(buf, str, strlen(str));
     buf += strlen(str);
     switch (type) {
     case PGP_ARMORED_MESSAGE:
@@ -702,9 +708,9 @@ armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
         return false;
     }
 
-    strncpy(buf, str, strlen(str));
+    memcpy(buf, str, strlen(str));
     buf += strlen(str);
-    strncpy(buf, ST_DASHES, 5);
+    memcpy(buf, ST_DASHES, std::min<size_t>(sizeof(ST_DASHES) - 1, 5));
     buf[5] = '\0';
     return true;
 }

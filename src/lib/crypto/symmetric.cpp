@@ -139,11 +139,11 @@ pgp_aead_to_botan_string(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg, char *buf, si
 
     switch (aalg) {
     case PGP_AEAD_EAX:
-        strncpy(buf, ealg_name, ealg_len);
+        memcpy(buf, ealg_name, ealg_len);
         strncpy(buf + ealg_len, "/EAX", len - ealg_len);
         break;
     case PGP_AEAD_OCB:
-        strncpy(buf, ealg_name, ealg_len);
+        memcpy(buf, ealg_name, ealg_len);
         strncpy(buf + ealg_len, "/OCB", len - ealg_len);
         break;
     default:

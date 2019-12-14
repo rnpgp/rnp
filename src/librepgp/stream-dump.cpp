@@ -2182,11 +2182,9 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         if (ctx->dump_packets) {
             size_t  rlen = hdr.pkt_len + hdr.hdr_len;
             uint8_t buf[2048 + sizeof(hdr.hdr)] = {0};
-            bool    part = false;
 
             if (!hdr.pkt_len || (rlen > 2048 + hdr.hdr_len)) {
                 rlen = 2048 + hdr.hdr_len;
-                part = true;
             }
 
             rlen = src_peek(src, buf, rlen);
