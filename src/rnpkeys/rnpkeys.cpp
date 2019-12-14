@@ -267,7 +267,7 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
             if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
                 if (list_length(*ids) == 1) {
                     f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
-                }  else {
+                } else {
                     fprintf(stderr, "Only single userid is supported for generated keys\n");
                     return false;
                 }

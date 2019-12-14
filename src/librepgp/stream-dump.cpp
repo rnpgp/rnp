@@ -983,7 +983,7 @@ static bool
 stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
 {
     pgp_dest_t encdst = {};
-    uint8_t encpkt[64] = {};
+    uint8_t    encpkt[64] = {};
 
     if (init_mem_dest(&encdst, &encpkt, sizeof(encpkt))) {
         return false;
@@ -1988,7 +1988,7 @@ stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum
         return stream_skip_packet(src);
     }
 
-    /* dumping AEAD data */ 
+    /* dumping AEAD data */
     pgp_aead_hdr_t aead = {};
     if (!stream_dump_get_aead_hdr(src, &aead)) {
         return RNP_ERROR_READ;

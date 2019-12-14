@@ -46,7 +46,7 @@ struct rnp_signature_handle_st {
     rnp_ffi_t     ffi;
     pgp_key_t *   key;
     pgp_subsig_t *sig;
-    bool own_sig;
+    bool          own_sig;
 };
 
 struct rnp_ffi_st {
@@ -116,8 +116,8 @@ struct rnp_op_sign_signature_st {
 };
 
 struct rnp_op_verify_signature_st {
-    rnp_ffi_t      ffi;
-    rnp_result_t   verify_status;
+    rnp_ffi_t       ffi;
+    rnp_result_t    verify_status;
     pgp_signature_t sig_pkt;
 };
 

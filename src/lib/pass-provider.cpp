@@ -42,9 +42,9 @@ rnp_getpass(const char *prompt, char *buffer, size_t size)
     struct termios saved_flags, noecho_flags;
     bool           restore_ttyflags = false;
 #endif
-    bool           ok = false;
-    FILE *         in = NULL;
-    FILE *         out = NULL;
+    bool  ok = false;
+    FILE *in = NULL;
+    FILE *out = NULL;
 
     // validate args
     if (!buffer) {

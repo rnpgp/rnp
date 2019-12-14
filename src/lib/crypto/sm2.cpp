@@ -82,11 +82,11 @@ sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 rnp_result_t
 sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_field)
 {
-    uint8_t *      digest_buf = NULL;
-    size_t         digest_len = 0;
-    rnp_result_t   result = RNP_ERROR_GENERIC;
-    botan_pubkey_t sm2_key = NULL;
-    int            rc;
+    uint8_t *            digest_buf = NULL;
+    size_t               digest_len = 0;
+    rnp_result_t         result = RNP_ERROR_GENERIC;
+    botan_pubkey_t       sm2_key = NULL;
+    int                  rc;
     const pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
 
     const char *hash_algo = pgp_hash_name_botan(hash_alg);
@@ -109,11 +109,10 @@ sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_fiel
 
     rc = botan_pubkey_sm2_compute_za(digest_buf, &digest_len, ident_field, hash_algo, sm2_key);
 
-    if (rc != 0)
-       {
-       printf("compute_za failed %d\n", rc);
+    if (rc != 0) {
+        printf("compute_za failed %d\n", rc);
         goto done;
-       }
+    }
 
     pgp_hash_add(hash, digest_buf, digest_len);
 

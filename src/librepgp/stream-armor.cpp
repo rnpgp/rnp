@@ -511,10 +511,10 @@ rnp_armor_guess_type(pgp_source_t *src)
 pgp_armored_msg_t
 rnp_armored_get_type(pgp_source_t *src)
 {
-    char                        hdr[128];
-    const char *                armhdr;
-    size_t                      armhdrlen;
-    ssize_t                     read;
+    char        hdr[128];
+    const char *armhdr;
+    size_t      armhdrlen;
+    ssize_t     read;
 
     read = src_peek(src, hdr, sizeof(hdr));
     if (read < 20) {

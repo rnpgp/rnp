@@ -212,12 +212,12 @@ src_skip(pgp_source_t *src, size_t len)
     if (len < sizeof(sbuf)) {
         return src_read(src, sbuf, len);
     }
-    
+
     buf = calloc(1, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
     if (!buf) {
         return -1;
     }
-    
+
     while ((len > 0) && !src_eof(src)) {
         ssize_t opres = src_read(src, buf, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
         if (opres < 0) {
@@ -845,12 +845,12 @@ file_tmpdst_finish(pgp_dest_t *dst)
             RNP_LOG("target path already exists");
             return RNP_ERROR_BAD_STATE;
         }
-        #ifdef _WIN32
+#ifdef _WIN32
         /* rename() call on Windows fails if destination exists */
         else {
             unlink(origpath);
         }
-        #endif
+#endif
 
         /* we should remove dir if overwriting, file will be unlinked in rename call */
         if (S_ISDIR(st.st_mode) && rmdir(origpath)) {

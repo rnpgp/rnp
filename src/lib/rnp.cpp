@@ -149,16 +149,17 @@ static const pgp_map_t sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
                                          {PGP_SIG_TIMESTAMP, "timestamp"},
                                          {PGP_SIG_3RD_PARTY, "third-party"}};
 
-static const pgp_map_t pubkey_alg_map[] = {{PGP_PKA_RSA, RNP_ALGNAME_RSA},
-                                           {PGP_PKA_RSA_ENCRYPT_ONLY, RNP_ALGNAME_RSA},
-                                           {PGP_PKA_RSA_SIGN_ONLY, RNP_ALGNAME_RSA},
-                                           {PGP_PKA_ELGAMAL, RNP_ALGNAME_ELGAMAL},
-                                           {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, RNP_ALGNAME_ELGAMAL},
-                                           {PGP_PKA_DSA, RNP_ALGNAME_DSA},
-                                           {PGP_PKA_ECDH, RNP_ALGNAME_ECDH},
-                                           {PGP_PKA_ECDSA, RNP_ALGNAME_ECDSA},
-                                           {PGP_PKA_EDDSA, RNP_ALGNAME_EDDSA},
-                                           {PGP_PKA_SM2, RNP_ALGNAME_SM2}};
+static const pgp_map_t pubkey_alg_map[] = {
+  {PGP_PKA_RSA, RNP_ALGNAME_RSA},
+  {PGP_PKA_RSA_ENCRYPT_ONLY, RNP_ALGNAME_RSA},
+  {PGP_PKA_RSA_SIGN_ONLY, RNP_ALGNAME_RSA},
+  {PGP_PKA_ELGAMAL, RNP_ALGNAME_ELGAMAL},
+  {PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN, RNP_ALGNAME_ELGAMAL},
+  {PGP_PKA_DSA, RNP_ALGNAME_DSA},
+  {PGP_PKA_ECDH, RNP_ALGNAME_ECDH},
+  {PGP_PKA_ECDSA, RNP_ALGNAME_ECDSA},
+  {PGP_PKA_EDDSA, RNP_ALGNAME_EDDSA},
+  {PGP_PKA_SM2, RNP_ALGNAME_SM2}};
 
 static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
                                          {PGP_SA_TRIPLEDES, RNP_ALGNAME_TRIPLEDES},
@@ -2042,12 +2043,13 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         if (!password) {
             pgp_password_ctx_t pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
             if (!pgp_request_password(
-                &op->ffi->pass_provider, &pswdctx, &ask_pass[0], ask_pass.size())) {
+                  &op->ffi->pass_provider, &pswdctx, &ask_pass[0], ask_pass.size())) {
                 return RNP_ERROR_BAD_PASSWORD;
             }
             password = ask_pass.data();
         }
-        return rnp_ctx_add_encryption_password(&op->rnpctx, password, hash_alg, symm_alg, iterations);
+        return rnp_ctx_add_encryption_password(
+          &op->rnpctx, password, hash_alg, symm_alg, iterations);
     } catch (...) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2607,7 +2609,8 @@ rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
 }
 
 rnp_result_t
-rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig, rnp_signature_handle_t *handle)
+rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
+                                   rnp_signature_handle_t *  handle)
 {
     if (!sig || !handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -3784,8 +3787,16 @@ rnp_generate_key_rsa(rnp_ffi_t         ffi,
                      const char *      password,
                      rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(
-      ffi, RNP_ALGNAME_RSA, subbits ? RNP_ALGNAME_RSA : NULL, bits, subbits, NULL, NULL, userid, password, key);
+    return rnp_generate_key_ex(ffi,
+                               RNP_ALGNAME_RSA,
+                               subbits ? RNP_ALGNAME_RSA : NULL,
+                               bits,
+                               subbits,
+                               NULL,
+                               NULL,
+                               userid,
+                               password,
+                               key);
 }
 
 rnp_result_t
@@ -3825,8 +3836,16 @@ rnp_generate_key_25519(rnp_ffi_t         ffi,
                        const char *      password,
                        rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(
-      ffi, RNP_ALGNAME_EDDSA, RNP_ALGNAME_ECDH, 0, 0, NULL, "Curve25519", userid, password, key);
+    return rnp_generate_key_ex(ffi,
+                               RNP_ALGNAME_EDDSA,
+                               RNP_ALGNAME_ECDH,
+                               0,
+                               0,
+                               NULL,
+                               "Curve25519",
+                               userid,
+                               password,
+                               key);
 }
 
 rnp_result_t
@@ -3835,7 +3854,8 @@ rnp_generate_key_sm2(rnp_ffi_t         ffi,
                      const char *      password,
                      rnp_key_handle_t *key)
 {
-    return rnp_generate_key_ex(ffi, RNP_ALGNAME_SM2, RNP_ALGNAME_SM2, 0, 0, NULL, NULL, userid, password, key);
+    return rnp_generate_key_ex(
+      ffi, RNP_ALGNAME_SM2, RNP_ALGNAME_SM2, 0, 0, NULL, NULL, userid, password, key);
 }
 
 static pgp_key_flags_t
@@ -4802,7 +4822,7 @@ rnp_signature_packet_to_json(rnp_signature_handle_t sig, uint32_t flags, char **
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_dest_t   memdst = {};
+    pgp_dest_t memdst = {};
     if (init_mem_dest(&memdst, NULL, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -6457,13 +6477,13 @@ rnp_guess_contents(rnp_input_t input, char **contents)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN; 
+    pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
     if (is_armored_source(&input->src)) {
         msgtype = rnp_armored_get_type(&input->src);
     } else {
         msgtype = rnp_armor_guess_type(&input->src);
     }
-    const char *      msg = "unknown";
+    const char *msg = "unknown";
     ARRAY_LOOKUP_BY_ID(armor_type_map, type, string, msgtype, msg);
     size_t len = strlen(msg);
     *contents = (char *) calloc(1, len + 1);

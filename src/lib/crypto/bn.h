@@ -45,7 +45,7 @@ typedef struct bignum_t_st {
 /*********************************/
 
 bignum_t *bn_new(void);
-void bn_free(bignum_t * /*a*/);
+void      bn_free(bignum_t * /*a*/);
 
 bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
 int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
