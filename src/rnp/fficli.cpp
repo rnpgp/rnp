@@ -185,9 +185,9 @@ stdin_getpass(const char *prompt, char *buffer, size_t size)
     struct termios saved_flags, noecho_flags;
     bool           restore_ttyflags = false;
 #endif
-    bool           ok = false;
-    FILE *         in = NULL;
-    FILE *         out = NULL;
+    bool  ok = false;
+    FILE *in = NULL;
+    FILE *out = NULL;
 
     // validate args
     if (!buffer) {
@@ -319,11 +319,11 @@ ffi_pass_callback_file(rnp_ffi_t        ffi,
 
 static bool
 ffi_pass_callback_string(rnp_ffi_t        ffi,
-                       void *           app_ctx,
-                       rnp_key_handle_t key,
-                       const char *     pgp_context,
-                       char             buf[],
-                       size_t           buf_len)
+                         void *           app_ctx,
+                         rnp_key_handle_t key,
+                         const char *     pgp_context,
+                         char             buf[],
+                         size_t           buf_len)
 {
     if (!app_ctx || !buf || !buf_len) {
         return false;
@@ -963,17 +963,17 @@ str_is_hex(const char *hexid, size_t hexlen)
 static bool
 key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
 {
-    bool    matches = false;
-    char *  id = NULL;
-    size_t  idlen = 0;
-    size_t  len = str ? strlen(str) : 0;
+    bool   matches = false;
+    char * id = NULL;
+    size_t idlen = 0;
+    size_t len = str ? strlen(str) : 0;
 #ifndef RNP_USE_STD_REGEX
     regex_t r = {};
 #else
     std::regex re;
 #endif
-    size_t  uid_count = 0;
-    bool    boolres = false;
+    size_t uid_count = 0;
+    bool   boolres = false;
 
     if (rnp_key_have_secret(handle, &boolres)) {
         goto done;
@@ -1137,7 +1137,7 @@ key_matching_string(cli_rnp_t *rnp, const std::string &str, bool secret)
     }
 done:
     rnp_identifier_iterator_destroy(it);
-    return handle;   
+    return handle;
 }
 
 list
@@ -1400,15 +1400,15 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
 static bool
 conffile(const char *homedir, char *userid, size_t length)
 {
-    char       buf[BUFSIZ];
-    FILE *     fp;
+    char  buf[BUFSIZ];
+    FILE *fp;
 
 #ifndef RNP_USE_STD_REGEX
     regmatch_t matchv[10];
     regex_t    keyre;
 #else
     static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
-                         std::regex_constants::extended);
+                            std::regex_constants::extended);
 #endif
 
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
@@ -1595,7 +1595,8 @@ cli_rnp_add_key(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
         return false;
     }
 
-    bool res = !rnp_import_keys(rnp->ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL);
+    bool res = !rnp_import_keys(
+      rnp->ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL);
     rnp_input_destroy(input);
 
     // set default key if we didn't have one
@@ -1692,7 +1693,7 @@ cli_rnp_init_io(const rnp_cfg_t *  cfg,
     }
     std::string out = rnp_cfg_getstring(cfg, CFG_OUTFILE);
     bool        is_stdout = out.empty() || (out == "-");
-    bool        discard = (op == "verify") && out.empty() && rnp_cfg_getbool(cfg, CFG_NO_OUTPUT);
+    bool discard = (op == "verify") && out.empty() && rnp_cfg_getbool(cfg, CFG_NO_OUTPUT);
 
     if (is_stdout && !is_stdin && !discard) {
         std::string ext = output_extension(cfg, op);
@@ -1811,7 +1812,11 @@ cli_rnp_dearmor_file(const rnp_cfg_t *cfg)
 }
 
 static bool
-cli_rnp_search_keys(cli_rnp_t *rnp, const std::vector<std::string> &names, std::vector<rnp_key_handle_t> &keys, bool secret, bool usedef)
+cli_rnp_search_keys(cli_rnp_t *                     rnp,
+                    const std::vector<std::string> &names,
+                    std::vector<rnp_key_handle_t> & keys,
+                    bool                            secret,
+                    bool                            usedef)
 {
     bool res = false;
 
@@ -1859,9 +1864,9 @@ static bool
 cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t output)
 {
     rnp_op_sign_t op = NULL;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    bool cleartext = rnp_cfg_getbool(cfg, CFG_CLEARTEXT);
-    bool detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    bool          cleartext = rnp_cfg_getbool(cfg, CFG_CLEARTEXT);
+    bool          detached = rnp_cfg_getbool(cfg, CFG_DETACHED);
 
     if (cleartext) {
         ret = rnp_op_sign_cleartext_create(&op, rnp->ffi, input, output);
@@ -1877,8 +1882,8 @@ cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output
     }
 
     /* setup sign operation via cfg */
-    bool res = false;
-    std::vector<std::string> signers;
+    bool                          res = false;
+    std::vector<std::string>      signers;
     std::vector<rnp_key_handle_t> signkeys;
 
     if (!cleartext) {
@@ -1893,7 +1898,8 @@ cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output
             }
             rnp_op_sign_set_file_mtime(op, rnp_filemtime(fname.c_str()));
         }
-        if (rnp_op_sign_set_compression(op, rnp_cfg_getstr(cfg, CFG_ZALG), rnp_cfg_getint(cfg, CFG_ZLEVEL))) {
+        if (rnp_op_sign_set_compression(
+              op, rnp_cfg_getstr(cfg, CFG_ZALG), rnp_cfg_getint(cfg, CFG_ZLEVEL))) {
             goto done;
         }
     }
@@ -1931,20 +1937,23 @@ done:
 }
 
 static bool
-cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t output)
+cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg,
+                         cli_rnp_t *      rnp,
+                         rnp_input_t      input,
+                         rnp_output_t     output)
 {
     rnp_op_encrypt_t op = NULL;
 
     if (rnp_op_encrypt_create(&op, rnp->ffi, input, output)) {
         ERR_MSG("failed to initialize encryption");
-        return false;   
+        return false;
     }
 
-    std::string fname;
-    std::string aalg;
+    std::string                   fname;
+    std::string                   aalg;
     std::vector<rnp_key_handle_t> enckeys;
     std::vector<rnp_key_handle_t> signkeys;
-    bool res = false;
+    bool                          res = false;
 
     rnp_op_encrypt_set_armor(op, rnp_cfg_getbool(cfg, CFG_ARMOR));
 
@@ -1955,7 +1964,8 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input
         }
         rnp_op_encrypt_set_file_mtime(op, rnp_filemtime(fname.c_str()));
     }
-    if (rnp_op_encrypt_set_compression(op, rnp_cfg_getstr(cfg, CFG_ZALG), rnp_cfg_getint(cfg, CFG_ZLEVEL))) {
+    if (rnp_op_encrypt_set_compression(
+          op, rnp_cfg_getstr(cfg, CFG_ZALG), rnp_cfg_getint(cfg, CFG_ZLEVEL))) {
         goto done;
     }
     if (rnp_op_encrypt_set_cipher(op, rnp_cfg_getstr(cfg, CFG_CIPHER))) {
@@ -1968,7 +1978,8 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input
     if (rnp_op_encrypt_set_aead(op, aalg.c_str())) {
         goto done;
     }
-    if (rnp_cfg_hasval(cfg, CFG_AEAD_CHUNK) && rnp_op_encrypt_set_aead_bits(op, rnp_cfg_getint(cfg, CFG_AEAD_CHUNK))) {
+    if (rnp_cfg_hasval(cfg, CFG_AEAD_CHUNK) &&
+        rnp_op_encrypt_set_aead_bits(op, rnp_cfg_getint(cfg, CFG_AEAD_CHUNK))) {
         goto done;
     }
 
@@ -2007,7 +2018,8 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input
     /* adding signatures if encrypt-and-sign is used */
     if (rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
         rnp_op_encrypt_set_creation_time(op, get_creation(rnp_cfg_getstr(cfg, CFG_CREATION)));
-        rnp_op_encrypt_set_expiration_time(op, get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION)));
+        rnp_op_encrypt_set_expiration_time(
+          op, get_expiration(rnp_cfg_getstr(cfg, CFG_EXPIRATION)));
 
         /* signing keys */
         std::vector<std::string> keynames;
@@ -2043,7 +2055,9 @@ done:
 bool
 cli_rnp_setup(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 {
-    if (rnp_cfg_getstr(cfg, CFG_PASSWD) && rnp_ffi_set_pass_provider(rnp->ffi, ffi_pass_callback_string, (void *) rnp_cfg_getstr(cfg, CFG_PASSWD))) {
+    if (rnp_cfg_getstr(cfg, CFG_PASSWD) &&
+        rnp_ffi_set_pass_provider(
+          rnp->ffi, ffi_pass_callback_string, (void *) rnp_cfg_getstr(cfg, CFG_PASSWD))) {
         return false;
     }
 
@@ -2054,7 +2068,7 @@ cli_rnp_setup(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 bool
 cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 {
-    rnp_input_t input = NULL;
+    rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
     if (!cli_rnp_init_io(cfg, "encrypt_sign", &input, &output)) {
@@ -2064,7 +2078,8 @@ cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 
     bool res = false;
     bool sign = rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED);
-    bool encrypt = rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK);
+    bool encrypt =
+      rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK);
     if (sign && !encrypt) {
         res = cli_rnp_sign(cfg, rnp, input, output);
     } else if (encrypt) {
@@ -2082,7 +2097,7 @@ cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 static void
 cli_rnp_print_sig_key_info(FILE *resfp, rnp_signature_handle_t sig)
 {
-    char *keyid = NULL;
+    char *      keyid = NULL;
     const char *alg = "Unknown";
 
     if (!rnp_signature_get_keyid(sig, &keyid)) {
@@ -2091,7 +2106,7 @@ cli_rnp_print_sig_key_info(FILE *resfp, rnp_signature_handle_t sig)
         }
     }
 
-    char *json = NULL;
+    char *       json = NULL;
     json_object *pkts = NULL;
     json_object *sigpkt = NULL;
 
@@ -2118,35 +2133,34 @@ done:
 static void
 cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signature_t> &sigs)
 {
-    unsigned         invalidc = 0;
-    unsigned         unknownc = 0;
-    unsigned         validc = 0;
-    std::string      title = "UNKNOWN signature";
-    FILE *           resfp = rnp->resfp;
+    unsigned    invalidc = 0;
+    unsigned    unknownc = 0;
+    unsigned    validc = 0;
+    std::string title = "UNKNOWN signature";
+    FILE *      resfp = rnp->resfp;
 
-
-    for (auto sig: sigs) {
+    for (auto sig : sigs) {
         rnp_result_t status = rnp_op_verify_signature_get_status(sig);
         switch (status) {
-            case RNP_SUCCESS:
-                title = "Good signature";
-                validc++;
-                break;
-            case RNP_ERROR_SIGNATURE_EXPIRED:
-                title = "EXPIRED signature";
-                invalidc++;
-                break;
-            case RNP_ERROR_SIGNATURE_INVALID:
-                title = "BAD signature";
-                invalidc++;
-                break;
-            case RNP_ERROR_KEY_NOT_FOUND:
-                title = "NO PUBLIC KEY for signature";
-                unknownc++;
-                break;
-            default:
-                title = "UKNOWN signature";
-                break;
+        case RNP_SUCCESS:
+            title = "Good signature";
+            validc++;
+            break;
+        case RNP_ERROR_SIGNATURE_EXPIRED:
+            title = "EXPIRED signature";
+            invalidc++;
+            break;
+        case RNP_ERROR_SIGNATURE_INVALID:
+            title = "BAD signature";
+            invalidc++;
+            break;
+        case RNP_ERROR_KEY_NOT_FOUND:
+            title = "NO PUBLIC KEY for signature";
+            unknownc++;
+            break;
+        default:
+            title = "UKNOWN signature";
+            break;
         }
 
         uint32_t create = 0;
@@ -2183,7 +2197,10 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
     if (sigs.size() == 0) {
         ERR_MSG("No signature(s) found - is this a signed file?");
     } else if (invalidc > 0 || unknownc > 0) {
-        ERR_MSG("Signature verification failure: %u invalid signature(s), %u unknown signature(s)", invalidc, unknownc);
+        ERR_MSG(
+          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)",
+          invalidc,
+          unknownc);
     } else {
         ERR_MSG("Signature(s) verified successfully");
     }
@@ -2205,13 +2222,13 @@ cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
     }
 
     /* source data for detached signature verification */
-    rnp_input_t source = NULL;
-    rnp_output_t output = NULL;
-    rnp_op_verify_t verify = NULL;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    bool res = false;
+    rnp_input_t                            source = NULL;
+    rnp_output_t                           output = NULL;
+    rnp_op_verify_t                        verify = NULL;
+    rnp_result_t                           ret = RNP_ERROR_GENERIC;
+    bool                                   res = false;
     std::vector<rnp_op_verify_signature_t> sigs;
-    size_t scount = 0;
+    size_t                                 scount = 0;
 
     if (rnp_casecmp(contents, "signature")) {
         /* detached signature */

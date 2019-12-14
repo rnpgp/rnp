@@ -192,24 +192,23 @@ typedef enum {
  * \see RFC4880 9.1
  */
 typedef enum {
-    PGP_PKA_NOTHING = 0,          /* No PKA */
-    PGP_PKA_RSA = 1,              /* RSA (Encrypt or Sign) */
-    PGP_PKA_RSA_ENCRYPT_ONLY = 2, /* RSA Encrypt-Only (deprecated -
-                                   * \see RFC4880 13.5) */
-    PGP_PKA_RSA_SIGN_ONLY = 3,    /* RSA Sign-Only (deprecated -
-                                   * \see RFC4880 13.5) */
-    PGP_PKA_ELGAMAL = 16,         /* Elgamal (Encrypt-Only) */
-    PGP_PKA_DSA = 17,             /* DSA (Digital Signature Algorithm) */
-    PGP_PKA_ECDH = 18,            /* ECDH public key algorithm */
-    PGP_PKA_ECDSA = 19,           /* ECDSA public key algorithm [FIPS186-3] */
-    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN =
-      20,                     /* Elgamal Encrypt or Sign. Implementation MUST not generate
-                                 such keys and elgamal signatures. */
-    PGP_PKA_RESERVED_DH = 21, /* Reserved for Diffie-Hellman
-                               * (X9.42, as defined for
-                               * IETF-S/MIME) */
-    PGP_PKA_EDDSA = 22,       /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_SM2 = 99,         /* SM2 encryption/signature schemes */
+    PGP_PKA_NOTHING = 0,                  /* No PKA */
+    PGP_PKA_RSA = 1,                      /* RSA (Encrypt or Sign) */
+    PGP_PKA_RSA_ENCRYPT_ONLY = 2,         /* RSA Encrypt-Only (deprecated -
+                                           * \see RFC4880 13.5) */
+    PGP_PKA_RSA_SIGN_ONLY = 3,            /* RSA Sign-Only (deprecated -
+                                           * \see RFC4880 13.5) */
+    PGP_PKA_ELGAMAL = 16,                 /* Elgamal (Encrypt-Only) */
+    PGP_PKA_DSA = 17,                     /* DSA (Digital Signature Algorithm) */
+    PGP_PKA_ECDH = 18,                    /* ECDH public key algorithm */
+    PGP_PKA_ECDSA = 19,                   /* ECDSA public key algorithm [FIPS186-3] */
+    PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN = 20, /* Elgamal Encrypt or Sign. Implementation MUST not
+                                             generate such keys and elgamal signatures. */
+    PGP_PKA_RESERVED_DH = 21,             /* Reserved for Diffie-Hellman
+                                           * (X9.42, as defined for
+                                           * IETF-S/MIME) */
+    PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
+    PGP_PKA_SM2 = 99,                     /* SM2 encryption/signature schemes */
 
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
@@ -282,7 +281,12 @@ typedef enum {
     PGP_CIPHER_MODE_OCB = 3,
 } pgp_cipher_mode_t;
 
-typedef enum { PGP_AEAD_NONE = 0, PGP_AEAD_EAX = 1, PGP_AEAD_OCB = 2, PGP_AEAD_UNKNOWN = 255 } pgp_aead_alg_t;
+typedef enum {
+    PGP_AEAD_NONE = 0,
+    PGP_AEAD_EAX = 1,
+    PGP_AEAD_OCB = 2,
+    PGP_AEAD_UNKNOWN = 255
+} pgp_aead_alg_t;
 
 /** s2k_usage_t
  */

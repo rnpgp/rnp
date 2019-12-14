@@ -65,7 +65,8 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     out.close();
 
     // try signing with a failing password provider (should fail)
-    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
     rnp_cfg_t cfg = {};
     rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
@@ -87,7 +88,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_rnp_success(rnp_key_get_alg(key, &alg));
     assert_int_equal(strcmp(alg, "RSA"), 0);
     rnp_buffer_destroy(alg);
-    
+
     // confirm the secret MPIs are NULL
     assert_int_equal(pgp_key_get_material(key->sec)->rsa.d.len, 0);
     assert_int_equal(pgp_key_get_material(key->sec)->rsa.p.len, 0);
@@ -123,7 +124,8 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.u.len, 0);
 
     // now the signing key is unlocked, confirm that no password is required for signing
-    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_asserting_password_provider, NULL));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(rnp.ffi, ffi_asserting_password_provider, NULL));
     rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
     rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
@@ -144,8 +146,9 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_true(cli_rnp_process_file(&cfg, &rnp));
 
     // verify (negative)
-    std::fstream verf("dummyfile.dat.pgp", std::ios_base::binary | std::ios_base::out | std::ios_base::in);
-    off_t versize = file_size("dummyfile.dat.pgp");
+    std::fstream verf("dummyfile.dat.pgp",
+                      std::ios_base::binary | std::ios_base::out | std::ios_base::in);
+    off_t        versize = file_size("dummyfile.dat.pgp");
     verf.seekg(versize - 3, std::ios::beg);
     verf.write("0x0C", 1);
     verf.close();
@@ -158,7 +161,8 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_true(locked);
 
     // sign, with no password (should now fail)
-    assert_rnp_success(rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
     rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
     rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);

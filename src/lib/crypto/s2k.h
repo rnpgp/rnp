@@ -66,7 +66,7 @@ size_t pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t tri
  *  @param key buffer to store the derived key, must have at least keysize bytes
  *  @param keysize number of bytes in the key.
  *  @return true on success or false otherwise
-*/
+ */
 bool pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysize);
 
 #endif

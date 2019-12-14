@@ -700,7 +700,7 @@ static rnp_result_t
 stream_read_packet_indeterminate(pgp_source_t *src, pgp_dest_t *dst)
 {
     uint8_t *buf = NULL;
-    buf = (uint8_t*) malloc(PGP_INPUT_CACHE_SIZE);
+    buf = (uint8_t *) malloc(PGP_INPUT_CACHE_SIZE);
     if (!buf) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -726,13 +726,13 @@ stream_read_packet_partial(pgp_source_t *src, pgp_dest_t *dst)
         return RNP_ERROR_READ;
     }
 
-    bool last = false;
+    bool    last = false;
     ssize_t partlen = stream_read_partial_chunk_len(src, &last);
     if (partlen < 0) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    uint8_t *buf = (uint8_t*) malloc(PGP_INPUT_CACHE_SIZE);
+    uint8_t *buf = (uint8_t *) malloc(PGP_INPUT_CACHE_SIZE);
     if (!buf) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -760,7 +760,7 @@ stream_read_packet_partial(pgp_source_t *src, pgp_dest_t *dst)
         }
     }
     free(buf);
-    return RNP_SUCCESS;   
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -775,7 +775,7 @@ stream_read_packet(pgp_source_t *src, pgp_dest_t *dst)
     }
 
     pgp_packet_body_t body = {};
-    rnp_result_t ret = stream_read_packet_body(src, &body);
+    rnp_result_t      ret = stream_read_packet_body(src, &body);
     if (dst) {
         dst_write(dst, body.data, body.len);
     }
