@@ -2435,7 +2435,7 @@ rnp_op_verify_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
         (void) copy_signature_packet(&res.sig_pkt, sigs[i].sig);
 
         if (sigs[i].unknown) {
-            res.verify_status = RNP_ERROR_KEY_NOT_FOUND;
+            res.verify_status = RNP_ERROR_SIGNATURE_INVALID;
         } else if (sigs[i].valid) {
             res.verify_status = sigs[i].expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
         } else {
