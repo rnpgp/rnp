@@ -275,7 +275,7 @@ end:
     return ret;
 }
 
-bool
+static bool
 alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
 {
     /* SM2 curve is only for SM2 algo */
