@@ -140,8 +140,8 @@ rnp_get_output_filename(const char *path, char *newpath, size_t maxlen, bool ove
         }
         rnp_strip_eol(newpath);
     } else {
-        strncpy(newpath, path, maxlen-1);
-        newpath[maxlen-1] = '\0';
+        strncpy(newpath, path, maxlen - 1);
+        newpath[maxlen - 1] = '\0';
     }
 
     while (true) {

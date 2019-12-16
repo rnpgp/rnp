@@ -244,7 +244,7 @@ is_tmp_path(const char *path)
     char rltmp[PATH_MAX] = {0};
     if (!realpath(path, rlpath)) {
         strncpy(rlpath, path, sizeof(rlpath));
-        rlpath[sizeof(rlpath)-1] = '\0';
+        rlpath[sizeof(rlpath) - 1] = '\0';
     }
     const char *tmp = get_tmp();
     if (!realpath(tmp, rltmp)) {
@@ -821,6 +821,6 @@ rnp_tests_key_search(const rnp_key_store_t *keyring, const std::string &keyid)
 
     pgp_key_search_t srch_userid = {PGP_KEY_SEARCH_USERID};
     strncpy(srch_userid.by.userid, keyid.c_str(), sizeof(srch_userid.by.userid));
-    srch_userid.by.userid[sizeof(srch_userid.by.userid)-1] = '\0';
+    srch_userid.by.userid[sizeof(srch_userid.by.userid) - 1] = '\0';
     return rnp_key_store_search(keyring, &srch_userid, NULL);
 }
