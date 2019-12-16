@@ -591,7 +591,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         return NULL;
     }
 
-    RNP_DLOG("keyc %lu", (long unsigned)rnp_key_store_get_key_count(keyring));
+    RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !added_key->validated) {
