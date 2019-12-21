@@ -249,13 +249,13 @@ bool pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey);
 
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
-const char *pgp_key_get_userid(const pgp_key_t *, size_t);
+pgp_userid_t *pgp_key_get_userid(const pgp_key_t *, size_t);
 
 pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
 
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
-unsigned char *pgp_key_add_userid(pgp_key_t *, const unsigned char *);
+pgp_userid_t *pgp_key_add_userid(pgp_key_t *);
 
 pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
 
