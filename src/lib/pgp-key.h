@@ -432,4 +432,6 @@ pgp_key_t *pgp_get_primary_key_for(const pgp_key_t *         subkey,
  */
 pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey);
 
+rnp_result_t pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring);
+
 #endif // RNP_PACKET_KEY_H
