@@ -4547,11 +4547,11 @@ rnp_key_add_uid(rnp_key_handle_t handle,
         }
         seckey = decrypted_seckey;
     }
-    if (public_key && !pgp_key_add_userid(public_key, seckey, hash_alg, &info)) {
+    if (public_key && !pgp_key_add_userid_certified(public_key, seckey, hash_alg, &info)) {
         goto done;
     }
     if ((secret_key && secret_key->format != G10_KEY_STORE) &&
-        !pgp_key_add_userid(secret_key, seckey, hash_alg, &info)) {
+        !pgp_key_add_userid_certified(secret_key, seckey, hash_alg, &info)) {
         goto done;
     }
 
