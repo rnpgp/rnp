@@ -504,8 +504,9 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG("failed to merge key or subkey");
             return NULL;
         }
-        added_key->validated = added_key->validated && srckey->validated;
         added_key->valid = added_key->valid && srckey->valid;
+        added_key->validated = added_key->validated && srckey->validated && added_key->valid;
+
         pgp_key_free_data(srckey);
     } else {
         added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
@@ -525,8 +526,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !added_key->validated) {
-        added_key->valid = true; // we need to this to check key's signatures
-        added_key->valid = !validate_pgp_key(added_key, keyring);
+        pgp_key_validate(added_key, keyring);
 
         /* validate/re-validate all subkeys as well */
         if (pgp_key_is_primary_key(added_key)) {
@@ -534,8 +534,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
                  grip = list_next(grip)) {
                 pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
                 if (subkey) {
-                    subkey->valid = true;
-                    subkey->valid = !validate_pgp_key(subkey, keyring);
+                    pgp_key_validate(subkey, keyring);
                 }
             }
         }

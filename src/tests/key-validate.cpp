@@ -67,12 +67,12 @@ TEST_F(rnp_tests, test_key_validate)
     assert_true(all_keys_valid(pubring));
     rnp_key_store_free(pubring);
 
+    /* secret key doesn't have expired binding signature so considered as valid */
     secring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/1/secring.gpg");
     assert_non_null(secring);
     assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_non_null(key = rnp_tests_get_key_by_id(secring, "1d7e8a5393c997a8", NULL));
-    assert_false(key->valid);
-    key->valid = true;
+    assert_true(key->valid);
     assert_true(all_keys_valid(secring));
     rnp_key_store_free(secring);
 
