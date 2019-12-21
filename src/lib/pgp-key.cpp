@@ -1318,10 +1318,10 @@ pgp_key_is_protected(const pgp_key_t *key)
 }
 
 bool
-pgp_key_add_userid(pgp_key_t *              key,
-                   const pgp_key_pkt_t *    seckey,
-                   pgp_hash_alg_t           hash_alg,
-                   rnp_selfsig_cert_info_t *cert)
+pgp_key_add_userid_certified(pgp_key_t *              key,
+                             const pgp_key_pkt_t *    seckey,
+                             pgp_hash_alg_t           hash_alg,
+                             rnp_selfsig_cert_info_t *cert)
 {
     bool                      ret = false;
     pgp_transferable_userid_t uid = {};
