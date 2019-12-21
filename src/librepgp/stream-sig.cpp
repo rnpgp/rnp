@@ -1096,7 +1096,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* Validate signature itself */
-    if (sinfo->signer->valid) {
+    if (sinfo->signer_valid || sinfo->signer->valid) {
         sinfo->valid =
           !signature_validate(sinfo->sig, pgp_key_get_material(sinfo->signer), hash);
     } else {
