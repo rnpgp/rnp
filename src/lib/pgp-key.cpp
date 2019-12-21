@@ -206,6 +206,13 @@ pgp_key_new(void)
 }
 
 static void
+pgp_userid_free(pgp_userid_t *uid)
+{
+    free_userid_pkt(&uid->pkt);
+    free(uid->str);
+}
+
+static void
 pgp_rawpacket_free(pgp_rawpacket_t *packet)
 {
     free(packet->raw);
@@ -239,7 +246,7 @@ pgp_key_free_data(pgp_key_t *key)
     }
 
     for (n = 0; n < pgp_key_get_userid_count(key); ++n) {
-        free((void *) pgp_key_get_userid(key, n));
+        pgp_userid_free(pgp_key_get_userid(key, n));
     }
     list_destroy(&key->uids);
 
@@ -443,6 +450,24 @@ pgp_revoke_copy(pgp_revoke_t *dst, const pgp_revoke_t *src)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+pgp_userid_copy(pgp_userid_t *dst, const pgp_userid_t *src)
+{
+    memset(dst, 0, sizeof(*dst));
+    if (src->str) {
+        dst->str = strdup(src->str);
+        if (!dst->str) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    if (!copy_userid_pkt(&dst->pkt, &src->pkt)) {
+        free(dst->str);
+        dst->str = NULL;
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 {
@@ -451,7 +476,12 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* uids */
     for (size_t i = 0; i < pgp_key_get_userid_count(src); i++) {
-        if (!pgp_key_add_userid(dst, (const uint8_t *) pgp_key_get_userid(src, i))) {
+        pgp_userid_t *uid = pgp_key_add_userid(dst);
+        if (!uid) {
+            goto error;
+        }
+        if ((tmpret = pgp_userid_copy(uid, pgp_key_get_userid(src, i)))) {
+            ret = tmpret;
             goto error;
         }
     }
@@ -822,20 +852,11 @@ pgp_key_get_userid_count(const pgp_key_t *key)
     return list_length(key->uids);
 }
 
-/**
-\ingroup Core_Keys
-\brief Get indexed user id from key
-\param key Key to get user id from
-\param index Which key to get
-\return Pointer to requested user id
-*/
-const char *
+pgp_userid_t *
 pgp_key_get_userid(const pgp_key_t *key, size_t idx)
 {
-    list_item *uid = list_at(key->uids, idx);
-    return uid ? *((char **) uid) : NULL;
+    return (pgp_userid_t *) list_at(key->uids, idx);
 }
-
 
 pgp_revoke_t *
 pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
@@ -853,7 +874,8 @@ bool
 pgp_key_has_userid(const pgp_key_t *key, const char *uid)
 {
     for (list_item *li = list_front(key->uids); li; li = list_next(li)) {
-        if (!strcmp(uid, *((char **) li))) {
+        pgp_userid_t *userid = (pgp_userid_t *) li;
+        if (!strcmp(uid, userid->str)) {
             return true;
         }
     }
@@ -861,48 +883,10 @@ pgp_key_has_userid(const pgp_key_t *key, const char *uid)
     return false;
 }
 
-/* \todo check where userid pointers are copied */
-/**
-\ingroup Core_Keys
-\brief Copy user id, including contents
-\param dst Destination User ID
-\param src Source User ID
-\note If dst already has a userid, it will be freed.
-*/
-static uint8_t *
-copy_userid(uint8_t **dst, const uint8_t *src)
+pgp_userid_t *
+pgp_key_add_userid(pgp_key_t *key)
 {
-    size_t len;
-
-    len = strlen((const char *) src);
-    if (*dst) {
-        free(*dst);
-    }
-    if ((*dst = (uint8_t *) calloc(1, len + 1)) == NULL) {
-        RNP_LOG("bad alloc");
-    } else {
-        /* this is correct - trailing 0 is set by calloc */
-        (void) memcpy(*dst, src, len);
-    }
-    return *dst;
-}
-
-/**
-\ingroup Core_Keys
-\brief Add User ID to key
-\param key Key to which to add User ID
-\param userid User ID to add
-\return Pointer to new User ID
-*/
-uint8_t *
-pgp_key_add_userid(pgp_key_t *key, const uint8_t *userid)
-{
-    list_item *uidp = list_append(&key->uids, NULL, sizeof(userid));
-    if (!(uidp)) {
-        return NULL;
-    }
-    /* now copy it */
-    return copy_userid((uint8_t **) uidp, userid);
+    return (pgp_userid_t *) list_append(&key->uids, NULL, sizeof(pgp_userid_t));
 }
 
 pgp_revoke_t *

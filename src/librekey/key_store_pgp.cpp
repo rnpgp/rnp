@@ -325,23 +325,29 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
         return false;
     }
 
+    pgp_userid_t *userid = pgp_key_add_userid(key);
+    if (!userid) {
+        RNP_LOG("Failed to add userid");
+        return false;
+    }
     if (uid->uid.tag == PGP_PTAG_CT_USER_ID) {
-        uint8_t *uidz = (uint8_t *) calloc(1, uid->uid.uid_len + 1);
-        if (!uidz) {
+        userid->str = (char *) calloc(1, uid->uid.uid_len + 1);
+        if (!userid->str) {
             RNP_LOG("uid alloc failed");
             return false;
         }
-
-        memcpy(uidz, uid->uid.uid, uid->uid.uid_len);
-        uidz[uid->uid.uid_len] = 0;
-        if (!pgp_key_add_userid(key, uidz)) {
-            RNP_LOG("failed to add user id");
-            free(uidz);
+        memcpy(userid->str, uid->uid.uid, uid->uid.uid_len);
+        userid->str[uid->uid.uid_len] = 0;
+    } else {
+        userid->str = strdup("(photo)");
+        if (!userid->str) {
+            RNP_LOG("uattr alloc failed");
             return false;
         }
-        free(uidz);
-    } else if (!pgp_key_add_userid(key, (uint8_t *) "(photo)")) {
-        RNP_LOG("failed to add user attr");
+    }
+
+    if (!copy_userid_pkt(&userid->pkt, &uid->uid)) {
+        RNP_LOG("failed to copy user id pkt");
         return false;
     }
 
