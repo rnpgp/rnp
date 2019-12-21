@@ -251,8 +251,6 @@ size_t pgp_key_get_userid_count(const pgp_key_t *);
 
 const char *pgp_key_get_userid(const pgp_key_t *, size_t);
 
-const char *pgp_key_get_primary_userid(const pgp_key_t *);
-
 pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
 
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
@@ -270,8 +268,6 @@ pgp_subsig_t *pgp_key_add_subsig(pgp_key_t *);
 size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
 pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
-
-rnp_result_t pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src);
 
 void pgp_subsig_free(pgp_subsig_t *subsig);
 

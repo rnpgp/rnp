@@ -208,9 +208,6 @@ pgp_key_new(void)
 static void
 pgp_rawpacket_free(pgp_rawpacket_t *packet)
 {
-    if (packet->raw == NULL) {
-        return;
-    }
     free(packet->raw);
     packet->raw = NULL;
 }
@@ -412,7 +409,7 @@ error:
     return ret;
 }
 
-rnp_result_t
+static rnp_result_t
 pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src)
 {
     memcpy(dst, src, sizeof(*dst));
@@ -839,17 +836,6 @@ pgp_key_get_userid(const pgp_key_t *key, size_t idx)
     return uid ? *((char **) uid) : NULL;
 }
 
-const char *
-pgp_key_get_primary_userid(const pgp_key_t *key)
-{
-    if (key->uid0_set) {
-        return pgp_key_get_userid(key, key->uid0);
-    }
-    if (list_length(key->uids)) {
-        return pgp_key_get_userid(key, 0);
-    }
-    return NULL;
-}
 
 pgp_revoke_t *
 pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
