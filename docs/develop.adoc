@@ -247,7 +247,7 @@ to maintain a consistent code base.
 
 === Code Formatting
 
-`clang-format` (v4.0.0) can be used to format the code base, utilizing
+`clang-format` (v9.0.0) can be used to format the code base, utilizing
 the `.clang-format` file included in the repository.
 
 ==== clang-format git hook
@@ -261,7 +261,7 @@ cd rnp
 git-hooks/enable.sh
 --
 
-If you do not have clang-format v4.0.0 available, you can use a docker
+If you do not have clang-format v9.0.0 available, you can use a docker
 container for this purpose by setting `USE_DOCKER="yes"` in
 `git-hooks/pre-commit.sh`.
 
@@ -288,26 +288,26 @@ docker commit clang-format clang-format
 docker rm clang-format
 --
 
-You can then reformat a file (say, `src/lib/bn.c`) like so:
+You can then reformat a file (say, `src/lib/crypto/bn.cpp`) like so:
 
 [source,console]
 --
 cd rnp
-docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i src/lib/bn.c
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i src/lib/crypto/bn.cpp
 --
 
 Also you may wish to reformat all modified uncommited files:
 
 [source,console]
 --
-docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git ls-files -m |grep "\.\(c\|h\)\$"`
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git ls-files -m |grep "\.\(c\|h\|cpp\)\$"`
 --
 
 ...or files, modified since referenced commit, say `54c5476`:
 
 [source,console]
 --
-docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git diff --name-only 54c5476..HEAD |grep "\.\(c\|h\)\$"`
+docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i `git diff --name-only 54c5476..HEAD |grep "\.\(c\|h\|cpp\)\$"`
 --
 
 === Style Guide
