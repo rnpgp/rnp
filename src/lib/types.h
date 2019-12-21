@@ -380,6 +380,11 @@ typedef struct pgp_subsig_t {
     pgp_user_prefs_t prefs;       /* user preferences for certification sig */
 } pgp_subsig_t;
 
+typedef struct pgp_userid_t {
+    pgp_userid_pkt_t pkt; /* User ID or User Attribute packet as it was loaded */
+    char *           str; /* Human-readable representation of the userid */
+} pgp_userid_t;
+
 struct rnp_keygen_ecc_params_t {
     pgp_curve_t curve;
 };
