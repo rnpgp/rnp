@@ -383,7 +383,7 @@ bool pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_p
  **/
 bool pgp_key_is_protected(const pgp_key_t *key);
 
-/** add a new userid to a key
+/** add a new certified userid to a key
  *
  *  @param key
  *  @param seckey the decrypted seckey for signing
@@ -391,10 +391,10 @@ bool pgp_key_is_protected(const pgp_key_t *key);
  *  @param cert the self-signature information
  *  @return true if the userid was added, false otherwise
  */
-bool pgp_key_add_userid(pgp_key_t *              key,
-                        const pgp_key_pkt_t *    seckey,
-                        pgp_hash_alg_t           hash_alg,
-                        rnp_selfsig_cert_info_t *cert);
+bool pgp_key_add_userid_certified(pgp_key_t *              key,
+                                  const pgp_key_pkt_t *    seckey,
+                                  pgp_hash_alg_t           hash_alg,
+                                  rnp_selfsig_cert_info_t *cert);
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
 
