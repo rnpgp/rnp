@@ -89,6 +89,13 @@ pgp_sig_subpkt_t *signature_add_subpkt(pgp_signature_t *        sig,
 void signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt);
 
 /**
+ * @brief Get type of the signature.
+ * @param sig loaded or populated signature, could not be NULL
+ * @return type of the signature
+ */
+pgp_sig_type_t signature_get_type(const pgp_signature_t *sig);
+
+/**
  * @brief Check whether signature has signing key fingerprint
  * @param sig loaded or populated v4 signature, could not be NULL
  * @return true if fingerprint is available or false otherwise
