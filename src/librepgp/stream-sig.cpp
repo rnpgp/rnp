@@ -122,6 +122,12 @@ signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt)
     }
 }
 
+pgp_sig_type_t
+signature_get_type(const pgp_signature_t *sig)
+{
+    return sig->type;
+}
+
 bool
 signature_has_keyfp(const pgp_signature_t *sig)
 {
