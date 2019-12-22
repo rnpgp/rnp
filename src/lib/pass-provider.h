@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017 - 2019, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -26,7 +26,8 @@
 #ifndef RNP_PASS_PROVIDER_H
 #define RNP_PASS_PROVIDER_H
 
-#include <rnp/rnp_sdk.h>
+#include <cstddef>
+#include <cstdint>
 
 typedef struct pgp_key_t pgp_key_t;
 
@@ -49,15 +50,6 @@ bool pgp_request_password(const pgp_password_provider_t *provider,
                           const pgp_password_ctx_t *     ctx,
                           char *                         password,
                           size_t                         password_size);
-
-bool rnp_password_provider_stdin(const pgp_password_ctx_t *ctx,
-                                 char *                    password,
-                                 size_t                    password_size,
-                                 void *                    userdata);
-bool rnp_password_provider_file(const pgp_password_ctx_t *ctx,
-                                char *                    password,
-                                size_t                    password_size,
-                                void *                    userdata);
 bool rnp_password_provider_string(const pgp_password_ctx_t *ctx,
                                   char *                    password,
                                   size_t                    password_size,
