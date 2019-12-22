@@ -51,13 +51,9 @@ void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
 
 int rnp_strcasecmp(const char *, const char *);
 
-char *rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep);
-
 char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
 
 int64_t rnp_filemtime(const char *path);
-
-const char *rnp_filename(const char *path);
 
 char *rnp_compose_path(const char *first, ...);
 char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
@@ -65,27 +61,6 @@ char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 bool rnp_path_exists(const char *path);
 bool rnp_dir_exists(const char *path);
 bool rnp_file_exists(const char *path);
-
-/** @brief strip extension from the path
- *  @param path NULL-terminated file path
- *  @return true if extension was located (via .) and stripped out, or false otherwise
- */
-bool rnp_path_strip_ext(char *path);
-
-/** @brief check whether given path has given extension
- *  @param path NULL-terminated file path
- *  @param ext NULL-terminated extension, with or without the leading dot
- *  @return true if path has given extension or false otherwise
- */
-bool rnp_path_has_ext(const char *path, const char *ext);
-
-/** @brief append given extension to the path
- *  @param path NULL-terminated file path
- *  @param len maximum number of bytes which may be stored in path
- *  @param ext NULL-terminated extension, with or without the leading dot
- *  @return true if extension was added successfully or false if there is no room in path
- */
-bool rnp_path_add_ext(char *path, size_t len, const char *ext);
 
 bool rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
@@ -98,8 +73,6 @@ char *rnp_strlwr(char *s);
  *  @return string s itself
  */
 char *rnp_strip_eol(char *s);
-
-char *userid_to_id(const uint8_t *userid, char *id);
 
 bool ishex(const char *hexid, size_t hexlen);
 
