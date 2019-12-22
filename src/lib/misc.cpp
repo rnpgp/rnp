@@ -234,23 +234,6 @@ rnp_clear_debug()
     debugc = 0;
 }
 
-void
-rnp_log(const char *fmt, ...)
-{
-    va_list vp;
-    time_t  t;
-    char    buf[BUFSIZ * 2];
-    int     cc;
-
-    (void) time(&t);
-    cc = snprintf(buf, sizeof(buf), "%.24s: rnp: ", ctime(&t));
-    va_start(vp, fmt);
-    (void) vsnprintf(&buf[cc], sizeof(buf) - (size_t) cc, fmt, vp);
-    va_end(vp);
-    /* do something with message */
-    /* put into log buffer? */
-}
-
 /* portable replacement for strcasecmp(3) */
 int
 rnp_strcasecmp(const char *s1, const char *s2)
@@ -264,19 +247,6 @@ rnp_strcasecmp(const char *s1, const char *s2)
 }
 
 /* return the hexdump as a string */
-char *
-rnp_strhexdump(char *dest, const uint8_t *src, size_t length, const char *sep)
-{
-    unsigned i;
-    int      n;
-
-    for (n = 0, i = 0; i < length; i += 2) {
-        n += snprintf(&dest[n], 3, "%02x", *src++);
-        n += snprintf(&dest[n], 10, "%02x%s", *src++, sep);
-    }
-    return dest;
-}
-
 char *
 rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep)
 {
@@ -300,18 +270,6 @@ rnp_filemtime(const char *path)
         return 0;
     } else {
         return st.st_mtime;
-    }
-}
-
-/* return the filename from the given path */
-const char *
-rnp_filename(const char *path)
-{
-    char *res = strrchr((char *) path, '/');
-    if (!res) {
-        return path;
-    } else {
-        return res + 1;
     }
 }
 
@@ -450,78 +408,6 @@ rnp_file_exists(const char *path)
 }
 
 bool
-rnp_path_strip_ext(char *path)
-{
-    char *ptr;
-
-    if (!path || !path[0]) {
-        return false;
-    }
-
-    ptr = path + strlen(path) - 1;
-
-    while (ptr >= path) {
-        if (*ptr == '.') {
-            *ptr = '\0';
-            return true;
-        }
-
-        ptr--;
-    }
-
-    return false;
-}
-
-bool
-rnp_path_has_ext(const char *path, const char *ext)
-{
-    size_t plen, elen;
-
-    if (!path || !path[0] || !ext || !ext[0]) {
-        return false;
-    }
-
-    if (ext[0] == '.') {
-        ext++;
-    }
-
-    plen = strlen(path);
-    elen = strlen(ext);
-
-    return (elen < plen) && !rnp_strcasecmp(path + plen - elen, ext) &&
-           (path[plen - elen - 1] == '.');
-}
-
-bool
-rnp_path_add_ext(char *path, size_t len, const char *ext)
-{
-    size_t plen, elen;
-
-    if (!path || !path[0] || !ext || !ext[0]) {
-        return false;
-    }
-
-    if (ext[0] == '.') {
-        ext++;
-    }
-
-    plen = strlen(path);
-    elen = strlen(ext);
-
-    if (len < plen + elen + 2) {
-        return false;
-    }
-
-    if (path[plen - 1] != '.') {
-        path[plen++] = '.';
-    }
-
-    memcpy(path + plen, ext, elen);
-    path[plen + elen] = '\0';
-    return true;
-}
-
-bool
 rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
 {
@@ -565,21 +451,6 @@ rnp_strip_eol(char *s)
     }
 
     return s;
-}
-
-/* small function to pretty print an 8-character raw userid */
-char *
-userid_to_id(const uint8_t *userid, char *id)
-{
-    static const char *hexes = "0123456789abcdef";
-    int                i;
-
-    for (i = 0; i < 8; i++) {
-        id[i * 2] = hexes[(unsigned) (userid[i] & 0xf0) >> 4];
-        id[(i * 2) + 1] = hexes[userid[i] & 0xf];
-    }
-    id[8 * 2] = 0x0;
-    return id;
 }
 
 /* check whether string is hex */
