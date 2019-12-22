@@ -1205,6 +1205,13 @@ class Misc(unittest.TestCase):
         compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out, 'json all listing mismatch')
         return
 
+    def test_debug_log(self):
+        run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-keys', '--debug', '--all'])
+        run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys', '--debug', '--all'])
+        run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-keys', '--debug', '--all'])
+        run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys', '--debug', '--all'])
+        return
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
