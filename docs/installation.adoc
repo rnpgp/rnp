@@ -28,7 +28,7 @@ yum install -y rnp
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
 sudo apt install git
-git clone https://github.com/rnpgp/rnp.git -b v0.12.0
+git clone https://github.com/rnpgp/rnp.git -b v0.13.0
 
 # Install required packages
 sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential python-minimal
