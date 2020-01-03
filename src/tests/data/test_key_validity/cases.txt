@@ -28,7 +28,10 @@ Result: Alice [valid], Alice sub [invalid]
 
 Case6:
 Keys Alice [pub, sub]
-Key Alice has revocation signature, and subkey doesn't
+Key Alice has revocation signature by Alice, and subkey doesn't
 Result: Alice [invalid], Alice sub [invalid]
 
-
+Case7:
+Keys Alice [pub, sub]
+Alice subkey has revocation signature by Alice
+Result: Alice [valid], Alice sub [invalid]
