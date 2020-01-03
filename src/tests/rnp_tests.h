@@ -301,6 +301,8 @@ void test_stream_verify_no_key(void **state);
 
 void test_stream_key_signature_validate(void **state);
 
+void test_key_validity(void **state);
+
 void test_stream_814_dearmor_double_free(void **state);
 
 void test_stream_825_dearmor_blank_line(void **state);
