@@ -471,7 +471,14 @@ end:
     return res;
 }
 
-static bool
+bool calculate_primary_binding(const pgp_key_pkt_t *key,
+                               const pgp_key_pkt_t *subkey,
+                               pgp_hash_alg_t       halg,
+                               pgp_signature_t *    sig,
+                               pgp_hash_t *         hash,
+                               rng_t *              rng);
+
+bool
 calculate_primary_binding(const pgp_key_pkt_t *key,
                           const pgp_key_pkt_t *subkey,
                           pgp_hash_alg_t       halg,
