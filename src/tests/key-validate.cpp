@@ -435,4 +435,34 @@ TEST_F(rnp_tests, test_key_validity)
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid);
     rnp_key_store_free(pubring);
+
+    /* Case6:
+     * Keys Alice [pub, sub]
+     * Key Alice has revocation signature by Alice, and subkey doesn't
+     * Result: Alice [invalid], Alice sub [invalid]
+     */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, KEYSIG_PATH "case6/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
+    assert_false(key->valid);
+    assert_int_equal(pgp_key_get_subkey_count(key), 1);
+    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_false(subkey->valid);
+    rnp_key_store_free(pubring);
+
+    /* Case7:
+     * Keys Alice [pub, sub]
+     * Alice subkey has revocation signature by Alice
+     * Result: Alice [valid], Alice sub [invalid]
+     */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, KEYSIG_PATH "case7/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
+    assert_true(key->valid);
+    assert_int_equal(pgp_key_get_subkey_count(key), 1);
+    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_false(subkey->valid);
+    rnp_key_store_free(pubring);
 }
