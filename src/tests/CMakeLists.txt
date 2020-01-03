@@ -54,6 +54,10 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
 
+if (BUILD_TESTING_GENERATORS)
+  add_subdirectory(data/test_key_validity)
+endif()
+
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp

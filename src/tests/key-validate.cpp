@@ -418,5 +418,21 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(subkey->valid);
     rnp_key_store_free(pubring);
 
-    
+    /* Case5:
+     * Keys Alice [pub, sub], Basil [pub]
+     * Alice subkey has valid binding signature, but from the key Basil
+     * Result: Alice [valid], Alice sub [invalid]
+     *
+     * Note: to re-generate keyring file, use generate.cpp from case5 folder.
+     *       To build it, feed -DBUILD_TESTING_GENERATORS=On to the cmake.
+     */
+    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, KEYSIG_PATH "case5/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
+    assert_true(key->valid);
+    assert_int_equal(pgp_key_get_subkey_count(key), 1);
+    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_false(subkey->valid);
+    rnp_key_store_free(pubring);
 }
