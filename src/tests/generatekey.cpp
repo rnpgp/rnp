@@ -1019,33 +1019,29 @@ TEST_F(rnp_tests, test_generated_key_sigs)
           ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
 
         // validate via an alternative method
-        pgp_signatures_info_t result = {0};
         // primary_pub + pubring
-        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
-        assert_true(check_signatures_info(&result));
-        free_signatures_info(&result);
+        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        assert_true(primary_pub->valid);
         // primary_sec + pubring
-        assert_rnp_success(validate_pgp_key_signatures(&result, primary_sec, pubring));
-        assert_true(check_signatures_info(&result));
-        free_signatures_info(&result);
+        assert_rnp_success(pgp_key_validate(primary_sec, pubring));
+        assert_true(primary_sec->valid);
         // primary_pub + secring
-        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, secring));
-        assert_true(check_signatures_info(&result));
-        free_signatures_info(&result);
+        assert_rnp_success(pgp_key_validate(primary_pub, secring));
+        assert_true(primary_pub->valid);
         // primary_sec + secring
-        assert_rnp_success(validate_pgp_key_signatures(&result, primary_sec, secring));
-        assert_true(check_signatures_info(&result));
-        free_signatures_info(&result);
-
-        // do at least one modification test for validate_pgp_key_signatures too
+        assert_rnp_success(pgp_key_validate(primary_sec, secring));
+        assert_true(primary_sec->valid);
         // modify a hashed portion of the sig packet, offset may change in future
-        pgp_key_get_rawpacket(primary_pub, 2)->raw[37] ^= 0xff;
+        pgp_subsig_t *sig = pgp_key_get_subsig(primary_pub, 0);
+        assert_non_null(sig);
+        sig->sig.hashed_data[10] ^= 0xff;
         // ensure validation fails
-        assert_rnp_success(validate_pgp_key_signatures(&result, primary_pub, pubring));
-        assert_false(check_signatures_info(&result));
-        free_signatures_info(&result);
+        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        assert_false(primary_pub->valid);
         // restore the original data
-        pgp_key_get_rawpacket(primary_pub, 2)->raw[37] ^= 0xff;
+        sig->sig.hashed_data[10] ^= 0xff;
+        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        assert_true(primary_pub->valid);
     }
 
     // sub
@@ -1125,23 +1121,11 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
 
-        // TODO: validate_pgp_key_signatures expects key->packets[] to contain
-        // both the primary and sub, so we have to fake it.
-        pgp_key_t fake = {0};
-        for (size_t i = 0; i < pgp_key_get_rawpacket_count(primary_pub); i++) {
-            pgp_rawpacket_t *packet = pgp_key_get_rawpacket(primary_pub, i);
-            pgp_key_add_rawpacket(&fake, packet->raw, packet->length, packet->tag);
-        }
-        for (size_t i = 0; i < pgp_key_get_rawpacket_count(sub_pub); i++) {
-            pgp_rawpacket_t *packet = pgp_key_get_rawpacket(sub_pub, i);
-            pgp_key_add_rawpacket(&fake, packet->raw, packet->length, packet->tag);
-        }
         // validate via an alternative method
-        pgp_signatures_info_t result = {0};
-        assert_rnp_success(validate_pgp_key_signatures(&result, &fake, pubring));
-        assert_true(check_signatures_info(&result));
-        free_signatures_info(&result);
-        pgp_key_free_data(&fake);
+        assert_rnp_success(pgp_key_validate(sub_pub, pubring));
+        assert_true(sub_pub->valid);
+        assert_rnp_success(pgp_key_validate(sub_sec, pubring));
+        assert_true(sub_sec->valid);
     }
 
     rnp_key_store_free(pubring);
