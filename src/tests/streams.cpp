@@ -1153,26 +1153,22 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 static void
 validate_key_sigs(const char *path)
 {
-    rnp_key_store_t *     pubring;
-    pgp_key_t *           pkey = NULL;
-    pgp_signatures_info_t info = {0};
-
-    /* we need rng for key validation */
-    pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, path);
+    rnp_key_store_t *pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, path);
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
-    assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
-    assert_true(check_signatures_info(&info));
-    free_signatures_info(&info);
+    for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
+        pgp_key_t *pkey = rnp_key_store_get_key(pubring, i);
+        assert_non_null(pkey);
+        assert_rnp_success(pgp_key_validate(pkey, pubring));
+        assert_true(pkey->valid);
+    }
     rnp_key_store_free(pubring);
 }
 
 TEST_F(rnp_tests, test_stream_key_signature_validate)
 {
-    rnp_key_store_t *     pubring;
-    pgp_key_t *           pkey = NULL;
-    pgp_signatures_info_t info = {0};
+    rnp_key_store_t *pubring;
+    pgp_key_t *      pkey = NULL;
 
     /* v3 public key */
     pubring = rnp_key_store_new(RNP_KEYSTORE_GPG, "data/keyrings/4/rsav3-p.asc");
@@ -1180,10 +1176,8 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
     assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
-    assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
-    assert_true(check_signatures_info(&info));
-    free_signatures_info(&info);
-    memset(&info, 0, sizeof(info));
+    assert_rnp_success(pgp_key_validate(pkey, pubring));
+    assert_true(pkey->valid);
     rnp_key_store_free(pubring);
 
     /* keyring */
@@ -1193,14 +1187,13 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_get_key_count(pubring) > 0);
     for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
         pkey = rnp_key_store_get_key(pubring, i);
-        if (!pgp_key_is_primary_key(pkey)) {
-            continue;
+        assert_rnp_success(pgp_key_validate(pkey, pubring));
+        // subkey #2 is expired
+        if (i == 2) {
+            assert_false(pkey->valid);
+        } else {
+            assert_true(pkey->valid);
         }
-
-        assert_rnp_success(validate_pgp_key_signatures(&info, pkey, pubring));
-        assert_true(check_signatures_info(&info));
-        free_signatures_info(&info);
-        memset(&info, 0, sizeof(info));
     }
     rnp_key_store_free(pubring);
 
