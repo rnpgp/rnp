@@ -78,70 +78,6 @@ static pgp_map_t ss_rr_code_map[] = {
 };
 
 static bool
-rnp_key_add_stream_rawpacket(pgp_key_t *key, pgp_content_enum tag, pgp_dest_t *memdst)
-{
-    if (!pgp_key_add_rawpacket(key, mem_dest_get_memory(memdst), memdst->writeb, tag)) {
-        RNP_LOG("Failed to add packet");
-        dst_close(memdst, true);
-        return false;
-    }
-
-    dst_close(memdst, false);
-    return true;
-}
-
-bool
-rnp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
-{
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    if (!stream_write_key(pkt, &dst)) {
-        dst_close(&dst, true);
-        return false;
-    }
-
-    return rnp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
-}
-
-static bool
-rnp_key_add_sig_rawpacket(pgp_key_t *key, pgp_signature_t *pkt)
-{
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    if (!stream_write_signature(pkt, &dst)) {
-        dst_close(&dst, true);
-        return false;
-    }
-
-    return rnp_key_add_stream_rawpacket(key, PGP_PTAG_CT_SIGNATURE, &dst);
-}
-
-static bool
-rnp_key_add_uid_rawpacket(pgp_key_t *key, pgp_userid_pkt_t *pkt)
-{
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    if (!stream_write_userid(pkt, &dst)) {
-        dst_close(&dst, true);
-        return false;
-    }
-
-    return rnp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
-}
-
-static bool
 create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
 {
     pgp_key_pkt_t keypkt = {};
@@ -171,7 +107,7 @@ create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
     }
 
     /* add key rawpacket */
-    if (!rnp_key_add_key_rawpacket(key, pkt)) {
+    if (!pgp_key_add_key_rawpacket(key, pkt)) {
         free_key_pkt(&keypkt);
         return false;
     }
@@ -194,7 +130,7 @@ rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
     }
 
     /* add signature rawpacket */
-    if (!rnp_key_add_sig_rawpacket(key, sig)) {
+    if (!pgp_key_add_sig_rawpacket(key, sig)) {
         return false;
     }
 
@@ -307,7 +243,7 @@ error:
 bool
 rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 {
-    if (!rnp_key_add_uid_rawpacket(key, &uid->uid)) {
+    if (!pgp_key_add_uid_rawpacket(key, &uid->uid)) {
         return false;
     }
 
