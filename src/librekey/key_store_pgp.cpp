@@ -77,8 +77,6 @@ static pgp_map_t ss_rr_code_map[] = {
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
-void print_packet_hex(const pgp_rawpacket_t *pkt);
-
 static bool
 rnp_key_add_stream_rawpacket(pgp_key_t *key, pgp_content_enum tag, pgp_dest_t *memdst)
 {
