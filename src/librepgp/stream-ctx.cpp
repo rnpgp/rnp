@@ -29,15 +29,6 @@
 #include "defaults.h"
 #include "stream-ctx.h"
 
-/* rnp_ctx_t : init, reset, free internal pointers */
-rnp_result_t
-rnp_ctx_init(rnp_ctx_t *ctx, rng_t *rng)
-{
-    memset(ctx, '\0', sizeof(*ctx));
-    ctx->rng = rng;
-    return RNP_SUCCESS;
-}
-
 rng_t *
 rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
 {
@@ -88,13 +79,6 @@ rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
-}
-
-void
-rnp_ctx_reset(rnp_ctx_t *ctx)
-{
-    rnp_ctx_free(ctx);
-    memset(ctx, '\0', sizeof(*ctx));
 }
 
 /* free operation context */
