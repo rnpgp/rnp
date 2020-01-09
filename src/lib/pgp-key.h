@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -272,6 +272,12 @@ pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 void pgp_subsig_free(pgp_subsig_t *subsig);
 
 pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_content_enum);
+
+pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt);
+
+pgp_rawpacket_t *pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt);
+
+pgp_rawpacket_t *pgp_key_add_uid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t *pkt);
 
 size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
