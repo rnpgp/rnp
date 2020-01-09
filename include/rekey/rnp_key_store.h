@@ -122,6 +122,13 @@ typedef enum pgp_key_import_status_t {
     PGP_KEY_IMPORT_STATUS_NEW,
 } pgp_key_import_status_t;
 
+typedef enum pgp_sig_import_status_t {
+    PGP_SIG_IMPORT_STATUS_UNKNOWN = 0,
+    PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY,
+    PGP_SIG_IMPORT_STATUS_UNCHANGED,
+    PGP_SIG_IMPORT_STATUS_NEW
+} pgp_sig_import_status_t;
+
 typedef struct rnp_key_store_t {
     const char *           path;
     pgp_key_store_format_t format;
@@ -157,12 +164,24 @@ pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
 
 /**
  * @brief Get signer's key from key store.
- * 
+ *
  * @param store populated key store, cannot be NULL.
  * @param sig signature, cannot be NULL.
  * @return pointer to pgp_key_t structure if key was found or NULL otherwise.
  */
 pgp_key_t *rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig);
+
+/**
+ * @brief Import revocation or direct-key signature to the keyring.
+ *
+ * @param keyring populated keyring, cannot be NULL.
+ * @param sig signature to import.
+ * @param status signature import status will be put here, if not NULL.
+ * @return pointer to the key to which this signature belongs (or NULL if key was not found)
+ */
+pgp_key_t *rnp_key_store_import_signature(rnp_key_store_t *        keyring,
+                                          const pgp_signature_t *  sig,
+                                          pgp_sig_import_status_t *status);
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
 
