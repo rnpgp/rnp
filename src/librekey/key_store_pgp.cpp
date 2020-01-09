@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -62,7 +62,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
-#include <librepgp/stream-armor.h>
 
 #include "types.h"
 #include "key_store_pgp.h"
@@ -446,7 +445,6 @@ rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
 static bool
 do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
-    pgp_key_search_t search;
     for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
          key_item = list_next(key_item)) {
         pgp_key_t *key = (pgp_key_t *) key_item;
@@ -467,6 +465,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
         }
         for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
              subkey_grip = list_next(subkey_grip)) {
+            pgp_key_search_t search = {};
             search.type = PGP_KEY_SEARCH_GRIP;
             memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_KEY_GRIP_SIZE);
             pgp_key_t *subkey = NULL;
@@ -495,28 +494,8 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 }
 
 bool
-rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst)
+rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
-    pgp_dest_t armordst;
-    bool       res = false;
-
-    if (armor) {
-        pgp_armored_msg_t type = PGP_ARMORED_PUBLIC_KEY;
-        if (rnp_key_store_get_key_count(key_store) &&
-            pgp_key_is_secret(rnp_key_store_get_key(key_store, 0))) {
-            type = PGP_ARMORED_SECRET_KEY;
-        }
-        if (init_armored_dst(&armordst, dst, type)) {
-            return false;
-        }
-        dst = &armordst;
-    }
     // two separate passes (public keys, then secret keys)
-    res = do_write(key_store, dst, false) && do_write(key_store, dst, true);
-
-    if (armor) {
-        dst_close(&armordst, !res);
-    }
-
-    return res;
+    return do_write(key_store, dst, false) && do_write(key_store, dst, true);
 }
