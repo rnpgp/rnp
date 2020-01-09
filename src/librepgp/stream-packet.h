@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -166,7 +166,9 @@ bool add_packet_body_mpi(pgp_packet_body_t *body, const pgp_mpi_t *val);
  * @param hashed whether write hashed or not hashed subpackets
  * @return true on success or false otherwise (if out of memory)
  */
-bool add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed);
+bool add_packet_body_subpackets(pgp_packet_body_t *    body,
+                                const pgp_signature_t *sig,
+                                bool                   hashed);
 
 /** @brief get next byte from the packet body
  *  @param body pointer to the structure. It must be filled via stream_read_packet_body
@@ -276,7 +278,7 @@ rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepas
 
 /* Signature */
 
-bool stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst);
+bool stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst);
 
 bool signature_parse_subpacket(pgp_sig_subpkt_t *subpkt);
 
@@ -320,7 +322,7 @@ void free_key_pkt(pgp_key_pkt_t *key);
 
 /* User ID packet */
 
-bool stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst);
+bool stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid);
 
