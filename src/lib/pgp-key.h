@@ -302,7 +302,7 @@ bool pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip);
  * @param idx index of the subkey
  * @return pointer to the grip data or NULL if subkey not found
  */
-uint8_t *pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
+const uint8_t *pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
 
 /**
  * @brief Get the key's subkey by it's index

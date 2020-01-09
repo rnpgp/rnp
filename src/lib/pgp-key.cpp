@@ -974,7 +974,7 @@ pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip)
     return list_append(&key->subkey_grips, grip, PGP_KEY_GRIP_SIZE);
 }
 
-uint8_t *
+const uint8_t *
 pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx)
 {
     return (uint8_t *) list_at(key->subkey_grips, idx);
