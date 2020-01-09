@@ -280,18 +280,6 @@ rnp_key_add_signatures(pgp_key_t *key, list signatures)
 }
 
 bool
-rnp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip)
-{
-    for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {
-        if (!memcmp(grip, (uint8_t *) li, PGP_KEY_GRIP_SIZE)) {
-            return true;
-        }
-    }
-
-    return list_append(&key->subkey_grips, grip, PGP_KEY_GRIP_SIZE);
-}
-
-bool
 rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_transferable_subkey_t *tskey,
                                       pgp_key_t *                pkey)

@@ -286,6 +286,16 @@ pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
 size_t pgp_key_get_subkey_count(const pgp_key_t *key);
 
 /**
+ * @brief Add subkey grip to key's list.
+ *        Note: this function will check for duplicates.
+ *
+ * @param key key pointer to the primary key
+ * @param grip subkey's grip.
+ * @return true if succeeded (grip already exists in list or added), or false otherwise.
+ */
+bool pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip);
+
+/**
  * @brief Get the pgp key's subkey grip
  *
  * @param key key pointer to the primary key

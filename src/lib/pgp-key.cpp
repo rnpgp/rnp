@@ -833,7 +833,7 @@ pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey)
         RNP_LOG("failed to set primary grip");
         return false;
     }
-    if (!rnp_key_add_subkey_grip(key, pgp_key_get_grip(subkey))) {
+    if (!pgp_key_add_subkey_grip(key, pgp_key_get_grip(subkey))) {
         RNP_LOG("failed to add subkey grip");
         return false;
     }
@@ -960,6 +960,18 @@ size_t
 pgp_key_get_subkey_count(const pgp_key_t *key)
 {
     return list_length(key->subkey_grips);
+}
+
+bool
+pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip)
+{
+    for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {
+        if (!memcmp(grip, (uint8_t *) li, PGP_KEY_GRIP_SIZE)) {
+            return true;
+        }
+    }
+
+    return list_append(&key->subkey_grips, grip, PGP_KEY_GRIP_SIZE);
 }
 
 uint8_t *
