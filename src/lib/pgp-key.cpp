@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -287,7 +287,7 @@ pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
     size_t start = 0;
 
     if (pubonly) {
-        if (!rnp_key_add_key_rawpacket(dst, &dst->pkt)) {
+        if (!pgp_key_add_key_rawpacket(dst, &dst->pkt)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         start = 1;
@@ -942,6 +942,63 @@ pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_content_enum t
     packet->length = len;
     packet->tag = tag;
     return packet;
+}
+
+pgp_rawpacket_t *
+pgp_key_add_stream_rawpacket(pgp_key_t *key, pgp_content_enum tag, pgp_dest_t *memdst)
+{
+    pgp_rawpacket_t *res =
+      pgp_key_add_rawpacket(key, mem_dest_get_memory(memdst), memdst->writeb, tag);
+    if (!res) {
+        RNP_LOG("Failed to add packet");
+    }
+    dst_close(memdst, true);
+    return res;
+}
+
+pgp_rawpacket_t *
+pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return NULL;
+    }
+    if (!stream_write_key(pkt, &dst)) {
+        dst_close(&dst, true);
+        return NULL;
+    }
+    return pgp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
+}
+
+pgp_rawpacket_t *
+pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return NULL;
+    }
+    if (!stream_write_signature(pkt, &dst)) {
+        dst_close(&dst, true);
+        return NULL;
+    }
+    return pgp_key_add_stream_rawpacket(key, PGP_PTAG_CT_SIGNATURE, &dst);
+}
+
+pgp_rawpacket_t *
+pgp_key_add_uid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t *pkt)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return NULL;
+    }
+    if (!stream_write_userid(pkt, &dst)) {
+        dst_close(&dst, true);
+        return NULL;
+    }
+    return pgp_key_add_stream_rawpacket(key, (pgp_content_enum) pkt->tag, &dst);
 }
 
 size_t
