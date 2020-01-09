@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -398,7 +398,7 @@ add_packet_body_s2k(pgp_packet_body_t *body, const pgp_s2k_t *s2k)
 }
 
 bool
-add_packet_body_subpackets(pgp_packet_body_t *body, pgp_signature_t *sig, bool hashed)
+add_packet_body_subpackets(pgp_packet_body_t *body, const pgp_signature_t *sig, bool hashed)
 {
     pgp_packet_body_t spbody;
     pgp_sig_subpkt_t *subpkt;
@@ -917,7 +917,7 @@ stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
 }
 
 bool
-stream_write_signature(pgp_signature_t *sig, pgp_dest_t *dst)
+stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
     bool              res;
@@ -2280,7 +2280,7 @@ free_key_pkt(pgp_key_pkt_t *key)
 }
 
 bool
-stream_write_userid(pgp_userid_pkt_t *userid, pgp_dest_t *dst)
+stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
     bool              res;
