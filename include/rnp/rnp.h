@@ -373,6 +373,21 @@ rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  */
 rnp_result_t rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results);
 
+/** import standalone signatures to the keyring and receive JSON list of the updated keys.
+ *
+ *  @param ffi
+ *  @param input source to read from. Cannot be NULL.
+ *  @param flags additional import flags, currently must be 0.
+ *  @param results if not NULL then after the successfull execution will contain JSON with
+ *                 information about the updated keys. You must free it using the
+ *                 rnp_buffer_destroy() function.
+ *  @return RNP_SUCCESS on success, or any other value on error.
+ */
+rnp_result_t rnp_import_signatures(rnp_ffi_t   ffi,
+                                   rnp_input_t input,
+                                   uint32_t    flags,
+                                   char **     results);
+
 /** save keys
  *
  * Note that for G10, the output must be a directory (which must already exist).
