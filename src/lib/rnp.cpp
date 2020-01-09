@@ -224,6 +224,12 @@ static const pgp_map_t key_import_status_map[] = {
   {PGP_KEY_IMPORT_STATUS_UPDATED, "updated"},
   {PGP_KEY_IMPORT_STATUS_NEW, "new"}};
 
+static const pgp_map_t sig_import_status_map[] = {
+  {PGP_SIG_IMPORT_STATUS_UNKNOWN, "unknown"},
+  {PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY, "unknown key"},
+  {PGP_SIG_IMPORT_STATUS_UNCHANGED, "unchanged"},
+  {PGP_SIG_IMPORT_STATUS_NEW, "new"}};
+
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
@@ -1302,6 +1308,117 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     ret = RNP_SUCCESS;
 done:
     rnp_key_store_free(tmp_store);
+    json_object_put(jsores);
+    return ret;
+}
+
+static const char *
+sig_status_to_str(pgp_sig_import_status_t status)
+{
+    if (status == PGP_SIG_IMPORT_STATUS_UNKNOWN) {
+        return "none";
+    }
+    const char *str = "none";
+    ARRAY_LOOKUP_BY_ID(sig_import_status_map, type, string, status, str);
+    return str;
+}
+
+static rnp_result_t
+add_sig_status(json_object *           sigs,
+               const pgp_key_t *       signer,
+               pgp_sig_import_status_t pub,
+               pgp_sig_import_status_t sec)
+{
+    json_object *jsosig = json_object_new_object();
+    if (!jsosig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (!obj_add_field_json(
+          jsosig, "public", json_object_new_string(sig_status_to_str(pub))) ||
+        !obj_add_field_json(
+          jsosig, "secret", json_object_new_string(sig_status_to_str(sec)))) {
+        json_object_put(jsosig);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    if (signer) {
+        const pgp_fingerprint_t *fp = pgp_key_get_fp(signer);
+        if (!obj_add_hex_json(jsosig, "signer fingerprint", fp->fingerprint, fp->length)) {
+            json_object_put(jsosig);
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+
+    if (!array_add_element_json(sigs, jsosig)) {
+        json_object_put(jsosig);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_import_signatures(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results)
+{
+    if (!ffi || !input) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (flags) {
+        FFI_LOG(ffi, "wrong flags: %d", (int) flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    json_object *jsores = NULL;
+    json_object *jsosigs = NULL;
+    list         sigs = NULL;
+    rnp_result_t sigret = process_pgp_signatures(&input->src, &sigs);
+    if (sigret) {
+        ret = sigret;
+        FFI_LOG(ffi, "failed to parse signature(s)");
+        goto done;
+    }
+
+    jsores = json_object_new_object();
+    if (!jsores) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+    jsosigs = json_object_new_array();
+    if (!obj_add_field_json(jsores, "sigs", jsosigs)) {
+        ret = RNP_ERROR_OUT_OF_MEMORY;
+        goto done;
+    }
+
+    for (list_item *li = list_front(sigs); li; li = list_next(li)) {
+        pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        pgp_signature_t *       sig = (pgp_signature_t *) li;
+        pgp_key_t *pkey = rnp_key_store_import_signature(ffi->pubring, sig, &pub_status);
+        pgp_key_t *skey = rnp_key_store_import_signature(ffi->secring, sig, &sec_status);
+        sigret = add_sig_status(jsosigs, pkey ? pkey : skey, pub_status, sec_status);
+        if (sigret) {
+            ret = sigret;
+            goto done;
+        }
+    }
+
+    if (results) {
+        *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
+        if (!*results) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        *results = strdup(*results);
+        if (!*results) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+    }
+    ret = RNP_SUCCESS;
+done:
+    signature_list_destroy(&sigs);
     json_object_put(jsores);
     return ret;
 }

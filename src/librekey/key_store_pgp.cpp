@@ -76,8 +76,8 @@ static pgp_map_t ss_rr_code_map[] = {
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
-static bool
-rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
+bool
+rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
 {
     pgp_subsig_t *subsig = NULL;
     uint8_t *     algs = NULL;
