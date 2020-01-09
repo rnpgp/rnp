@@ -589,19 +589,6 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
     return true;
 }
 
-bool
-rnp_key_store_remove_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid)
-{
-    const pgp_key_t *key;
-
-    key = rnp_key_store_get_key_by_id(keyring, keyid, NULL);
-    if (key != NULL) {
-        return rnp_key_store_remove_key(keyring, key);
-    }
-
-    return false;
-}
-
 /**
    \ingroup HighLevel_KeyringFind
 

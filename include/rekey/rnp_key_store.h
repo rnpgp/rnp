@@ -164,7 +164,6 @@ pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
                                     pgp_key_import_status_t *);
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
-bool rnp_key_store_remove_key_by_id(rnp_key_store_t *, const uint8_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_id(const rnp_key_store_t *,
                                        const unsigned char *,
