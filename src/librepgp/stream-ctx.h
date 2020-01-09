@@ -115,9 +115,7 @@ typedef struct rnp_symmetric_pass_info_t {
     uint8_t        key[PGP_MAX_KEY_SIZE];
 } rnp_symmetric_pass_info_t;
 
-/* init, reset and free rnp operation context */
-rnp_result_t     rnp_ctx_init(rnp_ctx_t *, rng_t *);
-void             rnp_ctx_reset(rnp_ctx_t *);
+/* free rnp operation context */
 void             rnp_ctx_free(rnp_ctx_t *);
 struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 
