@@ -406,7 +406,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     tmpkey.subkey_grips = dst->subkey_grips;
     dst->subkey_grips = NULL;
     for (list_item *li = list_front(src->subkey_grips); li; li = list_next(li)) {
-        if (!rnp_key_add_subkey_grip(&tmpkey, (uint8_t *) li)) {
+        if (!pgp_key_add_subkey_grip(&tmpkey, (uint8_t *) li)) {
             RNP_LOG("failed to add subkey grip");
         }
     }
