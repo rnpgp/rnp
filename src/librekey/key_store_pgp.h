@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -61,7 +61,7 @@
 
 rnp_result_t rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src);
 
-bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, bool armor, pgp_dest_t *dst);
+bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst);
 
 bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                            pgp_transferable_subkey_t *tskey,
