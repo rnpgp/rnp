@@ -250,7 +250,7 @@ rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     switch (key_store->format) {
     case GPG_KEY_STORE:
-        return rnp_key_store_pgp_write_to_dst(key_store, false, dst);
+        return rnp_key_store_pgp_write_to_dst(key_store, dst);
     case KBX_KEY_STORE:
         return rnp_key_store_kbx_to_dst(key_store, dst);
     default:
