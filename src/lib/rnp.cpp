@@ -331,6 +331,21 @@ str_to_key_flag(const char *str, uint8_t *flag)
     return true;
 }
 
+static bool
+parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
+{
+    if (!strcmp(format, RNP_KEYSTORE_GPG)) {
+        *key_store_format = PGP_KEY_STORE_GPG;
+    } else if (!strcmp(format, RNP_KEYSTORE_KBX)) {
+        *key_store_format = PGP_KEY_STORE_KBX;
+    } else if (!strcmp(format, RNP_KEYSTORE_G10)) {
+        *key_store_format = PGP_KEY_STORE_G10;
+    } else {
+        return false;
+    }
+    return true;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -338,8 +353,15 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     // checks
-    if (!ffi) {
+    if (!ffi || !pub_format || !sec_format) {
         return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_store_format_t pub_ks_format = PGP_KEY_STORE_UNKNOWN;
+    pgp_key_store_format_t sec_ks_format = PGP_KEY_STORE_UNKNOWN;
+    if (!parse_ks_format(&pub_ks_format, pub_format) ||
+        !parse_ks_format(&sec_ks_format, sec_format)) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     ob = (rnp_ffi_st *) calloc(1, sizeof(struct rnp_ffi_st));
@@ -348,12 +370,12 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     }
     // default to all stderr
     ob->errs = stderr;
-    ob->pubring = rnp_key_store_new(pub_format, "");
+    ob->pubring = rnp_key_store_new(pub_ks_format, "");
     if (!ob->pubring) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    ob->secring = rnp_key_store_new(sec_format, "");
+    ob->secring = rnp_key_store_new(sec_ks_format, "");
     if (!ob->secring) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
@@ -978,7 +1000,10 @@ key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
 }
 
 static rnp_result_t
-do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t key_type)
+do_load_keys(rnp_ffi_t              ffi,
+             rnp_input_t            input,
+             pgp_key_store_format_t format,
+             key_type_t             key_type)
 {
     rnp_result_t     ret = RNP_ERROR_GENERIC;
     rnp_key_store_t *tmp_store = NULL;
@@ -989,9 +1014,8 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
     tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
-        FFI_LOG(ffi, "Failed to create key store of format: %s", format);
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
+        FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 
     // load keys into our temporary store
@@ -1097,13 +1121,18 @@ rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t fla
         FFI_LOG(ffi, "invalid flags - must have public and/or secret keys");
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    pgp_key_store_format_t ks_format = PGP_KEY_STORE_UNKNOWN;
+    if (!parse_ks_format(&ks_format, format)) {
+        FFI_LOG(ffi, "invalid key store format: %s", format);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
 
     // check for any unrecognized flags (not forward-compat, but maybe still a good idea)
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return do_load_keys(ffi, input, format, type);
+    return do_load_keys(ffi, input, ks_format, type);
 }
 
 rnp_result_t
@@ -1196,7 +1225,7 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     json_object *    jsokeys = NULL;
 
     // load keys to temporary keystore.
-    tmp_store = rnp_key_store_new(RNP_KEYSTORE_GPG, "");
+    tmp_store = rnp_key_store_new(PGP_KEY_STORE_GPG, "");
     if (!tmp_store) {
         FFI_LOG(ffi, "Failed to create key store.");
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1296,7 +1325,10 @@ copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 }
 
 static rnp_result_t
-do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t key_type)
+do_save_keys(rnp_ffi_t              ffi,
+             rnp_output_t           output,
+             pgp_key_store_format_t format,
+             key_type_t             key_type)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
@@ -1304,9 +1336,8 @@ do_save_keys(rnp_ffi_t ffi, rnp_output_t output, const char *format, key_type_t 
     rnp_key_store_t *tmp_store = rnp_key_store_new(format, "");
     if (!tmp_store) {
         // TODO: could also be out of mem
-        FFI_LOG(ffi, "Failed to create key store of format: %s", format);
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
+        FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
@@ -1373,14 +1404,17 @@ rnp_save_keys(rnp_ffi_t ffi, const char *format, rnp_output_t output, uint32_t f
         FFI_LOG(ffi, "invalid flags - must have public and/or secret keys");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     // check for any unrecognized flags (not forward-compat, but maybe still a good idea)
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    return do_save_keys(ffi, output, format, type);
+    pgp_key_store_format_t ks_format = PGP_KEY_STORE_UNKNOWN;
+    if (!parse_ks_format(&ks_format, format)) {
+        FFI_LOG(ffi, "unknown key store format: %s", format);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return do_save_keys(ffi, output, ks_format, type);
 }
 
 rnp_result_t

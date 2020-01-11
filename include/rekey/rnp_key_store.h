@@ -131,7 +131,6 @@ typedef enum pgp_key_import_status_t {
 
 typedef struct rnp_key_store_t {
     const char *           path;
-    const char *           format_label;
     pgp_key_store_format_t format;
     bool disable_validation; /* do not automatically validate keys, added to this key store */
 
@@ -139,7 +138,7 @@ typedef struct rnp_key_store_t {
     list blobs; // list of kbx_blob_t
 } rnp_key_store_t;
 
-rnp_key_store_t *rnp_key_store_new(const char *format, const char *path);
+rnp_key_store_t *rnp_key_store_new(pgp_key_store_format_t format, const char *path);
 
 bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
 bool rnp_key_store_load_from_src(rnp_key_store_t *,
