@@ -196,7 +196,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     const pgp_signature_t *sig = NULL;
 
     // load keyring
-    rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/1/pubring.gpg");
+    rnp_key_store_t *key_store =
+      rnp_key_store_new(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(key_store);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
@@ -360,7 +361,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     const pgp_signature_t *sig = NULL;
 
     // load keyring
-    rnp_key_store_t *key_store = rnp_key_store_new("GPG", "data/keyrings/2/pubring.gpg");
+    rnp_key_store_t *key_store =
+      rnp_key_store_new(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg");
     assert_non_null(key_store);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
@@ -401,7 +403,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     rnp_key_store_t *key_store;
 
-    key_store = rnp_key_store_new("GPG", MERGE_PATH "key-both.asc");
+    key_store = rnp_key_store_new(PGP_KEY_STORE_GPG, MERGE_PATH "key-both.asc");
     assert_non_null(key_store);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
@@ -494,7 +496,7 @@ TEST_F(rnp_tests, test_load_merge)
     pgp_password_provider_t   provider = (pgp_password_provider_t){
       .callback = string_copy_password_callback, .userdata = (void *) "password"};
 
-    key_store = rnp_key_store_new("GPG", "");
+    key_store = rnp_key_store_new(PGP_KEY_STORE_GPG, "");
     assert_non_null(key_store);
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id, sizeof(sub1id)));
@@ -717,9 +719,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     uint8_t          sub2id[PGP_KEY_ID_SIZE];
     rnp_key_store_t *secstore, *pubstore;
 
-    assert_non_null(secstore = rnp_key_store_new("GPG", MERGE_PATH "key-sec.asc"));
+    assert_non_null(secstore = rnp_key_store_new(PGP_KEY_STORE_GPG, MERGE_PATH "key-sec.asc"));
     assert_true(rnp_key_store_load_from_path(secstore, NULL));
-    assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
+    assert_non_null(pubstore = rnp_key_store_new(PGP_KEY_STORE_GPG, "pubring.gpg"));
 
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id, sizeof(sub1id)));
@@ -781,7 +783,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(rnp_key_store_write_to_path(pubstore));
     rnp_key_store_free(pubstore);
     /* reload */
-    assert_non_null(pubstore = rnp_key_store_new("GPG", "pubring.gpg"));
+    assert_non_null(pubstore = rnp_key_store_new(PGP_KEY_STORE_GPG, "pubring.gpg"));
     assert_true(rnp_key_store_load_from_path(pubstore, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_id(pubstore, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(pubstore, sub1id, NULL));
@@ -988,7 +990,7 @@ TEST_F(rnp_tests, test_load_subkey)
     uint8_t          sub2id[PGP_KEY_ID_SIZE];
     rnp_key_store_t *key_store;
 
-    key_store = rnp_key_store_new("GPG", "");
+    key_store = rnp_key_store_new(PGP_KEY_STORE_GPG, "");
     assert_non_null(key_store);
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid, sizeof(keyid)));
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id, sizeof(sub1id)));
