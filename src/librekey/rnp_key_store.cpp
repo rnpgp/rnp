@@ -59,42 +59,22 @@
 #include <regex>
 #endif
 
-static bool
-parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
-{
-    if (strcmp(format, RNP_KEYSTORE_GPG) == 0) {
-        *key_store_format = PGP_KEY_STORE_GPG;
-    } else if (strcmp(format, RNP_KEYSTORE_KBX) == 0) {
-        *key_store_format = PGP_KEY_STORE_KBX;
-    } else if (strcmp(format, RNP_KEYSTORE_G10) == 0) {
-        *key_store_format = PGP_KEY_STORE_G10;
-    } else {
-        RNP_LOG("unsupported keystore format: \"%s\"", format);
-        return false;
-    }
-    return true;
-}
-
 rnp_key_store_t *
-rnp_key_store_new(const char *format, const char *path)
+rnp_key_store_new(pgp_key_store_format_t format, const char *path)
 {
-    rnp_key_store_t *      key_store = NULL;
-    pgp_key_store_format_t key_store_format = PGP_KEY_STORE_UNKNOWN;
-
-    if (!parse_ks_format(&key_store_format, format)) {
+    if (format == PGP_KEY_STORE_UNKNOWN) {
+        RNP_LOG("Invalid key store format");
         return NULL;
     }
 
-    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    if (key_store == NULL) {
+    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
+    if (!key_store) {
         RNP_LOG("Can't allocate memory");
         return NULL;
     }
 
-    key_store->format = key_store_format;
-    key_store->format_label = strdup(format);
+    key_store->format = format;
     key_store->path = strdup(path);
-
     return key_store;
 }
 
@@ -288,7 +268,6 @@ rnp_key_store_free(rnp_key_store_t *keyring)
 
     rnp_key_store_clear(keyring);
     free((void *) keyring->path);
-    free((void *) keyring->format_label);
     free(keyring);
 }
 
