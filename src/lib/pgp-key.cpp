@@ -335,7 +335,7 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
         goto done;
     }
 
-    dst->format = G10_KEY_STORE;
+    dst->format = PGP_KEY_STORE_G10;
     ret = RNP_SUCCESS;
 done:
     if (ret) {
@@ -351,7 +351,7 @@ pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
     rnp_result_t tmpret;
     memset(dst, 0, sizeof(*dst));
 
-    if (src->format == G10_KEY_STORE) {
+    if (src->format == PGP_KEY_STORE_G10) {
         return pgp_key_copy_g10(dst, src, pubonly);
     }
 
@@ -758,11 +758,11 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
         goto done;
     }
     switch (key->format) {
-    case GPG_KEY_STORE:
-    case KBX_KEY_STORE:
+    case PGP_KEY_STORE_GPG:
+    case PGP_KEY_STORE_KBX:
         decryptor = pgp_decrypt_seckey_pgp;
         break;
-    case G10_KEY_STORE:
+    case PGP_KEY_STORE_G10:
         decryptor = g10_decrypt_seckey;
         break;
     default:
@@ -1150,11 +1150,11 @@ pgp_key_lock(pgp_key_t *key)
 }
 
 static bool
-write_key_to_rawpacket(pgp_key_pkt_t *    seckey,
-                       pgp_rawpacket_t *  packet,
-                       pgp_content_enum   type,
-                       key_store_format_t format,
-                       const char *       password)
+write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
+                       pgp_rawpacket_t *      packet,
+                       pgp_content_enum       type,
+                       pgp_key_store_format_t format,
+                       const char *           password)
 {
     pgp_dest_t memdst = {};
     bool       ret = false;
@@ -1165,14 +1165,14 @@ write_key_to_rawpacket(pgp_key_pkt_t *    seckey,
 
     // encrypt+write the key in the appropriate format
     switch (format) {
-    case GPG_KEY_STORE:
-    case KBX_KEY_STORE:
+    case PGP_KEY_STORE_GPG:
+    case PGP_KEY_STORE_KBX:
         if (!pgp_write_struct_seckey(&memdst, type, seckey, password)) {
             RNP_LOG("failed to write seckey");
             goto done;
         }
         break;
-    case G10_KEY_STORE:
+    case PGP_KEY_STORE_G10:
         if (!g10_write_seckey(&memdst, seckey, password)) {
             RNP_LOG("failed to write g10 seckey");
             goto done;
@@ -1196,7 +1196,7 @@ done:
 
 bool
 rnp_key_add_protection(pgp_key_t *                    key,
-                       key_store_format_t             format,
+                       pgp_key_store_format_t         format,
                        rnp_key_protection_params_t *  protection,
                        const pgp_password_provider_t *password_provider)
 {
@@ -1224,7 +1224,7 @@ rnp_key_add_protection(pgp_key_t *                    key,
 bool
 pgp_key_protect(pgp_key_t *                  key,
                 pgp_key_pkt_t *              decrypted_seckey,
-                key_store_format_t           format,
+                pgp_key_store_format_t       format,
                 rnp_key_protection_params_t *protection,
                 const char *                 new_password)
 {
@@ -1381,7 +1381,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         goto done;
     }
     // this isn't really valid for this format
-    if (key->format == G10_KEY_STORE) {
+    if (key->format == PGP_KEY_STORE_G10) {
         RNP_LOG("Unsupported key store type");
         goto done;
     }
