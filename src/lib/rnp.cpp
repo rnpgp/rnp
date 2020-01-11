@@ -959,8 +959,8 @@ done:
 static bool
 key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
 {
-    key_store_format_t key_format = key->format;
-    key_store_format_t store_format = store->format;
+    pgp_key_store_format_t key_format = key->format;
+    pgp_key_store_format_t store_format = store->format;
     /* pgp_key_t->format is only ever GPG or G10.
      *
      * The key store, however, could have a format of KBX, GPG, or G10.
@@ -968,10 +968,10 @@ key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
      * A G10 key store can only handle a pgp_key_t with a format of G10.
      */
     // should never be the case
-    assert(key_format != KBX_KEY_STORE);
+    assert(key_format != PGP_KEY_STORE_KBX);
     // normalize the store format
-    if (store_format == KBX_KEY_STORE) {
-        store_format = GPG_KEY_STORE;
+    if (store_format == PGP_KEY_STORE_KBX) {
+        store_format = PGP_KEY_STORE_GPG;
     }
     // from here, both the key and store formats can only be GPG or G10
     return key_format != store_format;
@@ -1029,7 +1029,7 @@ do_load_keys(rnp_ffi_t ffi, rnp_input_t input, const char *format, key_type_t ke
         }
 
         // add public key part if needed
-        if ((key->format == G10_KEY_STORE) ||
+        if ((key->format == PGP_KEY_STORE_G10) ||
             ((key_type != KEY_TYPE_ANY) && (key_type != KEY_TYPE_PUBLIC))) {
             continue;
         }
@@ -2936,7 +2936,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     // only PGP packets supported for now
-    if (key->format != GPG_KEY_STORE && key->format != KBX_KEY_STORE) {
+    if (key->format != PGP_KEY_STORE_GPG && key->format != PGP_KEY_STORE_KBX) {
         return RNP_ERROR_NOT_IMPLEMENTED;
     }
     if (armored) {
@@ -4535,7 +4535,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     public_key = get_key_prefer_public(handle);
-    if (!public_key && secret_key->format == G10_KEY_STORE) {
+    if (!public_key && secret_key->format == PGP_KEY_STORE_G10) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &secret_key->pkt;
@@ -4550,7 +4550,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
     if (public_key && !pgp_key_add_userid_certified(public_key, seckey, hash_alg, &info)) {
         goto done;
     }
-    if ((secret_key && secret_key->format != G10_KEY_STORE) &&
+    if ((secret_key && secret_key->format != PGP_KEY_STORE_G10) &&
         !pgp_key_add_userid_certified(secret_key, seckey, hash_alg, &info)) {
         goto done;
     }
@@ -5352,7 +5352,7 @@ rnp_key_is_primary(rnp_key_handle_t handle, bool *result)
         return RNP_ERROR_NULL_POINTER;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (key->format == G10_KEY_STORE) {
+    if (key->format == PGP_KEY_STORE_G10) {
         // we can't currently determine this for a G10 secret key
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -5367,7 +5367,7 @@ rnp_key_is_sub(rnp_key_handle_t handle, bool *result)
         return RNP_ERROR_NULL_POINTER;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (key->format == G10_KEY_STORE) {
+    if (key->format == PGP_KEY_STORE_G10) {
         // we can't currently determine this for a G10 secret key
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -6170,7 +6170,7 @@ rnp_key_packets_to_json(rnp_key_handle_t handle, bool secret, uint32_t flags, ch
     }
 
     key = secret ? handle->sec : handle->pub;
-    if (!key || (key->format == G10_KEY_STORE)) {
+    if (!key || (key->format == PGP_KEY_STORE_G10)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 

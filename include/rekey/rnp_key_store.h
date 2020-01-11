@@ -107,12 +107,12 @@ typedef struct {
     uint32_t blob_created_at;
 } kbx_pgp_blob_t;
 
-typedef enum key_store_format_t {
-    UNKNOW_KEY_STORE = 0,
-    GPG_KEY_STORE,
-    KBX_KEY_STORE,
-    G10_KEY_STORE,
-} key_store_format_t;
+typedef enum pgp_key_store_format_t {
+    PGP_KEY_STORE_UNKNOWN = 0,
+    PGP_KEY_STORE_GPG,
+    PGP_KEY_STORE_KBX,
+    PGP_KEY_STORE_G10,
+} pgp_key_store_format_t;
 
 /* Key import status. Order of elements is important. */
 typedef enum pgp_key_import_status_t {
@@ -130,9 +130,9 @@ typedef enum pgp_key_import_status_t {
 #define RNP_KEYSTORE_GPG21 "GPG21" /* KBX + G10 keystore format */
 
 typedef struct rnp_key_store_t {
-    const char *            path;
-    const char *            format_label;
-    enum key_store_format_t format;
+    const char *           path;
+    const char *           format_label;
+    pgp_key_store_format_t format;
     bool disable_validation; /* do not automatically validate keys, added to this key store */
 
     list keys;  // list of pgp_key_t
