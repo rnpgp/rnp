@@ -2021,4 +2021,10 @@ rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
 /* Default symmetric algorithm */
 #define DEFAULT_SYMM_ALG RNP_ALGNAME_AES_256
 
+/* Keystore format: GPG, KBX (pub), G10 (sec), GPG21 ( KBX for pub, G10 for sec) */
+#define RNP_KEYSTORE_GPG ("GPG")
+#define RNP_KEYSTORE_KBX ("KBX")
+#define RNP_KEYSTORE_G10 ("G10")
+#define RNP_KEYSTORE_GPG21 ("GPG21")
+
 #endif
