@@ -122,13 +122,6 @@ typedef enum pgp_key_import_status_t {
     PGP_KEY_IMPORT_STATUS_NEW,
 } pgp_key_import_status_t;
 
-#define RNP_KEYSTORE_GPG "GPG" /* GPG keystore format */
-#define RNP_KEYSTORE_KBX "KBX" /* KBX keystore format */
-#define RNP_KEYSTORE_G10 "G10" /* G10 keystore format */
-
-// combinated keystores
-#define RNP_KEYSTORE_GPG21 "GPG21" /* KBX + G10 keystore format */
-
 typedef struct rnp_key_store_t {
     const char *           path;
     pgp_key_store_format_t format;
