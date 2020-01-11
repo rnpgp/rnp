@@ -54,13 +54,6 @@
 #include <regex>
 #endif
 
-#define RNP_KEYSTORE_GPG ("GPG") /* GPG keystore format */
-#define RNP_KEYSTORE_KBX ("KBX") /* KBX keystore format */
-#define RNP_KEYSTORE_G10 ("G10") /* G10 keystore format */
-
-// combinated keystores
-#define RNP_KEYSTORE_GPG21 ("GPG21") /* KBX + G10 keystore format */
-
 #ifdef HAVE_SYS_RESOURCE_H
 /* When system resource consumption limit controls are available this
  * can be used to attempt to disable core dumps which may leak
