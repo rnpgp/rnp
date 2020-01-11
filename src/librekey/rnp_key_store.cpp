@@ -60,14 +60,14 @@
 #endif
 
 static bool
-parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
+parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
 {
     if (strcmp(format, RNP_KEYSTORE_GPG) == 0) {
-        *key_store_format = GPG_KEY_STORE;
+        *key_store_format = PGP_KEY_STORE_GPG;
     } else if (strcmp(format, RNP_KEYSTORE_KBX) == 0) {
-        *key_store_format = KBX_KEY_STORE;
+        *key_store_format = PGP_KEY_STORE_KBX;
     } else if (strcmp(format, RNP_KEYSTORE_G10) == 0) {
-        *key_store_format = G10_KEY_STORE;
+        *key_store_format = PGP_KEY_STORE_G10;
     } else {
         RNP_LOG("unsupported keystore format: \"%s\"", format);
         return false;
@@ -78,8 +78,8 @@ parse_ks_format(enum key_store_format_t *key_store_format, const char *format)
 rnp_key_store_t *
 rnp_key_store_new(const char *format, const char *path)
 {
-    rnp_key_store_t *       key_store = NULL;
-    enum key_store_format_t key_store_format = UNKNOW_KEY_STORE;
+    rnp_key_store_t *      key_store = NULL;
+    pgp_key_store_format_t key_store_format = PGP_KEY_STORE_UNKNOWN;
 
     if (!parse_ks_format(&key_store_format, format)) {
         return NULL;
@@ -108,7 +108,7 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
     struct dirent *ent;
     char           path[MAXPATHLEN];
 
-    if (key_store->format == G10_KEY_STORE) {
+    if (key_store->format == PGP_KEY_STORE_G10) {
         dir = opendir(key_store->path);
         if (dir == NULL) {
             RNP_LOG("Can't open G10 directory %s: %s", key_store->path, strerror(errno));
@@ -155,11 +155,11 @@ rnp_key_store_load_from_src(rnp_key_store_t *         key_store,
                             const pgp_key_provider_t *key_provider)
 {
     switch (key_store->format) {
-    case GPG_KEY_STORE:
+    case PGP_KEY_STORE_GPG:
         return rnp_key_store_pgp_read_from_src(key_store, src) == RNP_SUCCESS;
-    case KBX_KEY_STORE:
+    case PGP_KEY_STORE_KBX:
         return rnp_key_store_kbx_from_src(key_store, src, key_provider);
-    case G10_KEY_STORE:
+    case PGP_KEY_STORE_G10:
         return rnp_key_store_g10_from_src(key_store, src, key_provider);
     default:
         RNP_LOG("Unsupported load from memory for key-store format: %d", key_store->format);
@@ -175,7 +175,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
     pgp_dest_t keydst = {};
 
     /* write g10 key store to the directory */
-    if (key_store->format == G10_KEY_STORE) {
+    if (key_store->format == PGP_KEY_STORE_G10) {
         char path[MAXPATHLEN];
         char grips[PGP_FINGERPRINT_HEX_SIZE];
 
@@ -249,9 +249,9 @@ bool
 rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     switch (key_store->format) {
-    case GPG_KEY_STORE:
+    case PGP_KEY_STORE_GPG:
         return rnp_key_store_pgp_write_to_dst(key_store, dst);
-    case KBX_KEY_STORE:
+    case PGP_KEY_STORE_KBX:
         return rnp_key_store_kbx_to_dst(key_store, dst);
     default:
         RNP_LOG("Unsupported write to memory for key-store format: %d", key_store->format);
@@ -480,7 +480,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 
     if (added_key) {
         /* we cannot merge G10 keys - so just return it */
-        if (srckey->format == G10_KEY_STORE) {
+        if (srckey->format == PGP_KEY_STORE_G10) {
             pgp_key_free_data(srckey);
             return added_key;
         }
