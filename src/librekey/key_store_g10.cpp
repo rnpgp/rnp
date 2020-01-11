@@ -1159,7 +1159,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         RNP_LOG("failed to add packet");
         goto done;
     }
-    key.format = G10_KEY_STORE;
+    key.format = PGP_KEY_STORE_G10;
     if (!rnp_key_store_add_key(key_store, &key)) {
         goto done;
     }
@@ -1569,7 +1569,7 @@ rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
     if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
-    if (key->format != G10_KEY_STORE) {
+    if (key->format != PGP_KEY_STORE_G10) {
         RNP_LOG("incorrect format: %d", key->format);
         return false;
     }

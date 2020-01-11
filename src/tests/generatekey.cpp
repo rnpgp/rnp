@@ -941,7 +941,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         strcpy((char *) desc.cert.userid, "test");
 
         // generate
-        assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, GPG_KEY_STORE));
+        assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, PGP_KEY_STORE_GPG));
 
         // add to our rings
         assert_true(rnp_key_store_add_key(pubring, &pub));
@@ -1061,7 +1061,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         // generate
         assert_true(pgp_generate_subkey(
-          &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, GPG_KEY_STORE));
+          &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, PGP_KEY_STORE_GPG));
 
         // check packet and subsig counts
         assert_int_equal(2, pgp_key_get_rawpacket_count(&pub));

@@ -77,7 +77,7 @@ bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
                               bool                       merge_defaults,
                               pgp_key_t *                primary_sec,
                               pgp_key_t *                primary_pub,
-                              key_store_format_t         secformat);
+                              pgp_key_store_format_t     secformat);
 
 /** generate a new subkey
  *
@@ -101,7 +101,7 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
                          pgp_key_t *                    subkey_sec,
                          pgp_key_t *                    subkey_pub,
                          const pgp_password_provider_t *password_provider,
-                         key_store_format_t             secformat);
+                         pgp_key_store_format_t         secformat);
 
 /** generate a new primary key and subkey
  *
@@ -124,7 +124,7 @@ bool pgp_generate_keypair(rng_t *                    rng,
                           pgp_key_t *                primary_pub,
                           pgp_key_t *                subkey_sec,
                           pgp_key_t *                subkey_pub,
-                          key_store_format_t         secformat);
+                          pgp_key_store_format_t     secformat);
 
 /**
  * @brief Check two key material for equality. Only public part is checked, so this can be

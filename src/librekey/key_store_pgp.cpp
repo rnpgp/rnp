@@ -111,7 +111,7 @@ create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
         return false;
     }
 
-    key->format = GPG_KEY_STORE;
+    key->format = PGP_KEY_STORE_GPG;
     key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     return true;
 }
@@ -456,7 +456,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             continue;
         }
 
-        if (key->format != GPG_KEY_STORE) {
+        if (key->format != PGP_KEY_STORE_GPG) {
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
             return false;
         }

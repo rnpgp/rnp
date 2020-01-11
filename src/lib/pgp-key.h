@@ -71,15 +71,15 @@ struct pgp_key_t {
     pgp_key_pkt_t pkt;          /* pubkey/seckey data packet */
     uint8_t       key_flags;    /* key flags */
     uint8_t       keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t  fingerprint;
-    uint8_t            grip[PGP_KEY_GRIP_SIZE];
-    uint32_t           uid0;         /* primary uid index in uids array */
-    unsigned           uid0_set : 1; /* flag for the above */
-    uint8_t            revoked;      /* key has been revoked */
-    pgp_revoke_t       revocation;   /* revocation reason */
-    key_store_format_t format;       /* the format of the key in packets[0] */
-    bool               valid;        /* this key is valid and usable */
-    bool               validated;    /* this key was validated */
+    pgp_fingerprint_t      fingerprint;
+    uint8_t                grip[PGP_KEY_GRIP_SIZE];
+    uint32_t               uid0;         /* primary uid index in uids array */
+    unsigned               uid0_set : 1; /* flag for the above */
+    uint8_t                revoked;      /* key has been revoked */
+    pgp_revoke_t           revocation;   /* revocation reason */
+    pgp_key_store_format_t format;       /* the format of the key in packets[0] */
+    bool                   valid;        /* this key is valid and usable */
+    bool                   validated;    /* this key was validated */
 };
 
 struct pgp_key_t *pgp_key_new(void);
@@ -361,7 +361,7 @@ bool pgp_key_lock(pgp_key_t *key);
  *  @return true if key was successfully protected, false otherwise
  **/
 bool rnp_key_add_protection(pgp_key_t *                    key,
-                            key_store_format_t             format,
+                            pgp_key_store_format_t         format,
                             rnp_key_protection_params_t *  protection,
                             const pgp_password_provider_t *password_provider);
 
@@ -376,7 +376,7 @@ bool rnp_key_add_protection(pgp_key_t *                    key,
  **/
 bool pgp_key_protect(pgp_key_t *                  key,
                      pgp_key_pkt_t *              decrypted_seckey,
-                     key_store_format_t           format,
+                     pgp_key_store_format_t       format,
                      rnp_key_protection_params_t *protection,
                      const char *                 new_password);
 
