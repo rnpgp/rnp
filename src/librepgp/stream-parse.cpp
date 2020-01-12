@@ -1873,6 +1873,10 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     param = (pgp_source_encrypted_param_t *) src->param;
     param->pkt.readsrc = readsrc;
 
+    src->close = encrypted_src_close;
+    src->finish = encrypted_src_finish;
+    src->type = PGP_STREAM_ENCRYPTED;
+
     /* Read the packet-related information */
     errcode = encrypted_read_packet_data(param);
     if (errcode != RNP_SUCCESS) {
@@ -1880,9 +1884,6 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     }
 
     src->read = param->aead ? encrypted_src_read_aead : encrypted_src_read_cfb;
-    src->close = encrypted_src_close;
-    src->finish = encrypted_src_finish;
-    src->type = PGP_STREAM_ENCRYPTED;
 
     /* Obtaining the symmetric key */
     have_key = false;
