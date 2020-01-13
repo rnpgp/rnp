@@ -848,19 +848,6 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
         (void) fprintf(stderr, "Failed to set hash algorithm.\n");
         goto done;
     }
-    if (rnp_op_generate_set_protection_cipher(genkey, rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG))) {
-        (void) fprintf(stderr, "Failed to set protection algorithm.\n");
-        goto done;
-    }
-    if (rnp_op_generate_set_protection_hash(genkey, rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH))) {
-        (void) fprintf(stderr, "Failed to set protection hash algorithm.\n");
-        goto done;
-    }
-    if (rnp_op_generate_set_protection_iterations(
-          genkey, rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS))) {
-        (void) fprintf(stderr, "Failed to set protection iterations.\n");
-        goto done;
-    }
 
     fprintf(stdout, "Generating a new key...\n");
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &primary)) {
@@ -895,24 +882,36 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
         (void) fprintf(stderr, "Failed to set hash algorithm.\n");
         goto done;
     }
-    if (rnp_op_generate_set_protection_cipher(genkey, rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG))) {
-        (void) fprintf(stderr, "Failed to set protection algorithm.\n");
-        goto done;
-    }
-    if (rnp_op_generate_set_protection_hash(genkey, rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH))) {
-        (void) fprintf(stderr, "Failed to set protection hash algorithm.\n");
-        goto done;
-    }
-    if (rnp_op_generate_set_protection_iterations(
-          genkey, rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS))) {
-        (void) fprintf(stderr, "Failed to set protection iterations.\n");
-        goto done;
-    }
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {
         (void) fprintf(stderr, "Subkey generation failed.\n");
         goto done;
     }
 
+    // protect
+    rnp_password_cb passcb;
+    void *          passctx;
+    char            password[MAX_PASSWORD_LENGTH];
+    if (rnp->passfp) {
+        passcb = &ffi_pass_callback_file;
+        passctx = rnp->passfp;
+    } else {
+        passcb = &ffi_pass_callback_stdin;
+        passctx = NULL;
+    }
+    for (auto key : {primary, subkey}) {
+        if (!passcb(rnp->ffi, passctx, key, "protect", password, sizeof(password))) {
+            goto done;
+        }
+        if (rnp_key_protect(key,
+                            password,
+                            rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG),
+                            NULL,
+                            rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
+                            rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS))) {
+            (void) fprintf(stderr, "Failed to protect key.\n");
+            goto done;
+        }
+    }
     res = cli_rnp_save_keyrings(rnp);
 done:
     if (res) {
@@ -921,6 +920,7 @@ done:
             cli_rnp_print_key_info(stdout, rnp->ffi, subkey, true, false);
         }
     }
+    pgp_forget(password, sizeof(password));
     rnp_op_generate_destroy(genkey);
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(subkey);
