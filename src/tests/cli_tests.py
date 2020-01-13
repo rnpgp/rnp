@@ -89,6 +89,16 @@ r'pub .*' \
 r'uid\s+(.*)\s*' \
 r'Signature\(s\) verified successfully.*$'
 
+RE_RNP_ENCRYPTED_KEY = r'(?s)^.*' \
+r'Secret key packet.*' \
+r'secret key material:.*' \
+r'encrypted secret key data:.*' \
+r'UserID packet.*' \
+r'id: enc@rnp.*' \
+r'Secret subkey packet.*' \
+r'secret key material:.*' \
+r'encrypted secret key data:.*$'
+
 RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
 # These are mostly identical
 RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256', 'TWOFISH' : 'twofish',
@@ -933,6 +943,25 @@ class Keystore(unittest.TestCase):
         if ret != 0: raise_err('gpg : failed to read KBX', err)
         if kbx_userid_tracker not in out: raise_err('gpg : failed to read expected key from KBX')
         clear_keyrings()
+
+    def test_generate_protection_pass_fd(self):
+        '''
+        Generate key with RNP, using the --pass-fd parameter, and make sure key is encrypted
+        '''        
+        clear_keyrings()
+        # Open pipe for password
+        pipe = pswd_pipe(PASSWORD)
+        # Run key generation
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'enc@rnp', '--generate-key'])
+        os.close(pipe)
+        if ret != 0:
+            raise_err('key generation failed', err)
+        # Check packets using the gpg
+        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        ret, out, err = run_proc(RNP, params)
+        match = re.match(RE_RNP_ENCRYPTED_KEY, out)
+        if not match:
+            raise_err('wrong encrypted secret key listing', err)
 
 class Misc(unittest.TestCase):
 
