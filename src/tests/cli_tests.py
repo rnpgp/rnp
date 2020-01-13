@@ -921,10 +921,12 @@ class Keystore(unittest.TestCase):
         Generate KBX with RNP and ensurethat the key can be read with GnuPG
         '''
         clear_keyrings()
+        pipe = pswd_pipe(PASSWORD)
         kbx_userid_tracker = 'kbx_userid_tracker@rnp'
         # Run key generation
         ret, out, err = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21', '--userid', kbx_userid_tracker,
-                                '--homedir', RNPDIR])
+                                '--homedir', RNPDIR, '--pass-fd', str(pipe)])
+        os.close(pipe)
         if ret != 0: raise_err('key generation failed', err)
         # Read KBX with GPG
         ret, out, err = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
