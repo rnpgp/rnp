@@ -79,6 +79,7 @@ add_executable(rnp_tests
   key-unlock.cpp
   key-validate.cpp
   large-packet.cpp
+  large-mpi.cpp
   load-g10.cpp
   load-pgp.cpp
   partial-length.cpp

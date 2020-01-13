@@ -323,6 +323,10 @@ void test_cli_dump(void **state);
 
 void test_large_packet(void **state);
 
+void test_large_mpi_rsa_pub(void **state);
+
+void test_large_mpi_rsa_priv(void **state);
+
 void test_partial_length_signature(void **state);
 
 void test_partial_length_public_key(void **state);
