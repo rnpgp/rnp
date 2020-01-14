@@ -1006,7 +1006,7 @@ static bool
 cleartext_parse_headers(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    char                       hdr[1024];
+    char                       hdr[1024] = {0};
     char *                     hval;
     pgp_hash_alg_t             halg;
     ssize_t                    hdrlen;
