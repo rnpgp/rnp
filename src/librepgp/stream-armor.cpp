@@ -582,7 +582,7 @@ static bool
 armor_parse_headers(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-    char                        header[1024];
+    char                        header[1024] = {0};
     ssize_t                     hdrlen;
     char *                      hdrval;
 
