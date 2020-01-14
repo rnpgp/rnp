@@ -2905,7 +2905,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
 
     if (pub || sec) {
         *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
-        if (!handle) {
+        if (!*handle) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         (*handle)->ffi = ffi;
