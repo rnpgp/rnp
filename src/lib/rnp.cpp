@@ -1678,9 +1678,10 @@ rnp_output_to_armor(rnp_output_t base, rnp_output_t *output, const char *type)
     if (ret) {
         free(*output);
         *output = NULL;
+        return ret;
     }
     (*output)->app_ctx = base;
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
