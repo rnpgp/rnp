@@ -250,7 +250,6 @@ pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
 size_t
 pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
 {
-    size_t outlen = hash->_output_len;
     if (!hash || !hash->handle) {
         return 0;
     }
@@ -261,6 +260,7 @@ pgp_hash_finish(pgp_hash_t *hash, uint8_t *out)
         return 0;
     }
 
+    size_t outlen = hash->_output_len;
     hash->handle = NULL;
     try {
         if (out) {
