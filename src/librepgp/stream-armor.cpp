@@ -124,8 +124,8 @@ armor_read_padding(pgp_source_t *src)
 static bool
 armor_read_crc(pgp_source_t *src)
 {
-    uint8_t                     dec[4];
-    char                        crc[8];
+    uint8_t                     dec[4] = {0};
+    char                        crc[8] = {0};
     ssize_t                     clen;
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
