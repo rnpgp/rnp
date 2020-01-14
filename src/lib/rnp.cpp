@@ -3481,7 +3481,7 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     json_tokener_error  error;
 
     // checks
-    if (!ffi || (!ffi->pubring && !ffi->secring) || !json) {
+    if (!ffi || !ffi->secring || !json) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -3553,37 +3553,35 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             }
             sub_pub = (pgp_key_t){0};
         }
-        if (ffi->secring) {
-            /* add key/subkey protection */
-            if (keygen_desc.primary.protection.symm_alg &&
-                !rnp_key_add_protection(&primary_sec,
-                                        ffi->secring->format,
-                                        &keygen_desc.primary.protection,
-                                        &ffi->pass_provider)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
-            }
-
-            if (keygen_desc.subkey.protection.symm_alg &&
-                !rnp_key_add_protection(&sub_sec,
-                                        ffi->secring->format,
-                                        &keygen_desc.subkey.protection,
-                                        &ffi->pass_provider)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
-            }
-
-            if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
-            }
-            primary_sec = (pgp_key_t){0};
-            if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
-            }
-            sub_sec = (pgp_key_t){0};
+        /* add key/subkey protection */
+        if (keygen_desc.primary.protection.symm_alg &&
+            !rnp_key_add_protection(&primary_sec,
+                                    ffi->secring->format,
+                                    &keygen_desc.primary.protection,
+                                    &ffi->pass_provider)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
         }
+
+        if (keygen_desc.subkey.protection.symm_alg &&
+            !rnp_key_add_protection(&sub_sec,
+                                    ffi->secring->format,
+                                    &keygen_desc.subkey.protection,
+                                    &ffi->pass_provider)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
+        }
+
+        if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        primary_sec = (pgp_key_t){0};
+        if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        sub_sec = (pgp_key_t){0};
     } else if (jsoprimary && !jsosub) { // generating primary only
         keygen_desc.primary.keygen.crypto.rng = &ffi->rng;
         if (!parse_keygen_primary(jsoprimary, &keygen_desc)) {
@@ -3608,24 +3606,26 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             }
             primary_pub = (pgp_key_t){0};
         }
-        if (ffi->secring) {
-            /* encrypt secret key if specified */
-            if (keygen_desc.primary.protection.symm_alg &&
-                !rnp_key_add_protection(&primary_sec,
-                                        ffi->secring->format,
-                                        &keygen_desc.primary.protection,
-                                        &ffi->pass_provider)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
-            }
-
-            if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
-            }
-            primary_sec = (pgp_key_t){0};
+        /* encrypt secret key if specified */
+        if (keygen_desc.primary.protection.symm_alg &&
+            !rnp_key_add_protection(&primary_sec,
+                                    ffi->secring->format,
+                                    &keygen_desc.primary.protection,
+                                    &ffi->pass_provider)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
         }
+
+        if (!rnp_key_store_add_key(ffi->secring, &primary_sec)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        primary_sec = (pgp_key_t){0};
     } else if (jsosub) { // generating subkey only
+        if (!ffi->pubring) {
+            ret = RNP_ERROR_NULL_POINTER;
+            goto done;
+        }
         json_object *jsoparent = NULL;
         if (!json_object_object_get_ex(jsosub, "primary", &jsoparent) ||
             json_object_object_length(jsoparent) != 1) {
@@ -3687,23 +3687,21 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             }
             sub_pub = (pgp_key_t){0};
         }
-        if (ffi->secring) {
-            /* encrypt subkey if specified */
-            if (keygen_desc.subkey.protection.symm_alg &&
-                !rnp_key_add_protection(&sub_sec,
-                                        ffi->secring->format,
-                                        &keygen_desc.subkey.protection,
-                                        &ffi->pass_provider)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
-            }
-
-            if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
-            }
-            sub_sec = (pgp_key_t){0};
+        /* encrypt subkey if specified */
+        if (keygen_desc.subkey.protection.symm_alg &&
+            !rnp_key_add_protection(&sub_sec,
+                                    ffi->secring->format,
+                                    &keygen_desc.subkey.protection,
+                                    &ffi->pass_provider)) {
+            ret = RNP_ERROR_BAD_PARAMETERS;
+            goto done;
         }
+
+        if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        sub_sec = (pgp_key_t){0};
     } else {
         // nothing to generate...
         ret = RNP_ERROR_BAD_PARAMETERS;
