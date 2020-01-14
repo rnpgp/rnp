@@ -142,10 +142,10 @@ imported_key_changed(json_object *key)
     const char *pub = json_obj_get_str(key, "public");
     const char *sec = json_obj_get_str(key, "secret");
 
-    if (pub && (!strcmp(pub, "updated") || !strcmp(pub, "new"))) {
+    if (pub && ((!strcmp(pub, "updated") || !strcmp(pub, "new")))) {
         return true;
     }
-    return sec && (!strcmp(pub, "updated") || !strcmp(pub, "new"));
+    return sec && ((!strcmp(sec, "updated") || !strcmp(sec, "new")));
 }
 
 static bool
