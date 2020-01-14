@@ -918,14 +918,12 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     param = (pgp_dest_armored_param_t *) dst->param;
-
     dst->write = armored_dst_write;
     dst->finish = armored_dst_finish;
     dst->close = armored_dst_close;
     dst->type = PGP_STREAM_ARMORED;
     dst->writeb = 0;
     dst->clen = 0;
-    dst->param = param;
 
     if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
         RNP_LOG("Internal error");
