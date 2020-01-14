@@ -489,6 +489,10 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         pgp_key_free_data(srckey);
     } else {
         added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+        if (!added_key) {
+            RNP_LOG("allocation failed");
+            return NULL;
+        }
         /* primary key may be added after subkeys, so let's handle this case correctly */
         if (pgp_key_is_primary_key(added_key) &&
             !rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
@@ -496,13 +500,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         }
     }
 
-    if (!added_key) {
-        RNP_LOG("allocation failed");
-        return NULL;
-    }
-
     RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
-
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !added_key->validated) {
         pgp_key_validate(added_key, keyring);
