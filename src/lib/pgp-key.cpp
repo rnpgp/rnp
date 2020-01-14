@@ -706,14 +706,13 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        const char *         password)
 {
     pgp_source_t   src = {0};
-    pgp_key_pkt_t *res = NULL;
-
-    res = (pgp_key_pkt_t *) calloc(1, sizeof(*res));
+    pgp_key_pkt_t *res = (pgp_key_pkt_t *) calloc(1, sizeof(*res));
     if (!res) {
         return NULL;
     }
 
     if (init_mem_src(&src, data, data_len, false)) {
+        free(res);
         return NULL;
     }
 
