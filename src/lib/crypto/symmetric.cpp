@@ -212,7 +212,7 @@ pgp_cipher_cfb_finish(pgp_crypt_t *crypt)
         botan_block_cipher_destroy(crypt->cfb.obj);
         crypt->cfb.obj = NULL;
     }
-    botan_scrub_mem((uint8_t *) crypt, sizeof(crypt));
+    botan_scrub_mem((uint8_t *) crypt, sizeof(*crypt));
     return 0;
 }
 
