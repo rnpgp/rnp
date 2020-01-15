@@ -9,6 +9,20 @@
 
 == Creating an Initial Release
 
+=== Update the Documentation
+
+Update references to version numbers in relevant documentation to the new
+version you intend to release.
+
+[source,console]
+--
+git checkout master
+vim docs/installation.adoc
+git add docs/installation.adoc
+git commit
+git push
+--
+
 === Create the Branch
 
 Release branches have names of the form `release/N.x`, where N is the major
@@ -27,10 +41,6 @@ git checkout -b release/1.x master
 vim CHANGELOG.md
 # Add/update CHANGELOG entry for the new version
 git add CHANGELOG.md
-
-vim docs/installation.adoc
-# Update latest stable version tag in Debian instructions
-git add docs/installation.adoc
 
 echo 1.0.0 > version.txt
 git add -f version.txt
