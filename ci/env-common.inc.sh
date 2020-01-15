@@ -15,3 +15,5 @@ if [ "$BUILD_MODE" = "sanitize" ]; then
   export CC=clang
 fi
 
+export BOTAN_MODULES=$(cat ci/botan-modules | tr '\n' ',')
+
