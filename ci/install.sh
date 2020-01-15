@@ -14,7 +14,7 @@ if [ "$(get_os)" != "msys" ] && \
     rm -rf "${botan_build}"
   fi
 
-  git clone --depth 1 --branch 2.9.0 https://github.com/randombit/botan "${botan_build}"
+  git clone --depth 1 --branch 2.13.0 https://github.com/randombit/botan "${botan_build}"
   pushd "${botan_build}"
 
   osparam=
@@ -22,7 +22,9 @@ if [ "$(get_os)" != "msys" ] && \
     osparam="--os=mingw"
   fi
 
-  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" $osparam
+  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" \
+    $osparam --without-documentation --without-openssl --build-targets=shared \
+    --minimized-build --enable-modules="$BOTAN_MODULES"
   ${MAKE} -j${MAKE_PARALLEL} install
   popd
 fi
