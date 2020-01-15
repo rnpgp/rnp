@@ -1,5 +1,10 @@
 ## Changelog
 
+### 0.13.1 [01-15-2020]
+#### Security
+
+* rnpkeys: Fix issue #1030 where rnpkeys would generate unprotected secret keys.
+
 ### 0.13.0 [12-31-2019]
 #### General
 
