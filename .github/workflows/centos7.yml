@@ -13,6 +13,7 @@ env:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
       image: centos:7
     timeout-minutes: 50
