@@ -155,6 +155,15 @@ pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
                                     bool,
                                     pgp_key_import_status_t *);
 
+/**
+ * @brief Get signer's key from key store.
+ * 
+ * @param store populated key store, cannot be NULL.
+ * @param sig signature, cannot be NULL.
+ * @return pointer to pgp_key_t structure if key was found or NULL otherwise.
+ */
+pgp_key_t *rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig);
+
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_id(const rnp_key_store_t *,
