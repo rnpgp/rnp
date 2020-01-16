@@ -77,46 +77,6 @@ static pgp_map_t ss_rr_code_map[] = {
 };
 
 static bool
-create_key_from_pkt(pgp_key_t *key, pgp_key_pkt_t *pkt)
-{
-    pgp_key_pkt_t keypkt = {};
-
-    memset(key, 0, sizeof(*key));
-
-    if (!copy_key_pkt(&keypkt, pkt, false)) {
-        RNP_LOG("failed to copy key packet");
-        return false;
-    }
-
-    /* parse secret key if not encrypted */
-    if (is_secret_key_pkt(keypkt.tag)) {
-        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
-        if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
-            RNP_LOG("failed to setup key fields");
-            free_key_pkt(&keypkt);
-            return false;
-        }
-    }
-
-    /* this call transfers ownership */
-    if (!pgp_key_from_pkt(key, &keypkt, (pgp_content_enum) pkt->tag)) {
-        RNP_LOG("failed to setup key fields");
-        free_key_pkt(&keypkt);
-        return false;
-    }
-
-    /* add key rawpacket */
-    if (!pgp_key_add_key_rawpacket(key, pkt)) {
-        free_key_pkt(&keypkt);
-        return false;
-    }
-
-    key->format = PGP_KEY_STORE_GPG;
-    key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
-    return true;
-}
-
-static bool
 rnp_key_add_signature(pgp_key_t *key, pgp_signature_t *sig)
 {
     pgp_subsig_t *subsig = NULL;
@@ -322,7 +282,7 @@ rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
     memset(key, 0, sizeof(*key));
     /* create key */
-    if (!create_key_from_pkt(key, &tkey->key)) {
+    if (!pgp_key_from_pkt(key, &tkey->key)) {
         return false;
     }
 
@@ -353,7 +313,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
     memset(subkey, 0, sizeof(*subkey));
 
     /* create key */
-    if (!create_key_from_pkt(subkey, &tskey->subkey)) {
+    if (!pgp_key_from_pkt(subkey, &tskey->subkey)) {
         return false;
     }
 
