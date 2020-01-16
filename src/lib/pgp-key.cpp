@@ -218,11 +218,11 @@ pgp_rawpacket_free(pgp_rawpacket_t *packet)
     packet->raw = NULL;
 }
 
-bool
-pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enum tag)
+static bool
+pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
     assert(!key->pkt.version);
-    assert(is_key_pkt(tag));
+    assert(is_key_pkt(pkt->tag));
     assert(pkt->material.alg);
     if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, pkt) ||
         pgp_fingerprint(&key->fingerprint, pkt) ||
@@ -231,7 +231,45 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt, const pgp_content_enu
     }
     /* this is correct since changes ownership */
     key->pkt = *pkt;
-    key->pkt.tag = tag;
+    return true;
+}
+
+bool
+pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
+{
+    pgp_key_pkt_t keypkt = {};
+    memset(key, 0, sizeof(*key));
+
+    if (!copy_key_pkt(&keypkt, pkt, false)) {
+        RNP_LOG("failed to copy key packet");
+        return false;
+    }
+
+    /* parse secret key if not encrypted */
+    if (is_secret_key_pkt(keypkt.tag)) {
+        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
+        if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
+            RNP_LOG("failed to setup key fields");
+            free_key_pkt(&keypkt);
+            return false;
+        }
+    }
+
+    /* this call transfers ownership */
+    if (!pgp_key_init_with_pkt(key, &keypkt)) {
+        RNP_LOG("failed to setup key fields");
+        free_key_pkt(&keypkt);
+        return false;
+    }
+
+    /* add key rawpacket */
+    if (!pgp_key_add_key_rawpacket(key, &key->pkt)) {
+        free_key_pkt(&keypkt);
+        return false;
+    }
+
+    key->format = PGP_KEY_STORE_GPG;
+    key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     return true;
 }
 
