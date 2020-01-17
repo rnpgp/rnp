@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018-2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -33,6 +33,10 @@ cmake_minimum_required(VERSION 3.10)
 include(cmake/info.cmake)
 
 # determine version
+if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
+  file(DOWNLOAD https://raw.githubusercontent.com/riboseinc/cmake-versioning/master/version.cmake
+    "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
+endif()
 include(cmake/version.cmake)
 determine_version("${CMAKE_CURRENT_SOURCE_DIR}" RNP)
 
