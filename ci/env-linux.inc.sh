@@ -22,8 +22,5 @@ case "$(get_linux_dist)" in
       . /opt/rh/llvm-toolset-7.0/enable
     fi
     ;;
-  ubuntu)
-    export GPG_INSTALL="/usr"
-    ;;
 esac
 

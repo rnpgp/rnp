@@ -8,19 +8,35 @@ on:
       - 'release/**'
 
 env:
-  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  CORES: 2
+  BUILD_MODE: normal
+  GPG_VERSION: stable
 
 jobs:
-
   tests:
     runs-on: macOS-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v1
+      - name: Setup environment
+        run: |
+          echo "::set-env name=LOCAL_INSTALLS::$GITHUB_WORKSPACE/installs"
+          echo "::set-env name=RNP_INSTALL::$GITHUB_WORKSPACE/rnp-install"
+          echo "::set-env name=LOCAL_BUILDS::$GITHUB_WORKSPACE/builds"
+      - name: Cache
+        id: cache
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LOCAL_INSTALLS }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -x
+          ci/before_install.sh
+          . ci/env.inc.sh
+          ./ci/install.sh
       - name: tests
         run: ./ci/run.sh
-        env:
-          BUILD_MODE: normal
-          GPG_VERSION: stable
 
