@@ -3,6 +3,8 @@ set -exu
 
 . ci/utils.inc.sh
 
+mkdir -p "$LOCAL_BUILDS"
+
 # botan
 botan_build=${LOCAL_BUILDS}/botan
 if [ "$(get_os)" != "msys" ] && \
@@ -112,7 +114,7 @@ gpg_build=${LOCAL_BUILDS}/gpg
 if [ "$(get_os)" != "msys" ] && \
    [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
   mkdir -p "${gpg_build}"
-  cd "${gpg_build}"
+  pushd "${gpg_build}"
 
   if [ "$GPG_VERSION" = "stable" ]; then
     #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
@@ -124,6 +126,7 @@ if [ "$(get_os)" != "msys" ] && \
     echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
     exit 1
   fi
+  popd
 fi
 
 # ruby-rnp

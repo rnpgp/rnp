@@ -9,6 +9,7 @@ on:
 
 env:
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  CORES: 2
 
 jobs:
   tests:
@@ -34,9 +35,28 @@ jobs:
             RNP_TESTS: rnp_tests
     steps:
       - uses: actions/checkout@v1
-      - name: tests
+      - name: Setup environment
         run: |
-          ./ci/run.sh
+          echo "::set-env name=LOCAL_INSTALLS::$GITHUB_WORKSPACE/installs"
+          echo "::set-env name=RNP_INSTALL::$GITHUB_WORKSPACE/rnp-install"
+          echo "::set-env name=LOCAL_BUILDS::$GITHUB_WORKSPACE/builds"
+      - name: Cache
+        id: cache
+        uses: actions/cache@v1
+        with:
+          path: ${{ env.LOCAL_INSTALLS }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
         env: ${{ matrix.env }}
-
+        run: |
+          set -x
+          ci/before_install.sh
+          . ci/env.inc.sh
+          ./ci/install.sh
+      - name: tests
+        env: ${{ matrix.env }}
+        run: |
+          set -x
+          ./ci/run.sh
 
