@@ -17,4 +17,5 @@ if [ "$BUILD_MODE" = "sanitize" ]; then
 fi
 
 export BOTAN_MODULES=$(cat ci/botan-modules | tr '\n' ',')
+export VERSION_OVERRIDE_BRANCH=master
 
