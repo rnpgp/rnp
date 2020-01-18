@@ -8,31 +8,15 @@ on:
       - 'release/**'
 
 env:
-  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
   CORES: 2
+  BUILD_MODE: normal
+  GPG_VERSION: stable
 
 jobs:
   tests:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 50
-    strategy:
-      matrix:
-        env:
-          - BUILD_MODE: normal
-            GPG_VERSION: stable
-          - BUILD_MODE: normal
-            GPG_VERSION: beta
-          - BUILD_MODE: sanitize
-            GPG_VERSION: stable
-          - BUILD_MODE: sanitize
-            GPG_VERSION: beta
-          - BUILD_MODE: coverage
-            GPG_VERSION: beta
-            RNP_TESTS: cli_tests
-          - BUILD_MODE: coverage
-            GPG_VERSION: beta
-            RNP_TESTS: rnp_tests
     steps:
       - uses: actions/checkout@v1
       - name: Setup environment
@@ -45,17 +29,15 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ env.LOCAL_INSTALLS }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
-        env: ${{ matrix.env }}
         run: |
           set -x
           ci/before_install.sh
           . ci/env.inc.sh
           ./ci/install.sh
       - name: tests
-        env: ${{ matrix.env }}
         run: |
           set -x
           ./ci/run.sh
