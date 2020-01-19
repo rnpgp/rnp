@@ -1275,8 +1275,12 @@ rnp_path_compose(
  *  @return true if path constructed successfully, or false otherwise
  **/
 static bool
-rnp_path_compose2(
-  const char *dir, const char *subdir, const char *filename, const char *keyring, char *res, size_t res_size)
+rnp_path_compose2(const char *dir,
+                  const char *subdir,
+                  const char *filename,
+                  const char *keyring,
+                  char *      res,
+                  size_t      res_size)
 {
     char        new_path[MAXPATHLEN] = {0};
     const char *new_dir = dir, *new_subdir = subdir, *new_filename = filename;
@@ -1365,12 +1369,20 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         if (!(subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG))) {
             subdir = SUBDIRECTORY_RNP;
         }
-        if (!rnp_path_compose2(
-              homedir, defhomedir ? subdir : NULL, PUBRING_KBX, keyring, pubpath, sizeof(pubpath))) {
+        if (!rnp_path_compose2(homedir,
+                               defhomedir ? subdir : NULL,
+                               PUBRING_KBX,
+                               keyring,
+                               pubpath,
+                               sizeof(pubpath))) {
             return false;
         }
-        if (!rnp_path_compose2(
-              homedir, defhomedir ? subdir : NULL, SECRING_G10, keyring, secpath, sizeof(secpath))) {
+        if (!rnp_path_compose2(homedir,
+                               defhomedir ? subdir : NULL,
+                               SECRING_G10,
+                               keyring,
+                               secpath,
+                               sizeof(secpath))) {
             return false;
         }
 
@@ -1412,29 +1424,37 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
     const char *sec_format = RNP_KEYSTORE_GPG;
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
-        if (!rnp_path_compose2(homedir, subdir, PUBRING_GPG, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(homedir, subdir, SECRING_GPG, keyring, secpath, sizeof(secpath))) {
+        if (!rnp_path_compose2(
+              homedir, subdir, PUBRING_GPG, keyring, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose2(
+              homedir, subdir, SECRING_GPG, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_GPG;
         sec_format = RNP_KEYSTORE_GPG;
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
-        if (!rnp_path_compose2(homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
+        if (!rnp_path_compose2(
+              homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose2(
+              homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_G10;
     } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
-        if (!rnp_path_compose2(homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(homedir, subdir, SECRING_KBX, keyring, secpath, sizeof(secpath))) {
+        if (!rnp_path_compose2(
+              homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose2(
+              homedir, subdir, SECRING_KBX, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_KBX;
     } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
-        if (!rnp_path_compose2(homedir, subdir, PUBRING_G10, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
+        if (!rnp_path_compose2(
+              homedir, subdir, PUBRING_G10, keyring, pubpath, sizeof(pubpath)) ||
+            !rnp_path_compose2(
+              homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_G10;
