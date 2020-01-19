@@ -111,6 +111,7 @@ enum optdefs {
     CMD_PROCESS,
 
     /* Options */
+    OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
     OPT_RECIPIENT,
@@ -171,6 +172,7 @@ static struct option options[] = {
   {"debug", required_argument, NULL, OPT_DEBUG},
   /* options */
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
+  {"keyring", required_argument, NULL, OPT_KEYRING},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"recipient", required_argument, NULL, OPT_RECIPIENT},
@@ -368,6 +370,12 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     /* options */
     case OPT_COREDUMPS:
         return rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
+    case OPT_KEYRING:
+        if (arg == NULL) {
+            fputs("No keyring argument provided\n", stderr);
+            return false;
+        }
+        return rnp_cfg_setstr(cfg, CFG_KEYRING, arg);
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
             (void) fprintf(stderr, "No keyring format argument provided\n");

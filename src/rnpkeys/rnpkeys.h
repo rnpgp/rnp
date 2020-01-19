@@ -17,6 +17,7 @@ typedef enum {
     CMD_HELP,
 
     /* options */
+    OPT_KEYRING,
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
     OPT_HOMEDIR,
