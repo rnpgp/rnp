@@ -44,14 +44,6 @@ typedef struct pgp_signature_info_t {
     bool             signer_valid; /* assume that signing key is valid */
 } pgp_signature_info_t;
 
-typedef struct pgp_signatures_info_t {
-    list     sigs; /* list of pgp_signature_info_t structures, struct owns them */
-    unsigned validc;
-    unsigned expiredc;
-    unsigned invalidc;
-    unsigned unknownc;
-} pgp_signatures_info_t;
-
 /**
  * @brief Check whether signature packet matches one-pass signature packet.
  * @param sig pointer to the read signature packet
@@ -367,16 +359,5 @@ rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_p
 rnp_result_t signature_check_subkey_revocation(pgp_signature_info_t *sinfo,
                                                const pgp_key_pkt_t * key,
                                                const pgp_key_pkt_t * subkey);
-
-/**
- * @brief Check whether signatures info structure has all correct signatures.
- *
- * @param info populated signatures info
- * @return true if all signatures are valid and there is at least one signature
- * @return false if there are invalid, unknown or expired signature(s)
- */
-bool check_signatures_info(const pgp_signatures_info_t *info);
-
-void free_signatures_info(pgp_signatures_info_t *info);
 
 #endif
