@@ -269,6 +269,8 @@ void test_ffi_detached_verify_input(void **state);
 
 void test_ffi_op_verify_sig_count(void **state);
 
+void test_ffi_import_signatures(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
