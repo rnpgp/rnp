@@ -33,6 +33,7 @@
 #include "types.h"
 #include "stream-sig.h"
 #include "stream-packet.h"
+#include "stream-armor.h"
 #include "pgp-key.h"
 #include "crypto/signatures.h"
 
@@ -1272,4 +1273,74 @@ signature_check_subkey_revocation(pgp_signature_info_t *sinfo,
     }
 
     return signature_check(sinfo, &hash);
+}
+
+void
+signature_list_destroy(list *sigs)
+{
+    for (list_item *li = list_front(*sigs); li; li = list_next(li)) {
+        free_signature((pgp_signature_t *) li);
+    }
+    list_destroy(sigs);
+}
+
+rnp_result_t
+process_pgp_signatures(pgp_source_t *src, list *sigs)
+{
+    bool             armored = false;
+    pgp_source_t     armorsrc = {0};
+    pgp_source_t *   origsrc = src;
+    pgp_signature_t *cursig = NULL;
+    rnp_result_t     ret = RNP_ERROR_GENERIC;
+
+    *sigs = NULL;
+    /* check whether signatures are armored */
+armoredpass:
+    if (is_armored_source(src)) {
+        if ((ret = init_armored_src(&armorsrc, src))) {
+            RNP_LOG("failed to parse armored data");
+            goto finish;
+        }
+        armored = true;
+        src = &armorsrc;
+    }
+
+    /* read sequence of OpenPGP signatures */
+    while (!src_eof(src) && !src_error(src)) {
+        int ptag = stream_pkt_type(src);
+
+        if ((ptag < 0) || (ptag != PGP_PTAG_CT_SIGNATURE)) {
+            RNP_LOG("wrong signature tag: %d", ptag);
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+
+        if (!(cursig = (pgp_signature_t *) list_append(sigs, NULL, sizeof(*cursig)))) {
+            RNP_LOG("sig alloc failed");
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto finish;
+        }
+
+        if ((ret = stream_parse_signature(src, cursig))) {
+            list_remove((list_item *) cursig);
+            goto finish;
+        }
+    }
+
+    /* file may have multiple armored keys */
+    if (armored && !src_eof(origsrc) && is_armored_source(origsrc)) {
+        src_close(&armorsrc);
+        armored = false;
+        src = origsrc;
+        goto armoredpass;
+    }
+    ret = RNP_SUCCESS;
+finish:
+    if (armored) {
+        src_close(&armorsrc);
+    }
+    if (ret) {
+        signature_list_destroy(sigs);
+    }
+    return ret;
 }
