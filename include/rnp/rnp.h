@@ -356,7 +356,7 @@ rnp_result_t rnp_load_keys(rnp_ffi_t   ffi,
  *  Note: After unloading all key handles will become invalid and must be destroyed.
  * @param ffi
  * @param flags choose which keys should be unloaded (pubic, secret or both).
- *              See RNP_UNLOAD_PUBLIC_KEYS/RNP_UNLOAD_SECRET_KEYS.
+ *              See RNP_KEY_UNLOAD_PUBLIC/RNP_KEY_UNLOAD_SECRET.
  * @return RNP_SUCCESS on success, or any other value on error.
  */
 rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
