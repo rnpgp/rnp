@@ -1275,49 +1275,51 @@ rnp_path_compose(
  *  @return true if path constructed successfully, or false otherwise
  **/
 static bool
-rnp_path_compose2(const char *dir,
-                  const char *subdir,
-                  const char *filename,
-                  const char *keyring,
-                  char *      res,
-                  size_t      res_size)
+rnp_path_compose_considering_keyring(const char *dir,
+                                     const char *subdir,
+                                     const char *filename,
+                                     const char *keyring,
+                                     char *      res,
+                                     size_t      res_size)
 {
-    char        new_path[MAXPATHLEN] = {0};
     const char *new_dir = dir, *new_subdir = subdir, *new_filename = filename;
-    const char *chr_pos;
-    char *      ptr_dir, *ptr_subdir, *ptr_filename;
-    unsigned    pos = 0, len;
+    const char *file_sep_ptr;
+    char *      ptr_dir = NULL, *ptr_subdir = NULL, *ptr_filename = NULL;
+    bool        is_abs_path;
+    bool        result = false;
 
     if (keyring) {
-        chr_pos = strrchr(keyring, '/');
-        if (chr_pos) {
-            len = chr_pos - keyring;
-            if (keyring[0] == '/') {
-                new_dir = ptr_dir = new_path + pos;
-                memcpy(ptr_dir, keyring, len * sizeof(keyring[0]));
-                ptr_dir[pos += len] = '\0';
-                pos++;
-
+        file_sep_ptr = strrchr(keyring, '/');
+        if (file_sep_ptr) {
+            std::string keyring_dir(keyring, file_sep_ptr - keyring);
+            is_abs_path = (keyring[0] == '/');
+            if (is_abs_path) {
+                if (!rnp_compose_path_ex(&ptr_dir, NULL, keyring_dir.c_str(), NULL)) {
+                    return false;
+                }
+                new_dir = ptr_dir;
                 new_subdir = NULL;
             } else {
-                new_subdir = ptr_subdir = new_path + pos;
-                strcpy(ptr_subdir, subdir);
-                pos += strlen(ptr_subdir);
-                if ((pos > 0) && (ptr_subdir[pos - 1] != '/')) {
-                    ptr_subdir[pos++] = '/';
+                if (!rnp_compose_path_ex(&ptr_subdir, NULL, subdir, keyring_dir.c_str(), NULL)) {
+                    return false;
                 }
-                memcpy(ptr_subdir + pos, keyring, len * sizeof(keyring[0]));
-                ptr_subdir[pos += len] = '\0';
-                pos++;
+                new_subdir = ptr_subdir;
             }
         }
-        new_filename = ptr_filename = new_path + pos;
-        strcpy(ptr_filename, chr_pos ? chr_pos + 1 : keyring);
+        std::string keyring_file(file_sep_ptr ? file_sep_ptr + 1 : keyring);
         if (filename) {
-            strcat(ptr_filename, filename);
+            keyring_file.append(filename);
         }
+        if (!rnp_compose_path_ex(&ptr_filename, NULL, keyring_file.c_str(), NULL)) {
+            return false;
+        }
+        new_filename = ptr_filename;
     }
-    return rnp_path_compose(new_dir, new_subdir, filename ? new_filename : "", res, res_size);
+    result = rnp_path_compose(new_dir, new_subdir, filename ? new_filename : "", res, res_size);
+    free(ptr_dir);
+    free(ptr_subdir);
+    free(ptr_filename);
+    return result;
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
@@ -1369,20 +1371,20 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         if (!(subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG))) {
             subdir = SUBDIRECTORY_RNP;
         }
-        if (!rnp_path_compose2(homedir,
-                               defhomedir ? subdir : NULL,
-                               PUBRING_KBX,
-                               keyring,
-                               pubpath,
-                               sizeof(pubpath))) {
+        if (!rnp_path_compose_considering_keyring(homedir,
+                                                  defhomedir ? subdir : NULL,
+                                                  PUBRING_KBX,
+                                                  keyring,
+                                                  pubpath,
+                                                  sizeof(pubpath))) {
             return false;
         }
-        if (!rnp_path_compose2(homedir,
-                               defhomedir ? subdir : NULL,
-                               SECRING_G10,
-                               keyring,
-                               secpath,
-                               sizeof(secpath))) {
+        if (!rnp_path_compose_considering_keyring(homedir,
+                                                  defhomedir ? subdir : NULL,
+                                                  SECRING_G10,
+                                                  keyring,
+                                                  secpath,
+                                                  sizeof(secpath))) {
             return false;
         }
 
@@ -1410,7 +1412,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
                 return false;
             }
         } else {
-            if (!rnp_path_compose2(homedir, subdir, NULL, keyring, pubpath, sizeof(pubpath))) {
+            if (!rnp_path_compose_considering_keyring(homedir, subdir, NULL, keyring, pubpath, sizeof(pubpath))) {
                 return false;
             }
         }
@@ -1424,36 +1426,36 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
     const char *sec_format = RNP_KEYSTORE_GPG;
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
-        if (!rnp_path_compose2(
+        if (!rnp_path_compose_considering_keyring(
               homedir, subdir, PUBRING_GPG, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(
+            !rnp_path_compose_considering_keyring(
               homedir, subdir, SECRING_GPG, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_GPG;
         sec_format = RNP_KEYSTORE_GPG;
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
-        if (!rnp_path_compose2(
+        if (!rnp_path_compose_considering_keyring(
               homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(
+            !rnp_path_compose_considering_keyring(
               homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_G10;
     } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
-        if (!rnp_path_compose2(
+        if (!rnp_path_compose_considering_keyring(
               homedir, subdir, PUBRING_KBX, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(
+            !rnp_path_compose_considering_keyring(
               homedir, subdir, SECRING_KBX, keyring, secpath, sizeof(secpath))) {
             return false;
         }
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_KBX;
     } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
-        if (!rnp_path_compose2(
+        if (!rnp_path_compose_considering_keyring(
               homedir, subdir, PUBRING_G10, keyring, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose2(
+            !rnp_path_compose_considering_keyring(
               homedir, subdir, SECRING_G10, keyring, secpath, sizeof(secpath))) {
             return false;
         }
