@@ -44,15 +44,6 @@
 #include "crypto/signatures.h"
 #include "../librekey/key_store_pgp.h"
 
-static void
-signature_list_destroy(list *sigs)
-{
-    for (list_item *li = list_front(*sigs); li; li = list_next(li)) {
-        free_signature((pgp_signature_t *) li);
-    }
-    list_destroy(sigs);
-}
-
 void
 transferable_subkey_destroy(pgp_transferable_subkey_t *subkey)
 {
