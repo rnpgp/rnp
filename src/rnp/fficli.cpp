@@ -1300,7 +1300,8 @@ rnp_path_compose_considering_keyring(const char *dir,
                 new_dir = ptr_dir;
                 new_subdir = NULL;
             } else {
-                if (!rnp_compose_path_ex(&ptr_subdir, NULL, subdir, keyring_dir.c_str(), NULL)) {
+                if (!rnp_compose_path_ex(
+                      &ptr_subdir, NULL, subdir, keyring_dir.c_str(), NULL)) {
                     return false;
                 }
                 new_subdir = ptr_subdir;
@@ -1315,7 +1316,8 @@ rnp_path_compose_considering_keyring(const char *dir,
         }
         new_filename = ptr_filename;
     }
-    result = rnp_path_compose(new_dir, new_subdir, filename ? new_filename : "", res, res_size);
+    result =
+      rnp_path_compose(new_dir, new_subdir, filename ? new_filename : "", res, res_size);
     free(ptr_dir);
     free(ptr_subdir);
     free(ptr_filename);
@@ -1412,7 +1414,8 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
                 return false;
             }
         } else {
-            if (!rnp_path_compose_considering_keyring(homedir, subdir, NULL, keyring, pubpath, sizeof(pubpath))) {
+            if (!rnp_path_compose_considering_keyring(
+                  homedir, subdir, NULL, keyring, pubpath, sizeof(pubpath))) {
                 return false;
             }
         }
