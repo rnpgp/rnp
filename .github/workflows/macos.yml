@@ -29,7 +29,7 @@ jobs:
         uses: actions/cache@v1
         with:
           path: ${{ env.LOCAL_INSTALLS }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
