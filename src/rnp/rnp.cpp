@@ -216,8 +216,7 @@ static struct option options[] = {
 static void
 print_praise(void)
 {
-    fprintf(stderr,
-            "%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+    ERR_MSG("%s\nAll bug reports, praise and chocolate, please, to:\n%s",
             PACKAGE_STRING,
             PACKAGE_BUGREPORT);
 }
@@ -227,7 +226,7 @@ static void
 print_usage(const char *usagemsg)
 {
     print_praise();
-    fprintf(stderr, "Usage: %s %s", rnp_prog_name, usagemsg);
+    ERR_MSG("Usage: %s %s", rnp_prog_name, usagemsg);
 }
 
 /* do a command once for a specified config */
@@ -323,7 +322,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
             } else if (msgt == "sign") {
                 msgt = "signature";
             } else {
-                fprintf(stderr, "Wrong enarmor argument: %s\n", arg);
+                ERR_MSG("Wrong enarmor argument: %s", arg);
                 return false;
             }
         }
@@ -370,19 +369,19 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
         return rnp_cfg_setbool(cfg, CFG_COREDUMPS, true);
     case OPT_KEY_STORE_FORMAT:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No keyring format argument provided\n");
+            ERR_MSG("No keyring format argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_KEYSTOREFMT, arg);
     case OPT_USERID:
         if (arg == NULL) {
-            fputs("No userid argument provided\n", stderr);
+            ERR_MSG("No userid argument provided");
             return false;
         }
         return rnp_cfg_addstr(cfg, CFG_SIGNERS, arg);
     case OPT_RECIPIENT:
         if (arg == NULL) {
-            fputs("No recipient argument provided\n", stderr);
+            ERR_MSG("No recipient argument provided");
             return false;
         }
         return rnp_cfg_addstr(cfg, CFG_RECIPIENTS, arg);
@@ -394,13 +393,13 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
         return rnp_cfg_setint(cfg, CFG_VERBOSE, rnp_cfg_getint(cfg, CFG_VERBOSE) + 1);
     case OPT_HOMEDIR:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No home directory argument provided\n");
+            ERR_MSG("No home directory argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_HOMEDIR, arg);
     case OPT_KEYFILE:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No keyfile argument provided\n");
+            ERR_MSG("No keyfile argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_KEYFILE, arg) &&
@@ -419,26 +418,26 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     }
     case OPT_PASSWDFD:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No pass-fd argument provided\n");
+            ERR_MSG("No pass-fd argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
     case OPT_PASSWD:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No password argument provided\n");
+            ERR_MSG("No password argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
     case OPT_PASSWORDS: {
         int count;
         if (arg == NULL) {
-            (void) fprintf(stderr, "You must provide a number with --passwords option\n");
+            ERR_MSG("You must provide a number with --passwords option");
             return false;
         }
 
         count = atoi(arg);
         if (count <= 0) {
-            (void) fprintf(stderr, "Incorrect value for --passwords option: %s\n", arg);
+            ERR_MSG("Incorrect value for --passwords option: %s", arg);
             return false;
         }
 
@@ -450,13 +449,13 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
     }
     case OPT_OUTPUT:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No output filename argument provided\n");
+            ERR_MSG("No output filename argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_OUTFILE, arg);
     case OPT_RESULTS:
         if (arg == NULL) {
-            (void) fprintf(stderr, "No output filename argument provided\n");
+            ERR_MSG("No output filename argument provided");
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_RESULTS, arg);
@@ -492,21 +491,21 @@ setoption(rnp_cfg_t *cfg, int val, const char *arg)
         } else if ((argstr == "2") || rnp_casecmp(argstr, "ocb")) {
             alg = "OCB";
         } else {
-            (void) fprintf(stderr, "Wrong AEAD algorithm: %s\n", arg);
+            ERR_MSG("Wrong AEAD algorithm: %s", arg);
             return false;
         }
         return rnp_cfg_setstr(cfg, CFG_AEAD, alg);
     }
     case OPT_AEAD_CHUNK: {
         if (!arg) {
-            (void) fprintf(stderr, "Option aead-chunk-bits requires parameter\n");
+            ERR_MSG("Option aead-chunk-bits requires parameter");
             return false;
         }
 
         int bits = atoi(arg);
 
         if ((bits < 0) || (bits > 56)) {
-            (void) fprintf(stderr, "Wrong argument value %s for aead-chunk-bits\n", arg);
+            ERR_MSG("Wrong argument value %s for aead-chunk-bits", arg);
             return false;
         }
 
@@ -546,7 +545,7 @@ parse_option(rnp_cfg_t *cfg, const char *s)
     if (!compiled) {
         compiled = 1;
         if (regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED) != 0) {
-            fprintf(stderr, "Can't compile regex\n");
+            ERR_MSG("Can't compile regex");
             return 0;
         }
     }
@@ -648,21 +647,21 @@ rnp_main(int argc, char **argv)
                 break;
             case 'o':
                 if (!parse_option(&cfg, optarg)) {
-                    (void) fprintf(stderr, "Bad option\n");
+                    ERR_MSG("Bad option");
                     ret = EXIT_ERROR;
                     goto finish;
                 }
                 break;
             case 'r':
                 if (strlen(optarg) < 1) {
-                    fprintf(stderr, "Recipient should not be empty\n");
+                    ERR_MSG("Recipient should not be empty");
                 } else {
                     rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, optarg);
                 }
                 break;
             case 'u':
                 if (!optarg) {
-                    fputs("No userid argument provided\n", stderr);
+                    ERR_MSG("No userid argument provided");
                     ret = EXIT_ERROR;
                     goto finish;
                 }
@@ -670,14 +669,14 @@ rnp_main(int argc, char **argv)
                 break;
             case 'z':
                 if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
-                    fprintf(stderr, "Bad compression level: %s. Should be 0..9\n", optarg);
+                    ERR_MSG("Bad compression level: %s. Should be 0..9", optarg);
                 } else {
                     rnp_cfg_setint(&cfg, CFG_ZLEVEL, (int) (optarg[0] - '0'));
                 }
                 break;
             case 'f':
                 if (!optarg) {
-                    (void) fprintf(stderr, "No keyfile argument provided\n");
+                    ERR_MSG("No keyfile argument provided");
                     ret = EXIT_ERROR;
                     goto finish;
                 }
@@ -705,7 +704,7 @@ rnp_main(int argc, char **argv)
     }
 
     if (!cli_cfg_set_keystore_info(&cfg)) {
-        fputs("fatal: cannot set keystore info\n", stderr);
+        ERR_MSG("fatal: cannot set keystore info");
         ret = EXIT_ERROR;
         goto finish;
     }
