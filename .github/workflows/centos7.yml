@@ -35,6 +35,7 @@ jobs:
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
+    env: ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v1
       - name: Add rnpuser
@@ -56,7 +57,6 @@ jobs:
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/*') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
-        env: ${{ matrix.env }}
         run: |
           set -x
           ci/before_install.sh
@@ -64,7 +64,6 @@ jobs:
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ./ci/install.sh
       - name: tests
-        env: ${{ matrix.env }}
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
