@@ -816,7 +816,7 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
 {
     /* set key generation parameters to rnp_cfg_t */
     if (!cli_rnp_set_generate_params(cfg)) {
-        (void) fprintf(stderr, "Key generation setup failed.\n");
+        ERR_MSG("Key generation setup failed.");
         return false;
     }
     /* generate the primary key */
@@ -826,32 +826,32 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
     bool              res = false;
 
     if (rnp_op_generate_create(&genkey, rnp->ffi, rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_ALG))) {
-        (void) fprintf(stderr, "Failed to initialize key generation.\n");
+        ERR_MSG("Failed to initialize key generation.");
         return false;
     }
     if (username && rnp_op_generate_set_userid(genkey, username)) {
-        (void) fprintf(stderr, "Failed to set userid.\n");
+        ERR_MSG("Failed to set userid.");
         goto done;
     }
     if (rnp_cfg_hasval(cfg, CFG_KG_PRIMARY_BITS) &&
         rnp_op_generate_set_bits(genkey, rnp_cfg_getint(cfg, CFG_KG_PRIMARY_BITS))) {
-        (void) fprintf(stderr, "Failed to set key bits.\n");
+        ERR_MSG("Failed to set key bits.");
         goto done;
     }
     if (rnp_cfg_hasval(cfg, CFG_KG_PRIMARY_CURVE) &&
         rnp_op_generate_set_curve(genkey, rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_CURVE))) {
-        (void) fprintf(stderr, "Failed to set key curve.\n");
+        ERR_MSG("Failed to set key curve.");
         goto done;
     }
     // TODO : set DSA qbits
     if (rnp_op_generate_set_hash(genkey, rnp_cfg_getstr(cfg, CFG_KG_HASH))) {
-        (void) fprintf(stderr, "Failed to set hash algorithm.\n");
+        ERR_MSG("Failed to set hash algorithm.");
         goto done;
     }
 
     fprintf(stdout, "Generating a new key...\n");
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &primary)) {
-        (void) fprintf(stderr, "Primary key generation failed.\n");
+        ERR_MSG("Primary key generation failed.");
         goto done;
     }
 
@@ -864,26 +864,26 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
     genkey = NULL;
     if (rnp_op_generate_subkey_create(
           &genkey, rnp->ffi, primary, rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_ALG))) {
-        (void) fprintf(stderr, "Failed to initialize subkey generation.\n");
+        ERR_MSG("Failed to initialize subkey generation.");
         goto done;
     }
     if (rnp_cfg_hasval(cfg, CFG_KG_SUBKEY_BITS) &&
         rnp_op_generate_set_bits(genkey, rnp_cfg_getint(cfg, CFG_KG_SUBKEY_BITS))) {
-        (void) fprintf(stderr, "Failed to set subkey bits.\n");
+        ERR_MSG("Failed to set subkey bits.");
         goto done;
     }
     if (rnp_cfg_hasval(cfg, CFG_KG_SUBKEY_CURVE) &&
         rnp_op_generate_set_curve(genkey, rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_CURVE))) {
-        (void) fprintf(stderr, "Failed to set subkey curve.\n");
+        ERR_MSG("Failed to set subkey curve.");
         goto done;
     }
     // TODO : set DSA qbits
     if (rnp_op_generate_set_hash(genkey, rnp_cfg_getstr(cfg, CFG_KG_HASH))) {
-        (void) fprintf(stderr, "Failed to set hash algorithm.\n");
+        ERR_MSG("Failed to set hash algorithm.");
         goto done;
     }
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {
-        (void) fprintf(stderr, "Subkey generation failed.\n");
+        ERR_MSG("Subkey generation failed.");
         goto done;
     }
 
@@ -908,7 +908,7 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
                             NULL,
                             rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
                             rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS))) {
-            (void) fprintf(stderr, "Failed to protect key.\n");
+            ERR_MSG("Failed to protect key.");
             goto done;
         }
     }
@@ -1424,10 +1424,9 @@ conffile(const char *homedir, char *userid, size_t length)
                           &buf[(int) matchv[1].rm_so],
                           MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
 
-            (void) fprintf(stderr,
-                           "rnp: default key set to \"%.*s\"\n",
-                           (int) (matchv[1].rm_eo - matchv[1].rm_so),
-                           &buf[(int) matchv[1].rm_so]);
+            ERR_MSG("rnp: default key set to \"%.*s\"",
+                    (int) (matchv[1].rm_eo - matchv[1].rm_so),
+                    &buf[(int) matchv[1].rm_so]);
         }
 #else
         std::smatch result;
@@ -1436,7 +1435,7 @@ conffile(const char *homedir, char *userid, size_t length)
             (void) strncpy(userid, result[1].str().c_str(), length);
             userid[length - 1] = '\0';
 
-            (void) fprintf(stderr, "rnp: default key set to \"%s\"\n", userid);
+            ERR_MSG("rnp: default key set to \"%s\"", userid);
         }
 #endif
     }

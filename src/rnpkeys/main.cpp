@@ -71,7 +71,7 @@ rnpkeys_main(int argc, char **argv)
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&opt_cfg, &cmd, options[optindex].val, optarg)) {
-                fprintf(stderr, "Bad setoption result %d\n", ch);
+                ERR_MSG("Bad setoption result %d", ch);
                 goto end;
             }
         } else {
@@ -88,7 +88,7 @@ rnpkeys_main(int argc, char **argv)
                 break;
             case 'o':
                 if (!parse_option(&opt_cfg, &cmd, optarg)) {
-                    (void) fprintf(stderr, "Bad parse_option\n");
+                    ERR_MSG("Bad parse_option");
                     goto end;
                 }
                 break;
