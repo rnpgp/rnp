@@ -50,7 +50,7 @@ extern const char *rnp_keys_progname;
 const char *usage = "--help OR\n"
                     "\t--export-key [options] OR\n"
                     "\t--generate-key [options] OR\n"
-                    "\t--import-key [options] OR\n"
+                    "\t--import, --import-keys, --import-sigs [options] OR\n"
                     "\t--list-keys [options] OR\n"
                     "\t--version\n"
                     "where options are:\n"
@@ -72,8 +72,10 @@ struct option options[] = {
   {"list-keys", no_argument, NULL, CMD_LIST_KEYS},
   {"export", no_argument, NULL, CMD_EXPORT_KEY},
   {"export-key", optional_argument, NULL, CMD_EXPORT_KEY},
-  {"import", no_argument, NULL, CMD_IMPORT_KEY},
-  {"import-key", no_argument, NULL, CMD_IMPORT_KEY},
+  {"import", no_argument, NULL, CMD_IMPORT},
+  {"import-key", no_argument, NULL, CMD_IMPORT_KEYS},
+  {"import-keys", no_argument, NULL, CMD_IMPORT_KEYS},
+  {"import-sigs", no_argument, NULL, CMD_IMPORT_SIGS},
   {"gen", optional_argument, NULL, CMD_GENERATE_KEY},
   {"gen-key", optional_argument, NULL, CMD_GENERATE_KEY},
   {"generate", optional_argument, NULL, CMD_GENERATE_KEY},
@@ -208,6 +210,106 @@ done:
     return res;
 }
 
+static bool
+import_sigs(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file)
+{
+    rnp_input_t input = NULL;
+    bool        res = false;
+
+    if (rnp_input_from_path(&input, file)) {
+        ERR_MSG("Failed to open file %s", file);
+        return false;
+    }
+
+    char *       results = NULL;
+    json_object *jso = NULL;
+    json_object *sigs = NULL;
+    int          unknown_sigs = 0;
+    int          new_sigs = 0;
+    int          old_sigs = 0;
+
+    if (rnp_import_signatures(rnp->ffi, input, 0, &results)) {
+        ERR_MSG("Failed to import signatures from file %s", file);
+        goto done;
+    }
+    // print information about imported signature(s)
+    jso = json_tokener_parse(results);
+    if (!jso || !json_object_object_get_ex(jso, "sigs", &sigs)) {
+        ERR_MSG("Invalid signature import result");
+        goto done;
+    }
+
+    for (size_t idx = 0; idx < (size_t) json_object_array_length(sigs); idx++) {
+        json_object *siginfo = json_object_array_get_idx(sigs, idx);
+        if (!siginfo) {
+            continue;
+        }
+        const char *status = json_obj_get_str(siginfo, "public");
+        std::string pub_status = status ? status : "unknown";
+        status = json_obj_get_str(siginfo, "secret");
+        std::string sec_status = status ? status : "unknown";
+
+        if ((pub_status == "new") || (sec_status == "new")) {
+            new_sigs++;
+        } else if ((pub_status == "unchanged") || (sec_status == "unchanged")) {
+            old_sigs++;
+        } else {
+            unknown_sigs++;
+        }
+    }
+
+    // print status information
+    ERR_MSG("Import finished: %d new signature%s, %d unchanged, %d unknown.",
+            new_sigs,
+            (new_sigs != 1) ? "s" : "",
+            old_sigs,
+            unknown_sigs);
+
+    // save public and secret keyrings
+    if ((new_sigs > 0) && !cli_rnp_save_keyrings(rnp)) {
+        ERR_MSG("Failed to save keyrings");
+        goto done;
+    }
+    res = true;
+done:
+    json_object_put(jso);
+    rnp_buffer_destroy(results);
+    rnp_input_destroy(input);
+    return res;
+}
+
+static bool
+import(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file, int cmd)
+{
+    if (!file) {
+        ERR_MSG("Import file isn't specified");
+        return false;
+    }
+
+    if (cmd == CMD_IMPORT_KEYS) {
+        return import_keys(cfg, rnp, file);
+    }
+    if (cmd == CMD_IMPORT_SIGS) {
+        return import_sigs(cfg, rnp, file);
+    }
+
+    rnp_input_t input = NULL;
+    if (rnp_input_from_path(&input, file)) {
+        ERR_MSG("Failed to open file %s", file);
+        return false;
+    }
+
+    char *contents = NULL;
+    if (rnp_guess_contents(input, &contents)) {
+        ERR_MSG("Warning! Failed to guess content type to import. Assuming keys.");
+    }
+    rnp_input_destroy(input);
+    bool signature = contents && !strcmp(contents, "signature");
+    rnp_buffer_destroy(contents);
+
+    return signature ? import_sigs(cfg, rnp, file) : import_keys(cfg, rnp, file);
+}
+
 void
 print_praise(void)
 {
@@ -254,12 +356,10 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_export_keys(cfg, rnp, key);
     }
-    case CMD_IMPORT_KEY:
-        if (f == NULL) {
-            ERR_MSG("import file isn't specified");
-            return false;
-        }
-        return import_keys(cfg, rnp, f);
+    case CMD_IMPORT:
+    case CMD_IMPORT_KEYS:
+    case CMD_IMPORT_SIGS:
+        return import(cfg, rnp, f, cmd);
     case CMD_GENERATE_KEY: {
         if (f == NULL) {
             list *ids = NULL;
@@ -303,7 +403,9 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
         break;
     case CMD_LIST_KEYS:
     case CMD_EXPORT_KEY:
-    case CMD_IMPORT_KEY:
+    case CMD_IMPORT:
+    case CMD_IMPORT_KEYS:
+    case CMD_IMPORT_SIGS:
     case CMD_HELP:
     case CMD_VERSION:
         *cmd = (optdefs_t) val;
