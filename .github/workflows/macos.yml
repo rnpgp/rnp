@@ -21,14 +21,12 @@ jobs:
       - uses: actions/checkout@v1
       - name: Setup environment
         run: |
-          echo "::set-env name=LOCAL_INSTALLS::$GITHUB_WORKSPACE/installs"
-          echo "::set-env name=RNP_INSTALL::$GITHUB_WORKSPACE/rnp-install"
-          echo "::set-env name=LOCAL_BUILDS::$GITHUB_WORKSPACE/builds"
+          . ci/gha/setup-env.inc.sh
       - name: Cache
         id: cache
         uses: actions/cache@v1
         with:
-          path: ${{ env.LOCAL_INSTALLS }}
+          path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
