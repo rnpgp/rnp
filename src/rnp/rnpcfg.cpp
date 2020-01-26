@@ -495,34 +495,6 @@ rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg)
     }
 }
 
-#if 0
-bool
-rnp_cfg_check_homedir(rnp_cfg_t *cfg, char *homedir)
-{
-    struct stat st;
-    int         ret;
-
-    if (homedir == NULL) {
-        fputs("rnp: homedir option and HOME environment variable are not set \n", stderr);
-        return false;
-    } else if ((ret = stat(homedir, &st)) == 0 && !S_ISDIR(st.st_mode)) {
-        /* file exists in place of homedir */
-        RNP_LOG("homedir \"%s\" is not a dir", homedir);
-        return false;
-    } else if (ret != 0 && errno == ENOENT) {
-        /* If the path doesn't exist then fail. */
-        RNP_LOG("warning homedir \"%s\" not found", homedir);
-        return false;
-    } else if (ret != 0) {
-        /* If any other occurred then fail. */
-        RNP_LOG("an unspecified error occurred");
-        return false;
-    }
-
-    return true;
-}
-#endif
-
 /**
  * @brief Grabs date from the string in %Y-%m-%d format
  *
