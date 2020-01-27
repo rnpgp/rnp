@@ -246,11 +246,11 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
                         char             buf[],
                         size_t           buf_len)
 {
-    char *keyid = NULL;
-    char  target[64] = {0};
-    char  prompt[128] = {0};
-    char  buffer[MAX_PASSWORD_LENGTH];
-    bool  ok = false;
+    char *     keyid = NULL;
+    char       target[64] = {0};
+    char       prompt[128] = {0};
+    char       buffer[MAX_PASSWORD_LENGTH];
+    bool       ok = false;
     cli_rnp_t *rnp = static_cast<cli_rnp_t *>(app_ctx);
 
     if (!ffi || !pgp_context) {
