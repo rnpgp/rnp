@@ -40,16 +40,16 @@ extern "C" {
 
 typedef struct cli_rnp_t {
     rnp_ffi_t ffi;
-    FILE *    resfp;     /* where to put result messages, defaults to stdout */
-    FILE *    passfp;    /* file pointer for password input */
+    FILE *    resfp;      /* where to put result messages, defaults to stdout */
+    FILE *    passfp;     /* file pointer for password input */
     FILE *    userio_in;  /* file pointer for user's inputs */
-    FILE *    userio_out; /* file pointer for user's outputs */ 
-    int       pswdtries; /* number of password tries, -1 for unlimited */
-    char *    pubpath;   /* path to the public keyring */
-    char *    pubformat; /* format of the public keyring */
-    char *    secpath;   /* path to the secret keyring */
-    char *    secformat; /* format of the secret keyring */
-    char *    defkey;    /* default key id */
+    FILE *    userio_out; /* file pointer for user's outputs */
+    int       pswdtries;  /* number of password tries, -1 for unlimited */
+    char *    pubpath;    /* path to the public keyring */
+    char *    pubformat;  /* format of the public keyring */
+    char *    secpath;    /* path to the secret keyring */
+    char *    secformat;  /* format of the secret keyring */
+    char *    defkey;     /* default key id */
 } cli_rnp_t;
 
 /**
