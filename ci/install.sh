@@ -5,53 +5,55 @@ set -exu
 
 mkdir -p "$LOCAL_BUILDS"
 
-# botan
-botan_build=${LOCAL_BUILDS}/botan
-if [ "$(get_os)" != "msys" ] && \
-   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
-   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ] && \
-   [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.a" ]; then
+function install_botan() {
+  # botan
+  botan_build=${LOCAL_BUILDS}/botan
+  if [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ] && \
+     [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.dylib" ] && \
+     [ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.a" ]; then
 
-  if [ -d "${botan_build}" ]; then
-    rm -rf "${botan_build}"
+    if [ -d "${botan_build}" ]; then
+      rm -rf "${botan_build}"
+    fi
+
+    git clone --depth 1 --branch 2.13.0 https://github.com/randombit/botan "${botan_build}"
+    pushd "${botan_build}"
+
+    osparam=
+    if [ $(get_os) == "msys" ]; then
+      osparam="--os=mingw"
+    fi
+
+    ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" \
+      $osparam --without-documentation --without-openssl --build-targets=shared \
+      --minimized-build --enable-modules="$BOTAN_MODULES"
+    ${MAKE} -j${MAKE_PARALLEL} install
+    popd
   fi
+}
 
-  git clone --depth 1 --branch 2.13.0 https://github.com/randombit/botan "${botan_build}"
-  pushd "${botan_build}"
+install_jsonc() {
+  # json-c
+  jsonc_build=${LOCAL_BUILDS}/json-c
+  if [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
+     [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ] && \
+     [ ! -e "${JSONC_INSTALL}/lib/libjson-c.a" ]; then
 
-  osparam=
-  if [ $(get_os) == "msys" ]; then
-    osparam="--os=mingw"
+     if [ -d "${jsonc_build}" ]; then
+       rm -rf "${jsonc_build}"
+     fi
+
+    mkdir -p "${jsonc_build}"
+    pushd ${jsonc_build}
+    wget https://s3.amazonaws.com/json-c_releases/releases/json-c-0.12.1.tar.gz -O json-c.tar.gz
+    tar xzf json-c.tar.gz --strip 1
+
+    autoreconf -ivf
+    env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure --prefix="${JSONC_INSTALL}"
+    ${MAKE} -j${MAKE_PARALLEL} install
+    popd
   fi
-
-  ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" \
-    $osparam --without-documentation --without-openssl --build-targets=shared \
-    --minimized-build --enable-modules="$BOTAN_MODULES"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-fi
-
-# json-c
-jsonc_build=${LOCAL_BUILDS}/json-c
-if [ "$(get_os)" != "msys" ] && \
-   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.so" ] && \
-   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.dylib" ] && \
-   [ ! -e "${JSONC_INSTALL}/lib/libjson-c.a" ]; then
-
-   if [ -d "${jsonc_build}" ]; then
-     rm -rf "${jsonc_build}"
-   fi
-
-  mkdir -p "${jsonc_build}"
-  pushd ${jsonc_build}
-  wget https://s3.amazonaws.com/json-c_releases/releases/json-c-0.12.1.tar.gz -O json-c.tar.gz
-  tar xzf json-c.tar.gz --strip 1
-
-  autoreconf -ivf
-  env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure --prefix="${JSONC_INSTALL}"
-  ${MAKE} -j${MAKE_PARALLEL} install
-  popd
-fi
+}
 
 _install_gpg() {
   local VERSION_SWITCH=$1
@@ -109,28 +111,37 @@ _install_gpg() {
 }
 
 
-# gpg - for msys/windows we use shipped gpg2 version
-gpg_build=${LOCAL_BUILDS}/gpg
-if [ "$(get_os)" != "msys" ] && \
-   [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
-  mkdir -p "${gpg_build}"
-  pushd "${gpg_build}"
+install_gpg() {
+  # gpg - for msys/windows we use shipped gpg2 version
+  gpg_build=${LOCAL_BUILDS}/gpg
+  if [ ! -e "${GPG_INSTALL}/bin/gpg" ]; then
+    mkdir -p "${gpg_build}"
+    pushd "${gpg_build}"
 
-  if [ "$GPG_VERSION" = "stable" ]; then
-    #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    _install_gpg component-version 1.6  1.36         1.8.5     2.5.3     1.3.5   1.1.0    2.2.17
-  elif [ "$GPG_VERSION" = "beta" ]; then
-    #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
-    _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
-  else
-    echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
-    exit 1
+    if [ "$GPG_VERSION" = "stable" ]; then
+      #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+      _install_gpg component-version 1.6  1.36         1.8.5     2.5.3     1.3.5   1.1.0    2.2.17
+    elif [ "$GPG_VERSION" = "beta" ]; then
+      #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
+      _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
+    else
+      echo "\$GPG_VERSION is set to invalid value: $GPG_VERSION"
+      exit 1
+    fi
+    popd
   fi
-  popd
-fi
+}
 
-# ruby-rnp
-SUDO=
-[ "$(get_os)" = "freebsd" ] && SUDO=sudo
-which bundle || ${SUDO} gem install bundler -v 1.16.4
+install_bundler() {
+  # ruby-rnp
+  SUDO=
+  [ "$(get_os)" = "freebsd" ] && SUDO=sudo
+  which bundle || ${SUDO} gem install bundler -v 1.16.4
+}
+
+default=(botan jsonc gpg bundler)
+items=("${@:-${default[@]}}")
+for item in "${items[@]}"; do
+  install_"$item"
+done
 

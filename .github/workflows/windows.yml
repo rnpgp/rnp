@@ -31,6 +31,8 @@ jobs:
         run: pacman -Syu --noconfirm --noprogressbar --needed
       - name: Finish MSYS2 update
         run: pacman.exe -Syu --noconfirm --noprogressbar --needed
+      - name: install
+        run: bash.exe ci/before_install.sh
       - name: tests
-        run: bash.exe ./ci/run.sh
+        run: bash.exe -c ". ci/env.inc.sh && ci/main.sh"
 
