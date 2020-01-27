@@ -42,6 +42,8 @@ typedef struct cli_rnp_t {
     rnp_ffi_t ffi;
     FILE *    resfp;     /* where to put result messages, defaults to stdout */
     FILE *    passfp;    /* file pointer for password input */
+    FILE *    userio_in;  /* file pointer for user's inputs */
+    FILE *    userio_out; /* file pointer for user's outputs */ 
     int       pswdtries; /* number of password tries, -1 for unlimited */
     char *    pubpath;   /* path to the public keyring */
     char *    pubformat; /* format of the public keyring */
@@ -61,6 +63,7 @@ typedef struct cli_rnp_t {
 bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
 bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
+bool cli_rnp_baseinit(cli_rnp_t *);
 void cli_rnp_end(cli_rnp_t *);
 bool cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret);
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
