@@ -3,7 +3,7 @@ set -eux
 
 . ci/utils.inc.sh
 
-: "${RNP_TESTS:=.*}"
+: "${RNP_TESTS=${RNP_TESTS-.*}}"
 : "${LD_LIBRARY_PATH:=}"
 
 CMAKE=cmake
