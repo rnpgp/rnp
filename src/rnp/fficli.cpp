@@ -442,8 +442,10 @@ cli_rnp_baseinit(cli_rnp_t *rnp)
 
     /* Configure user's io streams. */
     rnp->userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
+    rnp->userio_in = (rnp->userio_in ? rnp->userio_in : stdin);
     rnp->userio_out = (isatty(fileno(stdout)) ? stdout : fopen("/dev/tty", "a+"));
-    return rnp->userio_in != NULL && rnp->userio_out != NULL;
+    rnp->userio_out = (rnp->userio_out ? rnp->userio_out : stdout);
+    return true;
 }
 
 void
