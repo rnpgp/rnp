@@ -962,6 +962,65 @@ class Keystore(unittest.TestCase):
         match = re.match(RE_RNP_ENCRYPTED_KEY, out)
         if not match:
             raise_err('wrong encrypted secret key listing', err)
+    
+    def test_import_signatures(self):
+        clear_keyrings()
+        # Import command without the path parameter
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs'])
+        if ret == 0:
+            raise_err('Sigs import without file failed')
+        if not re.match(r'(?s)^.*Import file isn\'t specified.*', err):
+            raise_err('Sigs import without file wrong output')
+        # Import command with invalid path parameter
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', data_path('test_key_validity/alice-rev-no-file.pgp')])
+        if ret == 0:
+            raise_err('Sigs import with invalid path failed')
+        if not re.match(r'(?s)^.*Failed to open file .*', err):
+            raise_err('Sigs import with invalid path wrong output')
+        # Try to import signature to empty keyring
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', data_path('test_key_validity/alice-rev.pgp')])
+        if ret != 0:
+            raise_err('Alice key rev import failed')
+        if not re.match(r'(?s)^.*Import finished: 0 new signatures, 0 unchanged, 1 unknown.*', err):
+            raise_err('Alice key rev import wrong output')
+        # Import Basil's key
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/basil-pub.asc')])
+        if ret != 0:
+            raise_err('Basil key import failed')
+        # Try to import Alice's signatures with Basil's key only 
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sigs.pgp')])
+        if ret != 0:
+            raise_err('Alice sigs import failed')
+        if not re.match(r'(?s)^.*Import finished: 0 new signatures, 0 unchanged, 2 unknown.*', err):
+            raise_err('Alice sigs import wrong output')
+        # Import Alice's key without revocation/direct-key signatures
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-pub.asc')])
+        if ret != 0:
+            raise_err('Alice key import failed')
+        # Import key revocation signature
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', data_path('test_key_validity/alice-rev.pgp')])
+        if ret != 0:
+            raise_err('Alice key rev import failed')
+        if not re.match(r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unknown.*', err):
+            raise_err('Alice key rev import wrong output')
+        # Import direct-key signature
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-revoker-sig.pgp')])
+        if ret != 0:
+            raise_err('Alice direct-key sig import failed')
+        if not re.match(r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unknown.*', err):
+            raise_err('Alice direct-key sig import wrong output')
+        # Try to import two signatures again
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sigs.pgp')])
+        if ret != 0:
+            raise_err('Alice sigs reimport failed')
+        if not re.match(r'(?s)^.*Import finished: 0 new signatures, 2 unchanged, 0 unknown.*', err):
+            raise_err('Alice sigs reimport wrong output')
+        # Try to import malformed signatures
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sigs-malf.pgp')])
+        if ret == 0:
+            raise_err('Alice malformed sigs import failed')
+        if not re.match(r'(?s)^.*Failed to import signatures from file .*', err):
+            raise_err('Alice malformed sigs wrong output')
 
 class Misc(unittest.TestCase):
 
