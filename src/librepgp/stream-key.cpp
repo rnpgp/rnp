@@ -1304,7 +1304,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
     }
 
     /* build secret key data */
-    if (!init_packet_body(&body, 0)) {
+    if (!init_packet_body(&body, PGP_PKT_RESERVED)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!write_secret_key_mpis(&body, key)) {

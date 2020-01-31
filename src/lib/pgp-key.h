@@ -160,7 +160,7 @@ pgp_curve_t pgp_key_get_curve(const pgp_key_t *key);
 
 pgp_version_t pgp_key_get_version(const pgp_key_t *key);
 
-int pgp_key_get_type(const pgp_key_t *key);
+pgp_pkt_type_t pgp_key_get_type(const pgp_key_t *key);
 
 bool pgp_key_is_encrypted(const pgp_key_t *);
 
