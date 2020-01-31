@@ -1150,9 +1150,9 @@ pgp_key_lock(pgp_key_t *key)
 
 static bool
 pgp_write_seckey(pgp_dest_t *     dst,
-             pgp_content_enum tag,
-             pgp_key_pkt_t *  seckey,
-             const char *     password)
+                 pgp_content_enum tag,
+                 pgp_key_pkt_t *  seckey,
+                 const char *     password)
 {
     bool res = false;
     int  oldtag = seckey->tag;
@@ -1452,6 +1452,66 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
         }
     }
     return true;
+}
+
+static bool
+packet_matches(pgp_content_enum tag, bool secret)
+{
+    switch (tag) {
+    case PGP_PTAG_CT_SIGNATURE:
+    case PGP_PTAG_CT_USER_ID:
+    case PGP_PTAG_CT_USER_ATTR:
+        return true;
+    case PGP_PTAG_CT_PUBLIC_KEY:
+    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        return !secret;
+    case PGP_PTAG_CT_SECRET_KEY:
+    case PGP_PTAG_CT_SECRET_SUBKEY:
+        return secret;
+    default:
+        return false;
+    }
+}
+
+static bool
+write_xfer_packets(pgp_dest_t *           dst,
+                   const pgp_key_t *      key,
+                   const rnp_key_store_t *keyring,
+                   bool                   secret)
+{
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
+
+        if (!packet_matches(pkt->tag, secret)) {
+            RNP_LOG("skipping packet with tag: %d", pkt->tag);
+            continue;
+        }
+        dst_write(dst, pkt->raw, (size_t) pkt->length);
+    }
+
+    if (!keyring) {
+        return !dst->werr;
+    }
+
+    // Export subkeys
+    for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+        if (!write_xfer_packets(dst, subkey, NULL, secret)) {
+            RNP_LOG("Error occured when exporting a subkey");
+            return false;
+        }
+    }
+
+    return !dst->werr;
+}
+
+bool
+pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
+{
+    if (!pgp_key_get_rawpacket_count(key)) {
+        return false;
+    }
+    return write_xfer_packets(dst, key, keyring, pgp_key_is_secret(key));
 }
 
 pgp_key_t *

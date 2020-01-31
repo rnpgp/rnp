@@ -60,14 +60,4 @@
 
 #include "types.h"
 
-/**
- * @brief Write OpenPGP key packets (including subkeys) to the specified stream
- *
- * @param dst stream to write packets
- * @param key key
- * @param keyring keyring, which will be searched for subkeys
- * @return true on success or false otherwise
- */
-bool pgp_write_xfer_key(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring);
-
 #endif /* CREATE_H_ */

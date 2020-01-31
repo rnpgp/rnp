@@ -410,6 +410,16 @@ bool pgp_key_add_userid_certified(pgp_key_t *              key,
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
 
+/**
+ * @brief Write OpenPGP key packets (including subkeys) to the specified stream
+ *
+ * @param dst stream to write packets
+ * @param key key
+ * @param keyring keyring, which will be searched for subkeys
+ * @return true on success or false otherwise
+ */
+bool pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring);
+
 /** find a key suitable for a particular operation
  *
  *  If the key passed is suitable, it will be returned.
