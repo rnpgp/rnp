@@ -659,7 +659,7 @@ pgp_key_get_version(const pgp_key_t *key)
     return key->pkt.version;
 }
 
-int
+pgp_pkt_type_t
 pgp_key_get_type(const pgp_key_t *key)
 {
     return key->pkt.tag;
@@ -1192,7 +1192,7 @@ pgp_write_seckey(pgp_dest_t *   dst,
                  const char *   password)
 {
     bool           res = false;
-    pgp_pkt_type_t oldtag = (pgp_pkt_type_t) seckey->tag;
+    pgp_pkt_type_t oldtag = seckey->tag;
 
     seckey->tag = tag;
     if (encrypt_secret_key(seckey, password, NULL)) {
@@ -1335,7 +1335,7 @@ pgp_key_protect(pgp_key_t *                  key,
     // write the protected key to packets[0]
     if (!write_key_to_rawpacket(decrypted_seckey,
                                 pgp_key_get_rawpacket(key, 0),
-                                (pgp_pkt_type_t) pgp_key_get_type(key),
+                                pgp_key_get_type(key),
                                 format,
                                 new_password)) {
         goto done;
@@ -1380,11 +1380,8 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         seckey = decrypted_seckey;
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_key_to_rawpacket(seckey,
-                                pgp_key_get_rawpacket(key, 0),
-                                (pgp_pkt_type_t) pgp_key_get_type(key),
-                                key->format,
-                                NULL)) {
+    if (!write_key_to_rawpacket(
+          seckey, pgp_key_get_rawpacket(key, 0), pgp_key_get_type(key), key->format, NULL)) {
         goto done;
     }
     if (decrypted_seckey) {
@@ -1519,7 +1516,7 @@ write_xfer_packets(pgp_dest_t *           dst,
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
         pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
 
-        if (!packet_matches((pgp_pkt_type_t) pkt->tag, secret)) {
+        if (!packet_matches(pkt->tag, secret)) {
             RNP_LOG("skipping packet with tag: %d", pkt->tag);
             continue;
         }

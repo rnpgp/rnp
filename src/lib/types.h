@@ -146,7 +146,7 @@ typedef struct pgp_key_protection_t {
 
 /** Struct to hold a key packet. May contain public or private key/subkey */
 typedef struct pgp_key_pkt_t {
-    int              tag;           /* packet tag: public key/subkey or private key/subkey */
+    pgp_pkt_type_t   tag;           /* packet tag: public key/subkey or private key/subkey */
     pgp_version_t    version;       /* Key packet version */
     uint32_t         creation_time; /* Key creation time */
     pgp_pubkey_alg_t alg;
@@ -169,9 +169,9 @@ typedef struct pgp_key_t pgp_key_t;
  *  binary blob as it is. It may be distinguished by tag field.
  */
 typedef struct pgp_userid_pkt_t {
-    int      tag;
-    uint8_t *uid;
-    size_t   uid_len;
+    pgp_pkt_type_t tag;
+    uint8_t *      uid;
+    size_t         uid_len;
 } pgp_userid_pkt_t;
 
 typedef struct pgp_signature_t {

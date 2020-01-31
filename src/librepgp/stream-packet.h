@@ -47,10 +47,10 @@ typedef struct pgp_packet_hdr_t {
 
 /* structure for convenient writing or parsing of non-stream packets */
 typedef struct pgp_packet_body_t {
-    int      tag;       /* packet tag */
-    uint8_t *data;      /* packet body data */
-    size_t   len;       /* length of the data */
-    size_t   allocated; /* allocated bytes in data */
+    pgp_pkt_type_t tag;       /* packet tag */
+    uint8_t *      data;      /* packet body data */
+    size_t         len;       /* length of the data */
+    size_t         allocated; /* allocated bytes in data */
 
     /* fields below are filled only for parsed packet */
     uint8_t hdr[PGP_MAX_HEADER_SIZE]; /* packet header bytes */
@@ -120,7 +120,7 @@ ssize_t stream_read_partial_chunk_len(pgp_source_t *src, bool *last);
  *  @param tag tag of the packet
  *  @return true on success or false otherwise
  **/
-bool init_packet_body(pgp_packet_body_t *body, int tag);
+bool init_packet_body(pgp_packet_body_t *body, pgp_pkt_type_t tag);
 
 /** @brief append chunk of the data to packet body
  *  @param body pointer to the structure, initialized with init_packet_body
