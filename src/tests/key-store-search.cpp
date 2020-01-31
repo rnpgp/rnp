@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -54,7 +54,7 @@ TEST_F(rnp_tests, test_key_store_search)
         for (size_t n = 0; n < testdata[i].count; n++) {
             pgp_key_t key = {0};
 
-            key.pkt.tag = PGP_PTAG_CT_PUBLIC_KEY;
+            key.pkt.tag = PGP_PKT_PUBLIC_KEY;
             key.pkt.version = PGP_V4;
 
             // set the keyid

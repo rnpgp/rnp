@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -493,21 +493,21 @@ rnp_armor_guess_type(pgp_source_t *src)
     ptype = get_packet_type(ptag);
 
     switch (ptype) {
-    case PGP_PTAG_CT_PK_SESSION_KEY:
-    case PGP_PTAG_CT_SK_SESSION_KEY:
-    case PGP_PTAG_CT_1_PASS_SIG:
-    case PGP_PTAG_CT_SE_DATA:
-    case PGP_PTAG_CT_SE_IP_DATA:
-    case PGP_PTAG_CT_COMPRESSED:
-    case PGP_PTAG_CT_LITDATA:
+    case PGP_PKT_PK_SESSION_KEY:
+    case PGP_PKT_SK_SESSION_KEY:
+    case PGP_PKT_ONE_PASS_SIG:
+    case PGP_PKT_SE_DATA:
+    case PGP_PKT_SE_IP_DATA:
+    case PGP_PKT_COMPRESSED:
+    case PGP_PKT_LITDATA:
         return PGP_ARMORED_MESSAGE;
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+    case PGP_PKT_PUBLIC_KEY:
+    case PGP_PKT_PUBLIC_SUBKEY:
         return PGP_ARMORED_PUBLIC_KEY;
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
+    case PGP_PKT_SECRET_KEY:
+    case PGP_PKT_SECRET_SUBKEY:
         return PGP_ARMORED_SECRET_KEY;
-    case PGP_PTAG_CT_SIGNATURE:
+    case PGP_PKT_SIGNATURE:
         return PGP_ARMORED_SIGNATURE;
     default:
         return PGP_ARMORED_UNKNOWN;

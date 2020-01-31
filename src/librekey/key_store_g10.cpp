@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1093,7 +1093,7 @@ copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
 
     dst->material.secret = src->material.secret;
     dst->sec_protection = src->sec_protection;
-    dst->tag = is_subkey_pkt(dst->tag) ? PGP_PTAG_CT_SECRET_SUBKEY : PGP_PTAG_CT_SECRET_KEY;
+    dst->tag = is_subkey_pkt(dst->tag) ? PGP_PKT_SECRET_SUBKEY : PGP_PKT_SECRET_KEY;
 
     return true;
 }
@@ -1155,7 +1155,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
     }
 
     if (!pgp_key_add_rawpacket(
-          &key, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PTAG_CT_RESERVED)) {
+          &key, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED)) {
         RNP_LOG("failed to add packet");
         goto done;
     }
