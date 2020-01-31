@@ -273,7 +273,7 @@ pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 
 void pgp_subsig_free(pgp_subsig_t *subsig);
 
-pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_content_enum);
+pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_pkt_type_t);
 
 pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt);
 

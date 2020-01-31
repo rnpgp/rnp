@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -158,14 +158,14 @@ is_pgp_source(pgp_source_t *src)
 
     tag = get_packet_type(buf);
     switch (tag) {
-    case PGP_PTAG_CT_PK_SESSION_KEY:
-    case PGP_PTAG_CT_SK_SESSION_KEY:
-    case PGP_PTAG_CT_1_PASS_SIG:
-    case PGP_PTAG_CT_SIGNATURE:
-    case PGP_PTAG_CT_SE_DATA:
-    case PGP_PTAG_CT_SE_IP_DATA:
-    case PGP_PTAG_CT_COMPRESSED:
-    case PGP_PTAG_CT_LITDATA:
+    case PGP_PKT_PK_SESSION_KEY:
+    case PGP_PKT_SK_SESSION_KEY:
+    case PGP_PKT_ONE_PASS_SIG:
+    case PGP_PKT_SIGNATURE:
+    case PGP_PKT_SE_DATA:
+    case PGP_PKT_SE_IP_DATA:
+    case PGP_PKT_COMPRESSED:
+    case PGP_PKT_LITDATA:
         return true;
     default:
         return false;
@@ -805,7 +805,7 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 
     ptype = get_packet_type(ptag);
 
-    if (ptype != PGP_PTAG_CT_SIGNATURE) {
+    if (ptype != PGP_PKT_SIGNATURE) {
         RNP_LOG("unexpected packet %d", ptype);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1380,7 +1380,7 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     /* TODO: this method is exact duplicate as in stream-write.c. Not sure where to put it */
     uint8_t ad_data[4];
 
-    ad_data[0] = PGP_PTAG_CT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
     ad_data[1] = skey->version;
     ad_data[2] = skey->alg;
     ad_data[3] = skey->aalg;
@@ -1777,7 +1777,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 
         ptype = get_packet_type(ptag);
 
-        if (ptype == PGP_PTAG_CT_SK_SESSION_KEY) {
+        if (ptype == PGP_PKT_SK_SESSION_KEY) {
             if ((errcode = stream_parse_sk_sesskey(param->pkt.readsrc, &skey))) {
                 return errcode;
             }
@@ -1785,7 +1785,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             if (!list_append(&param->symencs, &skey, sizeof(skey))) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
-        } else if (ptype == PGP_PTAG_CT_PK_SESSION_KEY) {
+        } else if (ptype == PGP_PKT_PK_SESSION_KEY) {
             if ((errcode = stream_parse_pk_sesskey(param->pkt.readsrc, &pkey))) {
                 return errcode;
             }
@@ -1793,8 +1793,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             if (!list_append(&param->pubencs, &pkey, sizeof(pkey))) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
-        } else if ((ptype == PGP_PTAG_CT_SE_DATA) || (ptype == PGP_PTAG_CT_SE_IP_DATA) ||
-                   (ptype == PGP_PTAG_CT_AEAD_ENCRYPTED)) {
+        } else if ((ptype == PGP_PKT_SE_DATA) || (ptype == PGP_PKT_SE_IP_DATA) ||
+                   (ptype == PGP_PKT_AEAD_ENCRYPTED)) {
             break;
         } else {
             RNP_LOG("unknown packet type: %d", ptype);
@@ -1808,7 +1808,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     }
 
     /* Reading header of encrypted packet */
-    if (ptype == PGP_PTAG_CT_AEAD_ENCRYPTED) {
+    if (ptype == PGP_PKT_AEAD_ENCRYPTED) {
         param->aead = true;
         if (src_peek(param->pkt.readsrc, hdr, 4) != 4) {
             return RNP_ERROR_READ;
@@ -1839,7 +1839,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         param->aead_ad[0] = param->pkt.hdr[0];
         memcpy(param->aead_ad + 1, hdr, 4);
         memset(param->aead_ad + 5, 0, 8);
-    } else if (ptype == PGP_PTAG_CT_SE_IP_DATA) {
+    } else if (ptype == PGP_PKT_SE_IP_DATA) {
         if (!src_read_eq(param->pkt.readsrc, &mdcver, 1)) {
             return RNP_ERROR_READ;
         }
@@ -2069,7 +2069,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
 
         ptype = get_packet_type(ptag);
 
-        if (ptype == PGP_PTAG_CT_1_PASS_SIG) {
+        if (ptype == PGP_PKT_ONE_PASS_SIG) {
             errcode = stream_parse_one_pass(readsrc, &onepass);
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
@@ -2090,7 +2090,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
                 /* despite the name non-zero value means that it is the last one-pass */
                 break;
             }
-        } else if (ptype == PGP_PTAG_CT_SIGNATURE) {
+        } else if (ptype == PGP_PKT_SIGNATURE) {
             /* no need to check the error here - we already know tag */
             signed_read_single_signature(param, readsrc, &sig);
             /* adding hash context */
@@ -2171,18 +2171,18 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         memset(&psrc, 0, sizeof(psrc));
 
         switch (type) {
-        case PGP_PTAG_CT_PK_SESSION_KEY:
-        case PGP_PTAG_CT_SK_SESSION_KEY:
+        case PGP_PKT_PK_SESSION_KEY:
+        case PGP_PKT_SK_SESSION_KEY:
             ret = init_encrypted_src(ctx, &psrc, lsrc);
             break;
-        case PGP_PTAG_CT_1_PASS_SIG:
-        case PGP_PTAG_CT_SIGNATURE:
+        case PGP_PKT_ONE_PASS_SIG:
+        case PGP_PKT_SIGNATURE:
             ret = init_signed_src(ctx, &psrc, lsrc);
             break;
-        case PGP_PTAG_CT_COMPRESSED:
+        case PGP_PKT_COMPRESSED:
             ret = init_compressed_src(&psrc, lsrc);
             break;
-        case PGP_PTAG_CT_LITDATA:
+        case PGP_PKT_LITDATA:
             if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
                 (lsrc->type != PGP_STREAM_COMPRESSED)) {
                 RNP_LOG("unexpected literal pkt");

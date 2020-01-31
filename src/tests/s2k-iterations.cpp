@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -66,7 +66,7 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         assert_true(json_object_is_type(jso, json_type_array));
         // check the symmetric-key encrypted session key packet
         json_object *pkt = json_object_array_get_idx(jso, 0);
-        assert_true(check_json_pkt_type(pkt, PGP_PTAG_CT_SK_SESSION_KEY));
+        assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
         json_object *s2k = json_object_object_get(pkt, "s2k");
         json_object *fld = NULL;
         assert_true(json_object_object_get_ex(s2k, "iterations", &fld));
