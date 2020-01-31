@@ -819,6 +819,26 @@ signature_get_revocation_reason(const pgp_signature_t *sig,
 }
 
 bool
+signature_set_revocation_reason(pgp_signature_t *     sig,
+                                pgp_revocation_type_t code,
+                                const char *          reason)
+{
+    size_t            datalen = 1 + (reason ? strlen(reason) : 0);
+    pgp_sig_subpkt_t *subpkt =
+      signature_add_subpkt(sig, PGP_SIG_SUBPKT_REVOCATION_REASON, datalen, true);
+    if (!subpkt) {
+        return false;
+    }
+
+    subpkt->hashed = 1;
+    subpkt->data[0] = code;
+    if (reason) {
+        memcpy(subpkt->data + 1, reason, strlen(reason));
+    }
+    return signature_parse_subpacket(subpkt);
+}
+
+bool
 signature_fill_hashed_data(pgp_signature_t *sig)
 {
     pgp_packet_body_t hbody;
