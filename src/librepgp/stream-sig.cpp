@@ -1309,7 +1309,7 @@ armoredpass:
     while (!src_eof(src) && !src_error(src)) {
         int ptag = stream_pkt_type(src);
 
-        if ((ptag < 0) || (ptag != PGP_PTAG_CT_SIGNATURE)) {
+        if (ptag != PGP_PTAG_CT_SIGNATURE) {
             RNP_LOG("wrong signature tag: %d", ptag);
             ret = RNP_ERROR_BAD_FORMAT;
             goto finish;
