@@ -98,6 +98,11 @@ pgp_signature_t *transferable_subkey_bind(const pgp_key_pkt_t *             prim
                                           pgp_hash_alg_t                    hash_alg,
                                           const rnp_selfsig_binding_info_t *binding);
 
+pgp_signature_t *transferable_key_revoke(const pgp_key_pkt_t *key,
+                                         const pgp_key_pkt_t *signer,
+                                         pgp_hash_alg_t       hash_alg,
+                                         const pgp_revoke_t * revoke);
+
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);

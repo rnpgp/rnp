@@ -621,6 +621,79 @@ end:
     return res;
 }
 
+pgp_signature_t *
+transferable_key_revoke(const pgp_key_pkt_t *key,
+                        const pgp_key_pkt_t *signer,
+                        pgp_hash_alg_t       hash_alg,
+                        const pgp_revoke_t * revoke)
+{
+    pgp_signature_t * sig = NULL;
+    bool              res = false;
+    pgp_hash_t        hash = {};
+    uint8_t           keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t keyfp;
+    rng_t             rng = {};
+
+    if (!key || !signer || !revoke) {
+        RNP_LOG("invalid parameters");
+        return NULL;
+    }
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return NULL;
+    }
+    sig = (pgp_signature_t *) calloc(1, sizeof(*sig));
+    if (!sig) {
+        RNP_LOG("allocation failed");
+        goto end;
+    }
+    if (pgp_keyid(keyid, sizeof(keyid), signer)) {
+        RNP_LOG("failed to calculate keyid");
+        goto end;
+    }
+    if (pgp_fingerprint(&keyfp, signer)) {
+        RNP_LOG("failed to calculate keyfp");
+        goto end;
+    }
+
+    sig->version = PGP_V4;
+    sig->halg = pgp_hash_adjust_alg_to_key(hash_alg, signer);
+    sig->palg = signer->alg;
+    sig->type = is_primary_key_pkt(key->tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY;
+
+    if (!signature_set_keyfp(sig, &keyfp)) {
+        RNP_LOG("failed to set issuer fingerprint");
+        goto end;
+    }
+    if (!signature_set_creation(sig, time(NULL))) {
+        RNP_LOG("failed to set creation time");
+        goto end;
+    }
+    if (!signature_set_revocation_reason(sig, revoke->code, revoke->reason)) {
+        RNP_LOG("failed to set revocation reason");
+        goto end;
+    }
+    if (!signature_set_keyid(sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
+        goto end;
+    }
+
+    if (!signature_fill_hashed_data(sig) || !signature_hash_direct(sig, key, &hash) ||
+        signature_calculate(sig, &signer->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+    res = true;
+end:
+    rng_destroy(&rng);
+    if (!res && sig) {
+        free_signature(sig);
+        free(sig);
+        sig = NULL;
+    }
+    return sig;
+}
+
 void
 transferable_key_destroy(pgp_transferable_key_t *key)
 {
