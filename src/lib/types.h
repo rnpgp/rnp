@@ -253,9 +253,9 @@ typedef struct pgp_sig_subpkt_t {
             unsigned    len;
         } signer; /* 5.2.3.22.  Signer's User ID */
         struct {
-            uint8_t     code;
-            const char *str;
-            unsigned    len;
+            pgp_revocation_type_t code;
+            const char *          str;
+            unsigned              len;
         } revocation_reason; /* 5.2.3.23.  Reason for Revocation */
         struct {
             bool mdc;
@@ -348,9 +348,9 @@ typedef struct {
 
 /* user revocation info */
 typedef struct pgp_revoke_t {
-    uint32_t uid;    /* index in uid array */
-    uint8_t  code;   /* revocation code */
-    char *   reason; /* c'mon, spill the beans */
+    uint32_t              uid;    /* index in uid array */
+    pgp_revocation_type_t code;   /* revocation code */
+    char *                reason; /* c'mon, spill the beans */
 } pgp_revoke_t;
 
 typedef struct pgp_user_prefs_t {

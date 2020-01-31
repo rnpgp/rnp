@@ -1382,7 +1382,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         break;
     case PGP_SIG_SUBPKT_REVOCATION_REASON:
         if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.revocation_reason.code = subpkt->data[0];
+            subpkt->fields.revocation_reason.code = (pgp_revocation_type_t) subpkt->data[0];
             subpkt->fields.revocation_reason.str = (const char *) &subpkt->data[1];
             subpkt->fields.revocation_reason.len = subpkt->len - 1;
         }

@@ -429,12 +429,12 @@ TEST_F(rnp_tests, test_stream_signatures_revoked_key)
     assert_rnp_success(stream_parse_signature(&sigsrc, &sig));
     src_close(&sigsrc);
     /* get revocation */
-    uint8_t code = 0;
-    char *  reason = NULL;
+    pgp_revocation_type_t code = PGP_REVOCATION_NO_REASON;
+    char *                reason = NULL;
     assert_true(signature_get_revocation_reason(&sig, &code, &reason));
     assert_non_null(reason);
     /* check revocation */
-    assert_int_equal(code, 3);
+    assert_int_equal(code, PGP_REVOCATION_RETIRED);
     assert_string_equal(reason, "For testing!");
     /* cleanup */
     free(reason);
