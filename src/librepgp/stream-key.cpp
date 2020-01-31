@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -336,7 +336,7 @@ transferable_key_add_userid(pgp_transferable_key_t *key, const char *userid)
     pgp_userid_pkt_t           uid = {};
     pgp_transferable_userid_t *tuid = NULL;
 
-    uid.tag = PGP_PTAG_CT_USER_ID;
+    uid.tag = PGP_PKT_USER_ID;
     uid.uid_len = strlen(userid);
     if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
         return NULL;
@@ -653,7 +653,7 @@ static rnp_result_t
 process_pgp_key_trusts(pgp_source_t *src)
 {
     rnp_result_t ret;
-    while (stream_pkt_type(src) == PGP_PTAG_CT_TRUST) {
+    while (stream_pkt_type(src) == PGP_PKT_TRUST) {
         if ((ret = stream_skip_packet(src))) {
             RNP_LOG("failed to skip trust packet");
             return ret;
@@ -668,7 +668,7 @@ process_pgp_key_signatures(pgp_source_t *src, list *sigs)
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
-    while ((ptag = stream_pkt_type(src)) == PGP_PTAG_CT_SIGNATURE) {
+    while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
         pgp_signature_t *sig = (pgp_signature_t *) list_append(sigs, NULL, sizeof(*sig));
         if (!sig) {
             RNP_LOG("sig alloc failed");
@@ -697,7 +697,7 @@ process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
     memset(uid, 0, sizeof(*uid));
     ptag = stream_pkt_type(src);
 
-    if ((ptag != PGP_PTAG_CT_USER_ID) && (ptag != PGP_PTAG_CT_USER_ATTR)) {
+    if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
         RNP_LOG("wrong uid ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -795,8 +795,8 @@ armoredpass:
             goto finish;
         }
 
-        has_secret |= (ptag == PGP_PTAG_CT_SECRET_KEY);
-        has_public |= (ptag == PGP_PTAG_CT_PUBLIC_KEY);
+        has_secret |= (ptag == PGP_PKT_SECRET_KEY);
+        has_public |= (ptag == PGP_PKT_PUBLIC_KEY);
     }
 
     /* file may have multiple armored keys */
@@ -867,7 +867,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
 
     /* user ids/attrs with signatures */
     while ((ptag = stream_pkt_type(src))) {
-        if ((ptag != PGP_PTAG_CT_USER_ID) && (ptag != PGP_PTAG_CT_USER_ATTR)) {
+        if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
             break;
         }
 

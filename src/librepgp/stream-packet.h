@@ -37,12 +37,12 @@
 #define PGP_MAX_PKT_SIZE 0x100000
 
 typedef struct pgp_packet_hdr_t {
-    pgp_content_enum tag;
-    uint8_t          hdr[PGP_MAX_HEADER_SIZE];
-    size_t           hdr_len;
-    size_t           pkt_len;
-    bool             partial;
-    bool             indeterminate;
+    pgp_pkt_type_t tag;
+    uint8_t        hdr[PGP_MAX_HEADER_SIZE];
+    size_t         hdr_len;
+    size_t         pkt_len;
+    bool           partial;
+    bool           indeterminate;
 } pgp_packet_hdr_t;
 
 /* structure for convenient writing or parsing of non-stream packets */

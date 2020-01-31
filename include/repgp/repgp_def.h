@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -145,44 +145,33 @@ enum {
     PGP_REVOCATION_NO_LONGER_VALID = 0x20
 };
 
-/* PTag Content Tags */
-/***************************/
-
-/** Package Tags (aka Content Tags) and signature subpacket types.
- * This enumerates all rfc-defined packet tag values and the
- * signature subpacket type values that we understand.
+/**
+ * @brief OpenPGP packet tags. See section 4.3 of RFC4880 for the detailed description.
  *
- * \see RFC4880 4.3
- * \see RFC4880 5.2.3.1
  */
 typedef enum {
-    PGP_PTAG_CT_RESERVED = 0,       /* Reserved - a packet tag must
-                                     * not have this value */
-    PGP_PTAG_CT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session
-                                     * Key Packet */
-    PGP_PTAG_CT_SIGNATURE = 2,      /* Signature Packet */
-    PGP_PTAG_CT_SK_SESSION_KEY = 3, /* Symmetric-Key Encrypted Session
-                                     * Key Packet */
-    PGP_PTAG_CT_1_PASS_SIG = 4,     /* One-Pass Signature
-                                     * Packet */
-    PGP_PTAG_CT_SECRET_KEY = 5,     /* Secret Key Packet */
-    PGP_PTAG_CT_PUBLIC_KEY = 6,     /* Public Key Packet */
-    PGP_PTAG_CT_SECRET_SUBKEY = 7,  /* Secret Subkey Packet */
-    PGP_PTAG_CT_COMPRESSED = 8,     /* Compressed Data Packet */
-    PGP_PTAG_CT_SE_DATA = 9,        /* Symmetrically Encrypted Data Packet */
-    PGP_PTAG_CT_MARKER = 10,        /* Marker Packet */
-    PGP_PTAG_CT_LITDATA = 11,       /* Literal Data Packet */
-    PGP_PTAG_CT_TRUST = 12,         /* Trust Packet */
-    PGP_PTAG_CT_USER_ID = 13,       /* User ID Packet */
-    PGP_PTAG_CT_PUBLIC_SUBKEY = 14, /* Public Subkey Packet */
-    PGP_PTAG_CT_RESERVED2 = 15,     /* reserved */
-    PGP_PTAG_CT_RESERVED3 = 16,     /* reserved */
-    PGP_PTAG_CT_USER_ATTR = 17,     /* User Attribute Packet */
-    PGP_PTAG_CT_SE_IP_DATA = 18,    /* Sym. Encrypted and Integrity
-                                     * Protected Data Packet */
-    PGP_PTAG_CT_MDC = 19,           /* Modification Detection Code Packet */
-    PGP_PTAG_CT_AEAD_ENCRYPTED = 20 /* AEAD Encrypted Data Packet, RFC 4880bis */
-} pgp_content_enum;
+    PGP_PKT_RESERVED = 0,       /* Reserved - a packet tag must not have this value */
+    PGP_PKT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session Key Packet */
+    PGP_PKT_SIGNATURE = 2,      /* Signature Packet */
+    PGP_PKT_SK_SESSION_KEY = 3, /* Symmetric-Key Encrypted Session Key Packet */
+    PGP_PKT_ONE_PASS_SIG = 4,   /* One-Pass Signature Packet */
+    PGP_PKT_SECRET_KEY = 5,     /* Secret Key Packet */
+    PGP_PKT_PUBLIC_KEY = 6,     /* Public Key Packet */
+    PGP_PKT_SECRET_SUBKEY = 7,  /* Secret Subkey Packet */
+    PGP_PKT_COMPRESSED = 8,     /* Compressed Data Packet */
+    PGP_PKT_SE_DATA = 9,        /* Symmetrically Encrypted Data Packet */
+    PGP_PKT_MARKER = 10,        /* Marker Packet */
+    PGP_PKT_LITDATA = 11,       /* Literal Data Packet */
+    PGP_PKT_TRUST = 12,         /* Trust Packet */
+    PGP_PKT_USER_ID = 13,       /* User ID Packet */
+    PGP_PKT_PUBLIC_SUBKEY = 14, /* Public Subkey Packet */
+    PGP_PKT_RESERVED2 = 15,     /* Reserved */
+    PGP_PKT_RESERVED3 = 16,     /* Reserved */
+    PGP_PKT_USER_ATTR = 17,     /* User Attribute Packet */
+    PGP_PKT_SE_IP_DATA = 18,    /* Sym. Encrypted and Integrity Protected Data Packet */
+    PGP_PKT_MDC = 19,           /* Modification Detection Code Packet */
+    PGP_PKT_AEAD_ENCRYPTED = 20 /* AEAD Encrypted Data Packet, RFC 4880bis */
+} pgp_pkt_type_t;
 
 /** Public Key Algorithm Numbers.
  * OpenPGP assigns a unique Algorithm Number to each algorithm that is part of OpenPGP.

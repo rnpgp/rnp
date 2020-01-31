@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -99,7 +99,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
     seckey->creation_time = time(NULL);
     seckey->alg = crypto->key_alg;
     seckey->material.alg = crypto->key_alg;
-    seckey->tag = primary ? PGP_PTAG_CT_SECRET_KEY : PGP_PTAG_CT_SECRET_SUBKEY;
+    seckey->tag = primary ? PGP_PKT_SECRET_KEY : PGP_PKT_SECRET_SUBKEY;
     rng = crypto->rng;
 
     switch (seckey->alg) {

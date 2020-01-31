@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -602,7 +602,7 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
     uint8_t ad_data[4];
 
-    ad_data[0] = PGP_PTAG_CT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    ad_data[0] = PGP_PKT_SK_SESSION_KEY | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
     ad_data[1] = skey->version;
     ad_data[2] = skey->alg;
     ad_data[3] = skey->aalg;
@@ -778,7 +778,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     param->chunkout = 0;
 
     /* fill additional/authenticated data */
-    param->ad[0] = PGP_PTAG_CT_AEAD_ENCRYPTED | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    param->ad[0] = PGP_PKT_AEAD_ENCRYPTED | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
     memcpy(param->ad + 1, hdr, 4);
     memset(param->ad + 5, 0, 8);
     param->adlen = 13;
@@ -883,9 +883,9 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
     if (param->aead) {
-        param->pkt.tag = PGP_PTAG_CT_AEAD_ENCRYPTED;
+        param->pkt.tag = PGP_PKT_AEAD_ENCRYPTED;
     } else {
-        param->pkt.tag = param->has_mdc ? PGP_PTAG_CT_SE_IP_DATA : PGP_PTAG_CT_SE_DATA;
+        param->pkt.tag = param->has_mdc ? PGP_PKT_SE_IP_DATA : PGP_PKT_SE_DATA;
     }
 
     /* initializing partial data length writer */
@@ -1532,7 +1532,7 @@ init_compressed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *w
     param->alg = (pgp_compression_type_t) handler->ctx->zalg;
     param->pkt.partial = true;
     param->pkt.indeterminate = false;
-    param->pkt.tag = PGP_PTAG_CT_COMPRESSED;
+    param->pkt.tag = PGP_PKT_COMPRESSED;
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(&param->pkt, writedst)) {
@@ -1642,7 +1642,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     dst->type = PGP_STREAM_LITERAL;
     param->partial = true;
     param->indeterminate = false;
-    param->tag = PGP_PTAG_CT_LITDATA;
+    param->tag = PGP_PKT_LITDATA;
 
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(param, writedst)) {

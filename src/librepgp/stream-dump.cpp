@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -48,27 +48,27 @@
 #include <algorithm>
 
 static pgp_map_t packet_tag_map[] = {
-  {PGP_PTAG_CT_RESERVED, "Reserved"},
-  {PGP_PTAG_CT_PK_SESSION_KEY, "Public-Key Encrypted Session Key"},
-  {PGP_PTAG_CT_SIGNATURE, "Signature"},
-  {PGP_PTAG_CT_SK_SESSION_KEY, "Symmetric-Key Encrypted Session Key"},
-  {PGP_PTAG_CT_1_PASS_SIG, "One-Pass Signature"},
-  {PGP_PTAG_CT_SECRET_KEY, "Secret Key"},
-  {PGP_PTAG_CT_PUBLIC_KEY, "Public Key"},
-  {PGP_PTAG_CT_SECRET_SUBKEY, "Secret Subkey"},
-  {PGP_PTAG_CT_COMPRESSED, "Compressed Data"},
-  {PGP_PTAG_CT_SE_DATA, "Symmetrically Encrypted Data"},
-  {PGP_PTAG_CT_MARKER, "Marker"},
-  {PGP_PTAG_CT_LITDATA, "Literal Data"},
-  {PGP_PTAG_CT_TRUST, "Trust"},
-  {PGP_PTAG_CT_USER_ID, "User ID"},
-  {PGP_PTAG_CT_PUBLIC_SUBKEY, "Public Subkey"},
-  {PGP_PTAG_CT_RESERVED2, "reserved2"},
-  {PGP_PTAG_CT_RESERVED3, "reserved3"},
-  {PGP_PTAG_CT_USER_ATTR, "User Attribute"},
-  {PGP_PTAG_CT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
-  {PGP_PTAG_CT_MDC, "Modification Detection Code"},
-  {PGP_PTAG_CT_AEAD_ENCRYPTED, "AEAD Encrypted Data Packet"},
+  {PGP_PKT_RESERVED, "Reserved"},
+  {PGP_PKT_PK_SESSION_KEY, "Public-Key Encrypted Session Key"},
+  {PGP_PKT_SIGNATURE, "Signature"},
+  {PGP_PKT_SK_SESSION_KEY, "Symmetric-Key Encrypted Session Key"},
+  {PGP_PKT_ONE_PASS_SIG, "One-Pass Signature"},
+  {PGP_PKT_SECRET_KEY, "Secret Key"},
+  {PGP_PKT_PUBLIC_KEY, "Public Key"},
+  {PGP_PKT_SECRET_SUBKEY, "Secret Subkey"},
+  {PGP_PKT_COMPRESSED, "Compressed Data"},
+  {PGP_PKT_SE_DATA, "Symmetrically Encrypted Data"},
+  {PGP_PKT_MARKER, "Marker"},
+  {PGP_PKT_LITDATA, "Literal Data"},
+  {PGP_PKT_TRUST, "Trust"},
+  {PGP_PKT_USER_ID, "User ID"},
+  {PGP_PKT_PUBLIC_SUBKEY, "Public Subkey"},
+  {PGP_PKT_RESERVED2, "reserved2"},
+  {PGP_PKT_RESERVED3, "reserved3"},
+  {PGP_PKT_USER_ATTR, "User Attribute"},
+  {PGP_PKT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
+  {PGP_PKT_MDC, "Modification Detection Code"},
+  {PGP_PKT_AEAD_ENCRYPTED, "AEAD Encrypted Data Packet"},
 
   {0x00, NULL}, /* this is the end-of-array marker */
 };
@@ -122,10 +122,10 @@ static pgp_map_t sig_subpkt_type_map[] = {
 };
 
 static pgp_map_t key_type_map[] = {
-  {PGP_PTAG_CT_SECRET_KEY, "Secret key"},
-  {PGP_PTAG_CT_PUBLIC_KEY, "Public key"},
-  {PGP_PTAG_CT_SECRET_SUBKEY, "Secret subkey"},
-  {PGP_PTAG_CT_PUBLIC_SUBKEY, "Public subkey"},
+  {PGP_PKT_SECRET_KEY, "Secret key"},
+  {PGP_PKT_PUBLIC_KEY, "Public key"},
+  {PGP_PKT_SECRET_SUBKEY, "Secret subkey"},
+  {PGP_PKT_PUBLIC_SUBKEY, "Public subkey"},
   {0x00, NULL},
 };
 
@@ -875,10 +875,10 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     }
 
     switch (uid.tag) {
-    case PGP_PTAG_CT_USER_ID:
+    case PGP_PKT_USER_ID:
         utype = "UserID";
         break;
-    case PGP_PTAG_CT_USER_ATTR:
+    case PGP_PKT_USER_ATTR:
         utype = "UserAttr";
         break;
     default:
@@ -889,12 +889,12 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     indent_dest_increase(dst);
 
     switch (uid.tag) {
-    case PGP_PTAG_CT_USER_ID:
+    case PGP_PKT_USER_ID:
         dst_printf(dst, "id: ");
         dst_write(dst, uid.uid, uid.uid_len);
         dst_printf(dst, "\n");
         break;
-    case PGP_PTAG_CT_USER_ATTR:
+    case PGP_PKT_USER_ATTR:
         dst_printf(dst, "id: (%d bytes of data)\n", (int) uid.uid_len);
         break;
     default:;
@@ -1033,13 +1033,13 @@ static rnp_result_t
 stream_dump_encrypted(pgp_source_t *src, pgp_dest_t *dst, int tag)
 {
     switch (tag) {
-    case PGP_PTAG_CT_SE_DATA:
+    case PGP_PKT_SE_DATA:
         dst_printf(dst, "Symmetrically-encrypted data packet\n\n");
         break;
-    case PGP_PTAG_CT_SE_IP_DATA:
+    case PGP_PKT_SE_IP_DATA:
         dst_printf(dst, "Symmetrically-encrypted integrity protected data packet\n\n");
         break;
-    case PGP_PTAG_CT_AEAD_ENCRYPTED:
+    case PGP_PKT_AEAD_ENCRYPTED:
         return stream_dump_aead_encrypted(src, dst);
     default:
         dst_printf(dst, "Unknown encrypted data packet\n\n");
@@ -1191,42 +1191,42 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         }
 
         switch (hdr.tag) {
-        case PGP_PTAG_CT_SIGNATURE:
+        case PGP_PKT_SIGNATURE:
             ret = stream_dump_signature(ctx, src, dst);
             break;
-        case PGP_PTAG_CT_SECRET_KEY:
-        case PGP_PTAG_CT_PUBLIC_KEY:
-        case PGP_PTAG_CT_SECRET_SUBKEY:
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        case PGP_PKT_SECRET_KEY:
+        case PGP_PKT_PUBLIC_KEY:
+        case PGP_PKT_SECRET_SUBKEY:
+        case PGP_PKT_PUBLIC_SUBKEY:
             ret = stream_dump_key(ctx, src, dst);
             break;
-        case PGP_PTAG_CT_USER_ID:
-        case PGP_PTAG_CT_USER_ATTR:
+        case PGP_PKT_USER_ID:
+        case PGP_PKT_USER_ATTR:
             ret = stream_dump_userid(src, dst);
             break;
-        case PGP_PTAG_CT_PK_SESSION_KEY:
+        case PGP_PKT_PK_SESSION_KEY:
             ret = stream_dump_pk_session_key(ctx, src, dst);
             break;
-        case PGP_PTAG_CT_SK_SESSION_KEY:
+        case PGP_PKT_SK_SESSION_KEY:
             ret = stream_dump_sk_session_key(src, dst);
             break;
-        case PGP_PTAG_CT_SE_DATA:
-        case PGP_PTAG_CT_SE_IP_DATA:
-        case PGP_PTAG_CT_AEAD_ENCRYPTED:
+        case PGP_PKT_SE_DATA:
+        case PGP_PKT_SE_IP_DATA:
+        case PGP_PKT_AEAD_ENCRYPTED:
             ret = stream_dump_encrypted(src, dst, hdr.tag);
             break;
-        case PGP_PTAG_CT_1_PASS_SIG:
+        case PGP_PKT_ONE_PASS_SIG:
             ret = stream_dump_one_pass(src, dst);
             break;
-        case PGP_PTAG_CT_COMPRESSED:
+        case PGP_PKT_COMPRESSED:
             ret = stream_dump_compressed(ctx, src, dst);
             break;
-        case PGP_PTAG_CT_LITDATA:
+        case PGP_PKT_LITDATA:
             ret = stream_dump_literal(src, dst);
             break;
-        case PGP_PTAG_CT_MARKER:
-        case PGP_PTAG_CT_TRUST:
-        case PGP_PTAG_CT_MDC:
+        case PGP_PKT_MARKER:
+        case PGP_PKT_TRUST:
+        case PGP_PKT_MDC:
             dst_printf(dst, "Skipping unhandled pkt: %d\n\n", (int) hdr.tag);
             ret = stream_skip_packet(src);
             break;
@@ -1873,14 +1873,14 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     }
 
     switch (uid.tag) {
-    case PGP_PTAG_CT_USER_ID:
+    case PGP_PKT_USER_ID:
         if (!obj_add_field_json(
               pkt, "userid", json_object_new_string_len((char *) uid.uid, uid.uid_len))) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
         break;
-    case PGP_PTAG_CT_USER_ATTR:
+    case PGP_PKT_USER_ATTR:
         if (!obj_add_hex_json(pkt, "userattr", uid.uid, uid.uid_len)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
@@ -1981,9 +1981,9 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
 }
 
 static rnp_result_t
-stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_content_enum tag)
+stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_pkt_type_t tag)
 {
-    if (tag != PGP_PTAG_CT_AEAD_ENCRYPTED) {
+    if (tag != PGP_PKT_AEAD_ENCRYPTED) {
         /* packet header with tag is already in pkt */
         return stream_skip_packet(src);
     }
@@ -2199,42 +2199,42 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         }
 
         switch (hdr.tag) {
-        case PGP_PTAG_CT_SIGNATURE:
+        case PGP_PKT_SIGNATURE:
             ret = stream_dump_signature_json(ctx, src, pkt);
             break;
-        case PGP_PTAG_CT_SECRET_KEY:
-        case PGP_PTAG_CT_PUBLIC_KEY:
-        case PGP_PTAG_CT_SECRET_SUBKEY:
-        case PGP_PTAG_CT_PUBLIC_SUBKEY:
+        case PGP_PKT_SECRET_KEY:
+        case PGP_PKT_PUBLIC_KEY:
+        case PGP_PKT_SECRET_SUBKEY:
+        case PGP_PKT_PUBLIC_SUBKEY:
             ret = stream_dump_key_json(ctx, src, pkt);
             break;
-        case PGP_PTAG_CT_USER_ID:
-        case PGP_PTAG_CT_USER_ATTR:
+        case PGP_PKT_USER_ID:
+        case PGP_PKT_USER_ATTR:
             ret = stream_dump_userid_json(src, pkt);
             break;
-        case PGP_PTAG_CT_PK_SESSION_KEY:
+        case PGP_PKT_PK_SESSION_KEY:
             ret = stream_dump_pk_session_key_json(ctx, src, pkt);
             break;
-        case PGP_PTAG_CT_SK_SESSION_KEY:
+        case PGP_PKT_SK_SESSION_KEY:
             ret = stream_dump_sk_session_key_json(src, pkt);
             break;
-        case PGP_PTAG_CT_SE_DATA:
-        case PGP_PTAG_CT_SE_IP_DATA:
-        case PGP_PTAG_CT_AEAD_ENCRYPTED:
+        case PGP_PKT_SE_DATA:
+        case PGP_PKT_SE_IP_DATA:
+        case PGP_PKT_AEAD_ENCRYPTED:
             ret = stream_dump_encrypted_json(src, pkt, hdr.tag);
             break;
-        case PGP_PTAG_CT_1_PASS_SIG:
+        case PGP_PKT_ONE_PASS_SIG:
             ret = stream_dump_one_pass_json(src, pkt);
             break;
-        case PGP_PTAG_CT_COMPRESSED:
+        case PGP_PKT_COMPRESSED:
             ret = stream_dump_compressed_json(ctx, src, pkt);
             break;
-        case PGP_PTAG_CT_LITDATA:
+        case PGP_PKT_LITDATA:
             ret = stream_dump_literal_json(src, pkt);
             break;
-        case PGP_PTAG_CT_MARKER:
-        case PGP_PTAG_CT_TRUST:
-        case PGP_PTAG_CT_MDC:
+        case PGP_PKT_MARKER:
+        case PGP_PKT_TRUST:
+        case PGP_PKT_MDC:
             ret = stream_skip_packet(src);
             break;
         default:

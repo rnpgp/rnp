@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -963,8 +963,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&pub, 2)->tag);
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&sec, 2)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&pub, 2)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&sec, 2)->tag);
 
         // validate the userid self-sig
 
@@ -1012,7 +1012,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails with incorrect uid
         pgp_userid_pkt_t uid = {
-          .tag = PGP_PTAG_CT_USER_ID, .uid = (uint8_t *) "fake", .uid_len = 4};
+          .tag = PGP_PKT_USER_ID, .uid = (uint8_t *) "fake", .uid_len = 4};
         assert_rnp_failure(signature_validate_certification(
           psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         assert_rnp_failure(signature_validate_certification(
@@ -1074,8 +1074,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&pub, 1)->tag);
-        assert_int_equal(PGP_PTAG_CT_SIGNATURE, pgp_key_get_rawpacket(&sec, 1)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&pub, 1)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&sec, 1)->tag);
         // validate the binding sig
         assert_rnp_success(signature_validate_binding(
           psig, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&pub)));
