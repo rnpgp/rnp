@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -899,10 +899,10 @@ signature_hash_userid(const pgp_userid_pkt_t *uid, pgp_hash_t *hash, pgp_version
     }
 
     switch (uid->tag) {
-    case PGP_PTAG_CT_USER_ID:
+    case PGP_PKT_USER_ID:
         hdr[0] = 0xB4;
         break;
-    case PGP_PTAG_CT_USER_ATTR:
+    case PGP_PKT_USER_ATTR:
         hdr[0] = 0xD1;
         break;
     default:
@@ -1309,7 +1309,7 @@ armoredpass:
     while (!src_eof(src) && !src_error(src)) {
         int ptag = stream_pkt_type(src);
 
-        if (ptag != PGP_PTAG_CT_SIGNATURE) {
+        if (ptag != PGP_PKT_SIGNATURE) {
             RNP_LOG("wrong signature tag: %d", ptag);
             ret = RNP_ERROR_BAD_FORMAT;
             goto finish;

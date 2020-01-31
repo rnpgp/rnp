@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -279,9 +279,9 @@ typedef struct pgp_sig_subpkt_t {
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
-    pgp_content_enum tag;
-    size_t           length;
-    uint8_t *        raw;
+    pgp_pkt_type_t tag;
+    size_t         length;
+    uint8_t *      raw;
 } pgp_rawpacket_t;
 
 typedef enum {

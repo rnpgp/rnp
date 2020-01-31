@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -5471,8 +5471,7 @@ shrink_len_2_to_1(const std::vector<uint8_t> &src)
     std::vector<uint8_t> dst = std::vector<uint8_t>();
     dst.reserve(src.size() - 1);
     dst.insert(dst.end(),
-               PGP_PTAG_ALWAYS_SET |
-                 (PGP_PTAG_CT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+               PGP_PTAG_ALWAYS_SET | (PGP_PKT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
                  PGP_PTAG_OLD_LEN_1);
     // make sure the most significant octet of 2-octet length is actually zero
     assert_int_equal(src[1], 0);
@@ -5544,7 +5543,7 @@ TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
     // PGP_PTAG_OLD_LEN_2
     assert_true(keyring.size() >= 5);
     uint8_t expected_tag = PGP_PTAG_ALWAYS_SET |
-                           (PGP_PTAG_CT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
+                           (PGP_PKT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
                            PGP_PTAG_OLD_LEN_2;
     assert_int_equal(expected_tag, 0x99);
     assert_int_equal(keyring[0], expected_tag);
@@ -6241,12 +6240,12 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     assert_true(json_object_is_type(jso, json_type_array));
     /* check the symmetric-key encrypted session key packet */
     json_object *pkt = json_object_array_get_idx(jso, 0);
-    assert_true(check_json_pkt_type(pkt, PGP_PTAG_CT_SK_SESSION_KEY));
+    assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
     assert_true(check_json_field_int(pkt, "version", 5));
     assert_true(check_json_field_str(pkt, "aead algorithm.str", "OCB"));
     /* check the aead-encrypted packet */
     pkt = json_object_array_get_idx(jso, 1);
-    assert_true(check_json_pkt_type(pkt, PGP_PTAG_CT_AEAD_ENCRYPTED));
+    assert_true(check_json_pkt_type(pkt, PGP_PKT_AEAD_ENCRYPTED));
     assert_true(check_json_field_int(pkt, "version", 1));
     assert_true(check_json_field_str(pkt, "aead algorithm.str", "OCB"));
     assert_true(check_json_field_int(pkt, "chunk size", 10));

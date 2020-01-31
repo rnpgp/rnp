@@ -622,7 +622,7 @@ stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr)
     }
 
     hdr->hdr_len = hlen;
-    hdr->tag = (pgp_content_enum) get_packet_type(hdr->hdr[0]);
+    hdr->tag = (pgp_pkt_type_t) get_packet_type(hdr->hdr[0]);
 
     if (stream_partial_pkt_len(src)) {
         hdr->partial = true;
@@ -796,7 +796,7 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_SK_SESSION_KEY)) {
+    if (!init_packet_body(&pktbody, PGP_PKT_SK_SESSION_KEY)) {
         return false;
     }
 
@@ -849,7 +849,7 @@ stream_write_pk_sesskey(pgp_pk_sesskey_t *pkey, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_PK_SESSION_KEY)) {
+    if (!init_packet_body(&pktbody, PGP_PKT_PK_SESSION_KEY)) {
         return false;
     }
 
@@ -896,7 +896,7 @@ stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_1_PASS_SIG)) {
+    if (!init_packet_body(&pktbody, PGP_PKT_ONE_PASS_SIG)) {
         return false;
     }
 
@@ -927,7 +927,7 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
         return false;
     }
 
-    if (!init_packet_body(&pktbody, PGP_PTAG_CT_SIGNATURE)) {
+    if (!init_packet_body(&pktbody, PGP_PKT_SIGNATURE)) {
         RNP_LOG("allocation failed");
         return false;
     }
@@ -986,7 +986,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     pgp_packet_body_t pkt = {};
     rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
 
-    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_SK_SESSION_KEY) {
+    if ((ptag = stream_pkt_type(src)) != PGP_PKT_SK_SESSION_KEY) {
         RNP_LOG("wrong sk ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1091,7 +1091,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
     int               ptag;
 
-    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_PK_SESSION_KEY) {
+    if ((ptag = stream_pkt_type(src)) != PGP_PKT_PK_SESSION_KEY) {
         RNP_LOG("wrong pk ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1677,7 +1677,7 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
     pgp_packet_body_t pkt = {};
     rnp_result_t      res = RNP_ERROR_BAD_FORMAT;
 
-    if ((ptag = stream_pkt_type(src)) != PGP_PTAG_CT_SIGNATURE) {
+    if ((ptag = stream_pkt_type(src)) != PGP_PKT_SIGNATURE) {
         RNP_LOG("wrong signature ptag: %d", ptag);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1789,10 +1789,10 @@ bool
 is_key_pkt(int tag)
 {
     switch (tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
+    case PGP_PKT_PUBLIC_KEY:
+    case PGP_PKT_PUBLIC_SUBKEY:
+    case PGP_PKT_SECRET_KEY:
+    case PGP_PKT_SECRET_SUBKEY:
         return true;
     default:
         return false;
@@ -1802,21 +1802,21 @@ is_key_pkt(int tag)
 bool
 is_subkey_pkt(int tag)
 {
-    return (tag == PGP_PTAG_CT_PUBLIC_SUBKEY) || (tag == PGP_PTAG_CT_SECRET_SUBKEY);
+    return (tag == PGP_PKT_PUBLIC_SUBKEY) || (tag == PGP_PKT_SECRET_SUBKEY);
 }
 
 bool
 is_primary_key_pkt(int tag)
 {
-    return (tag == PGP_PTAG_CT_PUBLIC_KEY) || (tag == PGP_PTAG_CT_SECRET_KEY);
+    return (tag == PGP_PKT_PUBLIC_KEY) || (tag == PGP_PKT_SECRET_KEY);
 }
 
 bool
 is_public_key_pkt(int tag)
 {
     switch (tag) {
-    case PGP_PTAG_CT_PUBLIC_KEY:
-    case PGP_PTAG_CT_PUBLIC_SUBKEY:
+    case PGP_PKT_PUBLIC_KEY:
+    case PGP_PKT_PUBLIC_SUBKEY:
         return true;
     default:
         return false;
@@ -1827,8 +1827,8 @@ bool
 is_secret_key_pkt(int tag)
 {
     switch (tag) {
-    case PGP_PTAG_CT_SECRET_KEY:
-    case PGP_PTAG_CT_SECRET_SUBKEY:
+    case PGP_PKT_SECRET_KEY:
+    case PGP_PKT_SECRET_SUBKEY:
         return true;
     default:
         return false;
@@ -2223,10 +2223,10 @@ copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src, bool pubonly)
         return true;
     }
 
-    if (src->tag == PGP_PTAG_CT_SECRET_KEY) {
-        dst->tag = PGP_PTAG_CT_PUBLIC_KEY;
+    if (src->tag == PGP_PKT_SECRET_KEY) {
+        dst->tag = PGP_PKT_PUBLIC_KEY;
     } else {
-        dst->tag = PGP_PTAG_CT_PUBLIC_SUBKEY;
+        dst->tag = PGP_PKT_PUBLIC_SUBKEY;
     }
 
     forget_secret_key_fields(&dst->material);
@@ -2285,7 +2285,7 @@ stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if ((userid->tag != PGP_PTAG_CT_USER_ID) && (userid->tag != PGP_PTAG_CT_USER_ATTR)) {
+    if ((userid->tag != PGP_PKT_USER_ID) && (userid->tag != PGP_PKT_USER_ATTR)) {
         RNP_LOG("wrong userid tag");
         return false;
     }
@@ -2321,7 +2321,7 @@ stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid)
 
     /* check the tag */
     tag = stream_pkt_type(src);
-    if ((tag != PGP_PTAG_CT_USER_ID) && (tag != PGP_PTAG_CT_USER_ATTR)) {
+    if ((tag != PGP_PKT_USER_ID) && (tag != PGP_PKT_USER_ATTR)) {
         RNP_LOG("wrong userid tag: %d", tag);
         return RNP_ERROR_BAD_FORMAT;
     }
