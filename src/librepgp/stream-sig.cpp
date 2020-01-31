@@ -792,7 +792,9 @@ signature_has_revocation_reason(const pgp_signature_t *sig)
 }
 
 bool
-signature_get_revocation_reason(const pgp_signature_t *sig, uint8_t *code, char **reason)
+signature_get_revocation_reason(const pgp_signature_t *sig,
+                                pgp_revocation_type_t *code,
+                                char **                reason)
 {
     pgp_sig_subpkt_t *subpkt;
 

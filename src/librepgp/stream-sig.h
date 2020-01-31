@@ -283,7 +283,9 @@ char *signature_get_key_server(const pgp_signature_t *sig);
 
 bool signature_has_revocation_reason(const pgp_signature_t *sig);
 
-bool signature_get_revocation_reason(const pgp_signature_t *sig, uint8_t *code, char **reason);
+bool signature_get_revocation_reason(const pgp_signature_t *sig,
+                                     pgp_revocation_type_t *code,
+                                     char **                reason);
 
 /**
  * @brief Fill signature's hashed data. This includes all the fields from signature which are

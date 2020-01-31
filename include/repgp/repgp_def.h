@@ -137,13 +137,13 @@ typedef enum {
 #define MDC_PKT_TAG 0xd3
 #define MDC_V1_SIZE 22
 
-enum {
+typedef enum {
     PGP_REVOCATION_NO_REASON = 0,
     PGP_REVOCATION_SUPERSEDED = 1,
     PGP_REVOCATION_COMPROMISED = 2,
     PGP_REVOCATION_RETIRED = 3,
     PGP_REVOCATION_NO_LONGER_VALID = 0x20
-};
+} pgp_revocation_type_t;
 
 /**
  * @brief OpenPGP packet tags. See section 4.3 of RFC4880 for the detailed description.
