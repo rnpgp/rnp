@@ -268,7 +268,7 @@ get_pkt_len(uint8_t *hdr)
 }
 
 bool
-init_packet_body(pgp_packet_body_t *body, int tag)
+init_packet_body(pgp_packet_body_t *body, pgp_pkt_type_t tag)
 {
     body->data = (uint8_t *) malloc(16);
     if (!body->data) {
@@ -406,7 +406,7 @@ add_packet_body_subpackets(pgp_packet_body_t *body, const pgp_signature_t *sig, 
     uint8_t           splen[6];
     bool              res;
 
-    if (!init_packet_body(&spbody, 0)) {
+    if (!init_packet_body(&spbody, PGP_PKT_RESERVED)) {
         return false;
     }
 
@@ -654,9 +654,11 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
 
     body->hdr_len = len;
 
-    if ((body->tag = get_packet_type(body->hdr[0])) < 0) {
+    int ptag = get_packet_type(body->hdr[0]);
+    if (ptag < 0) {
         return RNP_ERROR_BAD_FORMAT;
     }
+    body->tag = (pgp_pkt_type_t) ptag;
 
     len = stream_read_pkt_len(src);
     if (len <= 0) {
@@ -1863,7 +1865,7 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
         return false;
     }
 
-    if (!init_packet_body(&hbody, 0)) {
+    if (!init_packet_body(&hbody, PGP_PKT_RESERVED)) {
         RNP_LOG("allocation failed");
         return false;
     }

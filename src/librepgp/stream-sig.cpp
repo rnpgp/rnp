@@ -832,7 +832,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
         return false;
     }
 
-    if (!init_packet_body(&hbody, 0)) {
+    if (!init_packet_body(&hbody, PGP_PKT_RESERVED)) {
         RNP_LOG("allocation failed");
         return false;
     }
@@ -863,7 +863,7 @@ bool
 signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
 {
     uint8_t       hdr[3] = {0x99, 0x00, 0x00};
-    pgp_key_pkt_t keycp = {0};
+    pgp_key_pkt_t keycp = {};
     bool          res = false;
 
     if (!key || !hash) {
