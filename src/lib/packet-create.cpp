@@ -160,22 +160,3 @@ pgp_write_xfer_key(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
 
     return res;
 }
-
-bool
-pgp_write_struct_seckey(pgp_dest_t *     dst,
-                        pgp_content_enum tag,
-                        pgp_key_pkt_t *  seckey,
-                        const char *     password)
-{
-    bool res = false;
-    int  oldtag = seckey->tag;
-
-    seckey->tag = tag;
-    if (encrypt_secret_key(seckey, password, NULL)) {
-        goto done;
-    }
-    res = stream_write_key(seckey, dst);
-done:
-    seckey->tag = oldtag;
-    return res;
-}

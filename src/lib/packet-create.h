@@ -60,8 +60,6 @@
 
 #include "types.h"
 
-bool pgp_write_struct_seckey(pgp_dest_t *, pgp_content_enum, pgp_key_pkt_t *, const char *);
-
 /**
  * @brief Write OpenPGP key packets (including subkeys) to the specified stream
  *

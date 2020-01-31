@@ -1149,6 +1149,25 @@ pgp_key_lock(pgp_key_t *key)
 }
 
 static bool
+pgp_write_seckey(pgp_dest_t *     dst,
+             pgp_content_enum tag,
+             pgp_key_pkt_t *  seckey,
+             const char *     password)
+{
+    bool res = false;
+    int  oldtag = seckey->tag;
+
+    seckey->tag = tag;
+    if (encrypt_secret_key(seckey, password, NULL)) {
+        goto done;
+    }
+    res = stream_write_key(seckey, dst);
+done:
+    seckey->tag = oldtag;
+    return res;
+}
+
+static bool
 write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
                        pgp_rawpacket_t *      packet,
                        pgp_content_enum       type,
@@ -1166,7 +1185,7 @@ write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
     switch (format) {
     case PGP_KEY_STORE_GPG:
     case PGP_KEY_STORE_KBX:
-        if (!pgp_write_struct_seckey(&memdst, type, seckey, password)) {
+        if (!pgp_write_seckey(&memdst, type, seckey, password)) {
             RNP_LOG("failed to write seckey");
             goto done;
         }
