@@ -68,11 +68,11 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "pgp-key.h"
 
 static pgp_map_t ss_rr_code_map[] = {
-  {0x00, "No reason specified"},
-  {0x01, "Key is superseded"},
-  {0x02, "Key material has been compromised"},
-  {0x03, "Key is retired and no longer used"},
-  {0x20, "User ID information is no longer valid"},
+  {PGP_REVOCATION_NO_REASON, "No reason specified"},
+  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
+  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
+  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
