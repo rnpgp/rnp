@@ -126,7 +126,6 @@ add_library(librnp
   key-provider.cpp
   list.cpp
   misc.cpp
-  packet-create.cpp
   pass-provider.cpp
   pgp-key.cpp
   rnp.cpp

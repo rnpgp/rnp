@@ -62,7 +62,6 @@
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-armor.h>
-#include "packet-create.h"
 
 #include <stdio.h>
 #include <string.h>
