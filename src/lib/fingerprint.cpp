@@ -32,7 +32,6 @@
 #include <string.h>
 #include "fingerprint.h"
 #include "crypto/hash.h"
-#include "packet-create.h"
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
