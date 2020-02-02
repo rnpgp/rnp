@@ -42,7 +42,6 @@
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-dump.h>
-#include "packet-create.h"
 #include <rnp/rnp.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -2987,7 +2986,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     // write
     if (pgp_key_is_primary_key(key)) {
         // primary key, write just the primary or primary and all subkeys
-        if (!pgp_write_xfer_key(dst, key, export_subs ? store : NULL)) {
+        if (!pgp_key_write_xfer(dst, key, export_subs ? store : NULL)) {
             return RNP_ERROR_GENERIC;
         }
     } else {
@@ -3002,10 +3001,10 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
             // shouldn't happen
             return RNP_ERROR_GENERIC;
         }
-        if (!pgp_write_xfer_key(dst, primary, NULL)) {
+        if (!pgp_key_write_xfer(dst, primary, NULL)) {
             return RNP_ERROR_GENERIC;
         }
-        if (!pgp_write_xfer_key(dst, key, NULL)) {
+        if (!pgp_key_write_xfer(dst, key, NULL)) {
             return RNP_ERROR_GENERIC;
         }
     }

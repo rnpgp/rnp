@@ -33,7 +33,6 @@
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
 #include "pgp-key.h"
-#include "packet-create.h"
 #include <librepgp/stream-sig.h>
 
 #define BLOB_SIZE_LIMIT (5 * 1024 * 1024) // same limit with GnuPG 2.1
