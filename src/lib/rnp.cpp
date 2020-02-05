@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Ribose Inc.
+ * Copyright (c) 2017-2020, Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -229,6 +229,13 @@ static const pgp_map_t sig_import_status_map[] = {
   {PGP_SIG_IMPORT_STATUS_UNCHANGED, "unchanged"},
   {PGP_SIG_IMPORT_STATUS_NEW, "new"}};
 
+static const pgp_map_t revocation_code_map[] = {
+  {PGP_REVOCATION_NO_REASON, "no"},
+  {PGP_REVOCATION_SUPERSEDED, "superseded"},
+  {PGP_REVOCATION_COMPROMISED, "compromised"},
+  {PGP_REVOCATION_RETIRED, "retired"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "no longer valid"}};
+
 static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
@@ -295,6 +302,18 @@ str_to_compression_alg(const char *str, pgp_compression_type_t *zalg)
         return false;
     }
     *zalg = alg;
+    return true;
+}
+
+static bool
+str_to_revocation_type(const char *str, pgp_revocation_type_t *code)
+{
+    pgp_revocation_type_t rev = PGP_REVOCATION_NO_REASON;
+    ARRAY_LOOKUP_BY_STRCASE(revocation_code_map, string, type, str, rev);
+    if ((rev == PGP_REVOCATION_NO_REASON) && rnp_strcasecmp(str, "no")) {
+        return false;
+    }
+    *code = rev;
     return true;
 }
 
@@ -3131,6 +3150,113 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     }
     output->keep = true;
     return RNP_SUCCESS;
+}
+
+static pgp_key_t *
+rnp_key_get_revoker(rnp_key_handle_t key)
+{
+    pgp_key_t *exkey = get_key_prefer_public(key);
+    if (!exkey) {
+        return NULL;
+    }
+    if (pgp_key_is_subkey(exkey)) {
+        return rnp_key_store_get_primary_key(key->ffi->secring, exkey);
+    }
+    // TODO: search through revocation key subpackets as well
+    return get_key_require_secret(key);
+}
+
+static rnp_result_t
+rnp_key_get_revocation(rnp_ffi_t         ffi,
+                       pgp_key_t *       key,
+                       pgp_key_t *       revoker,
+                       const char *      hash,
+                       const char *      code,
+                       const char *      reason,
+                       pgp_signature_t **sig)
+{
+    *sig = NULL;
+    if (!hash) {
+        hash = DEFAULT_HASH_ALG;
+    }
+    pgp_hash_alg_t halg = PGP_HASH_UNKNOWN;
+    if (!str_to_hash_alg(hash, &halg)) {
+        FFI_LOG(ffi, "Unknown hash algorithm: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_revoke_t revinfo = {};
+    if (code && !str_to_revocation_type(code, &revinfo.code)) {
+        FFI_LOG(ffi, "Wrong revocation code: %s", code);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (revinfo.code > PGP_REVOCATION_RETIRED) {
+        FFI_LOG(ffi, "Wrong key revocation code: %d", (int) revinfo.code);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (reason) {
+        revinfo.reason = strdup(reason);
+        if (!revinfo.reason) {
+            FFI_LOG(ffi, "Allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    /* unlock the secret key if needed */
+    bool locked = pgp_key_is_locked(revoker);
+    if (locked && !pgp_key_unlock(revoker, &ffi->pass_provider)) {
+        FFI_LOG(ffi, "Failed to unlock secret key");
+        revoke_free(&revinfo);
+        return RNP_ERROR_BAD_PASSWORD;
+    }
+    *sig =
+      transferable_key_revoke(pgp_key_get_pkt(key), pgp_key_get_pkt(revoker), halg, &revinfo);
+    if (!*sig) {
+        FFI_LOG(ffi, "Failed to generate revocation signature");
+    }
+    if (locked) {
+        pgp_key_lock(revoker);
+    }
+    revoke_free(&revinfo);
+    return *sig ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
+}
+
+rnp_result_t
+rnp_key_export_revocation(rnp_key_handle_t key,
+                          rnp_output_t     output,
+                          uint32_t         flags,
+                          const char *     hash,
+                          const char *     code,
+                          const char *     reason)
+{
+    if (!key || !key->ffi || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_key_t *exkey = get_key_prefer_public(key);
+    if (!exkey || !pgp_key_is_primary_key(exkey)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *revoker = rnp_key_get_revoker(key);
+    if (!revoker) {
+        FFI_LOG(key->ffi, "Revoker secret key not found");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_signature_t *sig = NULL;
+    rnp_result_t     ret =
+      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, &sig);
+    if (ret) {
+        return ret;
+    }
+
+    ret = stream_write_signature(sig, &output->dst) ? RNP_SUCCESS : RNP_ERROR_WRITE;
+    dst_flush(&output->dst);
+    output->keep = !ret;
+    free_signature(sig);
+    free(sig);
+    return ret;
 }
 
 rnp_result_t
