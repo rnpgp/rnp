@@ -32,6 +32,8 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "librepgp/stream-common.h"
+#include "librepgp/stream-packet.h"
+#include "librepgp/stream-sig.h"
 #include <json.h>
 #include <vector>
 #include <string>
@@ -6743,5 +6745,112 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
     assert_false(revoked);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+TEST_F(rnp_tests, test_ffi_export_revocation)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    rnp_key_handle_t key_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    /* check for failure with wrong parameters */
+    assert_rnp_failure(rnp_key_export_revocation(
+      NULL, output, 0, "SHA256", "superseded", "test key revocation"));
+    assert_rnp_failure(rnp_key_export_revocation(key_handle, NULL, 0, "SHA256", NULL, NULL));
+    assert_rnp_failure(
+      rnp_key_export_revocation(key_handle, output, 0x17, "SHA256", NULL, NULL));
+    assert_rnp_failure(
+      rnp_key_export_revocation(key_handle, output, 0, "Wrong hash", NULL, NULL));
+    assert_rnp_failure(
+      rnp_key_export_revocation(key_handle, output, 0, "SHA256", "Wrong reason code", NULL));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* check for failure with subkey */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &key_handle));
+    assert_rnp_success(rnp_key_unlock(key_handle, "password"));
+    assert_rnp_failure(rnp_key_export_revocation(
+      key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* try to export revocation having public key only */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    assert_rnp_failure(rnp_key_export_revocation(
+      key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* load secret key and export revocation - should succeed with correct password */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    /* wrong password - must fail */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_failure(rnp_key_export_revocation(
+      key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
+    /* unlocked key - must succeed */
+    assert_rnp_success(rnp_key_unlock(key_handle, "password"));
+    assert_rnp_success(rnp_key_export_revocation(key_handle, output, 0, "SHA256", NULL, NULL));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "alice-revocation.pgp"));
+    /* correct password provider - must succeed */
+    assert_rnp_success(rnp_key_lock(key_handle));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_key_export_revocation(
+      key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
+    /* make sure FFI locks key back */
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* make sure we can successfully import exported revocation */
+    json_object *jso = NULL;
+    json_object *jsosigs = NULL;
+    assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.pgp"));
+    assert_int_equal(json_object_array_length(jsosigs), 1);
+    json_object *jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_true(
+      check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
+    json_object_put(jso);
+    /* key now must become revoked */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    bool revoked = false;
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_true(revoked);
+    /* check signature number - it now must be 1 */
+    size_t sigcount = 0;
+    assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+
+    /* check signature contents */
+    pgp_source_t src = {};
+    assert_rnp_success(init_file_src(&src, "alice-revocation.pgp"));
+    pgp_signature_t sig = {};
+    assert_rnp_success(stream_parse_signature(&src, &sig));
+    src_close(&src);
+    assert_int_equal(signature_get_type(&sig), PGP_SIG_REV_KEY);
+    assert_true(signature_has_revocation_reason(&sig));
+    assert_true(signature_has_keyfp(&sig));
+    pgp_revocation_type_t code = PGP_REVOCATION_NO_REASON;
+    char *                reason = NULL;
+    assert_true(signature_get_revocation_reason(&sig, &code, &reason));
+    assert_int_equal(code, PGP_REVOCATION_SUPERSEDED);
+    assert_int_equal(strcmp(reason, "test key revocation"), 0);
+    free(reason);
+    free_signature(&sig);
+    assert_int_equal(unlink("alice-revocation.pgp"), 0);
+
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
