@@ -15,6 +15,7 @@ typedef enum {
     CMD_IMPORT_KEYS,
     CMD_IMPORT_SIGS,
     CMD_GENERATE_KEY,
+    CMD_EXPORT_REV,
     CMD_VERSION,
     CMD_HELP,
 
@@ -37,6 +38,8 @@ typedef enum {
     OPT_S2K_ITER,
     OPT_S2K_MSEC,
     OPT_WITH_SIGS,
+    OPT_REV_TYPE,
+    OPT_REV_REASON,
 
     /* debug */
     OPT_DEBUG
