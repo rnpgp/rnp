@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -1614,6 +1614,53 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
     result = !rnp_output_finish(armor);
 done:
     rnp_output_destroy(armor);
+    rnp_output_destroy(output);
+    cli_rnp_keylist_destroy(&keys);
+    return result;
+}
+
+bool
+cli_rnp_export_revocation(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *key)
+{
+    list keys = cli_rnp_get_keylist(rnp, key, false, false);
+    if (!keys) {
+        ERR_MSG("Key matching '%s' not found.", key);
+        return false;
+    }
+    if (list_length(keys) > 1) {
+        ERR_MSG("Ambiguous input: too many keys found for '%s'.", key);
+        cli_rnp_keylist_destroy(&keys);
+        return false;
+    }
+    rnp_key_handle_t key_handle = *((rnp_key_handle_t *) list_front(keys));
+    const char *     file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    rnp_result_t     ret = RNP_ERROR_GENERIC;
+    rnp_output_t     output = NULL;
+    rnp_output_t     armored = NULL;
+    bool             result = false;
+    if (file) {
+        uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        ret = rnp_output_to_file(&output, file, flags);
+    } else {
+        ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
+    }
+    if (ret) {
+        goto done;
+    }
+
+    /* export it armored by default */
+    if (rnp_output_to_armor(output, &armored, "public key")) {
+        goto done;
+    }
+
+    result = !rnp_key_export_revocation(key_handle,
+                                        armored,
+                                        0,
+                                        rnp_cfg_getstr(cfg, CFG_HASH),
+                                        rnp_cfg_getstr(cfg, CFG_REV_TYPE),
+                                        rnp_cfg_getstr(cfg, CFG_REV_REASON));
+done:
+    rnp_output_destroy(armored);
     rnp_output_destroy(output);
     cli_rnp_keylist_destroy(&keys);
     return result;

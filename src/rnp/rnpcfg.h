@@ -77,14 +77,16 @@
 #define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore"            /* indicates wether keystore must be initialized */
-#define CFG_FORCE "force"         /* force command to succeed operation */
-#define CFG_SECRET "secret"       /* indicates operation on secret key */
-#define CFG_WITH_SIGS "with-sigs" /* list keys with signatures */
-#define CFG_JSON "json"           /* list packets with JSON output */
-#define CFG_GRIPS "grips"         /* dump grips when dumping key packets */
-#define CFG_MPIS "mpis"           /* dump MPI values when dumping packets */
-#define CFG_RAW "raw"             /* dump raw packet contents */
+    "disable_keystore"              /* indicates wether keystore must be initialized */
+#define CFG_FORCE "force"           /* force command to succeed operation */
+#define CFG_SECRET "secret"         /* indicates operation on secret key */
+#define CFG_WITH_SIGS "with-sigs"   /* list keys with signatures */
+#define CFG_JSON "json"             /* list packets with JSON output */
+#define CFG_GRIPS "grips"           /* dump grips when dumping key packets */
+#define CFG_MPIS "mpis"             /* dump MPI values when dumping packets */
+#define CFG_RAW "raw"               /* dump raw packet contents */
+#define CFG_REV_TYPE "rev-type"     /* revocation reason code */
+#define CFG_REV_REASON "rev-reason" /* revocation reason human-readable string */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"
