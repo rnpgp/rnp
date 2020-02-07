@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -49,6 +49,7 @@ extern const char *rnp_keys_progname;
 
 const char *usage = "--help OR\n"
                     "\t--export-key [options] OR\n"
+                    "\t--export-rev [options] OR\n"
                     "\t--generate-key [options] OR\n"
                     "\t--import, --import-keys, --import-sigs [options] OR\n"
                     "\t--list-keys [options] OR\n"
@@ -65,6 +66,7 @@ const char *usage = "--help OR\n"
                     "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
+                    "\t[--rev-type, --rev-reason] AND/OR\n"
                     "\t[--verbose]\n";
 
 struct option options[] = {
@@ -80,6 +82,8 @@ struct option options[] = {
   {"gen-key", optional_argument, NULL, CMD_GENERATE_KEY},
   {"generate", optional_argument, NULL, CMD_GENERATE_KEY},
   {"generate-key", optional_argument, NULL, CMD_GENERATE_KEY},
+  {"export-rev", no_argument, NULL, CMD_EXPORT_REV},
+  {"export-revocation", no_argument, NULL, CMD_EXPORT_REV},
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
@@ -106,6 +110,8 @@ struct option options[] = {
   {"output", required_argument, NULL, OPT_OUTPUT},
   {"force", no_argument, NULL, OPT_FORCE},
   {"secret", no_argument, NULL, OPT_SECRET},
+  {"rev-type", required_argument, NULL, OPT_REV_TYPE},
+  {"rev-reason", required_argument, NULL, OPT_REV_REASON},
   {NULL, 0, NULL, 0},
 };
 
@@ -374,6 +380,13 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_generate_key(cfg, rnp, f);
     }
+    case CMD_EXPORT_REV: {
+        if (!f) {
+            ERR_MSG("You need to specify key to generate revocation for.");
+            return false;
+        }
+        return cli_rnp_export_revocation(cfg, rnp, f);
+    }
     case CMD_VERSION:
         print_praise();
         return true;
@@ -403,6 +416,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
         break;
     case CMD_LIST_KEYS:
     case CMD_EXPORT_KEY:
+    case CMD_EXPORT_REV:
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
@@ -532,6 +546,27 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
         break;
     case OPT_WITH_SIGS:
         ret = rnp_cfg_setbool(cfg, CFG_WITH_SIGS, true);
+        break;
+    case OPT_REV_TYPE: {
+        if (!arg) {
+            ERR_MSG("No revocation type argument provided");
+            break;
+        }
+        std::string revtype = arg;
+        if (revtype == "0") {
+            revtype = "no";
+        } else if (revtype == "1") {
+            revtype = "superseded";
+        } else if (revtype == "2") {
+            revtype = "compromised";
+        } else if (revtype == "3") {
+            revtype = "retired";
+        }
+        ret = rnp_cfg_setstr(cfg, CFG_REV_TYPE, revtype.c_str());
+        break;
+    }
+    case OPT_REV_REASON:
+        ret = rnp_cfg_setstr(cfg, CFG_REV_REASON, arg);
         break;
     default:
         *cmd = CMD_HELP;
