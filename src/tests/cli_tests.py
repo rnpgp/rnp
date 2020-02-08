@@ -99,6 +99,29 @@ r'Secret subkey packet.*' \
 r'secret key material:.*' \
 r'encrypted secret key data:.*$'
 
+RE_RNP_REVOCATION_SIG = r'(?s)^.*' \
+r'packet header .* \(tag 2, len .*' \
+r'Signature packet.*' \
+r'version: 4.*' \
+r'type: 32 \(Key revocation signature\).*' \
+r'public key algorithm:.*' \
+r'hashed subpackets:.*' \
+r':type 33, len 21.*' \
+r'issuer fingerprint:.*' \
+r':type 2, len 4.*' \
+r'signature creation time:.*' \
+r':type 29.*' \
+r'reason for revocation: (.*)' \
+r'message: (.*)' \
+r'unhashed subpackets:.*' \
+r':type 16, len 8.*' \
+r'issuer key ID: .*$'
+
+RE_GPG_REVOCATION_IMPORT = r'(?s)^.*' \
+r'key 0451409669FFDE3C: "Alice <alice@rnp>" revocation certificate imported.*' \
+r'Total number processed: 1.*' \
+r'new key revocations: 1.*$'
+
 RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
 # These are mostly identical
 RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256', 'TWOFISH' : 'twofish',
@@ -1021,6 +1044,130 @@ class Keystore(unittest.TestCase):
             raise_err('Alice malformed sigs import failed')
         if not re.match(r'(?s)^.*Failed to import signatures from file .*', err):
             raise_err('Alice malformed sigs wrong output')
+    
+    def test_export_revocation(self):
+        clear_keyrings()
+        # Import Alice's public key and be unable to export revocation
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-pub.asc')])
+        if ret != 0:
+            raise_err('Alice key import failed')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'alice'])
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*Revoker secret key not found.*', err):
+            raise_err('Wrong revocation export output')
+        # Import Alice's secret key and subkey
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+        if ret != 0:
+            raise_err('Alice secret key import failed')
+        # Attempt to export revocation without specifying key
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*You need to specify key to generate revocation for.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Attempt to export revocation for unknown key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'basil'])
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*Key matching \'basil\' not found.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Attempt to export revocation for subkey
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'DD23CEB7FEBEFF17'])
+        os.close(pipe)
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*Key matching \'DD23CEB7FEBEFF17\' not found.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Attempt to export revocation with too broad search
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/basil-sec.asc')])
+        if ret != 0:
+            raise_err('Basil secret key import failed')
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'rnp', '--pass-fd', str(pipe), 
+                                        '--output', 'no-revocation.pgp', '--force'])
+        os.close(pipe)
+        if (ret == 0) or path.isfile('no-revocation.pgp'):
+            raise_err('Failed to fail to export revocation')
+        if not re.match(r'(?s)^.*Ambiguous input: too many keys found for \'rnp\'.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Finally successfully export revocation
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '0451409669FFDE3C', '--pass-fd', str(pipe), 
+                                        '--output', 'alice-revocation.pgp', '--force'])
+        os.close(pipe)
+        if (ret != 0) or not path.isfile('alice-revocation.pgp'):
+            raise_err('Failed to export revocation')
+        # Check revocation contents
+        ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', 'alice-revocation.pgp'])
+        if (ret != 0) or (len(out) == 0):
+            raise_err('Failed to list exported revocation packets')
+        match = re.match(RE_RNP_REVOCATION_SIG, out)
+        if not match:
+            raise_err('Wrong revocation signature contents', out)
+        if (match.group(1).strip() != '0 (No reason)') or (match.group(2).strip() != ''):
+            raise_err('Wrong revocation signature contents')
+        # Make sure it can be imported back
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', 'alice-revocation.pgp'])
+        if ret != 0:
+            raise_err('Failed to import revocation back')
+        if not re.match(r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unknown.*', err):
+            raise_err('Revocation import wrong output', err)
+        # Make sure file will not be overwritten without --force parameter
+        old_size = os.stat('alice-revocation.pgp').st_size
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '0451409669FFDE3C', '--pass-fd', str(pipe), '--output', 'alice-revocation.pgp'])
+        os.close(pipe)
+        if (ret == 0) or not path.isfile('alice-revocation.pgp') or (old_size != os.stat('alice-revocation.pgp').st_size):
+            raise_err('Revocation was overwritten without --force parameter')
+        # Create revocation with wrong code - 'no longer valid' (which is usable only for userid)
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'alice', '--rev-type', 'no longer valid',
+                                        '--pass-fd', str(pipe), '--output', 'no-revocation.pgp', '--force'])
+        os.close(pipe)
+        if (ret == 0) or path.isfile('no-revocation.pgp'):
+            raise_err('Failed to use wrong revocation reason')
+        if not re.match(r'(?s)^.*Wrong key revocation code: 32.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Create revocation without rev-code parameter
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'alice', '--pass-fd', str(pipe), 
+                                        '--output', 'no-revocation.pgp', '--force', '--rev-type'])
+        os.close(pipe)
+        if (ret == 0) or path.isfile('no-revocation.pgp'):
+            raise_err('Failed to use rev-type without parameter')
+        # Create another revocation with custom code/reason
+        revcodes = {"0" : "0 (No reason)", "1" : "1 (Superseded)", "2" : "2 (Compromised)", 
+                    "3" : "3 (Retired)", "no" : "0 (No reason)", "superseded" : "1 (Superseded)", 
+                    "compromised" : "2 (Compromised)", "retired" : "3 (Retired)"}
+        for revcode in revcodes:
+            revreason = 'Custom reason: ' + revcode
+            pipe = pswd_pipe(PASSWORD)
+            ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '0451409669FFDE3C', '--pass-fd', str(pipe), 
+                                            '--output', 'alice-revocation.pgp', '--force', '--rev-type', revcode, '--rev-reason', revreason])
+            os.close(pipe)
+            if (ret != 0) or not path.isfile('alice-revocation.pgp'):
+                raise_err('Failed to export revocation with code ' + revcode)
+            # Check revocation contents
+            ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', 'alice-revocation.pgp'])
+            if (ret != 0) or (len(out) == 0):
+                raise_err('Failed to list exported revocation packets')
+            match = re.match(RE_RNP_REVOCATION_SIG, out)
+            if not match:
+                raise_err('Wrong revocation signature contents', out)
+            if (match.group(1).strip() != revcodes[revcode]) or (match.group(2).strip() != revreason ):
+                raise_err('Wrong revocation signature contents', out)
+            # Make sure it is also imported back
+            ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', 'alice-revocation.pgp'])
+            if ret != 0:
+                raise_err('Failed to import revocation back')
+            if not re.match(r'(?s)^.*Import finished: 1 new signature, 0 unchanged, 0 unknown.*', err):
+                raise_err('Revocation import wrong output', err)
+            # Now let's import it with GnuPG
+            gpg_import_pubring(data_path('test_key_validity/alice-pub.asc'))
+            ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', 'alice-revocation.pgp'])
+            if ret != 0:
+                raise_err('gpg signature revocation import failed', err)
+            if not re.match(RE_GPG_REVOCATION_IMPORT, err):
+                raise_err('Wrong gpg revocation import output')
+
+        os.remove('alice-revocation.pgp')
+        clear_keyrings()
 
 class Misc(unittest.TestCase):
 
