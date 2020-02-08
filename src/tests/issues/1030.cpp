@@ -50,11 +50,11 @@ test_issue_1030(const char *keystore)
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    keys = cli_rnp_get_keylist(&rnp, userid, false);
+    keys = cli_rnp_get_keylist(&rnp, userid, false, true);
     assert_int_equal(list_length(keys), 2);
     cli_rnp_keylist_destroy(&keys);
 
-    keys = cli_rnp_get_keylist(&rnp, userid, true);
+    keys = cli_rnp_get_keylist(&rnp, userid, true, true);
     assert_int_equal(list_length(keys), 2);
     for (list_item *item = list_front(keys); item; item = list_next(item)) {
         rnp_key_handle_t key = *((rnp_key_handle_t *) item);

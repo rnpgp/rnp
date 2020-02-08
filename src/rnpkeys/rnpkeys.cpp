@@ -117,7 +117,7 @@ print_keys_info(rnp_cfg_t *cfg, cli_rnp_t *rnp, FILE *fp, const char *filter)
     int  keyc;
     bool psecret = rnp_cfg_getbool(cfg, CFG_SECRET);
 
-    keys = cli_rnp_get_keylist(rnp, filter, psecret);
+    keys = cli_rnp_get_keylist(rnp, filter, psecret, true);
     if (!keys) {
         fprintf(fp, "Key(s) not found.\n");
         return false;

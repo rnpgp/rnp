@@ -74,7 +74,7 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
         goto done;
     }
 
-    keys = cli_rnp_get_keylist(&rnp, userid, false);
+    keys = cli_rnp_get_keylist(&rnp, userid, false, true);
     if (list_length(keys) != 2) {
         goto done;
     }

@@ -1175,7 +1175,7 @@ done:
 }
 
 list
-cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret)
+cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys)
 {
     list                      result = NULL;
     rnp_identifier_iterator_t it = NULL;
@@ -1208,6 +1208,10 @@ cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret)
             rnp_key_handle_destroy(handle);
             goto error;
         }
+        if (is_subkey && !subkeys) {
+            rnp_key_handle_destroy(handle);
+            continue;
+        }
         if (is_subkey && rnp_key_get_primary_grip(handle, &primary_grip)) {
             rnp_key_handle_destroy(handle);
             goto error;
@@ -1225,7 +1229,7 @@ cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret)
         }
 
         /* add subkeys as well, if key is primary */
-        if (is_subkey) {
+        if (is_subkey || !subkeys) {
             continue;
         }
         if (rnp_key_get_subkey_count(handle, &sub_count)) {
@@ -1554,7 +1558,7 @@ bool
 cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
 {
     bool secret = rnp_cfg_getbool(cfg, CFG_SECRET);
-    list keys = cli_rnp_get_keylist(rnp, filter, secret);
+    list keys = cli_rnp_get_keylist(rnp, filter, secret, true);
     if (!keys) {
         fprintf(rnp->userio_out, "Key(s) matching '%s' not found.\n", filter);
         return false;
