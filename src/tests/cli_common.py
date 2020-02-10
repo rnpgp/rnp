@@ -99,8 +99,8 @@ def run_proc_windows(proc, params, stdin=None):
     logging.debug('Working directory: ' + os.getcwd())
 
     exe = os.path.basename(proc)
-    # Not sure why but empty string is not passed to underlying spawnv call
-    params = map(lambda st: st if st else '""', [exe] + params)
+    # We need to escape empty parameters/ones with spaces with quotes
+    params = map(lambda st: st if (st and not ' ' in st) else '"%s"' % st, [exe] + params)
     sys.stdout.flush()
 
     stdin_path = os.path.join(WORKDIR, 'stdin.txt')
