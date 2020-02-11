@@ -178,7 +178,7 @@ pgp_subsig_free(pgp_subsig_t *subsig)
     free_signature(&subsig->sig);
 }
 
-static void
+void
 revoke_free(pgp_revoke_t *revoke)
 {
     if (!revoke) {
