@@ -145,6 +145,7 @@ rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
             /* revoke whole key */
             key->revoked = 1;
             revocation = &key->revocation;
+            revoke_free(revocation);
         } else {
             /* revoke the user id */
             if (!(revocation = pgp_key_add_revoke(key))) {
