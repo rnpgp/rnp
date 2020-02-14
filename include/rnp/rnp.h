@@ -856,6 +856,27 @@ rnp_result_t rnp_key_export_revocation(rnp_key_handle_t key,
                                        const char *     code,
                                        const char *     reason);
 
+/**
+ * @brief revoke a key or subkey by generating and adding revocation signature.
+ * @param key key or subkey to be revoked. For primary key must have secret key, otherwise
+ *            keyrings will be searched for the authorized to issue revocation signatures
+ *            secret key. For subkey keyrings must have primary secret key.
+ *            If secret key is locked then password will be asked via password provider.
+ * @param flags currently must be 0.
+ * @param hash hash algorithm used to calculate signature. Pass NULL for default algorithm
+ *             selection.
+ * @param code reason for revocation code. Possible values: 'no', 'superseded', 'compromised',
+ *             'retired'. May be NULL - then 'no' value will be used.
+ * @param reason textual representation of the reason for revocation. May be NULL or empty
+ *               string.
+ * @return RNP_SUCCESS on success, or any other value on error
+ */
+rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
+                            uint32_t         flags,
+                            const char *     hash,
+                            const char *     code,
+                            const char *     reason);
+
 /** remove a key from keyring(s)
  *  Note: you need to call rnp_save_keys() to write updated keyring(s) out.
  *        Other handles of the same key should not be used after this call.
