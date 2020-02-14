@@ -3283,6 +3283,51 @@ rnp_key_export_revocation(rnp_key_handle_t key,
 }
 
 rnp_result_t
+rnp_key_revoke(
+  rnp_key_handle_t key, uint32_t flags, const char *hash, const char *code, const char *reason)
+{
+    if (!key || !key->ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_key_t *exkey = get_key_prefer_public(key);
+    if (!exkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *revoker = rnp_key_get_revoker(key);
+    if (!revoker) {
+        FFI_LOG(key->ffi, "Revoker secret key not found");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_signature_t *sig = NULL;
+    rnp_result_t     ret =
+      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, &sig);
+    if (ret) {
+        return ret;
+    }
+    pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
+    pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
+    if (key->pub) {
+        pub_status = rnp_key_store_import_key_signature(key->ffi->pubring, key->pub, sig);
+    }
+    if (key->sec) {
+        sec_status = rnp_key_store_import_key_signature(key->ffi->secring, key->sec, sig);
+    }
+    free_signature(sig);
+    free(sig);
+
+    if ((pub_status == PGP_SIG_IMPORT_STATUS_UNKNOWN) ||
+        (sec_status == PGP_SIG_IMPORT_STATUS_UNKNOWN)) {
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
 {
     if (!key || !key->ffi) {
