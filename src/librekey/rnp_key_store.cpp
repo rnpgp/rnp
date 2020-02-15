@@ -330,6 +330,15 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
         goto done;
     }
 
+    /* check whether key was unlocked and assign secret key data */
+    if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
+        /* we may do thing below only because key material is opaque structure without
+         * pointers! */
+        tmpkey.pkt.material = dst->pkt.material;
+    } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
+        tmpkey.pkt.material = src->pkt.material;
+    }
+
     pgp_key_free_data(dst);
     *dst = tmpkey;
     res = true;
@@ -388,6 +397,14 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         if (!pgp_key_add_subkey_grip(&tmpkey, (uint8_t *) li)) {
             RNP_LOG("failed to add subkey grip");
         }
+    }
+    /* check whether key was unlocked and assign secret key data */
+    if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
+        /* we may do thing below only because key material is opaque structure without
+         * pointers! */
+        tmpkey.pkt.material = dst->pkt.material;
+    } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
+        tmpkey.pkt.material = src->pkt.material;
     }
 
     pgp_key_free_data(dst);
