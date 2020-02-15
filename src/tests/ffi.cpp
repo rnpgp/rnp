@@ -7014,3 +7014,91 @@ TEST_F(rnp_tests, test_ffi_rnp_request_password)
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_ffi_key_revoke)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    rnp_key_handle_t key_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    /* check for failure with wrong parameters */
+    assert_rnp_failure(rnp_key_revoke(NULL, 0, "SHA256", "superseded", "test key revocation"));
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0, "SHA256", NULL, NULL));
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0x17, "SHA256", NULL, NULL));
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0, "Wrong hash", NULL, NULL));
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0, "SHA256", "Wrong reason code", NULL));
+    /* attempt to revoke key without the secret */
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0, "SHA256", "retired", "Custom reason"));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* attempt to revoke subkey without the secret */
+    rnp_key_handle_t sub_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
+    assert_rnp_failure(rnp_key_revoke(sub_handle, 0, "SHA256", "retired", "Custom reason"));
+    assert_rnp_success(rnp_key_handle_destroy(sub_handle));
+    /* load secret key */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
+    /* wrong password - must fail */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_failure(rnp_key_revoke(key_handle, 0, "SHA256", "superseded", NULL));
+    assert_rnp_failure(rnp_key_revoke(sub_handle, 0, "SHA256", "superseded", NULL));
+    /* unlocked key - must succeed */
+    bool revoked = false;
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_unlock(key_handle, "password"));
+    assert_rnp_success(rnp_key_revoke(key_handle, 0, "SHA256", NULL, NULL));
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_true(revoked);
+    /* subkey */
+    assert_rnp_success(rnp_key_is_revoked(sub_handle, &revoked));
+    assert_false(revoked);
+    bool locked = true;
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_false(locked);
+    assert_rnp_success(rnp_key_revoke(sub_handle, 0, "SHA256", NULL, "subkey revoked"));
+    assert_rnp_success(rnp_key_is_revoked(sub_handle, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_key_lock(key_handle));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    assert_rnp_success(rnp_key_handle_destroy(sub_handle));
+    /* correct password provider - must succeed */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET | RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(
+      rnp_key_revoke(key_handle, 0, "SHA256", "superseded", "test key revocation"));
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_true(revoked);
+    /* make sure FFI locks key back */
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    /* repeat for subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
+    assert_rnp_success(rnp_key_is_revoked(sub_handle, &revoked));
+    assert_false(revoked);
+    assert_rnp_success(rnp_key_revoke(sub_handle, 0, "SHA256", "no", "test sub revocation"));
+    assert_rnp_success(rnp_key_is_revoked(sub_handle, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_key_handle_destroy(sub_handle));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
