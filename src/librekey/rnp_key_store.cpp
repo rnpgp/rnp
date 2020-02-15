@@ -588,43 +588,97 @@ rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
     return NULL;
 }
 
+static pgp_sig_import_status_t
+rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
+                                      pgp_key_t *            key,
+                                      const pgp_signature_t *sig)
+{
+    pgp_sig_type_t sigtype = signature_get_type(sig);
+    if ((sigtype != PGP_SIG_SUBKEY) && (sigtype != PGP_SIG_REV_SUBKEY)) {
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+    const uint8_t *prim_grip = pgp_key_get_primary_grip(key);
+    pgp_key_t *    primary = rnp_key_store_get_signer_key(keyring, sig);
+    if (!prim_grip || !primary) {
+        RNP_LOG("No primary grip or primary key");
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
+    }
+    if (memcmp(pgp_key_get_grip(primary), prim_grip, PGP_KEY_GRIP_SIZE)) {
+        RNP_LOG("Wrong subkey signature's signer.");
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+
+    pgp_key_t tmpkey = {};
+    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig)) {
+        RNP_LOG("Failed to add signature to the key.");
+        pgp_key_free_data(&tmpkey);
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+
+    size_t expackets = pgp_key_get_rawpacket_count(key);
+    if (!(key = rnp_key_store_add_key(keyring, &tmpkey))) {
+        RNP_LOG("Failed to add key with imported sig to the keyring");
+        pgp_key_free_data(&tmpkey);
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+    return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
+                                                            PGP_SIG_IMPORT_STATUS_UNCHANGED;
+}
+
+pgp_sig_import_status_t
+rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
+                                   pgp_key_t *            key,
+                                   const pgp_signature_t *sig)
+{
+    if (pgp_key_is_subkey(key)) {
+        return rnp_key_store_import_subkey_signature(keyring, key, sig);
+    }
+    pgp_sig_type_t sigtype = signature_get_type(sig);
+    if ((sigtype != PGP_SIG_DIRECT) && (sigtype != PGP_SIG_REV_KEY)) {
+        RNP_LOG("Wrong signature type: %d", (int) sigtype);
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+
+    pgp_key_t tmpkey = {};
+    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig)) {
+        RNP_LOG("Failed to add signature to the key.");
+        pgp_key_free_data(&tmpkey);
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+
+    size_t expackets = pgp_key_get_rawpacket_count(key);
+    if (!(key = rnp_key_store_add_key(keyring, &tmpkey))) {
+        RNP_LOG("Failed to add key with imported sig to the keyring");
+        pgp_key_free_data(&tmpkey);
+        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    }
+    return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
+                                                            PGP_SIG_IMPORT_STATUS_UNCHANGED;
+}
+
 pgp_key_t *
 rnp_key_store_import_signature(rnp_key_store_t *        keyring,
                                const pgp_signature_t *  sig,
                                pgp_sig_import_status_t *status)
 {
-    pgp_key_t *             res_key = NULL;
-    pgp_key_t               tmpkey = {};
-    pgp_sig_import_status_t res_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
-    pgp_sig_type_t          sigtype = signature_get_type(sig);
-    size_t                  expackets = 0;
+    pgp_sig_import_status_t tmp_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
+    if (!status) {
+        status = &tmp_status;
+    }
+    *status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
 
+    pgp_sig_type_t sigtype = signature_get_type(sig);
     /* we support only direct-key and key revocation signatures here */
     if ((sigtype != PGP_SIG_DIRECT) && (sigtype != PGP_SIG_REV_KEY)) {
-        goto done;
-    }
-    res_key = rnp_key_store_get_signer_key(keyring, sig);
-    if (!res_key) {
-        res_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
-        goto done;
-    }
-    if (!pgp_key_from_pkt(&tmpkey, &res_key->pkt) || !rnp_key_add_signature(&tmpkey, sig)) {
-        goto done;
+        return NULL;
     }
 
-    expackets = pgp_key_get_rawpacket_count(res_key);
-    if (!(res_key = rnp_key_store_add_key(keyring, &tmpkey))) {
-        RNP_LOG("failed to add key with imported sig to the keyring");
-        goto done;
+    pgp_key_t *res_key = rnp_key_store_get_signer_key(keyring, sig);
+    if (!res_key || !pgp_key_is_primary_key(res_key)) {
+        *status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
+        return NULL;
     }
-    res_status = (pgp_key_get_rawpacket_count(res_key) > expackets) ?
-                   PGP_SIG_IMPORT_STATUS_NEW :
-                   PGP_SIG_IMPORT_STATUS_UNCHANGED;
-done:
-    pgp_key_free_data(&tmpkey);
-    if (status) {
-        *status = res_status;
-    }
+    *status = rnp_key_store_import_key_signature(keyring, res_key, sig);
     return res_key;
 }
 
