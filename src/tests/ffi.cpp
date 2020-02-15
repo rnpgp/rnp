@@ -6854,3 +6854,34 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
 
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_ffi_secret_sig_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    rnp_key_handle_t key_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    bool locked = false;
+    /* unlock secret key */
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_unlock(key_handle, "password"));
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_false(locked);
+    /* import revocation signature */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
+    assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    /* make sure that key is still unlocked */
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_false(locked);
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
