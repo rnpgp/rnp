@@ -171,6 +171,10 @@ pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
  */
 pgp_key_t *rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig);
 
+pgp_sig_import_status_t rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
+                                                           pgp_key_t *            key,
+                                                           const pgp_signature_t *sig);
+
 /**
  * @brief Import revocation or direct-key signature to the keyring.
  *
