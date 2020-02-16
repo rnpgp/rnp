@@ -1734,6 +1734,74 @@ done:
 }
 
 bool
+cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
+{
+    std::vector<rnp_key_handle_t> keys;
+    if (!cli_rnp_keys_matching_string(rnp, keys, key, CLI_SEARCH_SUBKEYS)) {
+        ERR_MSG("Key matching '%s' not found.", key);
+        return false;
+    }
+    rnp_cfg_t *  cfg = cli_rnp_cfg(rnp);
+    bool         res = false;
+    bool         revoked = false;
+    rnp_result_t ret = 0;
+
+    if (keys.size() > 1) {
+        ERR_MSG("Ambiguous input: too many keys found for '%s'.", key);
+        goto done;
+    }
+    if (rnp_key_is_revoked(keys[0], &revoked)) {
+        ERR_MSG("Error getting key revocation status.");
+        goto done;
+    }
+    if (revoked && !rnp_cfg_getbool(cfg, CFG_FORCE)) {
+        ERR_MSG("Error: key '%s' is revoked already. Use --force to generate another "
+                "revocation signature.",
+                key);
+        goto done;
+    }
+
+    ret = rnp_key_revoke(keys[0],
+                         0,
+                         rnp_cfg_getstr(cfg, CFG_HASH),
+                         rnp_cfg_getstr(cfg, CFG_REV_TYPE),
+                         rnp_cfg_getstr(cfg, CFG_REV_REASON));
+    if (ret) {
+        ERR_MSG("Failed to revoke a key: error %d", (int) ret);
+        goto done;
+    }
+    res = cli_rnp_save_keyrings(rnp);
+    /* print info about the revoked key */
+    if (res) {
+        bool  subkey = false;
+        char *grip = NULL;
+        if (rnp_key_is_sub(keys[0], &subkey)) {
+            ERR_MSG("Failed to get key info");
+            goto done;
+        }
+        ret =
+          subkey ? rnp_key_get_primary_grip(keys[0], &grip) : rnp_key_get_grip(keys[0], &grip);
+        if (ret || !grip) {
+            ERR_MSG("Failed to get primary key grip.");
+            goto done;
+        }
+        clear_key_handles(keys);
+        if (!cli_rnp_keys_matching_string(rnp, keys, grip, CLI_SEARCH_SUBKEYS_AFTER)) {
+            ERR_MSG("Failed to search for revoked key.");
+            rnp_buffer_destroy(grip);
+            goto done;
+        }
+        rnp_buffer_destroy(grip);
+        for (auto handle : keys) {
+            cli_rnp_print_key_info(rnp->userio_out, rnp->ffi, handle, false, false);
+        }
+    }
+done:
+    clear_key_handles(keys);
+    return res;
+}
+
+bool
 cli_rnp_add_key(cli_rnp_t *rnp)
 {
     std::string path = rnp_cfg_getstring(cli_rnp_cfg(rnp), CFG_KEYFILE);
