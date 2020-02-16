@@ -6925,10 +6925,27 @@ TEST_F(rnp_tests, test_ffi_secret_sig_import)
     assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
     assert_rnp_success(rnp_input_destroy(input));
-
     /* make sure that key is still unlocked */
     assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
     assert_false(locked);
+    /* import subkey */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* make sure that primary key is still unlocked */
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_false(locked);
+    /* unlock subkey and make sure it is unlocked after revocation */
+    rnp_key_handle_t sub_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
+    assert_rnp_success(rnp_key_unlock(sub_handle, "password"));
+    assert_rnp_success(rnp_key_is_locked(sub_handle, &locked));
+    assert_false(locked);
+    assert_rnp_success(rnp_key_revoke(sub_handle, 0, "SHA256", "retired", "Custom reason"));
+    assert_rnp_success(rnp_key_is_locked(sub_handle, &locked));
+    assert_false(locked);
+    assert_rnp_success(rnp_key_handle_destroy(sub_handle));
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
