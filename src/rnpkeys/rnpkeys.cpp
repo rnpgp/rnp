@@ -50,6 +50,7 @@ extern const char *rnp_keys_progname;
 const char *usage = "--help OR\n"
                     "\t--export-key [options] OR\n"
                     "\t--export-rev [options] OR\n"
+                    "\t--revoke-key [options] OR\n"
                     "\t--generate-key [options] OR\n"
                     "\t--import, --import-keys, --import-sigs [options] OR\n"
                     "\t--list-keys [options] OR\n"
@@ -84,6 +85,7 @@ struct option options[] = {
   {"generate-key", optional_argument, NULL, CMD_GENERATE_KEY},
   {"export-rev", no_argument, NULL, CMD_EXPORT_REV},
   {"export-revocation", no_argument, NULL, CMD_EXPORT_REV},
+  {"revoke-key", no_argument, NULL, CMD_REVOKE_KEY},
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
@@ -385,6 +387,13 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_export_revocation(rnp, f);
     }
+    case CMD_REVOKE_KEY: {
+        if (!f) {
+            ERR_MSG("You need to specify key or subkey to revoke.");
+            return false;
+        }
+        return cli_rnp_revoke_key(rnp, f);
+    }
     case CMD_VERSION:
         print_praise();
         return true;
@@ -415,6 +424,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
     case CMD_LIST_KEYS:
     case CMD_EXPORT_KEY:
     case CMD_EXPORT_REV:
+    case CMD_REVOKE_KEY:
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
