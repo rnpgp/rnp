@@ -44,6 +44,15 @@ typedef struct cli_rnp_t {
     int       pswdtries;  /* number of password tries, -1 for unlimited */
 } cli_rnp_t;
 
+typedef enum cli_search_flags_t {
+    CLI_SEARCH_SECRET = 1 << 0,     /* search secret keys only */
+    CLI_SEARCH_SUBKEYS = 1 << 1,    /* add subkeys as well */
+    CLI_SEARCH_FIRST_ONLY = 1 << 2, /* return only first key matching */
+    CLI_SEARCH_SUBKEYS_AFTER =
+      (1 << 3) | CLI_SEARCH_SUBKEYS, /* put subkeys after the primary key */
+    CLI_SEARCH_DEFAULT = 1 << 4      /* add default key if nothing found */
+} cli_search_flags_t;
+
 /**
  * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring pathes, types and
  *        default key.
@@ -69,8 +78,44 @@ bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_set_default_key(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
-bool        cli_rnp_set_generate_params(rnp_cfg_t *cfg);
-bool        cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
+bool cli_rnp_set_generate_params(rnp_cfg_t *cfg);
+bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
+/**
+ * @brief Find key(s) matching set of flags and search string.
+ *
+ * @param rnp initialized cli_rnp_t object.
+ * @param keys search results will be added here, leaving already existing items.
+ * @param str search string: may be part of the userid, keyid, fingerprint or grip.
+ * @param flags combination of the following flags:
+ *              CLI_SEARCH_SECRET : require key to be secret,
+ *              CLI_SEARCH_SUBKEYS : include subkeys to the results (see
+ *                CLI_SEARCH_SUBKEYS_AFTER description).
+ *              CLI_SEARCH_FIRST_ONLY : include only first key found
+ *              CLI_SEARCH_SUBKEYS_AFTER : for each primary key add it's subkeys after the main
+ *                key. This changes behaviour of subkey search, since those will be added only
+ *                if subkey is orphaned or primary key matches search.
+ * @return true if operation succeeds and at least one key is found, or false otherwise.
+ */
+bool cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
+                                  std::vector<rnp_key_handle_t> &keys,
+                                  const std::string &            str,
+                                  int                            flags);
+/**
+ * @brief Find key(s) matching set of flags and search string(s).
+ *
+ * @param rnp initialized cli_rnp_t object.
+ * @param keys search results will be put here, overwriting vector's contents.
+ * @param strs set of search strings, may be empty.
+ * @param flags the same flags as for cli_rnp_keys_matching_string(), except additional one:
+ *              CLI_SEARCH_DEFAULT : if no key is found then default key from cli_rnp_t will be
+ *                searched.
+ * @return true if operation succeeds and at least one key is found for each search string, or
+ *         false otherwise.
+ */
+bool        cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
+                                          std::vector<rnp_key_handle_t> & keys,
+                                          const std::vector<std::string> &strs,
+                                          int                             flags);
 list        cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys);
 void        cli_rnp_keylist_destroy(list *keys);
 bool        cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
