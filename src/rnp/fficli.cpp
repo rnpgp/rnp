@@ -1196,6 +1196,180 @@ done:
     return handle;
 }
 
+static bool
+key_matches_flags(rnp_key_handle_t key, int flags)
+{
+    /* check whether secret key search is requested */
+    bool secret = false;
+    if (rnp_key_have_secret(key, &secret)) {
+        return false;
+    }
+    if ((flags & CLI_SEARCH_SECRET) && !secret) {
+        return false;
+    }
+    /* check whether no subkeys allowed */
+    bool subkey = false;
+    if (rnp_key_is_sub(key, &subkey)) {
+        return false;
+    }
+    if (!subkey) {
+        return true;
+    }
+    if (!(flags & CLI_SEARCH_SUBKEYS)) {
+        return false;
+    }
+    /* check whether subkeys should be put after primary (if it is available) */
+    if ((flags & CLI_SEARCH_SUBKEYS_AFTER) != CLI_SEARCH_SUBKEYS_AFTER) {
+        return true;
+    }
+
+    char *grip = NULL;
+    if (rnp_key_get_primary_grip(key, &grip)) {
+        return false;
+    }
+    if (!grip) {
+        return true;
+    }
+    rnp_buffer_destroy(grip);
+    return false;
+}
+
+static void
+clear_key_handles(std::vector<rnp_key_handle_t> &keys)
+{
+    for (auto handle : keys) {
+        rnp_key_handle_destroy(handle);
+    }
+    keys.clear();
+}
+
+static bool
+add_key_to_array(rnp_ffi_t                      ffi,
+                 std::vector<rnp_key_handle_t> &keys,
+                 rnp_key_handle_t               key,
+                 int                            flags)
+{
+    bool subkey = false;
+    bool subkeys = (flags & CLI_SEARCH_SUBKEYS_AFTER) == CLI_SEARCH_SUBKEYS_AFTER;
+    if (rnp_key_is_sub(key, &subkey)) {
+        return false;
+    }
+
+    try {
+        keys.push_back(key);
+    } catch (...) {
+        ERR_MSG("allocation failed");
+        return false;
+    }
+    if (!subkeys || subkey) {
+        return true;
+    }
+
+    std::vector<rnp_key_handle_t> subs;
+    size_t                        sub_count = 0;
+    if (rnp_key_get_subkey_count(key, &sub_count)) {
+        goto error;
+    }
+
+    try {
+        for (size_t i = 0; i < sub_count; i++) {
+            rnp_key_handle_t sub_handle = NULL;
+            if (rnp_key_get_subkey_at(key, i, &sub_handle)) {
+                goto error;
+            }
+            subs.push_back(sub_handle);
+        }
+        std::move(subs.begin(), subs.end(), std::back_inserter(keys));
+    } catch (...) {
+        ERR_MSG("allocation or move failed");
+        goto error;
+    }
+    return true;
+error:
+    keys.pop_back();
+    clear_key_handles(subs);
+    return false;
+}
+
+bool
+cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
+                             std::vector<rnp_key_handle_t> &keys,
+                             const std::string &            str,
+                             int                            flags)
+{
+    bool                      res = false;
+    rnp_identifier_iterator_t it = NULL;
+    rnp_key_handle_t          handle = NULL;
+    const char *              grip = NULL;
+
+    /* iterate through the keys */
+    if (rnp_identifier_iterator_create(rnp->ffi, &it, "grip")) {
+        return false;
+    }
+
+    while (!rnp_identifier_iterator_next(it, &grip)) {
+        if (!grip) {
+            break;
+        }
+        if (rnp_locate_key(rnp->ffi, "grip", grip, &handle) || !handle) {
+            goto done;
+        }
+        if (!key_matches_flags(handle, flags) ||
+            !key_matches_string(handle, str.c_str(), false)) {
+            rnp_key_handle_destroy(handle);
+            continue;
+        }
+        if (!add_key_to_array(rnp->ffi, keys, handle, flags)) {
+            rnp_key_handle_destroy(handle);
+            goto done;
+        }
+        if (flags & CLI_SEARCH_FIRST_ONLY) {
+            res = true;
+            goto done;
+        }
+    }
+    res = !keys.empty();
+done:
+    rnp_identifier_iterator_destroy(it);
+    return res;
+}
+
+bool
+cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
+                              std::vector<rnp_key_handle_t> & keys,
+                              const std::vector<std::string> &strs,
+                              int                             flags)
+{
+    bool res = false;
+    clear_key_handles(keys);
+
+    for (const std::string &str : strs) {
+        if (!cli_rnp_keys_matching_string(rnp, keys, str, flags & ~CLI_SEARCH_DEFAULT)) {
+            ERR_MSG("Cannot find key matching \"%s\"", str.c_str());
+            goto done;
+        }
+    }
+
+    /* search for default key */
+    if (keys.empty() && (flags & CLI_SEARCH_DEFAULT)) {
+        if (cli_rnp_defkey(rnp).empty()) {
+            ERR_MSG("No userid or default key for operation");
+            goto done;
+        }
+        res = cli_rnp_keys_matching_string(
+          rnp, keys, cli_rnp_defkey(rnp), flags & ~CLI_SEARCH_DEFAULT);
+        if (keys.empty()) {
+            ERR_MSG("Default key not found");
+        }
+    }
+    res = !keys.empty();
+done:
+    if (!res) {
+        clear_key_handles(keys);
+    }
+    return res;
+}
+
 list
 cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys)
 {
