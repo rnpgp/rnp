@@ -453,33 +453,6 @@ rnp_strip_eol(char *s)
     return s;
 }
 
-/* check whether string is hex */
-bool
-ishex(const char *hexid, size_t hexlen)
-{
-    /* check for 0x prefix */
-    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
-        hexid += 2;
-        hexlen -= 2;
-    }
-
-    for (size_t i = 0; i < hexlen; i++) {
-        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
-            continue;
-        }
-        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
-            continue;
-        }
-        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
-            continue;
-        }
-        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
-            continue;
-        }
-        return false;
-    }
-    return true;
-}
 /* convert hex string, probably prefixes with 0x, to binary form */
 bool
 hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
