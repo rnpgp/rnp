@@ -989,16 +989,19 @@ done:
     return res;
 }
 
-static bool
-str_is_hex(const char *hexid, size_t hexlen)
+static size_t
+hex_prefix_len(const std::string &str)
 {
-    /* todo: this function duplicates ishex from rnp_sdk.h. Should we add it to FFI? */
-    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
-        hexid += 2;
-        hexlen -= 2;
+    if ((str.length() >= 2) && (str[0] == '0') && ((str[1] == 'x') || (str[1] == 'X'))) {
+        return 2;
     }
+    return 0;
+}
 
-    for (size_t i = 0; i < hexlen; i++) {
+static bool
+str_is_hex(const std::string &hexid)
+{
+    for (size_t i = hex_prefix_len(hexid); i < hexid.length(); i++) {
         if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
             continue;
         }
@@ -1016,13 +1019,27 @@ str_is_hex(const char *hexid, size_t hexlen)
     return true;
 }
 
+static std::string
+strip_hex_str(const std::string &str)
+{
+    std::string res = "";
+    for (size_t idx = hex_prefix_len(str); idx < str.length(); idx++) {
+        char ch = str[idx];
+        if ((ch == ' ') || (ch == '\t')) {
+            continue;
+        }
+        res.push_back(ch);
+    }
+    return res;
+}
+
 static bool
-key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
+key_matches_string(rnp_key_handle_t handle, const std::string &str)
 {
     bool   matches = false;
     char * id = NULL;
     size_t idlen = 0;
-    size_t len = str ? strlen(str) : 0;
+    size_t len = str.length();
 #ifndef RNP_USE_STD_REGEX
     regex_t r = {};
 #else
@@ -1031,38 +1048,22 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
     size_t uid_count = 0;
     bool   boolres = false;
 
-    if (rnp_key_have_secret(handle, &boolres)) {
-        goto done;
-    }
-
-    if (secret && !boolres) {
-        goto done;
-    }
-
-    if (!str) {
+    if (str.empty()) {
         matches = true;
         goto done;
     }
-
-    if (str_is_hex(str, len) && (len >= RNP_KEYID_SIZE)) {
-        const char *hexstr = str;
-
-        if ((str[0] == '0') && ((str[1] == 'x') || (str[1] == 'X'))) {
-            hexstr += 2;
-            len -= 2;
-        }
+    if (str_is_hex(str) && (len >= RNP_KEYID_SIZE)) {
+        std::string hexstr = strip_hex_str(str);
 
         /* check whether it's key id */
         if ((len == RNP_KEYID_SIZE * 2) || (len == RNP_KEYID_SIZE)) {
             if (rnp_key_get_keyid(handle, &id)) {
                 goto done;
             }
-
             if ((idlen = strlen(id)) < len) {
                 goto done;
             }
-
-            if (strncasecmp(hexstr, id + idlen - len, len) == 0) {
+            if (strncasecmp(hexstr.c_str(), id + idlen - len, len) == 0) {
                 matches = true;
                 goto done;
             }
@@ -1075,12 +1076,10 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
             if (rnp_key_get_fprint(handle, &id)) {
                 goto done;
             }
-
             if (strlen(id) != len) {
                 goto done;
             }
-
-            if (strncasecmp(hexstr, id, len) == 0) {
+            if (strncasecmp(hexstr.c_str(), id, len) == 0) {
                 matches = true;
                 goto done;
             }
@@ -1093,12 +1092,10 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
             if (rnp_key_get_grip(handle, &id)) {
                 goto done;
             }
-
             if (strlen(id) != len) {
                 goto done;
             }
-
-            if (strncasecmp(hexstr, id, len) == 0) {
+            if (strncasecmp(hexstr.c_str(), id, len) == 0) {
                 matches = true;
                 goto done;
             }
@@ -1112,14 +1109,13 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
     if (rnp_key_is_sub(handle, &boolres) || boolres) {
         goto done;
     }
-
     if (rnp_key_get_uid_count(handle, &uid_count) || (uid_count == 0)) {
         goto done;
     }
 
 #ifndef RNP_USE_STD_REGEX
     /* match on full name or email address as a NOSUB, ICASE regexp */
-    if (regcomp(&r, str, REG_EXTENDED | REG_ICASE) != 0) {
+    if (regcomp(&r, str.c_str(), REG_EXTENDED | REG_ICASE) != 0) {
         goto done;
     }
 #else
@@ -1130,7 +1126,6 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
         if (rnp_key_get_uid_at(handle, idx, &id)) {
             goto regdone;
         }
-
 #ifndef RNP_USE_STD_REGEX
         if (regexec(&r, id, 0, NULL, 0) == 0) {
             matches = true;
@@ -1142,7 +1137,6 @@ key_matches_string(rnp_key_handle_t handle, const char *str, bool secret)
             goto regdone;
         }
 #endif
-
         rnp_buffer_destroy(id);
         id = NULL;
     }
@@ -1274,8 +1268,7 @@ cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
         if (rnp_locate_key(rnp->ffi, "grip", grip, &handle) || !handle) {
             goto done;
         }
-        if (!key_matches_flags(handle, flags) ||
-            !key_matches_string(handle, str.c_str(), false)) {
+        if (!key_matches_flags(handle, flags) || !key_matches_string(handle, str.c_str())) {
             rnp_key_handle_destroy(handle);
             continue;
         }
