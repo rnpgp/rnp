@@ -766,6 +766,34 @@ check_json_pkt_type(json_object *pkt, int tag)
     return check_json_field_int(hdr, "tag", tag);
 }
 
+static bool
+ishex(const std::string &hexid)
+{
+    /* duplicates str_is_hex from fficli.cpp */
+    size_t hexlen = hexid.length();
+    size_t hexidx = 0;
+    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
+        hexidx += 2;
+    }
+
+    for (size_t i = hexidx; i < hexlen; i++) {
+        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
+            continue;
+        }
+        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
+            continue;
+        }
+        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
+            continue;
+        }
+        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
 pgp_key_t *
 rnp_tests_get_key_by_id(const rnp_key_store_t *keyring,
                         const std::string &    keyid,
@@ -780,7 +808,7 @@ rnp_tests_get_key_by_id(const rnp_key_store_t *keyring,
     }
     assert(!after || list_is_member(keyring->keys, (list_item *) after));
 
-    if (ishex(keyid.c_str(), keyid.size()) &&
+    if (ishex(keyid) &&
         hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_KEY_ID_SIZE) {
             key = rnp_key_store_get_key_by_id(keyring, keyid_bin.data(), after);
@@ -800,7 +828,7 @@ rnp_tests_get_key_by_fpr(const rnp_key_store_t *keyring, const std::string &keyi
         return NULL;
     }
 
-    if (ishex(keyid.c_str(), keyid.size()) &&
+    if (ishex(keyid) &&
         hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_FINGERPRINT_SIZE) {
             pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
