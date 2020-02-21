@@ -1156,15 +1156,6 @@ done:
     return matches;
 }
 
-void
-cli_rnp_keylist_destroy(list *keys)
-{
-    for (list_item *kh = list_front(*keys); kh; kh = list_next(kh)) {
-        rnp_key_handle_destroy(*((rnp_key_handle_t *) kh));
-    }
-    list_destroy(keys);
-}
-
 static bool
 key_matches_flags(rnp_key_handle_t key, int flags)
 {
@@ -1203,7 +1194,7 @@ key_matches_flags(rnp_key_handle_t key, int flags)
     return false;
 }
 
-static void
+void
 clear_key_handles(std::vector<rnp_key_handle_t> &keys)
 {
     for (auto handle : keys) {
@@ -1337,86 +1328,6 @@ done:
         clear_key_handles(keys);
     }
     return res;
-}
-
-list
-cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys)
-{
-    list                      result = NULL;
-    rnp_identifier_iterator_t it = NULL;
-    rnp_key_handle_t          handle = NULL;
-    const char *              grip = NULL;
-    rnp_ffi_t                 ffi = rnp->ffi;
-
-    if (rnp_identifier_iterator_create(ffi, &it, "grip")) {
-        return NULL;
-    }
-
-    while (!rnp_identifier_iterator_next(it, &grip)) {
-        size_t sub_count = 0;
-        bool   is_subkey = false;
-        char * primary_grip = NULL;
-
-        if (!grip) {
-            goto done;
-        }
-
-        if (rnp_locate_key(ffi, "grip", grip, &handle)) {
-            goto error;
-        }
-        if (!key_matches_string(handle, filter, secret)) {
-            rnp_key_handle_destroy(handle);
-            continue;
-        }
-        /* check whether key is subkey */
-        if (rnp_key_is_sub(handle, &is_subkey)) {
-            rnp_key_handle_destroy(handle);
-            goto error;
-        }
-        if (is_subkey && !subkeys) {
-            rnp_key_handle_destroy(handle);
-            continue;
-        }
-        if (is_subkey && rnp_key_get_primary_grip(handle, &primary_grip)) {
-            rnp_key_handle_destroy(handle);
-            goto error;
-        }
-        /* if we have primary key then subkey will be printed together with primary */
-        if (is_subkey && primary_grip) {
-            rnp_buffer_destroy(primary_grip);
-            rnp_key_handle_destroy(handle);
-            continue;
-        }
-
-        if (!list_append(&result, &handle, sizeof(handle))) {
-            rnp_key_handle_destroy(handle);
-            goto error;
-        }
-
-        /* add subkeys as well, if key is primary */
-        if (is_subkey || !subkeys) {
-            continue;
-        }
-        if (rnp_key_get_subkey_count(handle, &sub_count)) {
-            goto error;
-        }
-        for (size_t i = 0; i < sub_count; i++) {
-            rnp_key_handle_t sub_handle = NULL;
-            if (rnp_key_get_subkey_at(handle, i, &sub_handle)) {
-                goto error;
-            }
-            if (!list_append(&result, &sub_handle, sizeof(sub_handle))) {
-                rnp_key_handle_destroy(sub_handle);
-                goto error;
-            }
-        }
-    }
-
-error:
-    cli_rnp_keylist_destroy(&result);
-done:
-    rnp_identifier_iterator_destroy(it);
-    return result;
 }
 
 /** @brief compose path from dir, subdir and filename, and store it in the res
@@ -1723,8 +1634,10 @@ bool
 cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
     bool secret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
-    list keys = cli_rnp_get_keylist(rnp, filter, secret, true);
-    if (!keys) {
+    int  flags = CLI_SEARCH_SUBKEYS_AFTER | (secret ? CLI_SEARCH_SECRET : 0);
+    std::vector<rnp_key_handle_t> keys;
+
+    if (!cli_rnp_keys_matching_string(rnp, keys, filter, flags)) {
         fprintf(rnp->userio_out, "Key(s) matching '%s' not found.\n", filter);
         return false;
     }
@@ -1751,24 +1664,13 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
         goto done;
     }
 
-    for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
-        uint32_t         flags = base_flags;
-        rnp_key_handle_t key = *((rnp_key_handle_t *) ki);
-        bool             primary = false;
-        char *           grip = NULL;
+    for (auto key : keys) {
+        uint32_t flags = base_flags;
+        bool     primary = false;
 
         if (rnp_key_is_primary(key, &primary)) {
             goto done;
         }
-
-        /* skip subkeys which have primary key */
-        if (!primary && !rnp_key_get_primary_grip(key, &grip)) {
-            if (grip) {
-                rnp_buffer_destroy(grip);
-                continue;
-            }
-        }
-
         if (primary) {
             flags = flags | RNP_KEY_EXPORT_SUBKEYS;
         }
@@ -1781,33 +1683,32 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 done:
     rnp_output_destroy(armor);
     rnp_output_destroy(output);
-    cli_rnp_keylist_destroy(&keys);
+    clear_key_handles(keys);
     return result;
 }
 
 bool
 cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
 {
-    list keys = cli_rnp_get_keylist(rnp, key, false, false);
-    if (!keys) {
+    std::vector<rnp_key_handle_t> keys;
+    if (!cli_rnp_keys_matching_string(rnp, keys, key, 0)) {
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
-    if (list_length(keys) > 1) {
+    if (keys.size() > 1) {
         ERR_MSG("Ambiguous input: too many keys found for '%s'.", key);
-        cli_rnp_keylist_destroy(&keys);
+        clear_key_handles(keys);
         return false;
     }
-    rnp_key_handle_t key_handle = *((rnp_key_handle_t *) list_front(keys));
-    rnp_cfg_t *      cfg = cli_rnp_cfg(rnp);
-    const char *     file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
-    rnp_result_t     ret = RNP_ERROR_GENERIC;
-    rnp_output_t     output = NULL;
-    rnp_output_t     armored = NULL;
-    bool             result = false;
+    rnp_cfg_t *  cfg = cli_rnp_cfg(rnp);
+    const char * file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    rnp_output_t output = NULL;
+    rnp_output_t armored = NULL;
+    bool         result = false;
+
     if (file) {
-        uint32_t flags =
-          rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file, flags);
     } else {
         ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
@@ -1821,7 +1722,7 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
         goto done;
     }
 
-    result = !rnp_key_export_revocation(key_handle,
+    result = !rnp_key_export_revocation(keys[0],
                                         armored,
                                         0,
                                         rnp_cfg_getstr(cfg, CFG_HASH),
@@ -1830,7 +1731,7 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
 done:
     rnp_output_destroy(armored);
     rnp_output_destroy(output);
-    cli_rnp_keylist_destroy(&keys);
+    clear_key_handles(keys);
     return result;
 }
 
