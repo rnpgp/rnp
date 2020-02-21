@@ -1165,37 +1165,6 @@ cli_rnp_keylist_destroy(list *keys)
     list_destroy(keys);
 }
 
-static rnp_key_handle_t
-key_matching_string(cli_rnp_t *rnp, const std::string &str, bool secret)
-{
-    rnp_identifier_iterator_t it = NULL;
-    rnp_key_handle_t          handle = NULL;
-    const char *              grip = NULL;
-    rnp_ffi_t                 ffi = rnp->ffi;
-
-    // TODO: optimize this to get key by id/fingerprint if one is specified
-    if (rnp_identifier_iterator_create(ffi, &it, "grip")) {
-        return NULL;
-    }
-
-    while (!rnp_identifier_iterator_next(it, &grip)) {
-        if (!grip) {
-            goto done;
-        }
-        if (rnp_locate_key(ffi, "grip", grip, &handle)) {
-            goto done;
-        }
-        if (key_matches_string(handle, str.c_str(), secret)) {
-            goto done;
-        }
-        rnp_key_handle_destroy(handle);
-        handle = NULL;
-    }
-done:
-    rnp_identifier_iterator_destroy(it);
-    return handle;
-}
-
 static bool
 key_matches_flags(rnp_key_handle_t key, int flags)
 {
@@ -2097,56 +2066,6 @@ cli_rnp_dearmor_file(cli_rnp_t *rnp)
 }
 
 static bool
-cli_rnp_search_keys(cli_rnp_t *                     rnp,
-                    const std::vector<std::string> &names,
-                    std::vector<rnp_key_handle_t> & keys,
-                    bool                            secret,
-                    bool                            usedef)
-{
-    bool res = false;
-
-    keys.clear();
-    for (const std::string &str : names) {
-        rnp_key_handle_t key = key_matching_string(rnp, str, secret);
-        if (!key) {
-            ERR_MSG("Cannot find key matching \"%s\"", str.c_str());
-            goto done;
-        }
-        try {
-            keys.push_back(key);
-        } catch (...) {
-            ERR_MSG("allocation failed");
-            goto done;
-        }
-    }
-    if (keys.empty() && usedef) {
-        rnp_key_handle_t  key = NULL;
-        const std::string defkey = cli_rnp_defkey(rnp);
-        if (defkey.empty()) {
-            ERR_MSG("No userid or default key for operation");
-            goto done;
-        }
-        key = key_matching_string(rnp, defkey, secret);
-        if (!key) {
-            ERR_MSG("Default key not found");
-            goto done;
-        }
-        try {
-            keys.push_back(key);
-        } catch (...) {
-            ERR_MSG("allocation failed");
-            goto done;
-        }
-    }
-    res = !keys.empty();
-done:
-    if (!res) {
-        keys.clear();
-    }
-    return res;
-}
-
-static bool
 cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t output)
 {
     rnp_op_sign_t op = NULL;
@@ -2201,7 +2120,11 @@ cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output
         ERR_MSG("Failed to copy signers list");
         goto done;
     }
-    if (!cli_rnp_search_keys(rnp, signers, signkeys, true, true)) {
+    if (!cli_rnp_keys_matching_strings(rnp,
+                                       signkeys,
+                                       signers,
+                                       CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT |
+                                         CLI_SEARCH_SUBKEYS | CLI_SEARCH_FIRST_ONLY)) {
         ERR_MSG("Failed to build signing keys list");
         goto done;
     }
@@ -2215,9 +2138,7 @@ cli_rnp_sign(const rnp_cfg_t *cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output
     /* execute sign operation */
     res = !rnp_op_sign_execute(op);
 done:
-    for (auto &value : signkeys) {
-        rnp_key_handle_destroy(value);
-    }
+    clear_key_handles(signkeys);
     rnp_op_sign_destroy(op);
     return res;
 }
@@ -2289,7 +2210,11 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg,
             ERR_MSG("Failed to copy recipients list");
             goto done;
         }
-        if (!cli_rnp_search_keys(rnp, keynames, enckeys, false, true)) {
+        if (!cli_rnp_keys_matching_strings(rnp,
+                                           enckeys,
+                                           keynames,
+                                           CLI_SEARCH_DEFAULT | CLI_SEARCH_SUBKEYS |
+                                             CLI_SEARCH_FIRST_ONLY)) {
             ERR_MSG("Failed to build recipients key list");
             goto done;
         }
@@ -2313,7 +2238,11 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg,
             ERR_MSG("Failed to copy signers list");
             goto done;
         }
-        if (!cli_rnp_search_keys(rnp, keynames, signkeys, true, true)) {
+        if (!cli_rnp_keys_matching_strings(rnp,
+                                           signkeys,
+                                           keynames,
+                                           CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT |
+                                             CLI_SEARCH_SUBKEYS | CLI_SEARCH_FIRST_ONLY)) {
             ERR_MSG("Failed to build signing keys list");
             goto done;
         }
@@ -2328,12 +2257,8 @@ cli_rnp_encrypt_and_sign(const rnp_cfg_t *cfg,
     /* execute encrypt or encrypt-and-sign operation */
     res = !rnp_op_encrypt_execute(op);
 done:
-    for (auto &value : signkeys) {
-        rnp_key_handle_destroy(value);
-    }
-    for (auto &value : enckeys) {
-        rnp_key_handle_destroy(value);
-    }
+    clear_key_handles(signkeys);
+    clear_key_handles(enckeys);
     rnp_op_encrypt_destroy(op);
     return res;
 }
