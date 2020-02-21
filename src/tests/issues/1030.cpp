@@ -34,7 +34,6 @@ test_issue_1030(const char *keystore)
     cli_rnp_t   rnp = {};
     const char *userid = "user";
     size_t      keycount = 0;
-    list        keys = NULL;
 
     char *home = make_temp_dir();
     assert_true(setup_cli_rnp_common(&rnp, keystore, home, pipefd));
@@ -47,23 +46,23 @@ test_issue_1030(const char *keystore)
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    keys = cli_rnp_get_keylist(&rnp, userid, false, true);
-    assert_int_equal(list_length(keys), 2);
-    cli_rnp_keylist_destroy(&keys);
+    std::vector<rnp_key_handle_t> keys;
+    assert_true(cli_rnp_keys_matching_string(&rnp, keys, userid, CLI_SEARCH_SUBKEYS_AFTER));
+    assert_int_equal(keys.size(), 2);
+    clear_key_handles(keys);
 
-    keys = cli_rnp_get_keylist(&rnp, userid, true, true);
-    assert_int_equal(list_length(keys), 2);
-    for (list_item *item = list_front(keys); item; item = list_next(item)) {
-        rnp_key_handle_t key = *((rnp_key_handle_t *) item);
-        bool             is_protected = false;
+    assert_true(cli_rnp_keys_matching_string(
+      &rnp, keys, userid, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS_AFTER));
+    assert_int_equal(keys.size(), 2);
+    for (auto key : keys) {
+        bool is_protected = false;
         assert_rnp_success(rnp_key_is_protected(key, &is_protected));
         assert_true(is_protected);
     }
-    cli_rnp_keylist_destroy(&keys);
+    clear_key_handles(keys);
 
     // done
     close(pipefd[0]);
-    cli_rnp_keylist_destroy(&keys);
     cli_rnp_end(&rnp);
     free(home);
 }

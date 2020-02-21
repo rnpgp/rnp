@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -50,9 +50,11 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
 
-    list keys = cli_rnp_get_keylist(&rnp, getenv_logname(), false, true);
-    assert_int_equal(list_length(keys), 2);
-    cli_rnp_keylist_destroy(&keys);
+    std::vector<rnp_key_handle_t> keys;
+    assert_true(
+      cli_rnp_keys_matching_string(&rnp, keys, getenv_logname(), CLI_SEARCH_SUBKEYS_AFTER));
+    assert_int_equal(keys.size(), 2);
+    clear_key_handles(keys);
 
     /* Try to export the key with specified userid parameter from the env */
     assert_true(cli_rnp_export_keys(&rnp, getenv_logname()));
