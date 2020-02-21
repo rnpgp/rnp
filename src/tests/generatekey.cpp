@@ -49,13 +49,13 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
     int       pipefd[2] = {0};
     bool      res = false;
     size_t    keycount = 0;
-    list      keys = NULL;
 
     /* Initialize the cli rnp structure and generate key */
     if (!setup_cli_rnp_common(&rnp, keystore, home, pipefd)) {
         return false;
     }
 
+    std::vector<rnp_key_handle_t> keys;
     /* Generate the key */
     cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), hash);
     if (!cli_rnp_generate_key(&rnp, userid)) {
@@ -71,16 +71,17 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
     if (rnp_get_secret_key_count(rnp.ffi, &keycount) || (keycount != 2)) {
         goto done;
     }
-
-    keys = cli_rnp_get_keylist(&rnp, userid, false, true);
-    if (list_length(keys) != 2) {
+    if (!cli_rnp_keys_matching_string(
+          &rnp, keys, userid ? userid : "", CLI_SEARCH_SUBKEYS_AFTER)) {
         goto done;
     }
-
+    if (keys.size() != 2) {
+        goto done;
+    }
     res = true;
 done:
     close(pipefd[0]);
-    cli_rnp_keylist_destroy(&keys);
+    clear_key_handles(keys);
     cli_rnp_end(&rnp);
     return res;
 }

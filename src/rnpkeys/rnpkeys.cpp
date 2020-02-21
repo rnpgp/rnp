@@ -119,28 +119,23 @@ struct option options[] = {
 static bool
 print_keys_info(cli_rnp_t *rnp, FILE *fp, const char *filter)
 {
-    list keys = NULL;
-    int  keyc;
     bool psecret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
     bool psigs = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_WITH_SIGS);
+    int  flags = CLI_SEARCH_SUBKEYS_AFTER | (psecret ? CLI_SEARCH_SECRET : 0);
+    std::vector<rnp_key_handle_t> keys;
 
-    keys = cli_rnp_get_keylist(rnp, filter, psecret, true);
-    if (!keys) {
+    if (!cli_rnp_keys_matching_string(rnp, keys, filter ? filter : "", flags)) {
         fprintf(fp, "Key(s) not found.\n");
         return false;
     }
-
-    keyc = list_length(keys);
-    fprintf(fp, "%d key%s found\n", keyc, (keyc == 1) ? "" : "s");
-
-    for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
-        rnp_key_handle_t key = *((rnp_key_handle_t *) ki);
+    fprintf(fp, "%d key%s found\n", (int) keys.size(), (keys.size() == 1) ? "" : "s");
+    for (auto key : keys) {
         cli_rnp_print_key_info(fp, rnp->ffi, key, psecret, psigs);
     }
 
     fprintf(fp, "\n");
     /* clean up */
-    cli_rnp_keylist_destroy(&keys);
+    clear_key_handles(keys);
     return true;
 }
 

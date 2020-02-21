@@ -116,8 +116,6 @@ bool        cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
                                           std::vector<rnp_key_handle_t> & keys,
                                           const std::vector<std::string> &strs,
                                           int                             flags);
-list        cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys);
-void        cli_rnp_keylist_destroy(list *keys);
 bool        cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
 bool        cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_add_key(cli_rnp_t *rnp);
@@ -128,6 +126,8 @@ bool        cli_rnp_setup(cli_rnp_t *rnp);
 bool        cli_rnp_protect_file(cli_rnp_t *rnp);
 bool        cli_rnp_process_file(cli_rnp_t *rnp);
 std::string cli_rnp_escape_string(const std::string &src);
+
+void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
 int64_t     json_obj_get_int64(json_object *obj, const char *key);
