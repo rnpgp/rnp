@@ -1200,6 +1200,90 @@ class Keystore(unittest.TestCase):
             raise_err('userids from rnpkeys and gpg don\'t match')
         clear_keyrings()
 
+    def test_key_revoke(self):
+        clear_keyrings()
+        # Import Alice's public key and be unable to revoke
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-pub.asc')])
+        if ret != 0:
+            raise_err('Alice key import failed')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke-key', 'alice'])
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*Revoker secret key not found.*Failed to revoke a key.*', err):
+            raise_err('Wrong revocation output')
+        # Import Alice's secret key and subkey
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+        if ret != 0:
+            raise_err('Alice secret key import failed')
+        # Attempt to revoke without specifying a key
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*You need to specify key or subkey to revoke.*', err):
+            raise_err('Wrong revocation output', err)
+        # Attempt to revoke unknown key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', 'basil'])
+        if (ret == 0) or (len(out) > 0) or not re.match(r'(?s)^.*Key matching \'basil\' not found.*', err):
+            raise_err('Wrong revocation output', err)
+        # Attempt to revoke with too broad search
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/basil-sec.asc')])
+        if ret != 0:
+            raise_err('Basil secret key import failed')
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', 'rnp', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if not re.match(r'(?s)^.*Ambiguous input: too many keys found for \'rnp\'.*', err):
+            raise_err('Wrong revocation export output', err)
+        # Revoke a primary key
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', '0451409669FFDE3C', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret != 0):
+            raise_err('Failed to revoke alice key')
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if (ret != 0) or not re.match(r'(?s)^.*pub.*0451409669ffde3c.*\[REVOKED\].*73edcc9119afc8e2dbbdcde50451409669ffde3c.*', out):
+            raise_err('Wrong revoked key listing', out)
+        # Try again without the '--force' parameter
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', '0451409669FFDE3C', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret == 0):
+            raise_err('Failed to fail to revoke alice key')
+        if (len(out) > 0) or not re.match(r'(?s)^.*Error: key \'0451409669FFDE3C\' is revoked already. Use --force to generate another revocation signature.*', err):
+            raise_err('Wrong revocation output', err)
+        # Try again with --force parameter
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', '0451409669FFDE3C', '--pass-fd', str(pipe), "--force", "--rev-type", "3", "--rev-reason", "Custom"])
+        os.close(pipe)
+        if (ret != 0):
+            raise_err('Failed to revoke alice key')
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if (ret != 0) or not re.match(r'(?s)^.*pub.*0451409669ffde3c.*\[REVOKED\].*73edcc9119afc8e2dbbdcde50451409669ffde3c.*', out):
+            raise_err('Wrong revoked key listing', out)
+        # Revoke a subkey
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', 'DD23CEB7FEBEFF17', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret != 0):
+            raise_err('Failed to revoke alice subkey')
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if (ret != 0) or not re.match(r'(?s)^.*sub.*dd23ceb7febeff17.*\[REVOKED\].*a4bbb77370217bca2307ad0ddd23ceb7febeff17.*', out):
+            raise_err('Wrong revoked subkey listing', out)
+        # Try again without the '--force' parameter
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', 'DD23CEB7FEBEFF17', '--pass-fd', str(pipe)])
+        os.close(pipe)
+        if (ret == 0):
+            raise_err('Failed to fail to revoke alice subkey')
+        if (len(out) > 0) or not re.match(r'(?s)^.*Error: key \'DD23CEB7FEBEFF17\' is revoked already. Use --force to generate another revocation signature.*', err):
+            raise_err('Wrong revocation output', err)
+        # Try again with --force parameter
+        pipe = pswd_pipe(PASSWORD)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--revoke', 'DD23CEB7FEBEFF17', '--pass-fd', str(pipe), "--force", "--rev-type", "2", "--rev-reason", "Other"])
+        os.close(pipe)
+        if (ret != 0):
+            raise_err('Failed to revoke alice subkey')
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if (ret != 0) or not re.match(r'(?s)^.*sub.*dd23ceb7febeff17.*\[REVOKED\].*a4bbb77370217bca2307ad0ddd23ceb7febeff17.*', out):
+            raise_err('Wrong revoked subkey listing', out)
 
 class Misc(unittest.TestCase):
 
