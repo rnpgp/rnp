@@ -963,6 +963,29 @@ done:
     return ret;
 }
 
+rnp_result_t
+rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, char **password)
+{
+    if (!ffi || !password || !ffi->getpasscb) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    Botan::secure_vector<char> pass(MAX_PASSWORD_LENGTH, '\0');
+    bool                       req_res =
+      ffi->getpasscb(ffi, ffi->getpasscb_ctx, key, context, pass.data(), pass.size());
+    size_t pass_len = strlen(pass.data());
+    if (!req_res || !pass_len) {
+        return RNP_ERROR_GENERIC;
+    }
+
+    *password = (char *) malloc(pass_len + 1);
+    if (!*password) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    strcpy(*password, pass.data());
+    return RNP_SUCCESS;
+}
+
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
