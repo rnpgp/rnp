@@ -4697,6 +4697,14 @@ rnp_buffer_destroy(void *ptr)
     free(ptr);
 }
 
+void
+rnp_buffer_clear(void *ptr, size_t size)
+{
+    if (ptr) {
+        pgp_forget(ptr, size);
+    }
+}
+
 static pgp_key_t *
 get_key_require_public(rnp_key_handle_t handle)
 {
