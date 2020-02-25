@@ -294,7 +294,7 @@ start:
     ok = true;
 done:
     fputs("", rnp->userio_out);
-    pgp_forget(buffer, sizeof(buffer));
+    rnp_buffer_clear(buffer, sizeof(buffer));
     return ok;
 }
 
@@ -988,7 +988,7 @@ done:
             cli_rnp_print_key_info(stdout, rnp->ffi, subkey, true, false);
         }
     }
-    pgp_forget(password, sizeof(password));
+    rnp_buffer_clear(password, sizeof(password));
     rnp_op_generate_destroy(genkey);
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(subkey);

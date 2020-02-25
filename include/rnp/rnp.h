@@ -1621,6 +1621,14 @@ rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
 void rnp_buffer_destroy(void *ptr);
 
 /**
+ * @brief Securely clear buffer contents.
+ *
+ * @param ptr pointer to the buffer contents, may be NULL.
+ * @param size number of bytes in buffer.
+ */
+void rnp_buffer_clear(void *ptr, size_t size);
+
+/**
  * @brief Initialize input struct to read from a path
  *
  * @param input pointer to the input opaque structure
