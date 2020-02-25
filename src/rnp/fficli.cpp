@@ -928,26 +928,21 @@ cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
     }
 
     // protect
-    rnp_password_cb passcb;
-    void *          passctx;
-    char            password[MAX_PASSWORD_LENGTH];
-    if (rnp->passfp) {
-        passcb = &ffi_pass_callback_file;
-        passctx = rnp->passfp;
-    } else {
-        passcb = &ffi_pass_callback_stdin;
-        passctx = rnp;
-    }
     for (auto key : {primary, subkey}) {
-        if (!passcb(rnp->ffi, passctx, key, "protect", password, sizeof(password))) {
+        char *password = NULL;
+        if (rnp_request_password(rnp->ffi, key, "protect", &password)) {
+            ERR_MSG("Failed to obtain protection password.");
             goto done;
         }
-        if (rnp_key_protect(key,
-                            password,
-                            rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG),
-                            NULL,
-                            rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
-                            rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS))) {
+        rnp_result_t ret = rnp_key_protect(key,
+                                           password,
+                                           rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG),
+                                           NULL,
+                                           rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
+                                           rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS));
+        rnp_buffer_clear(password, strlen(password) + 1);
+        rnp_buffer_destroy(password);
+        if (ret) {
             ERR_MSG("Failed to protect key.");
             goto done;
         }
@@ -960,7 +955,6 @@ done:
             cli_rnp_print_key_info(stdout, rnp->ffi, subkey, true, false);
         }
     }
-    rnp_buffer_clear(password, sizeof(password));
     rnp_op_generate_destroy(genkey);
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(subkey);
