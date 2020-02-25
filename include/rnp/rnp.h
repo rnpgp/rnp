@@ -332,10 +332,28 @@ rnp_result_t rnp_supports_feature(const char *type, const char *name, bool *supp
  *
  * @param type type of the feature. See rnp_supports_feature() function for possible values.
  * @param result after successfull execution will contain the JSON with supported feature
- * values. You must destroy it using the rnp_destroy_buffer() function.
+ * values. You must destroy it using the rnp_buffer_destroy() function.
  * @return RNP_SUCCESS on success or any other value on error.
  */
 rnp_result_t rnp_supported_features(const char *type, char **result);
+
+/**
+ * @brief Request password via configured FFI's callback
+ *
+ * @param ffi initialized FFI structure
+ * @param key key handle for which password is requested. May be NULL.
+ * @param context string describing the purpose of password request. See description of
+ *                rnp_password_cb for the list of possible values. Also you may use any
+ *                custom one as far as your password callback handles it.
+ * @param password password will be put here on success. Must be destroyed via
+ *                 rnp_buffer_destroy(), also it is good idea to securely clear it via
+ *                 rnp_buffer_clear().
+ * @return RNP_SUCCESS or other value on error.
+ */
+rnp_result_t rnp_request_password(rnp_ffi_t        ffi,
+                                  rnp_key_handle_t key,
+                                  const char *     context,
+                                  char **          password);
 
 /** load keys
  *
