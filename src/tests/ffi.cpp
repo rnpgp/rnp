@@ -6932,3 +6932,85 @@ TEST_F(rnp_tests, test_ffi_secret_sig_import)
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+static bool
+getpasscb_fail(rnp_ffi_t        ffi,
+               void *           app_ctx,
+               rnp_key_handle_t key,
+               const char *     pgp_context,
+               char *           buf,
+               size_t           buf_len)
+{
+    return false;
+}
+
+static bool
+getpasscb_context(rnp_ffi_t        ffi,
+                  void *           app_ctx,
+                  rnp_key_handle_t key,
+                  const char *     pgp_context,
+                  char *           buf,
+                  size_t           buf_len)
+{
+    strncpy(buf, pgp_context, buf_len - 1);
+    return true;
+}
+
+static bool
+getpasscb_keyid(rnp_ffi_t        ffi,
+                void *           app_ctx,
+                rnp_key_handle_t key,
+                const char *     pgp_context,
+                char *           buf,
+                size_t           buf_len)
+{
+    if (!key) {
+        return false;
+    }
+    char *keyid = NULL;
+    if (rnp_key_get_keyid(key, &keyid)) {
+        return false;
+    }
+    strncpy(buf, keyid, buf_len - 1);
+    rnp_buffer_destroy(keyid);
+    return true;
+}
+
+TEST_F(rnp_tests, test_ffi_rnp_request_password)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* check wrong parameters cases */
+    char *password = NULL;
+    assert_rnp_failure(rnp_request_password(ffi, NULL, "sign", &password));
+    assert_null(password);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_failure(rnp_request_password(NULL, NULL, "sign", &password));
+    assert_rnp_failure(rnp_request_password(ffi, NULL, "sign", NULL));
+    /* now it should succeed */
+    assert_rnp_success(rnp_request_password(ffi, NULL, "sign", &password));
+    assert_int_equal(strcmp(password, "password"), 0);
+    rnp_buffer_destroy(password);
+    /* let's try failing password provider */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_fail, NULL));
+    assert_rnp_failure(rnp_request_password(ffi, NULL, "sign", &password));
+    /* let's try to return request context */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_context, NULL));
+    assert_rnp_success(rnp_request_password(ffi, NULL, "custom context", &password));
+    assert_int_equal(strcmp(password, "custom context"), 0);
+    rnp_buffer_destroy(password);
+    /* let's check whether key is correctly passed to handler */
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_keyid, NULL));
+    assert_rnp_success(rnp_request_password(ffi, key, NULL, &password));
+    assert_int_equal(strcmp(password, "0451409669FFDE3C"), 0);
+    rnp_buffer_destroy(password);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
