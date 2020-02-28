@@ -555,8 +555,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
         goto end;
     }
 
-    rnp_cfg_copy(ops, &cfg);
-
+    ret = rnp_cfg_copy(ops, &cfg);
 end:
     /* Close & clean fd*/
     if (user_input_pipefd[0]) {

@@ -53,13 +53,13 @@ TEST_F(rnp_tests, test_rnpcfg)
     }
 
     /* copy empty cfg2 to cfg1 to make sure values are not deleted */
-    rnp_cfg_copy(&cfg1, &cfg2);
+    assert_true(rnp_cfg_copy(&cfg1, &cfg2));
 
     /* copy to the cfg2 */
-    rnp_cfg_copy(&cfg2, &cfg1);
+    assert_true(rnp_cfg_copy(&cfg2, &cfg1));
 
     /* copy second time to make sure there are no leaks */
-    rnp_cfg_copy(&cfg2, &cfg1);
+    assert_true(rnp_cfg_copy(&cfg2, &cfg1));
 
     /* get values back, including transformations */
     for (int i = 0; i < 2; i++) {

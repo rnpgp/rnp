@@ -594,14 +594,14 @@ get_creation(const char *s)
     return (uint64_t) strtoll(s, NULL, 10);
 }
 
-void
+bool
 rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
 {
     bool          res = true;
     rnp_cfg_val_t val;
 
     if (!src || !dst) {
-        return;
+        return false;
     }
 
     for (list_item *li = list_front(src->vals); li; li = list_next(li)) {
@@ -615,4 +615,5 @@ rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src)
     if (!res) {
         rnp_cfg_free(dst);
     }
+    return res;
 }
