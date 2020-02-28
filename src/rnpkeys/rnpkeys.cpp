@@ -638,10 +638,7 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 }
 
 bool
-rnpkeys_init(rnp_cfg_t *      cfg,
-             cli_rnp_t *      rnp,
-             const rnp_cfg_t *override_cfg,
-             bool             is_generate_key)
+rnpkeys_init(rnp_cfg_t *cfg, cli_rnp_t *rnp, const rnp_cfg_t *override_cfg)
 {
     bool ret = false;
     rnp_cfg_init(cfg);
@@ -662,11 +659,8 @@ rnpkeys_init(rnp_cfg_t *      cfg,
         ERR_MSG("fatal: failed to initialize rnpkeys");
         goto end;
     }
-    if (!cli_rnp_load_keyrings(rnp, true) && !is_generate_key) {
-        /* Keys mightn't loaded if this is a key generation step. */
-        ERR_MSG("fatal: failed to load keys");
-        goto end;
-    }
+    /* TODO: at some point we should check for error here */
+    (void) cli_rnp_load_keyrings(rnp, true);
     ret = true;
 end:
     if (!ret) {
