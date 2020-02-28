@@ -339,6 +339,12 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
     return true;
 }
 
+rnp_cfg_t *
+cli_rnp_cfg(cli_rnp_t *rnp)
+{
+    return &rnp->cfg;
+}
+
 bool
 cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
 {
@@ -347,6 +353,11 @@ cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
     if (!cli_rnp_baseinit(rnp)) {
         return false;
     }
+    if (!rnp_cfg_copy(&rnp->cfg, cfg)) {
+        cli_rnp_end(rnp);
+        return false;
+    }
+    cfg = cli_rnp_cfg(rnp);
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
@@ -430,15 +441,7 @@ done:
 bool
 cli_rnp_baseinit(cli_rnp_t *rnp)
 {
-    rnp->ffi = NULL;
-    rnp->resfp = NULL;
-    rnp->passfp = NULL;
-    rnp->pswdtries = 0;
-    rnp->pubpath = NULL;
-    rnp->pubformat = NULL;
-    rnp->secpath = NULL;
-    rnp->secformat = NULL;
-    rnp->defkey = NULL;
+    memset(rnp, 0, sizeof(*rnp));
 
     /* Configure user's io streams. */
     rnp->userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
@@ -476,6 +479,7 @@ cli_rnp_end(cli_rnp_t *rnp)
         fclose(rnp->userio_out);
     }
     rnp->userio_out = NULL;
+    rnp_cfg_free(&rnp->cfg);
     rnp_ffi_destroy(rnp->ffi);
     memset(rnp, 0, sizeof(*rnp));
 }
