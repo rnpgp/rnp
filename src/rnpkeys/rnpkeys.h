@@ -58,12 +58,8 @@ bool parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
  * @param cfg configuration to be used by rnd_cmd
  * @param rnp initialized rnp context
  * @param opt_cfg configuration with settings from command line
- * @param is_generate_key wether rnpkeys should be configured to run key generation
  * @return true on success, or false otherwise.
  */
-bool rnpkeys_init(rnp_cfg_t *      cfg,
-                  cli_rnp_t *      rnp,
-                  const rnp_cfg_t *opt_cfg,
-                  bool             is_generate_key);
+bool rnpkeys_init(rnp_cfg_t *cfg, cli_rnp_t *rnp, const rnp_cfg_t *opt_cfg);
 
 #endif /* _rnpkeys_ */
