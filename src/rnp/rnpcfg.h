@@ -274,9 +274,10 @@ int rnp_cfg_getint_default(const rnp_cfg_t *cfg, const char *key, int def);
  *         from this object
  *
  *  @pre   dst is correctly initialized and not NULL
+ *  @return true on success or false otherwise
  *
  **/
-void rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
+bool rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 
 /** @brief Return the desired hash algorithm.
  *  @param cfg [in] rnp config, must be allocated and initialized

@@ -643,37 +643,31 @@ rnpkeys_init(rnp_cfg_t *      cfg,
              const rnp_cfg_t *override_cfg,
              bool             is_generate_key)
 {
-    bool ret = true;
-
+    bool ret = false;
     rnp_cfg_init(cfg);
-
     rnp_cfg_load_defaults(cfg);
     rnp_cfg_setint(cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
     rnp_cfg_setstr(cfg, CFG_IO_RESS, "<stdout>");
     rnp_cfg_setstr(cfg, CFG_KEYFORMAT, "human");
-    rnp_cfg_copy(cfg, override_cfg);
-
+    if (!rnp_cfg_copy(cfg, override_cfg)) {
+        ERR_MSG("fatal: out of memory");
+        goto end;
+    }
     memset(rnp, '\0', sizeof(*rnp));
-
     if (!cli_cfg_set_keystore_info(cfg)) {
         ERR_MSG("fatal: cannot set keystore info");
-        ret = false;
         goto end;
     }
-
     if (!cli_rnp_init(rnp, cfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
-        ret = false;
         goto end;
     }
-
     if (!cli_rnp_load_keyrings(rnp, true) && !is_generate_key) {
         /* Keys mightn't loaded if this is a key generation step. */
         ERR_MSG("fatal: failed to load keys");
-        ret = false;
         goto end;
     }
-
+    ret = true;
 end:
     if (!ret) {
         rnp_cfg_free(cfg);
