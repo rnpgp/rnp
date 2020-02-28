@@ -533,7 +533,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     }
     rnp_cfg_setint(ops, CFG_PASSFD, pipefd[0]);
     write_pass_to_pipe(pipefd[1], 2);
-    if (!rnpkeys_init(&cfg, ctx, ops, true)) {
+    if (!rnpkeys_init(&cfg, ctx, ops)) {
         return false;
     }
 

@@ -99,7 +99,7 @@ rnpkeys_main(int argc, char **argv)
         }
     }
 
-    if (!rnpkeys_init(&cfg, &rnp, &opt_cfg, true)) {
+    if (!rnpkeys_init(&cfg, &rnp, &opt_cfg)) {
         ret = EXIT_FAILURE;
         goto end;
     }
