@@ -40,6 +40,7 @@ extern "C" {
 
 typedef struct cli_rnp_t {
     rnp_ffi_t ffi;
+    rnp_cfg_t cfg;
     FILE *    resfp;      /* where to put result messages, defaults to stdout */
     FILE *    passfp;     /* file pointer for password input */
     FILE *    userio_in;  /* file pointer for user's inputs */
@@ -61,6 +62,8 @@ typedef struct cli_rnp_t {
  * @return false
  */
 bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
+
+rnp_cfg_t *cli_rnp_cfg(cli_rnp_t *);
 
 bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
 bool cli_rnp_baseinit(cli_rnp_t *);
