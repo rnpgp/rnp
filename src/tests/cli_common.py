@@ -100,7 +100,7 @@ def run_proc_windows(proc, params, stdin=None):
 
     exe = os.path.basename(proc)
     # We need to escape empty parameters/ones with spaces with quotes
-    params = map(lambda st: st if (st and not ' ' in st) else '"%s"' % st, [exe] + params)
+    params = map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params)
     sys.stdout.flush()
 
     stdin_path = os.path.join(WORKDIR, 'stdin.txt')
