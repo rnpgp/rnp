@@ -51,7 +51,6 @@ rnpkeys_main(int argc, char **argv)
 #endif
 {
     cli_rnp_t rnp = {};
-    rnp_cfg_t opt_cfg = {};
     rnp_cfg_t cfg = {};
     optdefs_t cmd = (optdefs_t) 0;
     int       optindex = 0;
@@ -65,12 +64,12 @@ rnpkeys_main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    rnp_cfg_init(&opt_cfg);
+    rnp_cfg_init(&cfg);
 
     while ((ch = getopt_long(argc, argv, "Vglo:", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&opt_cfg, &cmd, options[optindex].val, optarg)) {
+            if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
                 ERR_MSG("Bad setoption result %d", ch);
                 goto end;
             }
@@ -87,7 +86,7 @@ rnpkeys_main(int argc, char **argv)
                 cmd = CMD_LIST_KEYS;
                 break;
             case 'o':
-                if (!parse_option(&opt_cfg, &cmd, optarg)) {
+                if (!parse_option(&cfg, &cmd, optarg)) {
                     ERR_MSG("Bad parse_option");
                     goto end;
                 }
@@ -99,7 +98,7 @@ rnpkeys_main(int argc, char **argv)
         }
     }
 
-    if (!rnpkeys_init(&cfg, &rnp, &opt_cfg)) {
+    if (!rnpkeys_init(&rnp, &cfg)) {
         ret = EXIT_FAILURE;
         goto end;
     }
@@ -107,12 +106,12 @@ rnpkeys_main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&cfg, &rnp, cmd, NULL)) {
+        if (!rnp_cmd(cli_rnp_cfg(&rnp), &rnp, cmd, NULL)) {
             ret = EXIT_FAILURE;
         }
     } else {
         for (int i = optind; i < argc; i++) {
-            if (!rnp_cmd(&cfg, &rnp, cmd, argv[i])) {
+            if (!rnp_cmd(cli_rnp_cfg(&rnp), &rnp, cmd, argv[i])) {
                 ret = EXIT_FAILURE;
             }
         }
@@ -120,7 +119,6 @@ rnpkeys_main(int argc, char **argv)
 
 end:
     rnp_cfg_free(&cfg);
-    rnp_cfg_free(&opt_cfg);
     cli_rnp_end(&rnp);
     return ret;
 }
