@@ -599,7 +599,7 @@ rnp_main(int argc, char **argv)
 #endif
 {
     cli_rnp_t clirnp = {};
-    rnp_cfg_t cfg;
+    rnp_cfg_t cfg = {};
     int       optindex;
     int       ret = EXIT_ERROR;
     int       ch;
@@ -733,12 +733,12 @@ rnp_main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&cfg, &clirnp))
+        if (!rnp_cmd(cli_rnp_cfg(&clirnp), &clirnp))
             ret = EXIT_FAILURE;
     } else {
         for (i = optind; i < argc; i++) {
             rnp_cfg_setstr(&cfg, CFG_INFILE, argv[i]);
-            if (!rnp_cmd(&cfg, &clirnp)) {
+            if (!rnp_cmd(cli_rnp_cfg(&clirnp), &clirnp)) {
                 ret = EXIT_FAILURE;
             }
         }

@@ -638,24 +638,24 @@ parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s)
 }
 
 bool
-rnpkeys_init(rnp_cfg_t *cfg, cli_rnp_t *rnp, const rnp_cfg_t *override_cfg)
+rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg_t *cfg)
 {
-    bool ret = false;
-    rnp_cfg_init(cfg);
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setint(cfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
-    rnp_cfg_setstr(cfg, CFG_IO_RESS, "<stdout>");
-    rnp_cfg_setstr(cfg, CFG_KEYFORMAT, "human");
-    if (!rnp_cfg_copy(cfg, override_cfg)) {
+    rnp_cfg_t rnpcfg = {};
+    bool      ret = false;
+    rnp_cfg_init(&rnpcfg);
+    rnp_cfg_load_defaults(&rnpcfg);
+    rnp_cfg_setint(&rnpcfg, CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
+    rnp_cfg_setstr(&rnpcfg, CFG_IO_RESS, "<stdout>");
+    rnp_cfg_setstr(&rnpcfg, CFG_KEYFORMAT, "human");
+    if (!rnp_cfg_copy(&rnpcfg, cfg)) {
         ERR_MSG("fatal: out of memory");
         goto end;
     }
-    memset(rnp, '\0', sizeof(*rnp));
-    if (!cli_cfg_set_keystore_info(cfg)) {
+    if (!cli_cfg_set_keystore_info(&rnpcfg)) {
         ERR_MSG("fatal: cannot set keystore info");
         goto end;
     }
-    if (!cli_rnp_init(rnp, cfg)) {
+    if (!cli_rnp_init(rnp, &rnpcfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
         goto end;
     }
@@ -663,8 +663,8 @@ rnpkeys_init(rnp_cfg_t *cfg, cli_rnp_t *rnp, const rnp_cfg_t *override_cfg)
     (void) cli_rnp_load_keyrings(rnp, true);
     ret = true;
 end:
+    rnp_cfg_free(&rnpcfg);
     if (!ret) {
-        rnp_cfg_free(cfg);
         cli_rnp_end(rnp);
     }
     return ret;
