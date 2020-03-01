@@ -1169,6 +1169,38 @@ class Keystore(unittest.TestCase):
         os.remove('alice-revocation.pgp')
         clear_keyrings()
 
+    def test_userid_escape(self):
+        clear_keyrings()
+        msgs = []
+        log = None
+        tracker_beginning = 'tracker'
+        tracker_end = '@rnp'
+        tracker_1 = tracker_beginning + ''.join(map(lambda x : chr(x), range(1,0x10))) + tracker_end
+        tracker_2 = tracker_beginning + ''.join(map(lambda x : chr(x), range(0x10,0x20))) + tracker_end
+        #Run key generation
+        rnp_genkey_rsa(tracker_1, 1024)
+        rnp_genkey_rsa(tracker_2, 1024)
+        #Read with rnpkeys
+        ret, out_rnp, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if ret != 0:
+            msgs.append('rnpkeys : failed to read keystore')
+            log = err
+        #Read with GPG
+        ret, out_gpg, err = run_proc(GPG, ['--homedir', path_for_gpg(RNPDIR), '--list-keys'])
+        if ret != 0:
+            msgs.append('gpg : failed to read keystore')
+            log = err
+        if msgs:
+            raise_err('\n'.join(msgs), log)
+        tracker_rnp = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_rnp)
+        tracker_gpg = re.findall(r'' + tracker_beginning + '.*' + tracker_end + '', out_gpg)
+        if len(tracker_rnp) != 2 or len(tracker_gpg) != 2:
+            raise_err('failed to find expected userids')
+        if tracker_rnp != tracker_gpg:
+            raise_err('userids from rnpkeys and gpg don\'t match')
+        clear_keyrings()
+
+
 class Misc(unittest.TestCase):
 
     @classmethod

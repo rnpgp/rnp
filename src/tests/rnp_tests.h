@@ -229,6 +229,8 @@ void test_ffi_key_export(void **state);
 
 void test_ffi_key_dump(void **state);
 
+void test_ffi_key_userid_dump_has_no_special_chars(void **state);
+
 void test_ffi_pkt_dump(void **state);
 
 void test_ffi_rsa_v3_dump(void **state);
