@@ -4853,6 +4853,53 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
+{
+    rnp_ffi_t    ffi = NULL;
+    char *       json = NULL;
+    json_object *jso = NULL;
+    const char * trackers[] = {
+      "userid\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f@rnp",
+      "userid\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f@rnp"};
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    for (int i = 0; i < 2; i++) {
+        // generate RSA key
+        rnp_op_generate_t keygen = NULL;
+        assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+        assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+        // user id
+        assert_rnp_success(rnp_op_generate_set_userid(keygen, trackers[0]));
+        // now execute keygen operation
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+        assert_non_null(key);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        keygen = NULL;
+
+        // dump public key and check results
+        assert_rnp_success(rnp_key_packets_to_json(
+          key, false, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+        assert_non_null(json);
+        for (char c = 1; c < 0x20; c++) {
+            if (c != '\n') {
+                assert_null(strchr(json, c));
+            }
+        }
+        jso = json_tokener_parse(json);
+        assert_non_null(jso);
+        assert_true(json_object_is_type(jso, json_type_array));
+        json_object_put(jso);
+        rnp_buffer_destroy(json);
+
+        // cleanup
+        rnp_key_handle_destroy(key);
+    }
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_pkt_dump)
 {
     rnp_ffi_t    ffi = NULL;
