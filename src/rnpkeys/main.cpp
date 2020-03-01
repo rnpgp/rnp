@@ -106,12 +106,12 @@ rnpkeys_main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(cli_rnp_cfg(&rnp), &rnp, cmd, NULL)) {
+        if (!rnp_cmd(&rnp, cmd, NULL)) {
             ret = EXIT_FAILURE;
         }
     } else {
         for (int i = optind; i < argc; i++) {
-            if (!rnp_cmd(cli_rnp_cfg(&rnp), &rnp, cmd, argv[i])) {
+            if (!rnp_cmd(&rnp, cmd, argv[i])) {
                 ret = EXIT_FAILURE;
             }
         }

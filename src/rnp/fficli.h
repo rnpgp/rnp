@@ -74,11 +74,11 @@ void cli_rnp_set_default_key(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
 bool cli_rnp_set_generate_params(rnp_cfg_t *cfg);
-bool cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username);
+bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
 list cli_rnp_get_keylist(cli_rnp_t *rnp, const char *filter, bool secret, bool subkeys);
 void cli_rnp_keylist_destroy(list *keys);
-bool cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter);
-bool cli_rnp_export_revocation(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *key);
+bool cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
+bool cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key);
 bool cli_rnp_add_key(const rnp_cfg_t *cfg, cli_rnp_t *rnp);
 bool cli_rnp_dump_file(const rnp_cfg_t *cfg);
 bool cli_rnp_armor_file(const rnp_cfg_t *cfg);
