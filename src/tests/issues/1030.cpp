@@ -32,17 +32,14 @@ test_issue_1030(const char *keystore)
 {
     int         pipefd[2] = {0};
     cli_rnp_t   rnp = {};
-    rnp_cfg_t   cfg = {};
     const char *userid = "user";
     size_t      keycount = 0;
     list        keys = NULL;
 
     char *home = make_temp_dir();
     assert_true(setup_cli_rnp_common(&rnp, keystore, home, pipefd));
-    rnp_cfg_init(&cfg);
-
-    cli_set_default_rsa_key_desc(&cfg, "SHA256");
-    assert_true(cli_rnp_generate_key(&cfg, &rnp, userid));
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), "SHA256");
+    assert_true(cli_rnp_generate_key(&rnp, userid));
 
     assert_true(cli_rnp_load_keyrings(&rnp, true));
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
@@ -68,7 +65,6 @@ test_issue_1030(const char *keystore)
     close(pipefd[0]);
     cli_rnp_keylist_destroy(&keys);
     cli_rnp_end(&rnp);
-    rnp_cfg_free(&cfg);
     free(home);
 }
 

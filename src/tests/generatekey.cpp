@@ -46,7 +46,6 @@ static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)
 {
     cli_rnp_t rnp = {};
-    rnp_cfg_t cfg = {};
     int       pipefd[2] = {0};
     bool      res = false;
     size_t    keycount = 0;
@@ -56,11 +55,10 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
     if (!setup_cli_rnp_common(&rnp, keystore, home, pipefd)) {
         return false;
     }
-    rnp_cfg_init(&cfg);
 
     /* Generate the key */
-    cli_set_default_rsa_key_desc(&cfg, hash);
-    if (!cli_rnp_generate_key(&cfg, &rnp, userid)) {
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), hash);
+    if (!cli_rnp_generate_key(&rnp, userid)) {
         goto done;
     }
 
@@ -84,7 +82,6 @@ done:
     close(pipefd[0]);
     cli_rnp_keylist_destroy(&keys);
     cli_rnp_end(&rnp);
-    rnp_cfg_free(&cfg);
     return res;
 }
 
@@ -547,7 +544,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     /* Mock user-input*/
     rnp_cfg_setint(cli_rnp_cfg(ctx), CFG_USERINPUTFD, user_input_pipefd[0]);
 
-    if (!rnp_cmd(cli_rnp_cfg(ctx), ctx, CMD_GENERATE_KEY, NULL)) {
+    if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }

@@ -34,17 +34,13 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
 {
     /* Generate the key and export it */
     cli_rnp_t rnp = {};
-    rnp_cfg_t cfg = {};
     int       pipefd[2];
 
     /* Initialize the rnp structure. */
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
-    rnp_cfg_init(&cfg);
-
     /* Generate the key */
-    cli_set_default_rsa_key_desc(&cfg, "SHA256");
-
-    assert_true(cli_rnp_generate_key(&cfg, &rnp, NULL));
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), "SHA256");
+    assert_true(cli_rnp_generate_key(&rnp, NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
@@ -59,12 +55,11 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     cli_rnp_keylist_destroy(&keys);
 
     /* Try to export the key with specified userid parameter from the env */
-    assert_true(cli_rnp_export_keys(&cfg, &rnp, getenv_logname()));
+    assert_true(cli_rnp_export_keys(&rnp, getenv_logname()));
 
     /* try to export the key with specified userid parameter (which is wrong) */
-    assert_false(cli_rnp_export_keys(&cfg, &rnp, "LOGNAME"));
+    assert_false(cli_rnp_export_keys(&rnp, "LOGNAME"));
 
     close(pipefd[0]);
     cli_rnp_end(&rnp); // Free memory and other allocated resources.
-    rnp_cfg_free(&cfg);
 }

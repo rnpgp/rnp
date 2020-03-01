@@ -117,11 +117,12 @@ struct option options[] = {
 
 /* list keys */
 static bool
-print_keys_info(rnp_cfg_t *cfg, cli_rnp_t *rnp, FILE *fp, const char *filter)
+print_keys_info(cli_rnp_t *rnp, FILE *fp, const char *filter)
 {
     list keys = NULL;
     int  keyc;
-    bool psecret = rnp_cfg_getbool(cfg, CFG_SECRET);
+    bool psecret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
+    bool psigs = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_WITH_SIGS);
 
     keys = cli_rnp_get_keylist(rnp, filter, psecret, true);
     if (!keys) {
@@ -134,8 +135,7 @@ print_keys_info(rnp_cfg_t *cfg, cli_rnp_t *rnp, FILE *fp, const char *filter)
 
     for (list_item *ki = list_front(keys); ki; ki = list_next(ki)) {
         rnp_key_handle_t key = *((rnp_key_handle_t *) ki);
-        cli_rnp_print_key_info(
-          fp, rnp->ffi, key, psecret, rnp_cfg_getbool(cfg, CFG_WITH_SIGS));
+        cli_rnp_print_key_info(fp, rnp->ffi, key, psecret, psigs);
     }
 
     fprintf(fp, "\n");
@@ -157,7 +157,7 @@ imported_key_changed(json_object *key)
 }
 
 static bool
-import_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file)
+import_keys(cli_rnp_t *rnp, const char *file)
 {
     rnp_input_t input = NULL;
     bool        res = false;
@@ -217,7 +217,7 @@ done:
 }
 
 static bool
-import_sigs(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file)
+import_sigs(cli_rnp_t *rnp, const char *file)
 {
     rnp_input_t input = NULL;
     bool        res = false;
@@ -285,7 +285,7 @@ done:
 }
 
 static bool
-import(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file, int cmd)
+import(cli_rnp_t *rnp, const char *file, int cmd)
 {
     if (!file) {
         ERR_MSG("Import file isn't specified");
@@ -293,10 +293,10 @@ import(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file, int cmd)
     }
 
     if (cmd == CMD_IMPORT_KEYS) {
-        return import_keys(cfg, rnp, file);
+        return import_keys(rnp, file);
     }
     if (cmd == CMD_IMPORT_SIGS) {
-        return import_sigs(cfg, rnp, file);
+        return import_sigs(rnp, file);
     }
 
     rnp_input_t input = NULL;
@@ -313,7 +313,7 @@ import(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *file, int cmd)
     bool signature = contents && !strcmp(contents, "signature");
     rnp_buffer_destroy(contents);
 
-    return signature ? import_sigs(cfg, rnp, file) : import_keys(cfg, rnp, file);
+    return signature ? import_sigs(rnp, file) : import_keys(rnp, file);
 }
 
 void
@@ -334,7 +334,7 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified file 'f' */
 bool
-rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
+rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
 {
     const char *key;
     std::string fs;
@@ -343,49 +343,52 @@ rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f)
     case CMD_LIST_KEYS:
         if (!f) {
             list *ids = NULL;
-            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
-                f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+            if ((ids = rnp_cfg_getlist(cli_rnp_cfg(rnp), CFG_USERID)) &&
+                list_length(*ids) > 0) {
+                f = (fs = rnp_cfg_getlist_string(cli_rnp_cfg(rnp), CFG_USERID, 0)).c_str();
             }
         }
-        return print_keys_info(cfg, rnp, stdout, f);
+        return print_keys_info(rnp, stdout, f);
     case CMD_EXPORT_KEY: {
         key = f;
         if (!key) {
             list *ids = NULL;
-            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
-                f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+            if ((ids = rnp_cfg_getlist(cli_rnp_cfg(rnp), CFG_USERID)) &&
+                list_length(*ids) > 0) {
+                f = (fs = rnp_cfg_getlist_string(cli_rnp_cfg(rnp), CFG_USERID, 0)).c_str();
             }
         }
         if (!key) {
             ERR_MSG("key '%s' not found", f);
             return 0;
         }
-        return cli_rnp_export_keys(cfg, rnp, key);
+        return cli_rnp_export_keys(rnp, key);
     }
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
-        return import(cfg, rnp, f, cmd);
+        return import(rnp, f, cmd);
     case CMD_GENERATE_KEY: {
         if (f == NULL) {
             list *ids = NULL;
-            if ((ids = rnp_cfg_getlist(cfg, CFG_USERID)) && list_length(*ids) > 0) {
+            if ((ids = rnp_cfg_getlist(cli_rnp_cfg(rnp), CFG_USERID)) &&
+                list_length(*ids) > 0) {
                 if (list_length(*ids) == 1) {
-                    f = (fs = rnp_cfg_getlist_string(cfg, CFG_USERID, 0)).c_str();
+                    f = (fs = rnp_cfg_getlist_string(cli_rnp_cfg(rnp), CFG_USERID, 0)).c_str();
                 } else {
                     ERR_MSG("Only single userid is supported for generated keys");
                     return false;
                 }
             }
         }
-        return cli_rnp_generate_key(cfg, rnp, f);
+        return cli_rnp_generate_key(rnp, f);
     }
     case CMD_EXPORT_REV: {
         if (!f) {
             ERR_MSG("You need to specify key to generate revocation for.");
             return false;
         }
-        return cli_rnp_export_revocation(cfg, rnp, f);
+        return cli_rnp_export_revocation(rnp, f);
     }
     case CMD_VERSION:
         print_praise();
