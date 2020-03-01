@@ -668,6 +668,28 @@ cli_key_usage_str(rnp_key_handle_t key, char *buf)
     return orig;
 }
 
+std::string
+cli_rnp_escape_string(const std::string &src)
+{
+    static const int   SPECIAL_CHARS_COUNT = 0x20;
+    static const char *escape_map[SPECIAL_CHARS_COUNT] = {
+      "\\x00", "\\x01", "\\x02", "\\x03", "\\x04", "\\x05", "\\x06", "\\x07",
+      "\\b",   "\\x09", "\\n",   "\\v",   "\\f",   "\\r",   "\\x0e", "\\x0f",
+      "\\x10", "\\x11", "\\x12", "\\x13", "\\x14", "\\x15", "\\x16", "\\x17",
+      "\\x18", "\\x19", "\\x1a", "\\x1b", "\\x1c", "\\x1d", "\\x1e", "\\x1f"};
+    std::string result;
+    result.reserve(src.length());
+    for (char const &c : src) {
+        if (c >= 0 && c < SPECIAL_CHARS_COUNT) {
+            const char *replacement = escape_map[(int) c];
+            result.append(replacement);
+        } else {
+            result.push_back(c);
+        }
+    }
+    return result;
+}
+
 void
 cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs)
 {
@@ -745,7 +767,7 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
         (void) rnp_key_get_uid_at(key, i, &uid_str);
 
         /* userid itself with revocation status */
-        fprintf(fp, "uid           %s", uid_str);
+        fprintf(fp, "uid           %s", cli_rnp_escape_string(uid_str).c_str());
         fprintf(fp, "%s\n", revoked ? "[REVOKED]" : "");
         rnp_buffer_destroy(uid_str);
 
