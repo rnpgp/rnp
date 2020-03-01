@@ -519,49 +519,47 @@ static bool
 ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
 {
     /* Run tests*/
-    bool      ret = true;
-    rnp_cfg_t cfg = {0};
-    int       pipefd[2] = {0};
-    int       user_input_pipefd[2] = {0};
-    size_t    rsp_len;
+    bool   ret = false;
+    int    pipefd[2] = {0};
+    int    user_input_pipefd[2] = {0};
+    size_t rsp_len;
 
-    rsp_len = strlen(rsp);
-    memset(ctx, 0, sizeof(*ctx));
     if (pipe(pipefd) == -1) {
-        ret = false;
-        goto end;
+        return false;
     }
     rnp_cfg_setint(ops, CFG_PASSFD, pipefd[0]);
     write_pass_to_pipe(pipefd[1], 2);
-    if (!rnpkeys_init(&cfg, ctx, ops)) {
-        return false;
+    close(pipefd[1]);
+    if (!rnpkeys_init(ctx, ops)) {
+        goto end;
     }
 
     /* Write response to fd */
     if (pipe(user_input_pipefd) == -1) {
-        ret = false;
         goto end;
     }
+    rsp_len = strlen(rsp);
     for (size_t i = 0; i < rsp_len;) {
         i += write(user_input_pipefd[1], rsp + i, rsp_len - i);
     }
     close(user_input_pipefd[1]);
 
     /* Mock user-input*/
-    rnp_cfg_setint(&cfg, CFG_USERINPUTFD, user_input_pipefd[0]);
+    rnp_cfg_setint(cli_rnp_cfg(ctx), CFG_USERINPUTFD, user_input_pipefd[0]);
 
-    if (!rnp_cmd(&cfg, ctx, CMD_GENERATE_KEY, NULL)) {
+    if (!rnp_cmd(cli_rnp_cfg(ctx), ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }
-
-    ret = rnp_cfg_copy(ops, &cfg);
+    ret = rnp_cfg_copy(ops, cli_rnp_cfg(ctx));
 end:
     /* Close & clean fd*/
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
     }
-    rnp_cfg_free(&cfg);
+    if (pipefd[0]) {
+        close(pipefd[0]);
+    }
     return ret;
 }
 

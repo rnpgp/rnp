@@ -53,13 +53,12 @@ bool parse_option(rnp_cfg_t *cfg, optdefs_t *cmd, const char *s);
 
 /**
  * @brief Initializes rnpkeys. Function allocates memory dynamically for
- *        cfg and rnp arguments, which must be freed by the caller.
+ *        rnp argument, which must be freed by the caller.
  *
- * @param cfg configuration to be used by rnd_cmd
  * @param rnp initialized rnp context
- * @param opt_cfg configuration with settings from command line
+ * @param cfg configuration with settings from command line
  * @return true on success, or false otherwise.
  */
-bool rnpkeys_init(rnp_cfg_t *cfg, cli_rnp_t *rnp, const rnp_cfg_t *opt_cfg);
+bool rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg_t *cfg);
 
 #endif /* _rnpkeys_ */
