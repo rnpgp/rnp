@@ -45,7 +45,7 @@ typedef enum {
     OPT_DEBUG
 } optdefs_t;
 
-bool rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *rnp, optdefs_t cmd, const char *f);
+bool rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f);
 bool setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg);
 void print_praise(void);
 void print_usage(const char *usagemsg);
