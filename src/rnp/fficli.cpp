@@ -856,9 +856,10 @@ cli_rnp_save_keyrings(cli_rnp_t *rnp)
 }
 
 bool
-cli_rnp_generate_key(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *username)
+cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
 {
     /* set key generation parameters to rnp_cfg_t */
+    rnp_cfg_t *cfg = cli_rnp_cfg(rnp);
     if (!cli_rnp_set_generate_params(cfg)) {
         ERR_MSG("Key generation setup failed.");
         return false;
@@ -1559,9 +1560,9 @@ stdout_writer(void *app_ctx, const void *buf, size_t len)
 }
 
 bool
-cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
+cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
-    bool secret = rnp_cfg_getbool(cfg, CFG_SECRET);
+    bool secret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
     list keys = cli_rnp_get_keylist(rnp, filter, secret, true);
     if (!keys) {
         fprintf(rnp->userio_out, "Key(s) matching '%s' not found.\n", filter);
@@ -1570,13 +1571,14 @@ cli_rnp_export_keys(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *filter)
 
     rnp_output_t output = NULL;
     rnp_output_t armor = NULL;
-    const char * file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
+    const char * file = rnp_cfg_getstr(cli_rnp_cfg(rnp), CFG_OUTFILE);
     rnp_result_t ret;
     uint32_t     base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
     bool         result = false;
 
     if (file) {
-        uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        uint32_t flags =
+          rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file, flags);
     } else {
         ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
@@ -1624,7 +1626,7 @@ done:
 }
 
 bool
-cli_rnp_export_revocation(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *key)
+cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
 {
     list keys = cli_rnp_get_keylist(rnp, key, false, false);
     if (!keys) {
@@ -1637,13 +1639,15 @@ cli_rnp_export_revocation(rnp_cfg_t *cfg, cli_rnp_t *rnp, const char *key)
         return false;
     }
     rnp_key_handle_t key_handle = *((rnp_key_handle_t *) list_front(keys));
+    rnp_cfg_t *      cfg = cli_rnp_cfg(rnp);
     const char *     file = rnp_cfg_getstr(cfg, CFG_OUTFILE);
     rnp_result_t     ret = RNP_ERROR_GENERIC;
     rnp_output_t     output = NULL;
     rnp_output_t     armored = NULL;
     bool             result = false;
     if (file) {
-        uint32_t flags = rnp_cfg_getbool(cfg, CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        uint32_t flags =
+          rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file, flags);
     } else {
         ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
