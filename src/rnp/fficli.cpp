@@ -345,6 +345,12 @@ cli_rnp_cfg(cli_rnp_t *rnp)
     return &rnp->cfg;
 }
 
+const std::string
+cli_rnp_defkey(cli_rnp_t *rnp)
+{
+    return rnp_cfg_getstring(&rnp->cfg, CFG_KR_DEF_KEY);
+}
+
 bool
 cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
 {
@@ -459,10 +465,6 @@ cli_rnp_end(cli_rnp_t *rnp)
     free(rnp->secpath);
     free(rnp->secformat);
 
-    if (rnp->defkey) {
-        free(rnp->defkey);
-        rnp->defkey = NULL;
-    }
     if (rnp->passfp) {
         fclose(rnp->passfp);
         rnp->passfp = NULL;
@@ -547,7 +549,7 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
             goto done;
         }
     }
-    if (!rnp->defkey) {
+    if (cli_rnp_defkey(rnp).empty()) {
         cli_rnp_set_default_key(rnp);
     }
     res = true;
@@ -563,9 +565,7 @@ cli_rnp_set_default_key(cli_rnp_t *rnp)
     rnp_key_handle_t          handle = NULL;
     const char *              grip = NULL;
 
-    free(rnp->defkey);
-    rnp->defkey = NULL;
-
+    rnp_cfg_unset(cli_rnp_cfg(rnp), CFG_KR_DEF_KEY);
     if (rnp_identifier_iterator_create(rnp->ffi, &it, "grip")) {
         ERR_MSG("failed to create key iterator");
         return;
@@ -588,25 +588,20 @@ cli_rnp_set_default_key(cli_rnp_t *rnp)
         if (rnp_key_have_secret(handle, &is_secret)) {
             goto next;
         }
-        if (!rnp->defkey || is_secret) {
-            free(rnp->defkey);
-            rnp->defkey = strdup(grip);
-            if (!rnp->defkey) {
+        if (!rnp_cfg_hasval(cli_rnp_cfg(rnp), CFG_KR_DEF_KEY) || is_secret) {
+            if (!rnp_cfg_setstr(cli_rnp_cfg(rnp), CFG_KR_DEF_KEY, grip)) {
                 ERR_MSG("allocation failed");
-                goto done;
+                break;
+            }
+            /* if we have secret primary key then use it as default */
+            if (is_secret) {
+                break;
             }
         }
-        /* if we have secret primary key then use it as default */
-        if (is_secret) {
-            goto done;
-        }
-
     next:
         rnp_key_handle_destroy(handle);
         handle = NULL;
     }
-
-done:
     rnp_key_handle_destroy(handle);
     rnp_identifier_iterator_destroy(it);
 }
@@ -1693,10 +1688,9 @@ cli_rnp_add_key(cli_rnp_t *rnp)
     rnp_input_destroy(input);
 
     // set default key if we didn't have one
-    if (res && !rnp->defkey) {
+    if (res && cli_rnp_defkey(rnp).empty()) {
         cli_rnp_set_default_key(rnp);
     }
-
     return res;
 }
 
@@ -1930,12 +1924,13 @@ cli_rnp_search_keys(cli_rnp_t *                     rnp,
         }
     }
     if (keys.empty() && usedef) {
-        rnp_key_handle_t key = NULL;
-        if (!rnp->defkey) {
+        rnp_key_handle_t  key = NULL;
+        const std::string defkey = cli_rnp_defkey(rnp);
+        if (defkey.empty()) {
             ERR_MSG("No userid or default key for operation");
             goto done;
         }
-        key = key_matching_string(rnp, rnp->defkey, secret);
+        key = key_matching_string(rnp, defkey, secret);
         if (!key) {
             ERR_MSG("Default key not found");
             goto done;
