@@ -42,10 +42,6 @@ typedef struct cli_rnp_t {
     FILE *    userio_in;  /* file pointer for user's inputs */
     FILE *    userio_out; /* file pointer for user's outputs */
     int       pswdtries;  /* number of password tries, -1 for unlimited */
-    char *    pubpath;    /* path to the public keyring */
-    char *    pubformat;  /* format of the public keyring */
-    char *    secpath;    /* path to the secret keyring */
-    char *    secformat;  /* format of the secret keyring */
 } cli_rnp_t;
 
 /**
@@ -60,6 +56,10 @@ bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
 rnp_cfg_t *       cli_rnp_cfg(cli_rnp_t *rnp);
 const std::string cli_rnp_defkey(cli_rnp_t *rnp);
+const std::string cli_rnp_pubpath(cli_rnp_t *rnp);
+const std::string cli_rnp_secpath(cli_rnp_t *rnp);
+const std::string cli_rnp_pubformat(cli_rnp_t *rnp);
+const std::string cli_rnp_secformat(cli_rnp_t *rnp);
 
 bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
 bool cli_rnp_baseinit(cli_rnp_t *);
