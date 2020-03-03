@@ -199,7 +199,7 @@ import_keys(cli_rnp_t *rnp, const char *file)
     }
 
     // set default key if we didn't have one
-    if (!rnp->defkey) {
+    if (cli_rnp_defkey(rnp).empty()) {
         cli_rnp_set_default_key(rnp);
     }
 
