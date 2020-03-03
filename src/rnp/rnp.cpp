@@ -231,29 +231,25 @@ print_usage(const char *usagemsg)
 
 /* do a command once for a specified config */
 static bool
-rnp_cmd(rnp_cfg_t *cfg, cli_rnp_t *clirnp)
+rnp_cmd(cli_rnp_t *rnp)
 {
     bool ret = false;
 
-    if (!cli_rnp_setup(cfg, clirnp)) {
-        return false;
-    }
-
-    switch (rnp_cfg_getint(cfg, CFG_COMMAND)) {
+    switch (rnp_cfg_getint(cli_rnp_cfg(rnp), CFG_COMMAND)) {
     case CMD_PROTECT:
-        ret = cli_rnp_protect_file(cfg, clirnp);
+        ret = cli_rnp_protect_file(rnp);
         break;
     case CMD_PROCESS:
-        ret = cli_rnp_process_file(cfg, clirnp);
+        ret = cli_rnp_process_file(rnp);
         break;
     case CMD_LIST_PACKETS:
-        ret = cli_rnp_dump_file(cfg);
+        ret = cli_rnp_dump_file(rnp);
         break;
     case CMD_DEARMOR:
-        ret = cli_rnp_dearmor_file(cfg);
+        ret = cli_rnp_dearmor_file(rnp);
         break;
     case CMD_ENARMOR:
-        ret = cli_rnp_armor_file(cfg);
+        ret = cli_rnp_armor_file(rnp);
         break;
     case CMD_VERSION:
         print_praise();
@@ -607,12 +603,12 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
-    cli_rnp_t clirnp = {};
+    cli_rnp_t rnp = {};
     rnp_cfg_t cfg = {};
     int       optindex;
     int       ret = EXIT_ERROR;
     int       ch;
-    int       i;
+    bool      disable_ks = false;
 
     rnp_prog_name = argv[0];
 
@@ -706,8 +702,12 @@ rnp_main(int argc, char **argv)
 
     switch (rnp_cfg_getint(&cfg, CFG_COMMAND)) {
     case CMD_HELP:
+        print_usage(usage);
+        ret = EXIT_SUCCESS;
+        goto finish;
     case CMD_VERSION:
-        ret = rnp_cmd(&cfg, &clirnp) ? EXIT_SUCCESS : EXIT_FAILURE;
+        print_praise();
+        ret = EXIT_SUCCESS;
         goto finish;
     default:;
     }
@@ -718,23 +718,29 @@ rnp_main(int argc, char **argv)
         goto finish;
     }
 
-    if (!cli_rnp_init(&clirnp, &cfg)) {
+    if (!cli_rnp_init(&rnp, &cfg)) {
         ERR_MSG("fatal: cannot initialise");
         ret = EXIT_ERROR;
         goto finish;
     }
 
-    if (!rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) &&
-        !cli_rnp_load_keyrings(&clirnp, rnp_cfg_getbool(&cfg, CFG_NEEDSSECKEY))) {
+    disable_ks = rnp_cfg_getbool(cli_rnp_cfg(&rnp), CFG_KEYSTORE_DISABLED);
+    if (!disable_ks &&
+        !cli_rnp_load_keyrings(&rnp, rnp_cfg_getbool(cli_rnp_cfg(&rnp), CFG_NEEDSSECKEY))) {
         ERR_MSG("fatal: failed to load keys");
         ret = EXIT_ERROR;
         goto finish;
     }
 
     /* load the keyfile if any */
-    if (rnp_cfg_getbool(&cfg, CFG_KEYSTORE_DISABLED) && rnp_cfg_getstr(&cfg, CFG_KEYFILE) &&
-        !cli_rnp_add_key(&cfg, &clirnp)) {
+    if (disable_ks && rnp_cfg_getstr(cli_rnp_cfg(&rnp), CFG_KEYFILE) &&
+        !cli_rnp_add_key(&rnp)) {
         ERR_MSG("fatal: failed to load key(s) from the file");
+        ret = EXIT_ERROR;
+        goto finish;
+    }
+
+    if (!cli_rnp_setup(&rnp)) {
         ret = EXIT_ERROR;
         goto finish;
     }
@@ -742,12 +748,12 @@ rnp_main(int argc, char **argv)
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(cli_rnp_cfg(&clirnp), &clirnp))
+        if (!rnp_cmd(&rnp))
             ret = EXIT_FAILURE;
     } else {
-        for (i = optind; i < argc; i++) {
-            rnp_cfg_setstr(&cfg, CFG_INFILE, argv[i]);
-            if (!rnp_cmd(cli_rnp_cfg(&clirnp), &clirnp)) {
+        for (int i = optind; i < argc; i++) {
+            rnp_cfg_setstr(cli_rnp_cfg(&rnp), CFG_INFILE, argv[i]);
+            if (!rnp_cmd(&rnp)) {
                 ret = EXIT_FAILURE;
             }
         }
@@ -755,7 +761,6 @@ rnp_main(int argc, char **argv)
 
 finish:
     rnp_cfg_free(&cfg);
-    cli_rnp_end(&clirnp);
-
+    cli_rnp_end(&rnp);
     return ret;
 }
