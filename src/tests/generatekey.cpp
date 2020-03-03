@@ -135,30 +135,28 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 assert_true(seccount > 0);
 
                 /* Setup signing context */
-                rnp_cfg_t cfg = {};
-                rnp_cfg_init(&cfg);
-                rnp_cfg_load_defaults(&cfg);
-                rnp_cfg_setbool(&cfg, CFG_ARMOR, armored);
-                rnp_cfg_setbool(&cfg, CFG_SIGN_NEEDED, true);
-                rnp_cfg_setstr(&cfg, CFG_HASH, hashAlg[i]);
-                rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
-                rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
-                rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-                rnp_cfg_setbool(&cfg, CFG_CLEARTEXT, cleartext);
-                rnp_cfg_addstr(&cfg, CFG_SIGNERS, userId.c_str());
+                rnp_cfg_t *cfg = cli_rnp_cfg(&rnp);
+                rnp_cfg_load_defaults(cfg);
+                rnp_cfg_setbool(cfg, CFG_ARMOR, armored);
+                rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
+                rnp_cfg_setstr(cfg, CFG_HASH, hashAlg[i]);
+                rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
+                rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
+                rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+                rnp_cfg_setbool(cfg, CFG_CLEARTEXT, cleartext);
+                rnp_cfg_addstr(cfg, CFG_SIGNERS, userId.c_str());
 
                 /* Sign the file */
-                assert_true(cli_rnp_protect_file(&cfg, &rnp));
+                assert_true(cli_rnp_protect_file(&rnp));
                 close(pipefd[0]);
-                rnp_cfg_free(&cfg);
 
                 /* Verify the file */
-                rnp_cfg_init(&cfg);
-                rnp_cfg_load_defaults(&cfg);
-                rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
-                rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
-                rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.verify");
-                assert_true(cli_rnp_process_file(&cfg, &rnp));
+                rnp_cfg_free(cfg);
+                rnp_cfg_load_defaults(cfg);
+                rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
+                rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
+                rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.verify");
+                assert_true(cli_rnp_process_file(&rnp));
 
                 /* Ensure signature verification passed */
                 std::string verify = file_to_str("dummyfile.verify");
@@ -180,11 +178,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                     verf.seekg(versize - 10, std::ios::beg);
                     verf.write(&sigch, 1);
                     verf.close();
-                    assert_false(cli_rnp_process_file(&cfg, &rnp));
+                    assert_false(cli_rnp_process_file(&rnp));
                 }
 
                 cli_rnp_end(&rnp);
-                rnp_cfg_free(&cfg);
                 assert_int_equal(unlink("dummyfile.dat.pgp"), 0);
                 unlink("dummyfile.verify");
             }
@@ -221,19 +218,17 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount == 0);
             /* Set the cipher and armored flags */
-            rnp_cfg_t cfg = {};
-            rnp_cfg_init(&cfg);
-            rnp_cfg_load_defaults(&cfg);
-            rnp_cfg_setbool(&cfg, CFG_ARMOR, armored);
-            rnp_cfg_setbool(&cfg, CFG_ENCRYPT_PK, true);
-            rnp_cfg_setint(&cfg, CFG_ZLEVEL, 0);
-            rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat");
-            rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-            rnp_cfg_setstr(&cfg, CFG_CIPHER, cipherAlg[i]);
-            rnp_cfg_addstr(&cfg, CFG_RECIPIENTS, userid);
+            rnp_cfg_t *cfg = cli_rnp_cfg(&rnp);
+            rnp_cfg_load_defaults(cfg);
+            rnp_cfg_setbool(cfg, CFG_ARMOR, armored);
+            rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
+            rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
+            rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
+            rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
+            rnp_cfg_setstr(cfg, CFG_CIPHER, cipherAlg[i]);
+            rnp_cfg_addstr(cfg, CFG_RECIPIENTS, userid);
             /* Encrypt the file */
-            assert_true(cli_rnp_protect_file(&cfg, &rnp));
-            rnp_cfg_free(&cfg);
+            assert_true(cli_rnp_protect_file(&rnp));
             cli_rnp_end(&rnp);
 
             /* Set up rnp again and decrypt the file */
@@ -243,13 +238,12 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount > 0);
             /* Setup the decryption context and decrypt */
-            rnp_cfg_init(&cfg);
-            rnp_cfg_load_defaults(&cfg);
-            rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
-            rnp_cfg_setstr(&cfg, CFG_INFILE, "dummyfile.dat.pgp");
-            rnp_cfg_setstr(&cfg, CFG_OUTFILE, "dummyfile.decrypt");
-            assert_true(cli_rnp_process_file(&cfg, &rnp));
-            rnp_cfg_free(&cfg);
+            cfg = cli_rnp_cfg(&rnp);
+            rnp_cfg_load_defaults(cfg);
+            rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
+            rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
+            rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.decrypt");
+            assert_true(cli_rnp_process_file(&rnp));
             cli_rnp_end(&rnp);
             close(pipefd[0]);
 

@@ -1675,9 +1675,9 @@ done:
 }
 
 bool
-cli_rnp_add_key(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
+cli_rnp_add_key(cli_rnp_t *rnp)
 {
-    std::string path = rnp_cfg_getstring(cfg, CFG_KEYFILE);
+    std::string path = rnp_cfg_getstring(cli_rnp_cfg(rnp), CFG_KEYFILE);
     if (path.empty()) {
         return false;
     }
@@ -1764,12 +1764,12 @@ adjust_output_path(std::string &path, bool overwrite, cli_rnp_t *rnp)
 }
 
 static bool
-cli_rnp_init_io(const rnp_cfg_t *  cfg,
-                const std::string &op,
+cli_rnp_init_io(const std::string &op,
                 rnp_input_t *      input,
                 rnp_output_t *     output,
                 cli_rnp_t *        rnp)
 {
+    rnp_cfg_t * cfg = cli_rnp_cfg(rnp);
     std::string in = rnp_cfg_getstring(cfg, CFG_INFILE);
     bool        is_stdin = in.empty() || (in == "-");
     if (input) {
@@ -1816,17 +1816,14 @@ cli_rnp_init_io(const rnp_cfg_t *  cfg,
 }
 
 bool
-cli_rnp_dump_file(const rnp_cfg_t *cfg)
+cli_rnp_dump_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
     uint32_t     flags = 0;
     uint32_t     jflags = 0;
-    cli_rnp_t    rnp = {};
+    rnp_cfg_t *  cfg = cli_rnp_cfg(rnp);
 
-    if (!cli_rnp_baseinit(&rnp)) {
-        return false;
-    }
     if (rnp_cfg_getbool(cfg, CFG_GRIPS)) {
         flags |= RNP_DUMP_GRIP;
         jflags |= RNP_JSON_DUMP_GRIP;
@@ -1841,7 +1838,7 @@ cli_rnp_dump_file(const rnp_cfg_t *cfg)
     }
 
     rnp_result_t ret = 0;
-    if (!cli_rnp_init_io(cfg, "dump", &input, &output, &rnp)) {
+    if (!cli_rnp_init_io("dump", &input, &output, rnp)) {
         ERR_MSG("failed to open source or create output");
         ret = 1;
         goto done;
@@ -1871,62 +1868,41 @@ cli_rnp_dump_file(const rnp_cfg_t *cfg)
     }
     rnp_input_destroy(input);
     rnp_output_destroy(output);
-
 done:
-    cli_rnp_end(&rnp);
     return !ret;
 }
 
 bool
-cli_rnp_armor_file(const rnp_cfg_t *cfg)
+cli_rnp_armor_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
-    cli_rnp_t    rnp = {};
 
-    if (!cli_rnp_baseinit(&rnp)) {
+    if (!cli_rnp_init_io("armor", &input, &output, rnp)) {
+        ERR_MSG("failed to open source or create output");
         return false;
     }
-    rnp_result_t ret = 0;
-    if (!cli_rnp_init_io(cfg, "armor", &input, &output, &rnp)) {
-        ERR_MSG("failed to open source or create output");
-        ret = 1;
-        goto done;
-    }
-
-    ret = rnp_enarmor(input, output, rnp_cfg_getstr(cfg, CFG_ARMOR_DATA_TYPE));
-
+    rnp_result_t ret =
+      rnp_enarmor(input, output, rnp_cfg_getstr(cli_rnp_cfg(rnp), CFG_ARMOR_DATA_TYPE));
     rnp_input_destroy(input);
     rnp_output_destroy(output);
-
-done:
-    cli_rnp_end(&rnp);
     return !ret;
 }
 
 bool
-cli_rnp_dearmor_file(const rnp_cfg_t *cfg)
+cli_rnp_dearmor_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
-    cli_rnp_t    rnp = {};
 
-    if (!cli_rnp_baseinit(&rnp)) {
+    if (!cli_rnp_init_io("dearmor", &input, &output, rnp)) {
+        ERR_MSG("failed to open source or create output");
         return false;
     }
-    rnp_result_t ret = 0;
-    if (!cli_rnp_init_io(cfg, "dearmor", &input, &output, &rnp)) {
-        ERR_MSG("failed to open source or create output");
-        ret = 1;
-        goto done;
-    }
 
-    ret = rnp_dearmor(input, output);
+    rnp_result_t ret = rnp_dearmor(input, output);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
-
-done:
-    cli_rnp_end(&rnp);
     return !ret;
 }
 
@@ -2172,32 +2148,32 @@ done:
 }
 
 bool
-cli_rnp_setup(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
+cli_rnp_setup(cli_rnp_t *rnp)
 {
-    if (rnp_cfg_getstr(cfg, CFG_PASSWD) &&
-        rnp_ffi_set_pass_provider(
-          rnp->ffi, ffi_pass_callback_string, (void *) rnp_cfg_getstr(cfg, CFG_PASSWD))) {
+    const char *passwd = rnp_cfg_getstr(cli_rnp_cfg(rnp), CFG_PASSWD);
+    if (passwd &&
+        rnp_ffi_set_pass_provider(rnp->ffi, ffi_pass_callback_string, (void *) passwd)) {
         return false;
     }
-
-    rnp->pswdtries = rnp_cfg_get_pswdtries(cfg);
+    rnp->pswdtries = rnp_cfg_get_pswdtries(cli_rnp_cfg(rnp));
     return true;
 }
 
 bool
-cli_rnp_protect_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
+cli_rnp_protect_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
-    if (!cli_rnp_init_io(cfg, "encrypt_sign", &input, &output, rnp)) {
+    if (!cli_rnp_init_io("encrypt_sign", &input, &output, rnp)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
 
-    bool res = false;
-    bool sign = rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED);
-    bool encrypt =
+    rnp_cfg_t *cfg = cli_rnp_cfg(rnp);
+    bool       res = false;
+    bool       sign = rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED);
+    bool       encrypt =
       rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) || rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK);
     if (sign && !encrypt) {
         res = cli_rnp_sign(cfg, rnp, input, output);
@@ -2326,10 +2302,10 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
 }
 
 bool
-cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
+cli_rnp_process_file(cli_rnp_t *rnp)
 {
     rnp_input_t input = NULL;
-    if (!cli_rnp_init_io(cfg, "verify", &input, NULL, rnp)) {
+    if (!cli_rnp_init_io("verify", &input, NULL, rnp)) {
         ERR_MSG("failed to open source");
         return false;
     }
@@ -2351,7 +2327,7 @@ cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 
     if (rnp_casecmp(contents, "signature")) {
         /* detached signature */
-        std::string in = rnp_cfg_getstring(cfg, CFG_INFILE);
+        std::string in = rnp_cfg_getstring(cli_rnp_cfg(rnp), CFG_INFILE);
         if (in.empty() || in == "-") {
             ERR_MSG("Cannot verify detached signature from stdin.");
             goto done;
@@ -2367,7 +2343,7 @@ cli_rnp_process_file(const rnp_cfg_t *cfg, cli_rnp_t *rnp)
 
         ret = rnp_op_verify_detached_create(&verify, rnp->ffi, source, input);
     } else {
-        if (!cli_rnp_init_io(cfg, "verify", NULL, &output, rnp)) {
+        if (!cli_rnp_init_io("verify", NULL, &output, rnp)) {
             ERR_MSG("Failed to create output stream.");
             goto done;
         }

@@ -1236,41 +1236,42 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
     rnp_cfg_setstr(&cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
     rnp_cfg_setstr(&cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
     assert_true(cli_rnp_init(&rnp, &cfg));
+    rnp_cfg_free(&cfg);
 
+    rnp_cfg_t *rnpcfg = cli_rnp_cfg(&rnp);
     /* setup cfg for verification */
     rnp_cfg_setstr(
-      &cfg, CFG_INFILE, "data/test_stream_verification/verify_encrypted_no_key.pgp");
-    rnp_cfg_setstr(&cfg, CFG_OUTFILE, "output.dat");
-    rnp_cfg_setbool(&cfg, CFG_OVERWRITE, true);
+      rnpcfg, CFG_INFILE, "data/test_stream_verification/verify_encrypted_no_key.pgp");
+    rnp_cfg_setstr(rnpcfg, CFG_OUTFILE, "output.dat");
+    rnp_cfg_setbool(rnpcfg, CFG_OVERWRITE, true);
     /* setup operation context */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass1"));
     /* operation should success if output is not discarded, i.e. operation = decrypt */
-    rnp_cfg_setbool(&cfg, CFG_NO_OUTPUT, false);
-    assert_true(cli_rnp_process_file(&cfg, &rnp));
+    rnp_cfg_setbool(rnpcfg, CFG_NO_OUTPUT, false);
+    assert_true(cli_rnp_process_file(&rnp));
     assert_int_equal(file_size("output.dat"), 4);
     /* try second password */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass2"));
-    assert_true(cli_rnp_process_file(&cfg, &rnp));
+    assert_true(cli_rnp_process_file(&rnp));
     assert_int_equal(file_size("output.dat"), 4);
     /* decryption/verification fails without password */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
-    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    assert_false(cli_rnp_process_file(&rnp));
     assert_int_equal(file_size("output.dat"), -1);
     /* decryption/verification fails with wrong password */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass_wrong"));
-    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    assert_false(cli_rnp_process_file(&rnp));
     assert_int_equal(file_size("output.dat"), -1);
     /* verification fails if output is discarded, i.e. operation = verify */
-    rnp_cfg_setbool(&cfg, CFG_NO_OUTPUT, true);
-    assert_false(cli_rnp_process_file(&cfg, &rnp));
+    rnp_cfg_setbool(rnpcfg, CFG_NO_OUTPUT, true);
+    assert_false(cli_rnp_process_file(&rnp));
     assert_int_equal(file_size("output.dat"), -1);
 
     /* cleanup */
-    rnp_cfg_free(&cfg);
     cli_rnp_end(&rnp);
 }
 

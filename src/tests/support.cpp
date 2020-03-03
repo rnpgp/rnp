@@ -572,7 +572,6 @@ setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir,
     }
 
     /*initialize the basic RNP structure. */
-    memset(rnp, '\0', sizeof(*rnp));
     bool res = cli_rnp_init(rnp, &cfg);
     rnp_cfg_free(&cfg);
     return res;
