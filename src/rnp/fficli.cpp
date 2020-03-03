@@ -351,6 +351,29 @@ cli_rnp_defkey(cli_rnp_t *rnp)
     return rnp_cfg_getstring(&rnp->cfg, CFG_KR_DEF_KEY);
 }
 
+const std::string
+cli_rnp_pubpath(cli_rnp_t *rnp)
+{
+    return rnp_cfg_getstring(&rnp->cfg, CFG_KR_PUB_PATH);
+}
+const std::string
+cli_rnp_secpath(cli_rnp_t *rnp)
+{
+    return rnp_cfg_getstring(&rnp->cfg, CFG_KR_SEC_PATH);
+}
+
+const std::string
+cli_rnp_pubformat(cli_rnp_t *rnp)
+{
+    return rnp_cfg_getstring(&rnp->cfg, CFG_KR_PUB_FORMAT);
+}
+
+const std::string
+cli_rnp_secformat(cli_rnp_t *rnp)
+{
+    return rnp_cfg_getstring(&rnp->cfg, CFG_KR_SEC_FORMAT);
+}
+
 bool
 cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
 {
@@ -390,16 +413,14 @@ cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
         return false;
     }
 
-    bool        res = false;
-    const char *format = rnp_cfg_getstr(cfg, CFG_KR_PUB_FORMAT);
-    if (!format || !(rnp->pubformat = strdup(format))) {
+    bool              res = false;
+    const std::string pformat = cli_rnp_pubformat(rnp);
+    const std::string sformat = cli_rnp_secformat(rnp);
+    if (pformat.empty() || sformat.empty()) {
+        ERR_MSG("Unknown public or secret keyring format");
         return false;
     }
-    format = rnp_cfg_getstr(cfg, CFG_KR_SEC_FORMAT);
-    if (!format || !(rnp->secformat = strdup(format))) {
-        return false;
-    }
-    if (rnp_ffi_create(&rnp->ffi, rnp->pubformat, rnp->secformat)) {
+    if (rnp_ffi_create(&rnp->ffi, pformat.c_str(), sformat.c_str())) {
         ERR_MSG("failed to initialize FFI");
         return false;
     }
@@ -418,23 +439,7 @@ cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
             goto done;
         }
     }
-
     rnp->pswdtries = MAX_PASSWORD_ATTEMPTS;
-
-    if (rnp_cfg_getstr(cfg, CFG_KR_PUB_PATH)) {
-        rnp->pubpath = strdup(rnp_cfg_getstr(cfg, CFG_KR_PUB_PATH));
-        if (!rnp->pubpath) {
-            ERR_MSG("allocation failed");
-            goto done;
-        }
-    }
-    if (rnp_cfg_getstr(cfg, CFG_KR_SEC_PATH)) {
-        rnp->secpath = strdup(rnp_cfg_getstr(cfg, CFG_KR_SEC_PATH));
-        if (!rnp->secpath) {
-            ERR_MSG("allocation failed");
-            goto done;
-        }
-    }
     res = true;
 done:
     if (!res) {
@@ -460,11 +465,6 @@ cli_rnp_baseinit(cli_rnp_t *rnp)
 void
 cli_rnp_end(cli_rnp_t *rnp)
 {
-    free(rnp->pubpath);
-    free(rnp->pubformat);
-    free(rnp->secpath);
-    free(rnp->secformat);
-
     if (rnp->passfp) {
         fclose(rnp->passfp);
         rnp->passfp = NULL;
@@ -498,12 +498,13 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
         goto done;
     }
 
-    if (rnp_input_from_path(&keyin, rnp->pubpath)) {
+    if (rnp_input_from_path(&keyin, cli_rnp_pubpath(rnp).c_str())) {
         ERR_MSG("wrong pubring path");
         goto done;
     }
 
-    if (rnp_load_keys(rnp->ffi, rnp->pubformat, keyin, RNP_LOAD_SAVE_PUBLIC_KEYS)) {
+    if (rnp_load_keys(
+          rnp->ffi, cli_rnp_pubformat(rnp).c_str(), keyin, RNP_LOAD_SAVE_PUBLIC_KEYS)) {
         ERR_MSG("cannot read pub keyring");
         goto done;
     }
@@ -516,7 +517,7 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
     }
 
     if (keycount < 1) {
-        ERR_MSG("pub keyring '%s' is empty", rnp->pubpath);
+        ERR_MSG("pub keyring '%s' is empty", cli_rnp_pubpath(rnp).c_str());
         goto done;
     }
 
@@ -527,12 +528,13 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
             goto done;
         }
 
-        if (rnp_input_from_path(&keyin, rnp->secpath)) {
+        if (rnp_input_from_path(&keyin, cli_rnp_secpath(rnp).c_str())) {
             ERR_MSG("wrong secring path");
             goto done;
         }
 
-        if (rnp_load_keys(rnp->ffi, rnp->secformat, keyin, RNP_LOAD_SAVE_SECRET_KEYS)) {
+        if (rnp_load_keys(
+              rnp->ffi, cli_rnp_secformat(rnp).c_str(), keyin, RNP_LOAD_SAVE_SECRET_KEYS)) {
             ERR_MSG("cannot read sec keyring");
             goto done;
         }
@@ -545,7 +547,7 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
         }
 
         if (keycount < 1) {
-            ERR_MSG("sec keyring '%s' is empty", rnp->secpath);
+            ERR_MSG("sec keyring '%s' is empty", cli_rnp_secpath(rnp).c_str());
             goto done;
         }
     }
@@ -805,46 +807,50 @@ done:
 bool
 cli_rnp_save_keyrings(cli_rnp_t *rnp)
 {
-    rnp_output_t output = NULL;
-    rnp_result_t pub_ret = 0;
-    rnp_result_t sec_ret = 0;
+    rnp_output_t      output = NULL;
+    rnp_result_t      pub_ret = 0;
+    rnp_result_t      sec_ret = 0;
+    const std::string ppath = cli_rnp_pubpath(rnp);
+    const std::string spath = cli_rnp_secpath(rnp);
 
     // check whether we have G10 secret keyring - then need to create directory
-    if (!strcmp(rnp->secformat, "G10")) {
+    if (cli_rnp_secformat(rnp) == "G10") {
         struct stat path_stat;
-        if (stat(rnp->secpath, &path_stat) != -1) {
+        if (stat(spath.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                ERR_MSG("G10 keystore should be a directory: %s", rnp->secpath);
+                ERR_MSG("G10 keystore should be a directory: %s", spath.c_str());
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                ERR_MSG("stat(%s): %s", rnp->secpath, strerror(errno));
+                ERR_MSG("stat(%s): %s", spath.c_str(), strerror(errno));
                 return false;
             }
-            if (RNP_MKDIR(rnp->secpath, S_IRWXU) != 0) {
-                ERR_MSG("mkdir(%s, S_IRWXU): %s", rnp->secpath, strerror(errno));
+            if (RNP_MKDIR(spath.c_str(), S_IRWXU) != 0) {
+                ERR_MSG("mkdir(%s, S_IRWXU): %s", spath.c_str(), strerror(errno));
                 return false;
             }
         }
     }
 
     // public keyring
-    if (!(pub_ret = rnp_output_to_path(&output, rnp->pubpath))) {
-        pub_ret = rnp_save_keys(rnp->ffi, rnp->pubformat, output, RNP_LOAD_SAVE_PUBLIC_KEYS);
+    if (!(pub_ret = rnp_output_to_path(&output, ppath.c_str()))) {
+        pub_ret = rnp_save_keys(
+          rnp->ffi, cli_rnp_pubformat(rnp).c_str(), output, RNP_LOAD_SAVE_PUBLIC_KEYS);
         rnp_output_destroy(output);
     }
     if (pub_ret) {
-        ERR_MSG("failed to write pubring to path '%s'", rnp->pubpath);
+        ERR_MSG("failed to write pubring to path '%s'", ppath.c_str());
     }
 
     // secret keyring
-    if (!(sec_ret = rnp_output_to_path(&output, rnp->secpath))) {
-        sec_ret = rnp_save_keys(rnp->ffi, rnp->secformat, output, RNP_LOAD_SAVE_SECRET_KEYS);
+    if (!(sec_ret = rnp_output_to_path(&output, spath.c_str()))) {
+        sec_ret = rnp_save_keys(
+          rnp->ffi, cli_rnp_secformat(rnp).c_str(), output, RNP_LOAD_SAVE_SECRET_KEYS);
         rnp_output_destroy(output);
     }
     if (sec_ret) {
-        ERR_MSG("failed to write secring to path '%s'\n", rnp->secpath);
+        ERR_MSG("failed to write secring to path '%s'", spath.c_str());
     }
 
     return !pub_ret && !sec_ret;
