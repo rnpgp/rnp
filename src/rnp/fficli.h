@@ -34,10 +34,6 @@
 #include "rnpcfg.h"
 #include "json.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 typedef struct cli_rnp_t {
     rnp_ffi_t ffi;
     rnp_cfg_t cfg;
@@ -50,7 +46,6 @@ typedef struct cli_rnp_t {
     char *    pubformat;  /* format of the public keyring */
     char *    secpath;    /* path to the secret keyring */
     char *    secformat;  /* format of the secret keyring */
-    char *    defkey;     /* default key id */
 } cli_rnp_t;
 
 /**
@@ -63,7 +58,8 @@ typedef struct cli_rnp_t {
  */
 bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
 
-rnp_cfg_t *cli_rnp_cfg(cli_rnp_t *);
+rnp_cfg_t *       cli_rnp_cfg(cli_rnp_t *rnp);
+const std::string cli_rnp_defkey(cli_rnp_t *rnp);
 
 bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
 bool cli_rnp_baseinit(cli_rnp_t *);
@@ -111,9 +107,5 @@ bool        rnp_casecmp(const std::string &str1, const std::string &str2);
 
 char *rnp_strip_eol(char *s);
 void  pgp_forget(void *vp, size_t size);
-
-#if defined(__cplusplus)
-}
-#endif
 
 #endif
