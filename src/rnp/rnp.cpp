@@ -617,7 +617,6 @@ rnp_main(int argc, char **argv)
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(&cfg, options[optindex].val, optarg)) {
-                ret = EXIT_ERROR;
                 goto finish;
             }
         } else {
@@ -644,7 +643,6 @@ rnp_main(int argc, char **argv)
             case 'o':
                 if (!parse_option(&cfg, optarg)) {
                     ERR_MSG("Bad option");
-                    ret = EXIT_ERROR;
                     goto finish;
                 }
                 break;
@@ -658,7 +656,6 @@ rnp_main(int argc, char **argv)
             case 'u':
                 if (!optarg) {
                     ERR_MSG("No userid argument provided");
-                    ret = EXIT_ERROR;
                     goto finish;
                 }
                 rnp_cfg_addstr(&cfg, CFG_SIGNERS, optarg);
@@ -673,7 +670,6 @@ rnp_main(int argc, char **argv)
             case 'f':
                 if (!optarg) {
                     ERR_MSG("No keyfile argument provided");
-                    ret = EXIT_ERROR;
                     goto finish;
                 }
                 rnp_cfg_setstr(&cfg, CFG_KEYFILE, optarg);
@@ -685,7 +681,6 @@ rnp_main(int argc, char **argv)
             }
 
             if (cmd && !setcmd(&cfg, cmd, optarg)) {
-                ret = EXIT_ERROR;
                 goto finish;
             }
         }
@@ -705,13 +700,11 @@ rnp_main(int argc, char **argv)
 
     if (!cli_cfg_set_keystore_info(&cfg)) {
         ERR_MSG("fatal: cannot set keystore info");
-        ret = EXIT_ERROR;
         goto finish;
     }
 
     if (!cli_rnp_init(&rnp, &cfg)) {
         ERR_MSG("fatal: cannot initialise");
-        ret = EXIT_ERROR;
         goto finish;
     }
 
@@ -719,7 +712,6 @@ rnp_main(int argc, char **argv)
     if (!disable_ks &&
         !cli_rnp_load_keyrings(&rnp, rnp_cfg_getbool(cli_rnp_cfg(&rnp), CFG_NEEDSSECKEY))) {
         ERR_MSG("fatal: failed to load keys");
-        ret = EXIT_ERROR;
         goto finish;
     }
 
@@ -727,12 +719,10 @@ rnp_main(int argc, char **argv)
     if (disable_ks && rnp_cfg_getstr(cli_rnp_cfg(&rnp), CFG_KEYFILE) &&
         !cli_rnp_add_key(&rnp)) {
         ERR_MSG("fatal: failed to load key(s) from the file");
-        ret = EXIT_ERROR;
         goto finish;
     }
 
     if (!cli_rnp_setup(&rnp)) {
-        ret = EXIT_ERROR;
         goto finish;
     }
 
@@ -749,7 +739,6 @@ rnp_main(int argc, char **argv)
             }
         }
     }
-
 finish:
     rnp_cfg_free(&cfg);
     cli_rnp_end(&rnp);
