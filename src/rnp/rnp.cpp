@@ -277,10 +277,16 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
     switch (cmd) {
     case CMD_ENCRYPT:
         rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
+        if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
+            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 0);
+        }
         newcmd = CMD_PROTECT;
         break;
     case CMD_SYM_ENCRYPT:
         rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
+        if (!rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) && !rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
+            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+        }
         newcmd = CMD_PROTECT;
         break;
     case CMD_CLEARSIGN:
@@ -289,6 +295,9 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
     case CMD_SIGN:
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
+        if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
+            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 0);
+        }
         newcmd = CMD_PROTECT;
         break;
     case CMD_DECRYPT:
