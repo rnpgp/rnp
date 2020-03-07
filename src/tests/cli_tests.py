@@ -1449,6 +1449,31 @@ class Misc(unittest.TestCase):
         run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys', '--debug', '--all'])
         return
 
+    def test_pubring_loading(self):
+        test_dir = tempfile.mkdtemp(prefix='rnpctmp')
+        test_data = data_path('test_messages/message.txt')
+        output = path.join(test_dir, 'output')
+        params = ['--symmetric', '--password', 'pass', '--homedir', test_dir, test_data, '--output', output]
+        
+        ret, _, err = run_proc(RNP, ['--encrypt'] + params)
+        if not (ret == 2 and 'wrong pubring path' in err):
+            raise_err("encrypt w/o pubring didn't fail", err)
+
+        ret, _, err = run_proc(RNP, ['--sign'] + params)
+        if not (ret == 2 and 'wrong pubring path' in err):
+            raise_err("sign w/o pubring didn't fail", err)
+
+        ret, _, err = run_proc(RNP, ['--clearsign'] + params)
+        if not (ret == 2 and 'wrong pubring path' in err):
+            raise_err("clearsign w/o pubring didn't fail", err)
+
+        ret, _, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err("symmetric w/o pubring failed", err)
+
+        shutil.rmtree(test_dir)
+
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
