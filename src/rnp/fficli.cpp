@@ -1610,10 +1610,15 @@ cli_cfg_set_keystore_info(rnp_cfg_t *cfg)
     return true;
 }
 
-static ssize_t
-stdin_reader(void *app_ctx, void *buf, size_t len)
+static bool
+stdin_reader(void *app_ctx, void *buf, size_t len, size_t *readres)
 {
-    return read(STDIN_FILENO, buf, len);
+    ssize_t res = read(STDIN_FILENO, buf, len);
+    if (res < 0) {
+        return false;
+    }
+    *readres = res;
+    return true;
 }
 
 static bool

@@ -171,10 +171,10 @@ typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
 
 /* Callbacks */
-typedef ssize_t rnp_input_reader_t(void *app_ctx, void *buf, size_t len);
-typedef void    rnp_input_closer_t(void *app_ctx);
-typedef bool    rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
-typedef void    rnp_output_closer_t(void *app_ctx, bool discard);
+typedef bool rnp_input_reader_t(void *app_ctx, void *buf, size_t len, size_t *read);
+typedef void rnp_input_closer_t(void *app_ctx);
+typedef bool rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+typedef void rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
  * Callback used for getting a password.
