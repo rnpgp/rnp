@@ -1668,7 +1668,11 @@ input_reader_bounce(pgp_source_t *src, void *buf, size_t len)
     if (!input->reader) {
         return -1;
     }
-    return input->reader(input->app_ctx, buf, len);
+    size_t read = 0;
+    if (!input->reader(input->app_ctx, buf, len, &read)) {
+        return -1;
+    }
+    return read;
 }
 
 static void

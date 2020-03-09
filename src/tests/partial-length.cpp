@@ -45,8 +45,8 @@ typedef struct {
 } dummy_reader_ctx_st;
 
 // reader of sequence of dummy bytes
-static ssize_t
-dummy_reader(void *app_ctx, void *buf, size_t len)
+static bool
+dummy_reader(void *app_ctx, void *buf, size_t len, size_t *read)
 {
     size_t               filled = 0;
     dummy_reader_ctx_st *ctx = NULL;
@@ -56,7 +56,8 @@ dummy_reader(void *app_ctx, void *buf, size_t len)
         memset(buf, ctx->dummy, filled);
         ctx->remaining -= filled;
     }
-    return filled;
+    *read = filled;
+    return true;
 }
 
 static void
