@@ -1681,7 +1681,6 @@ static rnp_result_t
 process_stream_sequence(pgp_source_t *src, pgp_dest_t *streams, unsigned count)
 {
     uint8_t *    readbuf = NULL;
-    ssize_t      read;
     pgp_dest_t * sstream = NULL; /* signed stream if any, to call signed_dst_update on it */
     pgp_dest_t * wstream = NULL; /* stream to dst_write() source data, may be empty */
     rnp_result_t ret = RNP_ERROR_GENERIC;
@@ -1704,8 +1703,8 @@ process_stream_sequence(pgp_source_t *src, pgp_dest_t *streams, unsigned count)
 
     /* processing source stream */
     while (!src->eof) {
-        read = src_read(src, readbuf, PGP_INPUT_CACHE_SIZE);
-        if (read < 0) {
+        size_t read = 0;
+        if (!src_read(src, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
             RNP_LOG("failed to read from source");
             ret = RNP_ERROR_READ;
             goto finish;
