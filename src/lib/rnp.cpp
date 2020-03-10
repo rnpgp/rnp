@@ -1661,18 +1661,14 @@ rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, b
     return RNP_SUCCESS;
 }
 
-static ssize_t
-input_reader_bounce(pgp_source_t *src, void *buf, size_t len)
+static bool
+input_reader_bounce(pgp_source_t *src, void *buf, size_t len, size_t *read)
 {
     rnp_input_t input = (rnp_input_t) src->param;
     if (!input->reader) {
-        return -1;
+        return false;
     }
-    size_t read = 0;
-    if (!input->reader(input->app_ctx, buf, len, &read)) {
-        return -1;
-    }
-    return read;
+    return input->reader(input->app_ctx, buf, len, read);
 }
 
 static void
