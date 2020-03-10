@@ -709,7 +709,7 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
     }
 
     subpkt->hashed = 0;
-    if (src_read(&memsrc, subpkt->data, len) != len) {
+    if (!src_read_eq(&memsrc, subpkt->data, len)) {
         RNP_LOG("failed to read back signature");
         goto finish;
     }
