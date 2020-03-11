@@ -682,7 +682,7 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
     pgp_sig_subpkt_t *subpkt = NULL;
     pgp_dest_t        memdst = {};
     pgp_source_t      memsrc = {};
-    ssize_t           len = 0;
+    size_t            len = 0;
     bool              res = false;
 
     if (init_mem_dest(&memdst, NULL, 0)) {
@@ -697,7 +697,7 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("failed to init mem src");
         goto finish;
     }
-    if ((len = stream_read_pkt_len(&memsrc)) < 0) {
+    if (!stream_read_pkt_len(&memsrc, &len)) {
         RNP_LOG("wrong pkt len");
         goto finish;
     }

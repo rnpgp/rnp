@@ -218,8 +218,8 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_int_equal(flags, PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | PGP_PKT_LITDATA);
     // checking length
     bool last = true; // should be reset by stream_read_partial_chunk_len()
-    assert_true(stream_read_partial_chunk_len(&src, &last) >=
-                PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
+    assert_true(stream_read_partial_chunk_len(&src, &len, &last));
+    assert_true(len >= PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
     assert_false(last);
     // cleanup
     src_close(&src);
