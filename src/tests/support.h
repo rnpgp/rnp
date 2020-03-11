@@ -77,9 +77,6 @@ off_t file_size(const char *path);
 /* Check if a directory exists */
 bool dir_exists(const char *path);
 
-/* Read file contents into the memory */
-uint8_t *file_contents(const char *path, ssize_t *size);
-
 /* Read file contents into the std::string */
 std::string file_to_str(const std::string &path);
 
