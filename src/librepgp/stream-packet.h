@@ -83,12 +83,13 @@ int get_packet_type(uint8_t ptag);
  */
 int stream_pkt_type(pgp_source_t *src);
 
-/** @brief Peek length of the packet header. Returns -1 on error.
+/** @brief Peek length of the packet header. Returns false on error.
  *  @param src source to read length from
- *  @return number of bytes in packet header or -1 if there is a read error or packet length
+ *  @param hdrlen header length will be put here on success. Cannot be NULL.
+ *  @return true on success or false if there is a read error or packet length
  *          is ill-formed
  **/
-ssize_t stream_pkt_hdr_len(pgp_source_t *src);
+bool stream_pkt_hdr_len(pgp_source_t *src, size_t *hdrlen);
 
 bool stream_intedeterminate_pkt_len(pgp_source_t *src);
 
@@ -96,24 +97,24 @@ bool stream_partial_pkt_len(pgp_source_t *src);
 
 size_t get_partial_pkt_len(uint8_t blen);
 
-ssize_t get_pkt_len(uint8_t *hdr);
-
-/** @brief Read packet length for fixed-size (say, small) packet. Returns -1 on error.
+/** @brief Read packet length for fixed-size (say, small) packet. Returns false on error.
  *  Will also read packet tag byte. We do not allow partial length here as well as large
- *  packets (so ignoring possible ssize_t overflow)
+ *  packets (so ignoring possible size_t overflow)
  *
  *  @param src source to read length from
- *  @return length of the packet or -1 if there is read error or packet length is ill-formed
+ *  @param pktlen packet length will be stored here on success. Cannot be NULL.
+ *  @return true on success or false if there is read error or packet length is ill-formed
  **/
-ssize_t stream_read_pkt_len(pgp_source_t *src);
+bool stream_read_pkt_len(pgp_source_t *src, size_t *pktlen);
 
 /** @brief Read partial packet chunk length.
  *
  *  @param src source to read length from
+ *  @param clen chunk length will be stored here on success. Cannot be NULL.
  *  @param last will be set to true if chunk is last (i.e. has non-partial length)
- *  @return length of the chunk or -1 if there is read error or packet length is ill-formed
+ *  @return true on success or false if there is read error or packet length is ill-formed
  **/
-ssize_t stream_read_partial_chunk_len(pgp_source_t *src, bool *last);
+bool stream_read_partial_chunk_len(pgp_source_t *src, size_t *clen, bool *last);
 
 /** @brief initialize writing of packet body
  *  @param body preallocated structure

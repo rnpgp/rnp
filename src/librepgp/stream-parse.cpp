@@ -78,7 +78,7 @@ typedef struct pgp_source_packet_param_t {
     bool          indeterminate;            /* indeterminate length packet */
     uint8_t       hdr[PGP_MAX_HEADER_SIZE]; /* PGP packet header, needed for AEAD */
     size_t        hdrlen;                   /* length of the header */
-    uint64_t      len; /* packet body length if non-partial and non-indeterminate */
+    size_t        len; /* packet body length if non-partial and non-indeterminate */
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
@@ -191,11 +191,9 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         }
         if (!param->pleft) {
             // reading next chunk
-            ssize_t toread = stream_read_partial_chunk_len(param->readsrc, &param->last);
-            if (toread < 0) {
+            if (!stream_read_partial_chunk_len(param->readsrc, &read, &param->last)) {
                 return false;
             }
-            read = toread;
             param->psize = read;
             param->pleft = read;
         }
@@ -1512,16 +1510,13 @@ init_packet_params(pgp_source_packet_param_t *param)
 {
     pgp_source_t *partsrc;
     rnp_result_t  errcode;
-    ssize_t       len;
 
     param->origsrc = NULL;
 
     /* save packet header */
-    if ((len = stream_pkt_hdr_len(param->readsrc)) < 0) {
+    if (!stream_pkt_hdr_len(param->readsrc, &param->hdrlen)) {
         return RNP_ERROR_BAD_FORMAT;
     }
-
-    param->hdrlen = len;
     if (!src_peek_eq(param->readsrc, param->hdr, param->hdrlen)) {
         return RNP_ERROR_READ;
     }
@@ -1541,16 +1536,13 @@ init_packet_params(pgp_source_packet_param_t *param)
         param->readsrc = partsrc;
     } else if (stream_intedeterminate_pkt_len(param->readsrc)) {
         param->indeterminate = true;
-        (void) src_skip(param->readsrc, 1);
+        src_skip(param->readsrc, 1);
     } else {
-        len = stream_read_pkt_len(param->readsrc);
-        if (len < 0) {
+        if (!stream_read_pkt_len(param->readsrc, &param->len)) {
             RNP_LOG("cannot read pkt len");
             return RNP_ERROR_BAD_FORMAT;
         }
-        param->len = len;
     }
-
     return RNP_SUCCESS;
 }
 
@@ -1989,7 +1981,7 @@ static rnp_result_t
 init_cleartext_signed_src(pgp_source_t *src)
 {
     char                       buf[64];
-    ssize_t                    hdrlen = strlen(ST_CLEAR_BEGIN);
+    size_t                     hdrlen = strlen(ST_CLEAR_BEGIN);
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
 
     /* checking header line */
