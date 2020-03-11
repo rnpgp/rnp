@@ -145,9 +145,10 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // verify (negative)
     std::fstream verf("dummyfile.dat.pgp",
                       std::ios_base::binary | std::ios_base::out | std::ios_base::in);
-    off_t        versize = file_size("dummyfile.dat.pgp");
-    verf.seekg(versize - 3, std::ios::beg);
-    verf.write("\x0C", 1);
+    verf.seekg(-3, std::ios::end);
+    char bt = verf.peek() ^ 0xff;
+    verf.seekp(-3, std::ios::end);
+    verf.write(&bt, 1);
     verf.close();
     assert_false(cli_rnp_process_file(&rnp));
 
