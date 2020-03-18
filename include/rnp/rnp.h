@@ -171,9 +171,42 @@ typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
 
 /* Callbacks */
+/**
+ * @brief Callback, used to read data from the source.
+ *
+ * @param app_ctx custom parameter, passed back to the function.
+ * @param buf on successfull call data should be put here. Cannot be NULL,
+ *            and must be capable to store at least len bytes.
+ * @param len number of bytes to read.
+ * @param read on successfull call number of read bytes must be put here.
+ * @return true on success (including EOF condition), or false on read error.
+ *         EOF case is indicated by zero bytes read on non-zero read call.
+ */
 typedef bool rnp_input_reader_t(void *app_ctx, void *buf, size_t len, size_t *read);
+/**
+ * @brief Callback, used to close input stream.
+ *
+ * @param app_ctx custom parameter, passed back to the function.
+ * @return void
+ */
 typedef void rnp_input_closer_t(void *app_ctx);
+/**
+ * @brief Callback, used to write data to the output stream.
+ *
+ * @param app_ctx custom parameter, passed back to the function.
+ * @param buf buffer with data, cannot be NULL.
+ * @param len number of bytes to write.
+ * @return true if call was successfull and all data is written, or false otherwise.
+ */
 typedef bool rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
+
+/**
+ * @brief Callback, used to close output stream.
+ *
+ * @param app_ctx custom parameter, passed back to the function.
+ * @param discard true if the already written data should be deleted.
+ * @return void
+ */
 typedef void rnp_output_closer_t(void *app_ctx, bool discard);
 
 /**
