@@ -273,14 +273,14 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
     case CMD_ENCRYPT:
         rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
         if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
-            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 0);
+            rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, false);
         }
         newcmd = CMD_PROTECT;
         break;
     case CMD_SYM_ENCRYPT:
         rnp_cfg_setbool(cfg, CFG_ENCRYPT_SK, true);
         if (!rnp_cfg_getbool(cfg, CFG_ENCRYPT_PK) && !rnp_cfg_getbool(cfg, CFG_SIGN_NEEDED)) {
-            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+            rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
         }
         newcmd = CMD_PROTECT;
         break;
@@ -291,7 +291,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         rnp_cfg_setbool(cfg, CFG_NEEDSSECKEY, true);
         rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
         if (rnp_cfg_getbool(cfg, CFG_ENCRYPT_SK)) {
-            rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 0);
+            rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, false);
         }
         newcmd = CMD_PROTECT;
         break;
@@ -308,10 +308,10 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         newcmd = CMD_PROCESS;
         break;
     case CMD_LIST_PACKETS:
-        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+        rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
         break;
     case CMD_DEARMOR:
-        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+        rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
         break;
     case CMD_ENARMOR: {
         std::string msgt = "";
@@ -335,7 +335,7 @@ setcmd(rnp_cfg_t *cfg, int cmd, const char *arg)
         if (!msgt.empty()) {
             rnp_cfg_setstr(cfg, CFG_ARMOR_DATA_TYPE, msgt.c_str());
         }
-        rnp_cfg_setint(cfg, CFG_KEYSTORE_DISABLED, 1);
+        rnp_cfg_setbool(cfg, CFG_KEYSTORE_DISABLED, true);
         break;
     }
     case CMD_HELP:

@@ -1407,7 +1407,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
 
     /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
      * considered as the final path */
-    if (rnp_cfg_getint_default(cfg, CFG_KEYSTORE_DISABLED, 0)) {
+    if (rnp_cfg_getbool(cfg, CFG_KEYSTORE_DISABLED)) {
         return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, "") &&
                rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, "") &&
                rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG) &&
