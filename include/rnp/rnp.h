@@ -1228,6 +1228,18 @@ rnp_result_t rnp_key_get_creation(rnp_key_handle_t key, uint32_t *result);
 rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *result);
 
 /**
+ * @brief Set the key's expiration time in seconds.
+ *        Note: this will require re-signing, which requires availability of the secret key (or
+ *        secret primary key for the subkey). If the secret key is locked then may ask for
+ *        key's password via FFI callback.
+ *
+ * @param key key's handle.
+ * @param expiry expiration time in seconds (or 0 if key doesn't expire).
+ * @return RNP_SUCCESS or error code on failure.
+ */
+rnp_result_t rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry);
+
+/**
  * @brief Check whether key is revoked.
  *
  * @param key key handle, should not be NULL
