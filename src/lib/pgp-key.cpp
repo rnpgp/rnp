@@ -961,6 +961,125 @@ pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
     return (pgp_subsig_t *) list_at(key->subsigs, idx);
 }
 
+static bool
+pgp_sig_is_certification(const pgp_subsig_t *sig)
+{
+    pgp_sig_type_t type = signature_get_type(&sig->sig);
+    return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
+           (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
+}
+
+static bool
+pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    /* if we have fingerprint let's check it */
+    if (signature_has_keyfp(&sig->sig)) {
+        pgp_fingerprint_t sigfp = {};
+        if (signature_get_keyfp(&sig->sig, &sigfp)) {
+            return fingerprint_equal(pgp_key_get_fp(key), &sigfp);
+        }
+    }
+    if (!signature_has_keyid(&sig->sig)) {
+        return false;
+    }
+    uint8_t sigid[PGP_KEY_ID_SIZE] = {0};
+    if (!signature_get_keyid(&sig->sig, sigid)) {
+        return false;
+    }
+    return !memcmp(pgp_key_get_keyid(key), sigid, PGP_KEY_ID_SIZE);
+}
+
+static bool
+pgp_sig_is_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    if (!pgp_key_is_primary_key(key) || !pgp_sig_is_certification(sig)) {
+        return false;
+    }
+
+    return pgp_sig_self_signed(key, sig);
+}
+
+static bool
+pgp_sig_is_direct_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    if (!pgp_key_is_primary_key(key) || (signature_get_type(&sig->sig) != PGP_SIG_DIRECT)) {
+        return false;
+    }
+
+    return pgp_sig_self_signed(key, sig);
+}
+
+static bool
+pgp_sig_is_key_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    return pgp_key_is_primary_key(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_KEY);
+}
+
+static bool
+pgp_sig_is_subkey_binding(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_SUBKEY);
+}
+
+static bool
+pgp_sig_is_subkey_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
+{
+    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_SUBKEY);
+}
+
+pgp_subsig_t *
+pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid) {
+            continue;
+        }
+        if (!pgp_sig_is_self_signature(key, sig) &&
+            !pgp_sig_is_direct_self_signature(key, sig)) {
+            continue;
+        }
+
+        if (subpkt && !signature_get_subpkt(&sig->sig, subpkt)) {
+            continue;
+        }
+
+        uint32_t creation = signature_get_creation(&sig->sig);
+        if (creation >= latest) {
+            latest = creation;
+            res = sig;
+        }
+    }
+    return res;
+}
+
+pgp_subsig_t *
+pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (size_t i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
+        pgp_subsig_t *sig = pgp_key_get_subsig(subkey, i);
+        if (validated && !sig->valid) {
+            continue;
+        }
+        if (!pgp_sig_is_subkey_binding(subkey, sig)) {
+            continue;
+        }
+
+        uint32_t creation = signature_get_creation(&sig->sig);
+        if (creation >= latest) {
+            latest = creation;
+            res = sig;
+        }
+    }
+    return res;
+}
+
 pgp_rawpacket_t *
 pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_pkt_type_t tag)
 {
@@ -1594,56 +1713,6 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         return hash_min;
     }
     return hash;
-}
-
-static bool
-pgp_sig_is_certification(const pgp_subsig_t *sig)
-{
-    pgp_sig_type_t type = signature_get_type(&sig->sig);
-    return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
-           (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
-}
-
-static bool
-pgp_sig_is_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
-{
-    if (!pgp_key_is_primary_key(key) || !pgp_sig_is_certification(sig)) {
-        return false;
-    }
-
-    /* if we have fingerprint let's check it */
-    if (signature_has_keyfp(&sig->sig)) {
-        pgp_fingerprint_t sigfp = {};
-        if (signature_get_keyfp(&sig->sig, &sigfp)) {
-            return fingerprint_equal(pgp_key_get_fp(key), &sigfp);
-        }
-    }
-    if (!signature_has_keyid(&sig->sig)) {
-        return false;
-    }
-    uint8_t sigid[PGP_KEY_ID_SIZE] = {0};
-    if (!signature_get_keyid(&sig->sig, sigid)) {
-        return false;
-    }
-    return !memcmp(pgp_key_get_keyid(key), sigid, PGP_KEY_ID_SIZE);
-}
-
-static bool
-pgp_sig_is_key_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
-{
-    return pgp_key_is_primary_key(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_KEY);
-}
-
-static bool
-pgp_sig_is_subkey_binding(const pgp_key_t *key, const pgp_subsig_t *sig)
-{
-    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_SUBKEY);
-}
-
-static bool
-pgp_sig_is_subkey_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
-{
-    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_SUBKEY);
 }
 
 static rnp_result_t
