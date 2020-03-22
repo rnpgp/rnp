@@ -273,6 +273,26 @@ size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
 pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 
+/**
+ * @brief Get the latest valid self-signature with information about the primary key,
+ * containing the specified subpacket. It could be userid certification or direct-key
+ * signature.
+ *
+ * @param key key which should be searched for signature.
+ * @param subpkt subpacket type. Pass 0 to return just latest signature.
+ * @return pointer to signature object or NULL if failed/not found.
+ */
+pgp_subsig_t *pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt);
+
+/**
+ * @brief Get the latest valid subkey binding.
+ *
+ * @param subkey subkey which should be searched for signature.
+ * @param validated set to true whether binding signature must be validated
+ * @return pointer to signature object or NULL if failed/not found.
+ */
+pgp_subsig_t *pgp_key_latest_binding(pgp_key_t *subkey, bool validated);
+
 void pgp_subsig_free(pgp_subsig_t *subsig);
 
 pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_pkt_type_t);
