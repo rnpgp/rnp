@@ -378,6 +378,8 @@ typedef struct pgp_subsig_t {
     uint8_t          trustamount; /* amount of trust */
     uint8_t          key_flags;   /* key flags for certification/direct key sig */
     pgp_user_prefs_t prefs;       /* user preferences for certification sig */
+    bool             validated;   /* signature was validated */
+    bool             valid;       /* signature was validated and is valid */
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
