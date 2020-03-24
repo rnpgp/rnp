@@ -1665,6 +1665,8 @@ pgp_key_validate_primary(pgp_key_t *key)
             if (uid) {
                 signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
                 has_cert = sinfo.valid && !sinfo.expired;
+                sig->validated = true;
+                sig->valid = sinfo.valid && !sinfo.expired;
             }
             continue;
         }
@@ -1675,6 +1677,8 @@ pgp_key_validate_primary(pgp_key_t *key)
             sinfo.signer = key;
             sinfo.signer_valid = true;
             signature_check_direct(&sinfo, pgp_key_get_pkt(key));
+            sig->validated = true;
+            sig->valid = sinfo.valid;
             /* revocation signature cannot expire */
             if (sinfo.valid) {
                 return RNP_SUCCESS;
@@ -1706,6 +1710,8 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
             sinfo.signer = key;
             sinfo.signer_valid = true;
             signature_check_binding(&sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(subkey));
+            sig->validated = true;
+            sig->valid = sinfo.valid && !sinfo.expired;
             has_binding = sinfo.valid && !sinfo.expired;
             continue;
         }
@@ -1717,6 +1723,8 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
             sinfo.signer_valid = true;
             signature_check_subkey_revocation(
               &sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(subkey));
+            sig->validated = true;
+            sig->valid = sinfo.valid;
             /* revocation signature cannot expire */
             if (sinfo.valid) {
                 return RNP_SUCCESS;
