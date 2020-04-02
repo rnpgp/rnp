@@ -1119,7 +1119,8 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
 
     ret = RNP_SUCCESS;
     while (!src_eof(&lsrc)) {
-        if (src_read(&lsrc, readbuf, sizeof(readbuf)) < 0) {
+        size_t read = 0;
+        if (!src_read(&lsrc, readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             break;
         }
@@ -1128,7 +1129,6 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
     dst_printf(dst, "data bytes: %lu\n", (unsigned long) lsrc.readb);
     src_close(&lsrc);
     indent_dest_decrease(dst);
-
     return ret;
 }
 
@@ -1164,21 +1164,20 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
           dst, ":off %zu: packet header 0x%s (tag %d, %s)\n", off, smsg, hdr.tag, msg);
 
         if (ctx->dump_packets) {
-            ssize_t rlen = hdr.pkt_len + hdr.hdr_len;
-            bool    part = false;
+            size_t rlen = hdr.pkt_len + hdr.hdr_len;
+            bool   part = false;
 
-            if (!hdr.pkt_len || ((size_t) rlen > 1024 + hdr.hdr_len)) {
+            if (!hdr.pkt_len || (rlen > 1024 + hdr.hdr_len)) {
                 rlen = 1024 + hdr.hdr_len;
                 part = true;
             }
 
             dst_printf(dst, ":off %zu: packet contents ", off + hdr.hdr_len);
-            rlen = src_peek(src, msg, rlen);
-            if (rlen < 0) {
+            if (!src_peek(src, msg, rlen, &rlen)) {
                 dst_printf(dst, "- failed to read\n");
             } else {
                 rlen -= hdr.hdr_len;
-                if (part || ((size_t) rlen < hdr.pkt_len)) {
+                if (part || (rlen < hdr.pkt_len)) {
                     dst_printf(dst, "(first %d bytes)\n", (int) rlen);
                 } else {
                     dst_printf(dst, "(%d bytes)\n", (int) rlen);
@@ -1249,14 +1248,13 @@ finish:
 static bool
 stream_skip_cleartext(pgp_source_t *src)
 {
-    char    buf[4096];
-    ssize_t read = 0;
-    size_t  siglen = strlen(ST_SIG_BEGIN);
-    char *  hdrpos;
+    char   buf[4096];
+    size_t read = 0;
+    size_t siglen = strlen(ST_SIG_BEGIN);
+    char * hdrpos;
 
     while (!src_eof(src)) {
-        read = src_peek(src, buf, sizeof(buf) - 1);
-        if (read <= (ssize_t) siglen) {
+        if (!src_peek(src, buf, sizeof(buf) - 1, &read) || (read <= siglen)) {
             return false;
         }
         buf[read] = '\0';
@@ -1266,10 +1264,8 @@ stream_skip_cleartext(pgp_source_t *src)
             src_skip(src, hdrpos - buf + 1);
             return true;
         }
-
         src_skip(src, read - siglen + 1);
     }
-
     return false;
 }
 
@@ -2094,7 +2090,8 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
     }
 
     while (!src_eof(&lsrc)) {
-        if (src_read(&lsrc, readbuf, sizeof(readbuf)) < 0) {
+        size_t read = 0;
+        if (!src_read(&lsrc, readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             goto done;
         }
@@ -2186,9 +2183,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             if (!hdr.pkt_len || (rlen > 2048 + hdr.hdr_len)) {
                 rlen = 2048 + hdr.hdr_len;
             }
-
-            rlen = src_peek(src, buf, rlen);
-            if (rlen < hdr.hdr_len) {
+            if (!src_peek(src, buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
                 ret = RNP_ERROR_READ;
                 goto done;
             }

@@ -45,8 +45,8 @@ typedef struct {
 } dummy_reader_ctx_st;
 
 // reader of sequence of dummy bytes
-static ssize_t
-dummy_reader(void *app_ctx, void *buf, size_t len)
+static bool
+dummy_reader(void *app_ctx, void *buf, size_t len, size_t *read)
 {
     size_t               filled = 0;
     dummy_reader_ctx_st *ctx = NULL;
@@ -56,7 +56,8 @@ dummy_reader(void *app_ctx, void *buf, size_t len)
         memset(buf, ctx->dummy, filled);
         ctx->remaining -= filled;
     }
-    return filled;
+    *read = filled;
+    return true;
 }
 
 static void
@@ -213,12 +214,12 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     free_packet_body(&body);
     // checking next packet header (should be partial length literal data)
     uint8_t flags = 0;
-    assert_int_equal(src_read(&src, &flags, 1), 1);
+    assert_true(src_read_eq(&src, &flags, 1));
     assert_int_equal(flags, PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT | PGP_PKT_LITDATA);
     // checking length
     bool last = true; // should be reset by stream_read_partial_chunk_len()
-    assert_true(stream_read_partial_chunk_len(&src, &last) >=
-                PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
+    assert_true(stream_read_partial_chunk_len(&src, &len, &last));
+    assert_true(len >= PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE);
     assert_false(last);
     // cleanup
     src_close(&src);

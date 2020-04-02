@@ -55,7 +55,7 @@ typedef enum {
 typedef struct pgp_source_t pgp_source_t;
 typedef struct pgp_dest_t   pgp_dest_t;
 
-typedef ssize_t      pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len);
+typedef bool pgp_source_read_func_t(pgp_source_t *src, void *buf, size_t len, size_t *read);
 typedef rnp_result_t pgp_source_finish_func_t(pgp_source_t *src);
 typedef void         pgp_source_close_func_t(pgp_source_t *src);
 
@@ -103,9 +103,10 @@ bool init_src_common(pgp_source_t *src, size_t paramsize);
  *  @param src source structure
  *  @param buf preallocated buffer which can store up to len bytes
  *  @param len number of bytes to read
- *  @return number of bytes read or -1 in case of error. 0 for non-zero read means eof
+ *  @param read number of read bytes will be stored here. Cannot be NULL.
+ *  @return true on success or false otherwise
  **/
-ssize_t src_read(pgp_source_t *src, void *buf, size_t len);
+bool src_read(pgp_source_t *src, void *buf, size_t len, size_t *read);
 
 /** @brief shortcut to read exactly len bytes from source. See src_read for parameters.
  *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
@@ -118,16 +119,24 @@ bool src_read_eq(pgp_source_t *src, void *buf, size_t len);
  *  @param buf preallocated buffer which can store up to len bytes, or NULL if data should be
  *             discarded, just making sure that needed input is available in source
  *  @param len number of bytes to read. Must be less then PGP_INPUT_CACHE_SIZE.
- *  @return number of bytes read or -1 in case of error
+ *  @param read number of bytes read will be stored here. Cannot be NULL.
+ *  @return true on success or false otherwise
  **/
-ssize_t src_peek(pgp_source_t *src, void *buf, size_t len);
+bool src_peek(pgp_source_t *src, void *buf, size_t len, size_t *read);
 
-/** @brief skip up to len bytes
+/** @brief shortcut to read exactly len bytes and keep them in the cache/do not process
+ *         Works only for streams with cache
+ *  @return true if len bytes were read or false otherwise (i.e. less then len were read or
+ *          read error occurred) */
+bool src_peek_eq(pgp_source_t *src, void *buf, size_t len);
+
+/** @brief skip up to len bytes.
+ *         Note: use src_read() if you want to check error condition/get number of bytes
+ *skipped.
  *  @param src source structure
  *  @param len number of bytes to skip
- *  @return number of bytes skipped or -1 in case of error
  **/
-ssize_t src_skip(pgp_source_t *src, size_t len);
+void src_skip(pgp_source_t *src, size_t len);
 
 /** @brief notify source that all reading is done, so final data processing may be started,
  * i.e. signature reading and verification and so on. Do not misuse with src_close.
@@ -165,11 +174,13 @@ bool src_skip_eol(pgp_source_t *src);
  *  @param buf preallocated buffer to store the result. Result include NULL character and
  *             doesn't include the end of line sequence.
  *  @param len maximum length of data to store in buf, including terminating NULL
- *  @return number of bytes in the string, without the NULL character, on success.
- *          -1 is returned if there were eof, read error or eol was not found within the len.
- *          Supported eol sequences are \r\n and \n
+ *  @param read on success here will be stored number of bytes in the string, without the NULL
+ * character.
+ *  @return true on success
+ *          false is returned if there were eof, read error or eol was not found within the
+ * len. Supported eol sequences are \r\n and \n
  */
-ssize_t src_peek_line(pgp_source_t *src, char *buf, size_t len);
+bool src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *read);
 
 /** @brief init file source
  *  @param src pre-allocated source structure

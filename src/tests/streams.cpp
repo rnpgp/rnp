@@ -43,7 +43,6 @@ static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
 {
     uint8_t      readbuf[1024];
-    ssize_t      read;
     pgp_source_t src;
     bool         res = false;
 
@@ -52,8 +51,8 @@ stream_hash_file(pgp_hash_t *hash, const char *path)
     }
 
     do {
-        read = src_read(&src, readbuf, sizeof(readbuf));
-        if (read < 0) {
+        size_t read = 0;
+        if (!src_read(&src, readbuf, sizeof(readbuf), &read)) {
             goto finish;
         } else if (read == 0) {
             break;
@@ -234,11 +233,15 @@ TEST_F(rnp_tests, test_stream_file)
     /* read file back, checking the contents */
     assert_rnp_success(init_file_src(&src, filename));
     for (int i = 0; i < iterations; i++) {
-        assert_int_equal(src_read(&src, tmpbuf, filedatalen), filedatalen);
+        size_t read = 0;
+        assert_true(src_read(&src, tmpbuf, filedatalen, &read));
+        assert_int_equal(read, filedatalen);
         assert_int_equal(memcmp(tmpbuf, filedata, filedatalen), 0);
     }
     for (int i = 0; i < 5 * iterations; i++) {
-        assert_int_equal(src_read(&src, tmpbuf, 3), 3);
+        size_t read = 0;
+        assert_true(src_read(&src, tmpbuf, 3, &read));
+        assert_int_equal(read, 3);
         assert_int_equal(memcmp(tmpbuf, "zzz", 3), 0);
     }
     src_close(&src);
