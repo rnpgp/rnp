@@ -378,6 +378,29 @@ signature_calculate_certification(const pgp_key_pkt_t *   key,
     return res;
 }
 
+bool
+signature_calculate_direct(const pgp_key_pkt_t *key,
+                           pgp_signature_t *    sig,
+                           const pgp_key_pkt_t *signer)
+{
+    if (!key || !sig || !signer) {
+        RNP_LOG("NULL parameter(s)");
+        return false;
+    }
+
+    rng_t rng = {};
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return false;
+    }
+
+    pgp_hash_t hash = {};
+    bool res = signature_fill_hashed_data(sig) && signature_hash_direct(sig, key, &hash) &&
+               !signature_calculate(sig, &signer->material, &hash, &rng);
+    rng_destroy(&rng);
+    return res;
+}
+
 pgp_signature_t *
 transferable_userid_certify(const pgp_key_pkt_t *          key,
                             pgp_transferable_userid_t *    userid,
@@ -643,17 +666,11 @@ transferable_key_revoke(const pgp_key_pkt_t *key,
 {
     pgp_signature_t * sig = NULL;
     bool              res = false;
-    pgp_hash_t        hash = {};
     uint8_t           keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t keyfp;
-    rng_t             rng = {};
 
     if (!key || !signer || !revoke) {
         RNP_LOG("invalid parameters");
-        return NULL;
-    }
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        RNP_LOG("RNG init failed");
         return NULL;
     }
     sig = (pgp_signature_t *) calloc(1, sizeof(*sig));
@@ -691,15 +708,12 @@ transferable_key_revoke(const pgp_key_pkt_t *key,
         RNP_LOG("failed to set issuer key id");
         goto end;
     }
-
-    if (!signature_fill_hashed_data(sig) || !signature_hash_direct(sig, key, &hash) ||
-        signature_calculate(sig, &signer->material, &hash, &rng)) {
+    if (!signature_calculate_direct(key, sig, signer)) {
         RNP_LOG("failed to calculate signature");
         goto end;
     }
     res = true;
 end:
-    rng_destroy(&rng);
     if (!res && sig) {
         free_signature(sig);
         free(sig);

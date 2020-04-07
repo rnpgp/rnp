@@ -128,4 +128,8 @@ bool signature_calculate_certification(const pgp_key_pkt_t *   key,
                                        pgp_signature_t *       sig,
                                        const pgp_key_pkt_t *   signer);
 
+bool signature_calculate_direct(const pgp_key_pkt_t *key,
+                                pgp_signature_t *    sig,
+                                const pgp_key_pkt_t *signer);
+
 #endif
