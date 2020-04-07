@@ -444,6 +444,13 @@ bool pgp_key_add_userid_certified(pgp_key_t *              key,
                                   pgp_hash_alg_t           hash_alg,
                                   rnp_selfsig_cert_info_t *cert);
 
+bool pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *signer, uint32_t expiry);
+
+bool pgp_subkey_set_expiration(pgp_key_t *sub,
+                               pgp_key_t *primsec,
+                               pgp_key_t *secsub,
+                               uint32_t   expiry);
+
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
 
 /**
