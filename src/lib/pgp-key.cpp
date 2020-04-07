@@ -961,6 +961,56 @@ pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
     return (pgp_subsig_t *) list_at(key->subsigs, idx);
 }
 
+bool
+pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig)
+{
+    uint8_t *algs = NULL;
+    size_t   count = 0;
+
+    memset(subsig, 0, sizeof(*subsig));
+
+    if (!copy_signature_packet(&subsig->sig, sig)) {
+        return false;
+    }
+    if (signature_has_trust(&subsig->sig)) {
+        signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
+    }
+    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_symm_algs(&subsig->prefs, algs, count)) {
+        RNP_LOG("failed to alloc symm algs");
+        goto error;
+    }
+    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_hash_algs(&subsig->prefs, algs, count)) {
+        RNP_LOG("failed to alloc hash algs");
+        goto error;
+    }
+    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count) &&
+        !pgp_user_prefs_set_z_algs(&subsig->prefs, algs, count)) {
+        RNP_LOG("failed to alloc z algs");
+        goto error;
+    }
+    if (signature_has_key_flags(&subsig->sig)) {
+        subsig->key_flags = signature_get_key_flags(&subsig->sig);
+    }
+    if (signature_has_key_server_prefs(&subsig->sig)) {
+        uint8_t ks_pref = signature_get_key_server_prefs(&subsig->sig);
+        if (!pgp_user_prefs_set_ks_prefs(&subsig->prefs, &ks_pref, 1)) {
+            RNP_LOG("failed to alloc ks prefs");
+            goto error;
+        }
+    }
+    if (signature_has_key_server(&subsig->sig)) {
+        subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
+    }
+
+    return true;
+error:
+    pgp_subsig_free(subsig);
+    memset(subsig, 0, sizeof(*subsig));
+    return false;
+}
+
 static bool
 pgp_sig_is_certification(const pgp_subsig_t *sig)
 {
