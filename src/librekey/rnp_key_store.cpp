@@ -469,6 +469,7 @@ pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     pgp_key_t *added_key = NULL;
+    pgp_key_t *primary = NULL;
 
     RNP_DLOG("rnp_key_store_add_key");
     assert(pgp_key_get_type(srckey) && pgp_key_get_version(srckey));
@@ -484,7 +485,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         bool mergeres = false;
         /* in case we already have key let's merge it in */
         if (pgp_key_is_subkey(added_key)) {
-            pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, added_key);
+            primary = rnp_key_store_get_primary_key(keyring, added_key);
             if (!primary) {
                 primary = rnp_key_store_get_primary_key(keyring, srckey);
             }
@@ -532,6 +533,19 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
                 }
             }
         }
+    }
+
+    bool refres;
+    if (pgp_key_is_subkey(added_key)) {
+        if (!primary) {
+            primary = rnp_key_store_get_primary_key(keyring, added_key);
+        }
+        refres = pgp_subkey_refresh_data(added_key, primary);
+    } else {
+        refres = pgp_key_refresh_data(added_key);
+    }
+    if (!refres) {
+        RNP_LOG("Failed to refresh key data");
     }
 
     return added_key;
@@ -609,7 +623,8 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     }
 
     pgp_key_t tmpkey = {};
-    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig)) {
+    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
+        !pgp_subkey_refresh_data(&tmpkey, primary)) {
         RNP_LOG("Failed to add signature to the key.");
         pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -640,7 +655,8 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     }
 
     pgp_key_t tmpkey = {};
-    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig)) {
+    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
+        !pgp_key_refresh_data(&tmpkey)) {
         RNP_LOG("Failed to add signature to the key.");
         pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
