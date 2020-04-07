@@ -340,6 +340,7 @@ typedef enum {
  */
 
 typedef enum {
+    PGP_SIG_SUBPKT_UNKNOWN = 0,
     PGP_SIG_SUBPKT_CREATION_TIME = 2,       /* signature creation time */
     PGP_SIG_SUBPKT_EXPIRATION_TIME = 3,     /* signature expiration time */
     PGP_SIG_SUBPKT_EXPORT_CERT = 4,         /* exportable certification */
