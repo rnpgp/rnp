@@ -499,20 +499,13 @@ end:
     return res;
 }
 
-bool calculate_primary_binding(const pgp_key_pkt_t *key,
-                               const pgp_key_pkt_t *subkey,
-                               pgp_hash_alg_t       halg,
-                               pgp_signature_t *    sig,
-                               pgp_hash_t *         hash,
-                               rng_t *              rng);
-
-bool
-calculate_primary_binding(const pgp_key_pkt_t *key,
-                          const pgp_key_pkt_t *subkey,
-                          pgp_hash_alg_t       halg,
-                          pgp_signature_t *    sig,
-                          pgp_hash_t *         hash,
-                          rng_t *              rng)
+static bool
+signature_calculate_primary_binding(const pgp_key_pkt_t *key,
+                                    const pgp_key_pkt_t *subkey,
+                                    pgp_hash_alg_t       halg,
+                                    pgp_signature_t *    sig,
+                                    pgp_hash_t *         hash,
+                                    rng_t *              rng)
 {
     uint8_t keyid[PGP_KEY_ID_SIZE];
     bool    res = false;
@@ -551,40 +544,90 @@ end:
     return res;
 }
 
+bool
+signature_calculate_binding(const pgp_key_pkt_t *key,
+                            const pgp_key_pkt_t *sub,
+                            pgp_signature_t *    sig,
+                            bool                 subsign)
+{
+    pgp_hash_t hash = {};
+    pgp_hash_t hashcp = {};
+    rng_t      rng = {};
+    uint8_t    keyid[PGP_KEY_ID_SIZE];
+
+    if (pgp_keyid(keyid, sizeof(keyid), key)) {
+        RNP_LOG("failed to calculate keyid");
+        return false;
+    }
+
+    if (!rng_init(&rng, RNG_SYSTEM)) {
+        RNP_LOG("RNG init failed");
+        return false;
+    }
+
+    bool res = false;
+    if (!signature_fill_hashed_data(sig) || !signature_hash_binding(sig, key, sub, &hash) ||
+        !pgp_hash_copy(&hashcp, &hash)) {
+        RNP_LOG("failed to hash signature");
+        goto end;
+    }
+
+    if (signature_calculate(sig, &key->material, &hash, &rng)) {
+        RNP_LOG("failed to calculate signature");
+        goto end;
+    }
+
+    /* unhashed subpackets. Primary key binding signature and issuer key id */
+    if (subsign) {
+        pgp_signature_t embsig = {};
+        bool            embres;
+
+        if (!signature_calculate_primary_binding(
+              key, sub, sig->halg, &embsig, &hashcp, &rng)) {
+            RNP_LOG("failed to calculate primary key binding signature");
+            goto end;
+        }
+        embres = signature_set_embedded_sig(sig, &embsig);
+        free_signature(&embsig);
+        if (!embres) {
+            RNP_LOG("failed to add primary key binding signature");
+            goto end;
+        }
+    }
+
+    /* add keyid since it should (probably) be after the primary key binding if any */
+    if (!signature_set_keyid(sig, keyid)) {
+        RNP_LOG("failed to set issuer key id");
+        goto end;
+    }
+
+    res = true;
+end:
+    pgp_hash_finish(&hashcp, NULL);
+    rng_destroy(&rng);
+    return res;
+}
+
 pgp_signature_t *
 transferable_subkey_bind(const pgp_key_pkt_t *             key,
                          pgp_transferable_subkey_t *       subkey,
                          pgp_hash_alg_t                    hash_alg,
                          const rnp_selfsig_binding_info_t *binding)
 {
-    pgp_signature_t   sig = {};
-    pgp_signature_t * res = NULL;
-    pgp_hash_t        hash = {};
-    pgp_hash_t        hashcp = {};
-    pgp_key_flags_t   realkf = (pgp_key_flags_t) 0;
-    uint8_t           keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t keyfp;
-    rng_t             rng = {};
-
     if (!key || !subkey || !binding) {
         RNP_LOG("invalid parameters");
         return NULL;
     }
 
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        RNP_LOG("RNG init failed");
+    pgp_fingerprint_t keyfp;
+    if (pgp_fingerprint(&keyfp, key)) {
+        RNP_LOG("failed to calculate keyfp");
         return NULL;
     }
 
-    if (pgp_keyid(keyid, sizeof(keyid), key)) {
-        RNP_LOG("failed to calculate keyid");
-        goto end;
-    }
-
-    if (pgp_fingerprint(&keyfp, key)) {
-        RNP_LOG("failed to calculate keyfp");
-        goto end;
-    }
+    pgp_signature_t  sig = {};
+    pgp_signature_t *res = NULL;
+    pgp_key_flags_t  realkf = (pgp_key_flags_t) 0;
 
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, key);
@@ -609,49 +652,17 @@ transferable_subkey_bind(const pgp_key_pkt_t *             key,
         goto end;
     }
 
-    if (!signature_fill_hashed_data(&sig) ||
-        !signature_hash_binding(&sig, key, &subkey->subkey, &hash) ||
-        !pgp_hash_copy(&hashcp, &hash)) {
-        RNP_LOG("failed to hash signature");
-        goto end;
-    }
-
-    if (signature_calculate(&sig, &key->material, &hash, &rng)) {
-        RNP_LOG("failed to calculate signature");
-        goto end;
-    }
-
-    /* unhashed subpackets. Primary key binding signature and issuer key id */
     realkf = (pgp_key_flags_t) binding->key_flags;
     if (!realkf) {
-        realkf = pgp_pk_alg_capabilities(key->alg);
-    }
-    if (realkf & PGP_KF_SIGN) {
-        pgp_signature_t embsig = {};
-        bool            embres;
-
-        if (!calculate_primary_binding(
-              key, &subkey->subkey, hash_alg, &embsig, &hashcp, &rng)) {
-            RNP_LOG("failed to calculate primary key binding signature");
-            goto end;
-        }
-        embres = signature_set_embedded_sig(&sig, &embsig);
-        free_signature(&embsig);
-        if (!embres) {
-            RNP_LOG("failed to add primary key binding signature");
-            goto end;
-        }
+        realkf = pgp_pk_alg_capabilities(subkey->subkey.alg);
     }
 
-    if (!signature_set_keyid(&sig, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    if (!signature_calculate_binding(key, &subkey->subkey, &sig, realkf & PGP_KF_SIGN)) {
         goto end;
     }
 
     res = (pgp_signature_t *) list_append(&subkey->signatures, &sig, sizeof(sig));
 end:
-    pgp_hash_finish(&hashcp, NULL);
-    rng_destroy(&rng);
     if (!res) {
         free_signature(&sig);
     }
