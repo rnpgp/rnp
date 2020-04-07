@@ -1043,6 +1043,95 @@ error:
     return false;
 }
 
+bool
+pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig)
+{
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
+        if (signature_pkt_equal(&subsig->sig, sig)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool
+pgp_key_replace_rawpacket(pgp_key_t *key, pgp_rawpacket_t *oldpkt, pgp_rawpacket_t *newpkt)
+{
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *curpkt = pgp_key_get_rawpacket(key, i);
+        if ((curpkt->length != oldpkt->length) || (curpkt->tag != oldpkt->tag)) {
+            continue;
+        }
+        if (memcmp(curpkt->raw, oldpkt->raw, curpkt->length)) {
+            continue;
+        }
+        pgp_rawpacket_t pktcp = {};
+        pktcp = *newpkt;
+        pktcp.raw = (uint8_t *) malloc(newpkt->length);
+        if (!pktcp.raw) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
+        memcpy(pktcp.raw, newpkt->raw, newpkt->length);
+        pgp_rawpacket_free(curpkt);
+        *curpkt = pktcp;
+        return true;
+    }
+    return false;
+}
+
+pgp_subsig_t *
+pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature_t *newsig)
+{
+    pgp_subsig_t *subsig = NULL;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        subsig = pgp_key_get_subsig(key, i);
+        if (signature_pkt_equal(&subsig->sig, oldsig)) {
+            break;
+        }
+        subsig = NULL;
+    }
+    if (!subsig) {
+        return NULL;
+    }
+
+    /* create rawpackets here since oldsig may be equal to subsig */
+    pgp_rawpacket_t oldraw = {};
+    if (!pgp_signature_to_rawpacket(&oldraw, oldsig)) {
+        RNP_LOG("failed to create old rawpacket");
+        return NULL;
+    }
+    pgp_rawpacket_t newraw = {};
+    if (!pgp_signature_to_rawpacket(&newraw, newsig)) {
+        RNP_LOG("failed to create new rawpacket");
+        pgp_rawpacket_free(&oldraw);
+        return NULL;
+    }
+
+    /* replace subsig itself */
+    pgp_subsig_t newsubsig = {};
+    if (!pgp_subsig_from_signature(&newsubsig, newsig)) {
+        RNP_LOG("failed to fill subsig");
+        subsig = NULL;
+        goto done;
+    }
+    newsubsig.uid = subsig->uid;
+    pgp_subsig_free(subsig);
+    *subsig = newsubsig;
+
+    /* replace rawpacket */
+    if (!pgp_key_replace_rawpacket(key, &oldraw, &newraw)) {
+        RNP_LOG("failed to replace rawpacket");
+        subsig = NULL;
+    }
+done:
+    pgp_rawpacket_free(&oldraw);
+    pgp_rawpacket_free(&newraw);
+    return subsig;
+}
+
 static bool
 pgp_sig_is_certification(const pgp_subsig_t *sig)
 {

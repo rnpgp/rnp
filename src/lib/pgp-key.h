@@ -275,6 +275,12 @@ pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 
 bool pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig);
 
+bool pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig);
+
+pgp_subsig_t *pgp_key_replace_signature(pgp_key_t *      key,
+                                        pgp_signature_t *oldsig,
+                                        pgp_signature_t *newsig);
+
 /**
  * @brief Get the latest valid self-signature with information about the primary key,
  * containing the specified subpacket. It could be userid certification or direct-key
