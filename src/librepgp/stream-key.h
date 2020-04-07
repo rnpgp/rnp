@@ -132,4 +132,9 @@ bool signature_calculate_direct(const pgp_key_pkt_t *key,
                                 pgp_signature_t *    sig,
                                 const pgp_key_pkt_t *signer);
 
+bool signature_calculate_binding(const pgp_key_pkt_t *key,
+                                 const pgp_key_pkt_t *sub,
+                                 pgp_signature_t *    sig,
+                                 bool                 subsign);
+
 #endif
