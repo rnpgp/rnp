@@ -295,6 +295,10 @@ pgp_subsig_t *pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t su
  */
 pgp_subsig_t *pgp_key_latest_binding(pgp_key_t *subkey, bool validated);
 
+bool pgp_key_refresh_data(pgp_key_t *key);
+
+bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
+
 void pgp_subsig_free(pgp_subsig_t *subsig);
 
 pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_pkt_type_t);
