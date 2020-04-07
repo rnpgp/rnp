@@ -871,6 +871,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
     }
 
     if (res) {
+        free(sig->hashed_data);
         /* get ownership on body data */
         sig->hashed_data = hbody.data;
         sig->hashed_len = hbody.len;
