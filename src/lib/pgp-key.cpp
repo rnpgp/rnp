@@ -67,6 +67,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <time.h>
 #include "defaults.h"
 
 static bool
@@ -269,7 +270,6 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     }
 
     key->format = PGP_KEY_STORE_GPG;
-    key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     return true;
 }
 
@@ -1228,6 +1228,114 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
     }
 }
 
+static pgp_map_t ss_rr_code_map[] = {
+  {PGP_REVOCATION_NO_REASON, "No reason specified"},
+  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
+  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
+  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
+  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
+  {0x00, NULL}, /* this is the end-of-array marker */
+};
+
+bool
+pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
+{
+    /* validate self-signatures if not done yet */
+    if (key) {
+        pgp_subkey_validate_self_signatures(sub, key);
+    }
+    pgp_subsig_t *sig = pgp_key_latest_binding(sub, key);
+    /* subkey expiration */
+    sub->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
+    /* subkey flags */
+    if (sig && signature_has_key_flags(&sig->sig)) {
+        sub->key_flags = sig->key_flags;
+    }
+    /* revocation */
+    pgp_key_clear_revokes(sub);
+    for (size_t i = 0; i < pgp_key_get_subsig_count(sub); i++) {
+        sig = pgp_key_get_subsig(sub, i);
+        if (!sig->valid || !pgp_sig_is_subkey_revocation(sub, sig)) {
+            continue;
+        }
+        sub->revoked = true;
+        signature_get_revocation_reason(
+          &sig->sig, &sub->revocation.code, &sub->revocation.reason);
+        if (!strlen(sub->revocation.reason)) {
+            free(sub->revocation.reason);
+            sub->revocation.reason =
+              strdup(pgp_str_from_map(sub->revocation.code, ss_rr_code_map));
+        }
+        break;
+    }
+    return true;
+}
+
+bool
+pgp_key_refresh_data(pgp_key_t *key)
+{
+    if (!pgp_key_is_primary_key(key)) {
+        RNP_LOG("key must be primary");
+        return false;
+    }
+    /* validate self-signatures if not done yet */
+    pgp_key_validate_self_signatures(key);
+    /* key expiration */
+    pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_EXPIRY);
+    key->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
+    /* key flags */
+    sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_FLAGS);
+    key->key_flags = sig ? sig->key_flags : pgp_pk_alg_capabilities(pgp_key_get_alg(key));
+    /* primary userid */
+    key->uid0_set = false;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid || !pgp_sig_is_self_signature(key, sig)) {
+            continue;
+        }
+        if (signature_get_primary_uid(&sig->sig)) {
+            key->uid0 = sig->uid;
+            key->uid0_set = true;
+            break;
+        }
+    }
+    /* revocation(s) */
+    pgp_key_clear_revokes(key);
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid) {
+            continue;
+        }
+        pgp_revoke_t *revocation = NULL;
+        if (pgp_sig_is_key_revocation(key, sig)) {
+            if (key->revoked) {
+                continue;
+            }
+            key->revoked = true;
+            revocation = &key->revocation;
+            revocation->uid = -1;
+        } else if (pgp_sig_is_userid_revocation(key, sig)) {
+            if (!(revocation = pgp_key_add_revoke(key))) {
+                RNP_LOG("failed to add revoke");
+                return false;
+            }
+            revocation->uid = sig->uid;
+        }
+
+        if (!revocation) {
+            continue;
+        }
+
+        signature_get_revocation_reason(&sig->sig, &revocation->code, &revocation->reason);
+        if (!strlen(revocation->reason)) {
+            free(revocation->reason);
+            revocation->reason = strdup(pgp_str_from_map(revocation->code, ss_rr_code_map));
+        }
+    }
+
+    return true;
+}
+
 pgp_rawpacket_t *
 pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_pkt_type_t tag)
 {
@@ -1730,7 +1838,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         goto done;
     }
 
-    ret = rnp_key_add_transferable_userid(key, &uid);
+    ret = rnp_key_add_transferable_userid(key, &uid) && pgp_key_refresh_data(key);
 done:
     transferable_userid_destroy(&uid);
     return ret;

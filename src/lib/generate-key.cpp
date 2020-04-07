@@ -422,7 +422,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     /* mark it as valid */
     pgp_key_mark_valid(primary_pub);
     pgp_key_mark_valid(primary_sec);
-    ok = true;
+    /* refresh key's data */
+    ok = pgp_key_refresh_data(primary_pub) && pgp_key_refresh_data(primary_sec);
 end:
     // free any user preferences
     pgp_free_user_prefs(&desc->cert.prefs);
@@ -556,7 +557,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 
     pgp_key_mark_valid(subkey_pub);
     pgp_key_mark_valid(subkey_sec);
-    ok = true;
+    ok = pgp_subkey_refresh_data(subkey_pub, primary_pub) &&
+         pgp_subkey_refresh_data(subkey_sec, primary_sec);
 end:
     transferable_subkey_destroy(&tskeysec);
     transferable_subkey_destroy(&tskeypub);
