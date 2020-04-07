@@ -1959,6 +1959,131 @@ done:
     return ret;
 }
 
+static bool
+update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t expiry)
+{
+    if (!copy_signature_packet(dst, src)) {
+        RNP_LOG("Failed to copy signature");
+        return false;
+    }
+    if (!expiry) {
+        pgp_sig_subpkt_t *subpkt = signature_get_subpkt(dst, PGP_SIG_SUBPKT_KEY_EXPIRY);
+        signature_remove_subpkt(dst, subpkt);
+    } else {
+        signature_set_key_expiration(dst, expiry);
+    }
+    signature_set_creation(dst, time(NULL));
+    return true;
+}
+
+bool
+pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
+{
+    if (!pgp_key_is_primary_key(key)) {
+        RNP_LOG("Not a primary key");
+        return false;
+    }
+
+    /* locate the latest valid certification with or without key expiration */
+    pgp_subsig_t *subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_EXPIRY);
+    if (!subsig) {
+        subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
+    }
+    if (!subsig) {
+        RNP_LOG("No valid self-signature");
+        return false;
+    }
+
+    /* update signature and re-sign it */
+    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+        return true;
+    }
+    pgp_signature_t newsig = {};
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        return false;
+    }
+
+    bool res = false;
+    if (pgp_sig_is_certification(subsig)) {
+        pgp_userid_t *uid = pgp_key_get_userid(key, subsig->uid);
+        if (!uid) {
+            RNP_LOG("uid not found");
+            goto done;
+        }
+        if (!signature_calculate_certification(
+              pgp_key_get_pkt(key), &uid->pkt, &newsig, pgp_key_get_pkt(seckey))) {
+            RNP_LOG("failed to calculate signature");
+            goto done;
+        }
+    } else {
+        /* direct-key signature case */
+        if (!signature_calculate_direct(
+              pgp_key_get_pkt(key), &newsig, pgp_key_get_pkt(seckey))) {
+            RNP_LOG("failed to calculate signature");
+            goto done;
+        }
+    }
+
+    /* replace signature, first for secret key since it may be replaced in public */
+    if (pgp_key_has_signature(seckey, &subsig->sig)) {
+        res = pgp_key_replace_signature(seckey, &subsig->sig, &newsig) &&
+              pgp_key_refresh_data(key);
+    }
+    res = res && pgp_key_replace_signature(key, &subsig->sig, &newsig) &&
+          pgp_key_refresh_data(key);
+done:
+    free_signature(&newsig);
+    return res;
+}
+
+bool
+pgp_subkey_set_expiration(pgp_key_t *sub,
+                          pgp_key_t *primsec,
+                          pgp_key_t *secsub,
+                          uint32_t   expiry)
+{
+    if (!pgp_key_is_subkey(sub)) {
+        RNP_LOG("Not a subkey");
+        return false;
+    }
+
+    /* find the latest valid subkey binding */
+    pgp_subsig_t *subsig = NULL;
+    subsig = pgp_key_latest_binding(sub, true);
+    if (!subsig) {
+        RNP_LOG("No valid subkey binding");
+        return false;
+    }
+    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+        return true;
+    }
+    /* update signature and re-sign */
+    pgp_signature_t newsig = {};
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        return false;
+    }
+
+    bool res = false;
+    if (!signature_calculate_binding(pgp_key_get_pkt(primsec),
+                                     pgp_key_get_pkt(secsub),
+                                     &newsig,
+                                     pgp_key_get_flags(secsub) & PGP_KF_SIGN)) {
+        RNP_LOG("failed to calculate signature");
+        goto done;
+    }
+
+    /* replace signature, first for the secret key since it may be replaced in public */
+    if (pgp_key_has_signature(secsub, &subsig->sig)) {
+        res = pgp_key_replace_signature(secsub, &subsig->sig, &newsig) &&
+              pgp_subkey_refresh_data(secsub, primsec);
+    }
+    res = res && pgp_key_replace_signature(sub, &subsig->sig, &newsig) &&
+          pgp_subkey_refresh_data(sub, primsec);
+done:
+    free_signature(&newsig);
+    return res;
+}
+
 bool
 pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
 {
