@@ -969,6 +969,26 @@ pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
     return (pgp_subsig_t *) list_at(key->subsigs, idx);
 }
 
+static bool
+pgp_signature_to_rawpacket(pgp_rawpacket_t *pkt, const pgp_signature_t *sig)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+    if (!stream_write_signature(sig, &dst)) {
+        dst_close(&dst, true);
+        return false;
+    }
+
+    pkt->tag = PGP_PKT_SIGNATURE;
+    pkt->length = dst.writeb;
+    pkt->raw = (uint8_t *) mem_dest_own_memory(&dst);
+    dst_close(&dst, true);
+    return true;
+}
+
 bool
 pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig)
 {
@@ -1391,16 +1411,16 @@ pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
 pgp_rawpacket_t *
 pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt)
 {
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
+    pgp_rawpacket_t rawpkt = {};
+    if (!pgp_signature_to_rawpacket(&rawpkt, pkt)) {
         return NULL;
     }
-    if (!stream_write_signature(pkt, &dst)) {
-        dst_close(&dst, true);
-        return NULL;
+    pgp_rawpacket_t *res =
+      (pgp_rawpacket_t *) list_append(&key->packets, &rawpkt, sizeof(rawpkt));
+    if (!res) {
+        pgp_rawpacket_free(&rawpkt);
     }
-    return pgp_key_add_stream_rawpacket(key, PGP_PKT_SIGNATURE, &dst);
+    return res;
 }
 
 pgp_rawpacket_t *
