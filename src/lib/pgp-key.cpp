@@ -273,6 +273,18 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     return true;
 }
 
+static void
+pgp_key_clear_revokes(pgp_key_t *key)
+{
+    key->revoked = false;
+    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
+        revoke_free(pgp_key_get_revoke(key, i));
+    }
+    list_destroy(&key->revokes);
+    revoke_free(&key->revocation);
+    memset(&key->revocation, 0, sizeof(key->revocation));
+}
+
 void
 pgp_key_free_data(pgp_key_t *key)
 {
@@ -297,11 +309,7 @@ pgp_key_free_data(pgp_key_t *key)
     }
     list_destroy(&key->subsigs);
 
-    for (n = 0; n < pgp_key_get_revoke_count(key); n++) {
-        revoke_free(pgp_key_get_revoke(key, n));
-    }
-    list_destroy(&key->revokes);
-    revoke_free(&key->revocation);
+    pgp_key_clear_revokes(key);
     free(key->primary_grip);
     key->primary_grip = NULL;
     list_destroy(&key->subkey_grips);
