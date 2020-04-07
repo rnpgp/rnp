@@ -67,100 +67,23 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "key_store_pgp.h"
 #include "pgp-key.h"
 
-static pgp_map_t ss_rr_code_map[] = {
-  {PGP_REVOCATION_NO_REASON, "No reason specified"},
-  {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
-  {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
-  {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
-  {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
-  {0x00, NULL}, /* this is the end-of-array marker */
-};
-
 bool
 rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
 {
-    pgp_subsig_t *subsig = NULL;
-    uint8_t *     algs = NULL;
-    size_t        count = 0;
-
-    if (!(subsig = pgp_key_add_subsig(key))) {
+    pgp_subsig_t *subsig = pgp_key_add_subsig(key);
+    if (!subsig) {
         RNP_LOG("Failed to add subsig");
         return false;
     }
-
     /* add signature rawpacket */
     if (!pgp_key_add_sig_rawpacket(key, sig)) {
         return false;
     }
-
+    /* setup subsig and key from signature */
+    if (!pgp_subsig_from_signature(subsig, sig)) {
+        return false;
+    }
     subsig->uid = pgp_key_get_userid_count(key) - 1;
-    if (!copy_signature_packet(&subsig->sig, sig)) {
-        return false;
-    }
-
-    if (signature_has_key_expiration(&subsig->sig)) {
-        key->expiration = signature_get_key_expiration(&subsig->sig);
-    }
-    if (signature_has_trust(&subsig->sig)) {
-        signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
-    }
-    if (signature_get_primary_uid(&subsig->sig)) {
-        key->uid0 = pgp_key_get_userid_count(key) - 1;
-        key->uid0_set = 1;
-    }
-
-    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_symm_algs(&subsig->prefs, algs, count)) {
-        RNP_LOG("failed to alloc symm algs");
-        return false;
-    }
-    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_hash_algs(&subsig->prefs, algs, count)) {
-        RNP_LOG("failed to alloc hash algs");
-        return false;
-    }
-    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_z_algs(&subsig->prefs, algs, count)) {
-        RNP_LOG("failed to alloc z algs");
-        return false;
-    }
-    if (signature_has_key_flags(&subsig->sig)) {
-        subsig->key_flags = signature_get_key_flags(&subsig->sig);
-        key->key_flags = subsig->key_flags;
-    }
-    if (signature_has_key_server_prefs(&subsig->sig)) {
-        uint8_t ks_pref = signature_get_key_server_prefs(&subsig->sig);
-        if (!pgp_user_prefs_set_ks_prefs(&subsig->prefs, &ks_pref, 1)) {
-            RNP_LOG("failed to alloc ks prefs");
-            return false;
-        }
-    }
-    if (signature_has_key_server(&subsig->sig)) {
-        subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
-    }
-    if (signature_has_revocation_reason(&subsig->sig)) {
-        /* not sure whether this logic is correct - we should check signature type? */
-        pgp_revoke_t *revocation = NULL;
-        if (!pgp_key_get_userid_count(key)) {
-            /* revoke whole key */
-            key->revoked = 1;
-            revocation = &key->revocation;
-            revoke_free(revocation);
-        } else {
-            /* revoke the user id */
-            if (!(revocation = pgp_key_add_revoke(key))) {
-                RNP_LOG("failed to add revoke");
-                return false;
-            }
-            revocation->uid = pgp_key_get_userid_count(key) - 1;
-        }
-        signature_get_revocation_reason(&subsig->sig, &revocation->code, &revocation->reason);
-        if (!strlen(revocation->reason)) {
-            free(revocation->reason);
-            revocation->reason = strdup(pgp_str_from_map(revocation->code, ss_rr_code_map));
-        }
-    }
-
     return true;
 }
 
@@ -328,6 +251,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
     if (primary && !pgp_key_link_subkey_grip(primary, subkey)) {
         goto error;
     }
+
     return true;
 error:
     pgp_key_free_data(subkey);
