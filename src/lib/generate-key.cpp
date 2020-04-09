@@ -331,6 +331,18 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t *desc)
     }
 }
 
+static void
+pgp_key_mark_valid(pgp_key_t *key)
+{
+    key->valid = true;
+    key->validated = true;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *sub = pgp_key_get_subsig(key, i);
+        sub->validated = true;
+        sub->valid = true;
+    }
+}
+
 bool
 pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
                          bool                       merge_defaults,
@@ -408,11 +420,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     }
 
     /* mark it as valid */
-    primary_pub->valid = true;
-    primary_pub->validated = true;
-    primary_sec->valid = true;
-    primary_sec->validated = true;
-
+    pgp_key_mark_valid(primary_pub);
+    pgp_key_mark_valid(primary_sec);
     ok = true;
 end:
     // free any user preferences
@@ -545,10 +554,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         break;
     }
 
-    subkey_pub->valid = true;
-    subkey_pub->validated = true;
-    subkey_sec->valid = true;
-    subkey_sec->validated = true;
+    pgp_key_mark_valid(subkey_pub);
+    pgp_key_mark_valid(subkey_sec);
     ok = true;
 end:
     transferable_subkey_destroy(&tskeysec);
