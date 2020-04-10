@@ -1988,6 +1988,14 @@ pgp_key_validate_primary(pgp_key_t *key)
         }
 
         if (pgp_sig_is_self_signature(key, sig) && !has_cert) {
+            /* check whether key is expired */
+            if (signature_has_key_expiration(&sig->sig)) {
+                time_t expiry =
+                  pgp_key_get_creation(key) + signature_get_key_expiration(&sig->sig);
+                if (expiry < time(NULL)) {
+                    continue;
+                }
+            }
             has_cert = true;
         } else if (pgp_sig_is_key_revocation(key, sig)) {
             return RNP_SUCCESS;
@@ -2018,6 +2026,14 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
         }
 
         if (pgp_sig_is_subkey_binding(subkey, sig) && !has_binding) {
+            /* check whether subkey is expired */
+            if (signature_has_key_expiration(&sig->sig)) {
+                time_t expiry =
+                  pgp_key_get_creation(subkey) + signature_get_key_expiration(&sig->sig);
+                if (expiry < time(NULL)) {
+                    continue;
+                }
+            }
             has_binding = true;
         } else if (pgp_sig_is_subkey_revocation(subkey, sig)) {
             return RNP_SUCCESS;
