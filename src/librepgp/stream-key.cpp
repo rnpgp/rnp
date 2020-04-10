@@ -719,11 +719,15 @@ transferable_key_revoke(const pgp_key_pkt_t *key,
         RNP_LOG("failed to set issuer key id");
         goto end;
     }
-    if (!signature_calculate_direct(key, sig, signer)) {
-        RNP_LOG("failed to calculate signature");
-        goto end;
+
+    if (is_primary_key_pkt(key->tag)) {
+        res = signature_calculate_direct(key, sig, signer);
+    } else {
+        res = signature_calculate_binding(signer, key, sig, false);
     }
-    res = true;
+    if (!res) {
+        RNP_LOG("failed to calculate signature");
+    }
 end:
     if (!res && sig) {
         free_signature(sig);
