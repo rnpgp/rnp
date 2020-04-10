@@ -1024,11 +1024,13 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         pgp_subsig_t *sig = pgp_key_get_subsig(primary_pub, 0);
         assert_non_null(sig);
         sig->sig.hashed_data[10] ^= 0xff;
+        sig->validated = false;
         // ensure validation fails
         assert_rnp_success(pgp_key_validate(primary_pub, pubring));
         assert_false(primary_pub->valid);
         // restore the original data
         sig->sig.hashed_data[10] ^= 0xff;
+        sig->validated = false;
         assert_rnp_success(pgp_key_validate(primary_pub, pubring));
         assert_true(primary_pub->valid);
     }
