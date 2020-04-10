@@ -1178,34 +1178,13 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
                               const pgp_key_pkt_t *   key,
                               const pgp_userid_pkt_t *uid)
 {
-    pgp_hash_t   hash = {};
-    uint8_t      keyid[PGP_KEY_ID_SIZE];
-    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
+    pgp_hash_t hash = {};
 
     if (!signature_hash_certification(sinfo->sig, key, uid, &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    res = signature_check(sinfo, &hash);
-
-    if (res) {
-        return res;
-    }
-
-    /* check key expiration time, only for self-signature. While sinfo->expired tells about
-       the signature expiry, we'll use it for bkey expiration as well */
-    if (signature_get_keyid(sinfo->sig, keyid) &&
-        !memcmp(keyid, pgp_key_get_keyid(sinfo->signer), PGP_KEY_ID_SIZE)) {
-        uint32_t expiry = signature_get_key_expiration(sinfo->sig);
-        uint32_t now = time(NULL);
-
-        if (expiry && (key->creation_time + expiry < now)) {
-            RNP_LOG("key expired %d seconds ago", (int) now - expiry - key->creation_time);
-            sinfo->expired = true;
-        }
-    }
-
-    return res;
+    return signature_check(sinfo, &hash);
 }
 
 rnp_result_t
@@ -1227,19 +1206,6 @@ signature_check_binding(pgp_signature_info_t *sinfo,
     }
 
     res = signature_check(sinfo, &hash);
-
-    /* check subkey expiration time. While sinfo->expired tells about the signature expiry,
-       we'll use it for subkey expiration as well */
-    if (!res) {
-        uint32_t expiry = signature_get_key_expiration(sinfo->sig);
-        uint32_t now = time(NULL);
-
-        if (expiry && (subkey->creation_time + expiry < now)) {
-            RNP_LOG("subkey expired %d seconds ago",
-                    (int) now - expiry - subkey->creation_time);
-            sinfo->expired = true;
-        }
-    }
 
     /* check primary key binding signature if any */
     if (!res && (signature_get_key_flags(sinfo->sig) & PGP_KF_SIGN)) {
