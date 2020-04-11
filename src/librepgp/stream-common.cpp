@@ -52,6 +52,10 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     pgp_source_cache_t *cache = src->cache;
     bool                readahead = cache ? cache->readahead : false;
 
+    if (src->error) {
+        return false;
+    }
+
     if (src->eof || (len == 0)) {
         *readres = 0;
         return true;
@@ -137,6 +141,9 @@ bool
 src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
 {
     pgp_source_cache_t *cache = src->cache;
+    if (src->error) {
+        return false;
+    }
     if (!cache || (len > sizeof(cache->buf))) {
         return false;
     }
