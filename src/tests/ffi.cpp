@@ -7119,3 +7119,203 @@ TEST_F(rnp_tests, test_ffi_key_revoke)
     assert_rnp_success(rnp_key_handle_destroy(sub_handle));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_ffi_key_set_expiry)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    /* check edge cases */
+    assert_rnp_failure(rnp_key_set_expiration(NULL, 0));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    /* cannot set key expiration with public key only */
+    assert_rnp_failure(rnp_key_set_expiration(key, 1000));
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_failure(rnp_key_set_expiration(sub, 1000));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* load secret key */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    uint32_t       expiry = 0;
+    const uint32_t new_expiry = 10 * 365 * 24 * 60 * 60;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_set_expiration(key, 0));
+    /* will fail on locked key */
+    assert_rnp_failure(rnp_key_set_expiration(key, new_expiry));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_set_expiration(key, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    /* will succeed on locked subkey since it is not signing one */
+    assert_rnp_success(rnp_key_set_expiration(sub, 0));
+    assert_rnp_success(rnp_key_set_expiration(sub, new_expiry * 2));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry * 2);
+    /* make sure new expiration times are properly saved */
+    rnp_output_t keymem = NULL;
+    rnp_output_t seckeymem = NULL;
+    assert_rnp_success(rnp_output_to_memory(&keymem, 0));
+    assert_rnp_success(
+      rnp_key_export(key, keymem, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_to_memory(&seckeymem, 0));
+    assert_rnp_success(
+      rnp_key_export(key, seckeymem, RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    uint8_t *keybuf = NULL;
+    size_t   keylen = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
+    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
+    /* load public key */
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry * 2);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    /* now load exported secret key */
+    assert_rnp_success(rnp_output_memory_get_buf(seckeymem, &keybuf, &keylen, false));
+    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(seckeymem));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry * 2);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    /* now unset expiration time back, first loading the public key back */
+    assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
+    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(keymem));
+    /* set primary key expiration */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_set_expiration(key, 0));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_success(rnp_key_set_expiration(sub, 0));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    /* let's export them and reload */
+    assert_rnp_success(rnp_output_to_memory(&keymem, 0));
+    assert_rnp_success(
+      rnp_key_export(key, keymem, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
+    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(keymem));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* now try the sign-able subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_failure(rnp_key_set_expiration(sub, new_expiry));
+    /* now unlock only primary key - should fail */
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_failure(rnp_key_set_expiration(sub, new_expiry));
+    /* unlock subkey */
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    assert_rnp_success(rnp_key_set_expiration(sub, new_expiry));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_rnp_success(rnp_output_to_memory(&keymem, 0));
+    assert_rnp_success(
+      rnp_key_export(key, keymem, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
+    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(keymem));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, new_expiry);
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* check whether we can change expiration for already expired key */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    assert_rnp_success(rnp_key_set_expiration(key, 1));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 1);
+    assert_rnp_success(rnp_key_set_expiration(sub, 1));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 1);
+    assert_rnp_success(rnp_key_set_expiration(key, 0));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_set_expiration(sub, 0));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    // TODO: check expiration date in direct-key signature, check without
+    // self-signature/binding signature.
+
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
