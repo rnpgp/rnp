@@ -18,5 +18,3 @@ echo "::set-env name=LOCAL_INSTALLS::/tmp/rnp-local-installs"
 # set this explicitly since we don't want to cache the rnp installation
 echo "::set-env name=RNP_INSTALL::$GITHUB_WORKSPACE/rnp-install"
 
-echo "::set-env name=VERSION_OVERRIDE_BRANCH::${GITHUB_REF#refs/heads/}"
-
