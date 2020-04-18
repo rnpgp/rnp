@@ -12,6 +12,8 @@ task:
     LOCAL_BUILDS: /home/rnpuser/local-builds
     LOCAL_INSTALLS: /home/rnpuser/local-installs
   user_setup_script: |
+    # workaround 'pkg: repository meta has wrong version 2'
+    env ASSUME_ALWAYS_YES=yes pkg bootstrap -f
     pkg install -y sudo
     # add rnpuser
     pw useradd -n rnpuser -m
