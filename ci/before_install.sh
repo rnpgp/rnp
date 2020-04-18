@@ -4,7 +4,7 @@ set -ex
 . ci/utils.inc.sh
 
 macos_install() {
-  [ "${CI-}" = true ] || brew bundle
+  brew bundle
 }
 
 freebsd_install() {
