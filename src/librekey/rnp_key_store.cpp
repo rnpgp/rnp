@@ -338,6 +338,9 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
         tmpkey.pkt.material = src->pkt.material;
     }
+    /* copy validity status */
+    tmpkey.valid = dst->valid && src->valid;
+    tmpkey.validated = dst->validated && src->validated && dst->valid;
 
     pgp_key_free_data(dst);
     *dst = tmpkey;
@@ -406,6 +409,9 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
         tmpkey.pkt.material = src->pkt.material;
     }
+    /* copy validity status */
+    tmpkey.valid = dst->valid && src->valid;
+    tmpkey.validated = dst->validated && src->validated && dst->valid;
 
     pgp_key_free_data(dst);
     *dst = tmpkey;
@@ -464,46 +470,61 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
     return true;
 }
 
+static pgp_key_t *
+rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t *oldkey)
+{
+    pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, srckey);
+    if (!primary && oldkey) {
+        primary = rnp_key_store_get_primary_key(keyring, oldkey);
+    }
+
+    if (oldkey) {
+        /* in case we already have key let's merge it in */
+        if (!rnp_key_store_merge_subkey(oldkey, srckey, primary)) {
+            RNP_LOG("failed to merge subkey");
+            return NULL;
+        }
+        pgp_key_free_data(srckey);
+    } else {
+        oldkey = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+        if (!oldkey) {
+            RNP_LOG("allocation failed");
+            return NULL;
+        }
+    }
+
+    RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
+    /* validate all added keys if not disabled */
+    if (!keyring->disable_validation && !oldkey->validated) {
+        pgp_key_validate_subkey(oldkey, primary);
+    }
+    if (!pgp_subkey_refresh_data(oldkey, primary)) {
+        RNP_LOG("Failed to refresh subkey data");
+    }
+    return oldkey;
+}
+
 /* add a key to keyring */
 pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
-    pgp_key_t *added_key = NULL;
-    pgp_key_t *primary = NULL;
-
-    RNP_DLOG("rnp_key_store_add_key");
     assert(pgp_key_get_type(srckey) && pgp_key_get_version(srckey));
-    added_key = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
+    pgp_key_t *added_key = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
+    /* we cannot merge G10 keys - so just return it */
+    if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
+        pgp_key_free_data(srckey);
+        return added_key;
+    }
+    /* different processing for subkeys */
+    if (pgp_key_is_subkey(srckey)) {
+        return rnp_key_store_add_subkey(keyring, srckey, added_key);
+    }
 
     if (added_key) {
-        /* we cannot merge G10 keys - so just return it */
-        if (srckey->format == PGP_KEY_STORE_G10) {
-            pgp_key_free_data(srckey);
-            return added_key;
-        }
-
-        bool mergeres = false;
-        /* in case we already have key let's merge it in */
-        if (pgp_key_is_subkey(added_key)) {
-            primary = rnp_key_store_get_primary_key(keyring, added_key);
-            if (!primary) {
-                primary = rnp_key_store_get_primary_key(keyring, srckey);
-            }
-            if (!primary) {
-                RNP_LOG("no primary key for subkey");
-            }
-            mergeres = rnp_key_store_merge_subkey(added_key, srckey, primary);
-        } else {
-            mergeres = rnp_key_store_merge_key(added_key, srckey);
-        }
-
-        if (!mergeres) {
-            RNP_LOG("failed to merge key or subkey");
+        if (!rnp_key_store_merge_key(added_key, srckey)) {
+            RNP_LOG("failed to merge key");
             return NULL;
         }
-        added_key->valid = added_key->valid && srckey->valid;
-        added_key->validated = added_key->validated && srckey->validated && added_key->valid;
-
         pgp_key_free_data(srckey);
     } else {
         added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
@@ -512,8 +533,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             return NULL;
         }
         /* primary key may be added after subkeys, so let's handle this case correctly */
-        if (pgp_key_is_primary_key(added_key) &&
-            !rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
+        if (!rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
             RNP_LOG("failed to refresh subkey grips");
         }
     }
@@ -522,32 +542,20 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !added_key->validated) {
         pgp_key_validate(added_key, keyring);
-
         /* validate/re-validate all subkeys as well */
-        if (pgp_key_is_primary_key(added_key)) {
-            for (list_item *grip = list_front(added_key->subkey_grips); grip;
-                 grip = list_next(grip)) {
-                pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
-                if (subkey) {
-                    pgp_key_validate(subkey, keyring);
-                }
+        for (list_item *grip = list_front(added_key->subkey_grips); grip;
+             grip = list_next(grip)) {
+            pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+            if (subkey) {
+                pgp_key_validate_subkey(subkey, added_key);
+                pgp_subkey_refresh_data(subkey, added_key);
             }
         }
     }
 
-    bool refres;
-    if (pgp_key_is_subkey(added_key)) {
-        if (!primary) {
-            primary = rnp_key_store_get_primary_key(keyring, added_key);
-        }
-        refres = pgp_subkey_refresh_data(added_key, primary);
-    } else {
-        refres = pgp_key_refresh_data(added_key);
-    }
-    if (!refres) {
+    if (!pgp_key_refresh_data(added_key)) {
         RNP_LOG("Failed to refresh key data");
     }
-
     return added_key;
 }
 
