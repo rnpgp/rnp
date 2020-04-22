@@ -2211,7 +2211,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
     return hash;
 }
 
-static rnp_result_t
+static void
 pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
 {
     /* validate signatures if needed */
@@ -2220,6 +2220,7 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
     /* consider public key as valid on this level if it has at least one non-expired
      * self-signature (or it is secret), and is not revoked */
     key->valid = false;
+    key->validated = true;
     bool has_cert = false;
     bool has_expired = false;
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
@@ -2239,13 +2240,13 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
             has_expired = expiry < time(NULL);
             has_cert = !has_expired;
         } else if (pgp_sig_is_key_revocation(key, sig)) {
-            return RNP_SUCCESS;
+            return;
         }
     }
     /* we have at least one non-expiring key self-signature or secret key */
     if (has_cert || pgp_key_is_secret(key)) {
         key->valid = true;
-        return RNP_SUCCESS;
+        return;
     }
     /* we have valid self-signature which expires key */
     if (has_expired) {
@@ -2259,20 +2260,20 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
         pgp_subsig_t *sig = pgp_key_latest_binding(sub, true);
         if (sig && sig->validated && sig->valid) {
             key->valid = true;
-            return RNP_SUCCESS;
+            return;
         }
     }
-    return RNP_SUCCESS;
 }
 
-rnp_result_t
+void
 pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
      * non-expired binding signature (or is secret), and is not revoked. */
     subkey->valid = false;
+    subkey->validated = true;
     if (!key || !key->valid) {
-        return RNP_SUCCESS;
+        return;
     }
     /* validate signatures if needed */
     pgp_subkey_validate_self_signatures(subkey, key);
@@ -2295,34 +2296,22 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
             }
             has_binding = true;
         } else if (pgp_sig_is_subkey_revocation(subkey, sig)) {
-            return RNP_SUCCESS;
+            return;
         }
     }
-
     subkey->valid = has_binding || (pgp_key_is_secret(subkey) && pgp_key_is_secret(key));
-    return RNP_SUCCESS;
+    return;
 }
 
-rnp_result_t
+void
 pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
 {
-    rnp_result_t res = RNP_ERROR_GENERIC;
-    pgp_key_t *  primary = NULL;
-
     key->valid = false;
+    key->validated = false;
     if (!pgp_key_is_subkey(key)) {
-        res = pgp_key_validate_primary(key, keyring);
-        goto done;
+        pgp_key_validate_primary(key, keyring);
+    } else {
+        pgp_key_validate_subkey(
+          key, rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(key)));
     }
-
-    primary = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(key));
-    if (!primary) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    res = pgp_key_validate_subkey(key, primary);
-done:
-    if (!res) {
-        key->validated = true;
-    }
-    return res;
 }
