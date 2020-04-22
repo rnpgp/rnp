@@ -1162,7 +1162,7 @@ validate_key_sigs(const char *path)
     for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
         pgp_key_t *pkey = rnp_key_store_get_key(pubring, i);
         assert_non_null(pkey);
-        assert_rnp_success(pgp_key_validate(pkey, pubring));
+        pgp_key_validate(pkey, pubring);
         assert_true(pkey->valid);
     }
     rnp_key_store_free(pubring);
@@ -1179,7 +1179,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
     assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
-    assert_rnp_success(pgp_key_validate(pkey, pubring));
+    pgp_key_validate(pkey, pubring);
     assert_true(pkey->valid);
     rnp_key_store_free(pubring);
 
@@ -1190,7 +1190,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_get_key_count(pubring) > 0);
     for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
         pkey = rnp_key_store_get_key(pubring, i);
-        assert_rnp_success(pgp_key_validate(pkey, pubring));
+        pgp_key_validate(pkey, pubring);
         // subkey #2 is expired
         if (i == 2) {
             assert_false(pkey->valid);

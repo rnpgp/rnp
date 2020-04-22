@@ -1009,16 +1009,16 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         // validate via an alternative method
         // primary_pub + pubring
-        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
         // primary_sec + pubring
-        assert_rnp_success(pgp_key_validate(primary_sec, pubring));
+        pgp_key_validate(primary_sec, pubring);
         assert_true(primary_sec->valid);
         // primary_pub + secring
-        assert_rnp_success(pgp_key_validate(primary_pub, secring));
+        pgp_key_validate(primary_pub, secring);
         assert_true(primary_pub->valid);
         // primary_sec + secring
-        assert_rnp_success(pgp_key_validate(primary_sec, secring));
+        pgp_key_validate(primary_sec, secring);
         assert_true(primary_sec->valid);
         // modify a hashed portion of the sig packet, offset may change in future
         pgp_subsig_t *sig = pgp_key_get_subsig(primary_pub, 0);
@@ -1026,12 +1026,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         sig->sig.hashed_data[10] ^= 0xff;
         sig->validated = false;
         // ensure validation fails
-        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        pgp_key_validate(primary_pub, pubring);
         assert_false(primary_pub->valid);
         // restore the original data
         sig->sig.hashed_data[10] ^= 0xff;
         sig->validated = false;
-        assert_rnp_success(pgp_key_validate(primary_pub, pubring));
+        pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
     }
 
@@ -1113,9 +1113,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_non_null(sub_sec);
 
         // validate via an alternative method
-        assert_rnp_success(pgp_key_validate(sub_pub, pubring));
+        pgp_key_validate(sub_pub, pubring);
         assert_true(sub_pub->valid);
-        assert_rnp_success(pgp_key_validate(sub_sec, pubring));
+        pgp_key_validate(sub_sec, pubring);
         assert_true(sub_sec->valid);
     }
 
