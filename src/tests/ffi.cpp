@@ -5502,6 +5502,116 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_stripped_keys_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* load stripped key as keyring */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    /* validate signatures - must succeed */
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_op_verify_signature_t sig;
+    /* signature 1 - by primary key */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    /* signature 2 - by subkey */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+
+    /* load stripped key by parts via import */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/case8/subkey.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    /* validate signatures - must be valid */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* signature 1 - by primary key */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    /* signature 2 - by subkey */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+
+    /* load stripped key with subkey first */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/case8/subkey.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    /* validate signatures - must be valid */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* signature 1 - by primary key */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    /* signature 2 - by subkey */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    rnp_op_verify_destroy(verify);
+
+    /* load stripped key without subkey binding */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/subkey-no-sig.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    /* validate signatures - must be invalid */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    /* signature 1 - by primary key */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_SIGNATURE_INVALID);
+    /* signature 2 - by subkey */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 1, &sig));
+    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_op_verify_destroy(verify);
+
+    rnp_ffi_destroy(ffi);
+}
+
 static std::vector<uint8_t>
 read_file_to_vector(const char *valid_key_path)
 {
