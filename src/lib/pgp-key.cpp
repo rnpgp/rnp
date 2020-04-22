@@ -2212,7 +2212,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
 }
 
 static rnp_result_t
-pgp_key_validate_primary(pgp_key_t *key)
+pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
 {
     /* validate signatures if needed */
     pgp_key_validate_self_signatures(key);
@@ -2242,17 +2242,31 @@ pgp_key_validate_primary(pgp_key_t *key)
         }
     }
 
-    key->valid = has_cert || pgp_key_is_secret(key);
+    if (has_cert || pgp_key_is_secret(key)) {
+        key->valid = true;
+        return RNP_SUCCESS;
+    }
+
+    /* let's check whether key has at least one valid subkey binding */
+    for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
+        pgp_key_t *sub = pgp_key_get_subkey(key, keyring, i);
+        pgp_subkey_validate_self_signatures(sub, key);
+        pgp_subsig_t *sig = pgp_key_latest_binding(sub, true);
+        if (sig && sig->validated && sig->valid) {
+            key->valid = true;
+            return RNP_SUCCESS;
+        }
+    }
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
+rnp_result_t
 pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
      * non-expired binding signature (or is secret), and is not revoked. */
     subkey->valid = false;
-    if (!key->valid) {
+    if (!key || !key->valid) {
         return RNP_SUCCESS;
     }
     /* validate signatures if needed */
@@ -2292,7 +2306,7 @@ pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
 
     key->valid = false;
     if (!pgp_key_is_subkey(key)) {
-        res = pgp_key_validate_primary(key);
+        res = pgp_key_validate_primary(key, keyring);
         goto done;
     }
 

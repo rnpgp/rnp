@@ -497,6 +497,8 @@ pgp_key_t *find_suitable_key(pgp_op_t            op,
  */
 pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey);
 
+rnp_result_t pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key);
+
 rnp_result_t pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring);
 
 #endif // RNP_PACKET_KEY_H
