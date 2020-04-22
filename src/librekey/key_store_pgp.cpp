@@ -175,6 +175,9 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
         return false;
     }
 
+    /* temporary disable key validation */
+    keyring->disable_validation = true;
+
     /* add key to the storage before subkeys */
     if (!(addkey = rnp_key_store_add_key(keyring, &key))) {
         RNP_LOG("Failed to add key to key store.");
@@ -189,6 +192,20 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
         }
     }
 
+    /* now validate/refresh the whole key with subkeys */
+    keyring->disable_validation = false;
+    pgp_key_validate(addkey, keyring);
+    /* validate/re-validate all subkeys as well */
+    for (list_item *grip = list_front(addkey->subkey_grips); grip; grip = list_next(grip)) {
+        pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+        if (subkey) {
+            pgp_key_validate_subkey(subkey, addkey);
+            pgp_subkey_refresh_data(subkey, addkey);
+        }
+    }
+    if (!pgp_key_refresh_data(addkey)) {
+        RNP_LOG("Failed to refresh key data");
+    }
     return true;
 error:
     if (addkey) {
