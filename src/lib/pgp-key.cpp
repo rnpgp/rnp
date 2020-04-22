@@ -2221,6 +2221,7 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
      * self-signature (or it is secret), and is not revoked */
     key->valid = false;
     bool has_cert = false;
+    bool has_expired = false;
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
         pgp_subsig_t *sig = pgp_key_get_subsig(key, i);
         if (!sig->validated || !sig->valid) {
@@ -2229,22 +2230,26 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
 
         if (pgp_sig_is_self_signature(key, sig) && !has_cert) {
             /* check whether key is expired */
-            if (signature_has_key_expiration(&sig->sig)) {
-                time_t expiry =
-                  pgp_key_get_creation(key) + signature_get_key_expiration(&sig->sig);
-                if (expiry < time(NULL)) {
-                    continue;
-                }
+            if (!signature_has_key_expiration(&sig->sig)) {
+                has_cert = true;
+                continue;
             }
-            has_cert = true;
+            time_t expiry =
+              pgp_key_get_creation(key) + signature_get_key_expiration(&sig->sig);
+            has_expired = expiry < time(NULL);
+            has_cert = !has_expired;
         } else if (pgp_sig_is_key_revocation(key, sig)) {
             return RNP_SUCCESS;
         }
     }
-
+    /* we have at least one non-expiring key self-signature or secret key */
     if (has_cert || pgp_key_is_secret(key)) {
         key->valid = true;
         return RNP_SUCCESS;
+    }
+    /* we have valid self-signature which expires key */
+    if (has_expired) {
+        return;
     }
 
     /* let's check whether key has at least one valid subkey binding */
