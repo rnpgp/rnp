@@ -35,3 +35,8 @@ Case7:
 Keys Alice [pub, sub]
 Alice subkey has revocation signature by Alice
 Result: Alice [valid], Alice sub [invalid]
+
+Case8:
+Keys Alice [pub, sub]
+Userid is stripped from the key, but it still has valid subkey binding
+Result; Alice [valid], Alice sub[valid]
