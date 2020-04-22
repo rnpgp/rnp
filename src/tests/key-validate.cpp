@@ -465,4 +465,19 @@ TEST_F(rnp_tests, test_key_validity)
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid);
     rnp_key_store_free(pubring);
+
+    /* Case8:
+     * Keys Alice [pub, sub]
+     * Userid is stripped from the key, but it still has valid subkey binding
+     * Result: Alice [valid], Alice sub[valid]
+     */
+    pubring = rnp_key_store_new(PGP_KEY_STORE_GPG, KEYSIG_PATH "case8/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
+    assert_true(key->valid);
+    assert_int_equal(pgp_key_get_subkey_count(key), 1);
+    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_true(subkey->valid);
+    rnp_key_store_free(pubring);
 }
