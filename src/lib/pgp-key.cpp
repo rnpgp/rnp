@@ -2258,10 +2258,19 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
         pgp_key_t *sub = pgp_key_get_subkey(key, keyring, i);
         pgp_subkey_validate_self_signatures(sub, key);
         pgp_subsig_t *sig = pgp_key_latest_binding(sub, true);
-        if (sig && sig->validated && sig->valid) {
-            key->valid = true;
-            return;
+        if (!sig) {
+            continue;
         }
+        /* check whether subkey is expired - then do not mark key as valid */
+        if (signature_has_key_expiration(&sig->sig)) {
+            time_t expiry =
+              pgp_key_get_creation(sub) + signature_get_key_expiration(&sig->sig);
+            if (expiry < time(NULL)) {
+                continue;
+            }
+        }
+        key->valid = true;
+        return;
     }
 }
 
