@@ -1010,6 +1010,10 @@ pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig)
     }
     if (signature_has_key_server(&subsig->sig)) {
         subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
+        if (!subsig->prefs.key_server) {
+            RNP_LOG("failed to alloc ks");
+            goto error;
+        }
     }
 
     return true;
@@ -1250,6 +1254,8 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
     /* subkey flags */
     if (sig && signature_has_key_flags(&sig->sig)) {
         sub->key_flags = sig->key_flags;
+    } else {
+        sub->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(sub));
     }
     /* revocation */
     pgp_key_clear_revokes(sub);
