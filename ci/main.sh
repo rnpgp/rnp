@@ -57,7 +57,7 @@ fi
 mkdir -p "${LOCAL_BUILDS}/rnp-build/Testing/Temporary"
 cp "${rnpsrc}/cmake/CTestCostData.txt" "${LOCAL_BUILDS}/rnp-build/Testing/Temporary"
 
-ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
+ctest -j"${CTEST_PARALLEL}" -V -R "$RNP_TESTS"
 popd
 
 exit 0
