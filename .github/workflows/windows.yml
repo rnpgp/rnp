@@ -17,6 +17,12 @@ jobs:
     runs-on: windows-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 50
+    strategy:
+      matrix:
+        env:
+          - RNP_TESTS: rnp_tests
+          - RNP_TESTS: cli_tests
+    env: ${{ matrix.env }}
     steps:
       - name: Disable git eol translation
         run: git config --global core.autocrlf false
