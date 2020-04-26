@@ -575,13 +575,19 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     }
     exkey = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
+    keyring->disable_validation = true;
     if (!(exkey = rnp_key_store_add_key(keyring, &keycp))) {
+        keyring->disable_validation = false;
         RNP_LOG("failed to add key to the keyring");
         pgp_key_free_data(&keycp);
         return NULL;
     }
-
+    keyring->disable_validation = false;
     changed = pgp_key_get_rawpacket_count(exkey) > expackets;
+    if (changed) {
+        /* this will revalidated primary key with all subkeys */
+        pgp_key_revalidate_updated(exkey, keyring);
+    }
     if (status) {
         *status = changed ?
                     (expackets ? PGP_KEY_IMPORT_STATUS_UPDATED : PGP_KEY_IMPORT_STATUS_NEW) :
