@@ -497,6 +497,9 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG("allocation failed");
             return NULL;
         }
+        if (primary && !pgp_key_link_subkey_grip(primary, oldkey)) {
+            RNP_LOG("failed to link subkey grip");
+        }
     }
 
     RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
