@@ -93,7 +93,7 @@ signature_add_subpkt(pgp_signature_t *        sig,
     }
 
     if (reuse && (subpkt = signature_get_subpkt(sig, type))) {
-        free(subpkt->data);
+        free_signature_subpkt(subpkt);
         memset(subpkt, 0, sizeof(*subpkt));
     }
 
@@ -110,7 +110,6 @@ signature_add_subpkt(pgp_signature_t *        sig,
 
     subpkt->type = type;
     subpkt->len = datalen;
-
     return subpkt;
 }
 
