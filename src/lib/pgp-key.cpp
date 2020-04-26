@@ -2247,6 +2247,9 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
     /* let's check whether key has at least one valid subkey binding */
     for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
         pgp_key_t *sub = pgp_key_get_subkey(key, keyring, i);
+        if (!sub) {
+            continue;
+        }
         pgp_subkey_validate_self_signatures(sub, key);
         pgp_subsig_t *sig = pgp_key_latest_binding(sub, true);
         if (!sig) {
