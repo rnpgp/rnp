@@ -539,21 +539,10 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     }
 
     RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
-    /* validate all added keys if not disabled */
+    /* validate all added keys if not disabled or already validated */
     if (!keyring->disable_validation && !added_key->validated) {
-        pgp_key_validate(added_key, keyring);
-        /* validate/re-validate all subkeys as well */
-        for (list_item *grip = list_front(added_key->subkey_grips); grip;
-             grip = list_next(grip)) {
-            pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
-            if (subkey) {
-                pgp_key_validate_subkey(subkey, added_key);
-                pgp_subkey_refresh_data(subkey, added_key);
-            }
-        }
-    }
-
-    if (!pgp_key_refresh_data(added_key)) {
+        pgp_key_revalidate_updated(added_key, keyring);
+    } else if (!pgp_key_refresh_data(added_key)) {
         RNP_LOG("Failed to refresh key data");
     }
     return added_key;
