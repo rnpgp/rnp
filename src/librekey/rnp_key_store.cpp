@@ -340,7 +340,10 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     }
     /* copy validity status */
     tmpkey.valid = dst->valid && src->valid;
-    tmpkey.validated = dst->validated && src->validated && dst->valid;
+    /* we may safely leave validated status only if both merged subkeys are valid && validated.
+     * Otherwise we'll need to revalidate. For instance, one validated but invalid subkey may
+     * add revocation signature, or valid subkey may add binding to the invalid one. */
+    tmpkey.validated = dst->validated && src->validated && tmpkey.valid;
 
     pgp_key_free_data(dst);
     *dst = tmpkey;
@@ -411,7 +414,10 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     }
     /* copy validity status */
     tmpkey.valid = dst->valid && src->valid;
-    tmpkey.validated = dst->validated && src->validated && dst->valid;
+    /* We may safely leave validated status only if both merged keys are valid && validated.
+     * Otherwise we'll need to revalidate. For instance, one validated but invalid key may add
+     * revocation signature, or valid key may add certification to the invalid one. */
+    tmpkey.validated = dst->validated && src->validated && tmpkey.valid;
 
     pgp_key_free_data(dst);
     *dst = tmpkey;
