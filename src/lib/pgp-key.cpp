@@ -2324,3 +2324,29 @@ pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
           key, rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(key)));
     }
 }
+
+void
+pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
+{
+    if (pgp_key_is_subkey(key)) {
+        pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
+        if (primary) {
+            pgp_key_revalidate_updated(primary, keyring);
+        }
+        return;
+    }
+
+    pgp_key_validate(key, keyring);
+    /* validate/re-validate all subkeys as well */
+    for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
+        pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+        if (subkey) {
+            pgp_key_validate_subkey(subkey, key);
+            pgp_subkey_refresh_data(subkey, key);
+        }
+    }
+
+    if (!pgp_key_refresh_data(key)) {
+        RNP_LOG("Failed to refresh key data");
+    }
+}

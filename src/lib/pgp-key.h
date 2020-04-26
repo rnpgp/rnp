@@ -501,4 +501,6 @@ void pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key);
 
 void pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring);
 
+void pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring);
+
 #endif // RNP_PACKET_KEY_H
