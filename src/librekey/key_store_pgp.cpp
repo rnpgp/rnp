@@ -113,8 +113,6 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 
     /* add it to the storage */
     bool res = rnp_key_store_add_key(keyring, &skey);
-    pgp_key_free_data(&skey);
-
     if (!res) {
         RNP_LOG("Failed to add subkey to key store.");
     }
@@ -178,7 +176,6 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 
     /* add key to the storage before subkeys */
     addkey = rnp_key_store_add_key(keyring, &key);
-    pgp_key_free_data(&key);
     if (!addkey) {
         RNP_LOG("Failed to add key to key store.");
         return false;
@@ -199,7 +196,6 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     return true;
 error:
     /* during key addition all fields are copied so will be cleaned below */
-    pgp_key_free_data(addkey);
     rnp_key_store_remove_key(keyring, addkey);
     return false;
 }
@@ -215,21 +211,18 @@ rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 
     /* add direct-key signatures */
     if (!rnp_key_add_signatures(key, tkey->signatures)) {
-        goto error;
+        return false;
     }
 
     /* add userids and their signatures */
     for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
         pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
         if (!rnp_key_add_transferable_userid(key, tuid)) {
-            goto error;
+            return false;
         }
     }
 
     return true;
-error:
-    pgp_key_free_data(key);
-    return false;
 }
 
 bool
@@ -247,18 +240,15 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
     /* add subkey binding signatures */
     if (!rnp_key_add_signatures(subkey, tskey->signatures)) {
         RNP_LOG("failed to add subkey signatures");
-        goto error;
+        return false;
     }
 
     /* setup key grips if primary is available */
     if (primary && !pgp_key_link_subkey_grip(primary, subkey)) {
-        goto error;
+        return false;
     }
 
     return true;
-error:
-    pgp_key_free_data(subkey);
-    return false;
 }
 
 rnp_result_t

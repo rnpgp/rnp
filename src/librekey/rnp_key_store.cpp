@@ -244,7 +244,7 @@ void
 rnp_key_store_clear(rnp_key_store_t *keyring)
 {
     for (list_item *key = list_front(keyring->keys); key; key = list_next(key)) {
-        pgp_key_free_data((pgp_key_t *) key);
+        ((pgp_key_t *) key)->~pgp_key_t();
     }
     list_destroy(&keyring->keys);
 
@@ -345,8 +345,7 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
      * add revocation signature, or valid subkey may add binding to the invalid one. */
     tmpkey.validated = dst->validated && src->validated && tmpkey.valid;
 
-    pgp_key_free_data(dst);
-    *dst = tmpkey;
+    *dst = std::move(tmpkey);
     res = true;
 done:
     transferable_subkey_destroy(&dstkey);
@@ -419,8 +418,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
      * revocation signature, or valid key may add certification to the invalid one. */
     tmpkey.validated = dst->validated && src->validated && tmpkey.valid;
 
-    pgp_key_free_data(dst);
-    *dst = tmpkey;
+    *dst = std::move(tmpkey);
     res = true;
 done:
     transferable_key_destroy(&dstkey);
@@ -584,7 +582,6 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
     keyring->disable_validation = true;
     exkey = rnp_key_store_add_key(keyring, &keycp);
-    pgp_key_free_data(&keycp);
     keyring->disable_validation = false;
     if (!exkey) {
         RNP_LOG("failed to add key to the keyring");
@@ -645,14 +642,11 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
         !pgp_subkey_refresh_data(&tmpkey, primary)) {
         RNP_LOG("Failed to add signature to the key.");
-        pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
     size_t expackets = pgp_key_get_rawpacket_count(key);
     key = rnp_key_store_add_key(keyring, &tmpkey);
-    pgp_key_free_data(&tmpkey);
-
     if (!key) {
         RNP_LOG("Failed to add key with imported sig to the keyring");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -679,13 +673,11 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
         !pgp_key_refresh_data(&tmpkey)) {
         RNP_LOG("Failed to add signature to the key.");
-        pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
     size_t expackets = pgp_key_get_rawpacket_count(key);
     key = rnp_key_store_add_key(keyring, &tmpkey);
-    pgp_key_free_data(&tmpkey);
     if (!key) {
         RNP_LOG("Failed to add key with imported sig to the keyring");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -727,6 +719,7 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
     if (!list_is_member(keyring->keys, (list_item *) key)) {
         return false;
     }
+    key->~pgp_key_t();
     list_remove((list_item *) key);
     return true;
 }
