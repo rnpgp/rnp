@@ -54,6 +54,7 @@
 
 #include <stdbool.h>
 #include <stdio.h>
+#include <vector>
 #include "pass-provider.h"
 #include <rekey/rnp_key_store.h>
 #include "crypto/symmetric.h"
@@ -61,10 +62,10 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    list          uids;         /* list of user ids as (char*) */
-    list          packets;      /* list of raw packets as pgp_rawpacket_t */
-    list          subsigs;      /* list of signatures as pgp_subsig_t */
-    list          revokes;      /* list of signature revocations pgp_revoke_t */
+    list                      uids;    /* list of user ids as (char*) */
+    list                      packets; /* list of raw packets as pgp_rawpacket_t */
+    std::vector<pgp_subsig_t> subsigs; /* list of signatures as pgp_subsig_t */
+    list                      revokes; /* list of signature revocations pgp_revoke_t */
     list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
     uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
     bool          primary_grip_set;
@@ -272,7 +273,8 @@ pgp_subsig_t *pgp_key_add_subsig(pgp_key_t *);
 
 size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
-pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
+const pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
+pgp_subsig_t *      pgp_key_get_subsig(pgp_key_t *, size_t);
 
 bool pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig);
 
