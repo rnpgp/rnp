@@ -297,7 +297,7 @@ pgp_key_free_data(pgp_key_t *key)
     for (n = 0; n < pgp_key_get_userid_count(key); ++n) {
         pgp_userid_free(pgp_key_get_userid(key, n));
     }
-    list_destroy(&key->uids);
+    key->uids.clear();
 
     for (n = 0; n < pgp_key_get_rawpacket_count(key); ++n) {
         pgp_rawpacket_free(pgp_key_get_rawpacket(key, n));
@@ -875,22 +875,22 @@ pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey)
     return true;
 }
 
-/**
-\ingroup Core_Keys
-\brief How many User IDs in this key?
-\param key Key to check
-\return Num of user ids
-*/
 size_t
 pgp_key_get_userid_count(const pgp_key_t *key)
 {
-    return list_length(key->uids);
+    return key->uids.size();
+}
+
+const pgp_userid_t *
+pgp_key_get_userid(const pgp_key_t *key, size_t idx)
+{
+    return (idx < key->uids.size()) ? &key->uids[idx] : NULL;
 }
 
 pgp_userid_t *
-pgp_key_get_userid(const pgp_key_t *key, size_t idx)
+pgp_key_get_userid(pgp_key_t *key, size_t idx)
 {
-    return (pgp_userid_t *) list_at(key->uids, idx);
+    return (idx < key->uids.size()) ? &key->uids[idx] : NULL;
 }
 
 pgp_revoke_t *
@@ -908,20 +908,23 @@ pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
 bool
 pgp_key_has_userid(const pgp_key_t *key, const char *uid)
 {
-    for (list_item *li = list_front(key->uids); li; li = list_next(li)) {
-        pgp_userid_t *userid = (pgp_userid_t *) li;
-        if (!strcmp(uid, userid->str)) {
+    for (auto &userid : key->uids) {
+        if (!strcmp(uid, userid.str)) {
             return true;
         }
     }
-
     return false;
 }
 
 pgp_userid_t *
 pgp_key_add_userid(pgp_key_t *key)
 {
-    return (pgp_userid_t *) list_append(&key->uids, NULL, sizeof(pgp_userid_t));
+    try {
+        key->uids.push_back({});
+    } catch (...) {
+        return NULL;
+    }
+    return &key->uids.back();
 }
 
 pgp_revoke_t *
