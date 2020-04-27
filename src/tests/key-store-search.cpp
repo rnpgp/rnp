@@ -71,6 +71,7 @@ TEST_F(rnp_tests, test_key_store_search)
             }
             // add to the store
             assert_true(rnp_key_store_add_key(store, &key));
+            pgp_key_free_data(&key);
         }
     }
 

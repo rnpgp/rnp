@@ -1010,6 +1010,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
           psig, pgp_key_get_pkt(&pub), &uid, pgp_key_get_material(&pub)));
         assert_rnp_failure(signature_validate_certification(
           ssig, pgp_key_get_pkt(&sec), &uid, pgp_key_get_material(&sec)));
+        pgp_key_free_data(&pub);
+        pgp_key_free_data(&sec);
 
         // validate via an alternative method
         // primary_pub + pubring
@@ -1135,6 +1137,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(sub_pub->validated);
         assert_true(sub_sec->valid);
         assert_true(sub_sec->validated);
+        pgp_key_free_data(&pub);
+        pgp_key_free_data(&sec);
 
         // validate via an alternative method
         sub_pub->valid = false;
