@@ -713,7 +713,7 @@ TEST_F(rnp_tests, test_load_merge)
 
 TEST_F(rnp_tests, test_load_public_from_secret)
 {
-    pgp_key_t *      key, *skey1, *skey2, keycp;
+    pgp_key_t *      key, *skey1, *skey2, keycp = {};
     uint8_t          keyid[PGP_KEY_ID_SIZE];
     uint8_t          sub1id[PGP_KEY_ID_SIZE];
     uint8_t          sub2id[PGP_KEY_ID_SIZE];
@@ -741,7 +741,6 @@ TEST_F(rnp_tests, test_load_public_from_secret)
       memcmp(pgp_key_get_subkey_grip(&keycp, 1), pgp_key_get_grip(skey2), PGP_KEY_GRIP_SIZE));
     assert_false(memcmp(pgp_key_get_grip(&keycp), pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE));
     assert_int_equal(pgp_key_get_rawpacket(&keycp, 0)->tag, PGP_PKT_SECRET_KEY);
-    pgp_key_free_data(&keycp);
 
     /* copy the public part */
     assert_rnp_success(pgp_key_copy(&keycp, key, true));
@@ -755,7 +754,6 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
     assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
-    pgp_key_free_data(&keycp);
     /* subkey 1 */
     assert_rnp_success(pgp_key_copy(&keycp, skey1, true));
     assert_false(pgp_key_is_secret(&keycp));
@@ -768,7 +766,6 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
     assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
-    pgp_key_free_data(&keycp);
     /* subkey 2 */
     assert_rnp_success(pgp_key_copy(&keycp, skey2, true));
     assert_false(pgp_key_is_secret(&keycp));
@@ -781,7 +778,6 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
     assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
-    pgp_key_free_data(&keycp);
     /* save pubring */
     assert_true(rnp_key_store_write_to_path(pubstore));
     rnp_key_store_free(pubstore);

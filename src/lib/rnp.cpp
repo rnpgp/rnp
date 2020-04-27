@@ -1087,7 +1087,6 @@ do_load_keys(rnp_ffi_t              ffi,
 
             if (!rnp_key_store_add_key(ffi->secring, key)) {
                 FFI_LOG(ffi, "Failed to add secret key");
-                pgp_key_free_data(&keycp);
                 ret = RNP_ERROR_GENERIC;
                 goto done;
             }
@@ -1112,18 +1111,15 @@ do_load_keys(rnp_ffi_t              ffi,
 
         if (key_needs_conversion(key, ffi->pubring)) {
             FFI_LOG(ffi, "This key format conversion is not yet supported");
-            pgp_key_free_data(&keycp);
             ret = RNP_ERROR_NOT_IMPLEMENTED;
             goto done;
         }
 
         if (!rnp_key_store_add_key(ffi->pubring, &keycp)) {
             FFI_LOG(ffi, "Failed to add public key");
-            pgp_key_free_data(&keycp);
             ret = RNP_ERROR_GENERIC;
             goto done;
         }
-        pgp_key_free_data(&keycp);
     }
 
     // success, even if we didn't actually load any
@@ -3329,7 +3325,6 @@ rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
         if (!key->ffi->pubring || !key->pub) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        pgp_key_free_data(key->pub);
         if (!rnp_key_store_remove_key(key->ffi->pubring, key->pub)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
@@ -3339,7 +3334,6 @@ rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
         if (!key->ffi->secring || !key->sec) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        pgp_key_free_data(key->sec);
         if (!rnp_key_store_remove_key(key->ffi->secring, key->sec)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
@@ -4002,10 +3996,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
 
     ret = RNP_SUCCESS;
 done:
-    pgp_key_free_data(&primary_pub);
-    pgp_key_free_data(&primary_sec);
-    pgp_key_free_data(&sub_pub);
-    pgp_key_free_data(&sub_sec);
     json_object_put(jso);
     free(identifier_type);
     free(identifier);
@@ -4681,17 +4671,13 @@ done:
         op->password = NULL;
     }
     if (ret && op->gen_pub) {
-        pgp_key_free_data(op->gen_pub);
         rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub);
         op->gen_pub = NULL;
     }
     if (ret && op->gen_sec) {
-        pgp_key_free_data(op->gen_sec);
         rnp_key_store_remove_key(op->ffi->secring, op->gen_sec);
         op->gen_sec = NULL;
     }
-    pgp_key_free_data(&sec);
-    pgp_key_free_data(&pub);
     return ret;
 }
 

@@ -82,9 +82,15 @@ struct pgp_key_t {
     pgp_key_store_format_t format;       /* the format of the key in packets[0] */
     bool                   valid;        /* this key is valid and usable */
     bool                   validated;    /* this key was validated */
-};
 
-struct pgp_key_t *pgp_key_new(void);
+    ~pgp_key_t();
+    pgp_key_t() = default;
+    pgp_key_t &operator=(pgp_key_t &&);
+    /* make sure we use only empty constructor/move operator */
+    pgp_key_t(const pgp_key_t &src) = delete;
+    pgp_key_t(pgp_key_t &&src) = delete;
+    pgp_key_t &operator=(const pgp_key_t &) = delete;
+};
 
 /**
  * @brief Create pgp_key_t object from the OpenPGP key packet.
@@ -94,20 +100,6 @@ struct pgp_key_t *pgp_key_new(void);
  * @return true if operation succeeded or false otherwise.
  */
 bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt);
-
-/** free the internal data of a key *and* the key structure itself
- *
- *  @param key the key
- **/
-void pgp_key_free(pgp_key_t *);
-
-/** free the internal data of a key
- *
- *  This does *not* free the key structure itself.
- *
- *  @param key the key
- **/
-void pgp_key_free_data(pgp_key_t *);
 
 /**
  * @brief Copy key, optionally copying only the public key part.

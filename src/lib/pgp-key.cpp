@@ -189,22 +189,6 @@ revoke_free(pgp_revoke_t *revoke)
     revoke->reason = NULL;
 }
 
-/**
-   \ingroup HighLevel_Keyring
-
-   \brief Creates a new pgp_key_t struct
-
-   \return A new pgp_key_t struct, initialised to zero.
-
-   \note The returned pgp_key_t struct must be freed after use with pgp_key_free.
-*/
-
-pgp_key_t *
-pgp_key_new(void)
-{
-    return (pgp_key_t *) calloc(1, sizeof(pgp_key_t));
-}
-
 static void
 pgp_userid_free(pgp_userid_t *uid)
 {
@@ -285,42 +269,6 @@ pgp_key_clear_revokes(pgp_key_t *key)
     memset(&key->revocation, 0, sizeof(key->revocation));
 }
 
-void
-pgp_key_free_data(pgp_key_t *key)
-{
-    unsigned n;
-
-    if (key == NULL) {
-        return;
-    }
-
-    for (n = 0; n < pgp_key_get_userid_count(key); ++n) {
-        pgp_userid_free(pgp_key_get_userid(key, n));
-    }
-    key->uids.clear();
-
-    for (n = 0; n < pgp_key_get_rawpacket_count(key); ++n) {
-        pgp_rawpacket_free(pgp_key_get_rawpacket(key, n));
-    }
-    key->packets.clear();
-
-    for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
-        pgp_subsig_free(pgp_key_get_subsig(key, n));
-    }
-    key->subsigs.clear();
-
-    pgp_key_clear_revokes(key);
-    list_destroy(&key->subkey_grips);
-    free_key_pkt(&key->pkt);
-}
-
-void
-pgp_key_free(pgp_key_t *key)
-{
-    pgp_key_free_data(key);
-    free(key);
-}
-
 /**
  * @brief Copy key's raw packets. If pubonly is true then dst->pkt must be populated
  */
@@ -349,20 +297,17 @@ pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 static rnp_result_t
 pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     if (pubonly) {
         RNP_LOG("attempt to copy public part from g10 key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    *dst = {};
 
     if (pgp_key_get_rawpacket_count(src) != 1) {
         RNP_LOG("wrong g10 key packets");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    *dst = {};
     if (!copy_key_pkt(&dst->pkt, &src->pkt, false)) {
         RNP_LOG("failed to copy key pkt");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -370,53 +315,39 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 
     if (pgp_key_copy_fields(dst, src)) {
         RNP_LOG("failed to copy key fields");
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
 
     if (pgp_key_copy_raw_packets(dst, src, false)) {
         RNP_LOG("failed to copy raw packets");
-        goto done;
+        return RNP_ERROR_GENERIC;
     }
 
     dst->format = PGP_KEY_STORE_G10;
-    ret = RNP_SUCCESS;
-done:
-    if (ret) {
-        pgp_key_free_data(dst);
-    }
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
 pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    rnp_result_t tmpret;
-    *dst = {};
-
     if (src->format == PGP_KEY_STORE_G10) {
         return pgp_key_copy_g10(dst, src, pubonly);
     }
 
+    *dst = {};
     if (!copy_key_pkt(&dst->pkt, &src->pkt, pubonly)) {
         RNP_LOG("failed to copy key pkt");
-        goto error;
+        return RNP_ERROR_GENERIC;
     }
 
-    if ((tmpret = pgp_key_copy_fields(dst, src))) {
-        ret = tmpret;
-        goto error;
+    rnp_result_t ret;
+    if ((ret = pgp_key_copy_fields(dst, src))) {
+        return ret;
     }
-
-    if ((tmpret = pgp_key_copy_raw_packets(dst, src, pubonly))) {
-        ret = tmpret;
-        goto error;
+    if ((ret = pgp_key_copy_raw_packets(dst, src, pubonly))) {
+        return ret;
     }
-
     return RNP_SUCCESS;
-error:
-    pgp_key_free_data(dst);
-    return ret;
 }
 
 static rnp_result_t
@@ -515,17 +446,15 @@ rnp_result_t
 pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 {
     rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
-    rnp_result_t tmpret;
 
     /* uids */
     for (size_t i = 0; i < pgp_key_get_userid_count(src); i++) {
         pgp_userid_t *uid = pgp_key_add_userid(dst);
         if (!uid) {
-            goto error;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((tmpret = pgp_userid_copy(uid, pgp_key_get_userid(src, i)))) {
-            ret = tmpret;
-            goto error;
+        if ((ret = pgp_userid_copy(uid, pgp_key_get_userid(src, i)))) {
+            return ret;
         }
     }
 
@@ -533,11 +462,10 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     for (size_t i = 0; i < pgp_key_get_subsig_count(src); i++) {
         pgp_subsig_t *subsig = pgp_key_add_subsig(dst);
         if (!subsig) {
-            goto error;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((tmpret = pgp_subsig_copy(subsig, pgp_key_get_subsig(src, i)))) {
-            ret = tmpret;
-            goto error;
+        if ((ret = pgp_subsig_copy(subsig, pgp_key_get_subsig(src, i)))) {
+            return ret;
         }
     }
 
@@ -545,18 +473,17 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     for (size_t i = 0; i < pgp_key_get_revoke_count(src); i++) {
         pgp_revoke_t *revoke = pgp_key_add_revoke(dst);
         if (!revoke) {
-            goto error;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((tmpret = pgp_revoke_copy(revoke, pgp_key_get_revoke(src, i)))) {
-            ret = tmpret;
-            goto error;
+        if ((ret = pgp_revoke_copy(revoke, pgp_key_get_revoke(src, i)))) {
+            return ret;
         }
     }
 
     /* subkey grips */
     for (list_item *grip = list_front(src->subkey_grips); grip; grip = list_next(grip)) {
         if (!list_append(&dst->subkey_grips, grip, PGP_KEY_GRIP_SIZE)) {
-            goto error;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
@@ -583,9 +510,9 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* revocation */
     dst->revoked = src->revoked;
-    tmpret = pgp_revoke_copy(&dst->revocation, &src->revocation);
-    if (tmpret) {
-        goto error;
+    ret = pgp_revoke_copy(&dst->revocation, &src->revocation);
+    if (ret) {
+        return ret;
     }
 
     /* key store format */
@@ -596,9 +523,6 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     dst->validated = src->validated;
 
     return RNP_SUCCESS;
-error:
-    pgp_key_free_data(dst);
-    return ret;
 }
 
 /**
@@ -2380,4 +2304,76 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
     if (!pgp_key_refresh_data(key)) {
         RNP_LOG("Failed to refresh key data");
     }
+}
+
+pgp_key_t::~pgp_key_t()
+{
+    for (size_t n = 0; n < pgp_key_get_userid_count(this); ++n) {
+        pgp_userid_free(pgp_key_get_userid(this, n));
+    }
+    this->uids.clear();
+
+    for (size_t n = 0; n < pgp_key_get_rawpacket_count(this); ++n) {
+        pgp_rawpacket_free(pgp_key_get_rawpacket(this, n));
+    }
+    this->packets.clear();
+
+    for (size_t n = 0; n < pgp_key_get_subsig_count(this); n++) {
+        pgp_subsig_free(pgp_key_get_subsig(this, n));
+    }
+    this->subsigs.clear();
+
+    pgp_key_clear_revokes(this);
+    list_destroy(&this->subkey_grips);
+    free_key_pkt(&this->pkt);
+}
+
+pgp_key_t &
+pgp_key_t::operator=(pgp_key_t &&src)
+{
+    if (&src == this) {
+        return *this;
+    }
+    /* need to manually free elements until destructor provided */
+    for (auto uid : uids) {
+        pgp_userid_free(&uid);
+    }
+    uids.clear();
+    uids = std::move(src.uids);
+    for (auto packet : packets) {
+        pgp_rawpacket_free(&packet);
+    }
+    packets.clear();
+    packets = std::move(src.packets);
+    for (auto subsig : subsigs) {
+        pgp_subsig_free(&subsig);
+    }
+    subsigs.clear();
+    subsigs = std::move(src.subsigs);
+    pgp_key_clear_revokes(this);
+    revokes = std::move(src.revokes);
+
+    list_destroy(&subkey_grips);
+    subkey_grips = src.subkey_grips;
+    src.subkey_grips = NULL;
+    memcpy(primary_grip, src.primary_grip, sizeof(primary_grip));
+    primary_grip_set = src.primary_grip_set;
+    expiration = src.expiration;
+    free_key_pkt(&pkt);
+    pkt = src.pkt;
+    src.pkt = {};
+    key_flags = src.key_flags;
+    memcpy(keyid, src.keyid, sizeof(keyid));
+    fingerprint = src.fingerprint;
+    memcpy(grip, src.grip, sizeof(grip));
+    uid0 = src.uid0;
+    uid0_set = src.uid0_set;
+    revoked = src.revoked;
+    revocation = src.revocation;
+    src.revocation = {};
+    format = src.format;
+    valid = src.valid;
+    validated = src.validated;
+
+    return *this;
 }
