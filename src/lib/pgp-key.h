@@ -62,10 +62,10 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    list                      uids;    /* list of user ids as (char*) */
-    list                      packets; /* list of raw packets as pgp_rawpacket_t */
-    std::vector<pgp_subsig_t> subsigs; /* list of signatures as pgp_subsig_t */
-    list                      revokes; /* list of signature revocations pgp_revoke_t */
+    list                         uids;    /* list of user ids as (char*) */
+    std::vector<pgp_rawpacket_t> packets; /* list of raw packets as pgp_rawpacket_t */
+    std::vector<pgp_subsig_t>    subsigs; /* list of signatures as pgp_subsig_t */
+    list                         revokes; /* list of signature revocations pgp_revoke_t */
     list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
     uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
     bool          primary_grip_set;
@@ -320,7 +320,8 @@ pgp_rawpacket_t *pgp_key_add_uid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_
 
 size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
-pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
+pgp_rawpacket_t *      pgp_key_get_rawpacket(pgp_key_t *, size_t);
+const pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
 
 /**
  * @brief Get the number of pgp key's subkeys.

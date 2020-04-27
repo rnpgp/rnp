@@ -302,7 +302,7 @@ pgp_key_free_data(pgp_key_t *key)
     for (n = 0; n < pgp_key_get_rawpacket_count(key); ++n) {
         pgp_rawpacket_free(pgp_key_get_rawpacket(key, n));
     }
-    list_destroy(&key->packets);
+    key->packets.clear();
 
     for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
         pgp_subsig_free(pgp_key_get_subsig(key, n));
@@ -337,7 +337,7 @@ pgp_key_copy_raw_packets(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
     }
 
     for (size_t i = start; i < pgp_key_get_rawpacket_count(src); i++) {
-        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(src, i);
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(src, i);
         if (!pgp_key_add_rawpacket(dst, pkt->raw, pkt->length, pkt->tag)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -791,9 +791,9 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     pgp_key_pkt_t *               decrypted_seckey = NULL;
     typedef struct pgp_key_pkt_t *pgp_seckey_decrypt_t(
       const uint8_t *data, size_t data_len, const pgp_key_pkt_t *pubkey, const char *password);
-    pgp_seckey_decrypt_t *decryptor = NULL;
-    pgp_rawpacket_t *     packet = NULL;
-    char                  password[MAX_PASSWORD_LENGTH] = {0};
+    pgp_seckey_decrypt_t * decryptor = NULL;
+    const pgp_rawpacket_t *packet = NULL;
+    char                   password[MAX_PASSWORD_LENGTH] = {0};
 
     // sanity checks
     if (!key || !pgp_key_is_secret(key) || !provider) {
@@ -1460,12 +1460,17 @@ pgp_rawpacket_t *
 pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_pkt_type_t tag)
 {
     pgp_rawpacket_t *packet;
-    if (!(packet = (pgp_rawpacket_t *) list_append(&key->packets, NULL, sizeof(*packet)))) {
+
+    try {
+        key->packets.push_back({});
+        packet = &key->packets.back();
+    } catch (...) {
         return NULL;
     }
+
     if (data) {
         if (!(packet->raw = (uint8_t *) malloc(len))) {
-            list_remove((list_item *) packet);
+            key->packets.pop_back();
             return NULL;
         }
         memcpy(packet->raw, data, len);
@@ -1509,12 +1514,13 @@ pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt)
     if (!pgp_signature_to_rawpacket(&rawpkt, pkt)) {
         return NULL;
     }
-    pgp_rawpacket_t *res =
-      (pgp_rawpacket_t *) list_append(&key->packets, &rawpkt, sizeof(rawpkt));
-    if (!res) {
+    try {
+        key->packets.push_back(rawpkt);
+        return &key->packets.back();
+    } catch (...) {
         pgp_rawpacket_free(&rawpkt);
+        return NULL;
     }
-    return res;
 }
 
 pgp_rawpacket_t *
@@ -1535,13 +1541,19 @@ pgp_key_add_uid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t *pkt)
 size_t
 pgp_key_get_rawpacket_count(const pgp_key_t *key)
 {
-    return list_length(key->packets);
+    return key->packets.size();
+}
+
+const pgp_rawpacket_t *
+pgp_key_get_rawpacket(const pgp_key_t *key, size_t idx)
+{
+    return (idx < key->packets.size()) ? &key->packets[idx] : NULL;
 }
 
 pgp_rawpacket_t *
-pgp_key_get_rawpacket(const pgp_key_t *key, size_t idx)
+pgp_key_get_rawpacket(pgp_key_t *key, size_t idx)
 {
-    return (pgp_rawpacket_t *) list_at(key->packets, idx);
+    return (idx < key->packets.size()) ? &key->packets[idx] : NULL;
 }
 
 size_t
@@ -2093,7 +2105,7 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
         return false;
     }
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         if (!pkt->raw || !pkt->length) {
             return false;
         }
@@ -2131,7 +2143,7 @@ write_xfer_packets(pgp_dest_t *           dst,
                    bool                   secret)
 {
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
 
         if (!packet_matches(pkt->tag, secret)) {
             RNP_LOG("skipping packet with tag: %d", pkt->tag);
