@@ -112,15 +112,13 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
     }
 
     /* add it to the storage */
-    if (!rnp_key_store_add_key(keyring, &skey)) {
-        RNP_LOG("Failed to add subkey to key store.");
-        goto error;
-    }
-
-    return true;
-error:
+    bool res = rnp_key_store_add_key(keyring, &skey);
     pgp_key_free_data(&skey);
-    return false;
+
+    if (!res) {
+        RNP_LOG("Failed to add subkey to key store.");
+    }
+    return res;
 }
 
 bool
@@ -179,15 +177,18 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     keyring->disable_validation = true;
 
     /* add key to the storage before subkeys */
-    if (!(addkey = rnp_key_store_add_key(keyring, &key))) {
+    addkey = rnp_key_store_add_key(keyring, &key);
+    pgp_key_free_data(&key);
+    if (!addkey) {
         RNP_LOG("Failed to add key to key store.");
-        goto error;
+        return false;
     }
 
     /* add subkeys */
     for (list_item *skey = list_front(tkey->subkeys); skey; skey = list_next(skey)) {
         pgp_transferable_subkey_t *subkey = (pgp_transferable_subkey_t *) skey;
         if (!rnp_key_store_add_transferable_subkey(keyring, subkey, addkey)) {
+            RNP_LOG("Failed to add subkey to key store.");
             goto error;
         }
     }
@@ -197,13 +198,9 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     pgp_key_revalidate_updated(addkey, keyring);
     return true;
 error:
-    if (addkey) {
-        /* during key addition all fields are copied so will be cleaned below */
-        rnp_key_store_remove_key(keyring, addkey);
-        pgp_key_free_data(addkey);
-    } else {
-        pgp_key_free_data(&key);
-    }
+    /* during key addition all fields are copied so will be cleaned below */
+    pgp_key_free_data(addkey);
+    rnp_key_store_remove_key(keyring, addkey);
     return false;
 }
 

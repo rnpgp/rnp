@@ -490,11 +490,15 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG("failed to merge subkey");
             return NULL;
         }
-        pgp_key_free_data(srckey);
     } else {
-        oldkey = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+        oldkey = (pgp_key_t *) list_append(&keyring->keys, NULL, sizeof(*srckey));
         if (!oldkey) {
             RNP_LOG("allocation failed");
+            return NULL;
+        }
+        if (pgp_key_copy(oldkey, srckey, false)) {
+            RNP_LOG("key copying failed");
+            list_remove((list_item *) oldkey);
             return NULL;
         }
         if (primary && !pgp_key_link_subkey_grip(primary, oldkey)) {
@@ -521,7 +525,6 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     pgp_key_t *added_key = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
-        pgp_key_free_data(srckey);
         return added_key;
     }
     /* different processing for subkeys */
@@ -534,11 +537,15 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG("failed to merge key");
             return NULL;
         }
-        pgp_key_free_data(srckey);
     } else {
-        added_key = (pgp_key_t *) list_append(&keyring->keys, srckey, sizeof(*srckey));
+        added_key = (pgp_key_t *) list_append(&keyring->keys, NULL, sizeof(*srckey));
         if (!added_key) {
             RNP_LOG("allocation failed");
+            return NULL;
+        }
+        if (pgp_key_copy(added_key, srckey, false)) {
+            RNP_LOG("key copying failed");
+            list_remove((list_item *) added_key);
             return NULL;
         }
         /* primary key may be added after subkeys, so let's handle this case correctly */
@@ -576,13 +583,13 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     exkey = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
     keyring->disable_validation = true;
-    if (!(exkey = rnp_key_store_add_key(keyring, &keycp))) {
-        keyring->disable_validation = false;
+    exkey = rnp_key_store_add_key(keyring, &keycp);
+    pgp_key_free_data(&keycp);
+    keyring->disable_validation = false;
+    if (!exkey) {
         RNP_LOG("failed to add key to the keyring");
-        pgp_key_free_data(&keycp);
         return NULL;
     }
-    keyring->disable_validation = false;
     changed = pgp_key_get_rawpacket_count(exkey) > expackets;
     if (changed) {
         /* this will revalidated primary key with all subkeys */
@@ -643,9 +650,11 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     }
 
     size_t expackets = pgp_key_get_rawpacket_count(key);
-    if (!(key = rnp_key_store_add_key(keyring, &tmpkey))) {
+    key = rnp_key_store_add_key(keyring, &tmpkey);
+    pgp_key_free_data(&tmpkey);
+
+    if (!key) {
         RNP_LOG("Failed to add key with imported sig to the keyring");
-        pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
     return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
@@ -675,9 +684,10 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     }
 
     size_t expackets = pgp_key_get_rawpacket_count(key);
-    if (!(key = rnp_key_store_add_key(keyring, &tmpkey))) {
+    key = rnp_key_store_add_key(keyring, &tmpkey);
+    pgp_key_free_data(&tmpkey);
+    if (!key) {
         RNP_LOG("Failed to add key with imported sig to the keyring");
-        pgp_key_free_data(&tmpkey);
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
     return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :

@@ -155,7 +155,14 @@ size_t     rnp_key_store_get_key_count(const rnp_key_store_t *);
 pgp_key_t *rnp_key_store_get_key(const rnp_key_store_t *, size_t);
 list       rnp_key_store_get_keys(const rnp_key_store_t *);
 
-pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *, pgp_key_t *);
+/**
+ * @brief Add key to the keystore, copying it.
+ *
+ * @param keyring allocated keyring, cannot be NULL.
+ * @param key key to be added, cannot be NULL.
+ * @return pointer to the added key or NULL if failed.
+ */
+pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *key);
 
 pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
                                     pgp_key_t *,
