@@ -427,10 +427,6 @@ end:
     // we don't need this as we have loaded the encrypted key into primary_sec
     transferable_key_destroy(&tkeysec);
     transferable_key_destroy(&tkeypub);
-    if (!ok) {
-        pgp_key_free_data(primary_pub);
-        pgp_key_free_data(primary_sec);
-    }
     return ok;
 }
 
@@ -559,10 +555,6 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 end:
     transferable_subkey_destroy(&tskeysec);
     transferable_subkey_destroy(&tskeypub);
-    if (!ok) {
-        pgp_key_free_data(subkey_pub);
-        pgp_key_free_data(subkey_sec);
-    }
     if (decrypted_primary_seckey) {
         free_key_pkt(decrypted_primary_seckey);
         free(decrypted_primary_seckey);

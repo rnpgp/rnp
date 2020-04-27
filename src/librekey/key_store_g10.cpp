@@ -1166,7 +1166,6 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
     ret = true;
 done:
     src_close(&memsrc);
-    pgp_key_free_data(&key);
     if (!ret) {
         free_key_pkt(&seckey);
     }
