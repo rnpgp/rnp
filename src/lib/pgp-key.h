@@ -66,10 +66,11 @@ struct pgp_key_t {
     list          subsigs;      /* list of signatures as pgp_subsig_t */
     list          revokes;      /* list of signature revocations pgp_revoke_t */
     list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
-    uint8_t *     primary_grip; /* grip of primary key (for subkeys) */
-    time_t        expiration;   /* key expiration time, if available */
-    pgp_key_pkt_t pkt;          /* pubkey/seckey data packet */
-    uint8_t       key_flags;    /* key flags */
+    uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
+    bool          primary_grip_set;
+    time_t        expiration; /* key expiration time, if available */
+    pgp_key_pkt_t pkt;        /* pubkey/seckey data packet */
+    uint8_t       key_flags;  /* key flags */
     uint8_t       keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t      fingerprint;
     uint8_t                grip[PGP_KEY_GRIP_SIZE];
@@ -236,9 +237,9 @@ const uint8_t *pgp_key_get_primary_grip(const pgp_key_t *key);
  *
  * @param key subkey
  * @param grip buffer with grip, should not be NULL
- * @return true on success or false otherwise (key is not subkey, or allocation failed)
+ * @return void
  */
-bool pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip);
+void pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip);
 
 /**
  * @brief Link key with subkey via primary_grip and subkey_grips list
