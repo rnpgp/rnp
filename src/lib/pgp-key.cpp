@@ -307,7 +307,7 @@ pgp_key_free_data(pgp_key_t *key)
     for (n = 0; n < pgp_key_get_subsig_count(key); n++) {
         pgp_subsig_free(pgp_key_get_subsig(key, n));
     }
-    list_destroy(&key->subsigs);
+    key->subsigs.clear();
 
     pgp_key_clear_revokes(key);
     list_destroy(&key->subkey_grips);
@@ -945,19 +945,30 @@ pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
 pgp_subsig_t *
 pgp_key_add_subsig(pgp_key_t *key)
 {
-    return (pgp_subsig_t *) list_append(&key->subsigs, NULL, sizeof(pgp_subsig_t));
+    try {
+        key->subsigs.push_back({});
+    } catch (...) {
+        return NULL;
+    }
+    return &key->subsigs.back();
 }
 
 size_t
 pgp_key_get_subsig_count(const pgp_key_t *key)
 {
-    return list_length(key->subsigs);
+    return key->subsigs.size();
+}
+
+const pgp_subsig_t *
+pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
+{
+    return (idx < key->subsigs.size()) ? &key->subsigs[idx] : NULL;
 }
 
 pgp_subsig_t *
-pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
+pgp_key_get_subsig(pgp_key_t *key, size_t idx)
 {
-    return (pgp_subsig_t *) list_at(key->subsigs, idx);
+    return (idx < key->subsigs.size()) ? &key->subsigs[idx] : NULL;
 }
 
 static bool
@@ -1038,7 +1049,7 @@ bool
 pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig)
 {
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
+        const pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
         if (signature_pkt_equal(&subsig->sig, sig)) {
             return true;
         }
