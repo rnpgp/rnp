@@ -1085,13 +1085,7 @@ do_load_keys(rnp_ffi_t              ffi,
                 goto done;
             }
 
-            if ((tmpret = pgp_key_copy(&keycp, key, false))) {
-                FFI_LOG(ffi, "Failed to copy secret key");
-                ret = tmpret;
-                goto done;
-            }
-
-            if (!rnp_key_store_add_key(ffi->secring, &keycp)) {
+            if (!rnp_key_store_add_key(ffi->secring, key)) {
                 FFI_LOG(ffi, "Failed to add secret key");
                 pgp_key_free_data(&keycp);
                 ret = RNP_ERROR_GENERIC;
@@ -1129,6 +1123,7 @@ do_load_keys(rnp_ffi_t              ffi,
             ret = RNP_ERROR_GENERIC;
             goto done;
         }
+        pgp_key_free_data(&keycp);
     }
 
     // success, even if we didn't actually load any
@@ -1467,14 +1462,8 @@ done:
 static bool
 copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 {
-    pgp_key_t keycp = {};
     for (list_item *key = list_front(rnp_key_store_get_keys(src)); key; key = list_next(key)) {
-        if (pgp_key_copy(&keycp, (pgp_key_t *) key, false)) {
-            FFI_LOG(ffi, "failed to create key copy");
-            return false;
-        }
-        if (!rnp_key_store_add_key(dest, &keycp)) {
-            pgp_key_free_data(&keycp);
+        if (!rnp_key_store_add_key(dest, (pgp_key_t *) key)) {
             FFI_LOG(ffi, "failed to add key to the store");
             return false;
         }
@@ -3857,12 +3846,10 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
-            primary_pub = (pgp_key_t){0};
             if (!rnp_key_store_add_key(ffi->pubring, &sub_pub)) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
-            sub_pub = (pgp_key_t){0};
         }
         /* add key/subkey protection */
         if (keygen_desc.primary.protection.symm_alg &&
@@ -3887,12 +3874,10 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        primary_sec = (pgp_key_t){0};
         if (!rnp_key_store_add_key(ffi->secring, &sub_sec)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        sub_sec = (pgp_key_t){0};
     } else if (jsoprimary && !jsosub) { // generating primary only
         keygen_desc.primary.keygen.crypto.rng = &ffi->rng;
         if (!parse_keygen_primary(jsoprimary, &keygen_desc)) {
@@ -3915,7 +3900,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
-            primary_pub = (pgp_key_t){0};
         }
         /* encrypt secret key if specified */
         if (keygen_desc.primary.protection.symm_alg &&
@@ -3931,7 +3915,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        primary_sec = (pgp_key_t){0};
     } else if (jsosub) { // generating subkey only
         if (!ffi->pubring) {
             ret = RNP_ERROR_NULL_POINTER;
@@ -3996,7 +3979,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
-            sub_pub = (pgp_key_t){0};
         }
         /* encrypt subkey if specified */
         if (keygen_desc.subkey.protection.symm_alg &&
@@ -4012,7 +3994,6 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        sub_sec = (pgp_key_t){0};
     } else {
         // nothing to generate...
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -4673,7 +4654,6 @@ rnp_op_generate_execute(rnp_op_generate_t op)
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    pub = {};
 
     /* encrypt secret key if requested */
     if (op->password) {
@@ -4693,7 +4673,6 @@ rnp_op_generate_execute(rnp_op_generate_t op)
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    sec = {};
     ret = RNP_SUCCESS;
 done:
     if (op->password) {
