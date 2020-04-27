@@ -449,7 +449,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         }
 
         for (unsigned i = 0; i < pgp_key_get_subsig_count(skey); i++) {
-            pgp_subsig_t *subsig = pgp_key_get_subsig(skey, i);
+            const pgp_subsig_t *subsig = pgp_key_get_subsig(skey, i);
 
             if (subsig->sig.type != PGP_SIG_SUBKEY) {
                 continue;
@@ -823,7 +823,7 @@ rnp_key_store_get_primary_key(const rnp_key_store_t *keyring, const pgp_key_t *s
     }
 
     for (unsigned i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
-        pgp_subsig_t *subsig = pgp_key_get_subsig(subkey, i);
+        const pgp_subsig_t *subsig = pgp_key_get_subsig(subkey, i);
         if (subsig->sig.type != PGP_SIG_SUBKEY) {
             continue;
         }
