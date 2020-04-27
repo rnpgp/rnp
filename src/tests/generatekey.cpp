@@ -915,8 +915,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // primary
     {
-        pgp_key_t                 pub = {0};
-        pgp_key_t                 sec = {0};
+        pgp_key_t                 pub = {};
+        pgp_key_t                 sec = {};
         rnp_keygen_primary_desc_t desc;
         pgp_fingerprint_t         fp = {};
         pgp_sig_subpkt_t *        subpkt = NULL;
@@ -1055,8 +1055,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
     // sub
     {
-        pgp_key_t                pub = {0};
-        pgp_key_t                sec = {0};
+        pgp_key_t                pub = {};
+        pgp_key_t                sec = {};
         rnp_keygen_subkey_desc_t desc;
         pgp_fingerprint_t        fp = {};
         pgp_sig_subpkt_t *       subpkt = NULL;

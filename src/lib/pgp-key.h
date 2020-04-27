@@ -62,9 +62,9 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    list                         uids;    /* list of user ids as (char*) */
-    std::vector<pgp_rawpacket_t> packets; /* list of raw packets as pgp_rawpacket_t */
-    std::vector<pgp_subsig_t>    subsigs; /* list of signatures as pgp_subsig_t */
+    std::vector<pgp_userid_t>    uids;    /* array of user ids */
+    std::vector<pgp_rawpacket_t> packets; /* array of key packets */
+    std::vector<pgp_subsig_t>    subsigs; /* array of key signatures */
     list                         revokes; /* list of signature revocations pgp_revoke_t */
     list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
     uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
@@ -253,7 +253,9 @@ bool pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey);
 
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
-pgp_userid_t *pgp_key_get_userid(const pgp_key_t *, size_t);
+const pgp_userid_t *pgp_key_get_userid(const pgp_key_t *, size_t);
+
+pgp_userid_t *pgp_key_get_userid(pgp_key_t *, size_t);
 
 pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
 
