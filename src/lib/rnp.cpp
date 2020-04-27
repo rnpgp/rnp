@@ -3772,10 +3772,10 @@ rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
     rnp_action_keygen_t keygen_desc = {};
     char *              identifier_type = NULL;
     char *              identifier = NULL;
-    pgp_key_t           primary_pub = {0};
-    pgp_key_t           primary_sec = {0};
-    pgp_key_t           sub_pub = {0};
-    pgp_key_t           sub_sec = {0};
+    pgp_key_t           primary_pub = {};
+    pgp_key_t           primary_sec = {};
+    pgp_key_t           sub_pub = {};
+    pgp_key_t           sub_sec = {};
     json_object *       jsoprimary = NULL;
     json_object *       jsosub = NULL;
     json_tokener_error  error;
@@ -6725,7 +6725,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_USERID: {
-        pgp_userid_t *uid = pgp_key_get_userid(key, it->uididx);
+        const pgp_userid_t *uid = pgp_key_get_userid(key, it->uididx);
         if (!uid) {
             return false;
         }
