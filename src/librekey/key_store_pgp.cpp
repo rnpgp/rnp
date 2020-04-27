@@ -305,7 +305,7 @@ rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
         return false;
     }
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
+        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
         if (!pkt->raw || !pkt->length) {
             return false;
         }
