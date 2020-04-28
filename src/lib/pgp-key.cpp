@@ -239,7 +239,7 @@ bool
 pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
     pgp_key_pkt_t keypkt = {};
-    memset(key, 0, sizeof(*key));
+    *key = {};
 
     if (!copy_key_pkt(&keypkt, pkt, false)) {
         RNP_LOG("failed to copy key packet");
@@ -356,7 +356,7 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    memset(dst, 0, sizeof(*dst));
+    *dst = {};
 
     if (pgp_key_get_rawpacket_count(src) != 1) {
         RNP_LOG("wrong g10 key packets");
@@ -392,7 +392,7 @@ pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
     rnp_result_t tmpret;
-    memset(dst, 0, sizeof(*dst));
+    *dst = {};
 
     if (src->format == PGP_KEY_STORE_G10) {
         return pgp_key_copy_g10(dst, src, pubonly);
