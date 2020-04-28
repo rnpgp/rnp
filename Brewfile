@@ -7,5 +7,5 @@ brew "libtool"
 brew "pkg-config"
 brew "gnupg"
 brew "wget"
-brew "python@2"
+brew "python"
 
