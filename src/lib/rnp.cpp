@@ -6321,7 +6321,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // revoked
-    json_object *jsorevoked = json_object_new_boolean(key->revoked ? TRUE : FALSE);
+    json_object *jsorevoked = json_object_new_boolean(key->revoked ? true : false);
     if (!jsorevoked) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -6386,7 +6386,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "public key", jsopublic);
     json_object_object_add(
-      jsopublic, "present", json_object_new_boolean(have_pub ? TRUE : FALSE));
+      jsopublic, "present", json_object_new_boolean(have_pub ? true : false));
     if (flags & RNP_JSON_PUBLIC_MPIS) {
         json_object *jsompis = json_object_new_object();
         if (!jsompis) {
@@ -6405,7 +6405,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     json_object_object_add(jso, "secret key", jsosecret);
     json_object_object_add(
-      jsosecret, "present", json_object_new_boolean(have_sec ? TRUE : FALSE));
+      jsosecret, "present", json_object_new_boolean(have_sec ? true : false));
     if (have_sec) {
         bool locked = pgp_key_is_locked(handle->sec);
         if (flags & RNP_JSON_SECRET_MPIS) {
@@ -6423,13 +6423,13 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                 }
             }
         }
-        json_object *jsolocked = json_object_new_boolean(locked ? TRUE : FALSE);
+        json_object *jsolocked = json_object_new_boolean(locked ? true : false);
         if (!jsolocked) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jsosecret, "locked", jsolocked);
         json_object *jsoprotected =
-          json_object_new_boolean(pgp_key_is_protected(handle->sec) ? TRUE : FALSE);
+          json_object_new_boolean(pgp_key_is_protected(handle->sec) ? true : false);
         if (!jsoprotected) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
