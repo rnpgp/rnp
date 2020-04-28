@@ -227,6 +227,7 @@ src_skip(pgp_source_t *src, size_t len)
 
     void *buf = calloc(1, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
     if (!buf) {
+        src->error = 1;
         return;
     }
 
