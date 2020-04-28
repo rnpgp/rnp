@@ -75,13 +75,11 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
         pgp_key_t *tmp = NULL;
         assert_non_null(tmp = rnp_tests_get_key_by_id(ks, keyids[0], NULL));
-        assert_non_null(tmp);
 
         // steal this key from the store
         key = (pgp_key_t *) calloc(1, sizeof(*key));
         assert_non_null(key);
-        memcpy(key, tmp, sizeof(*key));
-        assert_true(rnp_key_store_remove_key(ks, tmp));
+        pgp_key_copy(key, tmp, false);
         rnp_key_store_free(ks);
     }
 

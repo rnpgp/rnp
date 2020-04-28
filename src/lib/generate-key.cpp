@@ -132,10 +132,7 @@ load_generated_g10_key(pgp_key_t *    dst,
     if (rnp_key_store_get_key_count(key_store) != 1) {
         goto end;
     }
-    memcpy(dst, rnp_key_store_get_key(key_store, 0), sizeof(*dst));
-    // we don't want the key store to free the internal key data
-    rnp_key_store_remove_key(key_store, (pgp_key_t *) rnp_key_store_get_key(key_store, 0));
-    ok = true;
+    ok = !pgp_key_copy(dst, rnp_key_store_get_key(key_store, 0), false);
 end:
     rnp_key_store_free(key_store);
     src_close(&memsrc);
