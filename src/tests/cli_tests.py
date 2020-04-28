@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 import itertools
 import logging
@@ -124,9 +124,11 @@ r'new key revocations: 1.*$'
 
 RNP_TO_GPG_ZALGS = { 'zip' : '1', 'zlib' : '2', 'bzip2' : '3' }
 # These are mostly identical
-RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256', 'TWOFISH' : 'twofish',
-        'CAMELLIA128' : 'camellia128', 'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
-        'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5', 'BLOWFISH' : 'blowfish'}
+RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256',
+                      'TWOFISH' : 'twofish', 'CAMELLIA128' : 'camellia128',
+                      'CAMELLIA192' : 'camellia192', 'CAMELLIA256' : 'camellia256',
+                      'IDEA' : 'idea', '3DES' : '3des', 'CAST5' : 'cast5',
+                      'BLOWFISH' : 'blowfish'}
 
 def check_packets(fname, regexp):
     ret, output, err = run_proc(GPG, ['--list-packets', path_for_gpg(fname)])
@@ -143,7 +145,7 @@ def check_packets(fname, regexp):
 
 def clear_keyrings():
     shutil.rmtree(RNPDIR, ignore_errors=True)
-    os.mkdir(RNPDIR, 0700)
+    os.mkdir(RNPDIR, 0o700)
 
     run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
     while os.path.isdir(GPGDIR):
@@ -151,7 +153,7 @@ def clear_keyrings():
             shutil.rmtree(GPGDIR)
         except:
             time.sleep(0.1)
-    os.mkdir(GPGDIR, 0700)
+    os.mkdir(GPGDIR, 0o700)
 
 def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
@@ -201,8 +203,8 @@ def clear_workfiles():
 
 def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     pipe = pswd_pipe(pswd)
-    ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir',
-                                    RNPDIR, '--pass-fd', str(pipe), '--userid', userid, '--generate-key'])
+    ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd',
+                                  str(pipe), '--userid', userid, '--generate-key'])
     os.close(pipe)
     if ret != 0:
         raise_err('rsa key generation failed', err)
@@ -221,7 +223,8 @@ def rnp_params_insert_aead(params, pos, aead):
         if len(aead) > 1 and aead[1] != None:
             params[pos + 1:pos + 1] = ['--aead-chunk-bits=' + str(aead[1])]
 
-def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None, z=None, armor=False):
+def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None,
+                        z=None, armor=False):
     params = ['--homedir', RNPDIR, src, '--output', dst]
     # Recipients. None disables PK encryption, [] to use default key. Otheriwse list of ids.
     if recipients != None:
@@ -247,7 +250,8 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     if ret != 0:
         raise_err('rnp encryption failed', err)
 
-def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd, aead=None, cipher=None, z=None, armor=False):
+def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
+                              aead=None, cipher=None, z=None, armor=False):
     params = ['--homedir', RNPDIR, '--sign', '--encrypt', src, '--output', dst]
     pipe = pswd_pipe('\n'.join(encrpswd + signpswd))
     params[2:2] = ['--pass-fd', str(pipe)]
@@ -374,8 +378,9 @@ def gpg_import_secring(kpath=None, password = PASSWORD):
 
 
 def gpg_export_secret_key(userid, password, keyfile):
-    ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--pinentry-mode=loopback', '--yes',
-        '--passphrase', password, '--output', path_for_gpg(keyfile), '--export-secret-key', userid])
+    ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--pinentry-mode=loopback',
+                                 '--yes', '--passphrase', password, '--output',
+                                 path_for_gpg(keyfile), '--export-secret-key', userid])
 
     if ret != 0:
         raise_err('gpg secret key export failed', err)
@@ -390,7 +395,8 @@ def gpg_params_insert_z(params, pos, z):
 def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    params = ['--homedir', GPGHOME, '-e', '-r', KEY_ENCRYPT, '--batch', '--trust-model', 'always', '--output', dst, src]
+    params = ['--homedir', GPGHOME, '-e', '-r', KEY_ENCRYPT, '--batch',
+              '--trust-model', 'always', '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
     if armor: params[2:2] = ['--armor']
@@ -403,7 +409,8 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
 def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    params = ['--homedir', GPGHOME, '-c', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+    params = ['--homedir', GPGHOME, '-c', '--s2k-count', '65536', '--batch',
+              '--passphrase', PASSWORD, '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
     if armor: params[2:2] = ['--armor']
@@ -423,7 +430,8 @@ def gpg_decrypt_file(src, dst, keypass):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
     ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch',
-                                   '--yes', '--passphrase', keypass, '--trust-model', 'always', '-o', dst, '-d', src])
+                                   '--yes', '--passphrase', keypass, '--trust-model',
+                                   'always', '-o', dst, '-d', src])
     if ret != 0:
         raise_err('gpg decryption failed', err)
 
@@ -446,8 +454,8 @@ def gpg_verify_file(src, dst, signer=None):
 def gpg_verify_detached(src, sig, signer=None):
     src = path_for_gpg(src)
     sig = path_for_gpg(sig)
-    ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch',
-                                   '--yes', '--trust-model', 'always', '--verify', sig, src])
+    ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 
+                                 'always', '--verify', sig, src])
     if ret != 0:
         raise_err('gpg detached verification failed', err)
     # Check GPG output
@@ -476,7 +484,8 @@ def gpg_sign_file(src, dst, signer, z=None, armor=False):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
     params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes',
-              '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o', dst, '-s', src]
+              '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '-o',
+              dst, '-s', src]
     if z: gpg_params_insert_z(params, 3, z)
     if armor: params.insert(2, '--armor')
     ret, _, err = run_proc(GPG, params)
@@ -487,7 +496,8 @@ def gpg_sign_file(src, dst, signer, z=None, armor=False):
 def gpg_sign_detached(src, signer, armor=False):
     src = path_for_gpg(src)
     params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes',
-              '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer, '--detach-sign', src]
+              '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer,
+              '--detach-sign', src]
     if armor: params.insert(2, '--armor')
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
@@ -726,13 +736,13 @@ def setup(loglvl):
     RNPDIR = path.join(WORKDIR, '.rnp')
     RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
-    os.mkdir(RNPDIR, 0700)
+    os.mkdir(RNPDIR, 0o700)
 
     GPGDIR = path.join(WORKDIR, '.gpg')
-    GPGHOME =  path_for_gpg(GPGDIR) if is_windows() else GPGDIR
+    GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
-    os.mkdir(GPGDIR, 0700)
+    os.mkdir(GPGDIR, 0o700)
 
 def data_path(subpath):
     ''' Constructs path to the tests data file/dir'''
@@ -740,7 +750,8 @@ def data_path(subpath):
 
 def key_path(file_base_name, secret):
     ''' Constructs path to the .gpg file'''
-    path=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data/cli_EncryptSign', file_base_name)
+    path=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data/cli_EncryptSign',
+                      file_base_name)
     return ''.join([path, '-sec' if secret else '', '.gpg'])
 
 class TestIdMixin(object):
@@ -806,8 +817,8 @@ class Keystore(unittest.TestCase):
         userid = str(bits) + '@rnptest'
         # Open pipe for password
         pipe = pswd_pipe(PASSWORD)
-        params = params + ['--homedir', RNPDIR, '--pass-fd',
-                        str(pipe), '--userid', userid, '--generate-key']
+        params = params + ['--homedir', RNPDIR, '--pass-fd', str(pipe), 
+                           '--userid', userid, '--generate-key']
         # Run key generation
         ret, out, err = run_proc(RNPK, params)
         os.close(pipe)
@@ -836,9 +847,10 @@ class Keystore(unittest.TestCase):
         if not match.group(1) == str(bits):
             raise_err('wrong key bits in list')
         # Import key to the gnupg
-        ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir', GPGHOME,
-                                    '--import', path_for_gpg(path.join(RNPDIR, 'pubring.gpg')), 
-                                    path_for_gpg(path.join(RNPDIR, 'secring.gpg'))])
+        ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
+                                       GPGHOME, '--import',
+                                       path_for_gpg(path.join(RNPDIR, 'pubring.gpg')),
+                                       path_for_gpg(path.join(RNPDIR, 'secring.gpg'))])
         if ret != 0:
             raise_err('gpg key import failed', err)
         # Cleanup and return
@@ -858,7 +870,8 @@ class Keystore(unittest.TestCase):
             pipe = pswd_pipe(PASSWORD)
             userid = str(i) + '@rnp-multiple'
             ret, out, err = run_proc(RNPK, ['--numbits', '2048', '--homedir', RNPDIR,
-                                            '--pass-fd', str(pipe), '--userid', userid, '--generate-key'])
+                                            '--pass-fd', str(pipe), '--userid', userid,
+                                            '--generate-key'])
             os.close(pipe)
             if ret != 0:
                 raise_err('key generation failed', err)
@@ -889,8 +902,8 @@ class Keystore(unittest.TestCase):
         Generate key with GnuPG and import it to rnp
         '''
         # Generate key in GnuPG
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME,
-                                    '--passphrase', '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
+        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--passphrase',
+                                       '', '--quick-generate-key', 'rsakey@gpg', 'rsa'])
         if ret != 0:
             raise_err('gpg key generation failed, error ' + str(ret) , err)
         # Getting fingerprint of the generated key
@@ -936,7 +949,8 @@ class Keystore(unittest.TestCase):
         # Open pipe for password
         pipe = pswd_pipe(PASSWORD)
         # Run key generation
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'rsakey@rnp', '--generate-key'])
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                        '--userid', 'rsakey@rnp', '--generate-key'])
         os.close(pipe)
         if ret != 0: raise_err('key generation failed', err)
         # Export key
@@ -946,7 +960,8 @@ class Keystore(unittest.TestCase):
         with open(pubpath, 'w+') as f:
             f.write(out)
         # Import key with GPG
-        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', path_for_gpg(pubpath)])
+        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import',
+                                       path_for_gpg(pubpath)])
         if ret != 0: raise_err('gpg : public key import failed', err)
 
     def test_generate_to_kbx(self):
@@ -957,8 +972,9 @@ class Keystore(unittest.TestCase):
         pipe = pswd_pipe(PASSWORD)
         kbx_userid_tracker = 'kbx_userid_tracker@rnp'
         # Run key generation
-        ret, out, err = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21', '--userid', kbx_userid_tracker,
-                                '--homedir', RNPDIR, '--pass-fd', str(pipe)])
+        ret, out, err = run_proc(RNPK, ['--gen-key', '--keystore-format', 'GPG21',
+                                        '--userid', kbx_userid_tracker, '--homedir',
+                                        RNPDIR, '--pass-fd', str(pipe)])
         os.close(pipe)
         if ret != 0: raise_err('key generation failed', err)
         # Read KBX with GPG
@@ -970,12 +986,13 @@ class Keystore(unittest.TestCase):
     def test_generate_protection_pass_fd(self):
         '''
         Generate key with RNP, using the --pass-fd parameter, and make sure key is encrypted
-        '''        
+        '''
         clear_keyrings()
         # Open pipe for password
         pipe = pswd_pipe(PASSWORD)
         # Run key generation
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'enc@rnp', '--generate-key'])
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                        '--userid', 'enc@rnp', '--generate-key'])
         os.close(pipe)
         if ret != 0:
             raise_err('key generation failed', err)
@@ -1306,7 +1323,9 @@ class Misc(unittest.TestCase):
         # Generate random file of required size
         random_text(src, 64000)
         # Encrypt cleartext file with GPG
-        params = ['--homedir', GPGHOME, '-c', '-z', '0', '--disable-mdc', '--s2k-count', '65536', '--batch', '--passphrase', PASSWORD, '--output', path_for_gpg(dst), path_for_gpg(src)]
+        params = ['--homedir', GPGHOME, '-c', '-z', '0', '--disable-mdc', '--s2k-count',
+                  '65536', '--batch', '--passphrase', PASSWORD, '--output',
+                  path_for_gpg(dst), path_for_gpg(src)]
         ret, _, err = run_proc(GPG, params)
         if ret != 0:
             raise_err('gpg symmetric encryption failed', err)
@@ -1318,14 +1337,15 @@ class Misc(unittest.TestCase):
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
         random_text(src, 64000)
 
-        ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128',
-                'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+        ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
+                   'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
         hashes = ['SHA1', 'RIPEMD160', 'SHA256', 'SHA384', 'SHA512', 'SHA224']
         s2kmodes = [0, 1, 3]
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
-            params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, '--s2k-digest-algo',
-                    hash_alg, '--batch', '--passphrase', PASSWORD, '--output', dst, src]
+            params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, 
+                      '--s2k-digest-algo', hash_alg, '--batch', '--passphrase', PASSWORD,
+                      '--output', dst, src]
 
             if s2k is not None:
                 params.insert(7, '--s2k-mode')
@@ -1347,8 +1367,10 @@ class Misc(unittest.TestCase):
                                 i % len(hashes)], s2kmodes[i % len(s2kmodes)])
 
     def test_armor(self):
-        src_beg, dst_beg, dst_mid, dst_fin = reg_workfiles('beg','.src','.dst', '.mid.dst', '.fin.dst')
-        armor_types = [('msg', 'MESSAGE'), ('pubkey', 'PUBLIC KEY BLOCK'), ('seckey', 'PRIVATE KEY BLOCK'), ('sign', 'SIGNATURE')]
+        src_beg, dst_beg, dst_mid, dst_fin = reg_workfiles('beg', '.src', '.dst',
+                                                           '.mid.dst', '.fin.dst')
+        armor_types = [('msg', 'MESSAGE'), ('pubkey', 'PUBLIC KEY BLOCK'),
+                       ('seckey', 'PRIVATE KEY BLOCK'), ('sign', 'SIGNATURE')]
 
         for data_type, header in armor_types:
             random_text(src_beg, 1000)
@@ -1377,7 +1399,8 @@ class Misc(unittest.TestCase):
         compare_file(path + 'keyring_1_list_sigs', out, 'keyring 1 sig listing failed')
         _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys', '--secret'])
         compare_file(path + 'keyring_1_list_keys_sec', out, 'keyring 1 sec key listing failed')
-        _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys', '--secret', '--with-sigs'])
+        _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys',
+                                    '--secret', '--with-sigs'])
         compare_file(path + 'keyring_1_list_sigs_sec', out, 'keyring 1 sec sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys'])
@@ -1395,21 +1418,30 @@ class Misc(unittest.TestCase):
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '-l', '--with-sigs'])
         compare_file(path + 'keyring_5_list_sigs', out, 'keyring 5 sig listing failed')
 
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
+                                    '--list-keys'])
         compare_file(path + 'test_stream_key_load_keys', out, 'g10 keyring key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--with-sigs'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
+                                    '-l', '--with-sigs'])
         compare_file(path + 'test_stream_key_load_sigs', out, 'g10 keyring sig listing failed')
-        # Below are disabled until we have some kind of sorting which doesn't depend on readdir order
-        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--secret'])
-        #compare_file(path + 'test_stream_key_load_keys_sec', out, 'g10 sec keyring key listing failed')
-        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '-l', '--secret', '--with-sigs'])
-        #compare_file(path + 'test_stream_key_load_sigs_sec', out, 'g10 sec keyring sig listing failed')
+        # Below are disabled until we have some kind of sorting which doesn't depend on
+        # readdir order
+        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
+        #                            '-l', '--secret'])
+        #compare_file(path + 'test_stream_key_load_keys_sec', out,
+        #             'g10 sec keyring key listing failed')
+        #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
+        #                            '-l', '--secret', '--with-sigs'])
+        #compare_file(path + 'test_stream_key_load_sigs_sec', out,
+        #             'g10 sec keyring sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '2fcadf05ffa501bb'])
         compare_file(path + 'getkey_2fcadf05ffa501bb', out, 'list key 2fcadf05ffa501bb failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '--with-sigs', '2fcadf05ffa501bb'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l',
+                                    '--with-sigs', '2fcadf05ffa501bb'])
         compare_file(path + 'getkey_2fcadf05ffa501bb_sig', out, 'list sig 2fcadf05ffa501bb failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '--secret', '2fcadf05ffa501bb'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l',
+                                    '--secret', '2fcadf05ffa501bb'])
         compare_file(path + 'getkey_2fcadf05ffa501bb_sec', out, 'list sec 2fcadf05ffa501bb failed')
 
         _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '00000000'])
@@ -1418,10 +1450,13 @@ class Misc(unittest.TestCase):
         compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
     def test_rnpkeys_g10_list_order(self):
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path(
+            'test_stream_key_load/g10'), '--list-keys'])
         compare_file(data_path('test_cli_rnpkeys/g10_list_keys'), out, 'g10 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--secret', '--list-keys'])
-        compare_file(data_path('test_cli_rnpkeys/g10_list_keys_sec'), out, 'g10 secret key listing failed')
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path(
+            'test_stream_key_load/g10'), '--secret', '--list-keys'])
+        compare_file(data_path('test_cli_rnpkeys/g10_list_keys_sec'), out,
+                     'g10 secret key listing failed')
         return
 
     def test_rnpkeys_g10_def_key(self):
@@ -1436,7 +1471,8 @@ class Misc(unittest.TestCase):
         src, dst = reg_workfiles('cleartext', '.txt', '.rnp')
         random_text(src, 1000)
         # Sign file with rnp using the default g10 key
-        params = ['--homedir', data_path('test_cli_g10_defkey/g10'), '--password', PASSWORD, '--output', dst, '-s', src]
+        params = ['--homedir', data_path('test_cli_g10_defkey/g10'),
+                  '--password', PASSWORD, '--output', dst, '-s', src]
         ret, _, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('rnp signing failed', err)
@@ -1449,7 +1485,7 @@ class Misc(unittest.TestCase):
         if not match:
             raise_err('wrong rnp g10 verification output', err)
         return
-    
+
     def test_large_packet(self):
         # Verifying large packet file with GnuPG
         kpath = path_for_gpg(data_path('keyrings/1/pubring.gpg'))
@@ -1482,7 +1518,8 @@ class Misc(unittest.TestCase):
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-zero-last'))
         ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
         if ret != 0:
-            raise_err('message in partial packets having 0-size last chunk verification failed', err)
+            raise_err('message in partial packets having 0-size last chunk ' \
+                'verification failed', err)
         return
 
     def test_partial_length_largest(self):
@@ -1500,7 +1537,8 @@ class Misc(unittest.TestCase):
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('packet listing failed', err)
-        compare_file_ex(data_path('test_list_packets/list_standard.txt'), out, 'standard listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_standard.txt'), out,
+                        'standard listing mismatch')
         # List packets with mpi values
         params = ['--mpi', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
         ret, out, err = run_proc(RNP, params)
@@ -1512,7 +1550,8 @@ class Misc(unittest.TestCase):
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('packet listing with grips failed', err)
-        compare_file_ex(data_path('test_list_packets/list_grips.txt'), out, 'grips listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_grips.txt'), out,
+                        'grips listing mismatch')
         # List packets with raw packet contents
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--raw']
         ret, out, err = run_proc(RNP, params)
@@ -1520,7 +1559,8 @@ class Misc(unittest.TestCase):
             raise_err('packet listing with raw packets failed', err)
         compare_file_ex(data_path('test_list_packets/list_raw.txt'), out, 'raw listing mismatch')
         # List packets with all options enabled
-        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--grips', '--raw', '--mpi']
+        params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'),
+                  '--grips', '--raw', '--mpi']
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('packet listing with all options failed', err)
@@ -1533,36 +1573,45 @@ class Misc(unittest.TestCase):
             raise_err('json packet listing failed', err)
         compare_file_ex(data_path('test_list_packets/list_json.txt'), out, 'json listing mismatch')
         # List packets with mpi values, JSON output
-        params = ['--json', '--mpi', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        params = ['--json', '--mpi', '--list-packets', data_path(
+            'test_list_packets/ecc-p256-pub.asc')]
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('json mpi packet listing failed', err)
-        compare_file_ex(data_path('test_list_packets/list_json_mpi.txt'), out, 'json mpi listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_json_mpi.txt'), out,
+                        'json mpi listing mismatch')
         # List packets with grip/fingerprint values, JSON output
-        params = ['--json', '--grips', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        params = ['--json', '--grips', '--list-packets', data_path(
+            'test_list_packets/ecc-p256-pub.asc')]
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('json grips packet listing failed', err)
-        compare_file_ex(data_path('test_list_packets/list_json_grips.txt'), out, 'json grips listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_json_grips.txt'), out,
+                        'json grips listing mismatch')
         # List packets with raw packet values, JSON output
-        params = ['--json', '--raw', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
+        params = ['--json', '--raw', '--list-packets', data_path(
+            'test_list_packets/ecc-p256-pub.asc')]
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('json raw packet listing failed', err)
-        compare_file_ex(data_path('test_list_packets/list_json_raw.txt'), out, 'json raw listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_json_raw.txt'), out,
+                        'json raw listing mismatch')
         # List packets with all values, JSON output
-        params = ['--json', '--raw', '--list-packets', data_path('test_list_packets/ecc-p256-pub.asc'), '--mpi', '--grips']
+        params = ['--json', '--raw', '--list-packets', data_path(
+            'test_list_packets/ecc-p256-pub.asc'), '--mpi', '--grips']
         ret, out, err = run_proc(RNP, params)
         if ret != 0:
             raise_err('json all listing failed', err)
-        compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out, 'json all listing mismatch')
+        compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out,
+                        'json all listing mismatch')
         return
 
     def test_debug_log(self):
         run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-keys', '--debug', '--all'])
-        run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys', '--debug', '--all'])
+        run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
+                        '--list-keys', '--debug', '--all'])
         return
 
     def test_pubring_loading(self):
@@ -1597,12 +1646,15 @@ class Encryption(unittest.TestCase):
         - different hash algorithms where applicable
 
         TODO:
-        Tests in this test case should be splitted into many algorithm-specific tests (potentially auto generated)
-        Reason being - if you have a problem with BLOWFISH size 1000000, you don't want to wait until everything else gets
+        Tests in this test case should be splitted into many algorithm-specific tests
+        (potentially auto generated)
+        Reason being - if you have a problem with BLOWFISH size 1000000, you don't want
+        to wait until everything else gets
         tested before your failing BLOWFISH
     '''
     # Ciphers list tro try during encryption. None will use default
-    CIPHERS = [None, 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+    CIPHERS = [None, 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
+               'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
     # Compression parameters to try during encryption(s)
     Z = [[None, 0], ['zip'], ['zlib'], ['bzip2'], [None, 1], [None, 9]]
@@ -1629,7 +1681,8 @@ class Encryption(unittest.TestCase):
     def tearDown(self):
         clear_workfiles()
 
-    # Encrypt cleartext file with GPG and decrypt it with RNP, using different ciphers and file sizes
+    # Encrypt cleartext file with GPG and decrypt it with RNP,
+    # using different ciphers and file sizes
     def test_file_encryption__gpg_to_rnp(self):
         for size, cipher in zip(Encryption.SIZES_R, Encryption.CIPHERS_R):
             gpg_to_rnp_encryption(size, cipher)
@@ -1650,14 +1703,17 @@ class Encryption(unittest.TestCase):
             rnp_sym_encryption_rnp_to_gpg(size, cipher, z)
 
     def test_sym_encryption__rnp_aead(self):
-        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128',
+                            'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
         AEAD_M = list_upto([None, 'eax', 'ocb'], Encryption.RUNS)
-        AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18, 24, 30, 40, 50, 56], Encryption.RUNS)
+        AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18,
+                            24, 30, 40, 50, 56], Encryption.RUNS)
 
         usegpg = gpg_supports_aead()
 
         # Encrypt and decrypt cleartext using the AEAD
-        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C, AEAD_M, AEAD_B, Encryption.Z_R):
+        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
+                                               AEAD_M, AEAD_B, Encryption.Z_R):
             rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], usegpg)
 
     def test_encryption_multiple_recipients(self):
@@ -1671,7 +1727,8 @@ class Encryption(unittest.TestCase):
         gpg_import_pubring()
         gpg_import_secring()
 
-        KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1) for t2 in range(len(PASSWORDS) + 1))
+        KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1)
+                        for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
         if gpg_supports_aead():
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
@@ -1722,7 +1779,8 @@ class Encryption(unittest.TestCase):
         USERIDS = ['enc-sign1@rnp', 'enc-sign2@rnp', 'enc-sign3@rnp']
         KEYPASS = ['encsign1pass', 'encsign2pass', 'encsign3pass']
         PASSWORDS = ['password1', 'password2', 'password3']
-        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128',
+                            'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
             rnp_genkey_rsa(uid, 1024, pswd)
@@ -1731,7 +1789,8 @@ class Encryption(unittest.TestCase):
         gpg_import_secring()
 
         SIGNERS = list_upto(range(1, len(USERIDS) + 1), Encryption.RUNS)
-        KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1) for t2 in range(len(PASSWORDS) + 1))
+        KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1)
+                        for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
         if gpg_supports_aead():
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
@@ -1753,7 +1812,8 @@ class Encryption(unittest.TestCase):
             z = ZS[i]
             cipher = AEAD_C[i]
 
-            rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers, signpswd, aead, cipher, z)
+            rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
+                                      signpswd, aead, cipher, z)
             # Decrypt file with each of the keys, we have different password for each key
             for pswd in KEYPASS[:keynum]:
                 gpg_decrypt_file(dst, dec, pswd)
@@ -1886,7 +1946,8 @@ class SignDefault(unittest.TestCase):
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     def _encrypt_decrypt(self, e1, e2):
         key_id = "".join(self.id().split('.')[1:3])
-        keyfile, input, enc_out, dec_out = reg_workfiles(self.test_id, '.gpg', '.in', '.enc', '.dec')
+        keyfile, input, enc_out, dec_out = reg_workfiles(self.test_id, '.gpg',
+                                                         '.in', '.enc', '.dec')
         random_text(input, 0x1337)
 
         if not self.operation_key_location and not self.operation_key_gencmd:
@@ -1937,13 +1998,13 @@ class EncryptElgamal(Encrypt):
 
     def do_test_encrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._encrypt_decrypt(self.rnp, self.gpg)
 
@@ -1983,15 +2044,18 @@ class EncryptEcdh(Encrypt):
     RNP_GENERATE_ECDH_ECDSA_PATTERN = "19\n{0}\n"
 
     def test_encrypt_nistP256(self):
-        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format("nistp256", self.rnp.userid)
+        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format(
+            "nistp256", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def test_encrypt_nistP384(self):
-        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format("nistp384", self.rnp.userid)
+        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format(
+            "nistp384", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def test_encrypt_nistP521(self):
-        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format("nistp521", self.rnp.userid)
+        self.operation_key_gencmd = EncryptEcdh.GPG_GENERATE_ECDH_ECDSA_PATTERN.format(
+            "nistp521", self.rnp.userid)
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def test_decrypt_nistP256(self):
@@ -2120,17 +2184,17 @@ class SignDSA(Sign):
     RNP_GENERATE_DSA_PATTERN = "17\n{0}\n"
 
     @staticmethod
-    def key_pfx(p): return "GnuPG_dsa_elgamal_%d_%d" % (p,p)
+    def key_pfx(p): return "GnuPG_dsa_elgamal_%d_%d" % (p, p)
 
     def do_test_sign(self, p_size):
         pfx = SignDSA.key_pfx(p_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._sign_verify(self.rnp, self.gpg)
 
     def do_test_verify(self, p_size):
         pfx = SignDSA.key_pfx(p_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._sign_verify(self.gpg, self.rnp)
 
@@ -2179,18 +2243,18 @@ class EncryptSignRSA(Encrypt, Sign):
     RNP_GENERATE_RSA_PATTERN = "1\n{0}\n"
 
     @staticmethod
-    def key_pfx(p): return "GnuPG_rsa_%d_%d" % (p,p)
+    def key_pfx(p): return "GnuPG_rsa_%d_%d" % (p, p)
 
     def do_encrypt_verify(self, key_size):
         pfx = EncryptSignRSA.key_pfx(key_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._encrypt_decrypt(self.gpg, self.rnp)
         self._sign_verify(self.gpg, self.rnp)
 
     def do_rnp_decrypt_sign(self, key_size):
         pfx = EncryptSignRSA.key_pfx(key_size)
-        self.operation_key_location = tuple((key_path(pfx,False), key_path(pfx,True)))
+        self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx+"@example.com"
         self._encrypt_decrypt(self.rnp, self.gpg)
         self._sign_verify(self.rnp, self.gpg)
@@ -2215,10 +2279,12 @@ def test_suites(tests):
 
 if __name__ == '__main__':
     main = unittest.main
-    main.USAGE +=   ''.join([
-                    "\nRNP test client specific flags:\n",
-                    "  -w,\t\t Don't remove working directory\n",
-                    "  -d,\t\t Enable debug messages\n"])
+    if not hasattr(main, 'USAGE'):
+        main.USAGE = ''
+    main.USAGE += ''.join([
+                  "\nRNP test client specific flags:\n",
+                  "  -w,\t\t Don't remove working directory\n",
+                  "  -d,\t\t Enable debug messages\n"])
 
     LEAVE_WORKING_DIRECTORY = ("-w" in sys.argv)
     if LEAVE_WORKING_DIRECTORY:

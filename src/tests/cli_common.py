@@ -34,17 +34,14 @@ def raise_err(msg, log = None):
     raise CLIError(msg, log)
 
 def size_to_readable(num, suffix = 'B'):
-    for unit in ['','K','M','G','T','P','E','Z']:
+    for unit in ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z']:
         if abs(num) < 1024.0:
             return "%3.1f%s%s" % (num, unit, suffix)
         num /= 1024.0
     return "%.1f%s%s" % (num, 'Yi', suffix)
 
 def list_upto(lst, count):
-    res = lst[:]
-    while len(res) < count:
-        res = res + lst[:]
-    return res[:count]
+    return (list(lst)*(count//len(lst)+1))[:count]
 
 def pswd_pipe(password):
     pr, pw = os.pipe()
@@ -52,6 +49,7 @@ def pswd_pipe(password):
         fw.write(password)
         fw.write('\n')
         fw.write(password)
+    os.set_inheritable(pr, True)
 
     if not is_windows():
         return pr
@@ -63,15 +61,16 @@ def pswd_pipe(password):
 def random_text(path, size):
     # Generate random text, with 50% probability good-compressible
     if random.randint(0, 10) < 5:
-        st = ''.join(random.choice(string.ascii_letters + string.digits + " \t\n-,.") for _ in range(size))
+        st = ''.join(random.choice(string.ascii_letters + string.digits + " \t\n-,.")
+                     for _ in range(size))
     else:
         st = ''.join(random.choice("abcdef0123456789 \t\n-,.") for _ in range(size))
     with open(path, 'w+') as f:
         f.write(st)
 
 def file_text(path):
-    with open(path, 'r') as f:
-        return f.read()
+    with open(path, 'rb') as f:
+        return f.read().decode().replace('\r\r', '\r')
 
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
@@ -100,17 +99,26 @@ def run_proc_windows(proc, params, stdin=None):
 
     exe = os.path.basename(proc)
     # We need to escape empty parameters/ones with spaces with quotes
-    params = map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params)
+    params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
     sys.stdout.flush()
 
     stdin_path = os.path.join(WORKDIR, 'stdin.txt')
     stdout_path = os.path.join(WORKDIR, 'stdout.txt')
     stderr_path = os.path.join(WORKDIR, 'stderr.txt')
+    pass_path = os.path.join(WORKDIR, 'pass.txt')
+    passfd = 0
+    passfo = None
+    try:
+        idx = params.index('--pass-fd')
+        if idx < len(params):
+            passfd = int(params[idx+1])
+            passfo = os.fdopen(passfd, 'r', closefd=False)
+    except (ValueError, OSError): pass
     # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
     # so we'll need to poll process
     if stdin:
         with open(stdin_path, "wb+") as stdinf:
-            stdinf.write(stdin)
+            stdinf.write(stdin.encode() if isinstance(stdin, str) else stdin)
         stdin_fl = os.open(stdin_path, os.O_RDONLY | os.O_BINARY)
         stdin_no = sys.stdin.fileno()
         stdin_cp = os.dup(stdin_no)
@@ -120,6 +128,11 @@ def run_proc_windows(proc, params, stdin=None):
     stderr_fl = os.open(stderr_path, os.O_CREAT | os.O_RDWR | os.O_BINARY)
     stderr_no = sys.stderr.fileno()
     stderr_cp = os.dup(stderr_no)
+    if passfo:
+        with open(pass_path, "w+") as passf:
+            passf.write(passfo.read())
+        pass_fl = os.open(pass_path, os.O_RDONLY | os.O_BINARY)
+        pass_cp = os.dup(passfd)
 
     try:
         os.dup2(stdout_fl, stdout_no)
@@ -129,6 +142,9 @@ def run_proc_windows(proc, params, stdin=None):
         if stdin:
             os.dup2(stdin_fl, stdin_no)
             os.close(stdin_fl)
+        if passfo:
+            os.dup2(pass_fl, passfd)
+            os.close(pass_fl)
         retcode = os.spawnv(os.P_WAIT, proc, params)
     finally:
         os.dup2(stdout_cp, stdout_no)
@@ -138,12 +154,18 @@ def run_proc_windows(proc, params, stdin=None):
         if stdin:
             os.dup2(stdin_cp, stdin_no)
             os.close(stdin_cp)
+        if passfo:
+            os.dup2(pass_cp, passfd)
+            os.close(pass_cp)
+            passfo.close()
     out = file_text(stdout_path).replace('\r\n', '\n')
     err = file_text(stderr_path).replace('\r\n', '\n')
     os.unlink(stdout_path)
     os.unlink(stderr_path)
     if stdin: 
         os.unlink(stdin_path)
+    if passfo: 
+        os.unlink(pass_path)
     logging.debug(err.strip())
     logging.debug(out.strip())
     return (retcode, out, err)
@@ -154,7 +176,8 @@ def run_proc(proc, params, stdin=None):
         return run_proc_windows(proc, params, stdin)
 
     logging.debug((proc + ' ' + ' '.join(params)).strip())
-    process = Popen([proc] + params, stdout=PIPE, stderr=PIPE, stdin=PIPE if stdin else None)
+    process = Popen([proc] + params, stdout=PIPE, stderr=PIPE,
+                    stdin=PIPE if stdin else None, close_fds=False, universal_newlines=True)
     output, errout = process.communicate(stdin)
     retcode = process.poll()
     logging.debug(errout.strip())
