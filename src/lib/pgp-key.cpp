@@ -1464,7 +1464,7 @@ pgp_key_add_rawpacket(pgp_key_t *key, void *data, size_t len, pgp_pkt_type_t tag
     return packet;
 }
 
-pgp_rawpacket_t *
+static pgp_rawpacket_t *
 pgp_key_add_stream_rawpacket(pgp_key_t *key, pgp_pkt_type_t tag, pgp_dest_t *memdst)
 {
     pgp_rawpacket_t *res =
