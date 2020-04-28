@@ -802,10 +802,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     rnp_key_handle_t primary = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -816,10 +816,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair)
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "sub", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -880,10 +880,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
     rnp_key_handle_t primary = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -894,10 +894,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "sub", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -960,10 +960,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_primary)
     rnp_key_handle_t primary = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -1023,10 +1023,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     char *           primary_grip = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         primary_grip = strdup(json_object_get_string(jsogrip));
         assert_non_null(primary_grip);
@@ -1081,10 +1081,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "sub", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -2485,10 +2485,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     char *           primary_grip = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "primary", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "primary", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         primary_grip = strdup(json_object_get_string(jsogrip));
         assert_non_null(primary_grip);
@@ -2559,10 +2559,10 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     rnp_key_handle_t sub = NULL;
     {
         json_object *jsokey = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(parsed_results, "sub", &jsokey));
+        assert_int_equal(true, json_object_object_get_ex(parsed_results, "sub", &jsokey));
         assert_non_null(jsokey);
         json_object *jsogrip = NULL;
-        assert_int_equal(TRUE, json_object_object_get_ex(jsokey, "grip", &jsogrip));
+        assert_int_equal(true, json_object_object_get_ex(jsokey, "grip", &jsogrip));
         assert_non_null(jsogrip);
         const char *grip = json_object_get_string(jsogrip);
         assert_non_null(grip);
@@ -3823,7 +3823,7 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
                                     "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"),
                      0);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), FALSE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
     // usage
@@ -3845,7 +3845,7 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
                                     "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
                      0);
     // public key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), TRUE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
     assert_int_equal(
       rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
                      "04B0C6F2F585C1EEDF805C4492CB683839D5EAE6246420780F063D558"
@@ -3853,14 +3853,14 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
                      "793CEBAE8600BEEF"),
       0);
     // secret key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), TRUE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
     assert_int_equal(
       rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
                      "46DE93CA439735F36B9CF228F10D8586DA824D88BBF4E24566D5312D061802C8"),
       0);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), FALSE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
-                     FALSE);
+                     false);
     // userids
     assert_int_equal(json_object_array_length(get_json_obj(jso, "userids")), 1);
     assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
@@ -3909,7 +3909,7 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
                                     "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
                      0);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), FALSE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
     // usage
@@ -3926,21 +3926,21 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     // subkey grips
     assert_null(get_json_obj(jso, "subkey grips"));
     // public key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), TRUE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
     assert_int_equal(
       rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
                      "04E2746BA4D180011B17A6909EABDBF2F3733674FBE00B20A3B857C2597233651544150B"
                      "896BCE7DCDF47C49FC1E12D5AD86384D26336A48A18845940A3F65F502"),
       0);
     // secret key
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), TRUE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
     assert_int_equal(
       rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
                      "DF8BEB7272117AD7AFE2B7E882453113059787FBC785C82F78624EE7EF2117FB"),
       0);
-    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), FALSE);
+    assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
-                     FALSE);
+                     false);
     // userids
     assert_null(get_json_obj(jso, "userids"));
     // signatures
