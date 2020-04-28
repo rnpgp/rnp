@@ -82,7 +82,7 @@ msys_install() {
     mingw64/mingw-w64-x86_64-cmake
     mingw64/mingw-w64-x86_64-gcc
     mingw64/mingw-w64-x86_64-json-c
-    mingw64/mingw-w64-x86_64-python2
+    mingw64/mingw-w64-x86_64-python3
   "
   pacman --noconfirm -S --needed ${packages}
   pacman --noconfirm -U \

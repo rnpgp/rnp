@@ -27,7 +27,8 @@
 # 3.10+ for CPackFreeBSD (FreeBSD packaging)
 # 3.10+ for gtest_discover_tests (parallel rnp_tests)
 # 3.12+ for NAMELINK_COMPONENT (for better RPM packaging)
-cmake_minimum_required(VERSION 3.10)
+# 3.12+ for Python3 find module
+cmake_minimum_required(VERSION 3.12)
 
 # contact email, other info
 include(cmake/info.cmake)

@@ -93,7 +93,7 @@ pacman -Syu --noconfirm --needed
 # Then most likely you'll need to close msys console and run it agian:
 pacman -Syu --noconfirm --needed
 # Install packages
-pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python2
+pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
 ----
 
 Then clone the repository, say to rnp folder, and:
