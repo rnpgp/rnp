@@ -207,7 +207,7 @@ error:
 bool
 rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
-    memset(key, 0, sizeof(*key));
+    *key = {};
     /* create key */
     if (!pgp_key_from_pkt(key, &tkey->key)) {
         return false;
@@ -237,7 +237,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                  pgp_transferable_subkey_t *tskey,
                                  pgp_key_t *                primary)
 {
-    memset(subkey, 0, sizeof(*subkey));
+    *subkey = {};
 
     /* create key */
     if (!pgp_key_from_pkt(subkey, &tskey->subkey)) {
