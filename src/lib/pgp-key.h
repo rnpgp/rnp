@@ -65,7 +65,7 @@ struct pgp_key_t {
     std::vector<pgp_userid_t>    uids;    /* array of user ids */
     std::vector<pgp_rawpacket_t> packets; /* array of key packets */
     std::vector<pgp_subsig_t>    subsigs; /* array of key signatures */
-    list                         revokes; /* list of signature revocations pgp_revoke_t */
+    std::vector<pgp_revoke_t>    revokes; /* array of revocations */
     list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
     uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
     bool          primary_grip_set;
@@ -257,7 +257,7 @@ const pgp_userid_t *pgp_key_get_userid(const pgp_key_t *, size_t);
 
 pgp_userid_t *pgp_key_get_userid(pgp_key_t *, size_t);
 
-pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
+const pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
 
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
@@ -267,7 +267,9 @@ pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
 
 size_t pgp_key_get_revoke_count(const pgp_key_t *);
 
-pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
+const pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
+
+pgp_revoke_t *pgp_key_get_revoke(pgp_key_t *key, size_t idx);
 
 void revoke_free(pgp_revoke_t *revoke);
 
