@@ -252,6 +252,7 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
     char       buffer[MAX_PASSWORD_LENGTH];
     bool       ok = false;
     cli_rnp_t *rnp = static_cast<cli_rnp_t *>(app_ctx);
+    int        pswdtries = 1;
 
     if (!ffi || !pgp_context) {
         goto done;
@@ -286,9 +287,13 @@ start:
             goto done;
         }
         if (strcmp(buf, buffer) != 0) {
-            fputs("\nPasswords do not match!", rnp->userio_out);
-            // currently will loop forever
-            goto start;
+            fputs("\nPasswords do not match!\n", rnp->userio_out);
+            fflush(rnp->userio_out);
+            if (rnp->pswdtries > 0 && ++pswdtries > rnp->pswdtries) {
+                goto done;
+            } else {
+                goto start;
+            }
         }
     }
     ok = true;

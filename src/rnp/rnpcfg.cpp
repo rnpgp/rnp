@@ -486,10 +486,10 @@ rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg)
 
     numtries = rnp_cfg_getstr(cfg, CFG_NUMTRIES);
 
-    if ((numtries == NULL) || ((num = atoi(numtries)) <= 0)) {
-        return MAX_PASSWORD_ATTEMPTS;
-    } else if (strcmp(numtries, "unlimited")) {
+    if (numtries != NULL && !strcmp(numtries, "unlimited")) {
         return INFINITE_ATTEMPTS;
+    } else if ((numtries == NULL) || ((num = atoi(numtries)) <= 0)) {
+        return MAX_PASSWORD_ATTEMPTS;
     } else {
         return num;
     }
