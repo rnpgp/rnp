@@ -280,7 +280,7 @@ pgp_key_clear_revokes(pgp_key_t *key)
     for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
         revoke_free(pgp_key_get_revoke(key, i));
     }
-    list_destroy(&key->revokes);
+    key->revokes.clear();
     revoke_free(&key->revocation);
     memset(&key->revocation, 0, sizeof(key->revocation));
 }
@@ -893,11 +893,11 @@ pgp_key_get_userid(pgp_key_t *key, size_t idx)
     return (idx < key->uids.size()) ? &key->uids[idx] : NULL;
 }
 
-pgp_revoke_t *
+const pgp_revoke_t *
 pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
 {
     for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        pgp_revoke_t *revoke = pgp_key_get_revoke(key, i);
+        const pgp_revoke_t *revoke = pgp_key_get_revoke(key, i);
         if (revoke->uid == uid) {
             return revoke;
         }
@@ -930,19 +930,30 @@ pgp_key_add_userid(pgp_key_t *key)
 pgp_revoke_t *
 pgp_key_add_revoke(pgp_key_t *key)
 {
-    return (pgp_revoke_t *) list_append(&key->revokes, NULL, sizeof(pgp_revoke_t));
+    try {
+        key->revokes.push_back({});
+    } catch (...) {
+        return NULL;
+    }
+    return &key->revokes.back();
 }
 
 size_t
 pgp_key_get_revoke_count(const pgp_key_t *key)
 {
-    return list_length(key->revokes);
+    return key->revokes.size();
+}
+
+const pgp_revoke_t *
+pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
+{
+    return (idx < key->revokes.size()) ? &key->revokes[idx] : NULL;
 }
 
 pgp_revoke_t *
-pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
+pgp_key_get_revoke(pgp_key_t *key, size_t idx)
 {
-    return (pgp_revoke_t *) list_at(key->revokes, idx);
+    return (idx < key->revokes.size()) ? &key->revokes[idx] : NULL;
 }
 
 pgp_subsig_t *
