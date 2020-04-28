@@ -5196,7 +5196,7 @@ rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_revoke_t *revoke = pgp_key_get_userid_revoke(uid->key, uid->idx);
+    const pgp_revoke_t *revoke = pgp_key_get_userid_revoke(uid->key, uid->idx);
     *result = revoke != NULL;
     return RNP_SUCCESS;
 }
