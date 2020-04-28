@@ -937,11 +937,6 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     /* armor header */
     dst_write(writedst, hdr, strlen(hdr));
     armor_write_eol(param);
-    /* version string */
-    strncpy(hdr, "Version: " PACKAGE_STRING, sizeof(hdr));
-    hdr[sizeof(hdr) - 1] = '\0';
-    dst_write(writedst, hdr, strlen(hdr));
-    armor_write_eol(param);
     /* empty line */
     armor_write_eol(param);
 
