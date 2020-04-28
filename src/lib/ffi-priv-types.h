@@ -149,9 +149,9 @@ struct rnp_identifier_iterator_st {
     pgp_key_t *           keyp;
     unsigned              uididx;
     json_object *         tbl;
-    char
-      buf[1 + MAX(MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_KEY_GRIP_SIZE), PGP_FINGERPRINT_SIZE * 2),
-                  MAX_ID_LENGTH)];
+    char                  buf[1 + MAX(MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_KEY_GRIP_SIZE),
+                         PGP_FINGERPRINT_MAX_SIZE * 2),
+                     MAX_ID_LENGTH)];
 };
 
 /* This is just for readability at the call site and will hopefully reduce mistakes.

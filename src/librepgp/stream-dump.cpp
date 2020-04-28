@@ -550,8 +550,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
         dst_printf(dst, "%s\n", sname);
         dst_printf(dst, "class: %d\n", (int) subpkt->fields.revocation_key.klass);
         dst_print_palg(dst, NULL, subpkt->fields.revocation_key.pkalg);
-        dst_print_hex(
-          dst, "fingerprint", subpkt->fields.revocation_key.fp, PGP_FINGERPRINT_SIZE, true);
+        dst_print_hex(dst, "fingerprint", subpkt->fields.revocation_key.fp, subpkt->len, true);
         break;
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
         dst_print_keyid(dst, sname, subpkt->fields.issuer);
@@ -852,7 +851,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
     if (ctx->dump_grips) {
         if (rnp_key_store_get_key_grip(&key.material, keyfp.fingerprint)) {
-            dst_print_hex(dst, "grip", keyfp.fingerprint, PGP_FINGERPRINT_SIZE, false);
+            dst_print_hex(dst, "grip", keyfp.fingerprint, keyfp.length, false);
         } else {
             dst_printf(dst, "grip: failed to calculate");
         }
@@ -1477,7 +1476,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *ctx, pgp_sig_subpkt_t *subpkt, jso
                obj_add_field_json(
                  obj, "algorithm", json_object_new_int(subpkt->fields.revocation_key.pkalg)) &&
                obj_add_hex_json(
-                 obj, "fingerprint", subpkt->fields.revocation_key.fp, PGP_FINGERPRINT_SIZE);
+                 obj, "fingerprint", subpkt->fields.revocation_key.fp, subpkt->len);
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
         return obj_add_hex_json(obj, "issuer keyid", subpkt->fields.issuer, PGP_KEY_ID_SIZE);
     case PGP_SIG_SUBPKT_KEYSERV_PREFS:

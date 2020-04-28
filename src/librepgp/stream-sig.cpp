@@ -849,7 +849,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
         return false;
     }
     /* we don't have a need to write v2-v3 signatures */
-    if ((sig->version < PGP_V2) || (sig->version > PGP_V4)) {
+    if ((sig->version < PGP_V2) || (sig->version > PGP_V5)) {
         RNP_LOG("don't know version %d", (int) sig->version);
         return false;
     }
@@ -884,7 +884,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
 bool
 signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
 {
-    uint8_t       hdr[3] = {0x99, 0x00, 0x00};
+    uint8_t       hdr[5] = {0x99, 0x00, 0x00, 0x00, 0x00};
     pgp_key_pkt_t keycp = {};
     bool          res = false;
 
@@ -894,9 +894,19 @@ signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
     }
 
     if (key->hashed_data) {
-        write_uint16(hdr + 1, key->hashed_len);
-        return !pgp_hash_add(hash, hdr, 3) &&
-               !pgp_hash_add(hash, key->hashed_data, key->hashed_len);
+        if (key->version == PGP_V5) {
+            hdr[0] = 0x9A;
+            write_uint32(hdr + 1, key->hashed_len);
+            if (pgp_hash_add(hash, hdr, 5)) {
+                return false;
+            }
+        } else {
+            write_uint16(hdr + 1, key->hashed_len);
+            if (pgp_hash_add(hash, hdr, 3)) {
+                return false;
+            }
+        }
+        return !pgp_hash_add(hash, key->hashed_data, key->hashed_len);
     }
 
     /* call self recursively if hashed data is not filled, to overcome const restriction */

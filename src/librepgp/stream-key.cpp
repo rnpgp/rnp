@@ -1317,6 +1317,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         }
         ret = decrypt_secret_key_v3(&crypt, decdata, key->sec_data, key->sec_len);
         break;
+    case PGP_V5:
+    /* FALLTHROUGH */
     case PGP_V4:
         pgp_cipher_cfb_decrypt(&crypt, decdata, key->sec_data, key->sec_len);
         ret = RNP_SUCCESS;

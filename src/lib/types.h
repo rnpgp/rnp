@@ -84,7 +84,7 @@ typedef uint8_t pgp_ss_rr_code_t;
 
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
-    uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
+    uint8_t  fingerprint[PGP_FINGERPRINT_MAX_SIZE];
     unsigned length;
 } pgp_fingerprint_t;
 

@@ -71,6 +71,19 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
         return RNP_SUCCESS;
     }
 
+    if (key->version == PGP_V5) {
+        if (!pgp_hash_create(&hash, PGP_HASH_SHA256)) {
+            RNP_LOG("bad sha256 alloc");
+            return RNP_ERROR_NOT_SUPPORTED;
+        }
+        if (!signature_hash_key(key, &hash)) {
+            return RNP_ERROR_GENERIC;
+        }
+        fp->length = pgp_hash_finish(&hash, fp->fingerprint);
+        RNP_DHEX("sha256 fingerprint", fp->fingerprint, fp->length);
+        return RNP_SUCCESS;
+    }
+
     RNP_LOG("unsupported key version");
     return RNP_ERROR_NOT_SUPPORTED;
 }
@@ -102,7 +115,9 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
     if ((ret = pgp_fingerprint(&fp, key))) {
         return ret;
     }
-    (void) memcpy(keyid, fp.fingerprint + fp.length - idlen, idlen);
+
+    (void) memcpy(
+      keyid, fp.fingerprint + (key->version == PGP_V5 ? 0 : fp.length - idlen), idlen);
     return RNP_SUCCESS;
 }
 

@@ -100,7 +100,7 @@ find_key(rnp_ffi_t               ffi,
     }
     if (!key && ffi->getkeycb && try_key_provider) {
         char        identifier[1 + MAX(MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_KEY_GRIP_SIZE),
-                                    PGP_FINGERPRINT_SIZE * 2),
+                                    PGP_FINGERPRINT_MAX_SIZE * 2),
                                 MAX_ID_LENGTH)];
         const char *identifier_type = NULL;
 
@@ -2959,12 +2959,16 @@ str_to_locator(rnp_ffi_t         ffi,
     } break;
     case PGP_KEY_SEARCH_FINGERPRINT: {
         // TODO: support v5 fingerprints
-        if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2)) {
+        switch (strlen(identifier)) {
+        case PGP_FINGERPRINT_SIZE * 2:
+        case PGP_FINGERPRINT_MAX_SIZE * 2:
+            break;
+        default:
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
         locator->by.fingerprint.length = rnp_hex_decode(
-          identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE);
+          identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_MAX_SIZE);
         if (!locator->by.fingerprint.length) {
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
@@ -6257,7 +6261,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // fingerprint
-    char fpr[PGP_FINGERPRINT_SIZE * 2 + 1];
+    char fpr[PGP_FINGERPRINT_MAX_SIZE * 2 + 1];
     if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
                         pgp_key_get_fp(key)->length,
                         fpr,

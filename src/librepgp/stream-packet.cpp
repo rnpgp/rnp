@@ -57,6 +57,15 @@ write_uint16(uint8_t *buf, uint16_t val)
     buf[1] = val & 0xff;
 }
 
+void
+write_uint32(uint8_t *buf, uint32_t val)
+{
+    buf[0] = val >> 24;
+    buf[1] = (val >> 16) & 0xff;
+    buf[2] = (val >> 8) & 0xff;
+    buf[3] = val & 0xff;
+}
+
 size_t
 write_packet_len(uint8_t *buf, size_t len)
 {
@@ -924,7 +933,7 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
     pgp_packet_body_t pktbody;
     bool              res;
 
-    if ((sig->version < PGP_V2) || (sig->version > PGP_V4)) {
+    if ((sig->version < PGP_V2) || (sig->version > PGP_V5)) {
         RNP_LOG("don't know version %d", (int) sig->version);
         return false;
     }
@@ -1506,7 +1515,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
 
 /* parse v4-specific fields, not the whole signature */
 static rnp_result_t
-signature_read_v4(pgp_packet_body_t *pkt, pgp_signature_t *sig)
+signature_read_v4v5(pgp_packet_body_t *pkt, pgp_signature_t *sig, uint8_t ver)
 {
     uint8_t      buf[5];
     uint8_t *    spbuf;
@@ -1604,8 +1613,8 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     /* v3 or v4 signature body */
     if ((ver == PGP_V2) || (ver == PGP_V3)) {
         res = signature_read_v3(pkt, sig);
-    } else if (ver == PGP_V4) {
-        res = signature_read_v4(pkt, sig);
+    } else if (ver == PGP_V4 || ver == PGP_V5) {
+        res = signature_read_v4v5(pkt, sig, ver);
     } else {
         RNP_LOG("unknown signature version: %d", (int) ver);
         goto finish;
@@ -1857,16 +1866,22 @@ bool
 key_fill_hashed_data(pgp_key_pkt_t *key)
 {
     pgp_packet_body_t hbody;
+    pgp_packet_body_t hbody_alg, *phbody;
     bool              res = false;
 
     /* we don't have a need to write v2-v3 signatures */
-    if (key->version != PGP_V4) {
+    if (key->version != PGP_V4 && key->version != PGP_V5) {
         RNP_LOG("unknown key version %d", (int) key->version);
         return false;
     }
 
     if (!init_packet_body(&hbody, PGP_PKT_RESERVED)) {
         RNP_LOG("allocation failed");
+        return false;
+    }
+    if (key->version == PGP_V5 && !init_packet_body(&hbody_alg, PGP_PKT_RESERVED)) {
+        RNP_LOG("allocation failed");
+        free_packet_body(&hbody);
         return false;
     }
 
@@ -1879,50 +1894,61 @@ key_fill_hashed_data(pgp_key_pkt_t *key)
     }
 
     /* Algorithm specific fields */
+    phbody = (key->version == PGP_V5 ? &hbody_alg : &hbody);
     switch (key->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        res = add_packet_body_mpi(&hbody, &key->material.rsa.n) &&
-              add_packet_body_mpi(&hbody, &key->material.rsa.e);
+        res = add_packet_body_mpi(phbody, &key->material.rsa.n) &&
+              add_packet_body_mpi(phbody, &key->material.rsa.e);
         break;
     case PGP_PKA_DSA:
-        res = add_packet_body_mpi(&hbody, &key->material.dsa.p) &&
-              add_packet_body_mpi(&hbody, &key->material.dsa.q) &&
-              add_packet_body_mpi(&hbody, &key->material.dsa.g) &&
-              add_packet_body_mpi(&hbody, &key->material.dsa.y);
+        res = add_packet_body_mpi(phbody, &key->material.dsa.p) &&
+              add_packet_body_mpi(phbody, &key->material.dsa.q) &&
+              add_packet_body_mpi(phbody, &key->material.dsa.g) &&
+              add_packet_body_mpi(phbody, &key->material.dsa.y);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res = add_packet_body_mpi(&hbody, &key->material.eg.p) &&
-              add_packet_body_mpi(&hbody, &key->material.eg.g) &&
-              add_packet_body_mpi(&hbody, &key->material.eg.y);
+        res = add_packet_body_mpi(phbody, &key->material.eg.p) &&
+              add_packet_body_mpi(phbody, &key->material.eg.g) &&
+              add_packet_body_mpi(phbody, &key->material.eg.y);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        res = add_packet_body_key_curve(&hbody, key->material.ec.curve) &&
-              add_packet_body_mpi(&hbody, &key->material.ec.p);
+        res = add_packet_body_key_curve(phbody, key->material.ec.curve) &&
+              add_packet_body_mpi(phbody, &key->material.ec.p);
         break;
     case PGP_PKA_ECDH:
-        res = add_packet_body_key_curve(&hbody, key->material.ec.curve) &&
-              add_packet_body_mpi(&hbody, &key->material.ec.p) &&
-              add_packet_body_byte(&hbody, 3) && add_packet_body_byte(&hbody, 1) &&
-              add_packet_body_byte(&hbody, key->material.ec.kdf_hash_alg) &&
-              add_packet_body_byte(&hbody, key->material.ec.key_wrap_alg);
+        res = add_packet_body_key_curve(phbody, key->material.ec.curve) &&
+              add_packet_body_mpi(phbody, &key->material.ec.p) &&
+              add_packet_body_byte(phbody, 3) && add_packet_body_byte(phbody, 1) &&
+              add_packet_body_byte(phbody, key->material.ec.kdf_hash_alg) &&
+              add_packet_body_byte(phbody, key->material.ec.key_wrap_alg);
         break;
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
         res = false;
+    }
+    if (res && key->version == PGP_V5) {
+        res = add_packet_body_uint32(&hbody, hbody_alg.len) &&
+              add_packet_body(&hbody, hbody_alg.data, hbody_alg.len);
     }
 
     /* get ownership on written data on success*/
     if (res) {
         key->hashed_data = hbody.data;
         key->hashed_len = hbody.len;
+        if (key->version == PGP_V5) {
+            free_packet_body(&hbody_alg);
+        }
         return true;
     }
 error:
+    if (key->version == PGP_V5) {
+        free_packet_body(&hbody_alg);
+    }
     free_packet_body(&hbody);
     return false;
 }
@@ -1953,6 +1979,8 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
     }
 
     if (is_secret_key_pkt(key->tag)) {
+        pgp_version_t ver = key->hashed_len > 0 ? (pgp_version_t) key->hashed_data[0] : PGP_V4;
+
         /* secret key fields should be pre-populated in sec_data field */
         if (!key->sec_data || !key->sec_len) {
             RNP_LOG("secret key data is not populated");
@@ -1962,6 +1990,19 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
         if (!(res = add_packet_body_byte(&pktbody, key->sec_protection.s2k.usage))) {
             goto finish;
         }
+
+        if (ver == PGP_V5) {
+            uint8_t opt_cnt = 0;
+            switch (key->sec_protection.s2k.usage) {
+            case PGP_S2KU_ENCRYPTED_AND_HASHED:
+            case PGP_S2KU_ENCRYPTED:
+                opt_cnt = 3;
+            }
+            if (!(res = add_packet_body_byte(&pktbody, opt_cnt))) {
+                goto finish;
+            }
+        }
+
         switch (key->sec_protection.s2k.usage) {
         case PGP_S2KU_NONE:
             res = true;
@@ -1985,6 +2026,20 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
             RNP_LOG("wrong s2k usage");
             res = false;
             goto finish;
+        }
+
+        if (ver == PGP_V5) {
+            uint32_t sec_len = key->sec_len;
+            switch (key->sec_protection.s2k.usage) {
+            case PGP_S2KU_NONE:
+            case PGP_S2KU_ENCRYPTED:
+                sec_len = MAX(sec_len, sizeof(uint16_t)) - sizeof(uint16_t); // checksum
+                break;
+            }
+            res = add_packet_body_uint32(&pktbody, sec_len);
+            if (!res) {
+                goto finish;
+            }
         }
         res = add_packet_body(&pktbody, key->sec_data, key->sec_len);
     }
@@ -2029,7 +2084,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     key->tag = pkt.tag;
 
     /* version */
-    if (!get_packet_body_byte(&pkt, &ver) || (ver < PGP_V2) || (ver > PGP_V4)) {
+    if (!get_packet_body_byte(&pkt, &ver) || (ver < PGP_V2) || (ver > PGP_V5)) {
         RNP_LOG("wrong key packet version");
         goto finish;
     }
@@ -2051,6 +2106,11 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
     key->alg = (pgp_pubkey_alg_t) alg;
     key->material.alg = (pgp_pubkey_alg_t) alg;
+
+    uint32_t pub_data_len;
+    if (ver == PGP_V5 && !get_packet_body_uint32(&pkt, &pub_data_len)) {
+        goto finish;
+    }
 
     /* v3 keys must be RSA-only */
     if ((key->version < PGP_V4) && !is_rsa_key_alg(key->alg)) {
@@ -2137,6 +2197,12 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         key->sec_protection.s2k.usage = (pgp_s2k_usage_t) usage;
         key->sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
 
+        if (ver == PGP_V5) {
+            uint8_t sec_opt_cnt = 0;
+            if (!get_packet_body_byte(&pkt, &sec_opt_cnt)) {
+                goto finish;
+            }
+        }
         switch (key->sec_protection.s2k.usage) {
         case PGP_S2KU_NONE:
             break;
@@ -2172,6 +2238,19 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
         /* encrypted/cleartext secret MPIs are left */
         size_t sec_len = pkt.len - pkt.pos;
+        if (ver == PGP_V5) {
+            uint32_t sec_length = sec_len;
+            if (!get_packet_body_uint32(&pkt, &sec_length)) {
+                goto finish;
+            }
+            switch (key->sec_protection.s2k.usage) {
+            case PGP_S2KU_NONE:
+            case PGP_S2KU_ENCRYPTED:
+                sec_length += sizeof(uint16_t); // checksum
+                break;
+            }
+            sec_len = sec_length;
+        }
         if (!(key->sec_data = (uint8_t *) calloc(1, sec_len))) {
             res = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;

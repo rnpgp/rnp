@@ -93,6 +93,7 @@
 
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_SIZE 20
+#define PGP_FINGERPRINT_MAX_SIZE 32
 #define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
 
 /* Size of the key grip */
@@ -407,7 +408,8 @@ enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4, PGP_SKSK_V5
 typedef enum {
     PGP_V2 = 2, /* Version 2 (essentially the same as v3) */
     PGP_V3 = 3, /* Version 3 */
-    PGP_V4 = 4  /* Version 4 */
+    PGP_V4 = 4, /* Version 4 */
+    PGP_V5 = 5  /* Version 5 */
 } pgp_version_t;
 
 typedef enum pgp_op_t {

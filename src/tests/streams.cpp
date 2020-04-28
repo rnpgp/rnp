@@ -781,6 +781,21 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_non_null(list_front(key->subkeys));
     key_sequence_destroy(&keyseq);
     src_close(&keysrc);
+
+    /* curve 25519 ecc V5 */
+    assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-v5.asc"));
+    assert_rnp_success(process_pgp_keys(&keysrc, &keyseq));
+    assert_int_equal(list_length(keyseq.keys), 1);
+    assert_non_null(key = (pgp_transferable_key_t *) list_front(keyseq.keys));
+    assert_rnp_success(pgp_fingerprint(&keyfp, &key->key));
+    assert_true(
+      cmp_keyfp(&keyfp, "19347bc9872464025f99df3ec2e0000ed9884892e1f7b3ea4c94009159569b54"));
+    assert_rnp_success(pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key->key));
+    assert_true(cmp_keyid(keyid, "19347bc987246402"));
+    assert_int_equal(list_length(key->subkeys), 1);
+    assert_non_null(list_front(key->subkeys));
+    key_sequence_destroy(&keyseq);
+    src_close(&keysrc);
 }
 
 static void

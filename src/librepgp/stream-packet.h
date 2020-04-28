@@ -63,6 +63,7 @@ uint16_t read_uint16(const uint8_t *buf);
 uint32_t read_uint32(const uint8_t *buf);
 
 void write_uint16(uint8_t *buf, uint16_t val);
+void write_uint32(uint8_t *buf, uint32_t val);
 
 /** @brief write new packet length
  *  @param buf pre-allocated buffer, must have 5 bytes

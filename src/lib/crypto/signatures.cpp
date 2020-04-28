@@ -51,10 +51,16 @@ signature_hash_finish(const pgp_signature_t *sig,
         goto error;
     }
     if (sig->version > PGP_V3) {
-        uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
-        STORE32BE(&trailer[2], sig->hashed_len);
-
-        if (pgp_hash_add(hash, trailer, 6)) {
+        uint8_t trailer[10] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        size_t  trail_size = 6;
+        if (sig->version == PGP_V5) {
+            trailer[0] = 0x05;
+            trail_size += 4;
+            STORE32BE(&trailer[6], sig->hashed_len);
+        } else {
+            STORE32BE(&trailer[2], sig->hashed_len);
+        }
+        if (pgp_hash_add(hash, trailer, trail_size)) {
             RNP_LOG("failed to add sig trailer");
             goto error;
         }
