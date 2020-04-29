@@ -93,7 +93,7 @@ signature_add_subpkt(pgp_signature_t *        sig,
     }
 
     if (reuse && (subpkt = signature_get_subpkt(sig, type))) {
-        free(subpkt->data);
+        free_signature_subpkt(subpkt);
         memset(subpkt, 0, sizeof(*subpkt));
     }
 
@@ -110,7 +110,6 @@ signature_add_subpkt(pgp_signature_t *        sig,
 
     subpkt->type = type;
     subpkt->len = datalen;
-
     return subpkt;
 }
 
@@ -871,6 +870,7 @@ signature_fill_hashed_data(pgp_signature_t *sig)
     }
 
     if (res) {
+        free(sig->hashed_data);
         /* get ownership on body data */
         sig->hashed_data = hbody.data;
         sig->hashed_len = hbody.len;

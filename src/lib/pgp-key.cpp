@@ -969,6 +969,26 @@ pgp_key_get_subsig(const pgp_key_t *key, size_t idx)
     return (pgp_subsig_t *) list_at(key->subsigs, idx);
 }
 
+static bool
+pgp_signature_to_rawpacket(pgp_rawpacket_t *pkt, const pgp_signature_t *sig)
+{
+    pgp_dest_t dst = {};
+
+    if (init_mem_dest(&dst, NULL, 0)) {
+        return false;
+    }
+    if (!stream_write_signature(sig, &dst)) {
+        dst_close(&dst, true);
+        return false;
+    }
+
+    pkt->tag = PGP_PKT_SIGNATURE;
+    pkt->length = dst.writeb;
+    pkt->raw = (uint8_t *) mem_dest_own_memory(&dst);
+    dst_close(&dst, true);
+    return true;
+}
+
 bool
 pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig)
 {
@@ -1021,6 +1041,95 @@ error:
     pgp_subsig_free(subsig);
     memset(subsig, 0, sizeof(*subsig));
     return false;
+}
+
+bool
+pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig)
+{
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
+        if (signature_pkt_equal(&subsig->sig, sig)) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static bool
+pgp_key_replace_rawpacket(pgp_key_t *key, pgp_rawpacket_t *oldpkt, pgp_rawpacket_t *newpkt)
+{
+    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
+        pgp_rawpacket_t *curpkt = pgp_key_get_rawpacket(key, i);
+        if ((curpkt->length != oldpkt->length) || (curpkt->tag != oldpkt->tag)) {
+            continue;
+        }
+        if (memcmp(curpkt->raw, oldpkt->raw, curpkt->length)) {
+            continue;
+        }
+        pgp_rawpacket_t pktcp = {};
+        pktcp = *newpkt;
+        pktcp.raw = (uint8_t *) malloc(newpkt->length);
+        if (!pktcp.raw) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
+        memcpy(pktcp.raw, newpkt->raw, newpkt->length);
+        pgp_rawpacket_free(curpkt);
+        *curpkt = pktcp;
+        return true;
+    }
+    return false;
+}
+
+pgp_subsig_t *
+pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature_t *newsig)
+{
+    pgp_subsig_t *subsig = NULL;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        subsig = pgp_key_get_subsig(key, i);
+        if (signature_pkt_equal(&subsig->sig, oldsig)) {
+            break;
+        }
+        subsig = NULL;
+    }
+    if (!subsig) {
+        return NULL;
+    }
+
+    /* create rawpackets here since oldsig may be equal to subsig */
+    pgp_rawpacket_t oldraw = {};
+    if (!pgp_signature_to_rawpacket(&oldraw, oldsig)) {
+        RNP_LOG("failed to create old rawpacket");
+        return NULL;
+    }
+    pgp_rawpacket_t newraw = {};
+    if (!pgp_signature_to_rawpacket(&newraw, newsig)) {
+        RNP_LOG("failed to create new rawpacket");
+        pgp_rawpacket_free(&oldraw);
+        return NULL;
+    }
+
+    /* replace subsig itself */
+    pgp_subsig_t newsubsig = {};
+    if (!pgp_subsig_from_signature(&newsubsig, newsig)) {
+        RNP_LOG("failed to fill subsig");
+        subsig = NULL;
+        goto done;
+    }
+    newsubsig.uid = subsig->uid;
+    pgp_subsig_free(subsig);
+    *subsig = newsubsig;
+
+    /* replace rawpacket */
+    if (!pgp_key_replace_rawpacket(key, &oldraw, &newraw)) {
+        RNP_LOG("failed to replace rawpacket");
+        subsig = NULL;
+    }
+done:
+    pgp_rawpacket_free(&oldraw);
+    pgp_rawpacket_free(&newraw);
+    return subsig;
 }
 
 static bool
@@ -1391,16 +1500,16 @@ pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt)
 pgp_rawpacket_t *
 pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt)
 {
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
+    pgp_rawpacket_t rawpkt = {};
+    if (!pgp_signature_to_rawpacket(&rawpkt, pkt)) {
         return NULL;
     }
-    if (!stream_write_signature(pkt, &dst)) {
-        dst_close(&dst, true);
-        return NULL;
+    pgp_rawpacket_t *res =
+      (pgp_rawpacket_t *) list_append(&key->packets, &rawpkt, sizeof(rawpkt));
+    if (!res) {
+        pgp_rawpacket_free(&rawpkt);
     }
-    return pgp_key_add_stream_rawpacket(key, PGP_PKT_SIGNATURE, &dst);
+    return res;
 }
 
 pgp_rawpacket_t *
@@ -1848,6 +1957,131 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
 done:
     transferable_userid_destroy(&uid);
     return ret;
+}
+
+static bool
+update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t expiry)
+{
+    if (!copy_signature_packet(dst, src)) {
+        RNP_LOG("Failed to copy signature");
+        return false;
+    }
+    if (!expiry) {
+        pgp_sig_subpkt_t *subpkt = signature_get_subpkt(dst, PGP_SIG_SUBPKT_KEY_EXPIRY);
+        signature_remove_subpkt(dst, subpkt);
+    } else {
+        signature_set_key_expiration(dst, expiry);
+    }
+    signature_set_creation(dst, time(NULL));
+    return true;
+}
+
+bool
+pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
+{
+    if (!pgp_key_is_primary_key(key)) {
+        RNP_LOG("Not a primary key");
+        return false;
+    }
+
+    /* locate the latest valid certification with or without key expiration */
+    pgp_subsig_t *subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_EXPIRY);
+    if (!subsig) {
+        subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
+    }
+    if (!subsig) {
+        RNP_LOG("No valid self-signature");
+        return false;
+    }
+
+    /* update signature and re-sign it */
+    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+        return true;
+    }
+    pgp_signature_t newsig = {};
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        return false;
+    }
+
+    bool res = false;
+    if (pgp_sig_is_certification(subsig)) {
+        pgp_userid_t *uid = pgp_key_get_userid(key, subsig->uid);
+        if (!uid) {
+            RNP_LOG("uid not found");
+            goto done;
+        }
+        if (!signature_calculate_certification(
+              pgp_key_get_pkt(key), &uid->pkt, &newsig, pgp_key_get_pkt(seckey))) {
+            RNP_LOG("failed to calculate signature");
+            goto done;
+        }
+    } else {
+        /* direct-key signature case */
+        if (!signature_calculate_direct(
+              pgp_key_get_pkt(key), &newsig, pgp_key_get_pkt(seckey))) {
+            RNP_LOG("failed to calculate signature");
+            goto done;
+        }
+    }
+
+    /* replace signature, first for secret key since it may be replaced in public */
+    if (pgp_key_has_signature(seckey, &subsig->sig)) {
+        res = pgp_key_replace_signature(seckey, &subsig->sig, &newsig) &&
+              pgp_key_refresh_data(key);
+    }
+    res = res && pgp_key_replace_signature(key, &subsig->sig, &newsig) &&
+          pgp_key_refresh_data(key);
+done:
+    free_signature(&newsig);
+    return res;
+}
+
+bool
+pgp_subkey_set_expiration(pgp_key_t *sub,
+                          pgp_key_t *primsec,
+                          pgp_key_t *secsub,
+                          uint32_t   expiry)
+{
+    if (!pgp_key_is_subkey(sub)) {
+        RNP_LOG("Not a subkey");
+        return false;
+    }
+
+    /* find the latest valid subkey binding */
+    pgp_subsig_t *subsig = NULL;
+    subsig = pgp_key_latest_binding(sub, true);
+    if (!subsig) {
+        RNP_LOG("No valid subkey binding");
+        return false;
+    }
+    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+        return true;
+    }
+    /* update signature and re-sign */
+    pgp_signature_t newsig = {};
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        return false;
+    }
+
+    bool res = false;
+    if (!signature_calculate_binding(pgp_key_get_pkt(primsec),
+                                     pgp_key_get_pkt(secsub),
+                                     &newsig,
+                                     pgp_key_get_flags(secsub) & PGP_KF_SIGN)) {
+        RNP_LOG("failed to calculate signature");
+        goto done;
+    }
+
+    /* replace signature, first for the secret key since it may be replaced in public */
+    if (pgp_key_has_signature(secsub, &subsig->sig)) {
+        res = pgp_key_replace_signature(secsub, &subsig->sig, &newsig) &&
+              pgp_subkey_refresh_data(secsub, primsec);
+    }
+    res = res && pgp_key_replace_signature(sub, &subsig->sig, &newsig) &&
+          pgp_subkey_refresh_data(sub, primsec);
+done:
+    free_signature(&newsig);
+    return res;
 }
 
 bool

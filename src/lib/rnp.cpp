@@ -5487,6 +5487,49 @@ rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
 }
 
 rnp_result_t
+rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
+{
+    if (!key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_t *pkey = get_key_prefer_public(key);
+    if (!pkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *skey = get_key_require_secret(key);
+    if (!skey) {
+        FFI_LOG(key->ffi, "Secret key required.");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (pgp_key_is_primary_key(pkey)) {
+        bool res = pgp_key_set_expiration(pkey, skey, expiry);
+        return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    }
+
+    /* for subkey we need primary key */
+    const uint8_t *grip = pgp_key_get_primary_grip(pkey);
+    if (!grip) {
+        FFI_LOG(key->ffi, "Primary key grip not available.");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_key_request_ctx_t request = {};
+    request.secret = true;
+    request.search.type = PGP_KEY_SEARCH_GRIP;
+    memcpy(request.search.by.grip, grip, PGP_KEY_GRIP_SIZE);
+    pgp_key_t *prim_sec = pgp_request_key(&key->ffi->key_provider, &request);
+    if (!prim_sec) {
+        FFI_LOG(key->ffi, "Primary secret key not found.");
+        return RNP_ERROR_KEY_NOT_FOUND;
+    }
+
+    bool res = pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry);
+    return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+}
+
+rnp_result_t
 rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
 {
     if (!handle || !result) {
