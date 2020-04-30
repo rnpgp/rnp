@@ -940,6 +940,10 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         primary_sec = rnp_key_store_get_key_by_grip(secring, pgp_key_get_grip(&pub));
         assert_non_null(primary_pub);
         assert_non_null(primary_sec);
+        assert_true(primary_pub->valid);
+        assert_true(primary_pub->validated);
+        assert_true(primary_sec->valid);
+        assert_true(primary_sec->validated);
 
         // check packet and subsig counts
         assert_int_equal(3, pgp_key_get_rawpacket_count(&pub));
@@ -1009,17 +1013,27 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         // validate via an alternative method
         // primary_pub + pubring
+        primary_pub->valid = false;
+        primary_pub->validated = false;
         pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
+        assert_true(primary_pub->validated);
         // primary_sec + pubring
+        primary_sec->valid = false;
+        primary_sec->validated = false;
         pgp_key_validate(primary_sec, pubring);
         assert_true(primary_sec->valid);
+        assert_true(primary_sec->validated);
         // primary_pub + secring
+        primary_pub->valid = primary_pub->validated = false;
         pgp_key_validate(primary_pub, secring);
         assert_true(primary_pub->valid);
+        assert_true(primary_pub->validated);
         // primary_sec + secring
+        primary_sec->valid = primary_sec->validated = false;
         pgp_key_validate(primary_sec, secring);
         assert_true(primary_sec->valid);
+        assert_true(primary_sec->validated);
         // modify a hashed portion of the sig packet, offset may change in future
         pgp_subsig_t *sig = pgp_key_get_subsig(primary_pub, 0);
         assert_non_null(sig);
@@ -1028,11 +1042,13 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // ensure validation fails
         pgp_key_validate(primary_pub, pubring);
         assert_false(primary_pub->valid);
+        assert_true(primary_pub->validated);
         // restore the original data
         sig->sig.hashed_data[10] ^= 0xff;
         sig->validated = false;
         pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
+        assert_true(primary_pub->validated);
     }
 
     // sub
@@ -1053,6 +1069,10 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // generate
         assert_true(pgp_generate_subkey(
           &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, PGP_KEY_STORE_GPG));
+        assert_true(pub.valid);
+        assert_true(pub.validated);
+        assert_true(sec.valid);
+        assert_true(sec.validated);
 
         // check packet and subsig counts
         assert_int_equal(2, pgp_key_get_rawpacket_count(&pub));
@@ -1111,12 +1131,22 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         sub_sec = rnp_key_store_get_key_by_grip(secring, pgp_key_get_grip(&pub));
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
+        assert_true(sub_pub->valid);
+        assert_true(sub_pub->validated);
+        assert_true(sub_sec->valid);
+        assert_true(sub_sec->validated);
 
         // validate via an alternative method
+        sub_pub->valid = false;
+        sub_pub->validated = false;
         pgp_key_validate(sub_pub, pubring);
         assert_true(sub_pub->valid);
+        assert_true(sub_pub->validated);
+        sub_sec->valid = false;
+        sub_sec->validated = false;
         pgp_key_validate(sub_sec, pubring);
         assert_true(sub_sec->valid);
+        assert_true(sub_sec->validated);
     }
 
     rnp_key_store_free(pubring);
