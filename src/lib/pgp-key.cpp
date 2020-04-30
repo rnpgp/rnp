@@ -1387,11 +1387,14 @@ pgp_key_refresh_data(pgp_key_t *key)
     /* validate self-signatures if not done yet */
     pgp_key_validate_self_signatures(key);
     /* key expiration */
-    pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_EXPIRY);
+    pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
     key->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
     /* key flags */
-    sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_FLAGS);
-    key->key_flags = sig ? sig->key_flags : pgp_pk_alg_capabilities(pgp_key_get_alg(key));
+    if (sig && signature_has_key_flags(&sig->sig)) {
+        key->key_flags = sig->key_flags;
+    } else {
+        key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
+    }
     /* primary userid */
     key->uid0_set = false;
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
@@ -1975,11 +1978,8 @@ pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
         return false;
     }
 
-    /* locate the latest valid certification with or without key expiration */
-    pgp_subsig_t *subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_KEY_EXPIRY);
-    if (!subsig) {
-        subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
-    }
+    /* locate the latest valid certification */
+    pgp_subsig_t *subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
     if (!subsig) {
         RNP_LOG("No valid self-signature");
         return false;
