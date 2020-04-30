@@ -39,4 +39,9 @@ Result: Alice [valid], Alice sub [invalid]
 Case8:
 Keys Alice [pub, sub]
 Userid is stripped from the key, but it still has valid subkey binding
-Result; Alice [valid], Alice sub[valid]
+Result: Alice [valid], Alice sub[valid]
+
+Case9:
+Keys Alice [pub, sub]
+Alice key has two self-signatures, one which expires key and second without key expiration.
+Result: Alice [valid], Alice sub[valid]
