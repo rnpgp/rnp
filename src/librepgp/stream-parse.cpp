@@ -637,13 +637,14 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
     uint8_t mdcbuf[MDC_V1_SIZE];
     if (param->has_mdc) {
         size_t mdcread = 0;
-        /* make sure there are always 20 bytes left on input */
+        /* make sure there are always 22 bytes left on input */
         if (!src_peek(param->pkt.readsrc, mdcbuf, MDC_V1_SIZE, &mdcread) ||
             (mdcread + read < MDC_V1_SIZE)) {
             RNP_LOG("wrong mdc read state");
             return false;
         }
         if (mdcread < MDC_V1_SIZE) {
+            src_skip(param->pkt.readsrc, mdcread);
             size_t mdcsub = MDC_V1_SIZE - mdcread;
             memmove(&mdcbuf[mdcsub], mdcbuf, mdcread);
             memcpy(mdcbuf, (uint8_t *) buf + read - mdcsub, mdcsub);

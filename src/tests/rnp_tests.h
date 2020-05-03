@@ -283,6 +283,8 @@ void test_ffi_key_revoke(void **state);
 
 void test_ffi_set_key_expiry(void **state);
 
+void test_ffi_mdc_8k_boundary(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
