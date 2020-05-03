@@ -7319,3 +7319,70 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_ffi_mdc_8k_boundary)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    /* correctly process two messages */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message_mdc_8k_1.pgp"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* check signature */
+    size_t sig_count = 0;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    rnp_op_verify_signature_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    /* cleanup */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message_mdc_8k_2.pgp"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* check signature */
+    sig_count = 0;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    /* cleanup */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    /* let it gracefully fail on message 1 with the last byte cut */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message_mdc_8k_cut1.pgp"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    /* cleanup */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    /* let it gracefully fail on message 1 with the last 22 bytes (MDC size) cut */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message_mdc_8k_cut22.pgp"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    /* cleanup */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
