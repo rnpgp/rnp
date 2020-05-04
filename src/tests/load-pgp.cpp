@@ -58,6 +58,9 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_int_equal(pgp_key_get_flags(key),
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
+    // confirm that key expiration is correct
+    assert_int_equal(pgp_key_get_expiration(key), 0);
+
     // cleanup
     rnp_key_store_free(key_store);
 
