@@ -1380,8 +1380,6 @@ rnp_result_t rnp_key_is_sub(rnp_key_handle_t key, bool *result);
 rnp_result_t rnp_key_have_secret(rnp_key_handle_t key, bool *result);
 rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
-/* TODO: function to add a userid to a key */
-
 /** Get the information about key packets in JSON string.
  *  Note: this will not work for G10 keys.
  *
@@ -1694,8 +1692,6 @@ rnp_result_t rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig,
 rnp_result_t rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
                                                uint32_t *                create,
                                                uint32_t *                expires);
-
-/* TODO define functions for encrypt+sign */
 
 /**
  * @brief Free buffer allocated by a function in this header.
