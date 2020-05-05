@@ -37,7 +37,12 @@ jobs:
             RNP_TESTS: rnp_tests
     env: ${{ matrix.env }}
     steps:
-      - uses: actions/checkout@v1
+      - run: |
+          yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+          yum -y install git
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
       - name: Add rnpuser
         run: |
           useradd rnpuser
