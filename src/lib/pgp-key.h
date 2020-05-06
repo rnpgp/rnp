@@ -261,6 +261,11 @@ pgp_subsig_t *pgp_key_replace_signature(pgp_key_t *      key,
                                         pgp_signature_t *oldsig,
                                         pgp_signature_t *newsig);
 
+bool pgp_key_strip_signatures(pgp_key_t *           key,
+                              pgp_key_strip_flags_t flags,
+                              rnp_key_store_t *     keyring,
+                              pgp_key_provider_t *  keyprov);
+
 /**
  * @brief Get the latest valid self-signature with information about the primary key,
  * containing the specified subpacket. It could be userid certification or direct-key

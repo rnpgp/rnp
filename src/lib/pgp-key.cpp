@@ -917,6 +917,34 @@ pgp_key_latest_uid_selfcert(pgp_key_t *key, uint32_t uid)
     return res;
 }
 
+static pgp_subsig_t *
+pgp_key_latest_direct_selfsig(pgp_key_t *key)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid) {
+            continue;
+        }
+        if (!pgp_sig_is_direct_self_signature(key, sig)) {
+            continue;
+        }
+        if (sig->uid != (uint32_t) -1) {
+            RNP_LOG("Warning: direct-key signature within userid");
+            continue;
+        }
+
+        uint32_t creation = signature_get_creation(&sig->sig);
+        if (creation >= latest) {
+            latest = creation;
+            res = sig;
+        }
+    }
+    return res;
+}
+
 pgp_subsig_t *
 pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
 {
@@ -1044,6 +1072,150 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
             pgp_key_validate_signature(sub, key, key, sig);
         }
     }
+}
+
+static bool
+key_sig_matches_flags(pgp_subsig_t &        sig,
+                      pgp_key_t &           key,
+                      pgp_key_strip_flags_t flags,
+                      rnp_key_store_t &     keyring,
+                      pgp_key_provider_t *  keyprov)
+{
+    /* first try less time-consuming checks */
+    if ((flags & PGP_KS_ONLYOWN_SIG) && (!pgp_sig_self_signed(&key, &sig))) {
+        return true;
+    }
+    pgp_key_t *signer = pgp_sig_get_signer(&sig, &keyring, keyprov);
+    if ((flags & PGP_KS_UNKNOWN_SIG) && !signer) {
+        return true;
+    }
+    if (flags & PGP_KS_INVALID_SIG) {
+        if (!sig.validated && signer) {
+            pgp_key_validate_signature(&key, signer, NULL, &sig);
+        }
+        /* consider not-validated sig with signer as invalid as well */
+        if ((!sig.validated && signer) || !sig.valid) {
+            return true;
+        }
+    }
+    /* flag PGP_KS_UNUSED_SIG is handled in pgp_key_strip_signatures() */
+    return false;
+}
+
+static bool
+sub_sig_matches_flags(pgp_subsig_t &        sig,
+                      pgp_key_t &           primary,
+                      pgp_key_t &           sub,
+                      pgp_key_strip_flags_t flags,
+                      rnp_key_store_t &     keyring)
+{
+    /* Only primary key's signature makes sense for the subkey */
+    if (!pgp_sig_self_signed(&primary, &sig)) {
+        return true;
+    }
+
+    if (flags & PGP_KS_INVALID_SIG) {
+        if (!sig.validated) {
+            pgp_key_validate_signature(&sub, &primary, &primary, &sig);
+        }
+        /* consider not-validated sig as invalid as well */
+        if (!sig.validated || !sig.valid) {
+            return true;
+        }
+    }
+    /* flag PGP_KS_UNUSED_SIG is handled in pgp_key_strip_signatures() */
+    return false;
+}
+
+bool
+pgp_key_strip_signatures(pgp_key_t *           key,
+                         pgp_key_strip_flags_t flags,
+                         rnp_key_store_t *     keyring,
+                         pgp_key_provider_t *  keyprov)
+{
+    if (!pgp_key_is_primary_key(key)) {
+        RNP_LOG("Not a primary key");
+        return false;
+    }
+
+    if (flags &
+        ~(PGP_KS_ONLYOWN_SIG | PGP_KS_UNKNOWN_SIG | PGP_KS_INVALID_SIG | PGP_KS_UNUSED_SIG)) {
+        RNP_LOG("Unknown flags: %d", (int) flags);
+        return false;
+    }
+
+    try {
+        key->subsigs.erase(std::remove_if(key->subsigs.begin(),
+                                          key->subsigs.end(),
+                                          [key, flags, keyring, keyprov](pgp_subsig_t &sig) {
+                                              return key_sig_matches_flags(
+                                                sig, *key, flags, *keyring, keyprov);
+                                          }));
+        /* check whether we need to remove obsolete direct-key sigs or certifications */
+        if (flags & PGP_KS_UNUSED_SIG) {
+            /* remove non-latest direct-key self-signatures */
+            pgp_subsig_t *sig = pgp_key_latest_direct_selfsig(key);
+            if (sig) {
+                uint32_t latest = signature_get_creation(&sig->sig);
+                key->subsigs.erase(std::remove_if(
+                  key->subsigs.begin(), key->subsigs.end(), [key, latest](pgp_subsig_t &sig) {
+                      return (sig.uid == (uint32_t) -1) && sig.valid &&
+                             pgp_sig_is_direct_self_signature(key, &sig) &&
+                             (signature_get_creation(&sig.sig) < latest);
+                  }));
+            }
+            /* remove non-latest self-certification for each of the userids */
+            for (size_t uid = 0; uid < pgp_key_get_userid_count(key); uid++) {
+                pgp_subsig_t *sig = pgp_key_latest_uid_selfcert(key, uid);
+                if (!sig) {
+                    continue;
+                }
+                uint32_t latest = signature_get_creation(&sig->sig);
+                key->subsigs.erase(
+                  std::remove_if(key->subsigs.begin(),
+                                 key->subsigs.end(),
+                                 [key, latest, uid](pgp_subsig_t &sig) {
+                                     return (sig.uid == uid) && sig.valid &&
+                                            pgp_sig_is_self_signature(key, &sig) &&
+                                            (signature_get_creation(&sig.sig) < latest);
+                                 }));
+            }
+        }
+    } catch (...) {
+        RNP_LOG("Failed to strip key subsigs");
+        return false;
+    }
+
+    try {
+        for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
+            pgp_key_t *sub = pgp_key_get_subkey(key, keyring, i);
+            sub->subsigs.erase(std::remove_if(sub->subsigs.begin(),
+                                              sub->subsigs.end(),
+                                              [key, sub, flags, keyring](pgp_subsig_t &sig) {
+                                                  return sub_sig_matches_flags(
+                                                    sig, *key, *sub, flags, *keyring);
+                                              }));
+            /* check whether we need to remove obsolete bindings */
+            if (flags & PGP_KS_UNUSED_SIG) {
+                pgp_subsig_t *binding = pgp_key_latest_binding(sub, true);
+                if (binding) {
+                    uint32_t latest = signature_get_creation(&binding->sig);
+                    sub->subsigs.erase(std::remove_if(
+                      sub->subsigs.begin(),
+                      sub->subsigs.end(),
+                      [sub, latest](pgp_subsig_t &sig) {
+                          return sig.valid && pgp_sig_is_subkey_binding(sub, &sig) &&
+                                 (signature_get_creation(&sig.sig) < latest);
+                      }));
+                }
+            }
+        }
+    } catch (...) {
+        RNP_LOG("Failed to strip subkey subsigs");
+        return false;
+    }
+    pgp_key_revalidate_updated(key, keyring);
+    return true;
 }
 
 static pgp_map_t ss_rr_code_map[] = {

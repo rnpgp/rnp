@@ -490,4 +490,19 @@ typedef enum pgp_key_store_format_t {
     PGP_KEY_STORE_G10,
 } pgp_key_store_format_t;
 
+/**
+ * Key stripping flags. The meaning is as following:
+ * PGP_KS_INVALID_SIG : remove invalid signatures (including expired ones)
+ * PGP_KS_UNKNOWN_SIG : remove signatures issued by unknown keys
+ * PGP_KS_ONLYOWN_SIG : leave only self-signatures, made by the primary key
+ * PGP_KS_UNUSED_SIG  : remove valid but no longer meaningful self-signatures (i.e. old direct
+ *                      key signatures, self certifications, subkey bindings).
+ */
+typedef enum {
+    PGP_KS_INVALID_SIG = 1U << 0,
+    PGP_KS_UNKNOWN_SIG = 1U << 1,
+    PGP_KS_UNUSED_SIG = 1U << 2,
+    PGP_KS_ONLYOWN_SIG = 1U << 3
+} pgp_key_strip_flags_t;
+
 #endif
