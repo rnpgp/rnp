@@ -738,6 +738,8 @@ def setup(loglvl):
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
     os.mkdir(RNPDIR, 0o700)
 
+    os.environ["RNP_LOG_CONSOLE"] = "1"
+
     GPGDIR = path.join(WORKDIR, '.gpg')
     GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
