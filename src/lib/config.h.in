@@ -46,3 +46,4 @@
 #cmakedefine HAVE_REALPATH
 #cmakedefine HAVE_O_BINARY
 #cmakedefine HAVE__O_BINARY
+#cmakedefine HAVE__TEMPNAM

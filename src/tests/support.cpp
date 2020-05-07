@@ -61,18 +61,6 @@ unsetenv(const char *name)
 }
 #endif
 
-#ifndef HAVE_MKDTEMP
-char *
-mkdtemp(char *templ)
-{
-    char *dirpath = mktemp(templ);
-    if (!dirpath) {
-        return NULL;
-    }
-    return !RNP_MKDIR(dirpath, S_IRWXU) ? dirpath : NULL;
-}
-#endif
-
 /* Check if a file exists.
  * Use with assert_true and rnp_assert_false(rstate, .
  */
@@ -266,6 +254,7 @@ copy_recursively(const char *src, const char *dst)
 /* Creates and returns a temporary directory path.
  * Caller must free the string.
  */
+#if defined(HAVE_MKDTEMP)
 char *
 make_temp_dir()
 {
@@ -289,6 +278,30 @@ make_temp_dir()
     }
     return res;
 }
+#elif defined(HAVE__TEMPNAM)
+char *
+make_temp_dir()
+{
+    const int MAX_ATTEMPTS = 10;
+    for (int i = 0; i < MAX_ATTEMPTS; i++) {
+        char *dir = _tempnam(NULL, "rnp-gtest-");
+        if (!dir) {
+            fprintf(stderr, "_tempnam failed to generate temporary path");
+            continue;
+        }
+        if (RNP_MKDIR(dir, S_IRWXU)) {
+            fprintf(stderr, "Failed to create temporary directory");
+            free(dir);
+            continue;
+        }
+        return dir;
+    }
+    fprintf(stderr, "Failed to make temporary directory, aborting");
+    return NULL;
+}
+#else
+#error Unsupported platform
+#endif
 
 static char *
 directory_from_absolute_file_path(const char *file_path)
