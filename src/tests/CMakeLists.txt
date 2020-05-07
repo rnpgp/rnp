@@ -82,6 +82,7 @@ add_executable(rnp_tests
   large-mpi.cpp
   load-g10.cpp
   load-pgp.cpp
+  log-switch.cpp
   partial-length.cpp
   rnp_tests.cpp
   s2k-iterations.cpp
