@@ -1045,6 +1045,80 @@ pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
 }
 
 static void
+pgp_key_validate_signature(pgp_key_t *   key,
+                           pgp_key_t *   signer,
+                           pgp_key_t *   primary,
+                           pgp_subsig_t *sig)
+{
+    sig->validated = false;
+    sig->valid = false;
+
+    pgp_userid_t *uid = NULL;
+    if (pgp_sig_is_certification(sig) || pgp_sig_is_userid_revocation(key, sig)) {
+        uid = pgp_key_get_userid(key, sig->uid);
+        if (!uid) {
+            RNP_LOG("Userid not found");
+            return;
+        }
+    }
+
+    pgp_signature_info_t sinfo = {};
+    sinfo.sig = &sig->sig;
+    sinfo.signer = signer;
+    sinfo.signer_valid = true;
+    if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_subkey_binding(key, sig)) {
+        sinfo.ignore_expiry = true;
+    }
+
+    pgp_sig_type_t stype = signature_get_type(&sig->sig);
+    switch (stype) {
+    case PGP_SIG_BINARY:
+    case PGP_SIG_TEXT:
+    case PGP_SIG_STANDALONE:
+    case PGP_SIG_PRIMARY:
+        RNP_LOG("Invalid key signature type: %d", (int) stype);
+        return;
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_POSITIVE:
+    case PGP_SIG_REV_CERT:
+        signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
+        break;
+    case PGP_SIG_SUBKEY:
+        if (!primary) {
+            RNP_LOG("No primary key specified");
+            return;
+        }
+        signature_check_binding(&sinfo, pgp_key_get_pkt(primary), pgp_key_get_pkt(key));
+        break;
+    case PGP_SIG_DIRECT:
+    case PGP_SIG_REV_KEY:
+        signature_check_direct(&sinfo, pgp_key_get_pkt(key));
+        break;
+    case PGP_SIG_REV_SUBKEY:
+        if (!primary) {
+            RNP_LOG("No primary key specified");
+            return;
+        }
+        signature_check_subkey_revocation(
+          &sinfo, pgp_key_get_pkt(primary), pgp_key_get_pkt(key));
+        break;
+    default:
+        RNP_LOG("Unsupported key signature type: %d", (int) stype);
+        return;
+    }
+
+    sig->validated = true;
+    sig->valid = sinfo.valid;
+    /* revocation signature cannot expire */
+    if ((stype != PGP_SIG_REV_KEY) && (stype != PGP_SIG_REV_SUBKEY) &&
+        (stype != PGP_SIG_REV_CERT)) {
+        sig->valid = sig->valid && !sinfo.expired;
+    }
+}
+
+static void
 pgp_key_validate_self_signatures(pgp_key_t *key)
 {
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
@@ -1052,37 +1126,10 @@ pgp_key_validate_self_signatures(pgp_key_t *key)
         if (sig->validated) {
             continue;
         }
-        pgp_signature_info_t sinfo = {};
-        sinfo.sig = &sig->sig;
-        sinfo.signer = key;
-        sinfo.signer_valid = true;
 
-        if (pgp_sig_is_self_signature(key, sig)) {
-            sinfo.ignore_expiry = true;
-            pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
-            if (uid) {
-                signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
-                sig->validated = true;
-                sig->valid = sinfo.valid && !sinfo.expired;
-            }
-            continue;
-        }
-
-        if (pgp_sig_is_userid_revocation(key, sig)) {
-            pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
-            if (uid) {
-                signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
-                sig->validated = true;
-                sig->valid = sinfo.valid && !sinfo.expired;
-            }
-            continue;
-        }
-
-        if (pgp_sig_is_key_revocation(key, sig)) {
-            signature_check_direct(&sinfo, pgp_key_get_pkt(key));
-            sig->validated = true;
-            sig->valid = sinfo.valid;
-            /* revocation signature cannot expire */
+        if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_userid_revocation(key, sig) ||
+            pgp_sig_is_key_revocation(key, sig)) {
+            pgp_key_validate_signature(key, key, NULL, sig);
         }
     }
 }
@@ -1095,24 +1142,9 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
         if (sig->validated) {
             continue;
         }
-        pgp_signature_info_t sinfo = {};
-        sinfo.sig = &sig->sig;
-        sinfo.signer = key;
-        sinfo.signer_valid = true;
-        if (pgp_sig_is_subkey_binding(sub, sig)) {
-            sinfo.ignore_expiry = true;
-            signature_check_binding(&sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(sub));
-            sig->validated = true;
-            sig->valid = sinfo.valid && !sinfo.expired;
-            continue;
-        }
 
-        if (pgp_sig_is_subkey_revocation(sub, sig)) {
-            signature_check_subkey_revocation(
-              &sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(sub));
-            sig->validated = true;
-            sig->valid = sinfo.valid;
-            /* revocation signature cannot expire */
+        if (pgp_sig_is_subkey_binding(sub, sig) || pgp_sig_is_subkey_revocation(sub, sig)) {
+            pgp_key_validate_signature(sub, key, key, sig);
         }
     }
 }
