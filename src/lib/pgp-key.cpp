@@ -836,6 +836,34 @@ pgp_sig_is_subkey_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
     return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_SUBKEY);
 }
 
+static pgp_key_t *
+pgp_sig_get_signer(const pgp_subsig_t *sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
+{
+    pgp_key_request_ctx_t ctx = {};
+    /* if we have fingerprint let's check it */
+    if (signature_has_keyfp(&sig->sig) &&
+        signature_get_keyfp(&sig->sig, ctx.search.by.fingerprint)) {
+        ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    }
+    if ((ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) &&
+        signature_get_keyid(&sig->sig, ctx.search.by.keyid)) {
+        ctx.search.type = PGP_KEY_SEARCH_KEYID;
+    }
+    if (ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) {
+        RNP_LOG("No way to search for the signer.");
+        return NULL;
+    }
+
+    pgp_key_t *key = rnp_key_store_search(keyring, &ctx.search, NULL);
+    if (key || !prov) {
+        return key;
+    }
+
+    ctx.op = PGP_OP_VERIFY;
+    ctx.secret = false;
+    return pgp_request_key(prov, &ctx);
+}
+
 pgp_subsig_t *
 pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
 {
