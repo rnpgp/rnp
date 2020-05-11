@@ -327,19 +327,6 @@ bool signature_hash_direct(const pgp_signature_t *sig,
                            const pgp_key_pkt_t *  key,
                            pgp_hash_t *           hash);
 
-rnp_result_t signature_validate_certification(const pgp_signature_t *   sig,
-                                              const pgp_key_pkt_t *     key,
-                                              const pgp_userid_pkt_t *  uid,
-                                              const pgp_key_material_t *signer);
-
-rnp_result_t signature_validate_binding(const pgp_signature_t *sig,
-                                        const pgp_key_pkt_t *  key,
-                                        const pgp_key_pkt_t *  subkey);
-
-rnp_result_t signature_validate_direct(const pgp_signature_t *   sig,
-                                       const pgp_key_pkt_t *     key,
-                                       const pgp_key_material_t *signer);
-
 /**
  * @brief Check signature, including the expiration time, key validity and so on.
  *
