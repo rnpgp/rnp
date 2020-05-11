@@ -1070,6 +1070,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     uint8_t                    keyid[PGP_KEY_ID_SIZE];
     pgp_key_t *                pkey = NULL;
     pgp_hash_t                 hash;
+    pgp_signature_info_t       sinfo = {};
 
     /* we need rng for key validation */
     assert_true(rng_init(&rng, RNG_SYSTEM));
@@ -1119,15 +1120,17 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                 assert_true(signature_get_keyid(sig, keyid));
                 assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
                 /* high level interface */
-                assert_rnp_success(signature_validate_certification(
-                  sig, &key->key, &uid->uid, pgp_key_get_material(pkey)));
+                sinfo.sig = sig;
+                sinfo.signer = pkey;
+                assert_rnp_success(
+                  signature_check_certification(&sinfo, &key->key, &uid->uid));
                 /* low level check */
                 assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
                 assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
                 /* modify userid and check signature */
                 uid->uid.uid[2] = '?';
-                assert_rnp_failure(signature_validate_certification(
-                  sig, &key->key, &uid->uid, pgp_key_get_material(pkey)));
+                assert_rnp_failure(
+                  signature_check_certification(&sinfo, &key->key, &uid->uid));
                 assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
                 assert_rnp_failure(signature_validate(sig, pgp_key_get_material(pkey), &hash));
             }
@@ -1141,7 +1144,9 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_true(signature_get_keyid(sig, keyid));
             assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
             /* high level interface */
-            assert_rnp_success(signature_validate_binding(sig, &key->key, &subkey->subkey));
+            sinfo.sig = sig;
+            sinfo.signer = pkey;
+            assert_rnp_success(signature_check_binding(&sinfo, &key->key, &subkey->subkey));
             /* low level check */
             assert_true(signature_hash_binding(sig, &key->key, &subkey->subkey, &hash));
             assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
