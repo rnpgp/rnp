@@ -306,7 +306,7 @@ bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
 
 void pgp_subsig_free(pgp_subsig_t *subsig);
 
-pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, void *, size_t, pgp_pkt_type_t);
+pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, const uint8_t *, size_t, pgp_pkt_type_t);
 
 pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt);
 

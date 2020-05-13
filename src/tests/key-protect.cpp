@@ -138,7 +138,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_non_null(ks);
         pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, 0);
 
-        assert_rnp_success(init_mem_src(&memsrc, pkt->raw, pkt->length, false));
+        assert_rnp_success(init_mem_src(&memsrc, pkt->raw.data(), pkt->raw.size(), false));
         assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &memsrc));
         src_close(&memsrc);
 

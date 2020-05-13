@@ -296,10 +296,10 @@ rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
     }
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
         const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        if (!pkt->raw || !pkt->length) {
+        if (pkt->raw.empty()) {
             return false;
         }
-        dst_write(dst, pkt->raw, pkt->length);
+        dst_write(dst, pkt->raw.data(), pkt->raw.size());
     }
     return !dst->werr;
 }
