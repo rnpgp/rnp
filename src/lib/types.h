@@ -52,6 +52,8 @@
 #define TYPES_H_
 
 #include <stdint.h>
+#include <vector>
+
 #include <rnp/rnp_def.h>
 #include "list.h"
 #include "crypto/common.h"
@@ -279,9 +281,8 @@ typedef struct pgp_sig_subpkt_t {
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
-    pgp_pkt_type_t tag;
-    size_t         length;
-    uint8_t *      raw;
+    pgp_pkt_type_t       tag;
+    std::vector<uint8_t> raw;
 } pgp_rawpacket_t;
 
 typedef enum {
