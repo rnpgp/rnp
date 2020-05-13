@@ -5760,7 +5760,7 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
     *buf_len = 0;
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
         const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        *buf_len += pkt->length;
+        *buf_len += pkt->raw.size();
     }
     // allocate our buffer
     *buf = (uint8_t *) malloc(*buf_len);
@@ -5772,8 +5772,8 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
     *buf_len = 0;
     for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
         const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        memcpy(*buf + *buf_len, pkt->raw, pkt->length);
-        *buf_len += pkt->length;
+        memcpy(*buf + *buf_len, pkt->raw.data(), pkt->raw.size());
+        *buf_len += pkt->raw.size();
     }
     return RNP_SUCCESS;
 }

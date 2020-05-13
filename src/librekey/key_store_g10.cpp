@@ -1582,6 +1582,6 @@ rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
         return false;
     }
     packet = pgp_key_get_rawpacket(key, 0);
-    dst_write(dest, packet->raw, packet->length);
+    dst_write(dest, packet->raw.data(), packet->raw.size());
     return dest->werr == RNP_SUCCESS;
 }
