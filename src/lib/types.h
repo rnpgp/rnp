@@ -284,6 +284,12 @@ typedef struct pgp_sig_subpkt_t {
 typedef struct pgp_rawpacket_t {
     pgp_pkt_type_t       tag;
     std::vector<uint8_t> raw;
+
+    pgp_rawpacket_t() = default;
+    pgp_rawpacket_t(const uint8_t *data, size_t len, pgp_pkt_type_t tag);
+    pgp_rawpacket_t(const pgp_signature_t &sig);
+    pgp_rawpacket_t(pgp_key_pkt_t &key);
+    pgp_rawpacket_t(const pgp_userid_pkt_t &uid);
 } pgp_rawpacket_t;
 
 typedef enum {
