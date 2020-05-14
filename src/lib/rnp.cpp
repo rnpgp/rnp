@@ -4800,13 +4800,12 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
     if (idx >= pgp_key_get_userid_count(key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const char *keyuid = pgp_key_get_userid(key, idx)->str;
-    size_t      len = strlen(keyuid);
-    *uid = (char *) calloc(1, len + 1);
+    const std::string &keyuid = pgp_key_get_userid(key, idx)->str;
+    *uid = (char *) calloc(1, keyuid.size() + 1);
     if (!*uid) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    memcpy(*uid, keyuid, len);
+    memcpy(*uid, keyuid.c_str(), keyuid.size() + 1);
     return RNP_SUCCESS;
 }
 
@@ -6408,7 +6407,8 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         }
         json_object_object_add(jso, "userids", jsouids_arr);
         for (unsigned i = 0; i < pgp_key_get_userid_count(key); i++) {
-            json_object *jsouid = json_object_new_string(pgp_key_get_userid(key, i)->str);
+            json_object *jsouid =
+              json_object_new_string(pgp_key_get_userid(key, i)->str.c_str());
             if (!jsouid || json_object_array_add(jsouids_arr, jsouid)) {
                 json_object_put(jsouid);
                 return RNP_ERROR_OUT_OF_MEMORY;
@@ -6715,10 +6715,10 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         if (!uid) {
             return false;
         }
-        if (strlen(uid->str) >= buf_len) {
+        if (uid->str.size() + 1 >= buf_len) {
             return false;
         }
-        strcpy(buf, uid->str);
+        strcpy(buf, uid->str.c_str());
     } break;
     default:
         assert(false);
