@@ -382,6 +382,15 @@ typedef struct pgp_subsig_t {
     pgp_user_prefs_t prefs;       /* user preferences for certification sig */
     bool             validated;   /* signature was validated */
     bool             valid;       /* signature was validated and is valid */
+
+    pgp_subsig_t() = default;
+    pgp_subsig_t(pgp_subsig_t &&src);
+    pgp_subsig_t &operator=(pgp_subsig_t &&src);
+    pgp_subsig_t &operator=(const pgp_subsig_t &src);
+    ~pgp_subsig_t();
+
+    /* make sure we use only explicitly defined constructors/operators */
+    pgp_subsig_t(const pgp_subsig_t &) = delete;
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
