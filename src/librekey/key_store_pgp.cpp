@@ -131,20 +131,16 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
         RNP_LOG("Failed to add userid");
         return false;
     }
-    if (uid->uid.tag == PGP_PKT_USER_ID) {
-        userid->str = (char *) calloc(1, uid->uid.uid_len + 1);
-        if (!userid->str) {
-            RNP_LOG("uid alloc failed");
-            return false;
+
+    try {
+        if (uid->uid.tag == PGP_PKT_USER_ID) {
+            userid->str = std::string(uid->uid.uid, uid->uid.uid + uid->uid.uid_len);
+        } else {
+            userid->str = "(photo)";
         }
-        memcpy(userid->str, uid->uid.uid, uid->uid.uid_len);
-        userid->str[uid->uid.uid_len] = 0;
-    } else {
-        userid->str = strdup("(photo)");
-        if (!userid->str) {
-            RNP_LOG("uattr alloc failed");
-            return false;
-        }
+    } catch (...) {
+        RNP_LOG("%s alloc failed", uid->uid.tag == PGP_PKT_USER_ID ? "uid" : "uattr");
+        return false;
     }
 
     if (!copy_userid_pkt(&userid->pkt, &uid->uid)) {

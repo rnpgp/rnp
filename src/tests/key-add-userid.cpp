@@ -112,11 +112,11 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_int_equal(0xCD, pgp_key_get_flags(key));
     // check the userids array
     // added1
-    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc)->str, "added1"));
+    assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
     // added2
-    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1)->str, "added2"));
+    assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
     assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
 
@@ -150,11 +150,11 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // check the userids array
     // added1
-    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc)->str, "added1"));
+    assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
     assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
     assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
     // added2
-    assert_int_equal(0, strcmp(pgp_key_get_userid(key, uidc + 1)->str, "added2"));
+    assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
     assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
     assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
 

@@ -189,13 +189,6 @@ revoke_free(pgp_revoke_t *revoke)
     revoke->reason = NULL;
 }
 
-static void
-pgp_userid_free(pgp_userid_t *uid)
-{
-    free_userid_pkt(&uid->pkt);
-    free(uid->str);
-}
-
 static bool
 pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
@@ -417,24 +410,6 @@ pgp_revoke_copy(pgp_revoke_t *dst, const pgp_revoke_t *src)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-pgp_userid_copy(pgp_userid_t *dst, const pgp_userid_t *src)
-{
-    memset(dst, 0, sizeof(*dst));
-    if (src->str) {
-        dst->str = strdup(src->str);
-        if (!dst->str) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-    }
-    if (!copy_userid_pkt(&dst->pkt, &src->pkt)) {
-        free(dst->str);
-        dst->str = NULL;
-        return RNP_ERROR_GENERIC;
-    }
-    return RNP_SUCCESS;
-}
-
 rnp_result_t
 pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 {
@@ -446,8 +421,10 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         if (!uid) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((ret = pgp_userid_copy(uid, pgp_key_get_userid(src, i)))) {
-            return ret;
+        try {
+            *uid = *pgp_key_get_userid(src, i);
+        } catch (...) {
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
@@ -827,7 +804,7 @@ bool
 pgp_key_has_userid(const pgp_key_t *key, const char *uid)
 {
     for (auto &userid : key->uids) {
-        if (!strcmp(uid, userid.str)) {
+        if (userid.str == uid) {
             return true;
         }
     }
@@ -2292,12 +2269,35 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
     }
 }
 
+pgp_userid_t::pgp_userid_t(pgp_userid_t &&src)
+{
+    str = std::move(src.str);
+    pkt = src.pkt;
+    src.pkt = {};
+}
+
+pgp_userid_t &
+pgp_userid_t::operator=(const pgp_userid_t &src)
+{
+    if (&src == this) {
+        return *this;
+    }
+
+    free_userid_pkt(&pkt);
+    if (!copy_userid_pkt(&pkt, &src.pkt)) {
+        throw std::bad_alloc();
+    }
+    str = src.str;
+    return *this;
+}
+
+pgp_userid_t::~pgp_userid_t()
+{
+    free_userid_pkt(&pkt);
+}
+
 pgp_key_t::~pgp_key_t()
 {
-    for (size_t n = 0; n < pgp_key_get_userid_count(this); ++n) {
-        pgp_userid_free(pgp_key_get_userid(this, n));
-    }
-    this->uids.clear();
 
     for (size_t n = 0; n < pgp_key_get_subsig_count(this); n++) {
         pgp_subsig_free(pgp_key_get_subsig(this, n));
@@ -2315,11 +2315,6 @@ pgp_key_t::operator=(pgp_key_t &&src)
     if (&src == this) {
         return *this;
     }
-    /* need to manually free elements until destructor provided */
-    for (auto uid : uids) {
-        pgp_userid_free(&uid);
-    }
-    uids.clear();
     uids = std::move(src.uids);
     packets = std::move(src.packets);
     for (auto subsig : subsigs) {
