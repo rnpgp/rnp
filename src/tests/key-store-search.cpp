@@ -66,8 +66,7 @@ TEST_F(rnp_tests, test_key_store_search)
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 pgp_userid_t *userid = pgp_key_add_userid(&key);
                 assert_non_null(userid);
-                userid->str = strdup(testdata[i].userids[uidn]);
-                assert_non_null(userid->str);
+                userid->str = testdata[i].userids[uidn];
             }
             // add to the store
             assert_true(rnp_key_store_add_key(store, &key));
@@ -128,7 +127,7 @@ TEST_F(rnp_tests, test_key_store_search)
                 // check that the userid actually matches
                 bool found = false;
                 for (unsigned j = 0; j < pgp_key_get_userid_count(key); j++) {
-                    if (!strcmp(pgp_key_get_userid(key, j)->str, userid)) {
+                    if (pgp_key_get_userid(key, j)->str == userid) {
                         found = true;
                     }
                 }
