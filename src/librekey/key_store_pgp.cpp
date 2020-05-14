@@ -76,7 +76,7 @@ rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
         return false;
     }
     /* add signature rawpacket */
-    if (!pgp_key_add_sig_rawpacket(key, sig)) {
+    if (!pgp_key_add_sig_rawpacket(key, *sig)) {
         return false;
     }
     /* setup subsig and key from signature */
@@ -122,7 +122,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 bool
 rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 {
-    if (!pgp_key_add_uid_rawpacket(key, &uid->uid)) {
+    if (!pgp_key_add_userid_rawpacket(key, uid->uid)) {
         return false;
     }
 

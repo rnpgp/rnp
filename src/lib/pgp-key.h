@@ -304,13 +304,13 @@ bool pgp_key_refresh_data(pgp_key_t *key);
 
 bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
 
-pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *, const uint8_t *, size_t, pgp_pkt_type_t);
-
-pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t *pkt);
-
-pgp_rawpacket_t *pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t *pkt);
-
-pgp_rawpacket_t *pgp_key_add_uid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t *pkt);
+pgp_rawpacket_t *pgp_key_add_userid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t &pkt);
+pgp_rawpacket_t *pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t &pkt);
+pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t &pkt);
+pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *    key,
+                                       const uint8_t *data,
+                                       size_t         len,
+                                       pgp_pkt_type_t tag);
 
 size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
