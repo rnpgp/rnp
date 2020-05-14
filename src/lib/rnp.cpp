@@ -2799,9 +2799,15 @@ rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    pgp_subsig_t *subsig = (pgp_subsig_t *) calloc(1, sizeof(*subsig));
+    pgp_subsig_t *subsig = NULL;
+    try {
+        subsig = new pgp_subsig_t();
+    } catch (...) {
+        free(*handle);
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     if (!copy_signature_packet(&subsig->sig, &sig->sig_pkt)) {
-        free(subsig);
+        delete subsig;
         free(*handle);
         *handle = NULL;
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -5163,8 +5169,7 @@ rnp_result_t
 rnp_signature_handle_destroy(rnp_signature_handle_t sig)
 {
     if (sig && sig->own_sig) {
-        pgp_subsig_free(sig->sig);
-        free(sig->sig);
+        delete sig->sig;
     }
     free(sig);
     return RNP_SUCCESS;
