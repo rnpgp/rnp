@@ -170,16 +170,6 @@ pgp_free_user_prefs(pgp_user_prefs_t *prefs)
 }
 
 void
-pgp_subsig_free(pgp_subsig_t *subsig)
-{
-    if (!subsig) {
-        return;
-    }
-    pgp_free_user_prefs(&subsig->prefs);
-    free_signature(&subsig->sig);
-}
-
-void
 revoke_free(pgp_revoke_t *revoke)
 {
     if (!revoke) {
@@ -377,25 +367,6 @@ error:
 }
 
 static rnp_result_t
-pgp_subsig_copy(pgp_subsig_t *dst, const pgp_subsig_t *src)
-{
-    memcpy(dst, src, sizeof(*dst));
-    /* signature packet */
-    if (!copy_signature_packet(&dst->sig, &src->sig)) {
-        memset(dst, 0, sizeof(*dst));
-        return RNP_ERROR_GENERIC;
-    }
-    /* user prefs */
-    if (pgp_userprefs_copy(&dst->prefs, &src->prefs)) {
-        free_signature(&dst->sig);
-        memset(dst, 0, sizeof(*dst));
-        return RNP_ERROR_GENERIC;
-    }
-
-    return RNP_SUCCESS;
-}
-
-static rnp_result_t
 pgp_revoke_copy(pgp_revoke_t *dst, const pgp_revoke_t *src)
 {
     memcpy(dst, src, sizeof(*dst));
@@ -434,8 +405,10 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         if (!subsig) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((ret = pgp_subsig_copy(subsig, pgp_key_get_subsig(src, i)))) {
-            return ret;
+        try {
+            *subsig = *pgp_key_get_subsig(src, i);
+        } catch (...) {
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
@@ -906,57 +879,52 @@ pgp_signature_to_rawpacket(pgp_rawpacket_t *pkt, const pgp_signature_t *sig)
 }
 
 bool
-pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig)
+pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
 {
-    uint8_t *algs = NULL;
-    size_t   count = 0;
-
-    memset(subsig, 0, sizeof(*subsig));
-
-    if (!copy_signature_packet(&subsig->sig, sig)) {
+    pgp_subsig_t subsig = {};
+    if (!copy_signature_packet(&subsig.sig, sig)) {
         return false;
     }
-    if (signature_has_trust(&subsig->sig)) {
-        signature_get_trust(&subsig->sig, &subsig->trustlevel, &subsig->trustamount);
+    if (signature_has_trust(&subsig.sig)) {
+        signature_get_trust(&subsig.sig, &subsig.trustlevel, &subsig.trustamount);
     }
-    if (signature_get_preferred_symm_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_symm_algs(&subsig->prefs, algs, count)) {
+    uint8_t *algs = NULL;
+    size_t   count = 0;
+    if (signature_get_preferred_symm_algs(&subsig.sig, &algs, &count) &&
+        !pgp_user_prefs_set_symm_algs(&subsig.prefs, algs, count)) {
         RNP_LOG("failed to alloc symm algs");
-        goto error;
+        return false;
     }
-    if (signature_get_preferred_hash_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_hash_algs(&subsig->prefs, algs, count)) {
+    if (signature_get_preferred_hash_algs(&subsig.sig, &algs, &count) &&
+        !pgp_user_prefs_set_hash_algs(&subsig.prefs, algs, count)) {
         RNP_LOG("failed to alloc hash algs");
-        goto error;
+        return false;
     }
-    if (signature_get_preferred_z_algs(&subsig->sig, &algs, &count) &&
-        !pgp_user_prefs_set_z_algs(&subsig->prefs, algs, count)) {
+    if (signature_get_preferred_z_algs(&subsig.sig, &algs, &count) &&
+        !pgp_user_prefs_set_z_algs(&subsig.prefs, algs, count)) {
         RNP_LOG("failed to alloc z algs");
-        goto error;
+        return false;
     }
-    if (signature_has_key_flags(&subsig->sig)) {
-        subsig->key_flags = signature_get_key_flags(&subsig->sig);
+    if (signature_has_key_flags(&subsig.sig)) {
+        subsig.key_flags = signature_get_key_flags(&subsig.sig);
     }
-    if (signature_has_key_server_prefs(&subsig->sig)) {
-        uint8_t ks_pref = signature_get_key_server_prefs(&subsig->sig);
-        if (!pgp_user_prefs_set_ks_prefs(&subsig->prefs, &ks_pref, 1)) {
+    if (signature_has_key_server_prefs(&subsig.sig)) {
+        uint8_t ks_pref = signature_get_key_server_prefs(&subsig.sig);
+        if (!pgp_user_prefs_set_ks_prefs(&subsig.prefs, &ks_pref, 1)) {
             RNP_LOG("failed to alloc ks prefs");
-            goto error;
+            return false;
         }
     }
-    if (signature_has_key_server(&subsig->sig)) {
-        subsig->prefs.key_server = (uint8_t *) signature_get_key_server(&subsig->sig);
-        if (!subsig->prefs.key_server) {
+    if (signature_has_key_server(&subsig.sig)) {
+        subsig.prefs.key_server = (uint8_t *) signature_get_key_server(&subsig.sig);
+        if (!subsig.prefs.key_server) {
             RNP_LOG("failed to alloc ks");
-            goto error;
+            return false;
         }
     }
 
+    *dst = std::move(subsig);
     return true;
-error:
-    pgp_subsig_free(subsig);
-    memset(subsig, 0, sizeof(*subsig));
-    return false;
 }
 
 bool
@@ -1021,23 +989,21 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
         return NULL;
     }
 
-    /* replace subsig itself */
+    /* fill new subsig */
     pgp_subsig_t newsubsig = {};
     if (!pgp_subsig_from_signature(&newsubsig, newsig)) {
         RNP_LOG("failed to fill subsig");
-        subsig = NULL;
-        goto done;
+        return NULL;
     }
     newsubsig.uid = subsig->uid;
-    pgp_subsig_free(subsig);
-    *subsig = newsubsig;
 
     /* replace rawpacket */
     if (!pgp_key_replace_rawpacket(key, &oldraw, &newraw)) {
         RNP_LOG("failed to replace rawpacket");
-        subsig = NULL;
+        return NULL;
     }
-done:
+
+    *subsig = std::move(newsubsig);
     return subsig;
 }
 
@@ -2269,6 +2235,72 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
     }
 }
 
+pgp_subsig_t::pgp_subsig_t(pgp_subsig_t &&src)
+{
+    uid = src.uid;
+    sig = src.sig;
+    src.sig = {};
+    trustlevel = src.trustlevel;
+    trustamount = src.trustamount;
+    key_flags = src.key_flags;
+    prefs = src.prefs;
+    src.prefs = {};
+    validated = src.validated;
+    valid = src.valid;
+}
+
+pgp_subsig_t &
+pgp_subsig_t::operator=(pgp_subsig_t &&src)
+{
+    if (&src == this) {
+        return *this;
+    }
+
+    pgp_free_user_prefs(&prefs);
+    free_signature(&sig);
+    uid = src.uid;
+    sig = src.sig;
+    src.sig = {};
+    trustlevel = src.trustlevel;
+    trustamount = src.trustamount;
+    key_flags = src.key_flags;
+    prefs = src.prefs;
+    src.prefs = {};
+    validated = src.validated;
+    valid = src.valid;
+    return *this;
+}
+
+pgp_subsig_t &
+pgp_subsig_t::operator=(const pgp_subsig_t &src)
+{
+    if (&src == this) {
+        return *this;
+    }
+
+    pgp_free_user_prefs(&prefs);
+    free_signature(&sig);
+    uid = src.uid;
+    if (!copy_signature_packet(&sig, &src.sig)) {
+        throw std::bad_alloc();
+    }
+    trustlevel = src.trustlevel;
+    trustamount = src.trustamount;
+    key_flags = src.key_flags;
+    if (pgp_userprefs_copy(&prefs, &src.prefs)) {
+        throw std::bad_alloc();
+    }
+    validated = src.validated;
+    valid = src.valid;
+    return *this;
+}
+
+pgp_subsig_t::~pgp_subsig_t()
+{
+    pgp_free_user_prefs(&prefs);
+    free_signature(&sig);
+}
+
 pgp_userid_t::pgp_userid_t(pgp_userid_t &&src)
 {
     str = std::move(src.str);
@@ -2298,12 +2330,6 @@ pgp_userid_t::~pgp_userid_t()
 
 pgp_key_t::~pgp_key_t()
 {
-
-    for (size_t n = 0; n < pgp_key_get_subsig_count(this); n++) {
-        pgp_subsig_free(pgp_key_get_subsig(this, n));
-    }
-    this->subsigs.clear();
-
     pgp_key_clear_revokes(this);
     list_destroy(&this->subkey_grips);
     free_key_pkt(&this->pkt);
@@ -2317,10 +2343,6 @@ pgp_key_t::operator=(pgp_key_t &&src)
     }
     uids = std::move(src.uids);
     packets = std::move(src.packets);
-    for (auto subsig : subsigs) {
-        pgp_subsig_free(&subsig);
-    }
-    subsigs.clear();
     subsigs = std::move(src.subsigs);
     pgp_key_clear_revokes(this);
     revokes = std::move(src.revokes);
