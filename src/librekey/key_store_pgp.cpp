@@ -75,10 +75,6 @@ rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
         RNP_LOG("Failed to add subsig");
         return false;
     }
-    /* add signature rawpacket */
-    if (!pgp_key_add_sig_rawpacket(key, *sig)) {
-        return false;
-    }
     /* setup subsig and key from signature */
     if (!pgp_subsig_from_signature(subsig, sig)) {
         return false;
@@ -122,13 +118,15 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 bool
 rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 {
-    if (!pgp_key_add_userid_rawpacket(key, uid->uid)) {
-        return false;
-    }
-
     pgp_userid_t *userid = pgp_key_add_userid(key);
     if (!userid) {
         RNP_LOG("Failed to add userid");
+        return false;
+    }
+    try {
+        userid->rawpkt = pgp_rawpacket_t(uid->uid);
+    } catch (...) {
+        RNP_LOG("Raw packet allocation failed");
         return false;
     }
 
@@ -285,22 +283,6 @@ done:
 }
 
 bool
-rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst)
-{
-    if (!pgp_key_get_rawpacket_count(key)) {
-        return false;
-    }
-    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        if (pkt->raw.empty()) {
-            return false;
-        }
-        dst_write(dst, pkt->raw.data(), pkt->raw.size());
-    }
-    return !dst->werr;
-}
-
-bool
 rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
 {
     pgp_dest_t dst = {};
@@ -310,7 +292,7 @@ rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
         return false;
     }
 
-    res = rnp_key_write_packets_stream(key, &dst) &&
+    res = pgp_key_write_packets(key, &dst) &&
           !init_mem_src(src, mem_dest_own_memory(&dst), dst.writeb, true);
     dst_close(&dst, true);
     return res;
@@ -334,7 +316,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             RNP_LOG("incorrect format (conversions not supported): %d", key->format);
             return false;
         }
-        if (!rnp_key_write_packets_stream(key, dst)) {
+        if (!pgp_key_write_packets(key, dst)) {
             return false;
         }
         for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
@@ -359,7 +341,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
                 RNP_LOG("Missing subkey");
                 continue;
             }
-            if (!rnp_key_write_packets_stream(subkey, dst)) {
+            if (!pgp_key_write_packets(subkey, dst)) {
                 return false;
             }
         }
