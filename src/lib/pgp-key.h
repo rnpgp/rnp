@@ -62,17 +62,17 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    std::vector<pgp_userid_t>    uids;    /* array of user ids */
-    std::vector<pgp_rawpacket_t> packets; /* array of key packets */
-    std::vector<pgp_subsig_t>    subsigs; /* array of key signatures */
-    std::vector<pgp_revoke_t>    revokes; /* array of revocations */
-    list          subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
-    uint8_t       primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
-    bool          primary_grip_set;
-    time_t        expiration; /* key expiration time, if available */
-    pgp_key_pkt_t pkt;        /* pubkey/seckey data packet */
-    uint8_t       key_flags;  /* key flags */
-    uint8_t       keyid[PGP_KEY_ID_SIZE];
+    std::vector<pgp_userid_t> uids;    /* array of user ids */
+    std::vector<pgp_subsig_t> subsigs; /* array of key signatures */
+    std::vector<pgp_revoke_t> revokes; /* array of revocations */
+    list            subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
+    uint8_t         primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
+    bool            primary_grip_set;
+    time_t          expiration; /* key expiration time, if available */
+    pgp_key_pkt_t   pkt;        /* pubkey/seckey data packet */
+    pgp_rawpacket_t rawpkt;     /* key raw packet */
+    uint8_t         key_flags;  /* key flags */
+    uint8_t         keyid[PGP_KEY_ID_SIZE];
     pgp_fingerprint_t      fingerprint;
     uint8_t                grip[PGP_KEY_GRIP_SIZE];
     uint32_t               uid0;         /* primary uid index in uids array */
@@ -304,18 +304,10 @@ bool pgp_key_refresh_data(pgp_key_t *key);
 
 bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
 
-pgp_rawpacket_t *pgp_key_add_userid_rawpacket(pgp_key_t *key, const pgp_userid_pkt_t &pkt);
-pgp_rawpacket_t *pgp_key_add_sig_rawpacket(pgp_key_t *key, const pgp_signature_t &pkt);
-pgp_rawpacket_t *pgp_key_add_key_rawpacket(pgp_key_t *key, pgp_key_pkt_t &pkt);
-pgp_rawpacket_t *pgp_key_add_rawpacket(pgp_key_t *    key,
-                                       const uint8_t *data,
-                                       size_t         len,
-                                       pgp_pkt_type_t tag);
-
 size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
-pgp_rawpacket_t *      pgp_key_get_rawpacket(pgp_key_t *, size_t);
-const pgp_rawpacket_t *pgp_key_get_rawpacket(const pgp_key_t *, size_t);
+pgp_rawpacket_t &      pgp_key_get_rawpacket(pgp_key_t *);
+const pgp_rawpacket_t &pgp_key_get_rawpacket(const pgp_key_t *);
 
 /**
  * @brief Get the number of pgp key's subkeys.

@@ -958,8 +958,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&pub, 2)->tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&sec, 2)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
 
         // validate the userid self-sig
 
@@ -1086,8 +1086,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_not_equal(psig->material.rsa.s.len, 0);
         assert_int_not_equal(ssig->material.rsa.s.len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&pub, 1)->tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_rawpacket(&sec, 1)->tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
         // validate the binding sig
         psiginfo.sig = psig;
         psiginfo.signer = primary_pub;
