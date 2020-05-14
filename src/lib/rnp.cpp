@@ -5760,25 +5760,20 @@ rnp_key_have_public(rnp_key_handle_t handle, bool *result)
 static rnp_result_t
 key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 {
-    // get a total byte size
-    *buf_len = 0;
-    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        *buf_len += pkt->raw.size();
-    }
-    // allocate our buffer
-    *buf = (uint8_t *) malloc(*buf_len);
-    if (!*buf) {
-        *buf_len = 0;
+    pgp_dest_t memdst = {};
+
+    if (init_mem_dest(&memdst, NULL, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    // copy each packet
-    *buf_len = 0;
-    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        const pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        memcpy(*buf + *buf_len, pkt->raw.data(), pkt->raw.size());
-        *buf_len += pkt->raw.size();
+
+    if (!pgp_key_write_packets(key, &memdst)) {
+        dst_close(&memdst, true);
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
+
+    *buf_len = memdst.writeb;
+    *buf = (uint8_t *) mem_dest_own_memory(&memdst);
+    dst_close(&memdst, true);
     return RNP_SUCCESS;
 }
 

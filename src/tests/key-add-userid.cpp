@@ -122,10 +122,7 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // save the raw packets for the key (to reload later)
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-    for (size_t i = 0; i < pgp_key_get_rawpacket_count(key); i++) {
-        pgp_rawpacket_t *pkt = pgp_key_get_rawpacket(key, i);
-        dst_write(&dst, pkt->raw.data(), pkt->raw.size());
-    }
+    pgp_key_write_packets(key, &dst);
     // cleanup
     rnp_key_store_free(ks);
     key = NULL;

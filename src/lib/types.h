@@ -382,6 +382,7 @@ typedef struct pgp_user_prefs_t {
 typedef struct pgp_subsig_t {
     uint32_t         uid;         /* index in userid array in key for certification sig */
     pgp_signature_t  sig;         /* signature packet */
+    pgp_rawpacket_t  rawpkt;      /* signature's rawpacket */
     uint8_t          trustlevel;  /* level of trust */
     uint8_t          trustamount; /* amount of trust */
     uint8_t          key_flags;   /* key flags for certification/direct key sig */
@@ -400,8 +401,9 @@ typedef struct pgp_subsig_t {
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
-    pgp_userid_pkt_t pkt; /* User ID or User Attribute packet as it was loaded */
-    std::string      str; /* Human-readable representation of the userid */
+    pgp_userid_pkt_t pkt;    /* User ID or User Attribute packet as it was loaded */
+    pgp_rawpacket_t  rawpkt; /* Raw packet contents */
+    std::string      str;    /* Human-readable representation of the userid */
 
     pgp_userid_t() = default;
     pgp_userid_t(pgp_userid_t &&src);
