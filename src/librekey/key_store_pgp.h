@@ -80,8 +80,6 @@ bool rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *
 
 bool rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig);
 
-bool rnp_key_write_packets_stream(const pgp_key_t *key, pgp_dest_t *dst);
-
 bool rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src);
 
 #endif /* KEY_STORE_PGP_H_ */

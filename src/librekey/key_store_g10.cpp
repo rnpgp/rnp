@@ -1163,8 +1163,10 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         memset(&seckey, 0, sizeof(seckey));
     }
 
-    if (!pgp_key_add_rawpacket(
-          &key, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED)) {
+    try {
+        key.rawpkt = pgp_rawpacket_t(
+          (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED);
+    } catch (...) {
         RNP_LOG("failed to add packet");
         goto done;
     }
@@ -1573,7 +1575,6 @@ error:
 bool
 rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
 {
-    pgp_rawpacket_t *packet = NULL;
     if (!pgp_key_get_rawpacket_count(key)) {
         return false;
     }
@@ -1581,7 +1582,7 @@ rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
         RNP_LOG("incorrect format: %d", key->format);
         return false;
     }
-    packet = pgp_key_get_rawpacket(key, 0);
-    dst_write(dest, packet->raw.data(), packet->raw.size());
+    pgp_rawpacket_t &packet = pgp_key_get_rawpacket(key);
+    dst_write(dest, packet.raw.data(), packet.raw.size());
     return dest->werr == RNP_SUCCESS;
 }
