@@ -1964,7 +1964,6 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
         }
         switch (key->sec_protection.s2k.usage) {
         case PGP_S2KU_NONE:
-            res = true;
             break;
         case PGP_S2KU_ENCRYPTED_AND_HASHED:
         case PGP_S2KU_ENCRYPTED: {
