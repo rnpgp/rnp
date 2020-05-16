@@ -222,27 +222,27 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
 
     /* Try other searches */
     key = rnp_tests_get_key_by_fpr(sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e60");
-    assert_true(key = primsec);
+    assert_true(key == primsec);
     key = rnp_tests_get_key_by_fpr(sec_store, "0x4f2e62b74e6a4cd333bc19004be147bb22df1e60");
-    assert_true(key = primsec);
+    assert_true(key == primsec);
     key = rnp_tests_get_key_by_id(pub_store, "4BE147BB22DF1E60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "4be147bb22df1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "0x4be147bb22df1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "22df1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "0x22df1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "4be1 47bb 22df 1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "4be147bb 22df1e60", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "    4be147bb\t22df1e60   ", NULL);
-    assert_true(key = primsec);
+    assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "test1", NULL);
-    assert_true(key = primsec);
+    assert_null(key);
     /* Try negative searches */
     assert_null(rnp_tests_get_key_by_fpr(sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e"));
     assert_null(rnp_tests_get_key_by_fpr(sec_store, "2e62b74e6a4cd333bc19004be147bb22df1e60"));
