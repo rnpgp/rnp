@@ -51,7 +51,7 @@ linux_install_centos() {
   sudo curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo -o /etc/yum.repos.d/ribose.repo
   sudo yum -y -q install sudo wget git cmake3 gcc gcc-c++ make autoconf automake libtool bzip2 gzip \
     ncurses-devel which rh-ruby25 rh-ruby25-ruby-devel bzip2-devel zlib-devel byacc gettext-devel \
-    bison ribose-automake116 llvm-toolset-7.0
+    bison ribose-automake116 llvm-toolset-7.0 python3
 }
 
 linux_install_ubuntu() {
