@@ -88,6 +88,7 @@ add_executable(rnp_tests
   streams.cpp
   support.cpp
   user-prefs.cpp
+  utils-hex2bin.cpp
   utils-list.cpp
   utils-rnpcfg.cpp
   issues/1030.cpp
