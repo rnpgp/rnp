@@ -226,7 +226,12 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
         ret = sm2_verify(&sig->material.ecc, hash_alg, hval, hlen, &key->ec);
         break;
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
         ret = rsa_verify_pkcs1(&sig->material.rsa, sig->halg, hval, hlen, &key->rsa);
+        break;
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        RNP_LOG("RSA encrypt-only signature considered as invalid.");
+        ret = RNP_ERROR_SIGNATURE_INVALID;
         break;
     case PGP_PKA_ECDSA:
         ret = ecdsa_verify(&sig->material.ecc, hash_alg, hval, hlen, &key->ec);

@@ -1135,6 +1135,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
 
     switch (pkey->alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
         /* RSA m */
         if (!get_packet_body_mpi(&pkt, &pkey->material.rsa.m)) {
             RNP_LOG("failed to get rsa m");
@@ -1641,6 +1642,7 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     /* signature MPIs */
     switch (sig->palg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!get_packet_body_mpi(pkt, &sig->material.rsa.s)) {
             goto finish;
         }
@@ -1761,6 +1763,7 @@ signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
 
     switch (sig1->palg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
         return mpi_equal(&sig1->material.rsa.s, &sig2->material.rsa.s);
     case PGP_PKA_DSA:
         return mpi_equal(&sig1->material.dsa.r, &sig2->material.dsa.r) &&
