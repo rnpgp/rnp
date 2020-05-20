@@ -722,6 +722,7 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         dst_print_mpi(dst, "ecc r", &sig->material.ecc.r, ctx->dump_mpi);
         dst_print_mpi(dst, "ecc s", &sig->material.ecc.s, ctx->dump_mpi);
         break;
+    case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         dst_print_mpi(dst, "eg r", &sig->material.eg.r, ctx->dump_mpi);
         dst_print_mpi(dst, "eg s", &sig->material.eg.s, ctx->dump_mpi);
@@ -933,6 +934,7 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         dst_print_mpi(dst, "rsa m", &pkey.material.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         dst_print_mpi(dst, "eg g", &pkey.material.eg.g, ctx->dump_mpi);
         dst_print_mpi(dst, "eg m", &pkey.material.eg.m, ctx->dump_mpi);
         break;
@@ -1700,6 +1702,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
             goto done;
         }
         break;
+    case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!obj_add_mpi_json(material, "r", &sig->material.eg.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sig->material.eg.s, ctx->dump_mpi)) {
@@ -1927,6 +1930,7 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
         }
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!obj_add_mpi_json(material, "g", &pkey.material.eg.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "m", &pkey.material.eg.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;

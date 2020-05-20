@@ -583,6 +583,7 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!read_mpi(s_exp, "p", &pubkey->material.eg.p) ||
             !read_mpi(s_exp, "g", &pubkey->material.eg.g) ||
             !read_mpi(s_exp, "y", &pubkey->material.eg.y)) {
@@ -632,6 +633,7 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!read_mpi(s_exp, "x", &seckey->material.eg.x)) {
             return false;
         }
@@ -1085,6 +1087,7 @@ copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
         dst->material.rsa.u = src->material.rsa.u;
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         dst->material.eg.x = src->material.eg.x;
         break;
     case PGP_PKA_ECDSA:
