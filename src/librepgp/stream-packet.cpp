@@ -509,14 +509,16 @@ get_packet_body_mpi(pgp_packet_body_t *body, pgp_mpi_t *val)
         return false;
     }
     if (!get_packet_body_buf(body, val->mpi, len)) {
+        RNP_LOG("failed to read mpi body");
         return false;
     }
     /* check the mpi bit count */
     unsigned hbits = bits & 7 ? bits & 7 : 8;
     if ((((unsigned) val->mpi[0] >> hbits) != 0) ||
         !((unsigned) val->mpi[0] & (1U << (hbits - 1)))) {
-        RNP_LOG("wrong mpi bit count");
-        return false;
+        RNP_LOG("Warning! Wrong mpi bit count: got %d, but high byte is %d",
+                (int) bits,
+                (int) val->mpi[0]);
     }
 
     val->len = len;
