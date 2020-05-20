@@ -504,7 +504,7 @@ dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
 static rnp_result_t stream_dump_packets_raw(rnp_dump_ctx_t *ctx,
                                             pgp_source_t *  src,
                                             pgp_dest_t *    dst);
-static rnp_result_t stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
+static void         stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
                                               pgp_signature_t *sig,
                                               pgp_dest_t *     dst);
 
@@ -675,7 +675,7 @@ signature_dump_subpackets(rnp_dump_ctx_t * ctx,
     }
 }
 
-static rnp_result_t
+static void
 stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t *dst)
 {
     indent_dest_increase(dst);
@@ -732,23 +732,23 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     }
     indent_dest_decrease(dst);
     indent_dest_decrease(dst);
-    return RNP_SUCCESS;
 }
 
-static rnp_result_t
+static void
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
-    rnp_result_t    ret;
-
-    if ((ret = stream_parse_signature(src, &sig))) {
-        return ret;
-    }
 
     dst_printf(dst, "Signature packet\n");
-    ret = stream_dump_signature_pkt(ctx, &sig, dst);
+    if (stream_parse_signature(src, &sig)) {
+        indent_dest_increase(dst);
+        dst_printf(dst, "failed to parse\n");
+        indent_dest_decrease(dst);
+        return;
+    }
+
+    stream_dump_signature_pkt(ctx, &sig, dst);
     free_signature(&sig);
-    return ret;
 }
 
 static rnp_result_t
@@ -1197,7 +1197,8 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
-            ret = stream_dump_signature(ctx, src, dst);
+            stream_dump_signature(ctx, src, dst);
+            ret = RNP_SUCCESS;
             break;
         case PGP_PKT_SECRET_KEY:
         case PGP_PKT_PUBLIC_KEY:
@@ -1721,13 +1722,11 @@ static rnp_result_t
 stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
     pgp_signature_t sig;
-    rnp_result_t    ret;
-
-    if ((ret = stream_parse_signature(src, &sig))) {
-        return ret;
+    if (stream_parse_signature(src, &sig)) {
+        return RNP_SUCCESS;
     }
 
-    ret = stream_dump_signature_pkt_json(ctx, &sig, pkt);
+    rnp_result_t ret = stream_dump_signature_pkt_json(ctx, &sig, pkt);
     free_signature(&sig);
     return ret;
 }
