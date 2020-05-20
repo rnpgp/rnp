@@ -187,6 +187,7 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
                mpi_equal(&key1->dsa.q, &key2->dsa.q) &&
                mpi_equal(&key1->dsa.g, &key2->dsa.g) && mpi_equal(&key1->dsa.y, &key2->dsa.y);
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return mpi_equal(&key1->eg.p, &key2->eg.p) && mpi_equal(&key1->eg.g, &key2->eg.g) &&
                mpi_equal(&key1->eg.y, &key2->eg.y);
     case PGP_PKA_EDDSA:
@@ -219,6 +220,7 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
     case PGP_PKA_SM2:
         return sm2_validate_key(rng, &material->ec, material->secret);
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return elgamal_validate_key(rng, &material->eg, material->secret);
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) material->alg);
@@ -238,6 +240,7 @@ key_bitlength(const pgp_key_material_t *key)
     case PGP_PKA_DSA:
         return 8 * mpi_bytes(&key->dsa.p);
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return 8 * mpi_bytes(&key->eg.y);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:

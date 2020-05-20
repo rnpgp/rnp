@@ -1306,7 +1306,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
         break;
-    case PGP_PKA_ELGAMAL: {
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         const rnp_result_t ret =
           elgamal_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.eg, &keymaterial->eg);
         if (ret) {
