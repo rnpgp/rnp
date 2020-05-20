@@ -1433,6 +1433,17 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
             RNP_LOG("unknown critical private subpacket %d", (int) subpkt->type);
         }
         break;
+    case PGP_SIG_SUBPKT_RESERVED_1:
+    case PGP_SIG_SUBPKT_RESERVED_8:
+    case PGP_SIG_SUBPKT_PLACEHOLDER:
+    case PGP_SIG_SUBPKT_RESERVED_13:
+    case PGP_SIG_SUBPKT_RESERVED_14:
+    case PGP_SIG_SUBPKT_RESERVED_15:
+    case PGP_SIG_SUBPKT_RESERVED_17:
+    case PGP_SIG_SUBPKT_RESERVED_18:
+    case PGP_SIG_SUBPKT_RESERVED_19:
+        /* do not report reserved/placeholder subpacket */
+        return !subpkt->critical;
     default:
         RNP_LOG("unknown subpacket : %d", (int) subpkt->type);
         return !subpkt->critical;
