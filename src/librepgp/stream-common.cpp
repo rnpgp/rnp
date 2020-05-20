@@ -662,7 +662,7 @@ dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 void
 dst_printf(pgp_dest_t *dst, const char *format, ...)
 {
-    char    buf[1024];
+    char    buf[2048];
     size_t  len;
     va_list ap;
 
