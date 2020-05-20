@@ -1418,6 +1418,13 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
             subpkt->fields.issuer_fp.len = subpkt->len - 1;
         }
         break;
+    case PGP_SIG_SUBPKT_PRIVATE_FIRST ... PGP_SIG_SUBPKT_PRIVATE_LAST:
+        oklen = true;
+        checked = !subpkt->critical;
+        if (!checked) {
+            RNP_LOG("unknown critical private subpacket %d", (int) subpkt->type);
+        }
+        break;
     default:
         RNP_LOG("unknown subpacket : %d", (int) subpkt->type);
         return !subpkt->critical;
