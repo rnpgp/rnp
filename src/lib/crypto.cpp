@@ -179,6 +179,8 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
 
     switch (key1->alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         return mpi_equal(&key1->rsa.n, &key2->rsa.n) && mpi_equal(&key1->rsa.e, &key2->rsa.e);
     case PGP_PKA_DSA:
         return mpi_equal(&key1->dsa.p, &key2->dsa.p) &&
@@ -203,6 +205,8 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
 {
     switch (material->alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         return rsa_validate_key(rng, &material->rsa, material->secret);
     case PGP_PKA_DSA:
         return dsa_validate_key(rng, &material->dsa, material->secret);
