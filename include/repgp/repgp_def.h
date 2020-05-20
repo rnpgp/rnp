@@ -366,7 +366,9 @@ typedef enum {
     PGP_SIG_SUBPKT_SIGNATURE_TARGET = 31,   /* signature target */
     PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
     PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
-    PGP_SIG_SUBPKT_PREFERRED_AEAD = 34      /* preferred AEAD algorithms */
+    PGP_SIG_SUBPKT_PREFERRED_AEAD = 34,     /* preferred AEAD algorithms */
+    PGP_SIG_SUBPKT_PRIVATE_FIRST = 100,     /* private/experimental subpackets */
+    PGP_SIG_SUBPKT_PRIVATE_LAST = 110
 } pgp_sig_subpacket_type_t;
 
 /** Key Flags
