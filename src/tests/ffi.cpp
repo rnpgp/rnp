@@ -6486,6 +6486,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* signed with unknown key */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed.unknown"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6499,6 +6500,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* signed with malformed signature (bad version) */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed.malfsig"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6511,6 +6513,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* signed with invalid signature (modified hash alg) */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed.invsig"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6524,6 +6527,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* signed without the signature */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed.nosig"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6537,6 +6541,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
 
     /* detached signature */
     rnp_input_t source = NULL;
+    sigcount = 255;
     assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig"));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
@@ -6549,6 +6554,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(input);
 
     /* malformed detached signature */
+    sigcount = 255;
     assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig.malf"));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
@@ -6560,18 +6566,20 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(input);
 
     /* malformed detached signature, wrong bitlen in MPI  */
+    sigcount = 255;
     assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.sig.wrong-mpi-bitlen"));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
-    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_BAD_PARAMETERS);
+    assert_rnp_success(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
-    assert_int_equal(sigcount, 0);
+    assert_int_equal(sigcount, 1);
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(source);
     rnp_input_destroy(input);
 
     /* encrypted message */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.encrypted"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6585,6 +6593,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* encrypted and signed message */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed-encrypted"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6598,6 +6607,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* cleartext signed message */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-signed"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6611,6 +6621,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* cleartext signed with malformed signature (wrong mpi len) */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-malf"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -6624,6 +6635,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_output_destroy(output);
 
     /* cleartext signed without the signature */
+    sigcount = 255;
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.cleartext-nosig"));
     assert_rnp_success(rnp_output_to_null(&output));
