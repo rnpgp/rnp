@@ -707,6 +707,8 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
 
     switch (sig->palg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         dst_print_mpi(dst, "rsa s", &sig->material.rsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
@@ -926,6 +928,8 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 
     switch (pkey.alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         dst_print_mpi(dst, "rsa m", &pkey.material.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
@@ -1675,6 +1679,8 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 
     switch (sig->palg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "s", &sig->material.rsa.s, ctx->dump_mpi)) {
             goto done;
         }
@@ -1914,6 +1920,8 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
 
     switch (pkey.alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "m", &pkey.material.rsa.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
