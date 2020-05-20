@@ -341,17 +341,25 @@ typedef enum {
 
 typedef enum {
     PGP_SIG_SUBPKT_UNKNOWN = 0,
-    PGP_SIG_SUBPKT_CREATION_TIME = 2,       /* signature creation time */
-    PGP_SIG_SUBPKT_EXPIRATION_TIME = 3,     /* signature expiration time */
-    PGP_SIG_SUBPKT_EXPORT_CERT = 4,         /* exportable certification */
-    PGP_SIG_SUBPKT_TRUST = 5,               /* trust signature */
-    PGP_SIG_SUBPKT_REGEXP = 6,              /* regular expression */
-    PGP_SIG_SUBPKT_REVOCABLE = 7,           /* revocable */
-    PGP_SIG_SUBPKT_KEY_EXPIRY = 9,          /* key expiration time */
-    PGP_SIG_SUBPKT_RESERVED = 10,           /* reserved */
-    PGP_SIG_SUBPKT_PREFERRED_SKA = 11,      /* preferred symmetric algs */
-    PGP_SIG_SUBPKT_REVOCATION_KEY = 12,     /* revocation key */
-    PGP_SIG_SUBPKT_ISSUER_KEY_ID = 16,      /* issuer key ID */
+    PGP_SIG_SUBPKT_RESERVED_1 = 1,
+    PGP_SIG_SUBPKT_CREATION_TIME = 2,   /* signature creation time */
+    PGP_SIG_SUBPKT_EXPIRATION_TIME = 3, /* signature expiration time */
+    PGP_SIG_SUBPKT_EXPORT_CERT = 4,     /* exportable certification */
+    PGP_SIG_SUBPKT_TRUST = 5,           /* trust signature */
+    PGP_SIG_SUBPKT_REGEXP = 6,          /* regular expression */
+    PGP_SIG_SUBPKT_REVOCABLE = 7,       /* revocable */
+    PGP_SIG_SUBPKT_RESERVED_8 = 8,
+    PGP_SIG_SUBPKT_KEY_EXPIRY = 9,      /* key expiration time */
+    PGP_SIG_SUBPKT_PLACEHOLDER = 10,    /* placeholder for backward compatibility */
+    PGP_SIG_SUBPKT_PREFERRED_SKA = 11,  /* preferred symmetric algs */
+    PGP_SIG_SUBPKT_REVOCATION_KEY = 12, /* revocation key */
+    PGP_SIG_SUBPKT_RESERVED_13 = 13,
+    PGP_SIG_SUBPKT_RESERVED_14 = 14,
+    PGP_SIG_SUBPKT_RESERVED_15 = 15,
+    PGP_SIG_SUBPKT_ISSUER_KEY_ID = 16, /* issuer key ID */
+    PGP_SIG_SUBPKT_RESERVED_17 = 17,
+    PGP_SIG_SUBPKT_RESERVED_18 = 18,
+    PGP_SIG_SUBPKT_RESERVED_19 = 19,
     PGP_SIG_SUBPKT_NOTATION_DATA = 20,      /* notation data */
     PGP_SIG_SUBPKT_PREFERRED_HASH = 21,     /* preferred hash algs */
     PGP_SIG_SUBPKT_PREF_COMPRESS = 22,      /* preferred compression algorithms */
