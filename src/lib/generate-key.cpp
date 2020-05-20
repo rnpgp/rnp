@@ -276,6 +276,7 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_DSA:
         return crypto->dsa.p_bitlen;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return crypto->elgamal.key_bitlen;
     default:
         return 0;

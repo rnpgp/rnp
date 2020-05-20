@@ -236,6 +236,11 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
     case PGP_PKA_ECDSA:
         ret = ecdsa_verify(&sig->material.ecc, hash_alg, hval, hlen, &key->ec);
         break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        RNP_LOG("ElGamal are considered as invalid.");
+        ret = RNP_ERROR_SIGNATURE_INVALID;
+        break;
     default:
         RNP_LOG("Unknown algorithm");
         ret = RNP_ERROR_BAD_PARAMETERS;

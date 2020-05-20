@@ -1143,6 +1143,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
         }
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         /* ElGamal g, m */
         if (!get_packet_body_mpi(&pkt, &pkey->material.eg.g) ||
             !get_packet_body_mpi(&pkt, &pkey->material.eg.m)) {
@@ -1666,6 +1667,7 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
             goto finish;
         }
         break;
+    case PGP_PKA_ELGAMAL: /* we support reading it but will not validate */
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!get_packet_body_mpi(pkt, &sig->material.eg.r) ||
             !get_packet_body_mpi(pkt, &sig->material.eg.s)) {

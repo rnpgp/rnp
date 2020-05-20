@@ -1237,6 +1237,7 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
         res = get_packet_body_mpi(&body, &key->material.ec.x);
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         res = get_packet_body_mpi(&body, &key->material.eg.x);
         break;
     default:
@@ -1367,6 +1368,7 @@ write_secret_key_mpis(pgp_packet_body_t *body, pgp_key_pkt_t *key)
         res = add_packet_body_mpi(body, &key->material.ec.x);
         break;
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         res = add_packet_body_mpi(body, &key->material.eg.x);
         break;
     default:
