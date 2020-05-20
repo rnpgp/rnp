@@ -663,9 +663,15 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     }
     body->tag = (pgp_pkt_type_t) ptag;
 
-    if (!stream_read_pkt_len(src, &len) || !len) {
+    if (!stream_read_pkt_len(src, &len)) {
         return RNP_ERROR_READ;
     }
+
+    /* early exit for the empty packet */
+    if (!len) {
+        return RNP_SUCCESS;
+    }
+
     if (len > PGP_MAX_PKT_SIZE) {
         RNP_LOG("too large packet");
         return RNP_ERROR_BAD_FORMAT;
