@@ -1290,6 +1290,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     /* Decrypting session key value */
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
         err =
           rsa_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.rsa, &keymaterial->rsa);
         if (err) {

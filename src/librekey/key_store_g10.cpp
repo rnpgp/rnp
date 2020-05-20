@@ -574,6 +574,8 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!read_mpi(s_exp, "n", &pubkey->material.rsa.n) ||
             !read_mpi(s_exp, "e", &pubkey->material.rsa.e)) {
             return false;
@@ -619,6 +621,8 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         break;
 
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         if (!read_mpi(s_exp, "d", &seckey->material.rsa.d) ||
             !read_mpi(s_exp, "p", &seckey->material.rsa.p) ||
             !read_mpi(s_exp, "q", &seckey->material.rsa.q) ||
@@ -1073,6 +1077,8 @@ copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
         dst->material.dsa.x = src->material.dsa.x;
         break;
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
         dst->material.rsa.d = src->material.rsa.d;
         dst->material.rsa.p = src->material.rsa.p;
         dst->material.rsa.q = src->material.rsa.q;
