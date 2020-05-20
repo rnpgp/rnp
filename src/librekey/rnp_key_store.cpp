@@ -956,6 +956,7 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
         break;
 
     case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         grip_hash_mpi(&hash, &key->eg.p, 'p', true);
         grip_hash_mpi(&hash, &key->eg.g, 'g', true);
         grip_hash_mpi(&hash, &key->eg.y, 'y', true);
