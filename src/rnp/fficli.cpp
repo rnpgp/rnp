@@ -199,7 +199,6 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
     in = fopen("/dev/tty", "w+ce");
 #endif
     if (!in) {
-        in = stdin;
         in = userio_in;
         out = stderr;
     } else {
@@ -1315,7 +1314,7 @@ cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
             ERR_MSG("No userid or default key for operation");
             goto done;
         }
-        res = cli_rnp_keys_matching_string(
+        cli_rnp_keys_matching_string(
           rnp, keys, cli_rnp_defkey(rnp), flags & ~CLI_SEARCH_DEFAULT);
         if (keys.empty()) {
             ERR_MSG("Default key not found");

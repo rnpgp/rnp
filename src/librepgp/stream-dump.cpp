@@ -1855,7 +1855,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     ret = RNP_SUCCESS;
 done:
     free_key_pkt(&key);
-    return RNP_SUCCESS;
+    return ret;
 }
 
 static rnp_result_t
