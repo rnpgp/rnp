@@ -1394,7 +1394,6 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
     uint8_t        keybuf[PGP_MAX_KEY_SIZE + 1];
     uint8_t        nonce[PGP_AEAD_MAX_NONCE_LEN];
     size_t         keysize;
-    size_t         blsize;
     bool           keyavail = false; /* tried password at least once */
     bool           decres;
     int            res;
@@ -1430,7 +1429,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
                 alg = (pgp_symm_alg_t) skey->alg;
             }
 
-            if (!(blsize = pgp_block_size(alg))) {
+            if (!pgp_block_size(alg)) {
                 continue;
             }
 
