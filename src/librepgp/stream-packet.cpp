@@ -2306,8 +2306,8 @@ stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst)
         return false;
     }
 
-    if (!userid->uid || !userid->uid_len) {
-        RNP_LOG("empty or null userid");
+    if (userid->uid_len && !userid->uid) {
+        RNP_LOG("null but non-empty userid");
         return false;
     }
 
@@ -2316,7 +2316,7 @@ stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst)
         return false;
     }
 
-    res = add_packet_body(&pktbody, userid->uid, userid->uid_len);
+    res = userid->uid ? add_packet_body(&pktbody, userid->uid, userid->uid_len) : true;
 
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
