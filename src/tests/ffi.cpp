@@ -7576,3 +7576,64 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* key with empty packets - must fail with bad format */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/key-empty-packets.pgp"));
+    char *results = NULL;
+    assert_int_equal(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results),
+                     RNP_ERROR_BAD_FORMAT);
+    assert_null(results);
+    rnp_input_destroy(input);
+
+    /* key with empty uid - must succeed */
+    json_object *jso = NULL;
+    json_object *jsokeys = NULL;
+    assert_true(check_import_keys(
+      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-empty-uid.pgp", 1, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 1);
+    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
+    json_object_put(jso);
+
+    /* key with experimental signature subpackets - must succeed and append uid and signature
+     */
+    assert_true(check_import_keys(
+      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-subpacket-101-110.pgp", 1, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 1);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "updated", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
+    json_object_put(jso);
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "C972AFFD358BF887", &key));
+    size_t count = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &count));
+    assert_int_equal(count, 2);
+    char *uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_at(key, 0, &uid));
+    assert_int_equal(strcmp(uid, ""), 0);
+    rnp_buffer_destroy(uid);
+    assert_rnp_success(rnp_key_get_uid_at(key, 1, &uid));
+    assert_int_equal(strcmp(uid, "NoUID"), 0);
+    rnp_buffer_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    /* key with malformed signature - must fail */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/key-malf-sig.pgp"));
+    assert_int_equal(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results),
+                     RNP_ERROR_BAD_FORMAT);
+    assert_null(results);
+    rnp_input_destroy(input);
+
+    rnp_ffi_destroy(ffi);
+}
