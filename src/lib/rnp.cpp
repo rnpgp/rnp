@@ -4692,7 +4692,7 @@ rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle)
     }
 
     *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
-    if (!handle) {
+    if (!*handle) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     (*handle)->ffi = op->ffi;
