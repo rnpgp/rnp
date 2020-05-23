@@ -2401,6 +2401,7 @@ cli_rnp_process_file(cli_rnp_t *rnp)
     char *contents = NULL;
     if (rnp_guess_contents(input, &contents)) {
         ERR_MSG("failed to check source contents");
+        rnp_input_destroy(input);
         return false;
     }
 
