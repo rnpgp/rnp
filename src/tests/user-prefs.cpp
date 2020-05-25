@@ -159,5 +159,5 @@ TEST_F(rnp_tests, test_load_user_prefs)
     }
 
     /* Cleanup */
-    rnp_key_store_free(pubring);
+    delete pubring;
 }

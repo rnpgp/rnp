@@ -9,6 +9,6 @@ main(int argc, char *argv[])
         return 1;
     }
     rnp_key_store_load_from_path(key_store, NULL);
-    rnp_key_store_free(key_store);
+    delete key_store;
     return 0;
 }

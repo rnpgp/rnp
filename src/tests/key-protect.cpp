@@ -55,8 +55,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     // load our keyring and do some quick checks
     {
         pgp_source_t     src = {};
-        rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
-        assert_non_null(ks);
+        rnp_key_store_t *ks = new rnp_key_store_t();
 
         assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
         assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
@@ -80,7 +79,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         key = new pgp_key_t();
         assert_non_null(key);
         pgp_key_copy(key, tmp, false);
-        rnp_key_store_free(ks);
+        delete ks;
     }
 
     // confirm that this key is indeed RSA
@@ -134,8 +133,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     // confirm that packets[0] is no longer encrypted
     {
         pgp_source_t     memsrc = {};
-        rnp_key_store_t *ks = (rnp_key_store_t *) calloc(1, sizeof(*ks));
-        assert_non_null(ks);
+        rnp_key_store_t *ks = new rnp_key_store_t();
         pgp_rawpacket_t &pkt = pgp_key_get_rawpacket(key);
 
         assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
@@ -192,7 +190,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.u,
                               &pgp_key_get_material(reloaded_key)->rsa.u));
 
-        rnp_key_store_free(ks);
+        delete ks;
     }
 
     // lock
