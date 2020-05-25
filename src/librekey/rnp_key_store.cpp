@@ -224,6 +224,7 @@ rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 void
 rnp_key_store_clear(rnp_key_store_t *keyring)
 {
+    keyring->keybygrip.clear();
     keyring->keys.clear();
     for (list_item *item = list_front(keyring->blobs); item; item = list_next(item)) {
         kbx_blob_t *blob = *((kbx_blob_t **) item);
@@ -443,6 +444,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         try {
             keyring->keys.emplace_back();
             oldkey = &keyring->keys.back();
+            keyring->keybygrip[pgp_key_get_grip(srckey)] = std::prev(keyring->keys.end());
         } catch (...) {
             RNP_LOG("allocation failed");
             return NULL;
@@ -450,6 +452,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         if (pgp_key_copy(oldkey, srckey, false)) {
             RNP_LOG("key copying failed");
             keyring->keys.pop_back();
+            keyring->keybygrip.erase(pgp_key_get_grip(srckey));
             return NULL;
         }
         if (primary && !pgp_key_link_subkey_grip(primary, oldkey)) {
@@ -492,6 +495,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         try {
             keyring->keys.emplace_back();
             added_key = &keyring->keys.back();
+            keyring->keybygrip[pgp_key_get_grip(srckey)] = std::prev(keyring->keys.end());
         } catch (...) {
             RNP_LOG("allocation failed");
             return NULL;
@@ -499,6 +503,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         if (pgp_key_copy(added_key, srckey, false)) {
             RNP_LOG("key copying failed");
             keyring->keys.pop_back();
+            keyring->keybygrip.erase(pgp_key_get_grip(srckey));
             return NULL;
         }
         /* primary key may be added after subkeys, so let's handle this case correctly */
@@ -669,6 +674,7 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
 bool
 rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
 {
+    keyring->keybygrip.erase(pgp_key_get_grip(key));
     size_t oldsize = keyring->keys.size();
     keyring->keys.erase(std::remove_if(keyring->keys.begin(),
                                        keyring->keys.end(),
@@ -721,21 +727,21 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid, pgp_
 const pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [&grip](const pgp_key_t &key) {
-          return pgp_key_get_grip(&key) == grip;
-      });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
+    try {
+        return &*keyring->keybygrip.at(grip);
+    } catch (...) {
+        return NULL;
+    }
 }
 
 pgp_key_t *
 rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [&grip](const pgp_key_t &key) {
-          return pgp_key_get_grip(&key) == grip;
-      });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
+    try {
+        return &*keyring->keybygrip.at(grip);
+    } catch (...) {
+        return NULL;
+    }
 }
 
 pgp_key_t *
