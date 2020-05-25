@@ -62,26 +62,26 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    std::vector<pgp_userid_t> uids;    /* array of user ids */
-    std::vector<pgp_subsig_t> subsigs; /* array of key signatures */
-    std::vector<pgp_revoke_t> revokes; /* array of revocations */
-    list            subkey_grips; /* list of subkey grips (for primary keys) as uint8_t[20] */
-    uint8_t         primary_grip[PGP_KEY_GRIP_SIZE]; /* grip of primary key (for subkeys) */
-    bool            primary_grip_set;
-    time_t          expiration; /* key expiration time, if available */
-    pgp_key_pkt_t   pkt;        /* pubkey/seckey data packet */
-    pgp_rawpacket_t rawpkt;     /* key raw packet */
-    uint8_t         key_flags;  /* key flags */
-    uint8_t         keyid[PGP_KEY_ID_SIZE];
-    pgp_fingerprint_t      fingerprint;
-    uint8_t                grip[PGP_KEY_GRIP_SIZE];
-    uint32_t               uid0;         /* primary uid index in uids array */
-    unsigned               uid0_set : 1; /* flag for the above */
-    uint8_t                revoked;      /* key has been revoked */
-    pgp_revoke_t           revocation;   /* revocation reason */
-    pgp_key_store_format_t format;       /* the format of the key in packets[0] */
-    bool                   valid;        /* this key is valid and usable */
-    bool                   validated;    /* this key was validated */
+    std::vector<pgp_userid_t>   uids;         /* array of user ids */
+    std::vector<pgp_subsig_t>   subsigs;      /* array of key signatures */
+    std::vector<pgp_revoke_t>   revokes;      /* array of revocations */
+    std::vector<pgp_key_grip_t> subkey_grips; /* array of subkey grips (for primary keys) */
+    pgp_key_grip_t              primary_grip; /* grip of primary key (for subkeys) */
+    bool                        primary_grip_set;
+    time_t                      expiration; /* key expiration time, if available */
+    pgp_key_pkt_t               pkt;        /* pubkey/seckey data packet */
+    pgp_rawpacket_t             rawpkt;     /* key raw packet */
+    uint8_t                     key_flags;  /* key flags */
+    uint8_t                     keyid[PGP_KEY_ID_SIZE];
+    pgp_fingerprint_t           fingerprint;
+    pgp_key_grip_t              grip;
+    uint32_t                    uid0;         /* primary uid index in uids array */
+    unsigned                    uid0_set : 1; /* flag for the above */
+    uint8_t                     revoked;      /* key has been revoked */
+    pgp_revoke_t                revocation;   /* revocation reason */
+    pgp_key_store_format_t      format;       /* the format of the key in packets[0] */
+    bool                        valid;        /* this key is valid and usable */
+    bool                        validated;    /* this key was validated */
 
     ~pgp_key_t();
     pgp_key_t() = default;
@@ -213,9 +213,9 @@ const pgp_fingerprint_t *pgp_key_get_fp(const pgp_key_t *key);
  * @brief Get key's grip
  *
  * @param key populated key, should not be NULL
- * @return pointer to buffer with the grip
+ * @return key's grip
  */
-const uint8_t *pgp_key_get_grip(const pgp_key_t *key);
+const pgp_key_grip_t &pgp_key_get_grip(const pgp_key_t *key);
 
 /**
  * @brief Get primary key's grip for the subkey, if available.
@@ -223,16 +223,18 @@ const uint8_t *pgp_key_get_grip(const pgp_key_t *key);
  * @param key subkey, which primary key's grip should be returned
  * @return pointer to the array with grip or NULL if it is not available
  */
-const uint8_t *pgp_key_get_primary_grip(const pgp_key_t *key);
+const pgp_key_grip_t &pgp_key_get_primary_grip(const pgp_key_t *key);
+
+bool pgp_key_has_primary_grip(const pgp_key_t *key);
 
 /**
  * @brief Set primary key's grip for the subkey
  *
  * @param key subkey
- * @param grip buffer with grip, should not be NULL
+ * @param grip buffer with grip
  * @return void
  */
-void pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip);
+void pgp_key_set_primary_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
 
 /**
  * @brief Link key with subkey via primary_grip and subkey_grips list
@@ -325,16 +327,16 @@ size_t pgp_key_get_subkey_count(const pgp_key_t *key);
  * @param grip subkey's grip.
  * @return true if succeeded (grip already exists in list or added), or false otherwise.
  */
-bool pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip);
+bool pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
 
 /**
  * @brief Get the pgp key's subkey grip
  *
  * @param key key pointer to the primary key
  * @param idx index of the subkey
- * @return pointer to the grip data or NULL if subkey not found
+ * @return grip or throws std::out_of_range exception
  */
-const uint8_t *pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
+const pgp_key_grip_t &pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
 
 /**
  * @brief Get the key's subkey by it's index

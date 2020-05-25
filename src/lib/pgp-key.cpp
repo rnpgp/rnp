@@ -68,6 +68,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
+#include <algorithm>
 #include "defaults.h"
 
 static bool
@@ -401,17 +402,15 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* subkey grips */
-    for (list_item *grip = list_front(src->subkey_grips); grip; grip = list_next(grip)) {
-        if (!list_append(&dst->subkey_grips, grip, PGP_KEY_GRIP_SIZE)) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+    try {
+        dst->subkey_grips = src->subkey_grips;
+    } catch (...) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     /* primary grip */
     dst->primary_grip_set = src->primary_grip_set;
-    if (src->primary_grip_set) {
-        pgp_key_set_primary_grip(dst, pgp_key_get_primary_grip(src));
-    }
+    dst->primary_grip = src->primary_grip;
 
     /* expiration */
     dst->expiration = src->expiration;
@@ -422,7 +421,7 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     /* key id / fingerprint / grip */
     memcpy(dst->keyid, src->keyid, sizeof(dst->keyid));
     memcpy(&dst->fingerprint, &src->fingerprint, sizeof(dst->fingerprint));
-    memcpy(&dst->grip, &src->grip, sizeof(dst->grip));
+    dst->grip = src->grip;
 
     /* primary uid */
     dst->uid0 = src->uid0;
@@ -680,22 +679,28 @@ pgp_key_get_fp(const pgp_key_t *key)
     return &key->fingerprint;
 }
 
-const uint8_t *
+const pgp_key_grip_t &
 pgp_key_get_grip(const pgp_key_t *key)
 {
     return key->grip;
 }
 
-const uint8_t *
+const pgp_key_grip_t &
 pgp_key_get_primary_grip(const pgp_key_t *key)
 {
-    return key->primary_grip_set ? key->primary_grip : NULL;
+    return key->primary_grip;
+}
+
+bool
+pgp_key_has_primary_grip(const pgp_key_t *key)
+{
+    return key->primary_grip_set;
 }
 
 void
-pgp_key_set_primary_grip(pgp_key_t *key, const uint8_t *grip)
+pgp_key_set_primary_grip(pgp_key_t *key, const pgp_key_grip_t &grip)
 {
-    memcpy(key->primary_grip, grip, PGP_KEY_GRIP_SIZE);
+    key->primary_grip = grip;
     key->primary_grip_set = true;
 }
 
@@ -1279,35 +1284,40 @@ pgp_key_get_rawpacket(const pgp_key_t *key)
 size_t
 pgp_key_get_subkey_count(const pgp_key_t *key)
 {
-    return list_length(key->subkey_grips);
+    return key->subkey_grips.size();
 }
 
 bool
-pgp_key_add_subkey_grip(pgp_key_t *key, const uint8_t *grip)
+pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip)
 {
-    for (list_item *li = list_front(key->subkey_grips); li; li = list_next(li)) {
-        if (!memcmp(grip, (uint8_t *) li, PGP_KEY_GRIP_SIZE)) {
-            return true;
-        }
+    if (std::find(key->subkey_grips.begin(), key->subkey_grips.end(), grip) !=
+        key->subkey_grips.end()) {
+        return true;
     }
 
-    return list_append(&key->subkey_grips, grip, PGP_KEY_GRIP_SIZE);
+    try {
+        key->subkey_grips.push_back(grip);
+        return true;
+    } catch (...) {
+        return false;
+    }
 }
 
-const uint8_t *
+const pgp_key_grip_t &
 pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx)
 {
-    return (uint8_t *) list_at(key->subkey_grips, idx);
+    return key->subkey_grips[idx];
 }
 
 pgp_key_t *
 pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
 {
-    uint8_t *grip = (uint8_t *) list_at(key->subkey_grips, idx);
-    if (!grip) {
+    try {
+        const pgp_key_grip_t &grip = pgp_key_get_subkey_grip(key, idx);
+        return rnp_key_store_get_key_by_grip(store, grip);
+    } catch (...) {
         return NULL;
     }
-    return rnp_key_store_get_key_by_grip(store, grip);
 }
 
 pgp_key_flags_t
@@ -1871,8 +1881,8 @@ pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
     }
 
     // Export subkeys
-    for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+    for (auto &grip : key->subkey_grips) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, grip);
         if (!pgp_key_write_packets(subkey, dst)) {
             RNP_LOG("Error occured when exporting a subkey");
             return false;
@@ -1894,17 +1904,15 @@ find_suitable_key(pgp_op_t            op,
     if (pgp_key_get_flags(key) & desired_usage) {
         return key;
     }
-    list_item *           subkey_grip = list_front(key->subkey_grips);
     pgp_key_request_ctx_t ctx{.op = op, .secret = pgp_key_is_secret(key)};
     ctx.search.type = PGP_KEY_SEARCH_GRIP;
 
-    while (subkey_grip) {
-        memcpy(ctx.search.by.grip, subkey_grip, PGP_KEY_GRIP_SIZE);
+    for (auto &grip : key->subkey_grips) {
+        ctx.search.by.grip = grip;
         pgp_key_t *subkey = pgp_request_key(key_provider, &ctx);
         if (subkey && (pgp_key_get_flags(subkey) & desired_usage)) {
             return subkey;
         }
-        subkey_grip = list_next(subkey_grip);
     }
     return NULL;
 }
@@ -2059,8 +2067,8 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
 
     pgp_key_validate(key, keyring);
     /* validate/re-validate all subkeys as well */
-    for (list_item *grip = list_front(key->subkey_grips); grip; grip = list_next(grip)) {
-        pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, (uint8_t *) grip);
+    for (auto &grip : key->subkey_grips) {
+        pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, grip);
         if (subkey) {
             pgp_key_validate_subkey(subkey, key);
             pgp_subkey_refresh_data(subkey, key);
@@ -2243,7 +2251,6 @@ pgp_userid_t::~pgp_userid_t()
 pgp_key_t::~pgp_key_t()
 {
     pgp_key_clear_revokes(this);
-    list_destroy(&this->subkey_grips);
     free_key_pkt(&this->pkt);
 }
 
@@ -2258,10 +2265,8 @@ pgp_key_t::operator=(pgp_key_t &&src)
     pgp_key_clear_revokes(this);
     revokes = std::move(src.revokes);
 
-    list_destroy(&subkey_grips);
-    subkey_grips = src.subkey_grips;
-    src.subkey_grips = NULL;
-    memcpy(primary_grip, src.primary_grip, sizeof(primary_grip));
+    subkey_grips = std::move(src.subkey_grips);
+    primary_grip = std::move(src.primary_grip);
     primary_grip_set = src.primary_grip_set;
     expiration = src.expiration;
     free_key_pkt(&pkt);
@@ -2271,7 +2276,7 @@ pgp_key_t::operator=(pgp_key_t &&src)
     key_flags = src.key_flags;
     memcpy(keyid, src.keyid, sizeof(keyid));
     fingerprint = src.fingerprint;
-    memcpy(grip, src.grip, sizeof(grip));
+    grip = std::move(src.grip);
     uid0 = src.uid0;
     uid0_set = src.uid0_set;
     revoked = src.revoked;
