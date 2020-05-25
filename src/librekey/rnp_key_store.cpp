@@ -160,12 +160,12 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         }
 
         for (auto &key : key_store->keys) {
-            snprintf(
-              path,
-              sizeof(path),
-              "%s/%s.key",
-              key_store->path.c_str(),
-              rnp_strhexdump_upper(grips, pgp_key_get_grip(&key), PGP_KEY_GRIP_SIZE, ""));
+            const pgp_key_grip_t &grip = pgp_key_get_grip(&key);
+            snprintf(path,
+                     sizeof(path),
+                     "%s/%s.key",
+                     key_store->path.c_str(),
+                     rnp_strhexdump_upper(grips, grip.data(), grip.size(), ""));
 
             if (init_tmpfile_dest(&keydst, path, true)) {
                 RNP_LOG("failed to create file");
@@ -349,10 +349,9 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     }
 
     /* move existing subkey grips since they are not present in transferable key */
-    tmpkey.subkey_grips = dst->subkey_grips;
-    dst->subkey_grips = NULL;
-    for (list_item *li = list_front(src->subkey_grips); li; li = list_next(li)) {
-        if (!pgp_key_add_subkey_grip(&tmpkey, (uint8_t *) li)) {
+    tmpkey.subkey_grips = std::move(dst->subkey_grips);
+    for (auto &grip : src->subkey_grips) {
+        if (!pgp_key_add_subkey_grip(&tmpkey, grip)) {
             RNP_LOG("failed to add subkey grip");
         }
     }
@@ -394,7 +393,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         bool found = false;
 
         /* if we have primary_grip then we also added to subkey_grips */
-        if (!pgp_key_is_subkey(&skey) || pgp_key_get_primary_grip(&skey)) {
+        if (!pgp_key_is_subkey(&skey) || pgp_key_has_primary_grip(&skey)) {
             continue;
         }
 
@@ -583,13 +582,12 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     if ((sigtype != PGP_SIG_SUBKEY) && (sigtype != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
-    const uint8_t *prim_grip = pgp_key_get_primary_grip(key);
-    pgp_key_t *    primary = rnp_key_store_get_signer_key(keyring, sig);
-    if (!prim_grip || !primary) {
+    pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, sig);
+    if (!pgp_key_has_primary_grip(key) || !primary) {
         RNP_LOG("No primary grip or primary key");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     }
-    if (memcmp(pgp_key_get_grip(primary), prim_grip, PGP_KEY_GRIP_SIZE)) {
+    if (pgp_key_get_grip(primary) != pgp_key_get_primary_grip(key)) {
         RNP_LOG("Wrong subkey signature's signer.");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
@@ -721,31 +719,21 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid, pgp_
 }
 
 const pgp_key_t *
-rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const uint8_t *grip)
+rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    RNP_DLOG("looking keyring %p", keyring);
-    if (!grip) {
-        return NULL;
-    }
-
     auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [grip](const pgp_key_t &key) {
-          return !memcmp(pgp_key_get_grip(&key), grip, PGP_KEY_GRIP_SIZE);
+      std::find_if(keyring->keys.begin(), keyring->keys.end(), [&grip](const pgp_key_t &key) {
+          return pgp_key_get_grip(&key) == grip;
       });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const uint8_t *grip)
+rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    RNP_DLOG("looking keyring %p", keyring);
-    if (!grip) {
-        return NULL;
-    }
-
     auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [grip](const pgp_key_t &key) {
-          return !memcmp(pgp_key_get_grip(&key), grip, PGP_KEY_GRIP_SIZE);
+      std::find_if(keyring->keys.begin(), keyring->keys.end(), [&grip](const pgp_key_t &key) {
+          return pgp_key_get_grip(&key) == grip;
       });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
@@ -770,7 +758,7 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
         return NULL;
     }
 
-    if (pgp_key_get_primary_grip(subkey)) {
+    if (pgp_key_has_primary_grip(subkey)) {
         return rnp_key_store_get_key_by_grip(keyring, pgp_key_get_primary_grip(subkey));
     }
 
@@ -891,7 +879,7 @@ grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
 
 /* keygrip is subjectKeyHash from pkcs#15 for RSA. */
 bool
-rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
+rnp_key_store_get_key_grip(const pgp_key_material_t *key, pgp_key_grip_t &grip)
 {
     pgp_hash_t hash = {0};
 
@@ -926,18 +914,18 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, uint8_t *grip)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         if (!grip_hash_ec(&hash, &key->ec)) {
-            pgp_hash_finish(&hash, grip);
+            pgp_hash_finish(&hash, grip.data());
             return false;
         }
         break;
 
     default:
         RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
-        pgp_hash_finish(&hash, grip);
+        pgp_hash_finish(&hash, grip.data());
         return false;
     }
 
-    return pgp_hash_finish(&hash, grip) == PGP_KEY_GRIP_SIZE;
+    return pgp_hash_finish(&hash, grip.data()) == grip.size();
 }
 
 pgp_key_t *

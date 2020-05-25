@@ -854,8 +854,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     if (ctx->dump_grips) {
-        if (rnp_key_store_get_key_grip(&key.material, keyfp.fingerprint)) {
-            dst_print_hex(dst, "grip", keyfp.fingerprint, PGP_FINGERPRINT_SIZE, false);
+        pgp_key_grip_t grip;
+        if (rnp_key_store_get_key_grip(&key.material, grip)) {
+            dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
             dst_printf(dst, "grip: failed to calculate");
         }
@@ -1854,8 +1855,9 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
             goto done;
         }
 
-        if (!rnp_key_store_get_key_grip(&key.material, keyfp.fingerprint) ||
-            !obj_add_hex_json(pkt, "grip", keyfp.fingerprint, PGP_KEY_GRIP_SIZE)) {
+        pgp_key_grip_t grip;
+        if (!rnp_key_store_get_key_grip(&key.material, grip) ||
+            !obj_add_hex_json(pkt, "grip", grip.data(), grip.size())) {
             goto done;
         }
     }
