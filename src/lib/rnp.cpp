@@ -1988,7 +1988,7 @@ rnp_op_add_signature(rnp_ffi_t                ffi,
     if (newsig->signer.key && !pgp_key_is_secret(newsig->signer.key)) {
         pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
         ctx.search.type = PGP_KEY_SEARCH_GRIP;
-        memcpy(ctx.search.by.grip, pgp_key_get_grip(newsig->signer.key), PGP_KEY_GRIP_SIZE);
+        ctx.search.by.grip = pgp_key_get_grip(newsig->signer.key);
         newsig->signer.key = pgp_request_key(&key->ffi->key_provider, &ctx);
     }
     if (!newsig->signer.key) {
@@ -2963,7 +2963,7 @@ str_to_locator(rnp_ffi_t         ffi,
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         if (strlen(identifier) != (PGP_KEY_GRIP_SIZE * 2) ||
-            !rnp_hex_decode(identifier, locator->by.grip, sizeof(locator->by.grip))) {
+            !rnp_hex_decode(identifier, locator->by.grip.data(), locator->by.grip.size())) {
             FFI_LOG(ffi, "Invalid grip: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3015,8 +3015,8 @@ locator_to_str(const pgp_key_search_t *locator,
         }
         break;
     case PGP_KEY_SEARCH_GRIP:
-        if (!rnp_hex_encode(locator->by.grip,
-                            PGP_KEY_GRIP_SIZE,
+        if (!rnp_hex_encode(locator->by.grip.data(),
+                            locator->by.grip.size(),
                             identifier,
                             identifier_size,
                             RNP_HEX_UPPERCASE)) {
@@ -3724,8 +3724,8 @@ gen_json_grips(char **result, const pgp_key_t *primary, const pgp_key_t *sub)
             goto done;
         }
         json_object_object_add(jso, "primary", jsoprimary);
-        if (!rnp_hex_encode(pgp_key_get_grip(primary),
-                            PGP_KEY_GRIP_SIZE,
+        if (!rnp_hex_encode(pgp_key_get_grip(primary).data(),
+                            pgp_key_get_grip(primary).size(),
                             grip,
                             sizeof(grip),
                             RNP_HEX_UPPERCASE)) {
@@ -3743,8 +3743,8 @@ gen_json_grips(char **result, const pgp_key_t *primary, const pgp_key_t *sub)
             goto done;
         }
         json_object_object_add(jso, "sub", jsosub);
-        if (!rnp_hex_encode(pgp_key_get_grip(sub),
-                            PGP_KEY_GRIP_SIZE,
+        if (!rnp_hex_encode(pgp_key_get_grip(sub).data(),
+                            pgp_key_get_grip(sub).size(),
                             grip,
                             sizeof(grip),
                             RNP_HEX_UPPERCASE)) {
@@ -5219,10 +5219,10 @@ rnp_key_get_subkey_at(rnp_key_handle_t handle, size_t idx, rnp_key_handle_t *sub
     if (idx >= pgp_key_get_subkey_count(key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const uint8_t *grip = pgp_key_get_subkey_grip(key, idx);
-    char           griphex[PGP_KEY_GRIP_SIZE * 2 + 1] = {0};
+    const pgp_key_grip_t &grip = pgp_key_get_subkey_grip(key, idx);
+    char                  griphex[PGP_KEY_GRIP_SIZE * 2 + 1] = {0};
     if (!rnp_hex_encode(
-          grip, PGP_KEY_GRIP_SIZE, griphex, sizeof(griphex), RNP_HEX_UPPERCASE)) {
+          grip.data(), grip.size(), griphex, sizeof(griphex), RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_BAD_STATE;
     }
     return rnp_locate_key(handle->ffi, "grip", griphex, subkey);
@@ -5357,8 +5357,11 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
         return RNP_ERROR_OUT_OF_MEMORY;
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(
-          pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE, *grip, hex_len, RNP_HEX_UPPERCASE)) {
+    if (!rnp_hex_encode(pgp_key_get_grip(key).data(),
+                        pgp_key_get_grip(key).size(),
+                        *grip,
+                        hex_len,
+                        RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
     return RNP_SUCCESS;
@@ -5375,7 +5378,7 @@ rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
     if (!pgp_key_is_subkey(key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_key_get_primary_grip(key)) {
+    if (!pgp_key_has_primary_grip(key)) {
         *grip = NULL;
         return RNP_SUCCESS;
     }
@@ -5384,8 +5387,8 @@ rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
     if (*grip == NULL) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!rnp_hex_encode(pgp_key_get_primary_grip(key),
-                        PGP_KEY_GRIP_SIZE,
+    if (!rnp_hex_encode(pgp_key_get_primary_grip(key).data(),
+                        pgp_key_get_primary_grip(key).size(),
                         *grip,
                         hex_len,
                         RNP_HEX_UPPERCASE)) {
@@ -5478,8 +5481,7 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
     }
 
     /* for subkey we need primary key */
-    const uint8_t *grip = pgp_key_get_primary_grip(pkey);
-    if (!grip) {
+    if (!pgp_key_has_primary_grip(pkey)) {
         FFI_LOG(key->ffi, "Primary key grip not available.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -5487,7 +5489,7 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
     pgp_key_request_ctx_t request = {};
     request.secret = true;
     request.search.type = PGP_KEY_SEARCH_GRIP;
-    memcpy(request.search.by.grip, grip, PGP_KEY_GRIP_SIZE);
+    request.search.by.grip = pgp_key_get_primary_grip(pkey);
     pgp_key_t *prim_sec = pgp_request_key(&key->ffi->key_provider, &request);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
@@ -6277,8 +6279,11 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // grip
     char grip[PGP_KEY_GRIP_SIZE * 2 + 1];
-    if (!rnp_hex_encode(
-          pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE, grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+    if (!rnp_hex_encode(pgp_key_get_grip(key).data(),
+                        pgp_key_get_grip(key).size(),
+                        grip,
+                        sizeof(grip),
+                        RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "grip", grip)) {
@@ -6317,11 +6322,9 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "subkey grips", jsosubkeys_arr);
-        list_item *subgrip_item = list_front(key->subkey_grips);
-        while (subgrip_item) {
-            uint8_t *subgrip = (uint8_t *) subgrip_item;
+        for (auto &subgrip : key->subkey_grips) {
             if (!rnp_hex_encode(
-                  subgrip, PGP_KEY_GRIP_SIZE, grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+                  subgrip.data(), subgrip.size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
                 return RNP_ERROR_GENERIC;
             }
             json_object *jsostr = json_object_new_string(grip);
@@ -6329,14 +6332,11 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                 json_object_put(jsostr);
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
-            subgrip_item = list_next(subgrip_item);
         }
     } else {
-        if (!rnp_hex_encode(pgp_key_get_primary_grip(key),
-                            PGP_KEY_GRIP_SIZE,
-                            grip,
-                            sizeof(grip),
-                            RNP_HEX_UPPERCASE)) {
+        auto pgrip = pgp_key_get_primary_grip(key);
+        if (!rnp_hex_encode(
+              pgrip.data(), pgrip.size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
         }
         if (!add_json_string_field(jso, "primary key grip", grip)) {
@@ -6704,8 +6704,11 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_GRIP:
-        if (!rnp_hex_encode(
-              pgp_key_get_grip(key), PGP_KEY_GRIP_SIZE, buf, buf_len, RNP_HEX_UPPERCASE)) {
+        if (!rnp_hex_encode(pgp_key_get_grip(key).data(),
+                            pgp_key_get_grip(key).size(),
+                            buf,
+                            buf_len,
+                            RNP_HEX_UPPERCASE)) {
             return false;
         }
         break;
