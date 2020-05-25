@@ -158,6 +158,6 @@ TEST_F(rnp_tests, key_grip)
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // cleanup
-    rnp_key_store_free(pub_store);
-    rnp_key_store_free(sec_store);
+    delete pub_store;
+    delete sec_store;
 }

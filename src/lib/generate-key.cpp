@@ -101,8 +101,9 @@ load_generated_g10_key(pgp_key_t *    dst,
     }
 
     // this would be better on the stack but the key store does not allow it
-    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    if (!key_store) {
+    try {
+        key_store = new rnp_key_store_t();
+    } catch (...) {
         goto end;
     }
 
@@ -127,14 +128,13 @@ load_generated_g10_key(pgp_key_t *    dst,
     }
     // if a primary key is provided, it should match the sub with regards to type
     assert(!primary_key ||
-           (pgp_key_is_secret(primary_key) ==
-            pgp_key_is_secret((pgp_key_t *) list_back(rnp_key_store_get_keys(key_store)))));
+           (pgp_key_is_secret(primary_key) == pgp_key_is_secret(&key_store->keys.back())));
     if (rnp_key_store_get_key_count(key_store) != 1) {
         goto end;
     }
-    ok = !pgp_key_copy(dst, rnp_key_store_get_key(key_store, 0), false);
+    ok = !pgp_key_copy(dst, &key_store->keys.front(), false);
 end:
-    rnp_key_store_free(key_store);
+    delete key_store;
     src_close(&memsrc);
     dst_close(&memdst, true);
     list_destroy(&key_ptrs);

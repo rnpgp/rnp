@@ -902,16 +902,10 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    rnp_key_store_t *pubring = NULL;
-    rnp_key_store_t *secring = NULL;
+    rnp_key_store_t *pubring = new rnp_key_store_t();
+    rnp_key_store_t *secring = new rnp_key_store_t();
     pgp_key_t *      primary_pub = NULL, *primary_sec = NULL;
     pgp_key_t *      sub_pub = NULL, *sub_sec = NULL;
-
-    // create a couple keyrings
-    pubring = (rnp_key_store_t *) calloc(1, sizeof(*pubring));
-    secring = (rnp_key_store_t *) calloc(1, sizeof(*secring));
-    assert_non_null(pubring);
-    assert_non_null(secring);
 
     // primary
     {
@@ -1154,6 +1148,6 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(sub_sec->validated);
     }
 
-    rnp_key_store_free(pubring);
-    rnp_key_store_free(secring);
+    delete pubring;
+    delete secring;
 }

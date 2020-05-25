@@ -344,7 +344,7 @@ const uint8_t *pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
  * @param idx index of the subkey
  * @return pointer to the subkey or NULL if subkey not found
  */
-pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, const rnp_key_store_t *store, size_t idx);
+pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 

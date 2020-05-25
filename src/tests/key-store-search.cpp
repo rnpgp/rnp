@@ -169,7 +169,7 @@ TEST_F(rnp_tests, test_key_store_search)
 #endif // RNP_KEY_STORE_SEARCH_REGEX
 
     // cleanup
-    rnp_key_store_free(store);
+    delete store;
 }
 
 TEST_F(rnp_tests, test_key_store_search_by_name)
@@ -251,6 +251,6 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
     assert_null(rnp_tests_get_key_by_id(sec_store, "atest1", NULL));
 
     // cleanup
-    rnp_key_store_free(pub_store);
-    rnp_key_store_free(sec_store);
+    delete pub_store;
+    delete sec_store;
 }
