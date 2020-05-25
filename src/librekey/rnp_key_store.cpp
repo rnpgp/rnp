@@ -60,24 +60,6 @@
 #include <regex>
 #endif
 
-rnp_key_store_t *
-rnp_key_store_new(pgp_key_store_format_t format, const char *path)
-{
-    if (format == PGP_KEY_STORE_UNKNOWN) {
-        RNP_LOG("Invalid key store format");
-        return NULL;
-    }
-    try {
-        rnp_key_store_t *key_store = new rnp_key_store_t();
-        key_store->format = format;
-        key_store->path = strdup(path);
-        return key_store;
-    } catch (...) {
-        RNP_LOG("Can't allocate memory");
-        return NULL;
-    }
-}
-
 bool
 rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
@@ -89,9 +71,10 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
     char           path[MAXPATHLEN];
 
     if (key_store->format == PGP_KEY_STORE_G10) {
-        dir = opendir(key_store->path);
+        dir = opendir(key_store->path.c_str());
         if (dir == NULL) {
-            RNP_LOG("Can't open G10 directory %s: %s", key_store->path, strerror(errno));
+            RNP_LOG(
+              "Can't open G10 directory %s: %s", key_store->path.c_str(), strerror(errno));
             return false;
         }
 
@@ -100,7 +83,7 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                 continue;
             }
 
-            snprintf(path, sizeof(path), "%s/%s", key_store->path, ent->d_name);
+            snprintf(path, sizeof(path), "%s/%s", key_store->path.c_str(), ent->d_name);
             RNP_DLOG("Loading G10 key from file '%s'", path);
 
             if (init_file_src(&src, path)) {
@@ -119,8 +102,8 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
     }
 
     /* init file source and load from it */
-    if (init_file_src(&src, key_store->path)) {
-        RNP_LOG("failed to read file %s", key_store->path);
+    if (init_file_src(&src, key_store->path.c_str())) {
+        RNP_LOG("failed to read file %s", key_store->path.c_str());
         return false;
     }
 
@@ -160,18 +143,18 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         char grips[PGP_FINGERPRINT_HEX_SIZE];
 
         struct stat path_stat;
-        if (stat(key_store->path, &path_stat) != -1) {
+        if (stat(key_store->path.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                RNP_LOG("G10 keystore should be a directory: %s", key_store->path);
+                RNP_LOG("G10 keystore should be a directory: %s", key_store->path.c_str());
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                RNP_LOG("stat(%s): %s", key_store->path, strerror(errno));
+                RNP_LOG("stat(%s): %s", key_store->path.c_str(), strerror(errno));
                 return false;
             }
-            if (RNP_MKDIR(key_store->path, S_IRWXU) != 0) {
-                RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path, strerror(errno));
+            if (RNP_MKDIR(key_store->path.c_str(), S_IRWXU) != 0) {
+                RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path.c_str(), strerror(errno));
                 return false;
             }
         }
@@ -181,7 +164,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
               path,
               sizeof(path),
               "%s/%s.key",
-              key_store->path,
+              key_store->path.c_str(),
               rnp_strhexdump_upper(grips, pgp_key_get_grip(&key), PGP_KEY_GRIP_SIZE, ""));
 
             if (init_tmpfile_dest(&keydst, path, true)) {
@@ -207,7 +190,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
     }
 
     /* write kbx/gpg store to the single file */
-    if (init_tmpfile_dest(&keydst, key_store->path, true)) {
+    if (init_tmpfile_dest(&keydst, key_store->path.c_str(), true)) {
         RNP_LOG("failed to create keystore file");
         return false;
     }
@@ -980,8 +963,19 @@ rnp_key_store_search(rnp_key_store_t *       keyring,
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 
+rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format, const std::string &_path)
+{
+    if (_format == PGP_KEY_STORE_UNKNOWN) {
+        RNP_LOG("Invalid key store format");
+        throw std::invalid_argument("format");
+    }
+    format = _format;
+    path = _path;
+    disable_validation = false;
+    blobs = NULL;
+}
+
 rnp_key_store_t::~rnp_key_store_t()
 {
     rnp_key_store_clear(this);
-    free((void *) path);
 }

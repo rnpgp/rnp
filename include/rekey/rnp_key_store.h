@@ -131,7 +131,7 @@ typedef enum pgp_sig_import_status_t {
 } pgp_sig_import_status_t;
 
 typedef struct rnp_key_store_t {
-    const char *           path;
+    std::string            path;
     pgp_key_store_format_t format;
     bool disable_validation; /* do not automatically validate keys, added to this key store */
 
@@ -140,14 +140,13 @@ typedef struct rnp_key_store_t {
 
     ~rnp_key_store_t();
     rnp_key_store_t() = default;
+    rnp_key_store_t(pgp_key_store_format_t format, const std::string &path);
     /* make sure we use only empty constructor */
     rnp_key_store_t(rnp_key_store_t &&src) = delete;
     rnp_key_store_t &operator=(rnp_key_store_t &&) = delete;
     rnp_key_store_t(const rnp_key_store_t &src) = delete;
     rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
 } rnp_key_store_t;
-
-rnp_key_store_t *rnp_key_store_new(pgp_key_store_format_t format, const char *path);
 
 bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
 bool rnp_key_store_load_from_src(rnp_key_store_t *,

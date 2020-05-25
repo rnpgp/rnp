@@ -48,6 +48,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <stdexcept>
 #include "utils.h"
 #include "json_utils.h"
 #include "version.h"
@@ -394,16 +395,14 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     }
     // default to all stderr
     ob->errs = stderr;
-    ob->pubring = rnp_key_store_new(pub_ks_format, "");
-    if (!ob->pubring) {
+    try {
+        ob->pubring = new rnp_key_store_t(pub_ks_format, "");
+        ob->secring = new rnp_key_store_t(sec_ks_format, "");
+    } catch (...) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    ob->secring = rnp_key_store_new(sec_ks_format, "");
-    if (!ob->secring) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
+
     ob->key_provider = (pgp_key_provider_t){.callback = ffi_key_provider, .userdata = ob};
     ob->pass_provider =
       (pgp_password_provider_t){.callback = rnp_password_cb_bounce, .userdata = ob};
@@ -1002,9 +1001,9 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 
     if (input->src_directory) {
         // load the keys
-        free((void *) store->path);
-        store->path = strdup(input->src_directory);
-        if (!store->path) {
+        try {
+            store->path = input->src_directory;
+        } catch (...) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
@@ -1058,11 +1057,14 @@ do_load_keys(rnp_ffi_t              ffi,
     rnp_result_t     tmpret;
 
     // create a temporary key store to hold the keys
-    tmp_store = rnp_key_store_new(format, "");
-    if (!tmp_store) {
-        // TODO: could also be out of mem
+    try {
+        tmp_store = new rnp_key_store_t(format, "");
+    } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
+    } catch (...) {
+        FFI_LOG(ffi, "Allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     // load keys into our temporary store
@@ -1261,8 +1263,9 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     json_object *    jsokeys = NULL;
 
     // load keys to temporary keystore.
-    tmp_store = rnp_key_store_new(PGP_KEY_STORE_GPG, "");
-    if (!tmp_store) {
+    try {
+        tmp_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    } catch (...) {
         FFI_LOG(ffi, "Failed to create key store.");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -1472,11 +1475,15 @@ do_save_keys(rnp_ffi_t              ffi,
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     // create a temporary key store to hold the keys
-    rnp_key_store_t *tmp_store = rnp_key_store_new(format, "");
-    if (!tmp_store) {
-        // TODO: could also be out of mem
+    rnp_key_store_t *tmp_store = NULL;
+    try {
+        tmp_store = new rnp_key_store_t(format, "");
+    } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
+    } catch (...) {
+        FFI_LOG(ffi, "Allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
@@ -1502,9 +1509,9 @@ do_save_keys(rnp_ffi_t              ffi,
     }
     // write
     if (output->dst_directory) {
-        free((void *) tmp_store->path);
-        tmp_store->path = strdup(output->dst_directory);
-        if (!tmp_store->path) {
+        try {
+            tmp_store->path = output->dst_directory;
+        } catch (...) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
