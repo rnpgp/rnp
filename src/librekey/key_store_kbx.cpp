@@ -735,14 +735,12 @@ rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
         return false;
     }
 
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (!pgp_key_is_primary_key(key)) {
+    for (auto &key : key_store->keys) {
+        if (!pgp_key_is_primary_key(&key)) {
             continue;
         }
-        if (!rnp_key_store_kbx_write_pgp(key_store, key, dst)) {
-            RNP_LOG("Can't write PGP blobs for key %p", key);
+        if (!rnp_key_store_kbx_write_pgp(key_store, &key, dst)) {
+            RNP_LOG("Can't write PGP blobs for key %p", &key);
             return false;
         }
     }

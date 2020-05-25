@@ -414,8 +414,8 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
     free_signature(&sig);
     /* cleanup */
-    rnp_key_store_free(pubring);
-    rnp_key_store_free(secring);
+    delete pubring;
+    delete secring;
     pgp_hash_finish(&hash_orig, NULL);
     pgp_hash_finish(&hash_forged, NULL);
     rng_destroy(&rng);
@@ -1095,7 +1095,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     uid->uid.uid[2] = '?';
     assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
     assert_rnp_failure(signature_validate(sig, pgp_key_get_material(pkey), &hash));
-    rnp_key_store_free(pubring);
+    delete pubring;
     key_sequence_destroy(&keyseq);
 
     /* keyring */
@@ -1153,7 +1153,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
         }
     }
 
-    rnp_key_store_free(pubring);
+    delete pubring;
     key_sequence_destroy(&keyseq);
     rng_destroy(&rng);
 }
@@ -1164,13 +1164,11 @@ validate_key_sigs(const char *path)
     rnp_key_store_t *pubring = rnp_key_store_new(PGP_KEY_STORE_GPG, path);
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
-        pgp_key_t *pkey = rnp_key_store_get_key(pubring, i);
-        assert_non_null(pkey);
-        pgp_key_validate(pkey, pubring);
-        assert_true(pkey->valid);
+    for (auto &key : pubring->keys) {
+        pgp_key_validate(&key, pubring);
+        assert_true(key.valid);
     }
-    rnp_key_store_free(pubring);
+    delete pubring;
 }
 
 TEST_F(rnp_tests, test_stream_key_signature_validate)
@@ -1183,27 +1181,28 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
-    assert_non_null(pkey = rnp_key_store_get_key(pubring, 0));
+    pkey = &pubring->keys.front();
     pgp_key_validate(pkey, pubring);
     assert_true(pkey->valid);
-    rnp_key_store_free(pubring);
+    delete pubring;
 
     /* keyring */
     pubring = rnp_key_store_new(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg");
     assert_non_null(pubring);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(rnp_key_store_get_key_count(pubring) > 0);
-    for (size_t i = 0; i < rnp_key_store_get_key_count(pubring); i++) {
-        pkey = rnp_key_store_get_key(pubring, i);
-        pgp_key_validate(pkey, pubring);
+    int i = 0;
+    for (auto &key : pubring->keys) {
+        pgp_key_validate(&key, pubring);
         // subkey #2 is expired
         if (i == 2) {
-            assert_false(pkey->valid);
+            assert_false(key.valid);
         } else {
-            assert_true(pkey->valid);
+            assert_true(key.valid);
         }
+        i++;
     }
-    rnp_key_store_free(pubring);
+    delete pubring;
 
     /* misc key files */
     const char *key_files[] = {"data/test_stream_key_load/dsa-eg-pub.asc",
@@ -1457,7 +1456,7 @@ TEST_F(rnp_tests, test_stream_825_dearmor_blank_line)
     assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));
     assert_int_equal(rnp_key_store_get_key_count(keystore), 2);
     src_close(&src);
-    rnp_key_store_free(keystore);
+    delete keystore;
 }
 
 static bool

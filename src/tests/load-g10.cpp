@@ -74,8 +74,8 @@ TEST_F(rnp_tests, test_load_g10)
     test_load_g10_check_key(pub_store, sec_store, "A49BAE05C16E8BC8");
 
     // cleanup
-    rnp_key_store_free(pub_store);
-    rnp_key_store_free(sec_store);
+    delete pub_store;
+    delete sec_store;
 
     /* another store */
     pub_store =
@@ -119,6 +119,6 @@ TEST_F(rnp_tests, test_load_g10)
     assert_true(test_load_g10_check_key(pub_store, sec_store, "3EA5BB6F9692C1A0"));
     assert_true(test_load_g10_check_key(pub_store, sec_store, "7635401F90D3E533"));
 
-    rnp_key_store_free(pub_store);
-    rnp_key_store_free(sec_store);
+    delete pub_store;
+    delete sec_store;
 }

@@ -442,8 +442,8 @@ rnp_ffi_destroy(rnp_ffi_t ffi)
 {
     if (ffi) {
         close_io_file(&ffi->errs);
-        rnp_key_store_free(ffi->pubring);
-        rnp_key_store_free(ffi->secring);
+        delete ffi->pubring;
+        delete ffi->secring;
         rng_destroy(&ffi->rng);
         free(ffi);
     }
@@ -1072,20 +1072,18 @@ do_load_keys(rnp_ffi_t              ffi,
         goto done;
     }
     // go through all the loaded keys
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(tmp_store)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
+    for (auto &key : tmp_store->keys) {
         // check that the key is the correct type and has not already been loaded
         // add secret key part if it is and we need it
-        if (pgp_key_is_secret(key) &&
+        if (pgp_key_is_secret(&key) &&
             ((key_type == KEY_TYPE_SECRET) || (key_type == KEY_TYPE_ANY))) {
-            if (key_needs_conversion(key, ffi->secring)) {
+            if (key_needs_conversion(&key, ffi->secring)) {
                 FFI_LOG(ffi, "This key format conversion is not yet supported");
                 ret = RNP_ERROR_NOT_IMPLEMENTED;
                 goto done;
             }
 
-            if (!rnp_key_store_add_key(ffi->secring, key)) {
+            if (!rnp_key_store_add_key(ffi->secring, &key)) {
                 FFI_LOG(ffi, "Failed to add secret key");
                 ret = RNP_ERROR_GENERIC;
                 goto done;
@@ -1093,12 +1091,12 @@ do_load_keys(rnp_ffi_t              ffi,
         }
 
         // add public key part if needed
-        if ((key->format == PGP_KEY_STORE_G10) ||
+        if ((key.format == PGP_KEY_STORE_G10) ||
             ((key_type != KEY_TYPE_ANY) && (key_type != KEY_TYPE_PUBLIC))) {
             continue;
         }
 
-        if ((tmpret = pgp_key_copy(&keycp, key, true))) {
+        if ((tmpret = pgp_key_copy(&keycp, &key, true))) {
             ret = tmpret;
             goto done;
         }
@@ -1109,7 +1107,7 @@ do_load_keys(rnp_ffi_t              ffi,
          * example. We could just convert when saving.
          */
 
-        if (key_needs_conversion(key, ffi->pubring)) {
+        if (key_needs_conversion(&key, ffi->pubring)) {
             FFI_LOG(ffi, "This key format conversion is not yet supported");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
             goto done;
@@ -1125,7 +1123,7 @@ do_load_keys(rnp_ffi_t              ffi,
     // success, even if we didn't actually load any
     ret = RNP_SUCCESS;
 done:
-    rnp_key_store_free(tmp_store);
+    delete tmp_store;
     return ret;
 }
 
@@ -1286,40 +1284,38 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     }
 
     // import keys to the main keystore.
-    for (list_item *ki = list_front(rnp_key_store_get_keys(tmp_store)); ki;
-         ki = list_next(ki)) {
-        pgp_key_t *             key = (pgp_key_t *) ki;
+    for (auto &key : tmp_store->keys) {
         pgp_key_import_status_t pub_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
         pgp_key_import_status_t sec_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
-        if (pgp_key_is_public(key) && !pub) {
+        if (pgp_key_is_public(&key) && !pub) {
             continue;
         }
-        if (validate_pgp_key_material(pgp_key_get_material(key), &ffi->rng)) {
+        if (validate_pgp_key_material(pgp_key_get_material(&key), &ffi->rng)) {
             FFI_LOG(ffi, "attempt to import key with invalid material");
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         // if we got here then we add public key itself or public part of the secret key
-        if (!rnp_key_store_import_key(ffi->pubring, key, true, &pub_status)) {
+        if (!rnp_key_store_import_key(ffi->pubring, &key, true, &pub_status)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
         // import secret key part if available and requested
-        if (sec && pgp_key_is_secret(key)) {
-            if (!rnp_key_store_import_key(ffi->secring, key, false, &sec_status)) {
+        if (sec && pgp_key_is_secret(&key)) {
+            if (!rnp_key_store_import_key(ffi->secring, &key, false, &sec_status)) {
                 ret = RNP_ERROR_BAD_PARAMETERS;
                 goto done;
             }
             // add uids, certifications and other stuff from the public key if any
             pgp_key_t *expub =
-              rnp_key_store_get_key_by_grip(ffi->pubring, pgp_key_get_grip(key));
+              rnp_key_store_get_key_by_grip(ffi->pubring, pgp_key_get_grip(&key));
             if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
                 ret = RNP_ERROR_BAD_PARAMETERS;
                 goto done;
             }
         }
         // now add key fingerprint to json based on statuses
-        if ((tmpret = add_key_status(jsokeys, key, pub_status, sec_status))) {
+        if ((tmpret = add_key_status(jsokeys, &key, pub_status, sec_status))) {
             ret = tmpret;
             goto done;
         }
@@ -1339,7 +1335,7 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
 
     ret = RNP_SUCCESS;
 done:
-    rnp_key_store_free(tmp_store);
+    delete tmp_store;
     json_object_put(jsores);
     return ret;
 }
@@ -1458,8 +1454,8 @@ done:
 static bool
 copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 {
-    for (list_item *key = list_front(rnp_key_store_get_keys(src)); key; key = list_next(key)) {
-        if (!rnp_key_store_add_key(dest, (pgp_key_t *) key)) {
+    for (auto &key : src->keys) {
+        if (!rnp_key_store_add_key(dest, &key)) {
             FFI_LOG(ffi, "failed to add key to the store");
             return false;
         }
@@ -1497,9 +1493,8 @@ do_save_keys(rnp_ffi_t              ffi,
         }
     }
     // preliminary check on the format
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(tmp_store)); key_item;
-         key_item = list_next(key_item)) {
-        if (key_needs_conversion((pgp_key_t *) key_item, tmp_store)) {
+    for (auto &key : tmp_store->keys) {
+        if (key_needs_conversion(&key, tmp_store)) {
             FFI_LOG(ffi, "This key format conversion is not yet supported");
             ret = RNP_ERROR_NOT_IMPLEMENTED;
             goto done;
@@ -1529,9 +1524,7 @@ do_save_keys(rnp_ffi_t              ffi,
     }
 
 done:
-    if (tmp_store) {
-        rnp_key_store_free(tmp_store);
-    }
+    delete tmp_store;
     return ret;
 }
 
@@ -6598,18 +6591,19 @@ rnp_dump_packets_to_output(rnp_input_t input, rnp_output_t output, uint32_t flag
 static bool
 key_iter_next_key(rnp_identifier_iterator_t it)
 {
-    it->keyp = (pgp_key_t *) list_next((list_item *) it->keyp);
-    it->uididx = 0;
-    // check if we reached the end of the ring
-    if (!it->keyp) {
-        // if we are currently on pubring, switch to secring (if not empty)
-        if (it->store == it->ffi->pubring && rnp_key_store_get_key_count(it->ffi->secring)) {
-            it->store = it->ffi->secring;
-            it->keyp = (pgp_key_t *) list_front(rnp_key_store_get_keys(it->store));
-        } else {
-            // we've gone through both rings
-            return false;
-        }
+    // check if we not reached the end of the ring
+    it->keyp = std::next(it->keyp);
+    if (it->keyp != it->store->keys.end()) {
+        it->uididx = 0;
+        return true;
+    }
+    // if we are currently on pubring, switch to secring (if not empty)
+    if (it->store == it->ffi->pubring && rnp_key_store_get_key_count(it->ffi->secring)) {
+        it->store = it->ffi->secring;
+        it->keyp = it->store->keys.begin();
+    } else {
+        // we've gone through both rings
+        return false;
     }
     return true;
 }
@@ -6625,13 +6619,11 @@ key_iter_next_item(rnp_identifier_iterator_t it)
         return key_iter_next_key(it);
     case PGP_KEY_SEARCH_USERID:
         it->uididx++;
-        if (it->keyp) {
-            while (it->uididx >= pgp_key_get_userid_count(it->keyp)) {
-                if (!key_iter_next_key(it)) {
-                    return false;
-                }
-                it->uididx = 0;
+        while (it->uididx >= pgp_key_get_userid_count(&*it->keyp)) {
+            if (!key_iter_next_key(it)) {
+                return false;
             }
+            it->uididx = 0;
         }
         break;
     default:
@@ -6652,7 +6644,7 @@ key_iter_first_key(rnp_identifier_iterator_t it)
         it->store = NULL;
         return false;
     }
-    it->keyp = (pgp_key_t *) list_front(rnp_key_store_get_keys(it->store));
+    it->keyp = it->store->keys.begin();
     it->uididx = 0;
     return true;
 }
@@ -6669,7 +6661,7 @@ key_iter_first_item(rnp_identifier_iterator_t it)
         if (!key_iter_first_key(it)) {
             return false;
         }
-        while (it->uididx >= pgp_key_get_userid_count(it->keyp)) {
+        while (it->uididx >= pgp_key_get_userid_count(&*it->keyp)) {
             if (!key_iter_next_key(it)) {
                 it->store = NULL;
                 return false;
@@ -6687,7 +6679,7 @@ key_iter_first_item(rnp_identifier_iterator_t it)
 static bool
 key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
 {
-    const pgp_key_t *key = it->keyp;
+    const pgp_key_t *key = &*it->keyp;
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID:
         if (!rnp_hex_encode(
