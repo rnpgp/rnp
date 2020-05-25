@@ -40,8 +40,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 {
     pgp_source_t src = {};
 
-    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    assert_non_null(key_store);
+    rnp_key_store_t *key_store = new rnp_key_store_t();
 
     // load pubring in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/2/pubring.gpg"));
@@ -62,12 +61,11 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // cleanup
-    rnp_key_store_free(key_store);
+    delete key_store;
 
     // load secret keyring and decrypt the key
 
-    key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    assert_non_null(key_store);
+    key_store = new rnp_key_store_t();
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/4/secring.pgp"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
@@ -95,7 +93,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     // cleanup
     free_key_pkt(seckey);
     free(seckey);
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 /* This test loads a .gpg pubring with multiple V4 keys,
@@ -106,8 +104,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 {
     pgp_source_t src = {};
 
-    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
-    assert_non_null(key_store);
+    rnp_key_store_t *key_store = new rnp_key_store_t();
 
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
@@ -124,7 +121,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
     assert_int_equal(pgp_key_get_flags(key), PGP_KF_ENCRYPT);
 
     // cleanup
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 /* Just a helper for the below test */
@@ -134,9 +131,8 @@ check_pgp_keyring_counts(const char *   path,
                          const unsigned subkey_counts[])
 {
     pgp_source_t     src = {};
-    rnp_key_store_t *key_store = (rnp_key_store_t *) calloc(1, sizeof(*key_store));
+    rnp_key_store_t *key_store = new rnp_key_store_t();
 
-    assert_non_null(key_store);
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, path));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
@@ -144,8 +140,8 @@ check_pgp_keyring_counts(const char *   path,
 
     // count primary keys first
     unsigned total_primary_count = 0;
-    for (size_t i = 0; i < rnp_key_store_get_key_count(key_store); i++) {
-        if (pgp_key_is_primary_key(rnp_key_store_get_key(key_store, i))) {
+    for (auto &key : key_store->keys) {
+        if (pgp_key_is_primary_key(&key)) {
             total_primary_count++;
         }
     }
@@ -154,12 +150,11 @@ check_pgp_keyring_counts(const char *   path,
     // now count subkeys in each primary key
     unsigned total_subkey_count = 0;
     unsigned primary = 0;
-    for (size_t i = 0; i < rnp_key_store_get_key_count(key_store); i++) {
-        pgp_key_t *key = rnp_key_store_get_key(key_store, i);
-        if (pgp_key_is_primary_key(key)) {
+    for (auto &key : key_store->keys) {
+        if (pgp_key_is_primary_key(&key)) {
             // check the subkey count for this primary key
-            assert_int_equal(pgp_key_get_subkey_count(key), subkey_counts[primary++]);
-        } else if (pgp_key_is_subkey(key)) {
+            assert_int_equal(pgp_key_get_subkey_count(&key), subkey_counts[primary++]);
+        } else if (pgp_key_is_subkey(&key)) {
             total_subkey_count++;
         }
     }
@@ -169,7 +164,7 @@ check_pgp_keyring_counts(const char *   path,
                      total_primary_count + total_subkey_count);
 
     // cleanup
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 /* This test loads a pubring.gpg and secring.gpg and confirms
@@ -350,7 +345,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(pgp_key_get_expiration(key), 0);
 
     // cleanup
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 /* This test loads a V3 keyring and confirms that certain
@@ -395,7 +390,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     assert_int_equal(pgp_key_get_pkt(key)->v3_days, 0);
 
     // cleanup
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 #define MERGE_PATH "data/test_stream_key_merge/"
@@ -447,7 +442,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-1"));
     assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 static bool
@@ -711,7 +706,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
-    rnp_key_store_free(key_store);
+    delete key_store;
 }
 
 TEST_F(rnp_tests, test_load_public_from_secret)
@@ -783,7 +778,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     rnp_key_store_add_key(pubstore, &keycp);
     /* save pubring */
     assert_true(rnp_key_store_write_to_path(pubstore));
-    rnp_key_store_free(pubstore);
+    delete pubstore;
     /* reload */
     assert_non_null(pubstore = rnp_key_store_new(PGP_KEY_STORE_GPG, "pubring.gpg"));
     assert_true(rnp_key_store_load_from_path(pubstore, NULL));
@@ -791,8 +786,8 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(pubstore, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(pubstore, sub2id, NULL));
 
-    rnp_key_store_free(pubstore);
-    rnp_key_store_free(secstore);
+    delete pubstore;
+    delete secstore;
 }
 
 TEST_F(rnp_tests, test_key_import)
@@ -1044,5 +1039,5 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_int_equal(pgp_key_get_subkey_count(key), 2);
     assert_true(skey2->valid);
 
-    rnp_key_store_free(key_store);
+    delete key_store;
 }

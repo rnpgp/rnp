@@ -301,39 +301,34 @@ rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
 static bool
 do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
-    for (list_item *key_item = list_front(rnp_key_store_get_keys(key_store)); key_item;
-         key_item = list_next(key_item)) {
-        pgp_key_t *key = (pgp_key_t *) key_item;
-        if (pgp_key_is_secret(key) != secret) {
+    for (auto &key : key_store->keys) {
+        if (pgp_key_is_secret(&key) != secret) {
             continue;
         }
         // skip subkeys, they are written below (orphans are ignored)
-        if (!pgp_key_is_primary_key(key)) {
+        if (!pgp_key_is_primary_key(&key)) {
             continue;
         }
 
-        if (key->format != PGP_KEY_STORE_GPG) {
-            RNP_LOG("incorrect format (conversions not supported): %d", key->format);
+        if (key.format != PGP_KEY_STORE_GPG) {
+            RNP_LOG("incorrect format (conversions not supported): %d", key.format);
             return false;
         }
-        if (!pgp_key_write_packets(key, dst)) {
+        if (!pgp_key_write_packets(&key, dst)) {
             return false;
         }
-        for (list_item *subkey_grip = list_front(key->subkey_grips); subkey_grip;
+        for (list_item *subkey_grip = list_front(key.subkey_grips); subkey_grip;
              subkey_grip = list_next(subkey_grip)) {
             pgp_key_search_t search = {};
             search.type = PGP_KEY_SEARCH_GRIP;
             memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_KEY_GRIP_SIZE);
             pgp_key_t *subkey = NULL;
-            for (list_item *subkey_item = list_front(rnp_key_store_get_keys(key_store));
-                 subkey_item;
-                 subkey_item = list_next(subkey_item)) {
-                pgp_key_t *candidate = (pgp_key_t *) subkey_item;
-                if (pgp_key_is_secret(candidate) != secret) {
+            for (auto &candidate : key_store->keys) {
+                if (pgp_key_is_secret(&candidate) != secret) {
                     continue;
                 }
-                if (rnp_key_matches_search(candidate, &search)) {
-                    subkey = candidate;
+                if (rnp_key_matches_search(&candidate, &search)) {
+                    subkey = &candidate;
                     break;
                 }
             }
