@@ -317,11 +317,10 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
         if (!pgp_key_write_packets(&key, dst)) {
             return false;
         }
-        for (list_item *subkey_grip = list_front(key.subkey_grips); subkey_grip;
-             subkey_grip = list_next(subkey_grip)) {
+        for (auto &sgrip : key.subkey_grips) {
             pgp_key_search_t search = {};
             search.type = PGP_KEY_SEARCH_GRIP;
-            memcpy(search.by.grip, (uint8_t *) subkey_grip, PGP_KEY_GRIP_SIZE);
+            search.by.grip = sgrip;
             pgp_key_t *subkey = NULL;
             for (auto &candidate : key_store->keys) {
                 if (pgp_key_is_secret(&candidate) != secret) {

@@ -203,10 +203,11 @@ bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
 
 pgp_key_t *rnp_key_store_get_key_by_id(rnp_key_store_t *, const unsigned char *, pgp_key_t *);
 
-bool rnp_key_store_get_key_grip(const pgp_key_material_t *, uint8_t *);
+bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip);
 
-const pgp_key_t *rnp_key_store_get_key_by_grip(const rnp_key_store_t *, const uint8_t *);
-pgp_key_t *      rnp_key_store_get_key_by_grip(rnp_key_store_t *, const uint8_t *);
+const pgp_key_t *rnp_key_store_get_key_by_grip(const rnp_key_store_t *,
+                                               const pgp_key_grip_t &);
+pgp_key_t *      rnp_key_store_get_key_by_grip(rnp_key_store_t *, const pgp_key_grip_t &);
 pgp_key_t *      rnp_key_store_get_key_by_fpr(rnp_key_store_t *, const pgp_fingerprint_t *fpr);
 pgp_key_t *      rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
