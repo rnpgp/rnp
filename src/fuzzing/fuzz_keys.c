@@ -4,8 +4,10 @@
 int
 main(int argc, char *argv[])
 {
-    rnp_key_store_t *key_store = rnp_key_store_new(RNP_KEYSTORE_GPG, argv[1]);
-    if (key_store == NULL) {
+    rnp_key_store_t *key_store = NULL;
+    try {
+        key_store = new rnp_key_store_t(RNP_KEYSTORE_GPG, argv[1]);
+    } catch (...) {
         return 1;
     }
     rnp_key_store_load_from_path(key_store, NULL);

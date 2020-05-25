@@ -60,12 +60,10 @@ TEST_F(rnp_tests, test_load_g10)
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store, .userdata = NULL};
 
     // load pubring
-    assert_non_null(pub_store =
-                      rnp_key_store_new(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx"));
+    pub_store = new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx");
     assert_true(rnp_key_store_load_from_path(pub_store, NULL));
     // load secring
-    assert_non_null(
-      sec_store = rnp_key_store_new(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d"));
+    sec_store = new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d");
     key_provider.userdata = pub_store;
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
@@ -79,12 +77,10 @@ TEST_F(rnp_tests, test_load_g10)
 
     /* another store */
     pub_store =
-      rnp_key_store_new(PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx");
-    assert_non_null(pub_store);
+      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx");
     assert_true(rnp_key_store_load_from_path(pub_store, NULL));
-    sec_store =
-      rnp_key_store_new(PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d");
-    assert_non_null(sec_store);
+    sec_store = new rnp_key_store_t(PGP_KEY_STORE_G10,
+                                    "data/test_stream_key_load/g10/private-keys-v1.d");
     key_provider.userdata = pub_store;
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
