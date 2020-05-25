@@ -318,19 +318,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             return false;
         }
         for (auto &sgrip : key.subkey_grips) {
-            pgp_key_search_t search = {};
-            search.type = PGP_KEY_SEARCH_GRIP;
-            search.by.grip = sgrip;
-            pgp_key_t *subkey = NULL;
-            for (auto &candidate : key_store->keys) {
-                if (pgp_key_is_secret(&candidate) != secret) {
-                    continue;
-                }
-                if (rnp_key_matches_search(&candidate, &search)) {
-                    subkey = &candidate;
-                    break;
-                }
-            }
+            pgp_key_t *subkey = rnp_key_store_get_key_by_grip(key_store, sgrip);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;

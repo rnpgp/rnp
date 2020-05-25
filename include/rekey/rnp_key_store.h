@@ -35,7 +35,9 @@
 #include <stdbool.h>
 #include "rnp.h"
 #include "librepgp/stream-common.h"
+#include <string>
 #include <list>
+#include <map>
 
 typedef struct pgp_key_t pgp_key_t;
 
@@ -130,13 +132,17 @@ typedef enum pgp_sig_import_status_t {
     PGP_SIG_IMPORT_STATUS_NEW
 } pgp_sig_import_status_t;
 
+typedef std::map<pgp_key_grip_t, std::list<pgp_key_t>::iterator> pgp_key_grip_map_t;
+
 typedef struct rnp_key_store_t {
     std::string            path;
     pgp_key_store_format_t format;
     bool disable_validation; /* do not automatically validate keys, added to this key store */
 
     std::list<pgp_key_t> keys;
-    list                 blobs; // list of kbx_blob_t
+    pgp_key_grip_map_t   keybygrip;
+
+    list blobs; // list of kbx_blob_t
 
     ~rnp_key_store_t();
     rnp_key_store_t() = default;
