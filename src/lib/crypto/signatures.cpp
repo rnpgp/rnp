@@ -197,7 +197,9 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
     }
 
     if (sig->palg != key->alg) {
-        RNP_LOG("Signature and public key do not agree on algorithm type");
+        RNP_LOG("Signature and key do not agree on algorithm type: %d vs %d",
+                (int) sig->palg,
+                (int) key->alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
