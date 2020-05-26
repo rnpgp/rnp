@@ -170,16 +170,6 @@ pgp_free_user_prefs(pgp_user_prefs_t *prefs)
     memset(prefs, 0, sizeof(*prefs));
 }
 
-void
-revoke_free(pgp_revoke_t *revoke)
-{
-    if (!revoke) {
-        return;
-    }
-    free(revoke->reason);
-    revoke->reason = NULL;
-}
-
 static bool
 pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
@@ -239,12 +229,8 @@ static void
 pgp_key_clear_revokes(pgp_key_t *key)
 {
     key->revoked = false;
-    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        revoke_free(pgp_key_get_revoke(key, i));
-    }
     key->revokes.clear();
-    revoke_free(&key->revocation);
-    memset(&key->revocation, 0, sizeof(key->revocation));
+    key->revocation = {};
 }
 
 static rnp_result_t
@@ -344,26 +330,9 @@ error:
     return ret;
 }
 
-static rnp_result_t
-pgp_revoke_copy(pgp_revoke_t *dst, const pgp_revoke_t *src)
-{
-    memcpy(dst, src, sizeof(*dst));
-    if (src->reason) {
-        size_t len = strlen(src->reason) + 1;
-        dst->reason = (char *) malloc(len);
-        if (!dst->reason) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        memcpy(dst->reason, src->reason, len);
-    }
-    return RNP_SUCCESS;
-}
-
 rnp_result_t
 pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 {
-    rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
-
     /* uids */
     for (size_t i = 0; i < pgp_key_get_userid_count(src); i++) {
         pgp_userid_t *uid = pgp_key_add_userid(dst);
@@ -396,8 +365,10 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         if (!revoke) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if ((ret = pgp_revoke_copy(revoke, pgp_key_get_revoke(src, i)))) {
-            return ret;
+        try {
+            *revoke = *pgp_key_get_revoke(src, i);
+        } catch (...) {
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
@@ -429,9 +400,10 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* revocation */
     dst->revoked = src->revoked;
-    ret = pgp_revoke_copy(&dst->revocation, &src->revocation);
-    if (ret) {
-        return ret;
+    try {
+        dst->revocation = src->revocation;
+    } catch (...) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     /* key store format */
@@ -1181,12 +1153,24 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
             continue;
         }
         sub->revoked = true;
-        signature_get_revocation_reason(
-          &sig->sig, &sub->revocation.code, &sub->revocation.reason);
-        if (!strlen(sub->revocation.reason)) {
-            free(sub->revocation.reason);
-            sub->revocation.reason =
-              strdup(pgp_str_from_map(sub->revocation.code, ss_rr_code_map));
+        char *reason = NULL;
+        if (!signature_has_revocation_reason(&sig->sig)) {
+            RNP_LOG("Warning: no revocation reason in subkey revocation");
+            sub->revocation.code = PGP_REVOCATION_NO_REASON;
+        } else if (!signature_get_revocation_reason(
+                     &sig->sig, &sub->revocation.code, &reason)) {
+            return false;
+        }
+
+        try {
+            sub->revocation.reason = (reason && strlen(reason)) ?
+                                       reason :
+                                       pgp_str_from_map(sub->revocation.code, ss_rr_code_map);
+            free(reason);
+        } catch (...) {
+            RNP_LOG("allocation failed");
+            free(reason);
+            return false;
         }
         break;
     }
@@ -1251,10 +1235,23 @@ pgp_key_refresh_data(pgp_key_t *key)
             continue;
         }
 
-        signature_get_revocation_reason(&sig->sig, &revocation->code, &revocation->reason);
-        if (!strlen(revocation->reason)) {
-            free(revocation->reason);
-            revocation->reason = strdup(pgp_str_from_map(revocation->code, ss_rr_code_map));
+        char *reason = NULL;
+        if (!signature_has_revocation_reason(&sig->sig)) {
+            RNP_LOG("Warning: no revocation reason in key/userid revocation");
+            revocation->code = PGP_REVOCATION_NO_REASON;
+        } else if (!signature_get_revocation_reason(&sig->sig, &revocation->code, &reason)) {
+            return false;
+        }
+
+        try {
+            revocation->reason = (reason && strlen(reason)) ?
+                                   reason :
+                                   pgp_str_from_map(revocation->code, ss_rr_code_map);
+            free(reason);
+        } catch (...) {
+            RNP_LOG("allocation failed");
+            free(reason);
+            return false;
         }
     }
 

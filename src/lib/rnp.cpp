@@ -3208,8 +3208,9 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     if (reason) {
-        revinfo.reason = strdup(reason);
-        if (!revinfo.reason) {
+        try {
+            revinfo.reason = reason;
+        } catch (...) {
             FFI_LOG(ffi, "Allocation failed");
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -3218,7 +3219,6 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
     bool locked = pgp_key_is_locked(revoker);
     if (locked && !pgp_key_unlock(revoker, &ffi->pass_provider)) {
         FFI_LOG(ffi, "Failed to unlock secret key");
-        revoke_free(&revinfo);
         return RNP_ERROR_BAD_PASSWORD;
     }
     *sig =
@@ -3229,7 +3229,6 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
     if (locked) {
         pgp_key_lock(revoker);
     }
-    revoke_free(&revinfo);
     return *sig ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
 }
 
@@ -5511,12 +5510,7 @@ rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!key->revocation.reason) {
-        *result = NULL;
-        return RNP_SUCCESS;
-    }
-
-    *result = strdup(key->revocation.reason);
+    *result = strdup(key->revocation.reason.c_str());
     if (!*result) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
