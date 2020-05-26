@@ -361,7 +361,7 @@ typedef struct {
 typedef struct pgp_revoke_t {
     uint32_t              uid;    /* index in uid array */
     pgp_revocation_type_t code;   /* revocation code */
-    char *                reason; /* c'mon, spill the beans */
+    std::string           reason; /* revocation reason */
 } pgp_revoke_t;
 
 typedef struct pgp_user_prefs_t {
