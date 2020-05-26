@@ -961,6 +961,7 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
     /* write mpis */
     switch (sig->palg) {
     case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
         res &= add_packet_body_mpi(&pktbody, &sig->material.rsa.s);
         break;
     case PGP_PKA_DSA:
@@ -973,6 +974,11 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
     case PGP_PKA_ECDH:
         res &= add_packet_body_mpi(&pktbody, &sig->material.ecc.r) &&
                add_packet_body_mpi(&pktbody, &sig->material.ecc.s);
+        break;
+    case PGP_PKA_ELGAMAL: /* we support writing it but will not generate */
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        res &= add_packet_body_mpi(&pktbody, &sig->material.eg.r) &&
+               add_packet_body_mpi(&pktbody, &sig->material.eg.s);
         break;
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
