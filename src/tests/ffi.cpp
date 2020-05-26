@@ -7635,5 +7635,44 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_null(results);
     rnp_input_destroy(input);
 
+    /* revoked key without revocation reason signature subpacket */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-rev-no-reason.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
+    rnp_input_destroy(input);
+    assert_non_null(results);
+    rnp_buffer_destroy(results);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &results));
+    assert_int_equal(strcmp(results, "No reason specified"), 0);
+    rnp_buffer_destroy(results);
+    bool revoked = false;
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_true(revoked);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+
+    /* revoked subkey without revocation reason signature subpacket */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sub-rev-no-reason.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
+    rnp_input_destroy(input);
+    assert_non_null(results);
+    rnp_buffer_destroy(results);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_int_equal(rnp_key_get_revocation_reason(key, &results), RNP_ERROR_BAD_PARAMETERS);
+    revoked = true;
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_false(revoked);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &key));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &results));
+    assert_int_equal(strcmp(results, "No reason specified"), 0);
+    rnp_buffer_destroy(results);
+    revoked = false;
+    assert_rnp_success(rnp_key_is_revoked(key, &revoked));
+    assert_true(revoked);
+    rnp_key_handle_destroy(key);
+
     rnp_ffi_destroy(ffi);
 }
