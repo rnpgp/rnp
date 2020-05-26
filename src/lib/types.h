@@ -293,6 +293,7 @@ typedef struct pgp_rawpacket_t {
     pgp_rawpacket_t(const pgp_signature_t &sig);
     pgp_rawpacket_t(pgp_key_pkt_t &key);
     pgp_rawpacket_t(const pgp_userid_pkt_t &uid);
+    ~pgp_rawpacket_t();
 } pgp_rawpacket_t;
 
 typedef enum {

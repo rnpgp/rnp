@@ -2147,6 +2147,10 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
     tag = uid.tag;
 }
 
+pgp_rawpacket_t::~pgp_rawpacket_t()
+{
+}
+
 pgp_subsig_t::pgp_subsig_t(pgp_subsig_t &&src)
 {
     uid = src.uid;
