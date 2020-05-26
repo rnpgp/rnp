@@ -711,7 +711,7 @@ transferable_key_revoke(const pgp_key_pkt_t *key,
         RNP_LOG("failed to set creation time");
         goto end;
     }
-    if (!signature_set_revocation_reason(sig, revoke->code, revoke->reason)) {
+    if (!signature_set_revocation_reason(sig, revoke->code, revoke->reason.c_str())) {
         RNP_LOG("failed to set revocation reason");
         goto end;
     }

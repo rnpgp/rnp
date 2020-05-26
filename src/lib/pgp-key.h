@@ -265,8 +265,6 @@ const pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
 
 pgp_revoke_t *pgp_key_get_revoke(pgp_key_t *key, size_t idx);
 
-void revoke_free(pgp_revoke_t *revoke);
-
 pgp_subsig_t *pgp_key_add_subsig(pgp_key_t *);
 
 size_t pgp_key_get_subsig_count(const pgp_key_t *);
