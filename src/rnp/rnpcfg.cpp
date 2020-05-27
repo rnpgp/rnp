@@ -450,8 +450,8 @@ rnp_cfg_copylist_string(const rnp_cfg_t *         cfg,
         }
         try {
             dst.emplace_back(val->val._string);
-        } catch (...) {
-            RNP_LOG("allocation failed");
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             goto fail;
         }
     }

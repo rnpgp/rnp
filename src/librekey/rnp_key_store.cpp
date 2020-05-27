@@ -445,8 +445,8 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             keyring->keys.emplace_back();
             oldkey = &keyring->keys.back();
             keyring->keybygrip[pgp_key_get_grip(srckey)] = std::prev(keyring->keys.end());
-        } catch (...) {
-            RNP_LOG("allocation failed");
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return NULL;
         }
         if (pgp_key_copy(oldkey, srckey, false)) {
@@ -496,8 +496,8 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             keyring->keys.emplace_back();
             added_key = &keyring->keys.back();
             keyring->keybygrip[pgp_key_get_grip(srckey)] = std::prev(keyring->keys.end());
-        } catch (...) {
-            RNP_LOG("allocation failed");
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return NULL;
         }
         if (pgp_key_copy(added_key, srckey, false)) {
@@ -729,7 +729,8 @@ rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip
 {
     try {
         return &*keyring->keybygrip.at(grip);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
 }
@@ -739,7 +740,8 @@ rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &gr
 {
     try {
         return &*keyring->keybygrip.at(grip);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
 }
