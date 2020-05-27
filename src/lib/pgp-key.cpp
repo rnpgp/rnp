@@ -217,7 +217,8 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     /* add key rawpacket */
     try {
         key->rawpkt = pgp_rawpacket_t(key->pkt);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         free_key_pkt(&keypkt);
         return false;
     }
@@ -259,8 +260,8 @@ pgp_key_copy_g10(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
 
     try {
         dst->rawpkt = src->rawpkt;
-    } catch (...) {
-        RNP_LOG("failed to copy raw packet");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to copy raw packet: %s", e.what());
         return RNP_ERROR_GENERIC;
     }
 
@@ -282,8 +283,8 @@ pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly)
     }
     try {
         dst->rawpkt = pubonly ? pgp_rawpacket_t(dst->pkt) : src->rawpkt;
-    } catch (...) {
-        RNP_LOG("failed to copy key rawpkt");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to copy key rawpkt: %s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -341,7 +342,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         }
         try {
             *uid = *pgp_key_get_userid(src, i);
-        } catch (...) {
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -354,7 +356,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         }
         try {
             *subsig = *pgp_key_get_subsig(src, i);
-        } catch (...) {
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -367,7 +370,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
         }
         try {
             *revoke = *pgp_key_get_revoke(src, i);
-        } catch (...) {
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -375,7 +379,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     /* subkey grips */
     try {
         dst->subkey_grips = src->subkey_grips;
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -402,7 +407,8 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     dst->revoked = src->revoked;
     try {
         dst->revocation = src->revocation;
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -733,7 +739,8 @@ pgp_key_add_userid(pgp_key_t *key)
 {
     try {
         key->uids.push_back({});
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
     return &key->uids.back();
@@ -744,7 +751,8 @@ pgp_key_add_revoke(pgp_key_t *key)
 {
     try {
         key->revokes.push_back({});
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
     return &key->revokes.back();
@@ -773,7 +781,8 @@ pgp_key_add_subsig(pgp_key_t *key)
 {
     try {
         key->subsigs.push_back({});
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
     return &key->subsigs.back();
@@ -844,8 +853,8 @@ pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
     /* add signature rawpacket */
     try {
         subsig.rawpkt = pgp_rawpacket_t(*sig);
-    } catch (...) {
-        RNP_LOG("failed to build sig rawpacket");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to build sig rawpacket: %s", e.what());
         return false;
     }
 
@@ -887,8 +896,8 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
     try {
         oldraw = *oldsig;
         newraw = *newsig;
-    } catch (...) {
-        RNP_LOG("failed to create rawpacket");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to create rawpacket: %s", e.what());
         return NULL;
     }
 
@@ -902,8 +911,8 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
     /* replace rawpacket */
     try {
         newsubsig.rawpkt = pgp_rawpacket_t(*newsig);
-    } catch (...) {
-        RNP_LOG("failed to replace rawpacket");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to replace rawpacket: %s", e.what());
         return NULL;
     }
 
@@ -1167,8 +1176,8 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
                                        reason :
                                        pgp_str_from_map(sub->revocation.code, ss_rr_code_map);
             free(reason);
-        } catch (...) {
-            RNP_LOG("allocation failed");
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             free(reason);
             return false;
         }
@@ -1248,8 +1257,8 @@ pgp_key_refresh_data(pgp_key_t *key)
                                    reason :
                                    pgp_str_from_map(revocation->code, ss_rr_code_map);
             free(reason);
-        } catch (...) {
-            RNP_LOG("allocation failed");
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             free(reason);
             return false;
         }
@@ -1295,7 +1304,8 @@ pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip)
     try {
         key->subkey_grips.push_back(grip);
         return true;
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return false;
     }
 }
@@ -1312,7 +1322,8 @@ pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
     try {
         const pgp_key_grip_t &grip = pgp_key_get_subkey_grip(key, idx);
         return rnp_key_store_get_key_by_grip(store, grip);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
 }
@@ -1475,7 +1486,8 @@ write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
     try {
         uint8_t *mem = (uint8_t *) mem_dest_get_memory(&memdst);
         packet = pgp_rawpacket_t(mem, memdst.writeb, type);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         goto done;
     }
     ret = true;
@@ -2084,7 +2096,8 @@ mem_dest_to_vector(pgp_dest_t *dst, std::vector<uint8_t> &vec)
     try {
         vec = std::vector<uint8_t>(mem, mem + dst->writeb);
         dst_close(dst, true);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         dst_close(dst, true);
         throw;
     }

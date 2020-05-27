@@ -1216,8 +1216,8 @@ add_key_to_array(rnp_ffi_t                      ffi,
 
     try {
         keys.push_back(key);
-    } catch (...) {
-        ERR_MSG("allocation failed");
+    } catch (const std::exception &e) {
+        ERR_MSG("%s", e.what());
         return false;
     }
     if (!subkeys || subkey) {
@@ -1239,8 +1239,8 @@ add_key_to_array(rnp_ffi_t                      ffi,
             subs.push_back(sub_handle);
         }
         std::move(subs.begin(), subs.end(), std::back_inserter(keys));
-    } catch (...) {
-        ERR_MSG("allocation or move failed");
+    } catch (const std::exception &e) {
+        ERR_MSG("%s", e.what());
         goto error;
     }
     return true;
@@ -2459,8 +2459,8 @@ cli_rnp_process_file(cli_rnp_t *rnp)
         }
         try {
             sigs.push_back(sig);
-        } catch (...) {
-            ERR_MSG("allocation failed");
+        } catch (const std::exception &e) {
+            ERR_MSG("%s", e.what());
             res = false;
             goto done;
         }

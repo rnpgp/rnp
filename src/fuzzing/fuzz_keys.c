@@ -7,7 +7,8 @@ main(int argc, char *argv[])
     rnp_key_store_t *key_store = NULL;
     try {
         key_store = new rnp_key_store_t(RNP_KEYSTORE_GPG, argv[1]);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return 1;
     }
     rnp_key_store_load_from_path(key_store, NULL);
