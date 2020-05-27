@@ -2077,12 +2077,6 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
     }
 }
 
-pgp_rawpacket_t::pgp_rawpacket_t(const uint8_t *data, size_t len, pgp_pkt_type_t _tag)
-{
-    raw = data ? std::vector<uint8_t>(data, data + len) : std::vector<uint8_t>();
-    tag = _tag;
-}
-
 static void
 mem_dest_to_vector(pgp_dest_t *dst, std::vector<uint8_t> &vec)
 {
