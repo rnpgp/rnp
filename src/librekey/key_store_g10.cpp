@@ -1166,8 +1166,8 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
     try {
         key.rawpkt = pgp_rawpacket_t(
           (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED);
-    } catch (...) {
-        RNP_LOG("failed to add packet");
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to add packet: %s", e.what());
         goto done;
     }
     key.format = PGP_KEY_STORE_G10;

@@ -103,7 +103,8 @@ load_generated_g10_key(pgp_key_t *    dst,
     // this would be better on the stack but the key store does not allow it
     try {
         key_store = new rnp_key_store_t();
-    } catch (...) {
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         goto end;
     }
 
