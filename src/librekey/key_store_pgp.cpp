@@ -125,8 +125,8 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
     }
     try {
         userid->rawpkt = pgp_rawpacket_t(uid->uid);
-    } catch (...) {
-        RNP_LOG("Raw packet allocation failed");
+    } catch (const std::exception &e) {
+        RNP_LOG("Raw packet allocation failed: %s", e.what());
         return false;
     }
 
@@ -136,8 +136,9 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
         } else {
             userid->str = "(photo)";
         }
-    } catch (...) {
-        RNP_LOG("%s alloc failed", uid->uid.tag == PGP_PKT_USER_ID ? "uid" : "uattr");
+    } catch (const std::exception &e) {
+        RNP_LOG(
+          "%s alloc failed: %s", uid->uid.tag == PGP_PKT_USER_ID ? "uid" : "uattr", e.what());
         return false;
     }
 

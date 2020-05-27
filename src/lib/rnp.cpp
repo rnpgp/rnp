@@ -398,7 +398,8 @@ rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
     try {
         ob->pubring = new rnp_key_store_t(pub_ks_format, "");
         ob->secring = new rnp_key_store_t(sec_ks_format, "");
-    } catch (...) {
+    } catch (const std::exception &e) {
+        FFI_LOG(ob, "%s", e.what());
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
@@ -1003,7 +1004,8 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
         // load the keys
         try {
             store->path = input->src_directory;
-        } catch (...) {
+        } catch (const std::exception &e) {
+            FFI_LOG(ffi, "%s", e.what());
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
@@ -1062,8 +1064,8 @@ do_load_keys(rnp_ffi_t              ffi,
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
-    } catch (...) {
-        FFI_LOG(ffi, "Allocation failed");
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1265,8 +1267,8 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     // load keys to temporary keystore.
     try {
         tmp_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
-    } catch (...) {
-        FFI_LOG(ffi, "Failed to create key store.");
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "Failed to create key store: %s.", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -1481,8 +1483,8 @@ do_save_keys(rnp_ffi_t              ffi,
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
-    } catch (...) {
-        FFI_LOG(ffi, "Allocation failed");
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // include the public keys, if desired
@@ -1511,7 +1513,8 @@ do_save_keys(rnp_ffi_t              ffi,
     if (output->dst_directory) {
         try {
             tmp_store->path = output->dst_directory;
-        } catch (...) {
+        } catch (const std::exception &e) {
+            FFI_LOG(ffi, "%s", e.what());
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
@@ -2228,7 +2231,8 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         }
         return rnp_ctx_add_encryption_password(
           &op->rnpctx, password, hash_alg, symm_alg, iterations);
-    } catch (...) {
+    } catch (const std::exception &e) {
+        FFI_LOG(op->ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 }
@@ -2802,7 +2806,8 @@ rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
     pgp_subsig_t *subsig = NULL;
     try {
         subsig = new pgp_subsig_t();
-    } catch (...) {
+    } catch (const std::exception &e) {
+        FFI_LOG(sig->ffi, "%s", e.what());
         free(*handle);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -3210,8 +3215,8 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
     if (reason) {
         try {
             revinfo.reason = reason;
-        } catch (...) {
-            FFI_LOG(ffi, "Allocation failed");
+        } catch (const std::exception &e) {
+            FFI_LOG(ffi, "%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
