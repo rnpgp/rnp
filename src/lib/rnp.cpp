@@ -1292,7 +1292,7 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
     for (auto &key : tmp_store->keys) {
         pgp_key_import_status_t pub_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
         pgp_key_import_status_t sec_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
-        if (pgp_key_is_public(&key) && !pub) {
+        if (!pub && pgp_key_is_public(&key)) {
             continue;
         }
         if (validate_pgp_key_material(pgp_key_get_material(&key), &ffi->rng)) {
@@ -4810,12 +4810,10 @@ key_get_uid_at(pgp_key_t *key, size_t idx, char **uid)
     if (idx >= pgp_key_get_userid_count(key)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const std::string &keyuid = pgp_key_get_userid(key, idx)->str;
-    *uid = (char *) calloc(1, keyuid.size() + 1);
+    *uid = strdup(pgp_key_get_userid(key, idx)->str.c_str());
     if (!*uid) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    memcpy(*uid, keyuid.c_str(), keyuid.size() + 1);
     return RNP_SUCCESS;
 }
 
@@ -6716,7 +6714,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         if (!uid) {
             return false;
         }
-        if (uid->str.size() + 1 >= buf_len) {
+        if (uid->str.size() >= buf_len) {
             return false;
         }
         strcpy(buf, uid->str.c_str());
