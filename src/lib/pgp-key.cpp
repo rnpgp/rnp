@@ -1892,6 +1892,13 @@ pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
     // Export subkeys
     for (auto &grip : key->subkey_grips) {
         const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(keyring, grip);
+        if (!subkey) {
+            char griphex[PGP_KEY_GRIP_SIZE * 2 + 1] = {0};
+            rnp_hex_encode(
+              grip.data(), grip.size(), griphex, sizeof(griphex), RNP_HEX_LOWERCASE);
+            RNP_LOG("Warning! Subkey %s not found.", griphex);
+            continue;
+        }
         if (!pgp_key_write_packets(subkey, dst)) {
             RNP_LOG("Error occured when exporting a subkey");
             return false;
