@@ -588,7 +588,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
     pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, sig);
-    if (!pgp_key_has_primary_grip(key) || !primary) {
+    if (!primary || !pgp_key_has_primary_grip(key)) {
         RNP_LOG("No primary grip or primary key");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     }
@@ -738,12 +738,11 @@ rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip
 pgp_key_t *
 rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    try {
-        return &*keyring->keybygrip.at(grip);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    auto it = keyring->keybygrip.find(grip);
+    if (it == keyring->keybygrip.end()) {
         return NULL;
     }
+    return &*it->second;
 }
 
 pgp_key_t *
