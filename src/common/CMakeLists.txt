@@ -38,5 +38,8 @@ target_include_directories(rnp-common
     "${PROJECT_SOURCE_DIR}/src"
 )
 
-set_target_properties(rnp-common PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set_target_properties(rnp-common PROPERTIES
+  POSITION_INDEPENDENT_CODE ON
+  CXX_VISIBILITY_PRESET hidden
+)
 
