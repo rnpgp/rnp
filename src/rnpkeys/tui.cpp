@@ -3,6 +3,7 @@
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "defaults.h"
+#include "utils.h"
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
