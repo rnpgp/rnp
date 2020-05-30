@@ -54,6 +54,7 @@
 #include "version.h"
 #include <botan/secmem.h>
 #include "ffi-priv-types.h"
+#include "file-utils.h"
 
 #define FFI_LOG(ffi, ...)            \
     do {                             \

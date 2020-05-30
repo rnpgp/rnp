@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -53,26 +53,17 @@ int rnp_strcasecmp(const char *, const char *);
 
 char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
 
-int64_t rnp_filemtime(const char *path);
-
 char *rnp_compose_path(const char *first, ...);
 char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 
 bool rnp_path_exists(const char *path);
 bool rnp_dir_exists(const char *path);
-bool rnp_file_exists(const char *path);
 
 bool rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
 size_t rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
 
 char *rnp_strlwr(char *s);
-
-/** @brief strip eol symbols (\r, \n) from the end of the string
- *  @param s NULL-terminated string, which will be modified
- *  @return string s itself
- */
-char *rnp_strip_eol(char *s);
 
 bool hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out);
 

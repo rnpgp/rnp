@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009-2010 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -287,19 +287,6 @@ rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *
     return dest;
 }
 
-/* return the file modification time */
-int64_t
-rnp_filemtime(const char *path)
-{
-    struct stat st;
-
-    if (stat(path, &st) != 0) {
-        return 0;
-    } else {
-        return st.st_mtime;
-    }
-}
-
 static char *
 vcompose_path(char **buf, size_t *buf_len, const char *first, va_list ap)
 {
@@ -428,13 +415,6 @@ rnp_dir_exists(const char *path)
 }
 
 bool
-rnp_file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
-}
-
-bool
 rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
 {
@@ -472,18 +452,6 @@ rnp_strlwr(char *s)
         *p = tolower((unsigned char) *p);
         p++;
     }
-    return s;
-}
-
-char *
-rnp_strip_eol(char *s)
-{
-    size_t len = strlen(s);
-
-    while ((len > 0) && ((s[len - 1] == '\n') || (s[len - 1] == '\r'))) {
-        s[--len] = '\0';
-    }
-
     return s;
 }
 

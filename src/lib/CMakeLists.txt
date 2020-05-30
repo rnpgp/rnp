@@ -125,11 +125,11 @@ add_library(librnp
   fingerprint.cpp
   generate-key.cpp
   key-provider.cpp
-  list.cpp
   misc.cpp
   pass-provider.cpp
   pgp-key.cpp
   rnp.cpp
+  $<TARGET_OBJECTS:rnp-common>
 )
 
 set_target_properties(librnp
@@ -143,6 +143,7 @@ set_target_properties(librnp
 target_include_directories(librnp
   PUBLIC
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
+    "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/common>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>"
     "$<INSTALL_INTERFACE:include>"
   PRIVATE
