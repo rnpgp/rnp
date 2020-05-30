@@ -1,3 +1,30 @@
+/*
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
+ *
+ * 1.  Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
+ *
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ */
+
+#include <algorithm>
 #include <unistd.h>
 #include <errno.h>
 #include "rnp/rnpcfg.h"
@@ -63,26 +90,40 @@ is_rsa_keysize_supported(uint32_t keysize)
 static const char *
 ask_curve_name(FILE *input_fp)
 {
-    pgp_curve_t       result = PGP_CURVE_MAX;
-    long              val = 0;
-    bool              ok = false;
-    const pgp_curve_t curves[] = {PGP_CURVE_NIST_P_256,
-                                  PGP_CURVE_NIST_P_384,
-                                  PGP_CURVE_NIST_P_521,
-                                  PGP_CURVE_BP256,
-                                  PGP_CURVE_BP384,
-                                  PGP_CURVE_BP512,
-                                  PGP_CURVE_P256K1};
-    size_t            ccount = ARRAY_SIZE(curves);
+    const char *              result = NULL;
+    long                      val = 0;
+    bool                      ok = false;
+    std::vector<const char *> curves;
+    static const char *const  known_curves[] = {
+      "NIST P-256",
+      "NIST P-384",
+      "NIST P-521",
+      "brainpoolP256r1",
+      "brainpoolP384r1",
+      "brainpoolP512r1",
+      "secp256k1",
+    };
 
+    try {
+        std::copy_if(known_curves,
+                     known_curves + ARRAY_SIZE(known_curves),
+                     std::back_inserter(curves),
+                     [](const char *curve) {
+                         bool supported = false;
+                         return !rnp_supports_feature("elliptic curve", curve, &supported) &&
+                                supported;
+                     });
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return NULL;
+    }
+    const size_t ccount = curves.size();
     do {
         printf("Please select which elliptic curve you want:\n");
-        for (size_t i = 1; i <= ccount; i++) {
-            printf(
-              "\t(%zu) %s\n", i, get_curve_desc((const pgp_curve_t)(curves[i - 1]))->pgp_name);
+        for (size_t i = 0; i < ccount; i++) {
+            printf("\t(%zu) %s\n", i + 1, curves[i]);
         }
-        printf("(default %s)> ", get_curve_desc(DEFAULT_CURVE)->pgp_name);
-        result = DEFAULT_CURVE;
+        printf("(default %s)> ", DEFAULT_CURVE);
         ok = rnp_secure_get_long_from_fd(input_fp, &val, true) && (val > 0) &&
              (val <= (long) ccount);
         if (ok) {
@@ -90,7 +131,7 @@ ask_curve_name(FILE *input_fp)
         }
     } while (!ok);
 
-    return get_curve_desc(result)->pgp_name;
+    return result;
 }
 
 static long
