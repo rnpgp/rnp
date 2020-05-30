@@ -47,6 +47,8 @@
 #include "config.h"
 #include "fficli.h"
 #include "utils.h"
+#include "str-utils.h"
+#include "file-utils.h"
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX

@@ -37,6 +37,7 @@
 #include <json.h>
 #include <vector>
 #include <string>
+#include "file-utils.h"
 
 TEST_F(rnp_tests, test_ffi_homedir)
 {
