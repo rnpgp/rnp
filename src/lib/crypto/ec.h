@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -35,7 +35,7 @@
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 
-#define DEFAULT_CURVE PGP_CURVE_NIST_P_256
+#define DEFAULT_CURVE "NIST P-256"
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
 /* Maximal byte size of elliptic curve order (NIST P-521) */
 #define MAX_CURVE_BYTELEN ((MAX_CURVE_BIT_SIZE + 7) / 8)
