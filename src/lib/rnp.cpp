@@ -1272,9 +1272,8 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    tmpret = load_keys_from_input(ffi, input, tmp_store);
-    if (tmpret) {
-        ret = tmpret;
+    if (!rnp_key_store_load_from_src(tmp_store, &input->src, NULL)) {
+        ret = RNP_ERROR_BAD_FORMAT;
         goto done;
     }
     jsores = json_object_new_object();
