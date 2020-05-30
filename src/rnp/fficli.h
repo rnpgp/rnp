@@ -152,6 +152,4 @@ bool        rnp_casecmp(const std::string &str1, const std::string &str2);
 #define EXT_PGP (".pgp")
 #define EXT_GPG (".gpg")
 
-char *rnp_strip_eol(char *s);
-
 #endif
