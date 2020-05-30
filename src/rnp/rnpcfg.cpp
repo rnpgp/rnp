@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -468,7 +468,7 @@ rnp_cfg_free(rnp_cfg_t *cfg)
     const char *passwd = rnp_cfg_getstr(cfg, CFG_PASSWD);
 
     if (passwd) {
-        pgp_forget((void *) passwd, strlen(passwd) + 1);
+        rnp_buffer_clear((void *) passwd, strlen(passwd) + 1);
     }
 
     for (list_item *li = list_front(cfg->vals); li; li = list_next(li)) {
