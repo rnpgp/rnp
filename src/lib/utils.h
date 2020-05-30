@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,11 +29,14 @@
 #include <stdio.h>
 #include "types.h"
 #include <limits.h>
+#include <rnp/rnp_export.h>
 
 #define RNP_MSG(msg) (void) fprintf(stdout, msg);
 
-bool rnp_log_switch();
-void set_rnp_log_switch(int8_t);
+// TODO: It is currently necessary to mark this with RNP_API, but this should
+// be removed at some point since it is not part of the public API.
+RNP_API bool rnp_log_switch();
+void         set_rnp_log_switch(int8_t);
 
 #define RNP_LOG_FD(fd, ...)                                                  \
     do {                                                                     \

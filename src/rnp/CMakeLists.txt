@@ -25,7 +25,13 @@
 # for the headers
 find_package(JSON-C 0.11 REQUIRED)
 
-add_executable(rnp rnp.cpp fficli.cpp ../rnpkeys/tui.cpp rnpcfg.cpp)
+add_executable(rnp
+  rnp.cpp
+  fficli.cpp
+  ../rnpkeys/tui.cpp
+  rnpcfg.cpp
+  $<TARGET_OBJECTS:rnp-common>
+)
 
 target_include_directories(rnp
   PRIVATE

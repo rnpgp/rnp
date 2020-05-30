@@ -23,6 +23,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 include(GNUInstallDirs)
+include(GenerateExportHeader)
 
 # these could probably be optional but are currently not
 find_package(BZip2 REQUIRED)
@@ -88,7 +89,7 @@ foreach(feature ${_botan_required_features})
 endforeach()
 set(CMAKE_REQUIRED_INCLUDES)
 
-add_library(librnp
+add_library(librnp-obj OBJECT
   # librepgp
   ../librepgp/stream-armor.cpp
   ../librepgp/stream-common.cpp
@@ -132,15 +133,8 @@ add_library(librnp
   $<TARGET_OBJECTS:rnp-common>
 )
 
-set_target_properties(librnp
-  PROPERTIES
-    VERSION "${RNP_VERSION}"
-    SOVERSION "${RNP_VERSION_MAJOR}"
-    PREFIX "lib"
-    OUTPUT_NAME "rnp-${RNP_VERSION_MAJOR}"
-)
-
-target_include_directories(librnp
+set_target_properties(librnp-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_include_directories(librnp-obj
   PUBLIC
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
     "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/src/common>"
@@ -150,26 +144,58 @@ target_include_directories(librnp
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
 )
+target_link_libraries(librnp-obj
+  PRIVATE
+    Botan2::Botan2
+    JSON-C::JSON-C
+)
+set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
+if (TARGET BZip2::BZip2)
+  target_link_libraries(librnp-obj PRIVATE BZip2::BZip2)
+endif()
+if (TARGET ZLIB::ZLIB)
+  target_link_libraries(librnp-obj PRIVATE ZLIB::ZLIB)
+endif()
+if (BUILD_SHARED_LIBS)
+  target_compile_definitions(librnp-obj PRIVATE librnp_EXPORTS)
+else()
+  target_compile_definitions(librnp-obj PRIVATE RNP_STATIC)
+endif()
+
+add_library(librnp $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+set_target_properties(librnp
+  PROPERTIES
+    VERSION "${RNP_VERSION}"
+    SOVERSION "${RNP_VERSION_MAJOR}"
+    PREFIX "lib"
+    OUTPUT_NAME "rnp-${RNP_VERSION_MAJOR}"
+)
+
+if (BUILD_SHARED_LIBS)
+  add_library(librnp-static STATIC $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+else()
+  add_library(librnp-static ALIAS librnp)
+endif()
+
+foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES)
+  get_target_property(val librnp-obj ${prop})
+  set_property(TARGET librnp PROPERTY ${prop} ${val})
+  if (BUILD_SHARED_LIBS)
+    set_property(TARGET librnp-static PROPERTY ${prop} ${val})
+  endif()
+endforeach()
+
+generate_export_header(librnp
+  BASE_NAME rnp/rnp
+  EXPORT_MACRO_NAME RNP_API
+  STATIC_DEFINE RNP_STATIC
+)
 
 # This has precedence and can cause some confusion when the binary
 # dir one isn't actually being used. To be improved.
 if (NOT CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_CURRENT_BINARY_DIR)
   file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/config.h")
   file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/version.h")
-endif()
-
-target_link_libraries(librnp
-  PRIVATE
-    Botan2::Botan2
-    JSON-C::JSON-C
-)
-
-if (TARGET BZip2::BZip2)
-  target_link_libraries(librnp PRIVATE BZip2::BZip2)
-endif()
-
-if (TARGET ZLIB::ZLIB)
-  target_link_libraries(librnp PRIVATE ZLIB::ZLIB)
 endif()
 
 set(LIBRNP_INCLUDEDIR "rnp-${PROJECT_VERSION_MAJOR}")
@@ -220,6 +246,16 @@ install(
     "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}/rnp"
   RENAME
     rnp_err.h
+)
+install(
+  FILES
+    "${PROJECT_BINARY_DIR}/src/lib/rnp/rnp_export.h"
+  COMPONENT
+    development
+  DESTINATION
+    "${CMAKE_INSTALL_INCLUDEDIR}/${LIBRNP_INCLUDEDIR}/rnp"
+  RENAME
+    rnp_export.h
 )
 
 # .cmake installs
@@ -309,4 +345,3 @@ if (PKG_CONFIG_FOUND)
     COMPONENT development
   )
 endif()
-
