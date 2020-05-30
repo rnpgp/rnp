@@ -23,18 +23,13 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 0
-      - name: Add MSYS2 path
-        uses: MSP-Greg/msys2-action/add_paths@master
-      - name: Update MSYS2
-        run: pacman-key --init
-      - name: Update pacman-key
-        run: pacman-key --update
-      - name: Upgrade pacman
-        run: pacman -Syu --noconfirm --noprogressbar --needed
-      - name: Finish MSYS2 update
-        run: pacman.exe -Syu --noconfirm --noprogressbar --needed
+      - uses: eine/setup-msys2@v1
+        with:
+          path-type: inherit
       - name: install
-        run: bash.exe ci/before_install.sh
+        shell: msys2 {0}
+        run: bash ci/before_install.sh
       - name: tests
-        run: bash.exe -c ". ci/env.inc.sh && ci/main.sh"
+        shell: msys2 {0}
+        run: bash -c ". ci/env.inc.sh && ci/main.sh"
 
