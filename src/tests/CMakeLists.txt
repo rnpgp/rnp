@@ -22,17 +22,20 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-# for rnp_tests
-find_package(JSON-C 0.11 REQUIRED)
-# for cli_tests
-# Note that we do this call early because Google Test will also do
-# this but with less strict version requirements, which will cause
-# problems for us.
-find_package(Python3 COMPONENTS Interpreter)
-find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
+if (BUILD_TESTING_GENERATORS)
+  add_subdirectory(data/test_key_validity)
+endif()
 
+# fixture to copy the test data directory
+add_test(
+  NAME setupTestData
+  COMMAND "${CMAKE_COMMAND}" -E copy_directory
+          "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
+)
+set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
+
+# rnp_tests
 include(GoogleTest)
-
 # download and buld googletest
 configure_file(gtest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
@@ -54,10 +57,7 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
 
-if (BUILD_TESTING_GENERATORS)
-  add_subdirectory(data/test_key_validity)
-endif()
-
+find_package(JSON-C 0.11 REQUIRED)
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
@@ -96,16 +96,14 @@ add_executable(rnp_tests
   issues/1115.cpp
   issues/1171.cpp
 )
-
 target_include_directories(rnp_tests
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
 )
-
 target_link_libraries(rnp_tests
   PRIVATE
-    librnp
+    librnp-static
     JSON-C::JSON-C
     gtest_main
 )
@@ -115,21 +113,8 @@ endif()
 target_compile_definitions(rnp_tests
   PRIVATE
     RNP_RUN_TESTS
+    RNP_STATIC
 )
-
-if (WIN32)
-  add_custom_command(TARGET rnp_tests POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different "$<TARGET_FILE:librnp>" "$<TARGET_FILE_DIR:rnp_tests>")
-endif()
-
-# fixture to copy the test data directory
-add_test(
-  NAME setupTestData
-  COMMAND "${CMAKE_COMMAND}" -E copy_directory
-          "${CMAKE_CURRENT_SOURCE_DIR}/data" "${CMAKE_CURRENT_BINARY_DIR}/data"
-)
-set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
-
 gtest_discover_tests(rnp_tests
   PROPERTIES
     FIXTURES_REQUIRED testdata
@@ -137,43 +122,7 @@ gtest_discover_tests(rnp_tests
     ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
 
-function(add_cli_test suite)
-  set(_test_name cli_tests-${suite})
-  add_test(
-    NAME ${_test_name}
-    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d "${suite}"
-  )
-  set(_env)
-  list(APPEND _env
-    "RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>"
-    "RNP_TESTS_RNPKEYS_PATH=$<TARGET_FILE:rnpkeys>"
-    "RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE}"
-    "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
-  )
-  set_tests_properties(${_test_name} PROPERTIES
-    TIMEOUT 3000
-    FIXTURES_REQUIRED testdata
-    ENVIRONMENT "${_env}"
-  )
-endfunction()
-# get a list of test suites
-execute_process(
-  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -ls
-  RESULT_VARIABLE _ec
-  OUTPUT_VARIABLE suitelist
-  OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-if (NOT _ec EQUAL 0)
-  message(FATAL_ERROR "Failed to retrieve test suite list for cli_tests")
-endif()
-# convert to a CMake list
-string(REGEX REPLACE ";" "\\\\;" suitelist "${suitelist}")
-string(REGEX REPLACE "\n" ";" suitelist "${suitelist}")
-# create a CTest test for each suite
-foreach(suite IN LISTS suitelist)
-  add_cli_test("${suite}")
-endforeach()
-
+# ruby-rnp
 # cruby does not currently play nice with ASaN et al.
 if (NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN32)
   include(ExternalProject)
@@ -215,4 +164,47 @@ if (NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN32)
     ENVIRONMENT "${_env}"
   )
 endif()
+
+# cli_tests
+# Note that we do this call early because Google Test will also do
+# this but with less strict version requirements, which will cause
+# problems for us.
+find_package(Python3 COMPONENTS Interpreter)
+find_package(GnuPG 2.2 COMPONENTS gpg gpgconf)
+function(add_cli_test suite)
+  set(_test_name cli_tests-${suite})
+  add_test(
+    NAME ${_test_name}
+    COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -v -d "${suite}"
+  )
+  set(_env)
+  list(APPEND _env
+    "RNP_TESTS_RNP_PATH=$<TARGET_FILE:rnp>"
+    "RNP_TESTS_RNPKEYS_PATH=$<TARGET_FILE:rnpkeys>"
+    "RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE}"
+    "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
+  )
+  set_tests_properties(${_test_name} PROPERTIES
+    TIMEOUT 3000
+    FIXTURES_REQUIRED testdata
+    ENVIRONMENT "${_env}"
+  )
+endfunction()
+# get a list of test suites
+execute_process(
+  COMMAND "${Python3_EXECUTABLE}" "${CMAKE_CURRENT_SOURCE_DIR}/cli_tests.py" -ls
+  RESULT_VARIABLE _ec
+  OUTPUT_VARIABLE suitelist
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+if (NOT _ec EQUAL 0)
+  message(FATAL_ERROR "Failed to retrieve test suite list for cli_tests")
+endif()
+# convert to a CMake list
+string(REGEX REPLACE ";" "\\\\;" suitelist "${suitelist}")
+string(REGEX REPLACE "\n" ";" suitelist "${suitelist}")
+# create a CTest test for each suite
+foreach(suite IN LISTS suitelist)
+  add_cli_test("${suite}")
+endforeach()
 
