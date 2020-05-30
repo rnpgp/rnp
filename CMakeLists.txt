@@ -123,6 +123,7 @@ endif()
 
 # everything else is in subdirs
 add_subdirectory(src/examples)
+add_subdirectory(src/common)
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
 add_subdirectory(src/rnpkeys)
