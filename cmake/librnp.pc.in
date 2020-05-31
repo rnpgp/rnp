@@ -7,6 +7,6 @@ Name: rnp
 Description: @PACKAGE_DESCRIPTION_SHORT@
 Version: @PROJECT_VERSION@
 
-Libs: -L${libdir} -lrnp
+Libs: -L${libdir} -l@LIBRNP_OUTPUT_NAME@
 Cflags: -I${includedir}
 
