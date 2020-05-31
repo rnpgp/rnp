@@ -252,6 +252,7 @@ install (
 # create a pkgconfig .pc too
 find_package(PkgConfig)
 if (PKG_CONFIG_FOUND)
+  get_target_property(LIBRNP_OUTPUT_NAME librnp OUTPUT_NAME)
   configure_file(
     "${PROJECT_SOURCE_DIR}/cmake/librnp.pc.in"
     "${PROJECT_BINARY_DIR}/librnp-${PROJECT_VERSION_MAJOR}.pc"
