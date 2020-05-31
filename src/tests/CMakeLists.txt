@@ -108,7 +108,9 @@ target_link_libraries(rnp_tests
     JSON-C::JSON-C
     gtest_main
 )
-
+if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(rnp_tests PRIVATE regex)
+endif()
 target_compile_definitions(rnp_tests
   PRIVATE
     RNP_RUN_TESTS

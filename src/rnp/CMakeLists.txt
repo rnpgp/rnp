@@ -40,6 +40,10 @@ target_link_libraries(rnp
     JSON-C::JSON-C
 )
 
+if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(rnp PRIVATE regex)
+endif()
+
 include(GNUInstallDirs)
 install(TARGETS rnp
   RUNTIME
