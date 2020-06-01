@@ -1253,6 +1253,11 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
         FFI_LOG(ffi, "bad flags: need to specify public and/or secret keys");
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    bool skipbad = false;
+    if (flags & RNP_LOAD_SAVE_PERMISSIVE) {
+        skipbad = true;
+        flags &= ~RNP_LOAD_SAVE_PERMISSIVE;
+    }
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1272,6 +1277,7 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
+    tmp_store->skip_parsing_errors = skipbad;
     if (!rnp_key_store_load_from_src(tmp_store, &input->src, NULL)) {
         ret = RNP_ERROR_BAD_FORMAT;
         goto done;
