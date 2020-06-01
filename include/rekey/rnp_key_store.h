@@ -137,7 +137,8 @@ typedef std::map<pgp_key_grip_t, std::list<pgp_key_t>::iterator> pgp_key_grip_ma
 typedef struct rnp_key_store_t {
     std::string            path;
     pgp_key_store_format_t format;
-    bool disable_validation; /* do not automatically validate keys, added to this key store */
+    bool disable_validation;  /* do not automatically validate keys, added to this key store */
+    bool skip_parsing_errors; /* do not fail on parsing errors */
 
     std::list<pgp_key_t> keys;
     pgp_key_grip_map_t   keybygrip;
