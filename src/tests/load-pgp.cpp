@@ -446,7 +446,7 @@ static bool
 load_transferable_key(pgp_transferable_key_t *key, const char *fname)
 {
     pgp_source_t src = {};
-    bool         res = !init_file_src(&src, fname) && !process_pgp_key(&src, key);
+    bool         res = !init_file_src(&src, fname) && !process_pgp_key(&src, key, false);
     src_close(&src);
     return res;
 }
@@ -455,7 +455,7 @@ static bool
 load_transferable_subkey(pgp_transferable_subkey_t *key, const char *fname)
 {
     pgp_source_t src = {};
-    bool         res = !init_file_src(&src, fname) && !process_pgp_subkey(&src, key);
+    bool         res = !init_file_src(&src, fname) && !process_pgp_subkey(&src, key, false);
     src_close(&src);
     return res;
 }

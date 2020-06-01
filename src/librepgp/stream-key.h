@@ -105,13 +105,13 @@ pgp_signature_t *transferable_key_revoke(const pgp_key_pkt_t *key,
 
 void key_sequence_destroy(pgp_key_sequence_t *keys);
 
-rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys);
+rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys, bool skiperrors);
 
-rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key);
+rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors);
 
-rnp_result_t process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey);
-
-rnp_result_t process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid);
+rnp_result_t process_pgp_subkey(pgp_source_t *             src,
+                                pgp_transferable_subkey_t *subkey,
+                                bool                       skiperrors);
 
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
 
