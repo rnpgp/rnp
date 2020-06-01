@@ -74,6 +74,7 @@ typedef uint32_t rnp_result_t;
  */
 #define RNP_LOAD_SAVE_PUBLIC_KEYS (1U << 0)
 #define RNP_LOAD_SAVE_SECRET_KEYS (1U << 1)
+#define RNP_LOAD_SAVE_PERMISSIVE (1U << 8)
 
 /**
  * Flags for output structure creation.
@@ -416,7 +417,9 @@ rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *  Note: this will work only with keys in OpenPGP format, use rnp_load_keys for other formats.
  * @param ffi
  * @param input source to read from. Cannot be NULL.
- * @param flags see RNP_LOAD_SAVE_* constants.
+ * @param flags see RNP_LOAD_SAVE_* constants. If RNP_LOAD_SAVE_PERMISSIVE is specified
+ *              then import process will skip unrecognized or bad keys/signatures instead of
+ *              failing the whole operation.
  * @param results if not NULL then after the successfull execution will contain JSON with
  *                information about new and updated keys. You must free it using the
  *                rnp_buffer_destroy() function.
