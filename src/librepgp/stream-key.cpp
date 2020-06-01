@@ -31,6 +31,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 #include "stream-def.h"
 #include "stream-key.h"
 #include "stream-armor.h"
@@ -43,6 +44,7 @@
 #include "crypto.h"
 #include "crypto/signatures.h"
 #include "../librekey/key_store_pgp.h"
+#include <set>
 
 void
 transferable_subkey_destroy(pgp_transferable_subkey_t *subkey)
@@ -167,7 +169,7 @@ transferable_subkey_from_key(pgp_transferable_subkey_t *dst, const pgp_key_t *ke
         return RNP_ERROR_BAD_STATE;
     }
 
-    ret = process_pgp_subkey(&memsrc, dst);
+    ret = process_pgp_subkey(&memsrc, dst, false);
     src_close(&memsrc);
     return ret;
 }
@@ -239,7 +241,7 @@ transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key)
         return RNP_ERROR_BAD_STATE;
     }
 
-    ret = process_pgp_key(&memsrc, dst);
+    ret = process_pgp_key(&memsrc, dst, false);
     src_close(&memsrc);
     return ret;
 }
@@ -765,21 +767,29 @@ key_sequence_destroy(pgp_key_sequence_t *keys)
     list_destroy(&keys->keys);
 }
 
-static rnp_result_t
-process_pgp_key_trusts(pgp_source_t *src)
+static bool
+skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 {
-    rnp_result_t ret;
-    while (stream_pkt_type(src) == PGP_PKT_TRUST) {
-        if ((ret = stream_skip_packet(src))) {
-            RNP_LOG("failed to skip trust packet");
-            return ret;
+    do {
+        int pkt = stream_pkt_type(src);
+        if (pkt <= 0) {
+            break;
         }
-    }
-    return RNP_SUCCESS;
+        if (pkts.find((pgp_pkt_type_t) pkt) == pkts.end()) {
+            return true;
+        }
+        uint64_t ppos = src->readb;
+        if (stream_skip_packet(src)) {
+            RNP_LOG("failed to skip packet at %" PRIu64, ppos);
+            return false;
+        }
+    } while (1);
+
+    return true;
 }
 
 static rnp_result_t
-process_pgp_key_signatures(pgp_source_t *src, list *sigs)
+process_pgp_key_signatures(pgp_source_t *src, list *sigs, bool skiperrors)
 {
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
@@ -791,21 +801,25 @@ process_pgp_key_signatures(pgp_source_t *src, list *sigs)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
 
+        uint64_t sigpos = src->readb;
         if ((ret = stream_parse_signature(src, sig))) {
+            RNP_LOG("failed to parse signature at %" PRIu64, sigpos);
             list_remove((list_item *) sig);
-            return ret;
+            if (!skiperrors) {
+                return ret;
+            }
         }
 
-        if ((ret = process_pgp_key_trusts(src))) {
-            return ret;
+        if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
+            return RNP_ERROR_READ;
         }
     }
 
     return ptag < 0 ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
 }
 
-rnp_result_t
-process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
+static rnp_result_t
+process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid, bool skiperrors)
 {
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
@@ -813,20 +827,18 @@ process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid)
     memset(uid, 0, sizeof(*uid));
     ptag = stream_pkt_type(src);
 
-    if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
-        RNP_LOG("wrong uid ptag: %d", ptag);
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
+    uint64_t uidpos = src->readb;
     if ((ret = stream_parse_userid(src, &uid->uid))) {
+        RNP_LOG("failed to parse userid at %" PRIu64, uidpos);
         goto done;
     }
 
-    if ((ret = process_pgp_key_trusts(src))) {
+    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
+        ret = RNP_ERROR_READ;
         goto done;
     }
 
-    ret = process_pgp_key_signatures(src, &uid->signatures);
+    ret = process_pgp_key_signatures(src, &uid->signatures, skiperrors);
 done:
     if (ret) {
         transferable_userid_destroy(uid);
@@ -836,27 +848,29 @@ done:
 }
 
 rnp_result_t
-process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey)
+process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey, bool skiperrors)
 {
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
     memset(subkey, 0, sizeof(*subkey));
+    uint64_t keypos = src->readb;
     if (!is_subkey_pkt(ptag = stream_pkt_type(src))) {
-        RNP_LOG("wrong subkey ptag: %d", ptag);
+        RNP_LOG("wrong subkey ptag: %d at %" PRIu64, ptag, keypos);
         return RNP_ERROR_BAD_FORMAT;
     }
 
     if ((ret = stream_parse_key(src, &subkey->subkey))) {
-        RNP_LOG("failed to parse subkey");
+        RNP_LOG("failed to parse subkey at %" PRIu64, keypos);
         goto done;
     }
 
-    if ((ret = process_pgp_key_trusts(src))) {
+    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
+        ret = RNP_ERROR_READ;
         goto done;
     }
 
-    ret = process_pgp_key_signatures(src, &subkey->signatures);
+    ret = process_pgp_key_signatures(src, &subkey->signatures, skiperrors);
 done:
     if (ret) {
         transferable_subkey_destroy(subkey);
@@ -866,7 +880,7 @@ done:
 }
 
 rnp_result_t
-process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys)
+process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys, bool skiperrors)
 {
     int                     ptag;
     bool                    armored = false;
@@ -893,9 +907,8 @@ armoredpass:
     /* read sequence of transferable OpenPGP keys as described in RFC 4880, 11.1 - 11.2 */
     while (!src_eof(src) && !src_error(src)) {
         ptag = stream_pkt_type(src);
-
-        if ((ptag < 0) || !is_primary_key_pkt(ptag)) {
-            RNP_LOG("wrong key tag: %d", ptag);
+        if (!is_primary_key_pkt(ptag)) {
+            RNP_LOG("wrong key tag: %d at pos %" PRIu64, ptag, src->readb);
             ret = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
@@ -907,7 +920,19 @@ armoredpass:
             goto finish;
         }
 
-        if ((ret = process_pgp_key(src, curkey))) {
+        ret = process_pgp_key(src, curkey, skiperrors);
+        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+            skip_pgp_packets(src,
+                             {PGP_PKT_TRUST,
+                              PGP_PKT_SIGNATURE,
+                              PGP_PKT_USER_ID,
+                              PGP_PKT_USER_ATTR,
+                              PGP_PKT_PUBLIC_SUBKEY,
+                              PGP_PKT_SECRET_SUBKEY})) {
+            list_remove((list_item *) curkey);
+            continue;
+        }
+        if (ret) {
             goto finish;
         }
 
@@ -939,7 +964,7 @@ finish:
 }
 
 rnp_result_t
-process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
+process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
 {
     pgp_source_t armorsrc = {0};
     bool         armored = false;
@@ -959,30 +984,31 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
     }
 
     /* main key packet */
+    uint64_t keypos = src->readb;
     ptag = stream_pkt_type(src);
     if ((ptag <= 0) || !is_primary_key_pkt(ptag)) {
-        RNP_LOG("wrong key packet tag: %d", ptag);
+        RNP_LOG("wrong key packet tag: %d at %" PRIu64, ptag, keypos);
         ret = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
 
     if ((ret = stream_parse_key(src, &key->key))) {
-        RNP_LOG("failed to parse key pkt");
+        RNP_LOG("failed to parse key pkt at %" PRIu64, keypos);
         goto finish;
     }
 
-    if ((ret = process_pgp_key_trusts(src))) {
+    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
+        ret = RNP_ERROR_READ;
         goto finish;
     }
 
     /* direct-key signatures */
-    if ((ret = process_pgp_key_signatures(src, &key->signatures))) {
-        RNP_LOG("failed to parse key sigs");
+    if ((ret = process_pgp_key_signatures(src, &key->signatures, skiperrors))) {
         goto finish;
     }
 
     /* user ids/attrs with signatures */
-    while ((ptag = stream_pkt_type(src))) {
+    while ((ptag = stream_pkt_type(src)) > 0) {
         if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
             break;
         }
@@ -995,13 +1021,19 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
             goto finish;
         }
 
-        if ((ret = process_pgp_userid(src, uid))) {
+        ret = process_pgp_userid(src, uid, skiperrors);
+        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+            skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            /* skip malformed uid */
+            continue;
+        }
+        if (ret) {
             goto finish;
         }
     }
 
     /* subkeys with signatures */
-    while ((ptag = stream_pkt_type(src))) {
+    while ((ptag = stream_pkt_type(src)) > 0) {
         if (!is_subkey_pkt(ptag)) {
             break;
         }
@@ -1014,7 +1046,14 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key)
             goto finish;
         }
 
-        if ((ret = process_pgp_subkey(src, subkey))) {
+        ret = process_pgp_subkey(src, subkey, skiperrors);
+        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+            skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            list_remove((list_item *) subkey);
+            /* skip malformed subkey */
+            continue;
+        }
+        if (ret) {
             goto finish;
         }
     }

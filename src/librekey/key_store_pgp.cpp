@@ -255,7 +255,7 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
 
     /* check whether we have transferable subkey in source */
     if (is_subkey_pkt(stream_pkt_type(src))) {
-        if ((ret = process_pgp_subkey(src, &tskey))) {
+        if ((ret = process_pgp_subkey(src, &tskey, keyring->skip_parsing_errors))) {
             return ret;
         }
         ret = rnp_key_store_add_transferable_subkey(keyring, &tskey, NULL) ?
@@ -266,7 +266,7 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
     }
 
     /* process armored or raw transferable key packets sequence(s) */
-    if ((ret = process_pgp_keys(src, &keys))) {
+    if ((ret = process_pgp_keys(src, &keys, keyring->skip_parsing_errors))) {
         return ret;
     }
 
