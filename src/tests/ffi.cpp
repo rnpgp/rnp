@@ -5502,6 +5502,157 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_malformed_keys_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* import keys with bad key0-uid0 certification, first without flag */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/pubring-malf-cert.pgp"));
+    assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    size_t keycount = 255;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+    /* now try with RNP_LOAD_SAVE_PERMISSIVE */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/pubring-malf-cert.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 7);
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    size_t uidcount = 255;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uidcount));
+    assert_int_equal(uidcount, 3);
+    size_t subcount = 255;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subcount));
+    assert_int_equal(subcount, 3);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fcadf05ffa501bb", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* import keys with bad key0-sub0 binding */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/pubring-malf-key0-sub0-bind.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 7);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    uidcount = 255;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uidcount));
+    assert_int_equal(uidcount, 3);
+    subcount = 255;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subcount));
+    assert_int_equal(subcount, 3);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fcadf05ffa501bb", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* import keys with bad key0-sub0 packet */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/pubring-malf-key0-sub0.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 6);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    uidcount = 255;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uidcount));
+    assert_int_equal(uidcount, 3);
+    subcount = 255;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &subcount));
+    assert_int_equal(subcount, 2);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fcadf05ffa501bb", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* import keys with bad key0 packet */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/pubring-malf-key0.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 3);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fcadf05ffa501bb", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* import secret keys with bad key1 packet - public should be added as well */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/secring-malf-key1.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 7);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 4);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    bool secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "326ef111425d14a5", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_false(secret);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* import secret keys with bad key0 packet */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/secring-malf-key0.pgp"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_PERMISSIVE, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 7);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 7);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid2", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "326ef111425d14a5", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* cleanup */
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_stripped_keys_import)
 {
     rnp_ffi_t   ffi = NULL;
