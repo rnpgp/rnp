@@ -132,6 +132,11 @@ struct rnp_op_verify_st {
     size_t                    signature_count;
     char *                    filename;
     uint32_t                  file_mtime;
+    bool                      encrypted;
+    bool                      mdc;
+    bool                      validated;
+    pgp_aead_alg_t            aead;
+    pgp_symm_alg_t            salg;
 };
 
 struct rnp_op_encrypt_st {
