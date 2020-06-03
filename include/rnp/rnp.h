@@ -1640,6 +1640,30 @@ rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            op,
  */
 rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime);
 
+/**
+ * @brief Get data protection (encryption) mode, used in processed message.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param mode on success string with mode will be stored here. Caller is responsible for
+ *             freeing it using the rnp_buffer_free() call. May be NULL if information is not
+ * needed. Currently defined values are as following:
+ *             - none : message was not protected/encrypted
+ *             - cfb : message was encrypted in CFB mode without the MDC
+ *             - cfb-mdc : message was encrypted in CFB mode and protected with MDC
+ *             - aead-ocb : message was encrypted in AEAD-OCB mode
+ *             - aead-eax : message was encrypted in AEAD-EAX mode
+ * @param cipher symmetric cipher, used for data encryption. May be NULL if information is not
+ *               needed. Must be freed by rnp_buffer_free() call.
+ * @param valid true if message integrity protection was used (i.e. MDC or AEAD), and it was
+ *              validated successfully. Otherwise (even for raw cfb mode) will be false. May be
+ *              NULL if information is not needed.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_protection_info(rnp_op_verify_t op,
+                                               char **         mode,
+                                               char **         cipher,
+                                               bool *          valid);
+
 /** @brief Free resources allocated in verification context.
  *  @param op opaque verification context. Must be initialized.
  *  @return RNP_SUCCESS if call succeeded.
