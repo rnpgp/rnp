@@ -2665,6 +2665,23 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     return true;
 }
 
+static void
+rnp_verify_on_decryption_info(bool mdc, pgp_aead_alg_t aead, pgp_symm_alg_t salg, void *param)
+{
+    rnp_op_verify_t op = (rnp_op_verify_t) param;
+    op->mdc = mdc;
+    op->aead = aead;
+    op->salg = salg;
+    op->encrypted = true;
+}
+
+static void
+rnp_verify_on_decryption_done(bool validated, void *param)
+{
+    rnp_op_verify_t op = (rnp_op_verify_t) param;
+    op->validated = validated;
+}
+
 rnp_result_t
 rnp_op_verify_create(rnp_op_verify_t *op,
                      rnp_ffi_t        ffi,
@@ -2721,6 +2738,8 @@ rnp_op_verify_execute(rnp_op_verify_t op)
     handler.on_signatures = rnp_op_verify_on_signatures;
     handler.src_provider = rnp_verify_src_provider;
     handler.dest_provider = rnp_verify_dest_provider;
+    handler.on_decryption_info = rnp_verify_on_decryption_info;
+    handler.on_decryption_done = rnp_verify_on_decryption_done;
     handler.param = op;
     handler.ctx = &op->rnpctx;
 
@@ -2769,6 +2788,64 @@ rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime
         } else {
             *filename = NULL;
         }
+    }
+    return RNP_SUCCESS;
+}
+
+static const char *
+get_protection_mode(rnp_op_verify_t op)
+{
+    if (!op->encrypted) {
+        return "none";
+    }
+    if (op->mdc) {
+        return "cfb-mdc";
+    }
+    if (op->aead == PGP_AEAD_NONE) {
+        return "cfb";
+    }
+    switch (op->aead) {
+    case PGP_AEAD_EAX:
+        return "aead-eax";
+    case PGP_AEAD_OCB:
+        return "aead-ocb";
+    default:
+        return "aead-unknown";
+    }
+}
+
+static const char *
+get_protection_cipher(rnp_op_verify_t op)
+{
+    if (!op->encrypted) {
+        return "none";
+    }
+    const char *str = "unknown";
+    ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, op->salg, str);
+    return str;
+}
+
+rnp_result_t
+rnp_op_verify_get_protection_info(rnp_op_verify_t op, char **mode, char **cipher, bool *valid)
+{
+    if (!op || (!mode && !cipher && !valid)) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (mode) {
+        *mode = strdup(get_protection_mode(op));
+        if (!*mode) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    if (cipher) {
+        *cipher = strdup(get_protection_cipher(op));
+        if (!*cipher) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+    }
+    if (valid) {
+        *valid = op->validated;
     }
     return RNP_SUCCESS;
 }
