@@ -46,6 +46,26 @@ void set_rnp_log_switch(int8_t);
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
+#define RNP_LOG_KEY(msg, key)                                                                \
+    do {                                                                                     \
+        char keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                           \
+        rnp_hex_encode(                                                                      \
+          pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_LOWERCASE); \
+        RNP_LOG(msg, keyid);                                                                 \
+    } while (0)
+
+#define RNP_LOG_KEY_PKT(msg, key)                                                            \
+    do {                                                                                     \
+        uint8_t keyid[PGP_KEY_ID_SIZE] = {0};                                                \
+        if (pgp_keyid(keyid, PGP_KEY_ID_SIZE, (key))) {                                      \
+            RNP_LOG(msg, "unknown");                                                         \
+            break;                                                                           \
+        };                                                                                   \
+        char keyidhex[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                        \
+        rnp_hex_encode(keyid, sizeof(keyid), keyidhex, sizeof(keyidhex), RNP_HEX_LOWERCASE); \
+        RNP_LOG(msg, keyidhex);                                                              \
+    } while (0)
+
 #define RNP_DLOG(...)                    \
     if (rnp_get_debug(__FILE__)) {       \
         RNP_LOG_FD(stderr, __VA_ARGS__); \
