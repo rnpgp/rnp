@@ -103,16 +103,12 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 
     /* create subkey */
     if (!rnp_key_from_transferable_subkey(&skey, tskey, pkey)) {
-        RNP_LOG("failed to create subkey");
+        RNP_LOG_KEY_PKT("failed to create subkey %s", &tskey->subkey);
         return false;
     }
 
     /* add it to the storage */
-    bool res = rnp_key_store_add_key(keyring, &skey);
-    if (!res) {
-        RNP_LOG("Failed to add subkey to key store.");
-    }
-    return res;
+    return rnp_key_store_add_key(keyring, &skey);
 }
 
 bool
@@ -162,7 +158,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 
     /* create key from transferable key */
     if (!rnp_key_from_transferable_key(&key, tkey)) {
-        RNP_LOG("failed to create key");
+        RNP_LOG_KEY_PKT("failed to create key %s", &tkey->key);
         return false;
     }
 
