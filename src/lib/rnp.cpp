@@ -1301,7 +1301,10 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
             continue;
         }
         if (validate_pgp_key_material(pgp_key_get_material(&key), &ffi->rng)) {
-            FFI_LOG(ffi, "warning! attempt to import key with invalid material.");
+            char hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
+            rnp_hex_encode(
+              pgp_key_get_keyid(&key), PGP_KEY_ID_SIZE, hex, sizeof(hex), RNP_HEX_LOWERCASE);
+            FFI_LOG(ffi, "warning! attempt to import key %s with invalid material.", hex);
             continue;
         }
         // if we got here then we add public key itself or public part of the secret key
