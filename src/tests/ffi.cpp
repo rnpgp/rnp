@@ -5763,6 +5763,39 @@ TEST_F(rnp_tests, test_ffi_stripped_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_elgamal4096)
+{
+    rnp_ffi_t ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* load public key */
+    json_object *jso = NULL;
+    json_object *jsokeys = NULL;
+    assert_true(check_import_keys(
+      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-eg-4096-pub.pgp", 2, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 2);
+    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
+    json_object_put(jso);
+    /* load secret key */
+    assert_true(check_import_keys(
+      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-eg-4096-sec.pgp", 2, 2));
+    assert_int_equal(json_object_array_length(jsokeys), 2);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_key_status(
+      jsokey, "unchanged", "new", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(check_key_status(
+      jsokey, "unchanged", "new", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
+    json_object_put(jso);
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
+
 static std::vector<uint8_t>
 read_file_to_vector(const char *valid_key_path)
 {
