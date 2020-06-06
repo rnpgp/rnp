@@ -251,6 +251,8 @@ void test_ffi_malformed_keys_import(void **state);
 
 void test_ffi_import_keys_check_pktlen(void **state);
 
+void test_ffi_elgamal4096(void **state);
+
 void test_ffi_calculate_iterations(void **state);
 
 void test_ffi_supported_features(void **state);
