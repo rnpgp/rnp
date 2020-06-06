@@ -84,7 +84,7 @@
 #include "utils.h"
 
 // Max supported key byte size
-#define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(DSA_MAX_P_BITLEN)
+#define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)
 
 static bool
 elgamal_load_public_key(botan_pubkey_t *pubkey, const pgp_eg_key_t *keydata)
