@@ -438,6 +438,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         /* in case we already have key let's merge it in */
         if (!rnp_key_store_merge_subkey(oldkey, srckey, primary)) {
             RNP_LOG_KEY("failed to merge subkey %s", srckey);
+            RNP_LOG_KEY("primary key is %s", primary);
             return NULL;
         }
     } else {
@@ -451,12 +452,14 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         }
         if (pgp_key_copy(oldkey, srckey, false)) {
             RNP_LOG_KEY("key %s copying failed", srckey);
+            RNP_LOG_KEY("primary key is %s", primary);
             keyring->keys.pop_back();
             keyring->keybygrip.erase(pgp_key_get_grip(srckey));
             return NULL;
         }
         if (primary && !pgp_key_link_subkey_grip(primary, oldkey)) {
             RNP_LOG_KEY("failed to link subkey %s grip", oldkey);
+            RNP_LOG_KEY("primary key is %s", primary);
         }
     }
 
@@ -467,6 +470,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
     }
     if (!pgp_subkey_refresh_data(oldkey, primary)) {
         RNP_LOG_KEY("Failed to refresh subkey %s data", srckey);
+        RNP_LOG_KEY("primary key is %s", primary);
     }
     return oldkey;
 }
@@ -508,7 +512,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         }
         /* primary key may be added after subkeys, so let's handle this case correctly */
         if (!rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
-            RNP_LOG_KEY("failed to refresh subkey %s grips", added_key);
+            RNP_LOG_KEY("failed to refresh subkey grips for %s", added_key);
         }
     }
 
