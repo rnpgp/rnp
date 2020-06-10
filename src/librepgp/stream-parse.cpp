@@ -100,6 +100,8 @@ typedef struct pgp_source_encrypted_param_t {
     pgp_aead_hdr_t            aead_hdr; /* AEAD encryption parameters */
     uint8_t                   aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
     size_t                    aead_adlen;                   /* length of the additional data */
+    pgp_symm_alg_t            salg;                         /* data encryption algorithm */
+    pgp_parse_handler_t *     handler; /* parsing handler with callbacks */
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
@@ -685,6 +687,13 @@ static rnp_result_t
 encrypted_src_finish(pgp_source_t *src)
 {
     pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
+
+    /* report to the handler that decryption is finished */
+    if (param->handler->on_decryption_done) {
+        bool validated =
+          (param->has_mdc && param->mdc_validated) || (param->aead && param->aead_validated);
+        param->handler->on_decryption_done(validated, param->handler->param);
+    }
 
     if (param->aead) {
         if (!param->aead_validated) {
@@ -1365,7 +1374,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         /* Start AEAD decrypting, assuming we have correct key */
         res = encrypted_start_aead(param, salg, &decbuf[1]);
     }
-
+    if (res) {
+        param->salg = salg;
+    }
 finish:
     pgp_forget(&checksum, sizeof(checksum));
     pgp_forget(decbuf, sizeof(decbuf));
@@ -1490,6 +1501,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             continue;
         }
 
+        param->salg = param->aead ? param->aead_hdr.ealg : alg;
         res = 1;
         goto finish;
     }
@@ -1865,6 +1877,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     }
     param = (pgp_source_encrypted_param_t *) src->param;
     param->pkt.readsrc = readsrc;
+    param->handler = handler;
 
     src->close = encrypted_src_close;
     src->finish = encrypted_src_finish;
@@ -1969,13 +1982,17 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
+    /* report decryption start to the handler */
+    if (handler->on_decryption_info) {
+        handler->on_decryption_info(
+          param->has_mdc, param->aead_hdr.aalg, param->salg, handler->param);
+    }
     errcode = RNP_SUCCESS;
 finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
     }
     pgp_forget(password, sizeof(password));
-
     return errcode;
 }
 
