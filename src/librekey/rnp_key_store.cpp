@@ -40,6 +40,7 @@
 #include <dirent.h>
 #include <errno.h>
 #include <algorithm>
+#include <stdexcept>
 
 #include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
