@@ -207,12 +207,6 @@ STORE64BE(uint8_t x[8], uint64_t y)
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
 #endif
 
-/* Macro _GLIBCXX_USE_CXX11_ABI was first introduced with GCC 5.0, which
- * we assume to be bundled with a sane implementation of std::regex. */
-#if !defined(__GNUC__) || defined(_GLIBCXX_USE_CXX11_ABI)
-#define RNP_USE_STD_REGEX 1
-#endif
-
 inline char *
 getenv_logname(void)
 {
