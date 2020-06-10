@@ -103,20 +103,20 @@ typedef struct pgp_source_encrypted_param_t {
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
-    pgp_processing_ctx_t *ctx;             /* processing context */
-    pgp_source_t *        readsrc;         /* source to read from */
-    bool                  detached;        /* detached signature */
-    bool                  cleartext;       /* source is cleartext signed */
-    bool                  clr_eod;         /* cleartext data is over */
-    bool                  clr_fline;       /* first line of the cleartext */
-    bool                  clr_mline;       /* in the middle of the very long line */
-    uint8_t               out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
-    size_t                outlen;          /* total bytes in out */
-    size_t                outpos;          /* offset of first available byte in out */
-    list                  onepasses;       /* list of one-pass singatures */
-    list                  sigs;            /* list of signatures */
-    list                  hashes;          /* hash contexts */
-    list                  siginfos;        /* signature validation info */
+    pgp_parse_handler_t *handler;         /* parsing handler with callbacks */
+    pgp_source_t *       readsrc;         /* source to read from */
+    bool                 detached;        /* detached signature */
+    bool                 cleartext;       /* source is cleartext signed */
+    bool                 clr_eod;         /* cleartext data is over */
+    bool                 clr_fline;       /* first line of the cleartext */
+    bool                 clr_mline;       /* in the middle of the very long line */
+    uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
+    size_t               outlen;          /* total bytes in out */
+    size_t               outpos;          /* offset of first available byte in out */
+    list                 onepasses;       /* list of one-pass singatures */
+    list                 sigs;            /* list of signatures */
+    list                 hashes;          /* hash contexts */
+    list                 siginfos;        /* signature validation info */
 } pgp_source_signed_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -930,10 +930,10 @@ signed_src_finish(pgp_source_t *src)
         }
 
         /* Get the public key */
-        if (!(key = pgp_request_key(param->ctx->handler.key_provider, &keyctx))) {
+        if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
             // fallback to secret key
             keyctx.secret = true;
-            if (!(key = pgp_request_key(param->ctx->handler.key_provider, &keyctx))) {
+            if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
                 RNP_LOG("signer's key not found");
                 sinfo->no_signer = true;
                 continue;
@@ -950,7 +950,7 @@ signed_src_finish(pgp_source_t *src)
         sinfo = (pgp_signature_info_t *) si;
         sinfos[sinfoc++] = *sinfo;
 
-        if (sinfo->no_signer && param->ctx->handler.ctx->discard) {
+        if (sinfo->no_signer && param->handler->ctx->discard) {
             /* if output is discarded then we interested in verification */
             ret = RNP_ERROR_SIGNATURE_INVALID;
             continue;
@@ -962,8 +962,8 @@ signed_src_finish(pgp_source_t *src)
     }
 
     /* call the callback with signature infos */
-    if (param->ctx->handler.on_signatures) {
-        param->ctx->handler.on_signatures(sinfos, sinfoc, param->ctx->handler.param);
+    if (param->handler->on_signatures) {
+        param->handler->on_signatures(sinfos, sinfoc, param->handler->param);
     }
 
     free(sinfos);
@@ -1849,7 +1849,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 }
 
 static rnp_result_t
-init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
     rnp_result_t                  errcode = RNP_ERROR_GENERIC;
     pgp_source_encrypted_param_t *param;
@@ -1881,7 +1881,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     /* Obtaining the symmetric key */
     have_key = false;
 
-    if (!ctx->handler.password_provider) {
+    if (!handler->password_provider) {
         RNP_LOG("no password provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
@@ -1889,7 +1889,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
 
     /* Trying public-key decryption */
     if (list_length(param->pubencs) > 0) {
-        if (!ctx->handler.key_provider) {
+        if (!handler->key_provider) {
             RNP_LOG("no key provider");
             errcode = RNP_ERROR_BAD_PARAMETERS;
             goto finish;
@@ -1904,7 +1904,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
                    ((pgp_pk_sesskey_t *) pe)->key_id,
                    sizeof(keyctx.search.by.keyid));
             /* Get the key if any */
-            if (!(seckey = pgp_request_key(ctx->handler.key_provider, &keyctx))) {
+            if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
                 errcode = RNP_ERROR_NO_SUITABLE_KEY;
                 continue;
             }
@@ -1912,7 +1912,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (pgp_key_is_encrypted(seckey)) {
                 pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
                 decrypted_seckey =
-                  pgp_decrypt_seckey(seckey, ctx->handler.password_provider, &pass_ctx);
+                  pgp_decrypt_seckey(seckey, handler->password_provider, &pass_ctx);
                 if (!decrypted_seckey) {
                     errcode = RNP_ERROR_BAD_PASSWORD;
                     continue;
@@ -1925,7 +1925,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
             if (encrypted_try_key(param,
                                   (pgp_pk_sesskey_t *) pe,
                                   decrypted_seckey,
-                                  rnp_ctx_rng_handle(ctx->handler.ctx))) {
+                                  rnp_ctx_rng_handle(handler->ctx))) {
                 have_key = true;
             }
 
@@ -1946,7 +1946,7 @@ init_encrypted_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *r
     if (!have_key && (list_length(param->symencs) > 0)) {
         pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT_SYM, .key = NULL};
         if (!pgp_request_password(
-              ctx->handler.password_provider, &pass_ctx, password, sizeof(password))) {
+              handler->password_provider, &pass_ctx, password, sizeof(password))) {
             errcode = RNP_ERROR_BAD_PASSWORD;
             goto finish;
         }
@@ -2014,7 +2014,7 @@ init_cleartext_signed_src(pgp_source_t *src)
 }
 
 static rnp_result_t
-init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *readsrc)
+init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
     rnp_result_t               errcode = RNP_ERROR_GENERIC;
     pgp_source_signed_param_t *param;
@@ -2032,7 +2032,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
 
     param = (pgp_source_signed_param_t *) src->param;
     param->readsrc = readsrc;
-    param->ctx = ctx;
+    param->handler = handler;
     param->cleartext = cleartext;
     src->read = cleartext ? cleartext_src_read : signed_src_read;
     src->close = signed_src_close;
@@ -2040,7 +2040,7 @@ init_signed_src(pgp_processing_ctx_t *ctx, pgp_source_t *src, pgp_source_t *read
     src->type = cleartext ? PGP_STREAM_CLEARTEXT : PGP_STREAM_SIGNED;
 
     /* we need key provider to validate signatures */
-    if (!ctx->handler.key_provider) {
+    if (!handler->key_provider) {
         RNP_LOG("no key provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
@@ -2163,11 +2163,11 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         switch (type) {
         case PGP_PKT_PK_SESSION_KEY:
         case PGP_PKT_SK_SESSION_KEY:
-            ret = init_encrypted_src(ctx, &psrc, lsrc);
+            ret = init_encrypted_src(&ctx->handler, &psrc, lsrc);
             break;
         case PGP_PKT_ONE_PASS_SIG:
         case PGP_PKT_SIGNATURE:
-            ret = init_signed_src(ctx, &psrc, lsrc);
+            ret = init_signed_src(&ctx->handler, &psrc, lsrc);
             break;
         case PGP_PKT_COMPRESSED:
             ret = init_compressed_src(&psrc, lsrc);
@@ -2217,7 +2217,7 @@ init_cleartext_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
     pgp_source_t clrsrc = {0};
     rnp_result_t res;
 
-    if ((res = init_signed_src(ctx, &clrsrc, src))) {
+    if ((res = init_signed_src(&ctx->handler, &clrsrc, src))) {
         return res;
     }
 
