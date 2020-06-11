@@ -6833,6 +6833,162 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    // init ffi
+    test_ffi_init(&ffi);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+
+    /* message just signed */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    char *mode = NULL;
+    char *cipher = NULL;
+    bool  valid = true;
+    assert_rnp_failure(rnp_op_verify_get_protection_info(NULL, &mode, &cipher, &valid));
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, NULL, NULL));
+    assert_int_equal(strcmp(mode, "none"), 0);
+    rnp_buffer_destroy(mode);
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, NULL, &cipher, NULL));
+    assert_int_equal(strcmp(cipher, "none"), 0);
+    rnp_buffer_destroy(cipher);
+    valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, NULL, NULL, &valid));
+    assert_false(valid);
+    assert_rnp_failure(rnp_op_verify_get_protection_info(verify, NULL, NULL, NULL));
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "none"), 0);
+    assert_int_equal(strcmp(cipher, "none"), 0);
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message without MDC */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "cfb"), 0);
+    assert_int_equal(strcmp(cipher, "AES256"), 0);
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with MDC */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.enc-mdc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "cfb-mdc"), 0);
+    assert_int_equal(strcmp(cipher, "AES256"), 0);
+    assert_true(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-OCB */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "aead-ocb"), 0);
+    assert_int_equal(strcmp(cipher, "CAMELLIA192"), 0);
+    assert_true(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* modified message with AEAD-OCB */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb-malf"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "aead-ocb"), 0);
+    assert_int_equal(strcmp(cipher, "CAMELLIA192"), 0);
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-EAX */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-eax"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "aead-eax"), 0);
+    assert_int_equal(strcmp(cipher, "AES256"), 0);
+    assert_true(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* modified message with AEAD-EAX */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-eax-malf"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_int_equal(strcmp(mode, "aead-eax"), 0);
+    assert_int_equal(strcmp(cipher, "AES256"), 0);
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
 static bool
 check_import_sigs(rnp_ffi_t ffi, json_object **jso, json_object **sigarr, const char *sigpath)
 {
