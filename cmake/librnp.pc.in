@@ -8,5 +8,6 @@ Description: @PACKAGE_DESCRIPTION_SHORT@
 Version: @PROJECT_VERSION@
 
 Libs: -L${libdir} -l@LIBRNP_OUTPUT_NAME@
+Libs.private: @LIBRNP_PRIVATE_LIBS@
 Cflags: -I${includedir}
 
