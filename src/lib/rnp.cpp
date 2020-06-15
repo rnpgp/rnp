@@ -197,6 +197,11 @@ static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
                                          {PGP_HASH_SM3, RNP_ALGNAME_SM3},
                                          {PGP_HASH_CRC24, RNP_ALGNAME_CRC24}};
 
+static const pgp_map_t s2k_type_map[] = {
+  {PGP_S2KS_SIMPLE, "Simple"},
+  {PGP_S2KS_SALTED, "Salted"},
+  {PGP_S2KS_ITERATED_AND_SALTED, "Iterated and salted"}};
+
 static const pgp_bit_map_t key_usage_map[] = {{PGP_KF_SIGN, "sign"},
                                               {PGP_KF_CERTIFY, "certify"},
                                               {PGP_KF_ENCRYPT, "encrypt"},
@@ -2703,6 +2708,85 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
 }
 
 static void
+recipient_handle_from_pk_sesskey(rnp_recipient_handle_t  handle,
+                                 const pgp_pk_sesskey_t &sesskey)
+{
+    memcpy(handle->keyid, sesskey.key_id, PGP_KEY_ID_SIZE);
+    handle->palg = sesskey.alg;
+}
+
+static void
+symenc_handle_from_sk_sesskey(rnp_symenc_handle_t handle, const pgp_sk_sesskey_t &sesskey)
+{
+    handle->alg = sesskey.alg;
+    handle->halg = sesskey.s2k.hash_alg;
+    handle->s2k_type = sesskey.s2k.specifier;
+    if (sesskey.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        handle->iterations = pgp_s2k_decode_iterations(sesskey.s2k.iterations);
+    } else {
+        handle->iterations = 1;
+    }
+    handle->aalg = sesskey.aalg;
+}
+
+static void
+rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
+                         const std::vector<pgp_sk_sesskey_t> &passwords,
+                         void *                               param)
+{
+    rnp_op_verify_t op = (rnp_op_verify_t) param;
+    if (!recipients.empty()) {
+        op->recipients =
+          (rnp_recipient_handle_t) calloc(recipients.size(), sizeof(*op->recipients));
+        if (!op->recipients) {
+            FFI_LOG(op->ffi, "allocation failed");
+            return;
+        }
+        for (size_t i = 0; i < recipients.size(); i++) {
+            recipient_handle_from_pk_sesskey(&op->recipients[i], recipients[i]);
+        }
+    }
+    op->recipient_count = recipients.size();
+
+    if (!passwords.empty()) {
+        op->symencs = (rnp_symenc_handle_t) calloc(passwords.size(), sizeof(*op->symencs));
+        if (!op->symencs) {
+            FFI_LOG(op->ffi, "allocation failed");
+            return;
+        }
+        for (size_t i = 0; i < passwords.size(); i++) {
+            symenc_handle_from_sk_sesskey(&op->symencs[i], passwords[i]);
+        }
+    }
+    op->symenc_count = passwords.size();
+}
+
+static void
+rnp_verify_on_decryption_start(pgp_pk_sesskey_t *pubenc, pgp_sk_sesskey_t *symenc, void *param)
+{
+    rnp_op_verify_t op = (rnp_op_verify_t) param;
+    if (pubenc) {
+        op->used_recipient = (rnp_recipient_handle_t) calloc(1, sizeof(*op->used_recipient));
+        if (!op->used_recipient) {
+            FFI_LOG(op->ffi, "allocation failed");
+            return;
+        }
+        recipient_handle_from_pk_sesskey(op->used_recipient, *pubenc);
+        return;
+    }
+    if (symenc) {
+        op->used_symenc = (rnp_symenc_handle_t) calloc(1, sizeof(*op->used_symenc));
+        if (!op->used_symenc) {
+            FFI_LOG(op->ffi, "allocation failed");
+            return;
+        }
+        symenc_handle_from_sk_sesskey(op->used_symenc, *symenc);
+        return;
+    }
+    FFI_LOG(op->ffi, "Warning! Both pubenc and symenc are NULL.");
+}
+
+static void
 rnp_verify_on_decryption_info(bool mdc, pgp_aead_alg_t aead, pgp_symm_alg_t salg, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
@@ -2775,6 +2859,8 @@ rnp_op_verify_execute(rnp_op_verify_t op)
     handler.on_signatures = rnp_op_verify_on_signatures;
     handler.src_provider = rnp_verify_src_provider;
     handler.dest_provider = rnp_verify_dest_provider;
+    handler.on_recipients = rnp_verify_on_recipients;
+    handler.on_decryption_start = rnp_verify_on_decryption_start;
     handler.on_decryption_info = rnp_verify_on_decryption_info;
     handler.on_decryption_done = rnp_verify_on_decryption_done;
     handler.param = op;
@@ -2888,6 +2974,138 @@ rnp_op_verify_get_protection_info(rnp_op_verify_t op, char **mode, char **cipher
 }
 
 rnp_result_t
+rnp_op_verify_get_recipient_count(rnp_op_verify_t op, size_t *count)
+{
+    if (!op || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = op->recipient_count;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_get_used_recipient(rnp_op_verify_t op, rnp_recipient_handle_t *recipient)
+{
+    if (!op || !recipient) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *recipient = op->used_recipient;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_get_recipient_at(rnp_op_verify_t         op,
+                               size_t                  idx,
+                               rnp_recipient_handle_t *recipient)
+{
+    if (!op || !recipient) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (idx >= op->recipient_count) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *recipient = &op->recipients[idx];
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_recipient_get_keyid(rnp_recipient_handle_t recipient, char **keyid)
+{
+    if (!recipient || !keyid) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
+}
+
+rnp_result_t
+rnp_recipient_get_alg(rnp_recipient_handle_t recipient, char **alg)
+{
+    if (!recipient || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return get_map_value(pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), recipient->palg, alg);
+}
+
+rnp_result_t
+rnp_op_verify_get_symenc_count(rnp_op_verify_t op, size_t *count)
+{
+    if (!op || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *count = op->symenc_count;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_get_used_symenc(rnp_op_verify_t op, rnp_symenc_handle_t *symenc)
+{
+    if (!op || !symenc) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *symenc = op->used_symenc;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_op_verify_get_symenc_at(rnp_op_verify_t op, size_t idx, rnp_symenc_handle_t *symenc)
+{
+    if (!op || !symenc) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (idx >= op->symenc_count) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *symenc = &op->symencs[idx];
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_symenc_get_cipher(rnp_symenc_handle_t symenc, char **cipher)
+{
+    if (!symenc || !cipher) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return get_map_value(symm_alg_map, ARRAY_SIZE(symm_alg_map), symenc->alg, cipher);
+}
+
+rnp_result_t
+rnp_symenc_get_aead_alg(rnp_symenc_handle_t symenc, char **alg)
+{
+    if (!symenc || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return get_map_value(aead_alg_map, ARRAY_SIZE(aead_alg_map), symenc->aalg, alg);
+}
+
+rnp_result_t
+rnp_symenc_get_hash_alg(rnp_symenc_handle_t symenc, char **alg)
+{
+    if (!symenc || !alg) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), symenc->halg, alg);
+}
+
+rnp_result_t
+rnp_symenc_get_s2k_type(rnp_symenc_handle_t symenc, char **type)
+{
+    if (!symenc || !type) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return get_map_value(s2k_type_map, ARRAY_SIZE(s2k_type_map), symenc->s2k_type, type);
+}
+
+rnp_result_t
+rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc, uint32_t *iterations)
+{
+    if (!symenc || !iterations) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *iterations = symenc->iterations;
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_op_verify_destroy(rnp_op_verify_t op)
 {
     if (op) {
@@ -2897,6 +3115,10 @@ rnp_op_verify_destroy(rnp_op_verify_t op)
         }
         free(op->signatures);
         free(op->filename);
+        free(op->recipients);
+        free(op->used_recipient);
+        free(op->symencs);
+        free(op->used_symenc);
         free(op);
     }
     return RNP_SUCCESS;

@@ -170,6 +170,8 @@ typedef struct rnp_op_encrypt_st *         rnp_op_encrypt_t;
 typedef struct rnp_identifier_iterator_st *rnp_identifier_iterator_t;
 typedef struct rnp_uid_handle_st *         rnp_uid_handle_t;
 typedef struct rnp_signature_handle_st *   rnp_signature_handle_t;
+typedef struct rnp_recipient_handle_st *   rnp_recipient_handle_t;
+typedef struct rnp_symenc_handle_st *      rnp_symenc_handle_t;
 
 /* Callbacks */
 /**
@@ -1663,6 +1665,149 @@ rnp_result_t rnp_op_verify_get_protection_info(rnp_op_verify_t op,
                                                char **         mode,
                                                char **         cipher,
                                                bool *          valid);
+
+/**
+ * @brief Get number of public keys (recipients) to whom message was encrypted to.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param count on success number of keys will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_recipient_count(rnp_op_verify_t op, size_t *count);
+
+/**
+ * @brief Get the recipient's handle, used to decrypt message.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param recipient pointer to the opaque handle context. Cannot be NULL. If recipient's key
+ *                  was used to decrypt a message then handle will be stored here, otherwise
+ *                  it will be set to NULL.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_used_recipient(rnp_op_verify_t         op,
+                                              rnp_recipient_handle_t *recipient);
+
+/**
+ * @brief Get the recipient's handle by index.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param idx zero-based index in array.
+ * @param recipient pointer to the opaque handle context. Cannot be NULL. On success handle
+ *                  will be stored here.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_recipient_at(rnp_op_verify_t         op,
+                                            size_t                  idx,
+                                            rnp_recipient_handle_t *recipient);
+
+/**
+ * @brief Get recipient's keyid.
+ *
+ * @param recipient recipient's handle, obtained via rnp_op_verify_get_used_recipient() or
+ *                  rnp_op_verify_get_recipient_at() function call. Cannot be NULL.
+ * @param keyid on success pointer to NULL-terminated string with hex-encoded keyid will be
+ *              stored here. Cannot be NULL. Must be freed using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_recipient_get_keyid(rnp_recipient_handle_t recipient, char **keyid);
+
+/**
+ * @brief Get recipient's key algorithm.
+ *
+ * @param recipient recipient's handle, obtained via rnp_op_verify_get_used_recipient() or
+ *                  rnp_op_verify_get_recipient_at() function call. Cannot be NULL.
+ * @param alg on success pointer to NULL-terminated string with algorithm will be stored here.
+ *            Cannot be NULL. Must be freed using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_recipient_get_alg(rnp_recipient_handle_t recipient, char **alg);
+
+/**
+ * @brief Get number of symenc entries (i.e. passwords), to which message was encrypted.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param count on success number of keys will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_symenc_count(rnp_op_verify_t op, size_t *count);
+
+/**
+ * @brief Get the symenc handle, used to decrypt a message.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param symenc pointer to the opaque symenc context. Cannot be NULL. If password was used to
+ *               decrypt a message then handle will be stored here, otherwise it will be set to
+ *               NULL.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_used_symenc(rnp_op_verify_t op, rnp_symenc_handle_t *symenc);
+
+/**
+ * @brief Get the symenc handle by index.
+ *
+ * @param op opaque verification context. Must be initialized and have execute() called on it.
+ * @param idx zero-based index in array.
+ * @param symenc pointer to the opaque handle context. Cannot be NULL. On success handle
+ *               will be stored here.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_op_verify_get_symenc_at(rnp_op_verify_t      op,
+                                         size_t               idx,
+                                         rnp_symenc_handle_t *symenc);
+
+/**
+ * @brief Get the symmetric cipher, used to encrypt data encryption key.
+ *        Note: if message is encrypted with only one passphrase and without public keys, then
+ *        key, derived from password, may be used to encrypt the whole message.
+ * @param symenc opaque handle, cannot be NULL.
+ * @param cipher NULL-terminated string with cipher's name will be stored here. Cannot be NULL.
+ *               Must be freed using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_symenc_get_cipher(rnp_symenc_handle_t symenc, char **cipher);
+
+/**
+ * @brief Get AEAD algorithm if it was used to encrypt data encryption key.
+ *
+ * @param symenc opaque handle, cannot be NULL.
+ * @param alg NULL-terminated string with AEAD algorithm name will be stored here. If AEAD was
+ *            not used then it will contain string 'None'. Must be freed using the
+ *            rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_symenc_get_aead_alg(rnp_symenc_handle_t symenc, char **alg);
+
+/**
+ * @brief Get hash algorithm, used to derive key from the passphrase.
+ *
+ * @param symenc opaque handle, cannot be NULL.
+ * @param alg NULL-terminated string with hash algorithm name will be stored here. Cannot be
+ *            NULL. Must be freed using the rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_symenc_get_hash_alg(rnp_symenc_handle_t symenc, char **alg);
+
+/**
+ * @brief Get string-to-key type, used to derive password.
+ *
+ * @param symenc opaque handle, cannot be NULL.
+ * @param type NULL-terminated string with s2k type will be stored here. Currently following
+ *             types are available: 'Simple', 'Salted', 'Iterated and salted'. Please note that
+ *             first two are considered weak and should not be used. Must be freed using the
+ *             rnp_buffer_destroy().
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_symenc_get_s2k_type(rnp_symenc_handle_t symenc, char **type);
+
+/**
+ * @brief Get number of iterations in iterated-and-salted S2K, if it was used.
+ *
+ * @param symenc opaque handle, cannot be NULL.
+ * @param iterations on success number of iterations will be stored here. Cannot be NULL.
+ *                   If non-iterated s2k was used then will be set to 0.
+ * @return RNP_SUCCESS if call succeeded, or error code otherwise.
+ */
+rnp_result_t rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc, uint32_t *iterations);
 
 /** @brief Free resources allocated in verification context.
  *  @param op opaque verification context. Must be initialized.
