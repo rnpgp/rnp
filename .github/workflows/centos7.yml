@@ -71,4 +71,66 @@ jobs:
           set -x
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ./ci/run.sh
+  pkgconfig:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container:
+      image: centos:7
+    timeout-minutes: 10
+    strategy:
+      matrix:
+        env:
+          - BUILD_SHARED_LIBS: yes
+          - BUILD_SHARED_LIBS: no
+    env: ${{ matrix.env }}
+    steps:
+      - run: |
+          yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+          yum -y install git
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Test
+        run: |
+          # cmake
+          set -euxo pipefail
+          pushd /
+          curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
+          sh cmake.sh --skip-license --prefix=/usr
+          popd
+          # packages
+          rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+          curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+          yum -y install epel-release
+          yum -y install json-c12-devel git gcc gcc-c++ make autoconf automake libtool bzip2-devel \
+            zlib-devel botan2-devel
+          # build+install
+          cmake -DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS -DBUILD_TESTING=no -DCMAKE_INSTALL_PREFIX=/usr .
+          make -j2 install
+          # check for install issues
+          rnpsrc="$PWD"
+          cd /tmp
+          if [ $BUILD_SHARED_LIBS == "yes" ]; then
+            pkgflags=
+            gccflags=
+            if [ ! -e "/usr/lib64/"librnp*.so ] || [ -e "/usr/lib64/"librnp*.a ]; then
+              echo "librnp installed libraries incorrect"
+            fi
+          else
+            pkgflags=--static
+            gccflags=-lstdc++
+            if [ ! -e "/usr/lib64/"librnp*.a ] || [ -e "/usr/lib64/"librnp*.so ]; then
+              echo "librnp installed libraries incorrect"
+            fi
+          fi
+          # build an example using pkg-config
+          gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp-0) $gccflags
+          ./generate
+          readelf -d generate
+          if [ $BUILD_SHARED_LIBS == "yes" ]; then
+            readelf -d generate | grep -q librnp-
+          else
+            readelf -d generate | grep -qv librnp-
+          fi
+          exit 0
 
