@@ -49,6 +49,21 @@ struct rnp_signature_handle_st {
     bool          own_sig;
 };
 
+struct rnp_recipient_handle_st {
+    rnp_ffi_t        ffi;
+    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp_pubkey_alg_t palg;
+};
+
+struct rnp_symenc_handle_st {
+    rnp_ffi_t           ffi;
+    pgp_symm_alg_t      alg;
+    pgp_hash_alg_t      halg;
+    pgp_s2k_specifier_t s2k_type;
+    uint32_t            iterations;
+    pgp_aead_alg_t      aalg;
+};
+
 struct rnp_ffi_st {
     FILE *                  errs;
     rnp_key_store_t *       pubring;
@@ -132,11 +147,19 @@ struct rnp_op_verify_st {
     size_t                    signature_count;
     char *                    filename;
     uint32_t                  file_mtime;
-    bool                      encrypted;
-    bool                      mdc;
-    bool                      validated;
-    pgp_aead_alg_t            aead;
-    pgp_symm_alg_t            salg;
+    /* encryption information */
+    bool           encrypted;
+    bool           mdc;
+    bool           validated;
+    pgp_aead_alg_t aead;
+    pgp_symm_alg_t salg;
+    /* recipient/symenc information */
+    rnp_recipient_handle_t recipients;
+    size_t                 recipient_count;
+    rnp_recipient_handle_t used_recipient;
+    rnp_symenc_handle_t    symencs;
+    size_t                 symenc_count;
+    rnp_symenc_handle_t    used_symenc;
 };
 
 struct rnp_op_encrypt_st {
