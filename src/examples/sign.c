@@ -25,7 +25,6 @@
  */
 
 #include <rnp/rnp.h>
-#include <repgp/repgp_def.h>
 #include <string.h>
 #include <time.h>
 
