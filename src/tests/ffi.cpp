@@ -6990,6 +6990,383 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
 }
 
 static bool
+getpasscb_for_key(rnp_ffi_t        ffi,
+                  void *           app_ctx,
+                  rnp_key_handle_t key,
+                  const char *     pgp_context,
+                  char *           buf,
+                  size_t           buf_len)
+{
+    if (!key) {
+        return false;
+    }
+    char *keyid = NULL;
+    rnp_key_get_keyid(key, &keyid);
+    const char *pass = "password";
+    if (strcmp(keyid, (const char *) app_ctx) != 0) {
+        pass = "wrongpassword";
+    }
+    rnp_buffer_destroy(keyid);
+    strcpy(buf, pass);
+    return true;
+}
+
+TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    // init ffi
+    test_ffi_init(&ffi);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+
+    /* message just signed */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* rnp_op_verify_get_recipient_count */
+    assert_rnp_failure(rnp_op_verify_get_recipient_count(verify, NULL));
+    size_t count = 255;
+    assert_rnp_failure(rnp_op_verify_get_recipient_count(NULL, &count));
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 0);
+    /* rnp_op_verify_get_recipient_at */
+    rnp_recipient_handle_t recipient = NULL;
+    assert_rnp_failure(rnp_op_verify_get_recipient_at(NULL, 0, &recipient));
+    assert_rnp_failure(rnp_op_verify_get_recipient_at(verify, 0, NULL));
+    assert_rnp_failure(rnp_op_verify_get_recipient_at(verify, 0, &recipient));
+    assert_rnp_failure(rnp_op_verify_get_recipient_at(verify, 10, &recipient));
+    /* rnp_op_verify_get_used_recipient */
+    assert_rnp_failure(rnp_op_verify_get_used_recipient(NULL, &recipient));
+    assert_rnp_failure(rnp_op_verify_get_used_recipient(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_null(recipient);
+    /* rnp_op_verify_get_symenc_count */
+    assert_rnp_failure(rnp_op_verify_get_symenc_count(verify, NULL));
+    count = 255;
+    assert_rnp_failure(rnp_op_verify_get_symenc_count(NULL, &count));
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 0);
+    /* rnp_op_verify_get_symenc_at */
+    rnp_symenc_handle_t symenc = NULL;
+    assert_rnp_failure(rnp_op_verify_get_symenc_at(NULL, 0, &symenc));
+    assert_rnp_failure(rnp_op_verify_get_symenc_at(verify, 0, NULL));
+    assert_rnp_failure(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_rnp_failure(rnp_op_verify_get_symenc_at(verify, 10, &symenc));
+    /* rnp_op_verify_get_used_symenc */
+    assert_rnp_failure(rnp_op_verify_get_used_symenc(NULL, &symenc));
+    assert_rnp_failure(rnp_op_verify_get_used_symenc(verify, NULL));
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_null(symenc);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message without MDC: single recipient */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_failure(rnp_op_verify_get_recipient_at(verify, 1, &recipient));
+    assert_rnp_success(rnp_op_verify_get_recipient_at(verify, 0, &recipient));
+    assert_non_null(recipient);
+    char *alg = NULL;
+    assert_rnp_failure(rnp_recipient_get_alg(NULL, &alg));
+    assert_rnp_failure(rnp_recipient_get_alg(recipient, NULL));
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    char *keyid = NULL;
+    assert_rnp_failure(rnp_recipient_get_keyid(NULL, &keyid));
+    assert_rnp_failure(rnp_recipient_get_keyid(recipient, NULL));
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "8A05B89FAD5ADED1");
+    rnp_buffer_destroy(keyid);
+    recipient = NULL;
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_non_null(recipient);
+    alg = NULL;
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    keyid = NULL;
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "8A05B89FAD5ADED1");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-OCB: single password */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_failure(rnp_op_verify_get_symenc_at(verify, 1, &symenc));
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_non_null(symenc);
+    char *cipher = NULL;
+    assert_rnp_failure(rnp_symenc_get_cipher(symenc, NULL));
+    assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+    assert_string_equal(cipher, "CAMELLIA192");
+    rnp_buffer_destroy(cipher);
+    char *aead = NULL;
+    assert_rnp_failure(rnp_symenc_get_aead_alg(symenc, NULL));
+    assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+    assert_string_equal(aead, "OCB");
+    rnp_buffer_destroy(aead);
+    char *hash = NULL;
+    assert_rnp_failure(rnp_symenc_get_hash_alg(symenc, NULL));
+    assert_rnp_success(rnp_symenc_get_hash_alg(symenc, &hash));
+    assert_string_equal(hash, "SHA1");
+    rnp_buffer_destroy(hash);
+    char *s2k = NULL;
+    assert_rnp_failure(rnp_symenc_get_s2k_type(symenc, NULL));
+    assert_rnp_success(rnp_symenc_get_s2k_type(symenc, &s2k));
+    assert_string_equal(s2k, "Iterated and salted");
+    rnp_buffer_destroy(s2k);
+    uint32_t iterations = 0;
+    assert_rnp_failure(rnp_symenc_get_s2k_iterations(symenc, NULL));
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 30408704);
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_non_null(symenc);
+    cipher = NULL;
+    assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+    assert_string_equal(cipher, "CAMELLIA192");
+    rnp_buffer_destroy(cipher);
+    aead = NULL;
+    assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+    assert_string_equal(aead, "OCB");
+    rnp_buffer_destroy(aead);
+    hash = NULL;
+    assert_rnp_success(rnp_symenc_get_hash_alg(symenc, &hash));
+    assert_string_equal(hash, "SHA1");
+    rnp_buffer_destroy(hash);
+    s2k = NULL;
+    assert_rnp_success(rnp_symenc_get_s2k_type(symenc, &s2k));
+    assert_string_equal(s2k, "Iterated and salted");
+    rnp_buffer_destroy(s2k);
+    iterations = 0;
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 30408704);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* modified message with AEAD-EAX: one recipient and one password, decrypt with recipient
+     */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-eax-malf"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_recipient_at(verify, 0, &recipient));
+    assert_non_null(recipient);
+    alg = NULL;
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    keyid = NULL;
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "1ED63EE56FADC34D");
+    rnp_buffer_destroy(keyid);
+    recipient = NULL;
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_non_null(recipient);
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "1ED63EE56FADC34D");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_non_null(recipient);
+    alg = NULL;
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    keyid = NULL;
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "1ED63EE56FADC34D");
+    rnp_buffer_destroy(keyid);
+    recipient = NULL;
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_non_null(recipient);
+    assert_rnp_success(rnp_recipient_get_alg(recipient, &alg));
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "1ED63EE56FADC34D");
+    rnp_buffer_destroy(keyid);
+
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_non_null(symenc);
+    cipher = NULL;
+    assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+    assert_string_equal(cipher, "AES256");
+    rnp_buffer_destroy(cipher);
+    aead = NULL;
+    assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+    assert_string_equal(aead, "EAX");
+    rnp_buffer_destroy(aead);
+    hash = NULL;
+    assert_rnp_success(rnp_symenc_get_hash_alg(symenc, &hash));
+    assert_string_equal(hash, "SHA256");
+    rnp_buffer_destroy(hash);
+    s2k = NULL;
+    assert_rnp_success(rnp_symenc_get_s2k_type(symenc, &s2k));
+    assert_string_equal(s2k, "Iterated and salted");
+    rnp_buffer_destroy(s2k);
+    iterations = 0;
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 3932160);
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_null(symenc);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-EAX: one recipient and one password, decrypt with password */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-eax"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_null(recipient);
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_non_null(symenc);
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_non_null(symenc);
+    cipher = NULL;
+    assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+    assert_string_equal(cipher, "AES256");
+    rnp_buffer_destroy(cipher);
+    aead = NULL;
+    assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+    assert_string_equal(aead, "EAX");
+    rnp_buffer_destroy(aead);
+    hash = NULL;
+    assert_rnp_success(rnp_symenc_get_hash_alg(symenc, &hash));
+    assert_string_equal(hash, "SHA256");
+    rnp_buffer_destroy(hash);
+    s2k = NULL;
+    assert_rnp_success(rnp_symenc_get_s2k_type(symenc, &s2k));
+    assert_string_equal(s2k, "Iterated and salted");
+    rnp_buffer_destroy(s2k);
+    iterations = 0;
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 3932160);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message encrypted to 3 recipients and 2 passwords: password1, password2 */
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrongpassword"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-3key-2p"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_op_verify_get_recipient_at(verify, 0, &recipient));
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "1ED63EE56FADC34D");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_op_verify_get_recipient_at(verify, 1, &recipient));
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "8A05B89FAD5ADED1");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_op_verify_get_recipient_at(verify, 2, &recipient));
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "54505A936A4A970E");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_null(recipient);
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 2);
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 3932160);
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 1, &symenc));
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_int_equal(iterations, 3276800);
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_null(symenc);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password2"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-3key-2p"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_null(recipient);
+    assert_int_equal(iterations, 3276800);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, getpasscb_for_key, (void *) "8A05B89FAD5ADED1"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-3key-2p"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    assert_null(symenc);
+    assert_rnp_success(rnp_op_verify_get_used_recipient(verify, &recipient));
+    assert_rnp_success(rnp_recipient_get_keyid(recipient, &keyid));
+    assert_string_equal(keyid, "8A05B89FAD5ADED1");
+    rnp_buffer_destroy(keyid);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
+
+static bool
 check_import_sigs(rnp_ffi_t ffi, json_object **jso, json_object **sigarr, const char *sigpath)
 {
     rnp_input_t input = NULL;
