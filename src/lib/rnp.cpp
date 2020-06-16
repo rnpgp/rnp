@@ -387,6 +387,27 @@ hex_encode_value(const uint8_t *value, size_t len, char **res, rnp_hex_format_t 
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+get_map_value(const pgp_map_t *map, size_t msize, int val, char **res)
+{
+    const char *str = NULL;
+    for (size_t i = 0; i < msize; i++) {
+        if (map[i].type == val) {
+            str = map[i].string;
+            break;
+        }
+    }
+    if (!str) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    char *strcp = strdup(str);
+    if (!strcp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    *res = strcp;
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -2930,14 +2951,7 @@ rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
     if (!sig || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    const char *hname = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, sig->sig_pkt.halg, hname);
-    if (hname) {
-        *hash = strdup(hname);
-        return RNP_SUCCESS;
-    }
-    return RNP_ERROR_BAD_STATE;
+    return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), sig->sig_pkt.halg, hash);
 }
 
 rnp_result_t
@@ -5141,18 +5155,8 @@ rnp_signature_get_alg(rnp_signature_handle_t handle, char **alg)
     if (!handle->sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const char *str = NULL;
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, handle->sig->sig.palg, str);
-    if (!str) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    char *algcp = strdup(str);
-    if (!algcp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    *alg = algcp;
-    return RNP_SUCCESS;
+    return get_map_value(
+      pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), handle->sig->sig.palg, alg);
 }
 
 rnp_result_t
@@ -5164,18 +5168,7 @@ rnp_signature_get_hash_alg(rnp_signature_handle_t handle, char **alg)
     if (!handle->sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const char *str = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, handle->sig->sig.halg, str);
-    if (!str) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    char *algcp = strdup(str);
-    if (!algcp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    *alg = algcp;
-    return RNP_SUCCESS;
+    return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), handle->sig->sig.halg, alg);
 }
 
 rnp_result_t
@@ -5325,21 +5318,9 @@ rnp_key_get_alg(rnp_key_handle_t handle, char **alg)
     if (!handle || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
-    pgp_key_t * key = get_key_prefer_public(handle);
-    const char *str = NULL;
-
-    ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pgp_key_get_alg(key), str);
-    if (!str) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    char *algcp = strdup(str);
-    if (!algcp) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    *alg = algcp;
-    return RNP_SUCCESS;
+    pgp_key_t *key = get_key_prefer_public(handle);
+    return get_map_value(
+      pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), pgp_key_get_alg(key), alg);
 }
 
 rnp_result_t
