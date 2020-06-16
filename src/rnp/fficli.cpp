@@ -1636,8 +1636,8 @@ stdout_writer(void *app_ctx, const void *buf, size_t len)
 bool
 cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
-    bool secret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
-    int  flags = CLI_SEARCH_SUBKEYS_AFTER | (secret ? CLI_SEARCH_SECRET : 0);
+    bool                          secret = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_SECRET);
+    int                           flags = secret ? CLI_SEARCH_SECRET : 0;
     std::vector<rnp_key_handle_t> keys;
 
     if (!cli_rnp_keys_matching_string(rnp, keys, filter, flags)) {
