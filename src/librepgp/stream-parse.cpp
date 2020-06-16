@@ -1502,6 +1502,10 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
 
         param->salg = param->aead ? param->aead_hdr.ealg : alg;
         res = 1;
+        /* inform handler that we used this symenc */
+        if (param->handler->on_decryption_start) {
+            param->handler->on_decryption_start(NULL, &skey, param->handler->param);
+        }
         goto finish;
     }
 
@@ -1869,7 +1873,6 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     rnp_result_t                  errcode = RNP_ERROR_GENERIC;
     pgp_source_encrypted_param_t *param;
     pgp_key_t *                   seckey = NULL;
-    pgp_key_request_ctx_t         keyctx;
     pgp_key_pkt_t *               decrypted_seckey = NULL;
     char                          password[MAX_PASSWORD_LENGTH] = {0};
     int                           intres;
@@ -1903,6 +1906,11 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
+    /* informing handler about the available pubencs/symencs */
+    if (handler->on_recipients) {
+        handler->on_recipients(param->pubencs, param->symencs, handler->param);
+    }
+
     /* Trying public-key decryption */
     if (!param->pubencs.empty()) {
         if (!handler->key_provider) {
@@ -1911,6 +1919,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
+        pgp_key_request_ctx_t keyctx = {};
         keyctx.op = PGP_OP_DECRYPT_SYM;
         keyctx.secret = true;
         keyctx.search.type = PGP_KEY_SEARCH_KEYID;
@@ -1939,6 +1948,10 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             if (encrypted_try_key(
                   param, &pubenc, decrypted_seckey, rnp_ctx_rng_handle(handler->ctx))) {
                 have_key = true;
+                /* inform handler that we used this pubenc */
+                if (handler->on_decryption_start) {
+                    handler->on_decryption_start(&pubenc, NULL, handler->param);
+                }
             }
 
             /* Destroy decrypted key */

@@ -43,6 +43,12 @@ typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
 typedef void pgp_signatures_func_t(pgp_signature_info_t *sigs, int count, void *param);
 
+typedef void pgp_on_recipients_func_t(const std::vector<pgp_pk_sesskey_t> &recipients,
+                                      const std::vector<pgp_sk_sesskey_t> &passwords,
+                                      void *                               param);
+typedef void pgp_decryption_start_func_t(pgp_pk_sesskey_t *pubenc,
+                                         pgp_sk_sesskey_t *symenc,
+                                         void *            param);
 typedef void pgp_decryption_info_func_t(bool           mdc,
                                         pgp_aead_alg_t aead,
                                         pgp_symm_alg_t salg,
@@ -58,9 +64,11 @@ typedef struct pgp_parse_handler_t {
     pgp_destination_func_t *dest_provider; /* called when destination stream is required */
     pgp_source_func_t *     src_provider;  /* required to provider source during the detached
                                               signature verification */
-    pgp_decryption_info_func_t *on_decryption_info; /* called when decryption is started */
-    pgp_decryption_done_func_t *on_decryption_done; /* called when decryption is finished */
-    pgp_signatures_func_t *     on_signatures;      /* for signature verification results */
+    pgp_on_recipients_func_t *   on_recipients;       /* called before decryption start */
+    pgp_decryption_start_func_t *on_decryption_start; /* called when decryption key obtained */
+    pgp_decryption_info_func_t * on_decryption_info;  /* called when decryption is started */
+    pgp_decryption_done_func_t * on_decryption_done;  /* called when decryption is finished */
+    pgp_signatures_func_t *      on_signatures;       /* for signature verification results */
 
     rnp_ctx_t *ctx;   /* operation context */
     void *     param; /* additional parameters */
