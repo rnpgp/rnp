@@ -371,6 +371,22 @@ parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
     return true;
 }
 
+static rnp_result_t
+hex_encode_value(const uint8_t *value, size_t len, char **res, rnp_hex_format_t format)
+{
+    size_t hex_len = len * 2 + 1;
+    *res = (char *) malloc(hex_len);
+    if (!*res) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    if (!rnp_hex_encode(value, len, *res, hex_len, format)) {
+        free(*res);
+        *res = NULL;
+        return RNP_ERROR_GENERIC;
+    }
+    return RNP_SUCCESS;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 {
@@ -5212,18 +5228,7 @@ rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
         return RNP_SUCCESS;
     }
 
-    size_t hex_len = PGP_KEY_ID_SIZE * 2 + 1;
-    *result = (char *) malloc(hex_len);
-    if (!*result) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    if (!rnp_hex_encode(keyid, PGP_KEY_ID_SIZE, *result, hex_len, RNP_HEX_UPPERCASE)) {
-        free(*result);
-        *result = NULL;
-        return RNP_ERROR_GENERIC;
-    }
-    return RNP_SUCCESS;
+    return hex_encode_value(keyid, PGP_KEY_ID_SIZE, result, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
@@ -5415,70 +5420,40 @@ rnp_key_get_curve(rnp_key_handle_t handle, char **curve)
 rnp_result_t
 rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
 {
-    if (handle == NULL || fprint == NULL)
+    if (!handle || !fprint) {
         return RNP_ERROR_NULL_POINTER;
-
-    size_t hex_len = PGP_FINGERPRINT_HEX_SIZE + 1;
-    *fprint = (char *) malloc(hex_len);
-    if (*fprint == NULL)
-        return RNP_ERROR_OUT_OF_MEMORY;
-
-    pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
-                        pgp_key_get_fp(key)->length,
-                        *fprint,
-                        hex_len,
-                        RNP_HEX_UPPERCASE)) {
-        return RNP_ERROR_GENERIC;
     }
-    return RNP_SUCCESS;
+
+    const pgp_fingerprint_t *fp = pgp_key_get_fp(get_key_prefer_public(handle));
+    return hex_encode_value(fp->fingerprint, fp->length, fprint, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
 rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
 {
-    if (handle == NULL || keyid == NULL)
+    if (!handle || !keyid) {
         return RNP_ERROR_NULL_POINTER;
-
-    size_t hex_len = PGP_KEY_ID_SIZE * 2 + 1;
-    *keyid = (char *) malloc(hex_len);
-    if (*keyid == NULL)
-        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(
-          pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, *keyid, hex_len, RNP_HEX_UPPERCASE)) {
-        return RNP_ERROR_GENERIC;
-    }
-    return RNP_SUCCESS;
+    return hex_encode_value(pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
 rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
 {
-    if (handle == NULL || grip == NULL)
+    if (!handle || !grip) {
         return RNP_ERROR_NULL_POINTER;
-
-    size_t hex_len = PGP_KEY_GRIP_SIZE * 2 + 1;
-    *grip = (char *) malloc(hex_len);
-    if (*grip == NULL)
-        return RNP_ERROR_OUT_OF_MEMORY;
-
-    pgp_key_t *key = get_key_prefer_public(handle);
-    if (!rnp_hex_encode(pgp_key_get_grip(key).data(),
-                        pgp_key_get_grip(key).size(),
-                        *grip,
-                        hex_len,
-                        RNP_HEX_UPPERCASE)) {
-        return RNP_ERROR_GENERIC;
     }
-    return RNP_SUCCESS;
+
+    const pgp_key_grip_t &kgrip = pgp_key_get_grip(get_key_prefer_public(handle));
+    return hex_encode_value(kgrip.data(), kgrip.size(), grip, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
 rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
 {
-    if (handle == NULL || grip == NULL) {
+    if (!handle || !grip) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -5490,20 +5465,8 @@ rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
         *grip = NULL;
         return RNP_SUCCESS;
     }
-    size_t hex_len = PGP_KEY_GRIP_SIZE * 2 + 1;
-    *grip = (char *) malloc(hex_len);
-    if (*grip == NULL) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    if (!rnp_hex_encode(pgp_key_get_primary_grip(key).data(),
-                        pgp_key_get_primary_grip(key).size(),
-                        *grip,
-                        hex_len,
-                        RNP_HEX_UPPERCASE)) {
-        free(*grip);
-        return RNP_ERROR_GENERIC;
-    }
-    return RNP_SUCCESS;
+    const pgp_key_grip_t &pgrip = pgp_key_get_primary_grip(key);
+    return hex_encode_value(pgrip.data(), pgrip.size(), grip, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
