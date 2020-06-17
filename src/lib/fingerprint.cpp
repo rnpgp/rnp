@@ -38,7 +38,7 @@
 #include "utils.h"
 
 rnp_result_t
-pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
+pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key)
 {
     pgp_hash_t hash = {0};
 
@@ -53,8 +53,8 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
         }
         (void) mpi_hash(&key->material.rsa.n, &hash);
         (void) mpi_hash(&key->material.rsa.e, &hash);
-        fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-        RNP_DHEX("v2/v3 fingerprint", fp->fingerprint, fp->length);
+        fp.length = pgp_hash_finish(&hash, fp.fingerprint);
+        RNP_DHEX("v2/v3 fingerprint", fp.fingerprint, fp.length);
         return RNP_SUCCESS;
     }
 
@@ -66,8 +66,8 @@ pgp_fingerprint(pgp_fingerprint_t *fp, const pgp_key_pkt_t *key)
         if (!signature_hash_key(key, &hash)) {
             return RNP_ERROR_GENERIC;
         }
-        fp->length = pgp_hash_finish(&hash, fp->fingerprint);
-        RNP_DHEX("sha1 fingerprint", fp->fingerprint, fp->length);
+        fp.length = pgp_hash_finish(&hash, fp.fingerprint);
+        RNP_DHEX("sha1 fingerprint", fp.fingerprint, fp.length);
         return RNP_SUCCESS;
     }
 
@@ -99,7 +99,7 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
         return RNP_SUCCESS;
     }
 
-    if ((ret = pgp_fingerprint(&fp, key))) {
+    if ((ret = pgp_fingerprint(fp, key))) {
         return ret;
     }
     (void) memcpy(keyid, fp.fingerprint + fp.length - idlen, idlen);
@@ -107,8 +107,13 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
 }
 
 bool
-fingerprint_equal(const pgp_fingerprint_t *fp1, const pgp_fingerprint_t *fp2)
+pgp_fingerprint_t::operator==(const pgp_fingerprint_t &src) const
 {
-    return (fp1->length == fp2->length) &&
-           (!memcmp(fp1->fingerprint, fp2->fingerprint, fp1->length));
+    return (length == src.length) && !memcmp(fingerprint, src.fingerprint, length);
+}
+
+bool
+pgp_fingerprint_t::operator!=(const pgp_fingerprint_t &src) const
+{
+    return !(*this == src);
 }

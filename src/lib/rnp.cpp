@@ -1256,7 +1256,7 @@ add_key_status(json_object *           keys,
                pgp_key_import_status_t pub,
                pgp_key_import_status_t sec)
 {
-    const pgp_fingerprint_t *fp = pgp_key_get_fp(key);
+    const pgp_fingerprint_t &fp = pgp_key_get_fp(key);
 
     json_object *jsokey = json_object_new_object();
     if (!jsokey) {
@@ -1267,7 +1267,7 @@ add_key_status(json_object *           keys,
           jsokey, "public", json_object_new_string(key_status_to_str(pub))) ||
         !obj_add_field_json(
           jsokey, "secret", json_object_new_string(key_status_to_str(sec))) ||
-        !obj_add_hex_json(jsokey, "fingerprint", fp->fingerprint, fp->length) ||
+        !obj_add_hex_json(jsokey, "fingerprint", fp.fingerprint, fp.length) ||
         !array_add_element_json(keys, jsokey)) {
         json_object_put(jsokey);
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1426,8 +1426,8 @@ add_sig_status(json_object *           sigs,
     }
 
     if (signer) {
-        const pgp_fingerprint_t *fp = pgp_key_get_fp(signer);
-        if (!obj_add_hex_json(jsosig, "signer fingerprint", fp->fingerprint, fp->length)) {
+        const pgp_fingerprint_t &fp = pgp_key_get_fp(signer);
+        if (!obj_add_hex_json(jsosig, "signer fingerprint", fp.fingerprint, fp.length)) {
             json_object_put(jsosig);
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -5116,7 +5116,7 @@ get_key_require_public(rnp_key_handle_t handle)
 
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = *pgp_key_get_fp(handle->sec);
+        request.search.by.fingerprint = pgp_key_get_fp(handle->sec);
         handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
         if (handle->pub) {
             return handle->pub;
@@ -5146,7 +5146,7 @@ get_key_require_secret(rnp_key_handle_t handle)
 
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        request.search.by.fingerprint = *pgp_key_get_fp(handle->pub);
+        request.search.by.fingerprint = pgp_key_get_fp(handle->pub);
         handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
         if (handle->sec) {
             return handle->sec;
@@ -5628,8 +5628,8 @@ rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
         return RNP_ERROR_NULL_POINTER;
     }
 
-    const pgp_fingerprint_t *fp = pgp_key_get_fp(get_key_prefer_public(handle));
-    return hex_encode_value(fp->fingerprint, fp->length, fprint, RNP_HEX_UPPERCASE);
+    const pgp_fingerprint_t &fp = pgp_key_get_fp(get_key_prefer_public(handle));
+    return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
@@ -6537,8 +6537,8 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // fingerprint
     char fpr[PGP_FINGERPRINT_SIZE * 2 + 1];
-    if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
-                        pgp_key_get_fp(key)->length,
+    if (!rnp_hex_encode(pgp_key_get_fp(key).fingerprint,
+                        pgp_key_get_fp(key).length,
                         fpr,
                         sizeof(fpr),
                         RNP_HEX_UPPERCASE)) {
@@ -6965,8 +6965,8 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         }
         break;
     case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp_hex_encode(pgp_key_get_fp(key)->fingerprint,
-                            pgp_key_get_fp(key)->length,
+        if (!rnp_hex_encode(pgp_key_get_fp(key).fingerprint,
+                            pgp_key_get_fp(key).length,
                             buf,
                             buf_len,
                             RNP_HEX_UPPERCASE)) {
