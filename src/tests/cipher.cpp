@@ -222,30 +222,30 @@ TEST_F(rnp_tests, rnp_test_x25519)
     key_desc.ecc.curve = PGP_CURVE_25519;
 
     assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
-    assert_rnp_success(pgp_fingerprint(&fp, &seckey));
+    assert_rnp_success(pgp_fingerprint(fp, &seckey));
     assert_rnp_success(
-      ecdh_encrypt_pkcs5(&global_rng, &enc, in, sizeof(in), &seckey.material.ec, &fp));
+      ecdh_encrypt_pkcs5(&global_rng, &enc, in, sizeof(in), &seckey.material.ec, fp));
     assert_true(enc.mlen > 16);
     assert_true((enc.p.mpi[0] == 0x40) && (enc.p.len == 33));
     outlen = sizeof(out);
-    assert_rnp_success(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_rnp_success(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, fp));
     assert_true(outlen == 16);
     assert_true(memcmp(in, out, 16) == 0);
 
     /* negative cases */
     enc.p.mpi[16] ^= 0xff;
-    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, fp));
 
     enc.p.mpi[16] ^= 0xff;
     enc.p.mpi[0] = 0x04;
-    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, fp));
 
     enc.p.mpi[0] = 0x40;
     enc.mlen--;
-    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, fp));
 
     enc.mlen += 2;
-    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, &fp));
+    assert_rnp_failure(ecdh_decrypt_pkcs5(out, &outlen, &enc, &seckey.material.ec, fp));
 
     free_key_pkt(&seckey);
 }
@@ -349,17 +349,13 @@ TEST_F(rnp_tests, ecdh_roundtrip)
 
         pgp_fingerprint_t ecdh_key1_fpr;
         memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
-        assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1));
+        assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, &ecdh_key1));
 
-        assert_rnp_success(ecdh_encrypt_pkcs5(&global_rng,
-                                              &enc,
-                                              plaintext,
-                                              plaintext_len,
-                                              &ecdh_key1.material.ec,
-                                              &ecdh_key1_fpr));
+        assert_rnp_success(ecdh_encrypt_pkcs5(
+          &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.material.ec, ecdh_key1_fpr));
 
         assert_rnp_success(ecdh_decrypt_pkcs5(
-          result, &result_len, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr));
+          result, &result_len, &enc, &ecdh_key1.material.ec, ecdh_key1_fpr));
 
         assert_int_equal(plaintext_len, result_len);
         assert_int_equal(memcmp(plaintext, result, result_len), 0);
@@ -387,36 +383,36 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
 
     pgp_fingerprint_t ecdh_key1_fpr;
     memset(&ecdh_key1_fpr, 0, sizeof(ecdh_key1_fpr));
-    assert_rnp_success(pgp_fingerprint(&ecdh_key1_fpr, &ecdh_key1));
+    assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, &ecdh_key1));
 
     assert_rnp_success(ecdh_encrypt_pkcs5(
-      &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.material.ec, &ecdh_key1_fpr));
+      &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.material.ec, ecdh_key1_fpr));
 
-    assert_int_equal(ecdh_decrypt_pkcs5(NULL, 0, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr),
+    assert_int_equal(ecdh_decrypt_pkcs5(NULL, 0, &enc, &ecdh_key1.material.ec, ecdh_key1_fpr),
                      RNP_ERROR_BAD_PARAMETERS);
 
-    assert_int_equal(ecdh_decrypt_pkcs5(result, &result_len, &enc, NULL, &ecdh_key1_fpr),
+    assert_int_equal(ecdh_decrypt_pkcs5(result, &result_len, &enc, NULL, ecdh_key1_fpr),
                      RNP_ERROR_BAD_PARAMETERS);
 
     assert_int_equal(
-      ecdh_decrypt_pkcs5(result, &result_len, NULL, &ecdh_key1.material.ec, &ecdh_key1_fpr),
+      ecdh_decrypt_pkcs5(result, &result_len, NULL, &ecdh_key1.material.ec, ecdh_key1_fpr),
       RNP_ERROR_BAD_PARAMETERS);
 
     size_t mlen = enc.mlen;
     enc.mlen = 0;
     assert_int_equal(
-      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr),
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, ecdh_key1_fpr),
       RNP_ERROR_GENERIC);
 
     enc.mlen = mlen - 1;
     assert_int_equal(
-      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr),
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, ecdh_key1_fpr),
       RNP_ERROR_GENERIC);
 
     int key_wrapping_alg = ecdh_key1.material.ec.key_wrap_alg;
     ecdh_key1.material.ec.key_wrap_alg = PGP_SA_IDEA;
     assert_int_equal(
-      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, &ecdh_key1_fpr),
+      ecdh_decrypt_pkcs5(result, &result_len, &enc, &ecdh_key1.material.ec, ecdh_key1_fpr),
       RNP_ERROR_NOT_SUPPORTED);
     ecdh_key1.material.ec.key_wrap_alg = (pgp_symm_alg_t) key_wrapping_alg;
 

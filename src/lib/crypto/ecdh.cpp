@@ -65,11 +65,11 @@ static const unsigned char ANONYMOUS_SENDER[] = {0x41, 0x6E, 0x6F, 0x6E, 0x79, 0
 static size_t
 kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER_INFO],
                          const ec_curve_desc_t *  ec_curve,
-                         const pgp_fingerprint_t *fingerprint,
+                         const pgp_fingerprint_t &fingerprint,
                          const pgp_hash_alg_t     kdf_hash,
                          const pgp_symm_alg_t     wrap_alg)
 {
-    if (fingerprint->length < 20) {
+    if (fingerprint.length < 20) {
         RNP_LOG("Implementation error: unexpected fingerprint length");
         return false;
     }
@@ -100,7 +100,7 @@ kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER
     buf_ptr += sizeof(ANONYMOUS_SENDER);
 
     // keep 20, as per spec
-    memcpy(buf_ptr, fingerprint->fingerprint, 20);
+    memcpy(buf_ptr, fingerprint.fingerprint, 20);
     return (buf_ptr - other_info) + 20 /*anonymous_sender*/;
 }
 
@@ -312,7 +312,7 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
                    const uint8_t *const     in,
                    size_t                   in_len,
                    const pgp_ec_key_t *     key,
-                   const pgp_fingerprint_t *fingerprint)
+                   const pgp_fingerprint_t &fingerprint)
 {
     botan_privkey_t eph_prv_key = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
@@ -322,7 +322,7 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
     uint8_t      m[MAX_SESSION_KEY_SIZE];
     const size_t m_padded_len = ((in_len / 8) + 1) * 8;
 
-    if (!key || !fingerprint || !out || !in || (in_len > sizeof(m))) {
+    if (!key || !out || !in || (in_len > sizeof(m))) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -410,7 +410,7 @@ ecdh_decrypt_pkcs5(uint8_t *                   out,
                    size_t *                    out_len,
                    const pgp_ecdh_encrypted_t *in,
                    const pgp_ec_key_t *        key,
-                   const pgp_fingerprint_t *   fingerprint)
+                   const pgp_fingerprint_t &   fingerprint)
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
     // Size of SHA-256 or smaller

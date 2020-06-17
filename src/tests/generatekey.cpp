@@ -961,8 +961,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psiginfo.signer = &pub;
         assert_rnp_success(signature_check_certification(
           &psiginfo, pgp_key_get_pkt(&pub), &pgp_key_get_userid(&pub, 0)->pkt));
-        assert_true(signature_get_keyfp(psig, &fp));
-        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(&pub)));
+        assert_true(signature_get_keyfp(psig, fp));
+        assert_true(fp == pgp_key_get_fp(&pub));
         // check subpackets and their contents
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -981,8 +981,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssiginfo.signer = &sec;
         assert_rnp_success(signature_check_certification(
           &ssiginfo, pgp_key_get_pkt(&sec), &pgp_key_get_userid(&sec, 0)->pkt));
-        assert_true(signature_get_keyfp(ssig, &fp));
-        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(&sec)));
+        assert_true(signature_get_keyfp(ssig, fp));
+        assert_true(fp == pgp_key_get_fp(&sec));
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[32] ^= 0xff;
@@ -1087,8 +1087,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psiginfo.signer = primary_pub;
         assert_rnp_success(signature_check_binding(
           &psiginfo, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&pub)));
-        assert_true(signature_get_keyfp(psig, &fp));
-        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(primary_pub)));
+        assert_true(signature_get_keyfp(psig, fp));
+        assert_true(fp == pgp_key_get_fp(primary_pub));
         // check subpackets and their contents
         subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -1107,8 +1107,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssiginfo.signer = primary_pub;
         assert_rnp_success(signature_check_binding(
           &ssiginfo, pgp_key_get_pkt(primary_pub), pgp_key_get_pkt(&sec)));
-        assert_true(signature_get_keyfp(ssig, &fp));
-        assert_true(fingerprint_equal(&fp, pgp_key_get_fp(primary_sec)));
+        assert_true(signature_get_keyfp(ssig, fp));
+        assert_true(fp == pgp_key_get_fp(primary_sec));
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[10] ^= 0xff;
