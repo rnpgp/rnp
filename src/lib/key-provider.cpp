@@ -43,7 +43,7 @@ rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
     case PGP_KEY_SEARCH_KEYID:
         return memcmp(pgp_key_get_keyid(key), search->by.keyid, PGP_KEY_ID_SIZE) == 0;
     case PGP_KEY_SEARCH_FINGERPRINT:
-        return fingerprint_equal(pgp_key_get_fp(key), &search->by.fingerprint);
+        return pgp_key_get_fp(key) == search->by.fingerprint;
     case PGP_KEY_SEARCH_GRIP:
         return pgp_key_get_grip(key) == search->by.grip;
     case PGP_KEY_SEARCH_USERID:

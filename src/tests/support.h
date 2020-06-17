@@ -132,13 +132,13 @@ char *directory_from_file_path(const char *file_path, const char *reldir);
 char *hex_encode(const uint8_t v[], size_t len);
 
 /* check whether bin value is equals hex string */
-bool bin_eq_hex(uint8_t *data, size_t len, const char *val);
+bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 
 /* check whether key id is equal to hex string */
 bool cmp_keyid(uint8_t *id, const char *val);
 
 /* check whether key fp is equal to hex string */
-bool cmp_keyfp(pgp_fingerprint_t *fp, const char *val);
+bool cmp_keyfp(const pgp_fingerprint_t &fp, const char *val);
 
 /*
  */

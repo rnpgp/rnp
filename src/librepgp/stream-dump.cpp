@@ -846,7 +846,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     if ((key.version > PGP_V3) && (ctx->dump_grips)) {
-        if (!pgp_fingerprint(&keyfp, &key)) {
+        if (!pgp_fingerprint(keyfp, &key)) {
             dst_print_hex(dst, "fingerprint", keyfp.fingerprint, keyfp.length, false);
         } else {
             dst_printf(dst, "fingerprint: failed to calculate");
@@ -1850,7 +1850,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 
     if (ctx->dump_grips) {
-        if (pgp_fingerprint(&keyfp, &key) ||
+        if (pgp_fingerprint(keyfp, &key) ||
             !obj_add_hex_json(pkt, "fingerprint", keyfp.fingerprint, keyfp.length)) {
             goto done;
         }

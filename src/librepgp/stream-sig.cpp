@@ -135,21 +135,21 @@ signature_has_keyfp(const pgp_signature_t *sig)
 }
 
 bool
-signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp)
+signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp)
 {
     pgp_sig_subpkt_t *subpkt;
 
-    if (!sig || !fp || (sig->version < PGP_V4)) {
+    if (!sig || (sig->version < PGP_V4)) {
         return false;
     }
 
-    fp->length = 0;
+    fp.length = 0;
     if (!(subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
         return false;
     }
-    fp->length = subpkt->fields.issuer_fp.len;
-    if (subpkt->fields.issuer_fp.len <= sizeof(fp->fingerprint)) {
-        memcpy(fp->fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
+    fp.length = subpkt->fields.issuer_fp.len;
+    if (subpkt->fields.issuer_fp.len <= sizeof(fp.fingerprint)) {
+        memcpy(fp.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
         return true;
     }
 
@@ -157,15 +157,15 @@ signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp)
 }
 
 bool
-signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t *fp)
+signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp)
 {
     pgp_sig_subpkt_t *subpkt = NULL;
 
-    if (!sig || !fp) {
+    if (!sig) {
         return false;
     }
 
-    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp->length, true);
+    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp.length, true);
     if (!subpkt) {
         return false;
     }
@@ -173,8 +173,8 @@ signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t *fp)
     subpkt->parsed = 1;
     subpkt->hashed = 1;
     subpkt->data[0] = 4;
-    memcpy(subpkt->data + 1, fp->fingerprint, fp->length);
-    subpkt->fields.issuer_fp.len = fp->length;
+    memcpy(subpkt->data + 1, fp.fingerprint, fp.length);
+    subpkt->fields.issuer_fp.len = fp.length;
     subpkt->fields.issuer_fp.version = subpkt->data[0];
     subpkt->fields.issuer_fp.fp = subpkt->data + 1;
     return true;
@@ -1077,8 +1077,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* Check signer's fingerprint */
-    if (signature_get_keyfp(sinfo->sig, &fp) &&
-        !fingerprint_equal(&fp, pgp_key_get_fp(sinfo->signer))) {
+    if (signature_get_keyfp(sinfo->sig, fp) && (fp != pgp_key_get_fp(sinfo->signer))) {
         RNP_LOG("issuer fingerprint doesn't match signer's one");
         sinfo->valid = false;
     }

@@ -1327,13 +1327,13 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
-        if (pgp_fingerprint(&fingerprint, seckey)) {
+        if (pgp_fingerprint(fingerprint, seckey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
         declen = sizeof(decbuf);
         err = ecdh_decrypt_pkcs5(
-          decbuf, &declen, &sesskey->material.ecdh, &keymaterial->ec, &fingerprint);
+          decbuf, &declen, &sesskey->material.ecdh, &keymaterial->ec, fingerprint);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;

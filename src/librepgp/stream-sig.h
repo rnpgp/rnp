@@ -98,12 +98,10 @@ bool signature_has_keyfp(const pgp_signature_t *sig);
 /**
  * @brief Get signing key's fingerprint if it is available
  * @param sig loaded or populated v4 signature, could not be NULL
- * @param fp pointer to the buffer of at least PGP_FINGERPRINT_SIZE bytes
- * @param len number of bytes in buffer
- * @param outlen pointer to the number of bytes written to fp (if succeeded). Could not be 0.
+ * @param fp reference to the fingerprint structure
  * @return true if fingerprint is available and returned or false otherwise
  */
-bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp);
+bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp);
 
 /**
  * @brief Set signing key fingerprint
@@ -111,7 +109,7 @@ bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t *fp);
  * @param fp fingerprint structure
  * @return true on success or false otherwise;
  */
-bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t *fp);
+bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp);
 
 /**
  * @brief Check whether signature has signing key id
