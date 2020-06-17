@@ -71,7 +71,7 @@ jobs:
           set -x
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ./ci/run.sh
-  pkgconfig:
+  pkgconfig-cmake-target:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
@@ -132,5 +132,37 @@ jobs:
           else
             readelf -d generate | grep -qv librnp-
           fi
+          # remove the pkgconfig for the next test
+          pkg-config --list-all | grep -q ^librnp-
+          rm /usr/lib64/pkgconfig/librnp-*
+          # should not be found
+          pkg-config --list-all | grep -qv ^librnp-
+          # build an example using cmake targets
+          mkdir rnp-project
+          cd rnp-project
+          cat << "EOF" > mytest.cpp
+            #include <rnp/rnp.h>
+
+            int main(int argc, char *argv[]) {
+                printf("RNP version: %s\n", rnp_version_string());
+                return 0;
+            }
+          EOF
+          cat << "EOF" > CMakeLists.txt
+            set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
+            find_package(BZip2 REQUIRED)
+            find_package(ZLIB REQUIRED)
+            find_package(JSON-C 0.11 REQUIRED)
+            find_package(Botan2 2.8.0 REQUIRED)
+            find_package(rnp REQUIRED)
+
+            cmake_minimum_required(VERSION 3.12)
+            add_executable(mytest mytest.cpp)
+            target_link_libraries(mytest rnp::librnp)
+          EOF
+          cp ${rnpsrc}/cmake/Modules/* .
+          cmake .
+          make VERBOSE=1
+          ./mytest
           exit 0
 
