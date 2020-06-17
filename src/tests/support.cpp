@@ -389,7 +389,7 @@ hex_encode(const uint8_t v[], size_t len)
 }
 
 bool
-bin_eq_hex(uint8_t *data, size_t len, const char *val)
+bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 {
     uint8_t *dec;
     size_t   stlen = strlen(val);
@@ -411,9 +411,9 @@ cmp_keyid(uint8_t *id, const char *val)
 }
 
 bool
-cmp_keyfp(pgp_fingerprint_t *fp, const char *val)
+cmp_keyfp(const pgp_fingerprint_t &fp, const char *val)
 {
-    return bin_eq_hex(fp->fingerprint, fp->length, val);
+    return bin_eq_hex(fp.fingerprint, fp.length, val);
 }
 
 int
@@ -815,7 +815,7 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
         if (binlen <= PGP_FINGERPRINT_SIZE) {
             pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
             memcpy(fp.fingerprint, keyid_bin.data(), binlen);
-            key = rnp_key_store_get_key_by_fpr(keyring, &fp);
+            key = rnp_key_store_get_key_by_fpr(keyring, fp);
         }
     }
     return key;

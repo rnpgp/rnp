@@ -86,7 +86,7 @@ rnp_result_t ecdh_encrypt_pkcs5(rng_t *                  rng,
                                 const uint8_t *const     in,
                                 size_t                   in_len,
                                 const pgp_ec_key_t *     key,
-                                const pgp_fingerprint_t *fingerprint);
+                                const pgp_fingerprint_t &fingerprint);
 
 /*
  * Decrypts session key with a KEK agreed during ECDH as specified in
@@ -112,6 +112,6 @@ rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
                                 size_t *                    out_len,
                                 const pgp_ecdh_encrypted_t *in,
                                 const pgp_ec_key_t *        key,
-                                const pgp_fingerprint_t *   fingerprint);
+                                const pgp_fingerprint_t &   fingerprint);
 
 #endif // ECDH_H_

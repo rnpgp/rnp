@@ -399,8 +399,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
                 continue;
             }
 
-            if (signature_get_keyfp(&subsig->sig, &keyfp) &&
-                fingerprint_equal(pgp_key_get_fp(key), &keyfp)) {
+            if (signature_get_keyfp(&subsig->sig, keyfp) && (pgp_key_get_fp(key) == keyfp)) {
                 found = true;
                 break;
             }
@@ -564,7 +563,7 @@ rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
 {
     pgp_key_search_t search = {};
     // prefer using the issuer fingerprint when available
-    if (signature_has_keyfp(sig) && signature_get_keyfp(sig, &search.by.fingerprint)) {
+    if (signature_has_keyfp(sig) && signature_get_keyfp(sig, search.by.fingerprint)) {
         search.type = PGP_KEY_SEARCH_FINGERPRINT;
         return rnp_key_store_search(store, &search, NULL);
     }
@@ -768,11 +767,11 @@ rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &gr
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_fpr(rnp_key_store_t *keyring, const pgp_fingerprint_t *fpr)
+rnp_key_store_get_key_by_fpr(rnp_key_store_t *keyring, const pgp_fingerprint_t &fpr)
 {
     auto it =
       std::find_if(keyring->keys.begin(), keyring->keys.end(), [fpr](const pgp_key_t &key) {
-          return fingerprint_equal(pgp_key_get_fp(&key), fpr);
+          return pgp_key_get_fp(&key) == fpr;
       });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
@@ -797,8 +796,8 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
             continue;
         }
 
-        if (signature_get_keyfp(&subsig->sig, &keyfp)) {
-            return rnp_key_store_get_key_by_fpr(keyring, &keyfp);
+        if (signature_get_keyfp(&subsig->sig, keyfp)) {
+            return rnp_key_store_get_key_by_fpr(keyring, keyfp);
         }
 
         if (signature_get_keyid(&subsig->sig, keyid)) {

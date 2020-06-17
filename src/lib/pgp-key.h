@@ -205,9 +205,9 @@ const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
  * @brief Get key's fingerprint
  *
  * @param key populated key, should not be NULL
- * @return pointer to the fingerprint structure
+ * @return reference to the fingerprint structure
  */
-const pgp_fingerprint_t *pgp_key_get_fp(const pgp_key_t *key);
+const pgp_fingerprint_t &pgp_key_get_fp(const pgp_key_t *key);
 
 /**
  * @brief Get key's grip

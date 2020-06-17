@@ -177,7 +177,7 @@ pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     assert(is_key_pkt(pkt->tag));
     assert(pkt->material.alg);
     if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, pkt) ||
-        pgp_fingerprint(&key->fingerprint, pkt) ||
+        pgp_fingerprint(key->fingerprint, pkt) ||
         !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
         return false;
     }
@@ -396,7 +396,7 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
 
     /* key id / fingerprint / grip */
     memcpy(dst->keyid, src->keyid, sizeof(dst->keyid));
-    memcpy(&dst->fingerprint, &src->fingerprint, sizeof(dst->fingerprint));
+    dst->fingerprint = src->fingerprint;
     dst->grip = src->grip;
 
     /* primary uid */
@@ -651,10 +651,10 @@ pgp_key_get_keyid(const pgp_key_t *key)
     return key->keyid;
 }
 
-const pgp_fingerprint_t *
+const pgp_fingerprint_t &
 pgp_key_get_fp(const pgp_key_t *key)
 {
-    return &key->fingerprint;
+    return key->fingerprint;
 }
 
 const pgp_key_grip_t &
@@ -934,8 +934,8 @@ pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
     /* if we have fingerprint let's check it */
     if (signature_has_keyfp(&sig->sig)) {
         pgp_fingerprint_t sigfp = {};
-        if (signature_get_keyfp(&sig->sig, &sigfp)) {
-            return fingerprint_equal(pgp_key_get_fp(key), &sigfp);
+        if (signature_get_keyfp(&sig->sig, sigfp)) {
+            return pgp_key_get_fp(key) == sigfp;
         }
     }
     if (!signature_has_keyid(&sig->sig)) {

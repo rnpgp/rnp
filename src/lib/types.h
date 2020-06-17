@@ -90,6 +90,8 @@ typedef uint8_t pgp_ss_rr_code_t;
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
     unsigned length;
+    bool     operator==(const pgp_fingerprint_t &src) const;
+    bool     operator!=(const pgp_fingerprint_t &src) const;
 } pgp_fingerprint_t;
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
