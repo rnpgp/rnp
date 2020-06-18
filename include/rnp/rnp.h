@@ -46,6 +46,7 @@ typedef uint32_t rnp_result_t;
 
 #define RNP_KEY_REMOVE_PUBLIC (1U << 0)
 #define RNP_KEY_REMOVE_SECRET (1U << 1)
+#define RNP_KEY_REMOVE_SUBKEYS (1U << 2)
 
 #define RNP_KEY_UNLOAD_PUBLIC (1U << 0)
 #define RNP_KEY_UNLOAD_SECRET (1U << 1)
@@ -884,7 +885,8 @@ rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
  *  Note: you need to call rnp_save_keys() to write updated keyring(s) out.
  *        Other handles of the same key should not be used after this call.
  * @param key pointer to the key handle.
- * @param flags see RNP_KEY_REMOVE_* constants.
+ * @param flags see RNP_KEY_REMOVE_* constants. Flag RNP_REMOVE_SUBKEYS will work only for
+ *              primary key, and remove all of it's subkeys as well.
  * @return RNP_SUCCESS or error code if failed.
  */
 rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);

@@ -3412,28 +3412,50 @@ rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
     if (!key || !key->ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (flags == 0) {
+    bool pub = false;
+    if (flags & RNP_KEY_REMOVE_PUBLIC) {
+        pub = true;
+        flags &= ~RNP_KEY_REMOVE_PUBLIC;
+    }
+    bool sec = false;
+    if (flags & RNP_KEY_REMOVE_SECRET) {
+        sec = true;
+        flags &= ~RNP_KEY_REMOVE_SECRET;
+    }
+    bool sub = false;
+    if (flags & RNP_KEY_REMOVE_SUBKEYS) {
+        sub = true;
+        flags &= ~RNP_KEY_REMOVE_SUBKEYS;
+    }
+    if (flags) {
+        FFI_LOG(key->ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (flags & RNP_KEY_REMOVE_PUBLIC) {
+    if (!pub && !sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (sub && pgp_key_is_subkey(get_key_prefer_public(key))) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (pub) {
         if (!key->ffi->pubring || !key->pub) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (!rnp_key_store_remove_key(key->ffi->pubring, key->pub)) {
+        if (!rnp_key_store_remove_key(key->ffi->pubring, key->pub, sub)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
         key->pub = NULL;
     }
-    if (flags & RNP_KEY_REMOVE_SECRET) {
+    if (sec) {
         if (!key->ffi->secring || !key->sec) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (!rnp_key_store_remove_key(key->ffi->secring, key->sec)) {
+        if (!rnp_key_store_remove_key(key->ffi->secring, key->sec, sub)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
         key->sec = NULL;
     }
-
     return RNP_SUCCESS;
 }
 
