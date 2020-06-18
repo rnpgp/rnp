@@ -732,12 +732,11 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid, pgp_
 const pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    try {
-        return &*keyring->keybygrip.at(grip);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    auto it = keyring->keybygrip.find(grip);
+    if (it == keyring->keybygrip.end()) {
         return NULL;
     }
+    return &*it->second;
 }
 
 pgp_key_t *
