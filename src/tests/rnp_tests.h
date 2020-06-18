@@ -371,6 +371,10 @@ void test_kbx_nsigs(void **state);
 
 void test_issue_1115(void **state);
 
+void issue_1030_rnpkeys_secret_keys_unprotected(void **state);
+
+void test_issue_1171_key_import_and_remove(void **state);
+
 void test_log_switch(void **state);
 
 #define assert_true(a) EXPECT_TRUE((a))

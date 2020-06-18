@@ -94,6 +94,7 @@ add_executable(rnp_tests
   utils-rnpcfg.cpp
   issues/1030.cpp
   issues/1115.cpp
+  issues/1171.cpp
 )
 
 target_include_directories(rnp_tests
