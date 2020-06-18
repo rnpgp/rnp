@@ -188,7 +188,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     return true;
 error:
     /* during key addition all fields are copied so will be cleaned below */
-    rnp_key_store_remove_key(keyring, addkey);
+    rnp_key_store_remove_key(keyring, addkey, false);
     return false;
 }
 

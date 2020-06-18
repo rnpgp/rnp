@@ -1310,6 +1310,15 @@ pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip)
     }
 }
 
+void
+pgp_key_remove_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip)
+{
+    auto it = std::find(key->subkey_grips.begin(), key->subkey_grips.end(), grip);
+    if (it != key->subkey_grips.end()) {
+        key->subkey_grips.erase(it);
+    }
+}
+
 const pgp_key_grip_t &
 pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx)
 {
