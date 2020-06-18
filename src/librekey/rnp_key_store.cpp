@@ -679,13 +679,13 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
 bool
 rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key)
 {
-    keyring->keybygrip.erase(pgp_key_get_grip(key));
-    size_t oldsize = keyring->keys.size();
-    keyring->keys.erase(std::remove_if(keyring->keys.begin(),
-                                       keyring->keys.end(),
-                                       [key](pgp_key_t &_key) { return key == &_key; }));
-
-    return oldsize != keyring->keys.size();
+    auto it = keyring->keybygrip.find(pgp_key_get_grip(key));
+    if (it == keyring->keybygrip.end()) {
+        return false;
+    }
+    keyring->keys.erase(it->second);
+    keyring->keybygrip.erase(it);
+    return true;
 }
 
 /**
