@@ -8016,3 +8016,167 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_key_remove)
+{
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+
+    rnp_key_handle_t key0 = NULL;
+    rnp_key_handle_t key0_sub0 = NULL;
+    rnp_key_handle_t key0_sub1 = NULL;
+    rnp_key_handle_t key0_sub2 = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key0));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ed63ee56fadc34d", &key0_sub0));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1d7e8a5393c997a8", &key0_sub1));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8a05b89fad5aded1", &key0_sub2));
+
+    /* edge cases */
+    assert_rnp_failure(rnp_key_remove(NULL, RNP_KEY_REMOVE_PUBLIC));
+    assert_rnp_failure(rnp_key_remove(key0, 0));
+    /* make sure we correctly remove public and secret keys */
+    bool pub = false;
+    assert_rnp_success(rnp_key_have_public(key0_sub2, &pub));
+    assert_true(pub);
+    bool sec = false;
+    assert_rnp_success(rnp_key_have_secret(key0_sub2, &sec));
+    assert_true(sec);
+    assert_rnp_success(rnp_key_remove(key0_sub2, RNP_KEY_REMOVE_PUBLIC));
+    pub = true;
+    assert_rnp_success(rnp_key_have_public(key0_sub2, &pub));
+    assert_false(pub);
+    sec = false;
+    assert_rnp_success(rnp_key_have_secret(key0_sub2, &sec));
+    assert_true(sec);
+    assert_rnp_failure(rnp_key_remove(key0_sub2, RNP_KEY_REMOVE_PUBLIC));
+    rnp_key_handle_destroy(key0_sub2);
+    /* locate it back */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8a05b89fad5aded1", &key0_sub2));
+    assert_non_null(key0_sub2);
+    pub = true;
+    assert_rnp_success(rnp_key_have_public(key0_sub2, &pub));
+    assert_false(pub);
+    sec = false;
+    assert_rnp_success(rnp_key_have_secret(key0_sub2, &sec));
+    assert_true(sec);
+
+    pub = false;
+    assert_rnp_success(rnp_key_have_public(key0_sub0, &pub));
+    assert_true(pub);
+    sec = false;
+    assert_rnp_success(rnp_key_have_secret(key0_sub0, &sec));
+    assert_true(sec);
+    assert_rnp_success(rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_SECRET));
+    pub = false;
+    assert_rnp_success(rnp_key_have_public(key0_sub0, &pub));
+    assert_true(pub);
+    sec = true;
+    assert_rnp_success(rnp_key_have_secret(key0_sub0, &sec));
+    assert_false(sec);
+    assert_rnp_failure(rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_SECRET));
+    rnp_key_handle_destroy(key0_sub0);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ed63ee56fadc34d", &key0_sub0));
+    assert_non_null(key0_sub0);
+
+    size_t count = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+    count = 0;
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+
+    /* while there are 2 public and 1 secret subkey, this calculates only public */
+    assert_rnp_success(rnp_key_get_subkey_count(key0, &count));
+    assert_int_equal(count, 2);
+
+    assert_rnp_success(rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_PUBLIC));
+    assert_rnp_success(rnp_key_get_subkey_count(key0, &count));
+    assert_int_equal(count, 1);
+    count = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 5);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+
+    assert_rnp_success(rnp_key_remove(key0_sub2, RNP_KEY_REMOVE_SECRET));
+    assert_rnp_success(rnp_key_get_subkey_count(key0, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 5);
+
+    assert_rnp_success(rnp_key_remove(key0, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 4);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 4);
+
+    rnp_key_handle_destroy(key0_sub1);
+    /* key0_sub1 should be left in keyring */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1d7e8a5393c997a8", &key0_sub1));
+    pub = false;
+    assert_rnp_success(rnp_key_have_public(key0_sub1, &pub));
+    assert_true(pub);
+    sec = false;
+    assert_rnp_success(rnp_key_have_secret(key0_sub1, &sec));
+    assert_true(sec);
+
+    rnp_key_handle_destroy(key0);
+    rnp_key_handle_destroy(key0_sub0);
+    rnp_key_handle_destroy(key0_sub1);
+    rnp_key_handle_destroy(key0_sub2);
+
+    /* let's import keys back */
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 7);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 7);
+
+    /* now try to remove the whole key */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key0));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ed63ee56fadc34d", &key0_sub0));
+
+    assert_rnp_failure(
+      rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_SECRET | RNP_KEY_REMOVE_SUBKEYS));
+    assert_rnp_success(rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_SECRET));
+    assert_rnp_success(rnp_key_remove(key0_sub0, RNP_KEY_REMOVE_PUBLIC));
+
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+
+    assert_rnp_success(rnp_key_remove(key0, RNP_KEY_REMOVE_SECRET | RNP_KEY_REMOVE_SUBKEYS));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 6);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 3);
+
+    assert_rnp_success(rnp_key_remove(key0, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SUBKEYS));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 3);
+
+    rnp_key_handle_destroy(key0);
+    rnp_key_handle_destroy(key0_sub0);
+
+    /* delete the second key all at once */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fcadf05ffa501bb", &key0));
+    assert_rnp_success(rnp_key_remove(
+      key0, RNP_KEY_REMOVE_PUBLIC | RNP_KEY_REMOVE_SECRET | RNP_KEY_REMOVE_SUBKEYS));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 0);
+    rnp_key_handle_destroy(key0);
+
+    rnp_ffi_destroy(ffi);
+}

@@ -297,6 +297,8 @@ void test_ffi_decrypt_wrong_mpi_bits(void **state);
 
 void test_ffi_key_import_edge_cases(void **state);
 
+void test_ffi_key_remove(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
