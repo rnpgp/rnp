@@ -4765,11 +4765,11 @@ done:
         op->password = NULL;
     }
     if (ret && op->gen_pub) {
-        rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub);
+        rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub, false);
         op->gen_pub = NULL;
     }
     if (ret && op->gen_sec) {
-        rnp_key_store_remove_key(op->ffi->secring, op->gen_sec);
+        rnp_key_store_remove_key(op->ffi->secring, op->gen_sec, false);
         op->gen_sec = NULL;
     }
     return ret;

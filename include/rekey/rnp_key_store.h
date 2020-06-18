@@ -206,7 +206,7 @@ pgp_key_t *rnp_key_store_import_signature(rnp_key_store_t *        keyring,
                                           const pgp_signature_t *  sig,
                                           pgp_sig_import_status_t *status);
 
-bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *);
+bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
 
 pgp_key_t *rnp_key_store_get_key_by_id(rnp_key_store_t *, const unsigned char *, pgp_key_t *);
 
