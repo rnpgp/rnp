@@ -328,6 +328,14 @@ size_t pgp_key_get_subkey_count(const pgp_key_t *key);
 bool pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
 
 /**
+ * @brief Remove subkey grip from key's list.
+ *
+ * @param key key pointer to the primary key
+ * @param grip subkey's grip.
+ */
+void pgp_key_remove_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
+
+/**
  * @brief Get the pgp key's subkey grip
  *
  * @param key key pointer to the primary key
