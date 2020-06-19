@@ -32,4 +32,12 @@ jobs:
       - name: tests
         shell: msys2 {0}
         run: bash -c ". ci/env.inc.sh && ci/main.sh"
+      - shell: msys2 {0}
+        run: |
+          set -euxo pipefail
+          wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
+          7z x Dependencies_x64_Release.zip
+          ./Dependencies -exports $HOME/local-installs/rnp-install/bin/librnp*.dll > exports
+          grep -qv dst_close exports
+          grep -qw rnp_version_string exports
 
