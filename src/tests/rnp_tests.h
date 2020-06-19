@@ -375,6 +375,12 @@ void test_partial_length_largest(void **state);
 
 void test_partial_length_first_packet_length(void **state);
 
+void test_pipe(void **state);
+
+void test_pipe_source_error(void **state);
+
+void test_pipe_dest_error(void **state);
+
 void test_kbx_nsigs(void **state);
 
 void test_issue_1115(void **state);

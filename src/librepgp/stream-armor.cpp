@@ -979,17 +979,17 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {
     rnp_result_t res = RNP_ERROR_BAD_FORMAT;
     pgp_source_t armorsrc = {0};
-    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
+    uint8_t      readbuf[strlen(ST_CLEAR_BEGIN) + 1];
     size_t       read;
 
-    if (!src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN) + 1, &read) ||
+    if (!src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN), &read) ||
         (read < strlen(ST_ARMOR_BEGIN))) {
         RNP_LOG("can't read enough data from source");
         return RNP_ERROR_READ;
     }
 
     /* Trying armored or cleartext data */
-    readbuf[read - 1] = 0;
+    readbuf[read] = 0;
     if (strstr((char *) readbuf, ST_ARMOR_BEGIN)) {
         /* checking whether it is cleartext */
         if (strstr((char *) readbuf, ST_CLEAR_BEGIN)) {
@@ -1006,23 +1006,8 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
         RNP_LOG("source is not armored data");
         return RNP_ERROR_BAD_FORMAT;
     }
-
     /* Reading data from armored source and writing it to the output */
-    while (!armorsrc.eof) {
-        if (!src_read(&armorsrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
-            res = RNP_ERROR_GENERIC;
-            break;
-        }
-        if (!read) {
-            continue;
-        }
-        dst_write(dst, readbuf, read);
-        if (dst->werr) {
-            RNP_LOG("failed to output data");
-            res = RNP_ERROR_WRITE;
-            break;
-        }
-    }
+    res = dst_write_src(&armorsrc, dst);
 finish:
     src_close(&armorsrc);
     return res;
@@ -1032,30 +1017,13 @@ rnp_result_t
 rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_msg_t msgtype)
 {
     pgp_dest_t   armordst = {0};
-    rnp_result_t res = RNP_ERROR_GENERIC;
-    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
-    size_t       read;
-
-    res = init_armored_dst(&armordst, dst, msgtype);
+    rnp_result_t res = init_armored_dst(&armordst, dst, msgtype);
     if (res) {
         goto finish;
     }
 
-    while (!src->eof) {
-        if (!src_read(src, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
-            res = RNP_ERROR_READ;
-            break;
-        }
-        if (!read) {
-            continue;
-        }
-        dst_write(&armordst, readbuf, read);
-        if (armordst.werr) {
-            RNP_LOG("failed to output data");
-            res = RNP_ERROR_WRITE;
-            break;
-        }
-    }
+    res = dst_write_src(src, &armordst);
+
 finish:
     dst_close(&armordst, res != RNP_SUCCESS);
     return res;

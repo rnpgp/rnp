@@ -7223,3 +7223,14 @@ rnp_dearmor(rnp_input_t input, rnp_output_t output)
     output->keep = !ret;
     return ret;
 }
+
+rnp_result_t
+rnp_output_pipe(rnp_input_t input, rnp_output_t output)
+{
+    if (!input || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    rnp_result_t ret = dst_write_src(&input->src, &output->dst);
+    output->keep = !ret;
+    return ret;
+}
