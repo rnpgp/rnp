@@ -546,24 +546,12 @@ read_mem_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     pgp_dest_t   dst;
     rnp_result_t ret;
-    uint8_t      buf[4096];
-    size_t       read;
 
     if ((ret = init_mem_dest(&dst, NULL, 0))) {
         return ret;
     }
 
-    while (!src_eof(readsrc)) {
-        if (!src_read(readsrc, buf, sizeof(buf), &read)) {
-            goto done;
-        }
-        if (read) {
-            dst_write(&dst, buf, read);
-        }
-    }
-
-    if (dst.werr) {
-        ret = dst.werr;
+    if ((ret = dst_write_src(readsrc, &dst))) {
         goto done;
     }
 
@@ -1115,4 +1103,33 @@ init_null_dest(pgp_dest_t *dst)
     dst->no_cache = true;
 
     return RNP_SUCCESS;
+}
+
+rnp_result_t
+dst_write_src(pgp_source_t *src, pgp_dest_t *dst)
+{
+    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
+    rnp_result_t res = RNP_SUCCESS;
+    size_t       read;
+
+    while (!src->eof) {
+        if (!src_read(src, readbuf, sizeof(readbuf), &read)) {
+            res = RNP_ERROR_GENERIC;
+            break;
+        }
+        if (!read) {
+            continue;
+        }
+        dst_write(dst, readbuf, read);
+        if (dst->werr) {
+            RNP_LOG("failed to output data");
+            res = RNP_ERROR_WRITE;
+            break;
+        }
+    }
+    if (res) {
+        return res;
+    }
+    dst_flush(dst);
+    return dst->werr;
 }

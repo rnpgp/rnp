@@ -84,6 +84,7 @@ add_executable(rnp_tests
   load-pgp.cpp
   log-switch.cpp
   partial-length.cpp
+  pipe.cpp
   rnp_tests.cpp
   s2k-iterations.cpp
   streams.cpp

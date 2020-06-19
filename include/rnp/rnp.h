@@ -2318,6 +2318,14 @@ RNP_API rnp_result_t rnp_identifier_iterator_next(rnp_identifier_iterator_t it,
  */
 RNP_API rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it);
 
+/** Read from input and write to output
+ *
+ *  @param input stream to read data from
+ *  @param output stream to write data to
+ *  @return RNP_SUCCESS on success, or any other value on error
+ */
+RNP_API rnp_result_t rnp_output_pipe(rnp_input_t input, rnp_output_t output);
+
 #if defined(__cplusplus)
 }
 
