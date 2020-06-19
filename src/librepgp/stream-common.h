@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -352,5 +352,12 @@ void *mem_dest_own_memory(pgp_dest_t *dst);
  *  @return RNP_SUCCESS or error code
  **/
 rnp_result_t init_null_dest(pgp_dest_t *dst);
+
+/** @brief reads from source and writes to destination
+ *  @param src initialized source
+ *  @param dst initialized destination
+ *  @return RNP_SUCCESS or error code
+ **/
+rnp_result_t dst_write_src(pgp_source_t *src, pgp_dest_t *dst);
 
 #endif
