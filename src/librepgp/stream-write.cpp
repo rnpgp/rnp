@@ -108,12 +108,15 @@ typedef struct pgp_dest_signer_info_t {
 typedef struct pgp_dest_signed_param_t {
     pgp_dest_t *             writedst; /* destination to write to */
     rnp_ctx_t *              ctx;      /* rnp operation context with additional parameters */
-    pgp_password_provider_t *password_provider; /* password provider from write handler */
-    list                     siginfos;          /* list of  pgp_dest_signer_info_t */
-    list                     hashes;    /* hashes to pass raw data through and then sign */
-    bool                     clr_start; /* we are on the start of the line */
-    uint8_t                  clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
-    size_t                   clr_buflen;          /* number of bytes in buffer */
+    pgp_password_provider_t *password_provider;   /* password provider from write handler */
+    std::vector<pgp_dest_signer_info_t> siginfos; /* list of  pgp_dest_signer_info_t */
+    std::vector<pgp_hash_t> hashes;    /* hashes to pass raw data through and then sign */
+    bool                    clr_start; /* we are on the start of the line */
+    uint8_t                 clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
+    size_t                  clr_buflen;          /* number of bytes in buffer */
+
+    pgp_dest_signed_param_t() = default;
+    ~pgp_dest_signed_param_t();
 } pgp_dest_signed_param_t;
 
 typedef struct pgp_dest_partial_param_t {
@@ -1140,9 +1143,8 @@ signed_dst_finish(pgp_dest_t *dst)
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     /* attached signature, we keep onepasses in order of signatures */
-    for (list_item *sinfo = list_front(param->siginfos); sinfo; sinfo = list_next(sinfo)) {
-        if ((ret = signed_write_signature(
-               param, (pgp_dest_signer_info_t *) sinfo, param->writedst))) {
+    for (auto &sinfo : param->siginfos) {
+        if ((ret = signed_write_signature(param, &sinfo, param->writedst))) {
             RNP_LOG("failed to calculate signature");
             return ret;
         }
@@ -1158,9 +1160,8 @@ signed_detached_dst_finish(pgp_dest_t *dst)
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     /* just calculating and writing signatures to the output */
-    for (list_item *sinfo = list_front(param->siginfos); sinfo; sinfo = list_next(sinfo)) {
-        if ((ret = signed_write_signature(
-               param, (pgp_dest_signer_info_t *) sinfo, param->writedst))) {
+    for (auto &sinfo : param->siginfos) {
+        if ((ret = signed_write_signature(param, &sinfo, param->writedst))) {
             RNP_LOG("failed to calculate detached signature");
             return ret;
         }
@@ -1188,9 +1189,8 @@ cleartext_dst_finish(pgp_dest_t *dst)
         return ret;
     }
 
-    for (list_item *sinfo = list_front(param->siginfos); sinfo; sinfo = list_next(sinfo)) {
-        if ((ret =
-               signed_write_signature(param, (pgp_dest_signer_info_t *) sinfo, &armordst))) {
+    for (auto &sinfo : param->siginfos) {
+        if ((ret = signed_write_signature(param, &sinfo, &armordst))) {
             break;
         }
     }
@@ -1207,14 +1207,10 @@ static void
 signed_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
-
     if (!param) {
         return;
     }
-
-    pgp_hash_list_free(&param->hashes);
-    list_destroy(&param->siginfos);
-    free(param);
+    delete param;
     dst->param = NULL;
 }
 
@@ -1242,15 +1238,20 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
 
     /* Add hash to the list */
     sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
-    if (!pgp_hash_list_add(&param->hashes, sinfo.halg)) {
+    if (!pgp_hash_list_add(param->hashes, sinfo.halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     // Do not add onepass for detached/clearsign
     if (param->ctx->detached || param->ctx->clearsign) {
         sinfo.onepass.version = 0;
-        return list_append(&param->siginfos, &sinfo, sizeof(sinfo)) ? RNP_SUCCESS :
-                                                                      RNP_ERROR_OUT_OF_MEMORY;
+        try {
+            param->siginfos.push_back(sinfo);
+            return RNP_SUCCESS;
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
     }
 
     // Setup and add onepass
@@ -1260,23 +1261,32 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.palg = pgp_key_get_alg(sinfo.key);
     memcpy(sinfo.onepass.keyid, pgp_key_get_keyid(sinfo.key), PGP_KEY_ID_SIZE);
     sinfo.onepass.nested = false;
-    if (!list_append(&param->siginfos, &sinfo, sizeof(sinfo))) {
+    try {
+        param->siginfos.push_back(sinfo);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     // write onepasses in reverse order so signature order will match signers list
     if (last) {
-        for (list_item *si = list_back(param->siginfos); si; si = list_prev(si)) {
-            pgp_dest_signer_info_t *sinfo = (pgp_dest_signer_info_t *) si;
-            sinfo->onepass.nested = !list_prev(si);
-
-            if (!stream_write_one_pass(&sinfo->onepass, param->writedst)) {
+        for (auto it = param->siginfos.rbegin(); it != param->siginfos.rend(); it++) {
+            pgp_dest_signer_info_t &sinfo = *it;
+            sinfo.onepass.nested = &sinfo == &param->siginfos.front();
+            if (!stream_write_one_pass(&sinfo.onepass, param->writedst)) {
                 return RNP_ERROR_WRITE;
             }
         }
     }
 
     return RNP_SUCCESS;
+}
+
+pgp_dest_signed_param_t::~pgp_dest_signed_param_t()
+{
+    for (auto &hash : hashes) {
+        pgp_hash_finish(&hash, NULL);
+    }
 }
 
 static rnp_result_t
@@ -1291,11 +1301,17 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    if (!init_dst_common(dst, 0)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    try {
+        param = new pgp_dest_signed_param_t();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_dest_signed_param_t *) dst->param;
+    dst->param = param;
     param->writedst = writedst;
     param->ctx = handler->ctx;
     param->password_provider = handler->password_provider;
@@ -1321,7 +1337,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     }
 
     /* Do we have any signatures? */
-    if (!list_length(param->hashes)) {
+    if (param->hashes.empty()) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -1332,10 +1348,10 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         dst_write(param->writedst, ST_CRLF, strlen(ST_CRLF));
         dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
 
-        for (list_item *hash = list_front(param->hashes); hash; hash = list_next(hash)) {
-            hname = pgp_hash_name((pgp_hash_t *) hash);
+        for (const auto &hash : param->hashes) {
+            hname = pgp_hash_name(&hash);
             dst_write(param->writedst, hname, strlen(hname));
-            if (hash != list_back(param->hashes)) {
+            if (&hash != &param->hashes.back()) {
                 dst_write(param->writedst, ST_COMMA, 1);
             }
         }
