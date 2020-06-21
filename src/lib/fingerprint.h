@@ -30,12 +30,10 @@
 #include <rnp/rnp_def.h>
 #include <stdint.h>
 #include <stdlib.h>
-
-typedef struct pgp_fingerprint_t pgp_fingerprint_t;
-typedef struct pgp_key_pkt_t     pgp_key_pkt_t;
+#include "types.h"
 
 rnp_result_t pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key);
 
-rnp_result_t pgp_keyid(uint8_t *out, const size_t len, const pgp_key_pkt_t *key);
+rnp_result_t pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t *key);
 
 #endif

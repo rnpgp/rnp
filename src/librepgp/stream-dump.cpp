@@ -293,7 +293,7 @@ indent_dest_set(pgp_dest_t *dst, int level)
 }
 
 static size_t
-vsnprinthex(char *str, size_t slen, uint8_t *buf, size_t buflen)
+vsnprinthex(char *str, size_t slen, const uint8_t *buf, size_t buflen)
 {
     static const char *hexes = "0123456789abcdef";
     size_t             idx = 0;
@@ -410,7 +410,7 @@ dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
 }
 
 static void
-dst_print_hex(pgp_dest_t *dst, const char *name, uint8_t *data, size_t len, bool bytes)
+dst_print_hex(pgp_dest_t *dst, const char *name, const uint8_t *data, size_t len, bool bytes)
 {
     char hex[512];
     vsnprinthex(hex, sizeof(hex), data, len);
@@ -422,12 +422,12 @@ dst_print_hex(pgp_dest_t *dst, const char *name, uint8_t *data, size_t len, bool
 }
 
 static void
-dst_print_keyid(pgp_dest_t *dst, const char *name, uint8_t *keyid)
+dst_print_keyid(pgp_dest_t *dst, const char *name, const pgp_key_id_t &keyid)
 {
     if (!name) {
         name = "key id";
     }
-    dst_print_hex(dst, name, keyid, PGP_KEY_ID_SIZE, false);
+    dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
 
 static void
@@ -554,7 +554,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
           dst, "fingerprint", subpkt->fields.revocation_key.fp, PGP_FINGERPRINT_SIZE, true);
         break;
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        dst_print_keyid(dst, sname, subpkt->fields.issuer);
+        dst_print_hex(dst, sname, subpkt->fields.issuer, PGP_KEY_ID_SIZE, false);
         break;
     case PGP_SIG_SUBPKT_NOTATION_DATA:
         break;
@@ -756,7 +756,6 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_key_pkt_t     key;
     rnp_result_t      ret;
-    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
     pgp_fingerprint_t keyfp = {};
 
     if ((ret = stream_parse_key(src, &key))) {
@@ -839,8 +838,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         indent_dest_decrease(dst);
     }
 
-    if (!pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key)) {
-        dst_print_hex(dst, "keyid", keyid, PGP_KEY_ID_SIZE, false);
+    pgp_key_id_t keyid = {};
+    if (!pgp_keyid(keyid, &key)) {
+        dst_print_hex(dst, "keyid", keyid.data(), keyid.size(), false);
     } else {
         dst_printf(dst, "keyid: failed to calculate");
     }
@@ -1651,7 +1651,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
               pkt, "creation time", json_object_new_int(sig->creation_time))) {
             goto done;
         }
-        if (!obj_add_hex_json(pkt, "signer", sig->signer, PGP_KEY_ID_SIZE)) {
+        if (!obj_add_hex_json(pkt, "signer", sig->signer.data(), sig->signer.size())) {
             goto done;
         }
     }
@@ -1737,7 +1737,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
     pgp_key_pkt_t     key;
     rnp_result_t      ret;
-    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_key_id_t      keyid = {};
     pgp_fingerprint_t keyfp = {};
     json_object *     material = NULL;
 
@@ -1844,8 +1844,8 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         }
     }
 
-    if (pgp_keyid(keyid, PGP_KEY_ID_SIZE, &key) ||
-        !obj_add_hex_json(pkt, "keyid", keyid, PGP_KEY_ID_SIZE)) {
+    if (pgp_keyid(keyid, &key) ||
+        !obj_add_hex_json(pkt, "keyid", keyid.data(), keyid.size())) {
         goto done;
     }
 
@@ -1912,7 +1912,7 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     }
 
     if (!obj_add_field_json(pkt, "version", json_object_new_int(pkey.version)) ||
-        !obj_add_hex_json(pkt, "keyid", pkey.key_id, PGP_KEY_ID_SIZE) ||
+        !obj_add_hex_json(pkt, "keyid", pkey.key_id.data(), pkey.key_id.size()) ||
         !obj_add_intstr_json(pkt, "algorithm", pkey.alg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2036,7 +2036,7 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!obj_add_hex_json(pkt, "signer", onepass.keyid, PGP_KEY_ID_SIZE)) {
+    if (!obj_add_hex_json(pkt, "signer", onepass.keyid.data(), onepass.keyid.size())) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!obj_add_field_json(pkt, "nested", json_object_new_boolean(onepass.nested))) {

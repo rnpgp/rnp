@@ -176,8 +176,7 @@ pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     assert(!key->pkt.version);
     assert(is_key_pkt(pkt->tag));
     assert(pkt->material.alg);
-    if (pgp_keyid(key->keyid, PGP_KEY_ID_SIZE, pkt) ||
-        pgp_fingerprint(key->fingerprint, pkt) ||
+    if (pgp_keyid(key->keyid, pkt) || pgp_fingerprint(key->fingerprint, pkt) ||
         !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
         return false;
     }
@@ -395,7 +394,7 @@ pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src)
     dst->key_flags = src->key_flags;
 
     /* key id / fingerprint / grip */
-    memcpy(dst->keyid, src->keyid, sizeof(dst->keyid));
+    dst->keyid = src->keyid;
     dst->fingerprint = src->fingerprint;
     dst->grip = src->grip;
 
@@ -645,7 +644,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     return decrypted_seckey;
 }
 
-const uint8_t *
+const pgp_key_id_t &
 pgp_key_get_keyid(const pgp_key_t *key)
 {
     return key->keyid;
@@ -941,11 +940,11 @@ pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
     if (!signature_has_keyid(&sig->sig)) {
         return false;
     }
-    uint8_t sigid[PGP_KEY_ID_SIZE] = {0};
+    pgp_key_id_t sigid = {};
     if (!signature_get_keyid(&sig->sig, sigid)) {
         return false;
     }
-    return !memcmp(pgp_key_get_keyid(key), sigid, PGP_KEY_ID_SIZE);
+    return pgp_key_get_keyid(key) == sigid;
 }
 
 static bool
@@ -2298,7 +2297,7 @@ pgp_key_t::operator=(pgp_key_t &&src)
     src.pkt = {};
     rawpkt = std::move(src.rawpkt);
     key_flags = src.key_flags;
-    memcpy(keyid, src.keyid, sizeof(keyid));
+    keyid = src.keyid;
     fingerprint = src.fingerprint;
     grip = std::move(src.grip);
     uid0 = src.uid0;

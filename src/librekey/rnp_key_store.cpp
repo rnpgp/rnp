@@ -376,7 +376,7 @@ done:
 static bool
 rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
 {
-    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_key_id_t      keyid = {};
     pgp_fingerprint_t keyfp = {};
 
     if (pgp_key_is_subkey(key)) {
@@ -405,7 +405,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             }
 
             if (signature_get_keyid(&subsig->sig, keyid) &&
-                !memcmp(pgp_key_get_keyid(key), keyid, PGP_KEY_ID_SIZE)) {
+                (pgp_key_get_keyid(key) != keyid)) {
                 found = true;
                 break;
             }
@@ -720,7 +720,9 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
 
 */
 pgp_key_t *
-rnp_key_store_get_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid, pgp_key_t *after)
+rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
+                            const pgp_key_id_t &keyid,
+                            pgp_key_t *         after)
 {
     RNP_DLOG("searching keyring %p", keyring);
     if (!keyring) {
@@ -739,9 +741,9 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *keyring, const uint8_t *keyid, pgp_
         it = std::next(it);
     }
     it = std::find_if(it, keyring->keys.end(), [keyid](const pgp_key_t &key) {
-        return !memcmp(pgp_key_get_keyid(&key), keyid, PGP_KEY_ID_SIZE) ||
-               !memcmp(
-                 pgp_key_get_keyid(&key) + PGP_KEY_ID_SIZE / 2, keyid, PGP_KEY_ID_SIZE / 2);
+        const pgp_key_id_t &id = pgp_key_get_keyid(&key);
+        return (id == keyid) ||
+               !memcmp(id.data() + PGP_KEY_ID_SIZE / 2, keyid.data(), PGP_KEY_ID_SIZE / 2);
     });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
@@ -779,7 +781,7 @@ rnp_key_store_get_key_by_fpr(rnp_key_store_t *keyring, const pgp_fingerprint_t &
 pgp_key_t *
 rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
 {
-    uint8_t           keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_key_id_t      keyid = {};
     pgp_fingerprint_t keyfp = {};
 
     if (!pgp_key_is_subkey(subkey)) {

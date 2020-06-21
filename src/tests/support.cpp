@@ -405,9 +405,9 @@ bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 }
 
 bool
-cmp_keyid(uint8_t *id, const char *val)
+cmp_keyid(const pgp_key_id_t &id, const char *val)
 {
-    return bin_eq_hex(id, PGP_KEY_ID_SIZE, val);
+    return bin_eq_hex(id.data(), id.size(), val);
 }
 
 bool
@@ -783,9 +783,9 @@ ishex(const std::string &hexid)
 pgp_key_t *
 rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_key_t *after)
 {
-    pgp_key_t *          key = NULL;
-    std::vector<uint8_t> keyid_bin(PGP_KEY_ID_SIZE, 0);
-    size_t               binlen = 0;
+    pgp_key_t *  key = NULL;
+    pgp_key_id_t keyid_bin = {};
+    size_t       binlen = 0;
 
     if (!keyring || keyid.empty()) {
         return NULL;
@@ -793,7 +793,7 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
     if (ishex(keyid) &&
         hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
         if (binlen <= PGP_KEY_ID_SIZE) {
-            key = rnp_key_store_get_key_by_id(keyring, keyid_bin.data(), after);
+            key = rnp_key_store_get_key_by_id(keyring, keyid_bin, after);
         }
     }
     return key;
