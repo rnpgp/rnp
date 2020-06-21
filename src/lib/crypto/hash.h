@@ -86,7 +86,7 @@ size_t pgp_digest_length(pgp_hash_alg_t alg);
  *         false will be returned if memory allocation failed, or alg is not supported, or
  *         on other error
  **/
-bool pgp_hash_list_add(list *hashes, pgp_hash_alg_t alg);
+bool pgp_hash_list_add(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg);
 
 /* @brief Get hash structure for the corresponding algorithm
  *
@@ -95,7 +95,7 @@ bool pgp_hash_list_add(list *hashes, pgp_hash_alg_t alg);
  *
  * @return pointer to the pgp_hash_t structure or NULL if list doesn't contain alg
  **/
-const pgp_hash_t *pgp_hash_list_get(list hashes, pgp_hash_alg_t alg);
+const pgp_hash_t *pgp_hash_list_get(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg);
 
 /*
  * @brief Update list of hashes with the data
@@ -104,13 +104,7 @@ const pgp_hash_t *pgp_hash_list_get(list hashes, pgp_hash_alg_t alg);
  * @param buf buffer with data
  * @param len number of bytes in the buffer
  **/
-void pgp_hash_list_update(list hashes, const void *buf, size_t len);
-
-/* @brief Free the list of hashes and deallocate all internal structures
- *
- * @param hashes List of pgp_hash_t structures
- **/
-void pgp_hash_list_free(list *hashes);
+void pgp_hash_list_update(std::vector<pgp_hash_t> &hashes, const void *buf, size_t len);
 
 /*
  * @brief Hashes 4 bytes stored as big endian

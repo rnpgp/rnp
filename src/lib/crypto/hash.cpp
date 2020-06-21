@@ -302,51 +302,42 @@ pgp_digest_length(pgp_hash_alg_t alg)
 }
 
 bool
-pgp_hash_list_add(list *hashes, pgp_hash_alg_t alg)
+pgp_hash_list_add(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg)
 {
     pgp_hash_t hash = {0};
-
-    if (!pgp_hash_list_get(*hashes, alg)) {
+    if (!pgp_hash_list_get(hashes, alg)) {
         if (!pgp_hash_create(&hash, alg)) {
             RNP_LOG("failed to initialize hash algorithm %d", (int) alg);
             return false;
-        } else if (!list_append(hashes, &hash, sizeof(hash))) {
+        }
+        try {
+            hashes.push_back(hash);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             pgp_hash_finish(&hash, NULL);
-            RNP_LOG("allocation failed");
             return false;
         }
     }
-
     return true;
 }
 
 const pgp_hash_t *
-pgp_hash_list_get(list hashes, pgp_hash_alg_t alg)
+pgp_hash_list_get(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg)
 {
-    for (list_item *hash = list_front(hashes); hash; hash = list_next(hash)) {
-        if (pgp_hash_alg_type((pgp_hash_t *) hash) == alg) {
-            return (pgp_hash_t *) hash;
+    for (auto &hash : hashes) {
+        if (pgp_hash_alg_type(&hash) == alg) {
+            return &hash;
         }
     }
-
     return NULL;
 }
 
 void
-pgp_hash_list_update(list hashes, const void *buf, size_t len)
+pgp_hash_list_update(std::vector<pgp_hash_t> &hashes, const void *buf, size_t len)
 {
-    for (list_item *hash = list_front(hashes); hash; hash = list_next(hash)) {
-        pgp_hash_add((pgp_hash_t *) hash, buf, len);
+    for (auto &hash : hashes) {
+        pgp_hash_add(&hash, buf, len);
     }
-}
-
-void
-pgp_hash_list_free(list *hashes)
-{
-    for (list_item *hash = list_front(*hashes); hash; hash = list_next(hash)) {
-        pgp_hash_finish((pgp_hash_t *) hash, NULL);
-    }
-    list_destroy(hashes);
 }
 
 bool
