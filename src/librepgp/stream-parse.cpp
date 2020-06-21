@@ -115,10 +115,14 @@ typedef struct pgp_source_signed_param_t {
     uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t               outlen;          /* total bytes in out */
     size_t               outpos;          /* offset of first available byte in out */
-    list                 onepasses;       /* list of one-pass singatures */
-    list                 sigs;            /* list of signatures */
-    list                 hashes;          /* hash contexts */
-    list                 siginfos;        /* signature validation info */
+
+    std::vector<pgp_one_pass_sig_t>   onepasses; /* list of one-pass singatures */
+    std::list<pgp_signature_t>        sigs;      /* list of signatures */
+    std::vector<pgp_signature_info_t> siginfos;  /* signature validation info */
+    std::vector<pgp_hash_t>           hashes;    /* hash contexts */
+
+    pgp_source_signed_param_t() = default;
+    ~pgp_source_signed_param_t();
 } pgp_source_signed_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -718,11 +722,6 @@ encrypted_src_close(pgp_source_t *src)
     if (!param) {
         return;
     }
-
-    /* to be removed once pgp_source_t is migrated to C++ */
-    param->symencs.~vector();
-    param->pubencs.~vector();
-
     if (param->pkt.partial) {
         src_close(param->pkt.readsrc);
         free(param->pkt.readsrc);
@@ -735,7 +734,7 @@ encrypted_src_close(pgp_source_t *src)
         pgp_cipher_cfb_finish(&param->decrypt);
     }
 
-    free(src->param);
+    delete param;
     src->param = NULL;
 }
 
@@ -776,19 +775,10 @@ static void
 signed_src_close(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-
     if (!param) {
         return;
     }
-
-    list_destroy(&param->onepasses);
-    pgp_hash_list_free(&param->hashes);
-    list_destroy(&param->siginfos);
-    for (list_item *sig = list_front(param->sigs); sig; sig = list_next(sig)) {
-        free_signature((pgp_signature_t *) sig);
-    }
-    list_destroy(&param->sigs);
-    free(src->param);
+    delete param;
     src->param = NULL;
 }
 
@@ -800,7 +790,6 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     uint8_t               ptag;
     int                   ptype;
     pgp_signature_t       readsig;
-    pgp_signature_t *     newsig;
     pgp_signature_info_t *siginfo;
 
     if (!src_peek_eq(readsrc, &ptag, 1)) {
@@ -815,11 +804,13 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    siginfo = (pgp_signature_info_t *) list_append(&param->siginfos, NULL, sizeof(*siginfo));
-    if (!siginfo) {
-        RNP_LOG("siginfo allocation failed");
+    try {
+        param->siginfos.push_back({});
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    siginfo = &param->siginfos.back();
 
     if (stream_parse_signature(readsrc, &readsig) != RNP_SUCCESS) {
         RNP_LOG("failed to parse signature");
@@ -830,14 +821,15 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
         return RNP_SUCCESS;
     }
 
-    newsig = (pgp_signature_t *) list_append(&param->sigs, &readsig, sizeof(readsig));
-    if (!newsig) {
-        RNP_LOG("sig allocation failed");
+    try {
+        param->sigs.push_back(readsig);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    siginfo->sig = newsig;
+    siginfo->sig = &param->sigs.back();
     if (sig) {
-        *sig = newsig;
+        *sig = &param->sigs.back();
     }
     return RNP_SUCCESS;
 }
@@ -874,12 +866,12 @@ signed_read_signatures(pgp_source_t *src)
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
 
     /* reading signatures */
-    for (list_item *op = list_back(param->onepasses); op; op = list_prev(op)) {
+    for (auto op = param->onepasses.rbegin(); op != param->onepasses.rend(); op++) {
         if ((ret = signed_read_single_signature(param, src, &sig)) != RNP_SUCCESS) {
             return ret;
         }
 
-        if (!signature_matches_onepass(sig, (pgp_one_pass_sig_t *) op)) {
+        if (!signature_matches_onepass(sig, &*op)) {
             RNP_LOG("signature doesn't match one-pass");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -913,8 +905,7 @@ signed_src_finish(pgp_source_t *src)
         RNP_LOG("warning: unexpected data on the stream end");
     }
 
-    sinfos = (pgp_signature_info_t *) calloc(list_length(param->siginfos),
-                                             sizeof(pgp_signature_info_t));
+    sinfos = (pgp_signature_info_t *) calloc(param->siginfos.size(), sizeof(*sinfo));
     if (!sinfos) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -923,9 +914,8 @@ signed_src_finish(pgp_source_t *src)
     keyctx.op = PGP_OP_VERIFY;
     keyctx.search.type = PGP_KEY_SEARCH_KEYID;
 
-    for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
-        sinfo = (pgp_signature_info_t *) si;
-        if (!sinfo->sig) {
+    for (auto &sinfo : param->siginfos) {
+        if (!sinfo.sig) {
             continue;
         }
 
@@ -933,9 +923,9 @@ signed_src_finish(pgp_source_t *src)
         keyctx.secret = false;
 
         /* Get the key id */
-        if (!signature_get_keyid(sinfo->sig, keyctx.search.by.keyid)) {
+        if (!signature_get_keyid(sinfo.sig, keyctx.search.by.keyid)) {
             RNP_LOG("cannot get signer's key id from signature");
-            sinfo->unknown = true;
+            sinfo.unknown = true;
             continue;
         }
 
@@ -945,27 +935,26 @@ signed_src_finish(pgp_source_t *src)
             keyctx.secret = true;
             if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
                 RNP_LOG("signer's key not found");
-                sinfo->no_signer = true;
+                sinfo.no_signer = true;
                 continue;
             }
         }
-        sinfo->signer = key;
+        sinfo.signer = key;
         /* validate signature */
-        signed_validate_signature(param, sinfo);
+        signed_validate_signature(param, &sinfo);
     }
 
     /* checking the validation results */
     ret = RNP_SUCCESS;
-    for (list_item *si = list_front(param->siginfos); si; si = list_next(si)) {
-        sinfo = (pgp_signature_info_t *) si;
-        sinfos[sinfoc++] = *sinfo;
+    for (auto &sinfo : param->siginfos) {
+        sinfos[sinfoc++] = sinfo;
 
-        if (sinfo->no_signer && param->handler->ctx->discard) {
+        if (sinfo.no_signer && param->handler->ctx->discard) {
             /* if output is discarded then we interested in verification */
             ret = RNP_ERROR_SIGNATURE_INVALID;
             continue;
         }
-        if (!sinfo->no_signer && (!sinfo->valid || (sinfo->expired))) {
+        if (!sinfo.no_signer && (!sinfo.valid || (sinfo.expired))) {
             /* do not report error if signer not found */
             ret = RNP_ERROR_SIGNATURE_INVALID;
         }
@@ -1040,7 +1029,7 @@ cleartext_parse_headers(pgp_source_t *src)
                 if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
                     RNP_LOG("unknown halg: %s", token.c_str());
                 }
-                pgp_hash_list_add(&param->hashes, halg);
+                pgp_hash_list_add(param->hashes, halg);
             }
         } else {
             RNP_LOG("unknown header '%s'", hdr);
@@ -1878,10 +1867,16 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     int                           intres;
     bool                          have_key = false;
 
-    if (!init_src_common(src, sizeof(*param))) {
+    if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    param = (pgp_source_encrypted_param_t *) src->param;
+    try {
+        param = new pgp_source_encrypted_param_t();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    src->param = param;
     param->pkt.readsrc = readsrc;
     param->handler = handler;
 
@@ -2042,6 +2037,16 @@ init_cleartext_signed_src(pgp_source_t *src)
     return RNP_SUCCESS;
 }
 
+pgp_source_signed_param_t::~pgp_source_signed_param_t()
+{
+    for (auto &hash : hashes) {
+        pgp_hash_finish(&hash, NULL);
+    }
+    for (auto &sig : sigs) {
+        free_signature(&sig);
+    }
+}
+
 static rnp_result_t
 init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
@@ -2049,17 +2054,21 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     pgp_source_signed_param_t *param;
     uint8_t                    ptag;
     int                        ptype;
-    pgp_one_pass_sig_t         onepass = {0};
     pgp_signature_t *          sig = NULL;
     bool                       cleartext;
 
-    if (!init_src_common(src, sizeof(*param))) {
+    if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    try {
+        param = new pgp_source_signed_param_t();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    src->param = param;
 
     cleartext = is_cleartext_source(readsrc);
-
-    param = (pgp_source_signed_param_t *) src->param;
     param->readsrc = readsrc;
     param->handler = handler;
     param->cleartext = cleartext;
@@ -2091,6 +2100,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
         ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PKT_ONE_PASS_SIG) {
+            pgp_one_pass_sig_t onepass = {};
             errcode = stream_parse_one_pass(readsrc, &onepass);
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
@@ -2099,13 +2109,16 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
                 continue;
             }
 
-            if (!list_append(&param->onepasses, &onepass, sizeof(onepass))) {
+            try {
+                param->onepasses.push_back(onepass);
+            } catch (const std::exception &e) {
+                RNP_LOG("%s", e.what());
                 errcode = RNP_ERROR_OUT_OF_MEMORY;
                 goto finish;
             }
 
             /* adding hash context */
-            pgp_hash_list_add(&param->hashes, onepass.halg);
+            pgp_hash_list_add(param->hashes, onepass.halg);
 
             if (onepass.nested) {
                 /* despite the name non-zero value means that it is the last one-pass */
@@ -2116,7 +2129,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             signed_read_single_signature(param, readsrc, &sig);
             /* adding hash context */
             if (sig) {
-                pgp_hash_list_add(&param->hashes, sig->halg);
+                pgp_hash_list_add(param->hashes, sig->halg);
             }
         } else {
             break;
@@ -2130,12 +2143,12 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     }
 
     /* checking what we have now */
-    if (!list_length(param->onepasses) && !list_length(param->sigs)) {
+    if (param->onepasses.empty() && param->sigs.empty()) {
         RNP_LOG("no signatures");
         errcode = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
-    if (list_length(param->onepasses) && list_length(param->sigs)) {
+    if (!param->onepasses.empty() && !param->sigs.empty()) {
         RNP_LOG("warning: one-passes are mixed with signatures");
     }
 
