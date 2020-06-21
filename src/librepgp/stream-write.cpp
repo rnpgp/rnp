@@ -517,7 +517,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
     pkey.alg = pgp_key_get_alg(userkey);
-    memcpy(pkey.key_id, pgp_key_get_keyid(userkey), PGP_KEY_ID_SIZE);
+    pkey.key_id = pgp_key_get_keyid(userkey);
 
     /* Encrypt the session key */
     enckey[0] = param->ctx->ealg;
@@ -1259,7 +1259,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.type = PGP_SIG_BINARY;
     sinfo.onepass.halg = sinfo.halg;
     sinfo.onepass.palg = pgp_key_get_alg(sinfo.key);
-    memcpy(sinfo.onepass.keyid, pgp_key_get_keyid(sinfo.key), PGP_KEY_ID_SIZE);
+    sinfo.onepass.keyid = pgp_key_get_keyid(sinfo.key);
     sinfo.onepass.nested = false;
     try {
         param->siginfos.push_back(sinfo);

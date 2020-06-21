@@ -42,17 +42,16 @@
 bool
 signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
 {
-    uint8_t keyid[PGP_KEY_ID_SIZE];
-
     if (!sig || !onepass) {
         return false;
     }
 
+    pgp_key_id_t keyid = {};
     if (!signature_get_keyid(sig, keyid)) {
         return false;
     }
 
-    return !memcmp(keyid, onepass->keyid, PGP_KEY_ID_SIZE) && (sig->halg == onepass->halg) &&
+    return (keyid == onepass->keyid) && (sig->halg == onepass->halg) &&
            (sig->palg == onepass->palg) && (sig->type == onepass->type);
 }
 
@@ -193,27 +192,26 @@ signature_has_keyid(const pgp_signature_t *sig)
 }
 
 bool
-signature_get_keyid(const pgp_signature_t *sig, uint8_t *id)
+signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if (!sig || !id) {
+    if (!sig) {
         return false;
     }
 
     /* version 3 uses signature field */
     if (sig->version < PGP_V4) {
-        memcpy(id, sig->signer, PGP_KEY_ID_SIZE);
+        id = sig->signer;
         return true;
     }
 
     /* version 4 and up use subpackets */
+    pgp_sig_subpkt_t *subpkt;
     if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID))) {
-        memcpy(id, subpkt->fields.issuer, PGP_KEY_ID_SIZE);
+        memcpy(id.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
         return true;
     }
     if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
-        memcpy(id,
+        memcpy(id.data(),
                subpkt->fields.issuer_fp.fp + subpkt->fields.issuer_fp.len - PGP_KEY_ID_SIZE,
                PGP_KEY_ID_SIZE);
         return true;
@@ -223,27 +221,26 @@ signature_get_keyid(const pgp_signature_t *sig, uint8_t *id)
 }
 
 bool
-signature_set_keyid(pgp_signature_t *sig, const uint8_t *id)
+signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if (!sig || !id) {
+    if (!sig) {
         return false;
     }
 
     if (sig->version < PGP_V4) {
-        memcpy(sig->signer, id, PGP_KEY_ID_SIZE);
+        sig->signer = id;
         return true;
     }
 
-    subpkt = signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
+    pgp_sig_subpkt_t *subpkt =
+      signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
     if (!subpkt) {
         return false;
     }
 
     subpkt->parsed = 1;
     subpkt->hashed = 0;
-    memcpy(subpkt->data, id, PGP_KEY_ID_SIZE);
+    memcpy(subpkt->data, id.data(), PGP_KEY_ID_SIZE);
     subpkt->fields.issuer = subpkt->data;
     return true;
 }

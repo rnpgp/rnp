@@ -38,8 +38,8 @@ all_keys_valid(const rnp_key_store_t *keyring)
 
     for (auto &key : keyring->keys) {
         if (!key.valid) {
-            assert_true(rnp_hex_encode(pgp_key_get_keyid(&key),
-                                       PGP_KEY_ID_SIZE,
+            assert_true(rnp_hex_encode(pgp_key_get_keyid(&key).data(),
+                                       pgp_key_get_keyid(&key).size(),
                                        keyid,
                                        sizeof(keyid),
                                        RNP_HEX_LOWERCASE));

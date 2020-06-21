@@ -42,7 +42,7 @@ typedef enum {
 typedef struct pgp_key_search_t {
     pgp_key_search_type_t type;
     union {
-        uint8_t           keyid[PGP_KEY_ID_SIZE];
+        pgp_key_id_t      keyid;
         pgp_key_grip_t    grip;
         pgp_fingerprint_t fingerprint;
         char              userid[MAX_ID_LENGTH + 1];

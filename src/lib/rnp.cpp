@@ -1344,9 +1344,9 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
             continue;
         }
         if (validate_pgp_key_material(pgp_key_get_material(&key), &ffi->rng)) {
-            char hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
-            rnp_hex_encode(
-              pgp_key_get_keyid(&key), PGP_KEY_ID_SIZE, hex, sizeof(hex), RNP_HEX_LOWERCASE);
+            char                hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
+            const pgp_key_id_t &keyid = pgp_key_get_keyid(&key);
+            rnp_hex_encode(keyid.data(), keyid.size(), hex, sizeof(hex), RNP_HEX_LOWERCASE);
             FFI_LOG(ffi, "warning! attempt to import key %s with invalid material.", hex);
             continue;
         }
@@ -2713,7 +2713,7 @@ static void
 recipient_handle_from_pk_sesskey(rnp_recipient_handle_t  handle,
                                  const pgp_pk_sesskey_t &sesskey)
 {
-    memcpy(handle->keyid, sesskey.key_id, PGP_KEY_ID_SIZE);
+    memcpy(handle->keyid, sesskey.key_id.data(), sesskey.key_id.size());
     handle->palg = sesskey.alg;
 }
 
@@ -3182,15 +3182,13 @@ rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
 {
     rnp_ffi_t        ffi = sig->ffi;
-    pgp_key_search_t search;
+    pgp_key_search_t search = {};
 
-    uint8_t keyid[PGP_KEY_ID_SIZE] = {0};
-    if (!signature_get_keyid(&sig->sig_pkt, keyid)) {
+    if (!signature_get_keyid(&sig->sig_pkt, search.by.keyid)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     // create a search (since we'll use this later anyways)
     search.type = PGP_KEY_SEARCH_KEYID;
-    memcpy(search.by.keyid, keyid, PGP_KEY_ID_SIZE);
 
     // search the stores
     pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &search, NULL);
@@ -3286,7 +3284,7 @@ str_to_locator(rnp_ffi_t         ffi,
         break;
     case PGP_KEY_SEARCH_KEYID: {
         if (strlen(identifier) != (PGP_KEY_ID_SIZE * 2) ||
-            !rnp_hex_decode(identifier, locator->by.keyid, sizeof(locator->by.keyid))) {
+            !rnp_hex_decode(identifier, locator->by.keyid.data(), locator->by.keyid.size())) {
             FFI_LOG(ffi, "Invalid keyid: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3340,8 +3338,8 @@ locator_to_str(const pgp_key_search_t *locator,
         }
         break;
     case PGP_KEY_SEARCH_KEYID:
-        if (!rnp_hex_encode(locator->by.keyid,
-                            PGP_KEY_ID_SIZE,
+        if (!rnp_hex_encode(locator->by.keyid.data(),
+                            locator->by.keyid.size(),
                             identifier,
                             identifier_size,
                             RNP_HEX_UPPERCASE)) {
@@ -5125,7 +5123,7 @@ get_key_require_public(rnp_key_handle_t handle)
 
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
-        memcpy(request.search.by.keyid, pgp_key_get_keyid(handle->sec), PGP_KEY_ID_SIZE);
+        request.search.by.keyid = pgp_key_get_keyid(handle->sec);
         handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
     }
     return handle->pub;
@@ -5155,7 +5153,7 @@ get_key_require_secret(rnp_key_handle_t handle)
 
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
-        memcpy(request.search.by.keyid, pgp_key_get_keyid(handle->pub), PGP_KEY_ID_SIZE);
+        request.search.by.keyid = pgp_key_get_keyid(handle->pub);
         handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
     }
     return handle->sec;
@@ -5439,13 +5437,12 @@ rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
     if (!handle->sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    uint8_t keyid[PGP_KEY_ID_SIZE] = {0};
+    pgp_key_id_t keyid = {};
     if (!signature_get_keyid(&handle->sig->sig, keyid)) {
         *result = NULL;
         return RNP_SUCCESS;
     }
-
-    return hex_encode_value(keyid, PGP_KEY_ID_SIZE, result, RNP_HEX_UPPERCASE);
+    return hex_encode_value(keyid.data(), keyid.size(), result, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
@@ -5641,7 +5638,8 @@ rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
     }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    return hex_encode_value(pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
+    return hex_encode_value(
+      pgp_key_get_keyid(key).data(), pgp_key_get_keyid(key).size(), keyid, RNP_HEX_UPPERCASE);
 }
 
 rnp_result_t
@@ -6435,11 +6433,11 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         if (!jsosigner) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        char    keyid[PGP_KEY_ID_SIZE * 2 + 1];
-        uint8_t signer[PGP_KEY_ID_SIZE] = {0};
+        char         keyid[PGP_KEY_ID_SIZE * 2 + 1];
+        pgp_key_id_t signer = {};
         if (!signature_get_keyid(sig, signer) ||
             !rnp_hex_encode(
-              signer, PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+              signer.data(), signer.size(), keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
         }
         if (!add_json_string_field(jsosigner, "keyid", keyid)) {
@@ -6529,8 +6527,11 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 
     // keyid
     char keyid[PGP_KEY_ID_SIZE * 2 + 1];
-    if (!rnp_hex_encode(
-          pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+    if (!rnp_hex_encode(pgp_key_get_keyid(key).data(),
+                        pgp_key_get_keyid(key).size(),
+                        keyid,
+                        sizeof(keyid),
+                        RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "keyid", keyid)) {
@@ -6959,12 +6960,13 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
 {
     const pgp_key_t *key = &*it->keyp;
     switch (it->type) {
-    case PGP_KEY_SEARCH_KEYID:
-        if (!rnp_hex_encode(
-              pgp_key_get_keyid(key), PGP_KEY_ID_SIZE, buf, buf_len, RNP_HEX_UPPERCASE)) {
+    case PGP_KEY_SEARCH_KEYID: {
+        const pgp_key_id_t &keyid = pgp_key_get_keyid(key);
+        if (!rnp_hex_encode(keyid.data(), keyid.size(), buf, buf_len, RNP_HEX_UPPERCASE)) {
             return false;
         }
         break;
+    }
     case PGP_KEY_SEARCH_FINGERPRINT:
         if (!rnp_hex_encode(pgp_key_get_fp(key).fingerprint,
                             pgp_key_get_fp(key).length,

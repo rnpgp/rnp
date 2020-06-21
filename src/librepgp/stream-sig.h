@@ -121,18 +121,18 @@ bool signature_has_keyid(const pgp_signature_t *sig);
 /**
  * @brief Get signature's signing key id
  * @param sig populated or loaded signature
- * @param id buffer to return key identifier, must be capable of storing PGP_KEY_ID_SIZE bytes
+ * @param id reference to return key identifier
  * @return true on success or false otherwise
  */
-bool signature_get_keyid(const pgp_signature_t *sig, uint8_t *id);
+bool signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id);
 
 /**
  * @brief Set the signature's key id
  * @param sig signature being populated. Version should be set prior of setting key id.
- * @param id pointer to buffer with PGP_KEY_ID_SIZE bytes of key id.
+ * @param id reference to key identifier
  * @return true on success or false otherwise
  */
-bool signature_set_keyid(pgp_signature_t *sig, const uint8_t *id);
+bool signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id);
 
 /**
  * @brief Get signature's creation time
