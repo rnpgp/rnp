@@ -83,7 +83,7 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key)
  */
 
 rnp_result_t
-pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
+pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t *key)
 {
     pgp_fingerprint_t fp;
     rnp_result_t      ret;
@@ -95,14 +95,14 @@ pgp_keyid(uint8_t *keyid, const size_t idlen, const pgp_key_pkt_t *key)
             return RNP_ERROR_NOT_SUPPORTED;
         }
         n = mpi_bytes(&key->material.rsa.n);
-        (void) memcpy(keyid, key->material.rsa.n.mpi + n - idlen, idlen);
+        (void) memcpy(keyid.data(), key->material.rsa.n.mpi + n - keyid.size(), keyid.size());
         return RNP_SUCCESS;
     }
 
     if ((ret = pgp_fingerprint(fp, key))) {
         return ret;
     }
-    (void) memcpy(keyid, fp.fingerprint + fp.length - idlen, idlen);
+    (void) memcpy(keyid.data(), fp.fingerprint + fp.length - keyid.size(), keyid.size());
     return RNP_SUCCESS;
 }
 

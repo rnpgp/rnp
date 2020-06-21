@@ -864,7 +864,7 @@ stream_write_pk_sesskey(pgp_pk_sesskey_t *pkey, pgp_dest_t *dst)
     }
 
     res = add_packet_body_byte(&pktbody, pkey->version) &&
-          add_packet_body(&pktbody, pkey->key_id, sizeof(pkey->key_id)) &&
+          add_packet_body(&pktbody, pkey->key_id.data(), pkey->key_id.size()) &&
           add_packet_body_byte(&pktbody, pkey->alg);
     if (!res) {
         goto error;
@@ -914,7 +914,7 @@ stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
           add_packet_body_byte(&pktbody, onepass->type) &&
           add_packet_body_byte(&pktbody, onepass->halg) &&
           add_packet_body_byte(&pktbody, onepass->palg) &&
-          add_packet_body(&pktbody, onepass->keyid, PGP_KEY_ID_SIZE) &&
+          add_packet_body(&pktbody, onepass->keyid.data(), onepass->keyid.size()) &&
           add_packet_body_byte(&pktbody, onepass->nested);
 
     if (res) {
@@ -947,7 +947,7 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
         res = add_packet_body_byte(&pktbody, sig->version) &&
               add_packet_body_byte(&pktbody, sig->hashed_len) &&
               add_packet_body(&pktbody, sig->hashed_data, sig->hashed_len) &&
-              add_packet_body(&pktbody, sig->signer, PGP_KEY_ID_SIZE) &&
+              add_packet_body(&pktbody, sig->signer.data(), sig->signer.size()) &&
               add_packet_body_byte(&pktbody, sig->palg) &&
               add_packet_body_byte(&pktbody, sig->halg);
     } else {
@@ -1127,7 +1127,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     pkey->version = bt;
 
     /* key id */
-    if (!get_packet_body_buf(&pkt, pkey->key_id, PGP_KEY_ID_SIZE)) {
+    if (!get_packet_body_buf(&pkt, pkey->key_id.data(), PGP_KEY_ID_SIZE)) {
         RNP_LOG("failed to get key id");
         goto finish;
     }
@@ -1237,7 +1237,7 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     onepass->palg = (pgp_pubkey_alg_t) buf[3];
 
     /* key id */
-    memcpy(onepass->keyid, &buf[4], PGP_KEY_ID_SIZE);
+    memcpy(onepass->keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
 
     /* nested flag */
     onepass->nested = !!buf[12];
@@ -1280,7 +1280,7 @@ signature_read_v3(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     sig->creation_time = read_uint32(&buf[2]);
 
     /* signer's key id */
-    memcpy(sig->signer, &buf[6], PGP_KEY_ID_SIZE);
+    memcpy(sig->signer.data(), &buf[6], PGP_KEY_ID_SIZE);
 
     /* public key algorithm */
     sig->palg = (pgp_pubkey_alg_t) buf[14];
@@ -1736,16 +1736,25 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
         return false;
     }
 
-    memcpy(dst, src, sizeof(*src));
+    dst->version = src->version;
+    dst->type = src->type;
+    dst->palg = src->palg;
+    dst->halg = src->halg;
+    memcpy(dst->lbits, src->lbits, sizeof(src->lbits));
+    dst->creation_time = src->creation_time;
+    dst->signer = src->signer;
+    dst->material = src->material;
+
+    dst->hashed_len = src->hashed_len;
     dst->hashed_data = NULL;
-    dst->subpkts = NULL;
     if (src->hashed_data) {
-        if (!(dst->hashed_data = (uint8_t *) malloc(dst->hashed_len))) {
+        if (!(dst->hashed_data = (uint8_t *) malloc(src->hashed_len))) {
             return false;
         }
-        memcpy(dst->hashed_data, src->hashed_data, dst->hashed_len);
+        memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
     }
 
+    dst->subpkts = NULL;
     for (list_item *sp = list_front(src->subpkts); sp; sp = list_next(sp)) {
         pgp_sig_subpkt_t *dstsp;
         pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
@@ -1822,6 +1831,7 @@ free_signature(pgp_signature_t *sig)
         free_signature_subpkt((pgp_sig_subpkt_t *) sp);
     }
     list_destroy(&sig->subpkts);
+    sig->signer.~array();
 }
 
 bool

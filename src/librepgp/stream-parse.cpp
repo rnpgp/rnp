@@ -1908,7 +1908,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         keyctx.search.type = PGP_KEY_SEARCH_KEYID;
 
         for (auto &pubenc : param->pubencs) {
-            memcpy(keyctx.search.by.keyid, pubenc.key_id, sizeof(keyctx.search.by.keyid));
+            keyctx.search.by.keyid = pubenc.key_id;
             /* Get the key if any */
             if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
                 errcode = RNP_ERROR_NO_SUITABLE_KEY;
