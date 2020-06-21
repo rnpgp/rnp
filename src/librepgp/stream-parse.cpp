@@ -884,9 +884,6 @@ static rnp_result_t
 signed_src_finish(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    pgp_signature_info_t *     sinfo = NULL;
-    pgp_signature_info_t *     sinfos = NULL;
-    unsigned                   sinfoc = 0;
     pgp_key_request_ctx_t      keyctx;
     pgp_key_t *                key = NULL;
     rnp_result_t               ret = RNP_ERROR_GENERIC;
@@ -903,11 +900,6 @@ signed_src_finish(pgp_source_t *src)
 
     if (!src_eof(src)) {
         RNP_LOG("warning: unexpected data on the stream end");
-    }
-
-    sinfos = (pgp_signature_info_t *) calloc(param->siginfos.size(), sizeof(*sinfo));
-    if (!sinfos) {
-        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     /* validating signatures */
@@ -947,8 +939,6 @@ signed_src_finish(pgp_source_t *src)
     /* checking the validation results */
     ret = RNP_SUCCESS;
     for (auto &sinfo : param->siginfos) {
-        sinfos[sinfoc++] = sinfo;
-
         if (sinfo.no_signer && param->handler->ctx->discard) {
             /* if output is discarded then we interested in verification */
             ret = RNP_ERROR_SIGNATURE_INVALID;
@@ -962,10 +952,8 @@ signed_src_finish(pgp_source_t *src)
 
     /* call the callback with signature infos */
     if (param->handler->on_signatures) {
-        param->handler->on_signatures(sinfos, sinfoc, param->handler->param);
+        param->handler->on_signatures(param->siginfos, param->handler->param);
     }
-
-    free(sinfos);
     return ret;
 }
 
