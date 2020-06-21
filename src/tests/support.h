@@ -135,7 +135,7 @@ char *hex_encode(const uint8_t v[], size_t len);
 bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 
 /* check whether key id is equal to hex string */
-bool cmp_keyid(uint8_t *id, const char *val);
+bool cmp_keyid(const pgp_key_id_t &id, const char *val);
 
 /* check whether key fp is equal to hex string */
 bool cmp_keyfp(const pgp_fingerprint_t &fp, const char *val);

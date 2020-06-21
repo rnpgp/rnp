@@ -57,7 +57,7 @@ TEST_F(rnp_tests, test_key_store_search)
             key.pkt.version = PGP_V4;
 
             // set the keyid
-            assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid, sizeof(key.keyid)));
+            assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid.data(), key.keyid.size()));
             // keys should have different grips otherwise rnp_key_store_add_key will fail here
             assert_true(rnp_hex_decode(testdata[i].keyid, key.grip.data(), key.grip.size()));
             key.grip[0] = (uint8_t) n;
@@ -74,13 +74,13 @@ TEST_F(rnp_tests, test_key_store_search)
 
     // keyid search
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
-        uint8_t keyid[PGP_KEY_ID_SIZE];
-        assert_true(rnp_hex_decode(testdata[i].keyid, keyid, sizeof(keyid)));
+        pgp_key_id_t keyid = {};
+        assert_true(rnp_hex_decode(testdata[i].keyid, keyid.data(), keyid.size()));
         list seen_keys = NULL;
         for (pgp_key_t *key = rnp_key_store_get_key_by_id(store, keyid, NULL); key;
              key = rnp_key_store_get_key_by_id(store, keyid, key)) {
             // check that the keyid actually matches
-            assert_int_equal(0, memcmp(pgp_key_get_keyid(key), keyid, PGP_KEY_ID_SIZE));
+            assert_true(pgp_key_get_keyid(key) == keyid);
             // check that we have not already encountered this key pointer
             assert_null(list_find(seen_keys, &key, sizeof(key)));
             // keep track of what key pointers we have seen
@@ -96,11 +96,10 @@ TEST_F(rnp_tests, test_key_store_search)
         key = rnp_tests_get_key_by_id(store, testdata[i].keyid, NULL);
         while (key) {
             // check that the keyid actually matches
-            uint8_t expected_keyid[PGP_KEY_ID_SIZE];
+            pgp_key_id_t expected_keyid = {};
             assert_true(
-              rnp_hex_decode(testdata[i].keyid, expected_keyid, sizeof(expected_keyid)));
-            assert_int_equal(0,
-                             memcmp(pgp_key_get_keyid(key), expected_keyid, PGP_KEY_ID_SIZE));
+              rnp_hex_decode(testdata[i].keyid, expected_keyid.data(), expected_keyid.size()));
+            assert_true(pgp_key_get_keyid(key) == expected_keyid);
             // check that we have not already encountered this key pointer
             assert_null(list_find(seen_keys, &key, sizeof(key)));
             // keep track of what key pointers we have seen

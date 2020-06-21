@@ -72,7 +72,7 @@ struct pgp_key_t {
     pgp_key_pkt_t               pkt;        /* pubkey/seckey data packet */
     pgp_rawpacket_t             rawpkt;     /* key raw packet */
     uint8_t                     key_flags;  /* key flags */
-    uint8_t                     keyid[PGP_KEY_ID_SIZE];
+    pgp_key_id_t                keyid;
     pgp_fingerprint_t           fingerprint;
     pgp_key_grip_t              grip;
     uint32_t                    uid0;         /* primary uid index in uids array */
@@ -197,9 +197,9 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
  * @brief Get key's keyid
  *
  * @param key populated key, should not be NULL
- * @return pointer to the 8-byte buffer with keyid
+ * @return reference to keyid object
  */
-const uint8_t *pgp_key_get_keyid(const pgp_key_t *key);
+const pgp_key_id_t &pgp_key_get_keyid(const pgp_key_t *key);
 
 /**
  * @brief Get key's fingerprint
