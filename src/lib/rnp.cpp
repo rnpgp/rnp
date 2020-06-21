@@ -2648,35 +2648,36 @@ rnp_op_sign_destroy(rnp_op_sign_t op)
 }
 
 static void
-rnp_op_verify_on_signatures(pgp_signature_info_t *sigs, int count, void *param)
+rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void *param)
 {
     struct rnp_op_verify_signature_st res;
     rnp_op_verify_t                   op = (rnp_op_verify_t) param;
 
-    op->signatures = (rnp_op_verify_signature_t) calloc(count, sizeof(*op->signatures));
+    op->signatures = (rnp_op_verify_signature_t) calloc(sigs.size(), sizeof(*op->signatures));
     if (!op->signatures) {
-        // TODO: report allocation error?
+        FFI_LOG(op->ffi, "Allocation error");
         return;
     }
-    op->signature_count = count;
+    op->signature_count = sigs.size();
 
-    for (int i = 0; i < count; i++) {
+    size_t i = 0;
+    for (const auto &sinfo : sigs) {
         memset(&res, 0, sizeof(res));
 
         /* ignore copy result - NULL signature on out of memory error will work for us */
-        (void) copy_signature_packet(&res.sig_pkt, sigs[i].sig);
+        (void) copy_signature_packet(&res.sig_pkt, sinfo.sig);
 
-        if (sigs[i].unknown) {
+        if (sinfo.unknown) {
             res.verify_status = RNP_ERROR_SIGNATURE_INVALID;
-        } else if (sigs[i].valid) {
-            res.verify_status = sigs[i].expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
+        } else if (sinfo.valid) {
+            res.verify_status = sinfo.expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
         } else {
             res.verify_status =
-              sigs[i].no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
+              sinfo.no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
         }
 
         res.ffi = op->ffi;
-        op->signatures[i] = res;
+        op->signatures[i++] = res;
     }
 }
 
