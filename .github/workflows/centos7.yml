@@ -71,6 +71,12 @@ jobs:
           set -x
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ./ci/run.sh
+      - name: symbol-visibility
+        run: |
+          set -euxo pipefail
+          nm --defined-only -g $RNP_INSTALL/lib64/librnp*.so > exports
+          grep -qv dst_close exports
+          grep -qw rnp_version_string exports
   pkgconfig-cmake-target:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
