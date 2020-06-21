@@ -77,36 +77,31 @@ typedef struct rnp_signer_info_t {
  *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
  *
  *  For data decryption and/or verification there is not much of fields:
- *  - on_signatures: callback, called when signature verification information is available.
- *    If we have just encrypted data then it will not be called.
- *  - sig_cb_param: parameter to be passed to on_signatures callback.
  *  - discard: dicard the output data (i.e. just decrypt and/or verify signatures)
  *
  */
 
 typedef struct rnp_ctx_t {
-    char *          filename;      /* name of the input file to store in literal data packet */
-    int64_t         filemtime;     /* file modification time to store in literal data packet */
-    int64_t         sigcreate;     /* signature creation time */
-    uint64_t        sigexpire;     /* signature expiration time */
-    bool            clearsign;     /* cleartext signature */
-    bool            detached;      /* detached signature */
-    pgp_hash_alg_t  halg;          /* hash algorithm */
-    pgp_symm_alg_t  ealg;          /* encryption algorithm */
-    int             zalg;          /* compression algorithm used */
-    int             zlevel;        /* compression level */
-    pgp_aead_alg_t  aalg;          /* non-zero to use AEAD */
-    int             abits;         /* AEAD chunk bits */
-    bool            overwrite;     /* allow to overwrite output file if exists */
-    bool            armor;         /* whether to use ASCII armor on output */
-    list            recipients;    /* recipients of the encrypted message */
-    list            passwords;     /* list of rnp_symmetric_pass_info_t */
-    list            signers;       /* list of rnp_signer_info_t structures */
-    bool            discard;       /* discard the output */
-    void *          on_signatures; /* handler for signed messages */
-    void *          sig_cb_param;  /* callback data passed to on_signatures */
-    rng_t *         rng;           /* pointer to rng_t */
-    rnp_operation_t operation;     /* current operation type */
+    char *          filename;   /* name of the input file to store in literal data packet */
+    int64_t         filemtime;  /* file modification time to store in literal data packet */
+    int64_t         sigcreate;  /* signature creation time */
+    uint64_t        sigexpire;  /* signature expiration time */
+    bool            clearsign;  /* cleartext signature */
+    bool            detached;   /* detached signature */
+    pgp_hash_alg_t  halg;       /* hash algorithm */
+    pgp_symm_alg_t  ealg;       /* encryption algorithm */
+    int             zalg;       /* compression algorithm used */
+    int             zlevel;     /* compression level */
+    pgp_aead_alg_t  aalg;       /* non-zero to use AEAD */
+    int             abits;      /* AEAD chunk bits */
+    bool            overwrite;  /* allow to overwrite output file if exists */
+    bool            armor;      /* whether to use ASCII armor on output */
+    list            recipients; /* recipients of the encrypted message */
+    list            passwords;  /* list of rnp_symmetric_pass_info_t */
+    list            signers;    /* list of rnp_signer_info_t structures */
+    bool            discard;    /* discard the output */
+    rng_t *         rng;        /* pointer to rng_t */
+    rnp_operation_t operation;  /* current operation type */
 } rnp_ctx_t;
 
 typedef struct rnp_symmetric_pass_info_t {
