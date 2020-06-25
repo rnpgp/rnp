@@ -62,26 +62,27 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    std::vector<pgp_userid_t>   uids;         /* array of user ids */
-    std::vector<pgp_subsig_t>   subsigs;      /* array of key signatures */
-    std::vector<pgp_revoke_t>   revokes;      /* array of revocations */
-    std::vector<pgp_key_grip_t> subkey_grips; /* array of subkey grips (for primary keys) */
-    pgp_key_grip_t              primary_grip; /* grip of primary key (for subkeys) */
-    bool                        primary_grip_set;
-    time_t                      expiration; /* key expiration time, if available */
-    pgp_key_pkt_t               pkt;        /* pubkey/seckey data packet */
-    pgp_rawpacket_t             rawpkt;     /* key raw packet */
-    uint8_t                     key_flags;  /* key flags */
-    pgp_key_id_t                keyid;
-    pgp_fingerprint_t           fingerprint;
-    pgp_key_grip_t              grip;
-    uint32_t                    uid0;         /* primary uid index in uids array */
-    unsigned                    uid0_set : 1; /* flag for the above */
-    uint8_t                     revoked;      /* key has been revoked */
-    pgp_revoke_t                revocation;   /* revocation reason */
-    pgp_key_store_format_t      format;       /* the format of the key in packets[0] */
-    bool                        valid;        /* this key is valid and usable */
-    bool                        validated;    /* this key was validated */
+    std::vector<pgp_userid_t> uids;    /* array of user ids */
+    std::vector<pgp_subsig_t> subsigs; /* array of key signatures */
+    std::vector<pgp_revoke_t> revokes; /* array of revocations */
+    std::vector<pgp_fingerprint_t>
+                           subkey_fps; /* array of subkey fingerprints (for primary keys) */
+    pgp_fingerprint_t      primary_fp; /* fingerprint of primary key (for subkeys) */
+    bool                   primary_fp_set;
+    time_t                 expiration; /* key expiration time, if available */
+    pgp_key_pkt_t          pkt;        /* pubkey/seckey data packet */
+    pgp_rawpacket_t        rawpkt;     /* key raw packet */
+    uint8_t                key_flags;  /* key flags */
+    pgp_key_id_t           keyid;
+    pgp_fingerprint_t      fingerprint;
+    pgp_key_grip_t         grip;
+    uint32_t               uid0;         /* primary uid index in uids array */
+    unsigned               uid0_set : 1; /* flag for the above */
+    uint8_t                revoked;      /* key has been revoked */
+    pgp_revoke_t           revocation;   /* revocation reason */
+    pgp_key_store_format_t format;       /* the format of the key in packets[0] */
+    bool                   valid;        /* this key is valid and usable */
+    bool                   validated;    /* this key was validated */
 
     ~pgp_key_t();
     pgp_key_t() = default;
@@ -218,32 +219,32 @@ const pgp_fingerprint_t &pgp_key_get_fp(const pgp_key_t *key);
 const pgp_key_grip_t &pgp_key_get_grip(const pgp_key_t *key);
 
 /**
- * @brief Get primary key's grip for the subkey, if available.
+ * @brief Get primary key's fingerprint for the subkey, if available.
  *
- * @param key subkey, which primary key's grip should be returned
- * @return pointer to the array with grip or NULL if it is not available
+ * @param key subkey, which primary key's fingerprint should be returned
+ * @return reference to the fingerprint or NULL if it is not available
  */
-const pgp_key_grip_t &pgp_key_get_primary_grip(const pgp_key_t *key);
+const pgp_fingerprint_t &pgp_key_get_primary_fp(const pgp_key_t *key);
 
-bool pgp_key_has_primary_grip(const pgp_key_t *key);
+bool pgp_key_has_primary_fp(const pgp_key_t *key);
 
 /**
- * @brief Set primary key's grip for the subkey
+ * @brief Set primary key's fingerprint for the subkey
  *
  * @param key subkey
- * @param grip buffer with grip
+ * @param fp buffer with fingerprint
  * @return void
  */
-void pgp_key_set_primary_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
+void pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
 
 /**
- * @brief Link key with subkey via primary_grip and subkey_grips list
+ * @brief Link key with subkey via primary_fp and subkey_fps list
  *
  * @param key primary key
  * @param subkey subkey of the primary key
  * @return true on success or false otherwise (allocation failed, wrong key types)
  */
-bool pgp_key_link_subkey_grip(pgp_key_t *key, pgp_key_t *subkey);
+bool pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey);
 
 size_t pgp_key_get_userid_count(const pgp_key_t *);
 
@@ -318,31 +319,31 @@ const pgp_rawpacket_t &pgp_key_get_rawpacket(const pgp_key_t *);
 size_t pgp_key_get_subkey_count(const pgp_key_t *key);
 
 /**
- * @brief Add subkey grip to key's list.
+ * @brief Add subkey fp to key's list.
  *        Note: this function will check for duplicates.
  *
  * @param key key pointer to the primary key
- * @param grip subkey's grip.
- * @return true if succeeded (grip already exists in list or added), or false otherwise.
+ * @param fp subkey's fingerprint.
+ * @return true if succeeded (fingerprint already exists in list or added), or false otherwise.
  */
-bool pgp_key_add_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
+bool pgp_key_add_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
 
 /**
- * @brief Remove subkey grip from key's list.
+ * @brief Remove subkey fingerprint from key's list.
  *
  * @param key key pointer to the primary key
- * @param grip subkey's grip.
+ * @param fp subkey's fingerprint.
  */
-void pgp_key_remove_subkey_grip(pgp_key_t *key, const pgp_key_grip_t &grip);
+void pgp_key_remove_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
 
 /**
- * @brief Get the pgp key's subkey grip
+ * @brief Get the pgp key's subkey fingerprint
  *
  * @param key key pointer to the primary key
  * @param idx index of the subkey
  * @return grip or throws std::out_of_range exception
  */
-const pgp_key_grip_t &pgp_key_get_subkey_grip(const pgp_key_t *key, size_t idx);
+const pgp_fingerprint_t &pgp_key_get_subkey_fp(const pgp_key_t *key, size_t idx);
 
 /**
  * @brief Get the key's subkey by it's index
