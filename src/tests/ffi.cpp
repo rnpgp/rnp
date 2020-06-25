@@ -6201,11 +6201,11 @@ TEST_F(rnp_tests, test_ffi_rnp_key_get_primary_grip)
     char *           grip = NULL;
 
     // setup FFI
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     // load our keyrings
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
 
     // locate primary key
@@ -6252,6 +6252,93 @@ TEST_F(rnp_tests, test_ffi_rnp_key_get_primary_grip)
     assert_int_equal(strcmp(grip, "66D6A0800A3FACDE0C0EB60B16B3669ED380FDFA"), 0);
     rnp_buffer_destroy(grip);
     grip = NULL;
+    rnp_key_handle_destroy(key);
+
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_rnp_key_get_primary_fprint)
+{
+    rnp_ffi_t        ffi = NULL;
+    rnp_input_t      input = NULL;
+    rnp_key_handle_t key = NULL;
+    char *           fp = NULL;
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+
+    // locate primary key
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", &key));
+    assert_non_null(key);
+
+    // some edge cases
+    assert_rnp_failure(rnp_key_get_primary_fprint(NULL, NULL));
+    assert_rnp_failure(rnp_key_get_primary_fprint(NULL, &fp));
+    assert_rnp_failure(rnp_key_get_primary_fprint(key, NULL));
+    assert_rnp_failure(rnp_key_get_primary_fprint(key, &fp));
+    assert_null(fp);
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 1
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ED63EE56FADC34D", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_fprint(key, &fp));
+    assert_non_null(fp);
+    assert_string_equal(fp, "E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A");
+    rnp_buffer_destroy(fp);
+    fp = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 2
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1D7E8A5393C997A8", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_fprint(key, &fp));
+    assert_non_null(fp);
+    assert_string_equal(fp, "E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A");
+    rnp_buffer_destroy(fp);
+    fp = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate subkey 3
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8A05B89FAD5ADED1", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_fprint(key, &fp));
+    assert_non_null(fp);
+    assert_string_equal(fp, "E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A");
+    rnp_buffer_destroy(fp);
+    fp = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate key 1 - subkey 0
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_fprint(key, &fp));
+    assert_non_null(fp);
+    assert_string_equal(fp, "BE1C4AB951F4C2F6B604C7F82FCADF05FFA501BB");
+    rnp_buffer_destroy(fp);
+    fp = NULL;
+    rnp_key_handle_destroy(key);
+
+    // locate key 2 - subkey 1
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "326EF111425D14A5", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_primary_fprint(key, &fp));
+    assert_non_null(fp);
+    assert_string_equal(fp, "BE1C4AB951F4C2F6B604C7F82FCADF05FFA501BB");
+    rnp_buffer_destroy(fp);
+    fp = NULL;
     rnp_key_handle_destroy(key);
 
     // cleanup
