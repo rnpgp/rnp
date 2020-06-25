@@ -5689,6 +5689,25 @@ rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
 }
 
 rnp_result_t
+rnp_key_get_primary_fprint(rnp_key_handle_t handle, char **fprint)
+{
+    if (!handle || !fprint) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!pgp_key_is_subkey(key)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_key_has_primary_fp(key)) {
+        *fprint = NULL;
+        return RNP_SUCCESS;
+    }
+    const pgp_fingerprint_t &fp = pgp_key_get_primary_fp(key);
+    return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
+}
+
+rnp_result_t
 rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
 {
     if (!handle || !usage || !result) {
