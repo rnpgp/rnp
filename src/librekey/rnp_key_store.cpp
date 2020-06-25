@@ -973,6 +973,17 @@ rnp_key_store_search(rnp_key_store_t *       keyring,
                      const pgp_key_search_t *search,
                      pgp_key_t *             after)
 {
+    // since keys are distinguished by fingerprint then just do map lookup
+    if (search->type == PGP_KEY_SEARCH_FINGERPRINT) {
+        pgp_key_t *key = rnp_key_store_get_key_by_fpr(keyring, search->by.fingerprint);
+        if (after && (after != key)) {
+            RNP_LOG("searching with invalid after param");
+            return NULL;
+        }
+        // return NULL if after is specified
+        return after ? NULL : key;
+    }
+
     // if after is provided, make sure it is a member of the appropriate list
     auto it =
       std::find_if(keyring->keys.begin(), keyring->keys.end(), [after](const pgp_key_t &key) {
