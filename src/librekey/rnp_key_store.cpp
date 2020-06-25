@@ -54,13 +54,6 @@
 #include "fingerprint.h"
 #include "crypto/hash.h"
 
-// must be placed after include "utils.h"
-#ifndef RNP_USE_STD_REGEX
-#include <regex.h>
-#else
-#include <regex>
-#endif
-
 bool
 rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
