@@ -261,6 +261,8 @@ void test_ffi_enable_debug(void **state);
 
 void test_ffi_rnp_key_get_primary_grip(void **state);
 
+void test_ffi_rnp_key_get_primary_fprint(void **state);
+
 void test_ffi_output_to_armor(void **state);
 
 void test_ffi_rnp_guess_contents(void **state);
