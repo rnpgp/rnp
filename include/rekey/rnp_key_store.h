@@ -38,6 +38,7 @@
 #include <string>
 #include <list>
 #include <map>
+#include <unordered_map>
 
 typedef struct pgp_key_t pgp_key_t;
 
@@ -132,7 +133,7 @@ typedef enum pgp_sig_import_status_t {
     PGP_SIG_IMPORT_STATUS_NEW
 } pgp_sig_import_status_t;
 
-typedef std::map<pgp_key_grip_t, std::list<pgp_key_t>::iterator> pgp_key_grip_map_t;
+typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pgp_key_fp_map_t;
 
 typedef struct rnp_key_store_t {
     std::string            path;
@@ -141,7 +142,7 @@ typedef struct rnp_key_store_t {
     bool skip_parsing_errors; /* do not fail on parsing errors */
 
     std::list<pgp_key_t> keys;
-    pgp_key_grip_map_t   keybygrip;
+    pgp_key_fp_map_t     keybyfp;
 
     list blobs; // list of kbx_blob_t
 
@@ -217,6 +218,8 @@ bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip
 const pgp_key_t *rnp_key_store_get_key_by_grip(const rnp_key_store_t *,
                                                const pgp_key_grip_t &);
 pgp_key_t *      rnp_key_store_get_key_by_grip(rnp_key_store_t *, const pgp_key_grip_t &);
+const pgp_key_t *rnp_key_store_get_key_by_fpr(const rnp_key_store_t *,
+                                              const pgp_fingerprint_t &fpr);
 pgp_key_t *      rnp_key_store_get_key_by_fpr(rnp_key_store_t *, const pgp_fingerprint_t &fpr);
 pgp_key_t *      rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);

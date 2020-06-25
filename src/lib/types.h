@@ -55,6 +55,7 @@
 #include <string>
 #include <vector>
 #include <array>
+#include <cstring>
 
 #include <rnp/rnp_def.h>
 #include "list.h"
@@ -93,6 +94,19 @@ typedef struct pgp_fingerprint_t {
     bool     operator==(const pgp_fingerprint_t &src) const;
     bool     operator!=(const pgp_fingerprint_t &src) const;
 } pgp_fingerprint_t;
+
+namespace std {
+template <> struct hash<pgp_fingerprint_t> {
+    std::size_t
+    operator()(pgp_fingerprint_t const &fp) const noexcept
+    {
+        /* since fingerprint value is hash itself, we may use it's low bytes */
+        size_t res = 0;
+        std::memcpy(&res, fp.fingerprint, sizeof(res));
+        return res;
+    }
+};
+} // namespace std
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
 
