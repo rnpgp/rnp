@@ -236,7 +236,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
     }
 
     /* setup key grips if primary is available */
-    if (primary && !pgp_key_link_subkey_grip(primary, subkey)) {
+    if (primary && !pgp_key_link_subkey_fp(primary, subkey)) {
         return false;
     }
 
@@ -315,8 +315,8 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
         if (!pgp_key_write_packets(&key, dst)) {
             return false;
         }
-        for (auto &sgrip : key.subkey_grips) {
-            pgp_key_t *subkey = rnp_key_store_get_key_by_grip(key_store, sgrip);
+        for (auto &sfp : key.subkey_fps) {
+            pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;

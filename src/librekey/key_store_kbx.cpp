@@ -539,7 +539,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         goto finish;
     }
 
-    if (!pu16(&memdst, 1 + key->subkey_grips.size())) { // number of keys in keyblock
+    if (!pu16(&memdst, 1 + key->subkey_fps.size())) { // number of keys in keyblock
         goto finish;
     }
     if (!pu16(&memdst, 28)) { // size of key info structure)
@@ -554,8 +554,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     }
 
     // same as above, for each subkey
-    for (auto &sgrip : key->subkey_grips) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(key_store, sgrip);
+    for (auto &sfp : key->subkey_fps) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
         if (!pbuf(&memdst, pgp_key_get_fp(subkey).fingerprint, PGP_FINGERPRINT_SIZE) ||
             !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
             !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
@@ -662,8 +662,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         goto finish;
     }
 
-    for (auto &sgrip : key->subkey_grips) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_grip(key_store, sgrip);
+    for (auto &sfp : key->subkey_fps) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
         if (!pgp_key_write_packets(subkey, &memdst)) {
             goto finish;
         }
