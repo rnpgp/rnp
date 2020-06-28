@@ -55,12 +55,18 @@ TEST_F(rnp_tests, test_key_store_search)
 
             key.pkt.tag = PGP_PKT_PUBLIC_KEY;
             key.pkt.version = PGP_V4;
+            key.pkt.alg = PGP_PKA_RSA;
 
             // set the keyid
             assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid.data(), key.keyid.size()));
             // keys should have different grips otherwise rnp_key_store_add_key will fail here
             assert_true(rnp_hex_decode(testdata[i].keyid, key.grip.data(), key.grip.size()));
             key.grip[0] = (uint8_t) n;
+            // and fingerprint
+            assert_true(rnp_hex_decode(
+              testdata[i].keyid, key.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE));
+            key.fingerprint.fingerprint[0] = (uint8_t) n;
+            key.fingerprint.length = PGP_FINGERPRINT_SIZE;
             // set the userids
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 pgp_userid_t *userid = pgp_key_add_userid(&key);
