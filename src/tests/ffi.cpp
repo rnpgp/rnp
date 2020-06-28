@@ -8479,6 +8479,83 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_true(revoked);
     rnp_key_handle_destroy(key);
 
+    /* key with two subkeys with same material but different creation time */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-2-subs-same-grip.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
+    rnp_input_destroy(input);
+    assert_non_null(results);
+    rnp_buffer_destroy(results);
+    count = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 3);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    char *keyid = NULL;
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "DD23CEB7FEBEFF17");
+    rnp_buffer_destroy(keyid);
+    char *fp = NULL;
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 1, &sub));
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "C2E7FDCC9CD59FB5");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "C2E7FDCC9CD59FB5", &sub));
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* two keys with subkeys with same material but different creation time */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-2-keys-same-grip.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 4);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "DD23CEB7FEBEFF17");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 1, &sub));
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "C2E7FDCC9CD59FB5");
+    rnp_buffer_destroy(keyid);
+    assert_rnp_success(rnp_key_get_primary_fprint(sub, &fp));
+    assert_string_equal(fp, "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C");
+    rnp_buffer_destroy(fp);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    /* subkey should belong to original key */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "467A2DE826ABA0DB", &key));
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 0);
+    rnp_key_handle_destroy(key);
+
     rnp_ffi_destroy(ffi);
 }
 
