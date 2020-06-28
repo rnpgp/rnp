@@ -3291,7 +3291,8 @@ str_to_locator(rnp_ffi_t         ffi,
     } break;
     case PGP_KEY_SEARCH_FINGERPRINT: {
         // TODO: support v5 fingerprints
-        if (strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2)) {
+        // Note: v2/v3 fingerprint are 16 bytes (32 chars) long.
+        if ((strlen(identifier) != (PGP_FINGERPRINT_SIZE * 2)) && (strlen(identifier) != 32)) {
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
