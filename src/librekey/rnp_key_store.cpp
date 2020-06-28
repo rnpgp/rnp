@@ -422,12 +422,25 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
 static pgp_key_t *
 rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t *oldkey)
 {
-    pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, srckey);
-    if (!primary && oldkey) {
+    pgp_key_t *primary = NULL;
+    if (oldkey) {
         primary = rnp_key_store_get_primary_key(keyring, oldkey);
+    }
+    if (!primary) {
+        primary = rnp_key_store_get_primary_key(keyring, srckey);
     }
 
     if (oldkey) {
+        /* check for the weird case when same subkey has different primary keys */
+        if (pgp_key_has_primary_fp(srckey) && pgp_key_has_primary_fp(oldkey) &&
+            (pgp_key_get_primary_fp(srckey) != pgp_key_get_primary_fp(oldkey))) {
+            RNP_LOG_KEY("Warning: different primary keys for subkey %s", srckey);
+            pgp_key_t *srcprim =
+              rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_primary_fp(srckey));
+            if (srcprim != primary) {
+                pgp_key_remove_subkey_fp(srcprim, pgp_key_get_fp(srckey));
+            }
+        }
         /* in case we already have key let's merge it in */
         if (!rnp_key_store_merge_subkey(oldkey, srckey, primary)) {
             RNP_LOG_KEY("failed to merge subkey %s", srckey);
