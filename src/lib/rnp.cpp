@@ -1363,7 +1363,7 @@ rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results
             }
             // add uids, certifications and other stuff from the public key if any
             pgp_key_t *expub =
-              rnp_key_store_get_key_by_grip(ffi->pubring, pgp_key_get_grip(&key));
+              rnp_key_store_get_key_by_fpr(ffi->pubring, pgp_key_get_fp(&key));
             if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
                 ret = RNP_ERROR_BAD_PARAMETERS;
                 goto done;
