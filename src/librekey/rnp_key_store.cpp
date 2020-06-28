@@ -473,7 +473,7 @@ pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     assert(pgp_key_get_type(srckey) && pgp_key_get_version(srckey));
-    pgp_key_t *added_key = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
+    pgp_key_t *added_key = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
         return added_key;
@@ -535,7 +535,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
         RNP_LOG_KEY("failed to create key %s copy", srckey);
         return NULL;
     }
-    exkey = rnp_key_store_get_key_by_grip(keyring, pgp_key_get_grip(srckey));
+    exkey = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
     keyring->disable_validation = true;
     exkey = rnp_key_store_add_key(keyring, &keycp);
