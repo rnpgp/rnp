@@ -2713,7 +2713,8 @@ static void
 recipient_handle_from_pk_sesskey(rnp_recipient_handle_t  handle,
                                  const pgp_pk_sesskey_t &sesskey)
 {
-    memcpy(handle->keyid, sesskey.key_id.data(), sesskey.key_id.size());
+    static_assert(sizeof(handle->keyid) == PGP_KEY_ID_SIZE, "Keyid size mismatch");
+    memcpy(handle->keyid, sesskey.key_id.data(), PGP_KEY_ID_SIZE);
     handle->palg = sesskey.alg;
 }
 
@@ -3016,6 +3017,8 @@ rnp_recipient_get_keyid(rnp_recipient_handle_t recipient, char **keyid)
     if (!recipient || !keyid) {
         return RNP_ERROR_NULL_POINTER;
     }
+    static_assert(sizeof(recipient->keyid) == PGP_KEY_ID_SIZE,
+                  "rnp_recipient_handle_t.keyid size mismatch");
     return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
 }
 
