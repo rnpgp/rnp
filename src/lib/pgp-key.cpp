@@ -1742,7 +1742,10 @@ update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t
 }
 
 bool
-pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
+pgp_key_set_expiration(pgp_key_t *                    key,
+                       pgp_key_t *                    seckey,
+                       uint32_t                       expiry,
+                       const pgp_password_provider_t *prov)
 {
     if (!pgp_key_is_primary_key(key)) {
         RNP_LOG("Not a primary key");
@@ -1760,12 +1763,17 @@ pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
     if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
         return true;
     }
-    pgp_signature_t newsig = {};
-    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+
+    bool locked = pgp_key_is_locked(seckey);
+    if (locked && !pgp_key_unlock(seckey, prov)) {
+        RNP_LOG("Failed to unlock secret key");
         return false;
     }
-
-    bool res = false;
+    pgp_signature_t newsig = {};
+    bool            res = false;
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        goto done;
+    }
     if (pgp_sig_is_certification(subsig)) {
         pgp_userid_t *uid = pgp_key_get_userid(key, subsig->uid);
         if (!uid) {
@@ -1794,15 +1802,19 @@ pgp_key_set_expiration(pgp_key_t *key, pgp_key_t *seckey, uint32_t expiry)
     res = res && pgp_key_replace_signature(key, &subsig->sig, &newsig) &&
           pgp_key_refresh_data(key);
 done:
+    if (locked) {
+        pgp_key_lock(seckey);
+    }
     free_signature(&newsig);
     return res;
 }
 
 bool
-pgp_subkey_set_expiration(pgp_key_t *sub,
-                          pgp_key_t *primsec,
-                          pgp_key_t *secsub,
-                          uint32_t   expiry)
+pgp_subkey_set_expiration(pgp_key_t *                    sub,
+                          pgp_key_t *                    primsec,
+                          pgp_key_t *                    secsub,
+                          uint32_t                       expiry,
+                          const pgp_password_provider_t *prov)
 {
     if (!pgp_key_is_subkey(sub)) {
         RNP_LOG("Not a subkey");
@@ -1810,8 +1822,7 @@ pgp_subkey_set_expiration(pgp_key_t *sub,
     }
 
     /* find the latest valid subkey binding */
-    pgp_subsig_t *subsig = NULL;
-    subsig = pgp_key_latest_binding(sub, true);
+    pgp_subsig_t *subsig = pgp_key_latest_binding(sub, true);
     if (!subsig) {
         RNP_LOG("No valid subkey binding");
         return false;
@@ -1819,17 +1830,30 @@ pgp_subkey_set_expiration(pgp_key_t *sub,
     if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
         return true;
     }
-    /* update signature and re-sign */
-    pgp_signature_t newsig = {};
-    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
-        return false;
-    }
 
     bool res = false;
-    if (!signature_calculate_binding(pgp_key_get_pkt(primsec),
-                                     pgp_key_get_pkt(secsub),
-                                     &newsig,
-                                     pgp_key_get_flags(secsub) & PGP_KF_SIGN)) {
+    bool subsign = pgp_key_get_flags(secsub) & PGP_KF_SIGN;
+    bool locked = pgp_key_is_locked(primsec);
+    if (locked && !pgp_key_unlock(primsec, prov)) {
+        RNP_LOG("Failed to unlock primary key");
+        return false;
+    }
+    pgp_signature_t newsig = {};
+    bool            sublocked = false;
+    if (subsign && pgp_key_is_locked(secsub)) {
+        if (!pgp_key_unlock(secsub, prov)) {
+            RNP_LOG("Failed to unlock subkey");
+            goto done;
+        }
+        sublocked = true;
+    }
+
+    /* update signature and re-sign */
+    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        goto done;
+    }
+    if (!signature_calculate_binding(
+          pgp_key_get_pkt(primsec), pgp_key_get_pkt(secsub), &newsig, subsign)) {
         RNP_LOG("failed to calculate signature");
         goto done;
     }
@@ -1842,6 +1866,12 @@ pgp_subkey_set_expiration(pgp_key_t *sub,
     res = res && pgp_key_replace_signature(sub, &subsig->sig, &newsig) &&
           pgp_subkey_refresh_data(sub, primsec);
 done:
+    if (locked) {
+        pgp_key_lock(primsec);
+    }
+    if (sublocked) {
+        pgp_key_lock(secsub);
+    }
     free_signature(&newsig);
     return res;
 }
