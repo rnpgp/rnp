@@ -961,7 +961,7 @@ is_armored_dest(pgp_dest_t *dst)
 rnp_result_t
 armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
 {
-    if (!dst || llen < ARMORED_MIN_LINE_LENGTH || llen > ARMORED_MAX_LINE_LENGTH ||
+    if (!dst || (llen < ARMORED_MIN_LINE_LENGTH) || (llen > ARMORED_MAX_LINE_LENGTH) ||
         !dst->param || !is_armored_dest(dst)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1022,7 +1022,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
         /* initializing armored message */
         res = init_armored_src(&armorsrc, src);
         if (res) {
-            goto finish;
+            return res;
         }
     } else {
         RNP_LOG("source is not armored data");
@@ -1030,7 +1030,10 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
     }
     /* Reading data from armored source and writing it to the output */
     res = dst_write_src(&armorsrc, dst);
-finish:
+    if (res) {
+        RNP_LOG("dearmoring failed");
+    }
+
     src_close(&armorsrc);
     return res;
 }
@@ -1041,12 +1044,14 @@ rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_msg_t msgtype)
     pgp_dest_t   armordst = {0};
     rnp_result_t res = init_armored_dst(&armordst, dst, msgtype);
     if (res) {
-        goto finish;
+        return res;
     }
 
     res = dst_write_src(src, &armordst);
+    if (res) {
+        RNP_LOG("armoring failed");
+    }
 
-finish:
     dst_close(&armordst, res != RNP_SUCCESS);
     return res;
 }
