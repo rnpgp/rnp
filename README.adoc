@@ -57,3 +57,4 @@ RNP originated as an attempt to modernize the NetPGP codebase originally
 created by Alistair Crooks of NetBSD in 2016. RNP has been heavily rewritten,
 and carries minimal if any code from the original codebase.
 
+== link:docs/code-of-conduct.adoc[Code of Conduct]
