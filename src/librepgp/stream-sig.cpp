@@ -29,6 +29,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <type_traits>
 #include <rnp/rnp_def.h>
 #include "types.h"
 #include "stream-sig.h"
@@ -206,6 +207,9 @@ signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id)
 
     /* version 4 and up use subpackets */
     pgp_sig_subpkt_t *subpkt;
+    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
+                    PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
     if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID))) {
         memcpy(id.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
         return true;
@@ -232,6 +236,9 @@ signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id)
         return true;
     }
 
+    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
+                    PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
     pgp_sig_subpkt_t *subpkt =
       signature_add_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
     if (!subpkt) {
