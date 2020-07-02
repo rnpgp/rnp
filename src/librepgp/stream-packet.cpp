@@ -1127,6 +1127,8 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
     pkey->version = bt;
 
     /* key id */
+    static_assert(std::tuple_size<decltype(pkey->key_id)>::value == PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
     if (!get_packet_body_buf(&pkt, pkey->key_id.data(), PGP_KEY_ID_SIZE)) {
         RNP_LOG("failed to get key id");
         goto finish;
@@ -1237,6 +1239,8 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     onepass->palg = (pgp_pubkey_alg_t) buf[3];
 
     /* key id */
+    static_assert(std::tuple_size<decltype(onepass->keyid)>::value == PGP_KEY_ID_SIZE,
+                  "pgp_one_pass_sig_t.keyid size mismatch");
     memcpy(onepass->keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
 
     /* nested flag */
@@ -1280,6 +1284,8 @@ signature_read_v3(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     sig->creation_time = read_uint32(&buf[2]);
 
     /* signer's key id */
+    static_assert(std::tuple_size<decltype(sig->signer)>::value == PGP_KEY_ID_SIZE,
+                  "v3 signer field size mismatch");
     memcpy(sig->signer.data(), &buf[6], PGP_KEY_ID_SIZE);
 
     /* public key algorithm */
