@@ -8079,6 +8079,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     uint32_t       expiry = 0;
     const uint32_t new_expiry = 10 * 365 * 24 * 60 * 60;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    expiry = 255;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
     assert_rnp_success(rnp_key_set_expiration(key, 0));
@@ -8238,6 +8239,66 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_set_expiration(sub, 0));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* check whether we can change expiration with password provider/locked key */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_failure(rnp_key_set_expiration(key, 1));
+    expiry = 255;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    assert_rnp_failure(rnp_key_set_expiration(sub, 1));
+    expiry = 255;
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+
+    bool locked = true;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_key_set_expiration(key, 2));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 2);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_set_expiration(sub, 3));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 3);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+
+    /* now change just subkey's expiration - should also work */
+    assert_rnp_success(rnp_key_set_expiration(sub, 4));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 4);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(sub));
 
