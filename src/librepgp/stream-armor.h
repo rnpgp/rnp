@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -88,10 +88,24 @@ pgp_armored_msg_t rnp_armored_get_type(pgp_source_t *src);
  **/
 bool is_armored_source(pgp_source_t *src);
 
+/* @brief Check whether destination is armored
+ * @param dest initialized destination
+ * @return true if destination is armored or false otherwise
+ **/
+bool is_armored_dest(pgp_dest_t *dst);
+
 /* @brief Check whether source is cleartext signed
  * @param src initialized source with some data
  * @return true if source could be a cleartext signed data or false otherwise
  **/
 bool is_cleartext_source(pgp_source_t *src);
+
+/** Set line length for armoring
+ *
+ *  @param dst initialized dest to write armored data to
+ *  @param llen line length in characters
+ *  @return RNP_SUCCESS on success, or any other value on error
+ */
+rnp_result_t armored_dst_set_line_length(pgp_dest_t *dst, size_t llen);
 
 #endif

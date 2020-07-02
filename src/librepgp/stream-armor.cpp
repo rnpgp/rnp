@@ -38,6 +38,8 @@
 #include "types.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
+#define ARMORED_MIN_LINE_LENGTH (16)
+#define ARMORED_MAX_LINE_LENGTH (76)
 
 typedef struct pgp_source_armored_param_t {
     pgp_source_t *    readsrc;         /* source to read from */
@@ -789,10 +791,12 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
     }
 
+    /* this version prints whole chunks, so rounding down to the closest 4 */
+    auto adjusted_llen = param->llen & ~3;
     /* number of input bytes to form a whole line of output, param->llen / 4 * 3 */
-    inllen = (param->llen >> 2) + (param->llen >> 1);
+    inllen = (adjusted_llen >> 2) + (adjusted_llen >> 1);
     /* pointer to the last full line space in encbuf */
-    enclast = encbuf + sizeof(encbuf) - param->llen - 2;
+    enclast = encbuf + sizeof(encbuf) - adjusted_llen - 2;
 
     /* processing line chunks, this is the main performance-hitting cycle */
     while (bufptr + 3 <= bufend) {
@@ -802,8 +806,8 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             encptr = encbuf;
         }
         /* setup length of the input to process in this iteration */
-        inlend =
-          param->lout == 0 ? bufptr + inllen : bufptr + ((param->llen - param->lout) >> 2) * 3;
+        inlend = param->lout == 0 ? bufptr + inllen :
+                                    bufptr + ((adjusted_llen - param->lout) >> 2) * 3;
         if (inlend > bufend) {
             /* no enough input for the full line */
             inlend = bufptr + (bufend - bufptr) / 3 * 3;
@@ -946,6 +950,24 @@ finish:
     }
 
     return ret;
+}
+
+bool
+is_armored_dest(pgp_dest_t *dst)
+{
+    return dst->type == PGP_STREAM_ARMORED;
+}
+
+rnp_result_t
+armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
+{
+    if (!dst || llen < ARMORED_MIN_LINE_LENGTH || llen > ARMORED_MAX_LINE_LENGTH ||
+        !dst->param || !is_armored_dest(dst)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto param = (pgp_dest_armored_param_t *) dst->param;
+    param->llen = llen;
+    return RNP_SUCCESS;
 }
 
 bool
