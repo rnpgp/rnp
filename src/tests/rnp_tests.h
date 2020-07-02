@@ -223,9 +223,13 @@ void test_ffi_signatures_detached_memory_g10(void **state);
 
 void test_ffi_enarmor_dearmor(void **state);
 
+void test_ffi_customized_enarmor(void **state);
+
 void test_ffi_version(void **state);
 
 void test_ffi_key_export(void **state);
+
+void test_ffi_key_export_customized_enarmor(void **state);
 
 void test_ffi_key_dump(void **state);
 
