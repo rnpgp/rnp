@@ -5789,7 +5789,7 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
     }
 
     if (pgp_key_is_primary_key(pkey)) {
-        bool res = pgp_key_set_expiration(pkey, skey, expiry);
+        bool res = pgp_key_set_expiration(pkey, skey, expiry, &key->ffi->pass_provider);
         return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
     }
 
@@ -5809,7 +5809,8 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
         return RNP_ERROR_KEY_NOT_FOUND;
     }
 
-    bool res = pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry);
+    bool res =
+      pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, &key->ffi->pass_provider);
     return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 
