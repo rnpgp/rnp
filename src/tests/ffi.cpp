@@ -773,6 +773,30 @@ check_key_properties(rnp_key_handle_t key,
     assert_true(have_secret == have_secret_expected);
 }
 
+static size_t
+get_longest_line_length(const std::string &str, const std::set<std::string> lines_to_skip)
+{
+    // eol could be \n or \r\n
+    size_t index = 0;
+    size_t max_len = 0;
+    for (;;) {
+        auto new_index = str.find('\n', index);
+        if (new_index == std::string::npos) {
+            break;
+        }
+        size_t line_length = new_index - index;
+        if (str[new_index - 1] == '\r') {
+            line_length--;
+        }
+        if (line_length > max_len &&
+            lines_to_skip.find(str.substr(index, line_length)) == lines_to_skip.end()) {
+            max_len = line_length;
+        }
+        index = new_index + 1;
+    }
+    return max_len;
+}
+
 TEST_F(rnp_tests, test_ffi_keygen_json_pair)
 {
     rnp_ffi_t ffi = NULL;
@@ -4501,6 +4525,71 @@ TEST_F(rnp_tests, test_ffi_enarmor_dearmor)
     }
 }
 
+TEST_F(rnp_tests, test_ffi_customized_enarmor)
+{
+    rnp_input_t           input = NULL;
+    rnp_output_t          output = NULL;
+    rnp_output_t          armor_layer = NULL;
+    const std::string     msg("this is a test long enough to have more than 76 characters in "
+                          "enarmored representation");
+    std::set<std::string> lines_to_skip{"-----BEGIN PGP MESSAGE-----",
+                                        "-----END PGP MESSAGE-----"};
+
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "message"));
+    // should fail when trying to set line length on non-armor output
+    assert_rnp_failure(rnp_output_armor_set_line_length(output, 64));
+    // should fail when trying to set zero line length
+    assert_rnp_failure(rnp_output_armor_set_line_length(armor_layer, 0));
+    // should fail when trying to set line length less than the minimum allowed 16
+    assert_rnp_failure(rnp_output_armor_set_line_length(armor_layer, 15));
+    assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, 16));
+    assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, 76));
+    // should fail when trying to set line length greater than the maximum allowed 76
+    assert_rnp_failure(rnp_output_armor_set_line_length(armor_layer, 77));
+    assert_rnp_success(rnp_output_destroy(armor_layer));
+    assert_rnp_success(rnp_output_destroy(output));
+
+    for (size_t llen = 16; llen <= 76; llen++) {
+        std::string data;
+        uint8_t *   buf = NULL;
+        size_t      buf_size = 0;
+
+        input = NULL;
+        output = NULL;
+        armor_layer = NULL;
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) msg.data(), msg.size(), true));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "message"));
+        assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, llen));
+        assert_rnp_success(rnp_output_pipe(input, armor_layer));
+        assert_rnp_success(rnp_output_finish(armor_layer));
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_size, false));
+        data = std::string(buf, buf + buf_size);
+        auto effective_llen = get_longest_line_length(data, lines_to_skip);
+        assert_int_equal(llen / 4, effective_llen / 4);
+        assert_true(llen >= effective_llen);
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_output_destroy(armor_layer));
+        assert_rnp_success(rnp_output_destroy(output));
+
+        // test that the dearmored message is correct
+        assert_rnp_success(
+          rnp_input_from_memory(&input, (const uint8_t *) data.data(), data.size(), true));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+
+        assert_rnp_success(rnp_dearmor(input, output));
+
+        assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_size, false));
+        std::string dearmored(buf, buf + buf_size);
+        assert_true(msg == dearmored);
+
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_output_destroy(output));
+    }
+}
+
 TEST_F(rnp_tests, test_ffi_version)
 {
     const uint32_t version = rnp_version();
@@ -4799,6 +4888,196 @@ TEST_F(rnp_tests, test_ffi_key_export)
         rnp_key_handle_destroy(key);
     }
 
+    // cleanup
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
+{
+    rnp_ffi_t             ffi = NULL;
+    rnp_input_t           input = NULL;
+    rnp_output_t          output = NULL;
+    rnp_output_t          armor_layer = NULL;
+    rnp_key_handle_t      key = NULL;
+    uint8_t *             buf = NULL;
+    size_t                buf_len = 0;
+    std::set<std::string> lines_to_skip{"-----BEGIN PGP PUBLIC KEY BLOCK-----",
+                                        "-----END PGP PUBLIC KEY BLOCK-----",
+                                        "-----BEGIN PGP PRIVATE KEY BLOCK-----",
+                                        "-----END PGP PRIVATE KEY BLOCK-----"};
+    // setup FFI
+    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // load our keyrings
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_int_equal(RNP_SUCCESS, rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+
+    for (size_t llen = 16; llen <= 76; llen++) {
+        // primary pub only
+        {
+            // locate key
+            key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+            assert_non_null(key);
+
+            // create output
+            output = NULL;
+            assert_rnp_success(rnp_output_to_memory(&output, 0));
+            assert_non_null(output);
+            assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "public key"));
+            assert_non_null(armor_layer);
+            assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, llen));
+
+            // export
+            assert_rnp_success(rnp_key_export(key, armor_layer, RNP_KEY_EXPORT_PUBLIC));
+            assert_rnp_success(rnp_output_finish(armor_layer));
+            // get output
+            buf = NULL;
+            assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+            assert_non_null(buf);
+            std::string data = std::string(buf, buf + buf_len);
+            auto        effective_llen = get_longest_line_length(data, lines_to_skip);
+            assert_int_equal(llen / 4, effective_llen / 4);
+            assert_true(llen >= effective_llen);
+
+            // check results
+            check_loaded_keys("GPG", true, buf, buf_len, "keyid", {"2FCADF05FFA501BB"}, false);
+
+            // cleanup
+            rnp_output_destroy(armor_layer);
+            rnp_output_destroy(output);
+            rnp_key_handle_destroy(key);
+        }
+
+        // primary sec only
+        {
+            // locate key
+            key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", "2FCADF05FFA501BB", &key));
+            assert_non_null(key);
+
+            // create output
+            output = NULL;
+            assert_rnp_success(rnp_output_to_memory(&output, 0));
+            assert_non_null(output);
+            assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "secret key"));
+            assert_non_null(armor_layer);
+            assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, llen));
+
+            // export
+            assert_rnp_success(rnp_key_export(key, armor_layer, RNP_KEY_EXPORT_SECRET));
+            assert_rnp_success(rnp_output_finish(armor_layer));
+
+            // get output
+            buf = NULL;
+            assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+            assert_non_null(buf);
+            std::string data = std::string(buf, buf + buf_len);
+            auto        effective_llen = get_longest_line_length(data, lines_to_skip);
+            assert_int_equal(llen / 4, effective_llen / 4);
+            assert_true(llen >= effective_llen);
+
+            // check results
+            check_loaded_keys("GPG", true, buf, buf_len, "keyid", {"2FCADF05FFA501BB"}, true);
+
+            // cleanup
+            rnp_output_destroy(armor_layer);
+            rnp_output_destroy(output);
+            rnp_key_handle_destroy(key);
+        }
+
+        // sub pub
+        {
+            // locate key
+            key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
+            assert_non_null(key);
+
+            // create output
+            output = NULL;
+            assert_rnp_success(rnp_output_to_memory(&output, 0));
+            assert_non_null(output);
+            assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "public key"));
+            assert_non_null(armor_layer);
+            assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, llen));
+
+            // export
+            assert_rnp_success(rnp_key_export(key, armor_layer, RNP_KEY_EXPORT_PUBLIC));
+            assert_rnp_success(rnp_output_finish(armor_layer));
+
+            // get output
+            buf = NULL;
+            assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+            assert_non_null(buf);
+            std::string data = std::string(buf, buf + buf_len);
+            auto        effective_llen = get_longest_line_length(data, lines_to_skip);
+            assert_int_equal(llen / 4, effective_llen / 4);
+            assert_true(llen >= effective_llen);
+
+            // check results
+            check_loaded_keys("GPG",
+                              true,
+                              buf,
+                              buf_len,
+                              "keyid",
+                              {"2FCADF05FFA501BB", "54505A936A4A970E"},
+                              false);
+
+            // cleanup
+            rnp_output_destroy(armor_layer);
+            rnp_output_destroy(output);
+            rnp_key_handle_destroy(key);
+        }
+
+        // sub sec
+        {
+            // locate key
+            key = NULL;
+            assert_rnp_success(rnp_locate_key(ffi, "keyid", "54505A936A4A970E", &key));
+            assert_non_null(key);
+
+            // create output
+            output = NULL;
+            assert_rnp_success(rnp_output_to_memory(&output, 0));
+            assert_non_null(output);
+            assert_rnp_success(rnp_output_to_armor(output, &armor_layer, "secret key"));
+            assert_non_null(armor_layer);
+            assert_rnp_success(rnp_output_armor_set_line_length(armor_layer, llen));
+
+            // export
+            assert_rnp_success(rnp_key_export(key, armor_layer, RNP_KEY_EXPORT_SECRET));
+            assert_rnp_success(rnp_output_finish(armor_layer));
+
+            // get output
+            buf = NULL;
+            assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &buf_len, false));
+            assert_non_null(buf);
+            std::string data = std::string(buf, buf + buf_len);
+            auto        effective_llen = get_longest_line_length(data, lines_to_skip);
+            assert_int_equal(llen / 4, effective_llen / 4);
+            assert_true(llen >= effective_llen);
+
+            // check results
+            check_loaded_keys("GPG",
+                              true,
+                              buf,
+                              buf_len,
+                              "keyid",
+                              {"2FCADF05FFA501BB", "54505A936A4A970E"},
+                              true);
+
+            // cleanup
+            rnp_output_destroy(armor_layer);
+            rnp_output_destroy(output);
+            rnp_key_handle_destroy(key);
+        }
+    }
     // cleanup
     rnp_ffi_destroy(ffi);
 }

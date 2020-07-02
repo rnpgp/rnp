@@ -7223,3 +7223,12 @@ rnp_output_pipe(rnp_input_t input, rnp_output_t output)
     output->keep = !ret;
     return ret;
 }
+
+rnp_result_t
+rnp_output_armor_set_line_length(rnp_output_t output, size_t llen)
+{
+    if (!output || !llen) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return armored_dst_set_line_length(&output->dst, llen);
+}

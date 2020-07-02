@@ -2325,6 +2325,14 @@ RNP_API rnp_result_t rnp_identifier_iterator_destroy(rnp_identifier_iterator_t i
  */
 RNP_API rnp_result_t rnp_output_pipe(rnp_input_t input, rnp_output_t output);
 
+/** Set line length for armored output
+ *
+ *  @param output stream to configure
+ *  @param llen line length in characters [16..76]
+ *  @return RNP_SUCCESS on success, or any other value on error
+ */
+RNP_API rnp_result_t rnp_output_armor_set_line_length(rnp_output_t output, size_t llen);
+
 #if defined(__cplusplus)
 }
 
