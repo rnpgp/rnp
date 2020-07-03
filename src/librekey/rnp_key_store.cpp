@@ -558,7 +558,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
         return NULL;
     }
     changed = pgp_key_get_rawpacket_count(exkey) > expackets;
-    if (changed) {
+    if (changed || !exkey->validated) {
         /* this will revalidated primary key with all subkeys */
         pgp_key_revalidate_updated(exkey, keyring);
     }
