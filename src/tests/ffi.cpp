@@ -38,6 +38,9 @@
 #include <vector>
 #include <string>
 #include "file-utils.h"
+#include <librepgp/stream-ctx.h>
+#include "pgp-key.h"
+#include "ffi-priv-types.h"
 
 TEST_F(rnp_tests, test_ffi_homedir)
 {
@@ -8230,15 +8233,20 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_set_expiration(key, 1));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 1);
+    /* key is invalid since it is expired */
+    assert_false(key->pub->valid);
     assert_rnp_success(rnp_key_set_expiration(sub, 1));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 1);
+    assert_false(sub->pub->valid);
     assert_rnp_success(rnp_key_set_expiration(key, 0));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
+    assert_true(key->pub->valid);
     assert_rnp_success(rnp_key_set_expiration(sub, 0));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 0);
+    assert_true(sub->pub->valid);
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(sub));
 
@@ -8272,15 +8280,20 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_is_locked(sub, &locked));
     assert_true(locked);
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
-    assert_rnp_success(rnp_key_set_expiration(key, 2));
+    uint32_t creation = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(key, creation + 2));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
-    assert_int_equal(expiry, 2);
+    assert_int_equal(expiry, creation + 2);
     locked = false;
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
-    assert_rnp_success(rnp_key_set_expiration(sub, 3));
+    assert_rnp_success(rnp_key_get_creation(sub, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(sub, creation + 3));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
-    assert_int_equal(expiry, 3);
+    assert_int_equal(expiry, creation + 3);
     locked = false;
     assert_rnp_success(rnp_key_is_locked(sub, &locked));
     assert_true(locked);
@@ -8299,6 +8312,149 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
 
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* now try to update already expired key and subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-exp-pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-exp-sec.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    assert_false(key->pub->valid);
+    assert_true(key->sec->valid);
+    assert_false(sub->pub->valid);
+    assert_true(sub->sec->valid);
+    creation = 0;
+    uint32_t validity = 2 * 30 * 24 * 60 * 60; // 2 monthes
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(key, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    assert_rnp_success(rnp_key_get_creation(sub, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(sub, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    assert_true(key->pub->valid);
+    assert_true(key->sec->valid);
+    assert_true(sub->pub->valid);
+    assert_true(sub->sec->valid);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* update expiration time when only secret key is available */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    validity = 30 * 24 * 60 * 60; // 1 month
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(key, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    assert_rnp_success(rnp_key_get_creation(sub, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(sub, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    assert_null(key->pub);
+    assert_true(key->sec->valid);
+    assert_null(sub->pub);
+    assert_true(sub->sec->valid);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+
+    /* check whether things work for G10 keyring */
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
+    assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/private-keys-v1.d"));
+    assert_rnp_success(rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "A49BAE05C16E8BC8", &sub));
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(key, creation + validity));
+    expiry = 255;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    size_t key_expiry = expiry;
+    assert_rnp_success(rnp_key_get_creation(sub, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(sub, creation + validity));
+    expiry = 255;
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    size_t sub_expiry = expiry;
+    assert_true(key->pub->valid);
+    assert_true(key->sec->valid);
+    assert_true(sub->pub->valid);
+    assert_true(sub->sec->valid);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+
+    /* save keyring to KBX and reload it: fails now */
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.kbx"));
+    assert_rnp_success(rnp_save_keys(ffi, "KBX", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.kbx"));
+    /* Saving to KBX doesn't work well, or was broken at some point. */
+    assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "A49BAE05C16E8BC8", &sub));
+    assert_null(sub);
+    expiry = 255;
+    assert_rnp_failure(rnp_key_get_expiration(key, &expiry));
+    assert_int_not_equal(expiry, key_expiry);
+    expiry = 255;
+    assert_rnp_failure(rnp_key_get_expiration(sub, &expiry));
+    assert_int_not_equal(expiry, sub_expiry);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_key_handle_destroy(sub));
+    assert_int_equal(unlink("pubring.kbx"), 0);
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+
+    /* load G10/KBX and unload public keys - must succeed */
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
+    assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/private-keys-v1.d"));
+    assert_rnp_success(rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "A49BAE05C16E8BC8", &sub));
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(key, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    key_expiry = expiry;
+    assert_rnp_success(rnp_key_get_creation(sub, &creation));
+    creation = time(NULL) - creation;
+    assert_rnp_success(rnp_key_set_expiration(sub, creation + validity));
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, creation + validity);
+    sub_expiry = expiry;
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(sub));
 
