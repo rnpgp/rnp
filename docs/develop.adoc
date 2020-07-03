@@ -431,13 +431,15 @@ rnp_do_operation(const char *param1, const int param2, int *size, char *buffer);
 
 During development you'll need to reference OpenPGP protocol and related documents.
 Here is the list of RFCs and Internet Drafts available at the moment:
+
 * https://www.ietf.org/rfc/rfc1991.txt[RFC 1991]: PGP Message Exchange Formats. Now obsolete, but may have some historical interest.
 * https://www.ietf.org/rfc/rfc2440.txt[RFC 2440]: OpenPGP Message Format. Superceded by RFC 4880.
 * https://www.ietf.org/rfc/rfc4880.txt[RFC 4880]: OpenPGP Message Format. Latest RFC available at the moment, however has a lot of suggested changes via RFC 4880bis
 * https://tools.ietf.org/rfc/rfc5581.txt[RFC 5581]: The Camellia cipher in OpenPGP.
-* https://tools.ietf.org/id/draft-ietf-openpgp-rfc4880bis-04.txt[RFC 4880bis-04]: OpenPGP Message Format. Latest suggested update to the RFC 4880.
+* https://www.ietf.org/id/draft-ietf-openpgp-rfc4880bis-09.txt[RFC 4880bis-09]: OpenPGP Message Format. Latest suggested update to the RFC 4880.
 
 More information sources:
+
 * https://mailarchive.ietf.org/arch/browse/openpgp/[OpenPGP Working Group mailing list]. Here you can pick up all the latest discussions and suggestions regarding the update of RFC 4880
 * https://gitlab.com/openpgp-wg/rfc4880bis[OpenPGP Working Group gitlab]. Latest work on RFC update is available here.
 
