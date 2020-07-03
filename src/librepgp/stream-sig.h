@@ -41,7 +41,8 @@ typedef struct pgp_signature_info_t {
     bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
     bool             no_signer; /* no signer's public key available */
     bool             expired;   /* signature is expired */
-    bool             signer_valid; /* assume that signing key is valid */
+    bool             signer_valid;  /* assume that signing key is valid */
+    bool             ignore_expiry; /* ignore signer's key expiration time */
 } pgp_signature_info_t;
 
 /**
