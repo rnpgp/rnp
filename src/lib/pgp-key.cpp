@@ -1052,12 +1052,13 @@ pgp_key_validate_self_signatures(pgp_key_t *key)
         if (sig->validated) {
             continue;
         }
+        pgp_signature_info_t sinfo = {};
+        sinfo.sig = &sig->sig;
+        sinfo.signer = key;
+        sinfo.signer_valid = true;
 
         if (pgp_sig_is_self_signature(key, sig)) {
-            pgp_signature_info_t sinfo = {};
-            sinfo.sig = &sig->sig;
-            sinfo.signer = key;
-            sinfo.signer_valid = true;
+            sinfo.ignore_expiry = true;
             pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
             if (uid) {
                 signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
@@ -1068,10 +1069,6 @@ pgp_key_validate_self_signatures(pgp_key_t *key)
         }
 
         if (pgp_sig_is_userid_revocation(key, sig)) {
-            pgp_signature_info_t sinfo = {};
-            sinfo.sig = &sig->sig;
-            sinfo.signer = key;
-            sinfo.signer_valid = true;
             pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
             if (uid) {
                 signature_check_certification(&sinfo, pgp_key_get_pkt(key), &uid->pkt);
@@ -1082,10 +1079,6 @@ pgp_key_validate_self_signatures(pgp_key_t *key)
         }
 
         if (pgp_sig_is_key_revocation(key, sig)) {
-            pgp_signature_info_t sinfo = {};
-            sinfo.sig = &sig->sig;
-            sinfo.signer = key;
-            sinfo.signer_valid = true;
             signature_check_direct(&sinfo, pgp_key_get_pkt(key));
             sig->validated = true;
             sig->valid = sinfo.valid;
@@ -1102,12 +1095,12 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
         if (sig->validated) {
             continue;
         }
-
+        pgp_signature_info_t sinfo = {};
+        sinfo.sig = &sig->sig;
+        sinfo.signer = key;
+        sinfo.signer_valid = true;
         if (pgp_sig_is_subkey_binding(sub, sig)) {
-            pgp_signature_info_t sinfo = {};
-            sinfo.sig = &sig->sig;
-            sinfo.signer = key;
-            sinfo.signer_valid = true;
+            sinfo.ignore_expiry = true;
             signature_check_binding(&sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(sub));
             sig->validated = true;
             sig->valid = sinfo.valid && !sinfo.expired;
@@ -1115,10 +1108,6 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
         }
 
         if (pgp_sig_is_subkey_revocation(sub, sig)) {
-            pgp_signature_info_t sinfo = {};
-            sinfo.sig = &sig->sig;
-            sinfo.signer = key;
-            sinfo.signer_valid = true;
             signature_check_subkey_revocation(
               &sinfo, pgp_key_get_pkt(key), pgp_key_get_pkt(sub));
             sig->validated = true;
