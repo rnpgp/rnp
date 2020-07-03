@@ -1271,7 +1271,8 @@ RNP_API rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *resu
  *        key's password via FFI callback.
  *
  * @param key key's handle.
- * @param expiry expiration time in seconds (or 0 if key doesn't expire).
+ * @param expiry expiration time in seconds (or 0 if key doesn't expire). Please note that it
+ *               is calculated from the key creation time, not from the current time.
  * @return RNP_SUCCESS or error code on failure.
  */
 RNP_API rnp_result_t rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry);
