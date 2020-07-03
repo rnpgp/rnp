@@ -5789,8 +5789,14 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
     }
 
     if (pgp_key_is_primary_key(pkey)) {
-        bool res = pgp_key_set_expiration(pkey, skey, expiry, &key->ffi->pass_provider);
-        return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+        if (!pgp_key_set_expiration(pkey, skey, expiry, &key->ffi->pass_provider)) {
+            return RNP_ERROR_GENERIC;
+        }
+        pgp_key_revalidate_updated(pkey, key->ffi->pubring);
+        if (pkey != skey) {
+            pgp_key_revalidate_updated(skey, key->ffi->secring);
+        }
+        return RNP_SUCCESS;
     }
 
     /* for subkey we need primary key */
@@ -5799,19 +5805,23 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_key_request_ctx_t request = {};
-    request.secret = true;
-    request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-    request.search.by.fingerprint = pgp_key_get_primary_fp(pkey);
-    pgp_key_t *prim_sec = pgp_request_key(&key->ffi->key_provider, &request);
+    pgp_key_search_t search = {};
+    search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    search.by.fingerprint = pgp_key_get_primary_fp(pkey);
+    pgp_key_t *prim_sec = find_key(key->ffi, &search, KEY_TYPE_SECRET, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
-
-    bool res =
-      pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, &key->ffi->pass_provider);
-    return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    if (!pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, &key->ffi->pass_provider)) {
+        return RNP_ERROR_GENERIC;
+    }
+    pgp_key_revalidate_updated(prim_sec, key->ffi->secring);
+    pgp_key_t *prim_pub = find_key(key->ffi, &search, KEY_TYPE_PUBLIC, true);
+    if (prim_pub) {
+        pgp_key_revalidate_updated(prim_pub, key->ffi->pubring);
+    }
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
