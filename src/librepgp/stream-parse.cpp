@@ -2196,8 +2196,8 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             ret = init_compressed_src(&psrc, lsrc);
             break;
         case PGP_PKT_LITDATA:
-            if ((lsrc->type != PGP_STREAM_ENCRYPTED) && (lsrc->type != PGP_STREAM_SIGNED) &&
-                (lsrc->type != PGP_STREAM_COMPRESSED)) {
+            if ((lsrc != &src) && (lsrc->type != PGP_STREAM_ENCRYPTED) &&
+                (lsrc->type != PGP_STREAM_SIGNED) && (lsrc->type != PGP_STREAM_COMPRESSED)) {
                 RNP_LOG("unexpected literal pkt");
                 ret = RNP_ERROR_BAD_FORMAT;
                 break;
