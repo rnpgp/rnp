@@ -8722,3 +8722,59 @@ TEST_F(rnp_tests, test_ffi_key_remove)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_literal_packet)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    // init ffi
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* try rnp_decrypt() */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.literal"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    std::string out;
+    out.assign((char *) buf, len);
+    assert_true(out == file_to_str("data/test_messages/message.txt"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* try rnp_op_verify() */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.literal"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    out.assign((char *) buf, len);
+    assert_true(out == file_to_str("data/test_messages/message.txt"));
+    char *mode = NULL;
+    char *cipher = NULL;
+    bool  valid = true;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_string_equal(mode, "none");
+    assert_string_equal(cipher, "none");
+    assert_false(valid);
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    size_t count = 255;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &count));
+    assert_int_equal(count, 0);
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 0);
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    rnp_ffi_destroy(ffi);
+}
