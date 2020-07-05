@@ -81,7 +81,7 @@ typedef struct pgp_parse_handler_t {
  * @param src initialized source with cache
  * @return RNP_SUCCESS on success or error code otherwise
  **/
-rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src);
+rnp_result_t process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src);
 
 /* @brief Init source with OpenPGP compressed data packet
  * @param src allocated pgp_source_t structure
