@@ -45,7 +45,6 @@
 #include "crypto/signatures.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
-#include "list.h"
 
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>
@@ -62,12 +61,14 @@ typedef enum pgp_message_t {
 } pgp_message_t;
 
 typedef struct pgp_processing_ctx_t {
-    pgp_parse_handler_t handler;
-    pgp_source_t *      signed_src;
-    pgp_source_t *      literal_src;
-    pgp_message_t       msg_type;
-    pgp_dest_t          output;
-    list                sources;
+    pgp_parse_handler_t     handler;
+    pgp_source_t *          signed_src;
+    pgp_source_t *          literal_src;
+    pgp_message_t           msg_type;
+    pgp_dest_t              output;
+    std::list<pgp_source_t> sources;
+
+    ~pgp_processing_ctx_t();
 } pgp_processing_ctx_t;
 
 /* common fields for encrypted, compressed and literal data */
@@ -152,10 +153,10 @@ typedef struct pgp_source_partial_param_t {
 } pgp_source_partial_param_t;
 
 static bool
-is_pgp_source(pgp_source_t *src)
+is_pgp_source(pgp_source_t &src)
 {
     uint8_t buf;
-    if (!src_peek_eq(src, &buf, 1)) {
+    if (!src_peek_eq(&src, &buf, 1)) {
         return false;
     }
 
@@ -2149,31 +2150,23 @@ finish:
     return errcode;
 }
 
-static void
-init_processing_ctx(pgp_processing_ctx_t *ctx)
+pgp_processing_ctx_t::~pgp_processing_ctx_t()
 {
-    memset(ctx, 0, sizeof(*ctx));
-}
-
-static void
-free_processing_ctx(pgp_processing_ctx_t *ctx)
-{
-    for (list_item *src = list_front(ctx->sources); src; src = list_next(src)) {
-        src_close((pgp_source_t *) src);
+    for (auto &src : sources) {
+        src_close(&src);
     }
-    list_destroy(&ctx->sources);
 }
 
 /** @brief build PGP source sequence down to the literal data packet
  *
  **/
 static rnp_result_t
-init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
+init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
 {
     uint8_t       ptag;
     int           type;
     pgp_source_t  psrc;
-    pgp_source_t *lsrc = src;
+    pgp_source_t *lsrc = &src;
     rnp_result_t  ret;
 
     while (1) {
@@ -2193,11 +2186,11 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
         switch (type) {
         case PGP_PKT_PK_SESSION_KEY:
         case PGP_PKT_SK_SESSION_KEY:
-            ret = init_encrypted_src(&ctx->handler, &psrc, lsrc);
+            ret = init_encrypted_src(&ctx.handler, &psrc, lsrc);
             break;
         case PGP_PKT_ONE_PASS_SIG:
         case PGP_PKT_SIGNATURE:
-            ret = init_signed_src(&ctx->handler, &psrc, lsrc);
+            ret = init_signed_src(&ctx.handler, &psrc, lsrc);
             break;
         case PGP_PKT_COMPRESSED:
             ret = init_compressed_src(&psrc, lsrc);
@@ -2220,21 +2213,25 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
             return ret;
         }
 
-        if (!(lsrc = (pgp_source_t *) list_append(&ctx->sources, &psrc, sizeof(psrc)))) {
-            RNP_LOG("allocation failed");
+        try {
+            ctx.sources.push_back(psrc);
+            lsrc = &ctx.sources.back();
+        } catch (const std::exception &e) {
+            src_close(&psrc);
+            RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
 
         if (lsrc->type == PGP_STREAM_LITERAL) {
-            ctx->literal_src = lsrc;
-            ctx->msg_type = PGP_MESSAGE_NORMAL;
+            ctx.literal_src = lsrc;
+            ctx.msg_type = PGP_MESSAGE_NORMAL;
             return RNP_SUCCESS;
         }
         if (lsrc->type == PGP_STREAM_SIGNED) {
-            ctx->signed_src = lsrc;
+            ctx.signed_src = lsrc;
             pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) lsrc->param;
             if (param->detached) {
-                ctx->msg_type = PGP_MESSAGE_DETACHED;
+                ctx.msg_type = PGP_MESSAGE_DETACHED;
                 return RNP_SUCCESS;
             }
         }
@@ -2242,48 +2239,50 @@ init_packet_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
 }
 
 static rnp_result_t
-init_cleartext_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
+init_cleartext_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
 {
-    pgp_source_t clrsrc = {0};
+    pgp_source_t clrsrc = {};
     rnp_result_t res;
 
-    if ((res = init_signed_src(&ctx->handler, &clrsrc, src))) {
+    if ((res = init_signed_src(&ctx.handler, &clrsrc, &src))) {
         return res;
     }
-
-    if (!list_append(&ctx->sources, &clrsrc, sizeof(clrsrc))) {
-        RNP_LOG("allocation failed");
+    try {
+        ctx.sources.push_back(clrsrc);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        src_close(&clrsrc);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    return res;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
-init_armored_sequence(pgp_processing_ctx_t *ctx, pgp_source_t *src)
+init_armored_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
 {
-    pgp_source_t armorsrc = {0};
-    list_item *  armorptr;
+    pgp_source_t armorsrc = {};
     rnp_result_t res;
 
-    if ((res = init_armored_src(&armorsrc, src))) {
+    if ((res = init_armored_src(&armorsrc, &src))) {
         return res;
     }
 
-    if (!(armorptr = list_append(&ctx->sources, &armorsrc, sizeof(armorsrc)))) {
-        RNP_LOG("allocation failed");
+    try {
+        ctx.sources.push_back(armorsrc);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        src_close(&armorsrc);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    return init_packet_sequence(ctx, (pgp_source_t *) armorptr);
+    return init_packet_sequence(ctx, ctx.sources.back());
 }
 
 rnp_result_t
-process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
+process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
 {
     rnp_result_t         res = RNP_ERROR_BAD_FORMAT;
     rnp_result_t         fres;
-    pgp_processing_ctx_t ctx;
+    pgp_processing_ctx_t ctx = {};
     pgp_source_t *       decsrc = NULL;
     pgp_source_t         datasrc = {0};
     pgp_dest_t *         outdest = NULL;
@@ -2291,20 +2290,18 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     uint8_t *            readbuf = NULL;
     char *               filename = NULL;
 
-    init_processing_ctx(&ctx);
     ctx.handler = *handler;
-
     /* Building readers sequence. Checking whether it is binary data */
     if (is_pgp_source(src)) {
-        res = init_packet_sequence(&ctx, src);
+        res = init_packet_sequence(ctx, src);
     } else {
         /* Trying armored or cleartext data */
-        if (is_cleartext_source(src)) {
+        if (is_cleartext_source(&src)) {
             /* Initializing cleartext message */
-            res = init_cleartext_sequence(&ctx, src);
-        } else if (is_armored_source(src)) {
+            res = init_cleartext_sequence(ctx, src);
+        } else if (is_armored_source(&src)) {
             /* Initializing armored message */
-            res = init_armored_sequence(&ctx, src);
+            res = init_armored_sequence(ctx, src);
         } else {
             RNP_LOG("not an OpenPGP data provided");
             res = RNP_ERROR_BAD_FORMAT;
@@ -2343,7 +2340,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
         src_close(&datasrc);
     } else {
         /* file processing case */
-        decsrc = (pgp_source_t *) list_back(ctx.sources);
+        decsrc = &ctx.sources.back();
         if (ctx.literal_src) {
             filename = ((pgp_source_literal_param_t *) ctx.literal_src)->hdr.fname;
         }
@@ -2378,8 +2375,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
 
     /* finalizing the input. Signatures are checked on this step */
     if (res == RNP_SUCCESS) {
-        for (list_item *src = list_back(ctx.sources); src; src = list_prev(src)) {
-            fres = src_finish((pgp_source_t *) src);
+        for (auto &src : ctx.sources) {
+            fres = src_finish(&src);
             if (fres) {
                 res = fres;
             }
@@ -2391,7 +2388,6 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t *src)
     }
 
 finish:
-    free_processing_ctx(&ctx);
     free(readbuf);
     return res;
 }
