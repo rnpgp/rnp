@@ -2869,7 +2869,7 @@ rnp_op_verify_execute(rnp_op_verify_t op)
     handler.param = op;
     handler.ctx = &op->rnpctx;
 
-    rnp_result_t ret = process_pgp_source(&handler, &op->input->src);
+    rnp_result_t ret = process_pgp_source(&handler, op->input->src);
     if (op->output) {
         dst_flush(&op->output->dst);
         op->output->keep = ret == RNP_SUCCESS;
@@ -3257,7 +3257,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     handler.param = output;
     handler.ctx = &rnpctx;
 
-    rnp_result_t ret = process_pgp_source(&handler, &input->src);
+    rnp_result_t ret = process_pgp_source(&handler, input->src);
     dst_flush(&output->dst);
     output->keep = (ret == RNP_SUCCESS);
     return ret;
