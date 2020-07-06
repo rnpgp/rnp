@@ -51,6 +51,7 @@ project(RNP
 # options
 option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
+option(ENABLE_FUZZING "Enable fuzz targets.")
 
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
@@ -123,6 +124,9 @@ endif()
 
 # everything else is in subdirs
 add_subdirectory(src/examples)
+if (ENABLE_FUZZING)
+  add_subdirectory(src/fuzzing)
+endif()
 add_subdirectory(src/common)
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
