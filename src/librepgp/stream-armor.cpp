@@ -973,27 +973,23 @@ armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
 bool
 is_armored_source(pgp_source_t *src)
 {
-    uint8_t buf[128];
-    size_t  read = 0;
+    uint8_t buf[strlen(ST_ARMOR_BEGIN)];
 
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
+    if (!src_peek_eq(src, buf, sizeof(buf))) {
         return false;
     }
-    buf[read - 1] = 0;
-    return !!strstr((char *) buf, ST_ARMOR_BEGIN);
+    return !memcmp(buf, ST_ARMOR_BEGIN, sizeof(buf));
 }
 
 bool
 is_cleartext_source(pgp_source_t *src)
 {
-    uint8_t buf[128];
-    size_t  read = 0;
+    uint8_t buf[strlen(ST_CLEAR_BEGIN)];
 
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
+    if (!src_peek_eq(src, buf, sizeof(buf))) {
         return false;
     }
-    buf[read - 1] = 0;
-    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
+    return !memcmp(buf, ST_CLEAR_BEGIN, sizeof(buf));
 }
 
 rnp_result_t
@@ -1001,20 +997,11 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {
     rnp_result_t res = RNP_ERROR_BAD_FORMAT;
     pgp_source_t armorsrc = {0};
-    uint8_t      readbuf[strlen(ST_CLEAR_BEGIN) + 1];
-    size_t       read;
-
-    if (!src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN), &read) ||
-        (read < strlen(ST_ARMOR_BEGIN))) {
-        RNP_LOG("can't read enough data from source");
-        return RNP_ERROR_READ;
-    }
 
     /* Trying armored or cleartext data */
-    readbuf[read] = 0;
-    if (strstr((char *) readbuf, ST_ARMOR_BEGIN)) {
+    if (is_armored_source(src)) {
         /* checking whether it is cleartext */
-        if (strstr((char *) readbuf, ST_CLEAR_BEGIN)) {
+        if (is_cleartext_source(src)) {
             RNP_LOG("source is cleartext, not armored");
             return RNP_ERROR_BAD_FORMAT;
         }
