@@ -28,7 +28,8 @@
 # 3.10+ for gtest_discover_tests (parallel rnp_tests)
 # 3.12+ for NAMELINK_COMPONENT (for better RPM packaging)
 # 3.12+ for Python3 find module
-cmake_minimum_required(VERSION 3.12)
+# 3.14+ for object library link dependency propagation
+cmake_minimum_required(VERSION 3.14)
 
 # contact email, other info
 include(cmake/info.cmake)
