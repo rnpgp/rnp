@@ -1021,6 +1021,30 @@ pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
 }
 
 pgp_subsig_t *
+pgp_key_latest_uid_selfcert(pgp_key_t *key, uint32_t uid)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        pgp_subsig_t *sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid || (sig->uid != uid)) {
+            continue;
+        }
+        if (!pgp_sig_is_self_signature(key, sig)) {
+            continue;
+        }
+
+        uint32_t creation = signature_get_creation(&sig->sig);
+        if (creation >= latest) {
+            latest = creation;
+            res = sig;
+        }
+    }
+    return res;
+}
+
+pgp_subsig_t *
 pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
 {
     uint32_t      latest = 0;
