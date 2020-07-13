@@ -1989,6 +1989,54 @@ pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
     return !dst->werr;
 }
 
+bool
+pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t uid)
+{
+    pgp_subsig_t *cert = pgp_key_latest_uid_selfcert(&key, uid);
+    if (!cert) {
+        RNP_LOG("No valid uid certification");
+        return false;
+    }
+    pgp_subsig_t *binding = pgp_key_latest_binding(&sub, true);
+    if (!binding) {
+        RNP_LOG("No valid binding for subkey");
+        return false;
+    }
+    /* write all or nothing */
+    pgp_dest_t memdst = {};
+    if (init_mem_dest(&memdst, NULL, 0)) {
+        RNP_LOG("Allocation failed");
+        return false;
+    }
+
+    bool res = false;
+    if (pgp_key_is_secret(&key)) {
+        pgp_key_pkt_t pkt = {};
+        res = copy_key_pkt(&pkt, &key.pkt, true) && stream_write_key(&pkt, &memdst);
+        free_key_pkt(&pkt);
+    } else {
+        res = stream_write_key(&key.pkt, &memdst);
+    }
+
+    res = res && stream_write_userid(&key.uids[uid].pkt, &memdst) &&
+          stream_write_signature(&cert->sig, &memdst);
+
+    if (res && pgp_key_is_secret(&sub)) {
+        pgp_key_pkt_t pkt = {};
+        res = res && copy_key_pkt(&pkt, &sub.pkt, true) && stream_write_key(&pkt, &memdst);
+        free_key_pkt(&pkt);
+    } else if (res) {
+        res = res && stream_write_key(&sub.pkt, &memdst);
+    }
+    res = res && stream_write_signature(&binding->sig, &memdst);
+    if (res) {
+        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
+        res = !dst.werr;
+    }
+    dst_close(&memdst, true);
+    return res;
+}
+
 pgp_key_t *
 find_suitable_key(pgp_op_t            op,
                   pgp_key_t *         key,
