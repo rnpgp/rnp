@@ -309,6 +309,8 @@ void test_ffi_key_remove(void **state);
 
 void test_ffi_literal_packet(void **state);
 
+void test_ffi_key_export_autocrypt(void **state);
+
 void test_dsa_roundtrip(void **state);
 
 void test_dsa_verify_negative(void **state);
