@@ -466,6 +466,18 @@ bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
  */
 bool pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring);
 
+/**
+ * @brief Export key with subkey as it is required by Autocrypt (5-packet sequence: key, uid,
+ *        sig, subkey, sig).
+ *
+ * @param dst stream to write packets
+ * @param key primary key
+ * @param sub subkey
+ * @param uid index of uid to export
+ * @return true on success or false otherwise
+ */
+bool pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t uid);
+
 /** find a key suitable for a particular operation
  *
  *  If the key passed is suitable, it will be returned.
