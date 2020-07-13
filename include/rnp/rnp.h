@@ -853,6 +853,23 @@ RNP_API rnp_result_t rnp_op_generate_destroy(rnp_op_generate_t op);
 RNP_API rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, uint32_t flags);
 
 /**
+ * @brief Export minimal key for autocrypt feature (just 5 packets: key, uid, signature,
+ *        encryption subkey, signature)
+ *
+ * @param key primary key handle, cannot be NULL.
+ * @param subkey subkey to export. May be NULL to pick the first suitable.
+ * @param uid userid to export. May be NULL if key has only one uid.
+ * @param output the stream to write to
+ * @param flags additional flags, must be 0 for now.
+ * @return RNP_SUCCESS on success, or any other value if failed.
+ */
+RNP_API rnp_result_t rnp_key_export_autocrypt(rnp_key_handle_t key,
+                                              rnp_key_handle_t subkey,
+                                              const char *     uid,
+                                              rnp_output_t     output,
+                                              uint32_t         flags);
+
+/**
  * @brief Generate and export primary key revocation signature.
  *        Note: to revoke a key you'll need to import this signature into the keystore or use
  *        rnp_key_revoke() function.
