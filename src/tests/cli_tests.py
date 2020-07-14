@@ -1536,6 +1536,29 @@ class Misc(unittest.TestCase):
             raise_err('message having largest possible partial packet verification failed', err)
         return
 
+    def test_rnp_single_export(self):
+        # Import key with subkeys, then export it, test that it is exported once.
+        # See issue #1153
+        clear_keyrings()
+        # Import Alice's secret key and subkey
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+        if ret != 0:
+            raise_err('Alice secret key import failed')
+        # Export key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export', 'Alice'])
+        if ret != 0: raise_err('key export failed', err)
+        pubpath = path.join(RNPDIR, 'Alice-export-test.asc')
+        with open(pubpath, 'w+') as f:
+            f.write(out)
+        # List exported key packets
+        params = ['--list-packets', pubpath]
+        ret, out, err = run_proc(RNP, params)
+        if ret != 0:
+            raise_err('packet listing failed', err)
+        compare_file_ex(data_path('test_single_export_subkeys/list_key_export_single.txt'), out,
+                        'exported packets mismatch')
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
