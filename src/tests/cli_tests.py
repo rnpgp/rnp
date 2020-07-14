@@ -1608,7 +1608,7 @@ class Misc(unittest.TestCase):
                         'json all listing mismatch')
         return
 
-    def test_rnp_list_packets(self):
+    def test_rnp_list_packets_edge_cases(self):
         # List empty key packets
         params = ['--list-packets', data_path('test_key_edge_cases/key-empty-packets.pgp')]
         ret, out, err = run_proc(RNP, params)
