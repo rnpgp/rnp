@@ -296,8 +296,8 @@ typedef struct pgp_sig_subpkt_t {
             pgp_hash_alg_t   halg;
             uint8_t *        hash;
             unsigned         hlen;
-        } sig_target;        /* 5.2.3.25.  Signature Target */
-        pgp_signature_t sig; /* 5.2.3.27. Embedded Signature */
+        } sig_target;         /* 5.2.3.25.  Signature Target */
+        pgp_signature_t *sig; /* 5.2.3.27. Embedded Signature */
         struct {
             uint8_t  version;
             uint8_t *fp;

@@ -630,7 +630,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, pgp_sig_subpkt_t 
         break;
     case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
         dst_printf(dst, "%s:\n", sname);
-        stream_dump_signature_pkt(ctx, &subpkt->fields.sig, dst);
+        stream_dump_signature_pkt(ctx, subpkt->fields.sig, dst);
         break;
     case PGP_SIG_SUBPKT_ISSUER_FPR:
         dst_print_hex(
@@ -1592,7 +1592,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *ctx, pgp_sig_subpkt_t *subpkt, jso
         if (!sig || !obj_add_field_json(obj, "signature", sig)) {
             return false;
         }
-        return !stream_dump_signature_pkt_json(ctx, &subpkt->fields.sig, sig);
+        return !stream_dump_signature_pkt_json(ctx, subpkt->fields.sig, sig);
     }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
         return obj_add_hex_json(
