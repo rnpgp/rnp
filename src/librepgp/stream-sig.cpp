@@ -716,8 +716,15 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("failed to read back signature");
         goto finish;
     }
-    if (!copy_signature_packet(&subpkt->fields.sig, esig)) {
+    subpkt->fields.sig = (pgp_signature_t *) calloc(1, sizeof(*subpkt->fields.sig));
+    if (!subpkt->fields.sig) {
+        RNP_LOG("Allocation failed");
+        goto finish;
+    }
+    if (!copy_signature_packet(subpkt->fields.sig, esig)) {
         RNP_LOG("failed to copy signature");
+        free(subpkt->fields.sig);
+        subpkt->fields.sig = NULL;
         goto finish;
     }
     subpkt->parsed = 1;
@@ -1144,15 +1151,15 @@ signature_check_binding(pgp_signature_info_t *sinfo,
             RNP_LOG("invalid embedded signature subpacket");
             goto finish;
         }
-        if (subpkt->fields.sig.type != PGP_SIG_PRIMARY) {
+        if (subpkt->fields.sig->type != PGP_SIG_PRIMARY) {
             RNP_LOG("invalid primary key binding signature");
             goto finish;
         }
-        if (subpkt->fields.sig.version < PGP_V4) {
+        if (subpkt->fields.sig->version < PGP_V4) {
             RNP_LOG("invalid primary key binding signature version");
             goto finish;
         }
-        res = signature_validate(&subpkt->fields.sig, &subkey->material, &hashcp);
+        res = signature_validate(subpkt->fields.sig, &subkey->material, &hashcp);
         sinfo->valid = !res;
     }
 finish:

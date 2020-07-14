@@ -1428,7 +1428,12 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
         /* parse signature */
         pgp_packet_body_t pkt = {};
         packet_body_part_from_mem(&pkt, subpkt->data, subpkt->len);
-        oklen = checked = !stream_parse_signature_body(&pkt, &subpkt->fields.sig);
+        subpkt->fields.sig = (pgp_signature_t *) calloc(1, sizeof(*subpkt->fields.sig));
+        if (!subpkt->fields.sig) {
+            RNP_LOG("allocation faield");
+            return false;
+        }
+        oklen = checked = !stream_parse_signature_body(&pkt, subpkt->fields.sig);
         break;
     }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
@@ -1824,7 +1829,9 @@ free_signature_subpkt(pgp_sig_subpkt_t *subpkt)
         return;
     }
     if (subpkt->parsed && (subpkt->type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        free_signature(&subpkt->fields.sig);
+        free_signature(subpkt->fields.sig);
+        free(subpkt->fields.sig);
+        subpkt->fields.sig = NULL;
     }
     free(subpkt->data);
 }
