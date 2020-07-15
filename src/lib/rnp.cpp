@@ -1182,7 +1182,7 @@ do_load_keys(rnp_ffi_t              ffi,
             continue;
         }
 
-        if ((tmpret = pgp_key_copy(&keycp, &key, true))) {
+        if ((tmpret = pgp_key_copy(keycp, key, true))) {
             ret = tmpret;
             goto done;
         }

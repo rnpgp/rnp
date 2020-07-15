@@ -1144,7 +1144,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
             goto done;
         }
 
-        if (pgp_key_copy_fields(&key, pubkey)) {
+        if (pgp_key_copy_fields(key, *pubkey)) {
             RNP_LOG("failed to copy key fields");
             goto done;
         }
