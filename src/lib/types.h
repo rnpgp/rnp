@@ -212,8 +212,8 @@ typedef struct pgp_signature_t {
     uint8_t          lbits[2];
     uint8_t *        hashed_data;
     size_t           hashed_len;
-
-    pgp_signature_material_t material;
+    uint8_t *        material_buf; /* raw signature material */
+    size_t           material_len; /* raw signature material length */
 
     /* v3 - only fields */
     uint32_t     creation_time;

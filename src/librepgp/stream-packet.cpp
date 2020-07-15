@@ -977,6 +977,52 @@ stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
 }
 
 bool
+write_signature_material(pgp_signature_t &sig, const pgp_signature_material_t &material)
+{
+    pgp_packet_body_t pktbody = {};
+    if (!init_packet_body(&pktbody, PGP_PKT_SIGNATURE)) {
+        RNP_LOG("allocation failed");
+        return false;
+    }
+
+    bool res = false;
+    switch (sig.palg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        res = add_packet_body_mpi(&pktbody, &material.rsa.s);
+        break;
+    case PGP_PKA_DSA:
+        res = add_packet_body_mpi(&pktbody, &material.dsa.r) &&
+              add_packet_body_mpi(&pktbody, &material.dsa.s);
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        res = add_packet_body_mpi(&pktbody, &material.ecc.r) &&
+              add_packet_body_mpi(&pktbody, &material.ecc.s);
+        break;
+    case PGP_PKA_ELGAMAL: /* we support writing it but will not generate */
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        res = add_packet_body_mpi(&pktbody, &material.eg.r) &&
+              add_packet_body_mpi(&pktbody, &material.eg.s);
+        break;
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) sig.palg);
+    }
+
+    if (!res) {
+        free_packet_body(&pktbody);
+        return false;
+    }
+
+    free(sig.material_buf);
+    sig.material_buf = pktbody.data;
+    sig.material_len = pktbody.len;
+    return true;
+}
+
+bool
 stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
 {
     pgp_packet_body_t pktbody;
@@ -1007,33 +1053,8 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
     }
 
     res &= add_packet_body(&pktbody, sig->lbits, 2);
-
     /* write mpis */
-    switch (sig->palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        res &= add_packet_body_mpi(&pktbody, &sig->material.rsa.s);
-        break;
-    case PGP_PKA_DSA:
-        res &= add_packet_body_mpi(&pktbody, &sig->material.dsa.r) &&
-               add_packet_body_mpi(&pktbody, &sig->material.dsa.s);
-        break;
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        res &= add_packet_body_mpi(&pktbody, &sig->material.ecc.r) &&
-               add_packet_body_mpi(&pktbody, &sig->material.ecc.s);
-        break;
-    case PGP_PKA_ELGAMAL: /* we support writing it but will not generate */
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res &= add_packet_body_mpi(&pktbody, &sig->material.eg.r) &&
-               add_packet_body_mpi(&pktbody, &sig->material.eg.s);
-        break;
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
-        res = false;
-    }
+    res &= add_packet_body(&pktbody, sig->material_buf, sig->material_len);
 
     if (res) {
         stream_flush_packet_body(&pktbody, dst);
@@ -1677,11 +1698,64 @@ finish:
     return res;
 }
 
+bool
+parse_signature_material(const pgp_signature_t &sig, pgp_signature_material_t &material)
+{
+    pgp_packet_body_t pkt = {};
+    pkt.data = sig.material_buf;
+    pkt.len = sig.material_len;
+
+    switch (sig.palg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        if (!get_packet_body_mpi(&pkt, &material.rsa.s)) {
+            return false;
+        }
+        break;
+    case PGP_PKA_DSA:
+        if (!get_packet_body_mpi(&pkt, &material.dsa.r) ||
+            !get_packet_body_mpi(&pkt, &material.dsa.s)) {
+            return false;
+        }
+        break;
+    case PGP_PKA_EDDSA:
+        if (sig.version < PGP_V4) {
+            RNP_LOG("Warning! v3 EdDSA signature.");
+        }
+        /* FALLTHROUGH */
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        if (!get_packet_body_mpi(&pkt, &material.ecc.r) ||
+            !get_packet_body_mpi(&pkt, &material.ecc.s)) {
+            return false;
+        }
+        break;
+    case PGP_PKA_ELGAMAL: /* we support reading it but will not validate */
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        if (!get_packet_body_mpi(&pkt, &material.eg.r) ||
+            !get_packet_body_mpi(&pkt, &material.eg.s)) {
+            return false;
+        }
+        break;
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) sig.palg);
+        return false;
+    }
+
+    if (pkt.pos < pkt.len) {
+        RNP_LOG("extra %d bytes in signature packet", (int) (pkt.len - pkt.pos));
+        return false;
+    }
+    return true;
+}
+
 rnp_result_t
 stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
 {
-    uint8_t      ver;
-    rnp_result_t res = RNP_ERROR_BAD_FORMAT;
+    uint8_t                  ver;
+    rnp_result_t             res = RNP_ERROR_BAD_FORMAT;
+    pgp_signature_material_t material = {};
 
     memset(sig, 0, sizeof(*sig));
     if (!get_packet_body_byte(pkt, &ver)) {
@@ -1711,47 +1785,21 @@ stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
         goto finish;
     }
 
-    /* signature MPIs */
-    switch (sig->palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        if (!get_packet_body_mpi(pkt, &sig->material.rsa.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_DSA:
-        if (!get_packet_body_mpi(pkt, &sig->material.dsa.r) ||
-            !get_packet_body_mpi(pkt, &sig->material.dsa.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_EDDSA:
-        if (sig->version < PGP_V4) {
-            RNP_LOG("Warning! v3 EdDSA signature.");
-        }
-        /* FALLTHROUGH */
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        if (!get_packet_body_mpi(pkt, &sig->material.ecc.r) ||
-            !get_packet_body_mpi(pkt, &sig->material.ecc.s)) {
-            goto finish;
-        }
-        break;
-    case PGP_PKA_ELGAMAL: /* we support reading it but will not validate */
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!get_packet_body_mpi(pkt, &sig->material.eg.r) ||
-            !get_packet_body_mpi(pkt, &sig->material.eg.s)) {
-            goto finish;
-        }
-        break;
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) sig->palg);
+    /* raw signature material */
+    sig->material_len = pkt->len - pkt->pos;
+    if (!sig->material_len) {
+        RNP_LOG("No signature material");
         goto finish;
     }
+    sig->material_buf = (uint8_t *) malloc(sig->material_len);
+    if (!sig->material_buf) {
+        RNP_LOG("Allocation failed");
+        goto finish;
+    }
+    memcpy(sig->material_buf, pkt->data + pkt->pos, sig->material_len);
 
-    if (pkt->pos < pkt->len) {
-        RNP_LOG("extra %d bytes in signature packet", (int) (pkt->len - pkt->pos));
+    /* check whether it can be parsed */
+    if (!parse_signature_material(*sig, material)) {
         goto finish;
     }
     res = RNP_SUCCESS;
@@ -1797,7 +1845,6 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
     memcpy(dst->lbits, src->lbits, sizeof(src->lbits));
     dst->creation_time = src->creation_time;
     dst->signer = src->signer;
-    dst->material = src->material;
 
     dst->hashed_len = src->hashed_len;
     dst->hashed_data = NULL;
@@ -1806,6 +1853,15 @@ copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
             return false;
         }
         memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
+    }
+    dst->material_len = src->material_len;
+    dst->material_buf = NULL;
+    if (src->material_buf) {
+        if (!(dst->material_buf = (uint8_t *) malloc(src->material_len))) {
+            free_signature(dst);
+            return false;
+        }
+        memcpy(dst->material_buf, src->material_buf, src->material_len);
     }
 
     dst->subpkts = NULL;
@@ -1837,32 +1893,12 @@ signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
     if (memcmp(sig1->lbits, sig2->lbits, 2)) {
         return false;
     }
-
     if ((sig1->hashed_len != sig2->hashed_len) ||
         memcmp(sig1->hashed_data, sig2->hashed_data, sig1->hashed_len)) {
         return false;
     }
-
-    switch (sig1->palg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        return mpi_equal(&sig1->material.rsa.s, &sig2->material.rsa.s);
-    case PGP_PKA_DSA:
-        return mpi_equal(&sig1->material.dsa.r, &sig2->material.dsa.r) &&
-               mpi_equal(&sig1->material.dsa.s, &sig2->material.dsa.s);
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return mpi_equal(&sig1->material.eg.r, &sig2->material.eg.r) &&
-               mpi_equal(&sig1->material.eg.s, &sig2->material.eg.s);
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        return mpi_equal(&sig1->material.ecc.r, &sig2->material.ecc.r) &&
-               mpi_equal(&sig1->material.ecc.s, &sig2->material.ecc.s);
-    default:
-        RNP_LOG("Unknown pk algorithm : %d", (int) sig1->palg);
-        return false;
-    }
+    return (sig1->material_len == sig2->material_len) &&
+           !memcmp(sig1->material_buf, sig2->material_buf, sig1->material_len);
 }
 
 void
@@ -1883,6 +1919,7 @@ void
 free_signature(pgp_signature_t *sig)
 {
     free(sig->hashed_data);
+    free(sig->material_buf);
     for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
         free_signature_subpkt((pgp_sig_subpkt_t *) sp);
     }

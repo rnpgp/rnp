@@ -713,27 +713,30 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     dst_printf(dst, "signature material:\n");
     indent_dest_increase(dst);
 
+    pgp_signature_material_t material = {};
+    parse_signature_material(*sig, material);
+
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa s", &sig->material.rsa.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa s", &material.rsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_DSA:
-        dst_print_mpi(dst, "dsa r", &sig->material.dsa.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "dsa s", &sig->material.dsa.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa r", &material.dsa.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "dsa s", &material.dsa.s, ctx->dump_mpi);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecc r", &sig->material.ecc.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "ecc s", &sig->material.ecc.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc r", &material.ecc.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecc s", &material.ecc.s, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg r", &sig->material.eg.r, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg s", &sig->material.eg.s, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg r", &material.eg.r, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg s", &material.eg.s, ctx->dump_mpi);
         break;
     default:
         dst_printf(dst, "unknown algorithm\n");
@@ -1657,8 +1660,9 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
                                const pgp_signature_t *sig,
                                json_object *          pkt)
 {
-    json_object *material = NULL;
-    rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
+    json_object *            material = NULL;
+    pgp_signature_material_t sigmaterial = {};
+    rnp_result_t             ret = RNP_ERROR_OUT_OF_MEMORY;
 
     if (!obj_add_field_json(pkt, "version", json_object_new_int(sig->version))) {
         goto done;
@@ -1702,17 +1706,18 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         goto done;
     }
 
+    parse_signature_material(*sig, sigmaterial);
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "s", &sig->material.rsa.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "s", &sigmaterial.rsa.s, ctx->dump_mpi)) {
             goto done;
         }
         break;
     case PGP_PKA_DSA:
-        if (!obj_add_mpi_json(material, "r", &sig->material.dsa.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sig->material.dsa.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", &sigmaterial.dsa.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sigmaterial.dsa.s, ctx->dump_mpi)) {
             goto done;
         }
         break;
@@ -1720,15 +1725,15 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        if (!obj_add_mpi_json(material, "r", &sig->material.ecc.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sig->material.ecc.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", &sigmaterial.ecc.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sigmaterial.ecc.s, ctx->dump_mpi)) {
             goto done;
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "r", &sig->material.eg.r, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "s", &sig->material.eg.s, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "r", &sigmaterial.eg.r, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "s", &sigmaterial.eg.s, ctx->dump_mpi)) {
             goto done;
         }
         break;
