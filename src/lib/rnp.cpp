@@ -6583,20 +6583,22 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 static rnp_result_t
 add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 {
+    pgp_signature_material_t material = {};
+    parse_signature_material(*sig, material);
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "sig", &sig->material.rsa.s, NULL);
+        return add_json_mpis(jso, "sig", &material.rsa.s, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "r", &sig->material.eg.r, "s", &sig->material.eg.s, NULL);
+        return add_json_mpis(jso, "r", &material.eg.r, "s", &material.eg.s, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso, "r", &sig->material.dsa.r, "s", &sig->material.dsa.s, NULL);
+        return add_json_mpis(jso, "r", &material.dsa.r, "s", &material.dsa.s, NULL);
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "r", &sig->material.ecc.r, "s", &sig->material.ecc.s, NULL);
+        return add_json_mpis(jso, "r", &material.ecc.r, "s", &material.ecc.s, NULL);
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
         return RNP_ERROR_NOT_SUPPORTED;

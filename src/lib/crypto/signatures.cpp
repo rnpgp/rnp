@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include "crypto/signatures.h"
+#include "librepgp/stream-packet.h"
 #include "utils.h"
 
 /**
@@ -118,23 +119,24 @@ signature_calculate(pgp_signature_t *         sig,
     memcpy(sig->lbits, hval, 2);
 
     /* sign */
+    pgp_signature_material_t material = {};
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_sign_pkcs1(rng, &sig->material.rsa, sig->halg, hval, hlen, &seckey->rsa);
+        ret = rsa_sign_pkcs1(rng, &material.rsa, sig->halg, hval, hlen, &seckey->rsa);
         if (ret) {
             RNP_LOG("rsa signing failed");
         }
         break;
     case PGP_PKA_EDDSA:
-        ret = eddsa_sign(rng, &sig->material.ecc, hval, hlen, &seckey->ec);
+        ret = eddsa_sign(rng, &material.ecc, hval, hlen, &seckey->ec);
         if (ret) {
             RNP_LOG("eddsa signing failed");
         }
         break;
     case PGP_PKA_DSA:
-        ret = dsa_sign(rng, &sig->material.dsa, hval, hlen, &seckey->dsa);
+        ret = dsa_sign(rng, &material.dsa, hval, hlen, &seckey->dsa);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("DSA signing failed");
         }
@@ -161,12 +163,12 @@ signature_calculate(pgp_signature_t *         sig,
         }
 
         if (sig->palg == PGP_PKA_SM2) {
-            ret = sm2_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
+            ret = sm2_sign(rng, &material.ecc, hash_alg, hval, hlen, &seckey->ec);
             if (ret) {
                 RNP_LOG("SM2 signing failed");
             }
         } else {
-            ret = ecdsa_sign(rng, &sig->material.ecc, hash_alg, hval, hlen, &seckey->ec);
+            ret = ecdsa_sign(rng, &material.ecc, hash_alg, hval, hlen, &seckey->ec);
             if (ret) {
                 RNP_LOG("ECDSA signing failed");
                 break;
@@ -174,12 +176,13 @@ signature_calculate(pgp_signature_t *         sig,
         }
         break;
     }
-
     default:
         RNP_LOG("Unsupported algorithm %d", sig->palg);
         break;
     }
-
+    if (!ret) {
+        write_signature_material(*sig, material);
+    }
     return ret;
 }
 
@@ -217,26 +220,28 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
 
     /* validate signature */
 
+    pgp_signature_material_t material = {};
+    parse_signature_material(*sig, material);
     switch (sig->palg) {
     case PGP_PKA_DSA:
-        ret = dsa_verify(&sig->material.dsa, hval, hlen, &key->dsa);
+        ret = dsa_verify(&material.dsa, hval, hlen, &key->dsa);
         break;
     case PGP_PKA_EDDSA:
-        ret = eddsa_verify(&sig->material.ecc, hval, hlen, &key->ec);
+        ret = eddsa_verify(&material.ecc, hval, hlen, &key->ec);
         break;
     case PGP_PKA_SM2:
-        ret = sm2_verify(&sig->material.ecc, hash_alg, hval, hlen, &key->ec);
+        ret = sm2_verify(&material.ecc, hash_alg, hval, hlen, &key->ec);
         break;
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_verify_pkcs1(&sig->material.rsa, sig->halg, hval, hlen, &key->rsa);
+        ret = rsa_verify_pkcs1(&material.rsa, sig->halg, hval, hlen, &key->rsa);
         break;
     case PGP_PKA_RSA_ENCRYPT_ONLY:
         RNP_LOG("RSA encrypt-only signature considered as invalid.");
         ret = RNP_ERROR_SIGNATURE_INVALID;
         break;
     case PGP_PKA_ECDSA:
-        ret = ecdsa_verify(&sig->material.ecc, hash_alg, hval, hlen, &key->ec);
+        ret = ecdsa_verify(&material.ecc, hash_alg, hval, hlen, &key->ec);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
@@ -247,6 +252,5 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
         RNP_LOG("Unknown algorithm");
         ret = RNP_ERROR_BAD_PARAMETERS;
     }
-
     return ret;
 }
