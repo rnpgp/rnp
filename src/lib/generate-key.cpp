@@ -133,7 +133,7 @@ load_generated_g10_key(pgp_key_t *    dst,
     // if a primary key is provided, it should match the sub with regards to type
     assert(!primary_key ||
            (pgp_key_is_secret(primary_key) == pgp_key_is_secret(&key_store->keys.front())));
-    ok = !pgp_key_copy(dst, &key_store->keys.front(), false);
+    ok = !pgp_key_copy(*dst, key_store->keys.front(), false);
 end:
     delete key_store;
     src_close(&memsrc);
