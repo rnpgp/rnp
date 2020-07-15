@@ -281,11 +281,15 @@ rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepas
 
 bool stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst);
 
+bool write_signature_material(pgp_signature_t &sig, const pgp_signature_material_t &material);
+
 bool signature_parse_subpacket(pgp_sig_subpkt_t *subpkt);
 
 rnp_result_t stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig);
 
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
+
+bool parse_signature_material(const pgp_signature_t &sig, pgp_signature_material_t &material);
 
 bool copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src);
 

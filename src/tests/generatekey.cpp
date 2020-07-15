@@ -949,8 +949,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig = &pgp_key_get_subsig(&pub, 0)->sig;
         ssig = &pgp_key_get_subsig(&sec, 0)->sig;
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(psig->material.rsa.s.len, 0);
-        assert_int_not_equal(ssig->material.rsa.s.len, 0);
+        assert_int_not_equal(psig->material_len, 0);
+        assert_int_not_equal(ssig->material_len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
         assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
@@ -1077,8 +1077,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig = &pgp_key_get_subsig(&pub, 0)->sig;
         ssig = &pgp_key_get_subsig(&sec, 0)->sig;
         // make sure our sig MPI is not NULL
-        assert_int_not_equal(psig->material.rsa.s.len, 0);
-        assert_int_not_equal(ssig->material.rsa.s.len, 0);
+        assert_int_not_equal(psig->material_len, 0);
+        assert_int_not_equal(ssig->material_len, 0);
         // make sure we're targeting the right packet
         assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
         assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
