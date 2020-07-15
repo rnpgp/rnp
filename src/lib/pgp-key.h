@@ -111,7 +111,7 @@ bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt);
  *               secret to public
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
-rnp_result_t pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly);
+rnp_result_t pgp_key_copy(pgp_key_t &dst, const pgp_key_t &src, bool pubonly);
 
 /**
  * @brief Copy calculated key fields (grip, userid list, etc). Does not copy key packet/raw
@@ -121,7 +121,7 @@ rnp_result_t pgp_key_copy(pgp_key_t *dst, const pgp_key_t *src, bool pubonly);
  * @param src source key
  * @return RNP_SUCCESS if operation succeeded or error code otherwise
  */
-rnp_result_t pgp_key_copy_fields(pgp_key_t *dst, const pgp_key_t *src);
+rnp_result_t pgp_key_copy_fields(pgp_key_t &dst, const pgp_key_t &src);
 
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 
