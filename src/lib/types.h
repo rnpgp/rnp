@@ -420,13 +420,11 @@ typedef struct pgp_subsig_t {
     bool             valid;       /* signature was validated and is valid */
 
     pgp_subsig_t() = default;
+    pgp_subsig_t(const pgp_subsig_t &src);
     pgp_subsig_t(pgp_subsig_t &&src);
     pgp_subsig_t &operator=(pgp_subsig_t &&src);
     pgp_subsig_t &operator=(const pgp_subsig_t &src);
     ~pgp_subsig_t();
-
-    /* make sure we use only explicitly defined constructors/operators */
-    pgp_subsig_t(const pgp_subsig_t &) = delete;
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
@@ -435,12 +433,12 @@ typedef struct pgp_userid_t {
     std::string      str;    /* Human-readable representation of the userid */
 
     pgp_userid_t() = default;
+    pgp_userid_t(const pgp_userid_t &src);
     pgp_userid_t(pgp_userid_t &&src);
     pgp_userid_t &operator=(const pgp_userid_t &src);
     ~pgp_userid_t();
 
     /* make sure we use only explicitly defined constructors/operators */
-    pgp_userid_t(const pgp_userid_t &) = delete;
     pgp_userid_t &operator=(pgp_userid_t &&) = delete;
 } pgp_userid_t;
 

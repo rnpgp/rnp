@@ -456,7 +456,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG("%s", e.what());
             return NULL;
         }
-        if (pgp_key_copy(oldkey, srckey, false)) {
+        if (pgp_key_copy(*oldkey, *srckey, false)) {
             RNP_LOG_KEY("key %s copying failed", srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             keyring->keys.pop_back();
@@ -510,7 +510,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG("%s", e.what());
             return NULL;
         }
-        if (pgp_key_copy(added_key, srckey, false)) {
+        if (pgp_key_copy(*added_key, *srckey, false)) {
             RNP_LOG_KEY("key %s copying failed", srckey);
             keyring->keys.pop_back();
             keyring->keybyfp.erase(pgp_key_get_fp(srckey));
@@ -544,7 +544,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     bool       changed = false;
 
     /* add public key */
-    if (pgp_key_copy(&keycp, srckey, pubkey)) {
+    if (pgp_key_copy(keycp, *srckey, pubkey)) {
         RNP_LOG_KEY("failed to create key %s copy", srckey);
         return NULL;
     }
