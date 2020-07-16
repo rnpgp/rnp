@@ -57,22 +57,31 @@ signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
 }
 
 pgp_sig_subpkt_t *
-signature_get_subpkt(const pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
+signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
 {
-    pgp_sig_subpkt_t *res = NULL;
-
     if (!sig || (sig->version < PGP_V4)) {
         return NULL;
     }
-
-    for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
-        pgp_sig_subpkt_t *subpkt = (pgp_sig_subpkt_t *) sp;
-        if (subpkt->type == type) {
-            return subpkt;
+    for (auto &subpkt : sig->subpkts) {
+        if (subpkt.type == type) {
+            return &subpkt;
         }
     }
+    return NULL;
+}
 
-    return res;
+const pgp_sig_subpkt_t *
+signature_get_subpkt(const pgp_signature_t *sig, pgp_sig_subpacket_type_t type)
+{
+    if (!sig || (sig->version < PGP_V4)) {
+        return NULL;
+    }
+    for (auto &subpkt : sig->subpkts) {
+        if (subpkt.type == type) {
+            return &subpkt;
+        }
+    }
+    return NULL;
 }
 
 pgp_sig_subpkt_t *
@@ -82,32 +91,34 @@ signature_add_subpkt(pgp_signature_t *        sig,
                      bool                     reuse)
 {
     pgp_sig_subpkt_t *subpkt = NULL;
-
     if (!sig) {
         return NULL;
     }
-
     if (sig->version < PGP_V4) {
         RNP_LOG("wrong signature version");
         return NULL;
     }
 
-    if (reuse && (subpkt = signature_get_subpkt(sig, type))) {
-        free_signature_subpkt(subpkt);
-        memset(subpkt, 0, sizeof(*subpkt));
-    }
-
-    if (!subpkt) {
-        pgp_sig_subpkt_t s = {(pgp_sig_subpacket_type_t) 0};
-        subpkt = (pgp_sig_subpkt_t *) list_append(&sig->subpkts, &s, sizeof(s));
-    }
-
-    if (!subpkt || ((datalen > 0) && !(subpkt->data = (uint8_t *) calloc(1, datalen)))) {
-        RNP_LOG("data allocation failed");
-        list_remove((list_item *) subpkt);
+    uint8_t *newdata = (uint8_t *) calloc(1, datalen);
+    if (!newdata) {
+        RNP_LOG("Allocation failed");
         return NULL;
     }
 
+    if (reuse && (subpkt = signature_get_subpkt(sig, type))) {
+        *subpkt = {};
+    } else {
+        try {
+            sig->subpkts.push_back({});
+            subpkt = &sig->subpkts.back();
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            free(newdata);
+            return NULL;
+        }
+    }
+
+    subpkt->data = newdata;
     subpkt->type = type;
     subpkt->len = datalen;
     return subpkt;
@@ -116,9 +127,11 @@ signature_add_subpkt(pgp_signature_t *        sig,
 void
 signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt)
 {
-    if (list_is_member(sig->subpkts, (list_item *) subpkt)) {
-        free_signature_subpkt(subpkt);
-        list_remove((list_item *) subpkt);
+    for (auto it = sig->subpkts.begin(); it < sig->subpkts.end(); it++) {
+        if (&*it == subpkt) {
+            sig->subpkts.erase(it);
+            return;
+        }
     }
 }
 
@@ -137,14 +150,12 @@ signature_has_keyfp(const pgp_signature_t *sig)
 bool
 signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp)
 {
-    pgp_sig_subpkt_t *subpkt;
-
     if (!sig || (sig->version < PGP_V4)) {
         return false;
     }
 
-    fp.length = 0;
-    if (!(subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR))) {
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_ISSUER_FPR);
+    if (!subpkt) {
         return false;
     }
     fp.length = subpkt->fields.issuer_fp.len;
@@ -152,7 +163,6 @@ signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp)
         memcpy(fp.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
         return true;
     }
-
     return false;
 }
 
@@ -206,7 +216,7 @@ signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id)
     }
 
     /* version 4 and up use subpackets */
-    pgp_sig_subpkt_t *subpkt;
+    const pgp_sig_subpkt_t *subpkt;
     static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
                     PGP_KEY_ID_SIZE,
                   "pgp_key_id_t size mismatch");
@@ -220,7 +230,6 @@ signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id)
                PGP_KEY_ID_SIZE);
         return true;
     }
-
     return false;
 }
 
@@ -255,14 +264,13 @@ signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id)
 uint32_t
 signature_get_creation(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
     if (!sig) {
         return 0;
     }
     if (sig->version < PGP_V4) {
         return sig->creation_time;
     }
+    const pgp_sig_subpkt_t *subpkt;
     if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_CREATION_TIME))) {
         return subpkt->fields.create;
     }
@@ -298,13 +306,8 @@ signature_set_creation(pgp_signature_t *sig, uint32_t ctime)
 uint32_t
 signature_get_expiration(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME))) {
-        return subpkt->fields.expiry;
-    }
-
-    return 0;
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_EXPIRATION_TIME);
+    return subpkt ? subpkt->fields.expiry : 0;
 }
 
 bool
@@ -337,13 +340,8 @@ signature_has_key_expiration(const pgp_signature_t *sig)
 uint32_t
 signature_get_key_expiration(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_EXPIRY))) {
-        return subpkt->fields.expiry;
-    }
-
-    return 0;
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_EXPIRY);
+    return subpkt ? subpkt->fields.expiry : 0;
 }
 
 bool
@@ -372,13 +370,8 @@ signature_has_key_flags(const pgp_signature_t *sig)
 uint8_t
 signature_get_key_flags(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_FLAGS))) {
-        return subpkt->fields.key_flags;
-    }
-
-    return 0;
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEY_FLAGS);
+    return subpkt ? subpkt->fields.key_flags : 0;
 }
 
 bool
@@ -454,18 +447,16 @@ signature_get_preferred_algs(const pgp_signature_t *  sig,
                              size_t *                 len,
                              pgp_sig_subpacket_type_t type)
 {
-    pgp_sig_subpkt_t *subpkt;
-
     if (!algs || !len) {
         return false;
     }
 
-    if ((subpkt = signature_get_subpkt(sig, type))) {
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, type);
+    if (subpkt) {
         *algs = subpkt->fields.preferred.arr;
         *len = subpkt->fields.preferred.len;
         return true;
     }
-
     return false;
 }
 
@@ -532,13 +523,8 @@ signature_has_key_server_prefs(const pgp_signature_t *sig)
 uint8_t
 signature_get_key_server_prefs(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEYSERV_PREFS))) {
-        return subpkt->data[0];
-    }
-
-    return 0;
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_KEYSERV_PREFS);
+    return subpkt ? subpkt->data[0] : 0;
 }
 
 bool
@@ -586,9 +572,8 @@ signature_has_trust(const pgp_signature_t *sig)
 bool
 signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_TRUST))) {
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_TRUST);
+    if (subpkt) {
         if (level) {
             *level = subpkt->fields.trust.level;
         }
@@ -597,7 +582,6 @@ signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount)
         }
         return true;
     }
-
     return false;
 }
 
@@ -623,13 +607,8 @@ signature_set_trust(pgp_signature_t *sig, uint8_t level, uint8_t amount)
 bool
 signature_get_revocable(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_REVOCABLE))) {
-        return subpkt->fields.revocable;
-    }
-
-    return true;
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_REVOCABLE);
+    return subpkt ? subpkt->fields.revocable : true;
 }
 
 bool
@@ -661,7 +640,7 @@ signature_set_features(pgp_signature_t *sig, uint8_t features)
 
     subpkt->hashed = 1;
     subpkt->data[0] = features;
-    return signature_parse_subpacket(subpkt);
+    return signature_parse_subpacket(*subpkt);
 }
 
 bool
@@ -676,7 +655,7 @@ signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len)
 
     subpkt->hashed = 1;
     memcpy(subpkt->data, uid, len);
-    return signature_parse_subpacket(subpkt);
+    return signature_parse_subpacket(*subpkt);
 }
 
 bool
@@ -716,17 +695,10 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("failed to read back signature");
         goto finish;
     }
-    subpkt->fields.sig = (pgp_signature_t *) calloc(1, sizeof(*subpkt->fields.sig));
-    if (!subpkt->fields.sig) {
-        RNP_LOG("Allocation failed");
-        goto finish;
-    }
     try {
-        *subpkt->fields.sig = *esig;
+        subpkt->fields.sig = new pgp_signature_t(*esig);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        free(subpkt->fields.sig);
-        subpkt->fields.sig = NULL;
         goto finish;
     }
     subpkt->parsed = 1;
@@ -771,7 +743,7 @@ signature_add_notation_data(pgp_signature_t *sig,
     memcpy(subpkt->data + 6, name, nlen);
     write_uint16(subpkt->data + 6 + nlen, vlen);
     memcpy(subpkt->data + 8 + nlen, value, vlen);
-    return signature_parse_subpacket(subpkt);
+    return signature_parse_subpacket(*subpkt);
 }
 
 bool
@@ -783,9 +755,8 @@ signature_has_key_server(const pgp_signature_t *sig)
 char *
 signature_get_key_server(const pgp_signature_t *sig)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_PREF_KEYSERV))) {
+    const pgp_sig_subpkt_t *subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_PREF_KEYSERV);
+    if (subpkt) {
         char *res = (char *) malloc(subpkt->len + 1);
         if (res) {
             memcpy(res, subpkt->data, subpkt->len);
@@ -793,7 +764,6 @@ signature_get_key_server(const pgp_signature_t *sig)
         }
         return res;
     }
-
     return NULL;
 }
 
@@ -808,9 +778,9 @@ signature_get_revocation_reason(const pgp_signature_t *sig,
                                 pgp_revocation_type_t *code,
                                 char **                reason)
 {
-    pgp_sig_subpkt_t *subpkt;
-
-    if ((subpkt = signature_get_subpkt(sig, PGP_SIG_SUBPKT_REVOCATION_REASON))) {
+    const pgp_sig_subpkt_t *subpkt =
+      signature_get_subpkt(sig, PGP_SIG_SUBPKT_REVOCATION_REASON);
+    if (subpkt) {
         if (code) {
             *code = subpkt->fields.revocation_reason.code;
         }
@@ -826,7 +796,6 @@ signature_get_revocation_reason(const pgp_signature_t *sig,
         }
         return true;
     }
-
     return false;
 }
 
@@ -847,7 +816,7 @@ signature_set_revocation_reason(pgp_signature_t *     sig,
     if (reason) {
         memcpy(subpkt->data + 1, reason, strlen(reason));
     }
-    return signature_parse_subpacket(subpkt);
+    return signature_parse_subpacket(*subpkt);
 }
 
 bool
@@ -1266,11 +1235,102 @@ finish:
     return ret;
 }
 
+pgp_sig_subpkt_t::pgp_sig_subpkt_t()
+{
+    type = PGP_SIG_SUBPKT_UNKNOWN;
+    data = NULL;
+    fields = {};
+}
+
+pgp_sig_subpkt_t::pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src)
+{
+    type = src.type;
+    len = src.len;
+    data = (uint8_t *) malloc(len);
+    if (!data) {
+        throw std::bad_alloc();
+    }
+    memcpy(data, src.data, len);
+    critical = src.critical;
+    hashed = src.hashed;
+    parsed = false;
+    signature_parse_subpacket(*this);
+}
+
+pgp_sig_subpkt_t::pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src)
+{
+    type = src.type;
+    len = src.len;
+    data = src.data;
+    src.data = NULL;
+    critical = src.critical;
+    hashed = src.hashed;
+    parsed = src.parsed;
+    memcpy(&fields, &src.fields, sizeof(fields));
+    src.fields = {};
+}
+
+pgp_sig_subpkt_t &
+pgp_sig_subpkt_t::operator=(pgp_sig_subpkt_t &&src)
+{
+    if (&src == this) {
+        return *this;
+    }
+
+    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
+        delete fields.sig;
+    }
+    type = src.type;
+    len = src.len;
+    free(data);
+    data = src.data;
+    src.data = NULL;
+    critical = src.critical;
+    hashed = src.hashed;
+    parsed = src.parsed;
+    fields = src.fields;
+    src.fields = {};
+    return *this;
+}
+
+pgp_sig_subpkt_t &
+pgp_sig_subpkt_t::operator=(const pgp_sig_subpkt_t &src)
+{
+    if (&src == this) {
+        return *this;
+    }
+
+    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
+        delete fields.sig;
+    }
+    type = src.type;
+    len = src.len;
+    free(data);
+    data = (uint8_t *) malloc(len);
+    if (!data) {
+        throw std::bad_alloc();
+    }
+    memcpy(data, src.data, len);
+    critical = src.critical;
+    hashed = src.hashed;
+    parsed = false;
+    fields = {};
+    signature_parse_subpacket(*this);
+    return *this;
+}
+
+pgp_sig_subpkt_t::~pgp_sig_subpkt_t()
+{
+    if (parsed && (type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
+        delete fields.sig;
+    }
+    free(data);
+}
+
 pgp_signature_t::pgp_signature_t()
 {
     hashed_data = NULL;
     material_buf = NULL;
-    subpkts = NULL;
 }
 
 pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
@@ -1299,24 +1359,7 @@ pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
         }
         memcpy(material_buf, src.material_buf, material_len);
     }
-
-    subpkts = NULL;
-    for (list_item *sp = list_front(src.subpkts); sp; sp = list_next(sp)) {
-        pgp_sig_subpkt_t *dstsp;
-        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
-        /* subpacket may have internal pointers to the subpkt->data ! */
-        dstsp = (pgp_sig_subpkt_t *) list_append(&subpkts, srcsp, sizeof(*dstsp));
-        if (!dstsp) {
-            throw std::bad_alloc();
-        }
-        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(dstsp->data, srcsp->data, srcsp->len);
-        dstsp->len = srcsp->len;
-        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
-        signature_parse_subpacket(dstsp);
-    }
+    subpkts = src.subpkts;
 }
 
 pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
@@ -1334,8 +1377,7 @@ pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
     material_len = src.material_len;
     material_buf = src.material_buf;
     src.material_buf = NULL;
-    subpkts = src.subpkts;
-    src.subpkts = NULL;
+    subpkts = std::move(src.subpkts);
 }
 
 pgp_signature_t &
@@ -1360,12 +1402,7 @@ pgp_signature_t::operator=(pgp_signature_t &&src)
     free(material_buf);
     material_buf = src.material_buf;
     src.material_buf = NULL;
-    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
-        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
-    }
-    list_destroy(&subpkts);
-    subpkts = src.subpkts;
-    src.subpkts = NULL;
+    subpkts = std::move(src.subpkts);
 
     return *this;
 }
@@ -1403,28 +1440,7 @@ pgp_signature_t::operator=(const pgp_signature_t &src)
         }
         memcpy(material_buf, src.material_buf, material_len);
     }
-
-    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
-        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
-    }
-    list_destroy(&subpkts);
-    subpkts = NULL;
-    for (list_item *sp = list_front(src.subpkts); sp; sp = list_next(sp)) {
-        pgp_sig_subpkt_t *dstsp;
-        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
-        /* subpacket may have internal pointers to the subpkt->data ! */
-        dstsp = (pgp_sig_subpkt_t *) list_append(&subpkts, srcsp, sizeof(*dstsp));
-        if (!dstsp) {
-            throw std::bad_alloc();
-        }
-        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
-            throw std::bad_alloc();
-        }
-        memcpy(dstsp->data, srcsp->data, srcsp->len);
-        dstsp->len = srcsp->len;
-        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
-        signature_parse_subpacket(dstsp);
-    }
+    subpkts = src.subpkts;
 
     return *this;
 }
@@ -1433,9 +1449,4 @@ pgp_signature_t::~pgp_signature_t()
 {
     free(hashed_data);
     free(material_buf);
-
-    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
-        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
-    }
-    list_destroy(&subpkts);
 }

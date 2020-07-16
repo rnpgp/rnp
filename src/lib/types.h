@@ -198,32 +198,7 @@ typedef struct pgp_userid_pkt_t {
     size_t         uid_len;
 } pgp_userid_pkt_t;
 
-typedef struct pgp_signature_t {
-    pgp_version_t version;
-    /* common v3 and v4 fields */
-    pgp_sig_type_t   type;
-    pgp_pubkey_alg_t palg;
-    pgp_hash_alg_t   halg;
-    uint8_t          lbits[2];
-    uint8_t *        hashed_data;
-    size_t           hashed_len;
-    uint8_t *        material_buf; /* raw signature material */
-    size_t           material_len; /* raw signature material length */
-
-    /* v3 - only fields */
-    uint32_t     creation_time;
-    pgp_key_id_t signer;
-
-    /* v4 - only fields */
-    list subpkts;
-
-    pgp_signature_t();
-    pgp_signature_t(const pgp_signature_t &src);
-    pgp_signature_t(pgp_signature_t &&src);
-    pgp_signature_t &operator=(pgp_signature_t &&src);
-    pgp_signature_t &operator=(const pgp_signature_t &src);
-    ~pgp_signature_t();
-} pgp_signature_t;
+typedef struct pgp_signature_t pgp_signature_t;
 
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
@@ -306,7 +281,41 @@ typedef struct pgp_sig_subpkt_t {
             unsigned len;
         } issuer_fp; /* 5.2.3.28.  Issuer Fingerprint, RFC 4880 bis 04 */
     } fields;        /* parsed contents of the subpacket */
+
+    pgp_sig_subpkt_t();
+    pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src);
+    pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src);
+    pgp_sig_subpkt_t &operator=(pgp_sig_subpkt_t &&src);
+    pgp_sig_subpkt_t &operator=(const pgp_sig_subpkt_t &src);
+    ~pgp_sig_subpkt_t();
 } pgp_sig_subpkt_t;
+
+typedef struct pgp_signature_t {
+    pgp_version_t version;
+    /* common v3 and v4 fields */
+    pgp_sig_type_t   type;
+    pgp_pubkey_alg_t palg;
+    pgp_hash_alg_t   halg;
+    uint8_t          lbits[2];
+    uint8_t *        hashed_data;
+    size_t           hashed_len;
+    uint8_t *        material_buf; /* raw signature material */
+    size_t           material_len; /* raw signature material length */
+
+    /* v3 - only fields */
+    uint32_t     creation_time;
+    pgp_key_id_t signer;
+
+    /* v4 - only fields */
+    std::vector<pgp_sig_subpkt_t> subpkts;
+
+    pgp_signature_t();
+    pgp_signature_t(const pgp_signature_t &src);
+    pgp_signature_t(pgp_signature_t &&src);
+    pgp_signature_t &operator=(pgp_signature_t &&src);
+    pgp_signature_t &operator=(const pgp_signature_t &src);
+    ~pgp_signature_t();
+} pgp_signature_t;
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
