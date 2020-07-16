@@ -1753,61 +1753,52 @@ parse_signature_material(const pgp_signature_t &sig, pgp_signature_material_t &m
 rnp_result_t
 stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig)
 {
-    uint8_t                  ver;
-    rnp_result_t             res = RNP_ERROR_BAD_FORMAT;
-    pgp_signature_material_t material = {};
-
-    memset(sig, 0, sizeof(*sig));
+    uint8_t ver;
     if (!get_packet_body_byte(pkt, &ver)) {
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
     sig->version = (pgp_version_t) ver;
 
     /* v3 or v4 signature body */
+    rnp_result_t res;
     if ((ver == PGP_V2) || (ver == PGP_V3)) {
         res = signature_read_v3(pkt, sig);
     } else if (ver == PGP_V4) {
         res = signature_read_v4(pkt, sig);
     } else {
         RNP_LOG("unknown signature version: %d", (int) ver);
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
-    if (res != RNP_SUCCESS) {
-        goto finish;
+    if (res) {
+        return res;
     }
-
-    res = RNP_ERROR_BAD_FORMAT;
 
     /* left 16 bits of the hash */
     if (!get_packet_body_buf(pkt, sig->lbits, 2)) {
         RNP_LOG("not enough data for hash left bits");
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     /* raw signature material */
     sig->material_len = pkt->len - pkt->pos;
     if (!sig->material_len) {
         RNP_LOG("No signature material");
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
     sig->material_buf = (uint8_t *) malloc(sig->material_len);
     if (!sig->material_buf) {
         RNP_LOG("Allocation failed");
-        goto finish;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     memcpy(sig->material_buf, pkt->data + pkt->pos, sig->material_len);
 
     /* check whether it can be parsed */
+    pgp_signature_material_t material = {};
     if (!parse_signature_material(*sig, material)) {
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
-    res = RNP_SUCCESS;
-finish:
-    if (res) {
-        free_signature(sig);
-    }
-    return res;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -1832,62 +1823,6 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 }
 
 bool
-copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src)
-{
-    if (!src) {
-        return false;
-    }
-
-    dst->version = src->version;
-    dst->type = src->type;
-    dst->palg = src->palg;
-    dst->halg = src->halg;
-    memcpy(dst->lbits, src->lbits, sizeof(src->lbits));
-    dst->creation_time = src->creation_time;
-    dst->signer = src->signer;
-
-    dst->hashed_len = src->hashed_len;
-    dst->hashed_data = NULL;
-    if (src->hashed_data) {
-        if (!(dst->hashed_data = (uint8_t *) malloc(src->hashed_len))) {
-            return false;
-        }
-        memcpy(dst->hashed_data, src->hashed_data, src->hashed_len);
-    }
-    dst->material_len = src->material_len;
-    dst->material_buf = NULL;
-    if (src->material_buf) {
-        if (!(dst->material_buf = (uint8_t *) malloc(src->material_len))) {
-            free_signature(dst);
-            return false;
-        }
-        memcpy(dst->material_buf, src->material_buf, src->material_len);
-    }
-
-    dst->subpkts = NULL;
-    for (list_item *sp = list_front(src->subpkts); sp; sp = list_next(sp)) {
-        pgp_sig_subpkt_t *dstsp;
-        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
-        /* subpacket may have internal pointers to the subpkt->data ! */
-        dstsp = (pgp_sig_subpkt_t *) list_append(&dst->subpkts, srcsp, sizeof(*dstsp));
-        if (!dstsp) {
-            free_signature(dst);
-            return false;
-        }
-        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
-            free_signature(dst);
-            return false;
-        }
-        memcpy(dstsp->data, srcsp->data, srcsp->len);
-        dstsp->len = srcsp->len;
-        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
-        signature_parse_subpacket(dstsp);
-    }
-
-    return true;
-}
-
-bool
 signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
 {
     if (memcmp(sig1->lbits, sig2->lbits, 2)) {
@@ -1908,23 +1843,11 @@ free_signature_subpkt(pgp_sig_subpkt_t *subpkt)
         return;
     }
     if (subpkt->parsed && (subpkt->type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        free_signature(subpkt->fields.sig);
+        (*subpkt->fields.sig).~pgp_signature_t();
         free(subpkt->fields.sig);
         subpkt->fields.sig = NULL;
     }
     free(subpkt->data);
-}
-
-void
-free_signature(pgp_signature_t *sig)
-{
-    free(sig->hashed_data);
-    free(sig->material_buf);
-    for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
-        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
-    }
-    list_destroy(&sig->subpkts);
-    sig->signer.~array();
 }
 
 bool
