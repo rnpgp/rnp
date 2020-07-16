@@ -59,8 +59,9 @@ bool signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass
  * @param type type of the subpacket to lookup for
  * @return pointer to the subpacket structure or NULL if it was not found or error occurred
  */
-pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
-                                       pgp_sig_subpacket_type_t type);
+pgp_sig_subpkt_t *signature_get_subpkt(pgp_signature_t *sig, pgp_sig_subpacket_type_t type);
+const pgp_sig_subpkt_t *signature_get_subpkt(const pgp_signature_t *  sig,
+                                             pgp_sig_subpacket_type_t type);
 
 /**
  * @brief Add subpacket of the specified type to v4 signature
