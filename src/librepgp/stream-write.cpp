@@ -1114,7 +1114,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_dest_signer_info_t * signer,
                        pgp_dest_t *             writedst)
 {
-    pgp_signature_t sig = {(pgp_version_t) 0};
+    pgp_signature_t sig = {};
     rnp_result_t    ret;
 
     sig.version = (pgp_version_t) 4;
@@ -1131,8 +1131,6 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     if (!(ret = signed_fill_signature(param, &sig, signer))) {
         ret = stream_write_signature(&sig, writedst) ? RNP_SUCCESS : RNP_ERROR_WRITE;
     }
-
-    free_signature(&sig);
     return ret;
 }
 

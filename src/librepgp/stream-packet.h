@@ -291,13 +291,9 @@ rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 bool parse_signature_material(const pgp_signature_t &sig, pgp_signature_material_t &material);
 
-bool copy_signature_packet(pgp_signature_t *dst, const pgp_signature_t *src);
-
 bool signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2);
 
 void free_signature_subpkt(pgp_sig_subpkt_t *subpkt);
-
-void free_signature(pgp_signature_t *sig);
 
 /* Public/Private key or Subkey */
 

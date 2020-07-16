@@ -768,9 +768,7 @@ bool
 pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
 {
     pgp_subsig_t subsig = {};
-    if (!copy_signature_packet(&subsig.sig, sig)) {
-        return false;
-    }
+    subsig.sig = *sig;
     if (signature_has_trust(&subsig.sig)) {
         signature_get_trust(&subsig.sig, &subsig.trustlevel, &subsig.trustamount);
     }
@@ -1731,8 +1729,10 @@ done:
 static bool
 update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t expiry)
 {
-    if (!copy_signature_packet(dst, src)) {
-        RNP_LOG("Failed to copy signature");
+    try {
+        *dst = *src;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return false;
     }
     if (!expiry) {
@@ -1809,7 +1809,6 @@ done:
     if (locked) {
         pgp_key_lock(seckey);
     }
-    free_signature(&newsig);
     return res;
 }
 
@@ -1876,7 +1875,6 @@ done:
     if (sublocked) {
         pgp_key_lock(secsub);
     }
-    free_signature(&newsig);
     return res;
 }
 
@@ -2257,9 +2255,7 @@ pgp_rawpacket_t::~pgp_rawpacket_t()
 pgp_subsig_t::pgp_subsig_t(const pgp_subsig_t &src)
 {
     uid = src.uid;
-    if (!copy_signature_packet(&sig, &src.sig)) {
-        throw std::bad_alloc();
-    }
+    sig = src.sig;
     rawpkt = src.rawpkt;
     trustlevel = src.trustlevel;
     trustamount = src.trustamount;
@@ -2274,8 +2270,7 @@ pgp_subsig_t::pgp_subsig_t(const pgp_subsig_t &src)
 pgp_subsig_t::pgp_subsig_t(pgp_subsig_t &&src)
 {
     uid = src.uid;
-    sig = src.sig;
-    src.sig = {};
+    sig = std::move(src.sig);
     rawpkt = std::move(src.rawpkt);
     trustlevel = src.trustlevel;
     trustamount = src.trustamount;
@@ -2294,10 +2289,8 @@ pgp_subsig_t::operator=(pgp_subsig_t &&src)
     }
 
     pgp_free_user_prefs(&prefs);
-    free_signature(&sig);
     uid = src.uid;
-    sig = src.sig;
-    src.sig = {};
+    sig = std::move(src.sig);
     rawpkt = std::move(src.rawpkt);
     trustlevel = src.trustlevel;
     trustamount = src.trustamount;
@@ -2317,11 +2310,8 @@ pgp_subsig_t::operator=(const pgp_subsig_t &src)
     }
 
     pgp_free_user_prefs(&prefs);
-    free_signature(&sig);
     uid = src.uid;
-    if (!copy_signature_packet(&sig, &src.sig)) {
-        throw std::bad_alloc();
-    }
+    sig = src.sig;
     rawpkt = src.rawpkt;
     trustlevel = src.trustlevel;
     trustamount = src.trustamount;
@@ -2337,7 +2327,6 @@ pgp_subsig_t::operator=(const pgp_subsig_t &src)
 pgp_subsig_t::~pgp_subsig_t()
 {
     pgp_free_user_prefs(&prefs);
-    free_signature(&sig);
 }
 
 pgp_userid_t::pgp_userid_t(const pgp_userid_t &src)
