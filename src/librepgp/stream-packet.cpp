@@ -424,7 +424,6 @@ bool
 add_packet_body_subpackets(pgp_packet_body_t *body, const pgp_signature_t *sig, bool hashed)
 {
     pgp_packet_body_t spbody;
-    pgp_sig_subpkt_t *subpkt;
     size_t            lenlen;
     uint8_t           splen[6];
     bool              res;
@@ -436,17 +435,15 @@ add_packet_body_subpackets(pgp_packet_body_t *body, const pgp_signature_t *sig, 
     /* add space for subpackets length */
     res = add_packet_body_uint16(&spbody, 0);
 
-    for (list_item *sp = list_front(sig->subpkts); sp; sp = list_next(sp)) {
-        subpkt = (pgp_sig_subpkt_t *) sp;
-
-        if (subpkt->hashed != hashed) {
+    for (auto &subpkt : sig->subpkts) {
+        if (subpkt.hashed != hashed) {
             continue;
         }
 
-        lenlen = write_packet_len(splen, subpkt->len + 1);
+        lenlen = write_packet_len(splen, subpkt.len + 1);
         res &= add_packet_body(&spbody, splen, lenlen) &&
-               add_packet_body_byte(&spbody, subpkt->type | (subpkt->critical << 7)) &&
-               add_packet_body(&spbody, subpkt->data, subpkt->len);
+               add_packet_body_byte(&spbody, subpkt.type | (subpkt.critical << 7)) &&
+               add_packet_body(&spbody, subpkt.data, subpkt.len);
     }
 
     if (res) {
@@ -1367,155 +1364,158 @@ signature_read_v3(pgp_packet_body_t *pkt, pgp_signature_t *sig)
 
 /* check the signature's subpacket for validity */
 bool
-signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
+signature_parse_subpacket(pgp_sig_subpkt_t &subpkt)
 {
     bool oklen = true;
     bool checked = true;
 
-    switch (subpkt->type) {
+    switch (subpkt.type) {
     case PGP_SIG_SUBPKT_CREATION_TIME:
-        if (!subpkt->hashed) {
+        if (!subpkt.hashed) {
             RNP_LOG("creation time subpacket must be hashed");
             checked = false;
         }
-        if ((oklen = subpkt->len == 4)) {
-            subpkt->fields.create = read_uint32(subpkt->data);
+        if ((oklen = subpkt.len == 4)) {
+            subpkt.fields.create = read_uint32(subpkt.data);
         }
         break;
     case PGP_SIG_SUBPKT_EXPIRATION_TIME:
     case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        if ((oklen = subpkt->len == 4)) {
-            subpkt->fields.expiry = read_uint32(subpkt->data);
+        if ((oklen = subpkt.len == 4)) {
+            subpkt.fields.expiry = read_uint32(subpkt.data);
         }
         break;
     case PGP_SIG_SUBPKT_EXPORT_CERT:
-        if ((oklen = subpkt->len == 1)) {
-            subpkt->fields.exportable = subpkt->data[0] != 0;
+        if ((oklen = subpkt.len == 1)) {
+            subpkt.fields.exportable = subpkt.data[0] != 0;
         }
         break;
     case PGP_SIG_SUBPKT_TRUST:
-        if ((oklen = subpkt->len == 2)) {
-            subpkt->fields.trust.level = subpkt->data[0];
-            subpkt->fields.trust.amount = subpkt->data[1];
+        if ((oklen = subpkt.len == 2)) {
+            subpkt.fields.trust.level = subpkt.data[0];
+            subpkt.fields.trust.amount = subpkt.data[1];
         }
         break;
     case PGP_SIG_SUBPKT_REGEXP:
-        subpkt->fields.regexp.str = (const char *) subpkt->data;
-        subpkt->fields.regexp.len = subpkt->len;
+        subpkt.fields.regexp.str = (const char *) subpkt.data;
+        subpkt.fields.regexp.len = subpkt.len;
         break;
     case PGP_SIG_SUBPKT_REVOCABLE:
-        if ((oklen = subpkt->len == 1)) {
-            subpkt->fields.revocable = subpkt->data[0] != 0;
+        if ((oklen = subpkt.len == 1)) {
+            subpkt.fields.revocable = subpkt.data[0] != 0;
         }
         break;
     case PGP_SIG_SUBPKT_PREFERRED_SKA:
     case PGP_SIG_SUBPKT_PREFERRED_HASH:
     case PGP_SIG_SUBPKT_PREF_COMPRESS:
     case PGP_SIG_SUBPKT_PREFERRED_AEAD:
-        subpkt->fields.preferred.arr = subpkt->data;
-        subpkt->fields.preferred.len = subpkt->len;
+        subpkt.fields.preferred.arr = subpkt.data;
+        subpkt.fields.preferred.len = subpkt.len;
         break;
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        if ((oklen = subpkt->len == 22)) {
-            subpkt->fields.revocation_key.klass = subpkt->data[0];
-            subpkt->fields.revocation_key.pkalg = (pgp_pubkey_alg_t) subpkt->data[1];
-            subpkt->fields.revocation_key.fp = &subpkt->data[2];
+        if ((oklen = subpkt.len == 22)) {
+            subpkt.fields.revocation_key.klass = subpkt.data[0];
+            subpkt.fields.revocation_key.pkalg = (pgp_pubkey_alg_t) subpkt.data[1];
+            subpkt.fields.revocation_key.fp = &subpkt.data[2];
         }
         break;
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        if ((oklen = subpkt->len == 8)) {
-            subpkt->fields.issuer = subpkt->data;
+        if ((oklen = subpkt.len == 8)) {
+            subpkt.fields.issuer = subpkt.data;
         }
         break;
     case PGP_SIG_SUBPKT_NOTATION_DATA:
-        if ((oklen = subpkt->len >= 8)) {
-            memcpy(subpkt->fields.notation.flags, subpkt->data, 4);
-            subpkt->fields.notation.nlen = read_uint16(&subpkt->data[4]);
-            subpkt->fields.notation.vlen = read_uint16(&subpkt->data[6]);
+        if ((oklen = subpkt.len >= 8)) {
+            memcpy(subpkt.fields.notation.flags, subpkt.data, 4);
+            subpkt.fields.notation.nlen = read_uint16(&subpkt.data[4]);
+            subpkt.fields.notation.vlen = read_uint16(&subpkt.data[6]);
 
-            if (subpkt->len !=
-                8 + subpkt->fields.notation.nlen + subpkt->fields.notation.vlen) {
+            if (subpkt.len != 8 + subpkt.fields.notation.nlen + subpkt.fields.notation.vlen) {
                 oklen = false;
             } else {
-                subpkt->fields.notation.name = (const char *) &subpkt->data[8];
-                subpkt->fields.notation.value =
-                  (const char *) &subpkt->data[8 + subpkt->fields.notation.nlen];
+                subpkt.fields.notation.name = (const char *) &subpkt.data[8];
+                subpkt.fields.notation.value =
+                  (const char *) &subpkt.data[8 + subpkt.fields.notation.nlen];
             }
         }
         break;
     case PGP_SIG_SUBPKT_KEYSERV_PREFS:
-        if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.ks_prefs.no_modify = (subpkt->data[0] & 0x80) != 0;
+        if ((oklen = subpkt.len >= 1)) {
+            subpkt.fields.ks_prefs.no_modify = (subpkt.data[0] & 0x80) != 0;
         }
         break;
     case PGP_SIG_SUBPKT_PREF_KEYSERV:
-        subpkt->fields.preferred_ks.uri = (const char *) subpkt->data;
-        subpkt->fields.preferred_ks.len = subpkt->len;
+        subpkt.fields.preferred_ks.uri = (const char *) subpkt.data;
+        subpkt.fields.preferred_ks.len = subpkt.len;
         break;
     case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
-        if ((oklen = subpkt->len == 1)) {
-            subpkt->fields.primary_uid = subpkt->data[0] != 0;
+        if ((oklen = subpkt.len == 1)) {
+            subpkt.fields.primary_uid = subpkt.data[0] != 0;
         }
         break;
     case PGP_SIG_SUBPKT_POLICY_URI:
-        subpkt->fields.policy.uri = (const char *) subpkt->data;
-        subpkt->fields.policy.len = subpkt->len;
+        subpkt.fields.policy.uri = (const char *) subpkt.data;
+        subpkt.fields.policy.len = subpkt.len;
         break;
     case PGP_SIG_SUBPKT_KEY_FLAGS:
-        if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.key_flags = subpkt->data[0];
+        if ((oklen = subpkt.len >= 1)) {
+            subpkt.fields.key_flags = subpkt.data[0];
         }
         break;
     case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
-        subpkt->fields.signer.uid = (const char *) subpkt->data;
-        subpkt->fields.signer.len = subpkt->len;
+        subpkt.fields.signer.uid = (const char *) subpkt.data;
+        subpkt.fields.signer.len = subpkt.len;
         break;
     case PGP_SIG_SUBPKT_REVOCATION_REASON:
-        if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.revocation_reason.code = (pgp_revocation_type_t) subpkt->data[0];
-            subpkt->fields.revocation_reason.str = (const char *) &subpkt->data[1];
-            subpkt->fields.revocation_reason.len = subpkt->len - 1;
+        if ((oklen = subpkt.len >= 1)) {
+            subpkt.fields.revocation_reason.code = (pgp_revocation_type_t) subpkt.data[0];
+            subpkt.fields.revocation_reason.str = (const char *) &subpkt.data[1];
+            subpkt.fields.revocation_reason.len = subpkt.len - 1;
         }
         break;
     case PGP_SIG_SUBPKT_FEATURES:
-        if ((oklen = subpkt->len >= 1)) {
-            subpkt->fields.features.mdc = subpkt->data[0] & 0x01;
-            subpkt->fields.features.aead = subpkt->data[0] & 0x02;
-            subpkt->fields.features.key_v5 = subpkt->data[0] & 0x04;
+        if ((oklen = subpkt.len >= 1)) {
+            subpkt.fields.features.mdc = subpkt.data[0] & 0x01;
+            subpkt.fields.features.aead = subpkt.data[0] & 0x02;
+            subpkt.fields.features.key_v5 = subpkt.data[0] & 0x04;
         }
         break;
     case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
-        if ((oklen = subpkt->len >= 18)) {
-            subpkt->fields.sig_target.pkalg = (pgp_pubkey_alg_t) subpkt->data[0];
-            subpkt->fields.sig_target.halg = (pgp_hash_alg_t) subpkt->data[1];
-            subpkt->fields.sig_target.hash = &subpkt->data[2];
-            subpkt->fields.sig_target.hlen = subpkt->len - 2;
+        if ((oklen = subpkt.len >= 18)) {
+            subpkt.fields.sig_target.pkalg = (pgp_pubkey_alg_t) subpkt.data[0];
+            subpkt.fields.sig_target.halg = (pgp_hash_alg_t) subpkt.data[1];
+            subpkt.fields.sig_target.hash = &subpkt.data[2];
+            subpkt.fields.sig_target.hlen = subpkt.len - 2;
         }
         break;
     case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
         /* parse signature */
         pgp_packet_body_t pkt = {};
-        packet_body_part_from_mem(&pkt, subpkt->data, subpkt->len);
-        subpkt->fields.sig = (pgp_signature_t *) calloc(1, sizeof(*subpkt->fields.sig));
-        if (!subpkt->fields.sig) {
-            RNP_LOG("allocation faield");
-            return false;
+        packet_body_part_from_mem(&pkt, subpkt.data, subpkt.len);
+        pgp_signature_t sig;
+        oklen = checked = !stream_parse_signature_body(&pkt, &sig);
+        if (checked) {
+            try {
+                subpkt.fields.sig = new pgp_signature_t(std::move(sig));
+            } catch (const std::exception &e) {
+                RNP_LOG("%s", e.what());
+                return false;
+            }
         }
-        oklen = checked = !stream_parse_signature_body(&pkt, subpkt->fields.sig);
         break;
     }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
-        if ((oklen = subpkt->len >= 21)) {
-            subpkt->fields.issuer_fp.version = subpkt->data[0];
-            subpkt->fields.issuer_fp.fp = &subpkt->data[1];
-            subpkt->fields.issuer_fp.len = subpkt->len - 1;
+        if ((oklen = subpkt.len >= 21)) {
+            subpkt.fields.issuer_fp.version = subpkt.data[0];
+            subpkt.fields.issuer_fp.fp = &subpkt.data[1];
+            subpkt.fields.issuer_fp.len = subpkt.len - 1;
         }
         break;
     case PGP_SIG_SUBPKT_PRIVATE_FIRST ... PGP_SIG_SUBPKT_PRIVATE_LAST:
         oklen = true;
-        checked = !subpkt->critical;
+        checked = !subpkt.critical;
         if (!checked) {
-            RNP_LOG("unknown critical private subpacket %d", (int) subpkt->type);
+            RNP_LOG("unknown critical private subpacket %d", (int) subpkt.type);
         }
         break;
     case PGP_SIG_SUBPKT_RESERVED_1:
@@ -1528,18 +1528,16 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
     case PGP_SIG_SUBPKT_RESERVED_18:
     case PGP_SIG_SUBPKT_RESERVED_19:
         /* do not report reserved/placeholder subpacket */
-        return !subpkt->critical;
+        return !subpkt.critical;
     default:
-        RNP_LOG("unknown subpacket : %d", (int) subpkt->type);
-        return !subpkt->critical;
+        RNP_LOG("unknown subpacket : %d", (int) subpkt.type);
+        return !subpkt.critical;
     }
 
     if (!oklen) {
-        RNP_LOG("wrong len %d of subpacket type %d", (int) subpkt->len, (int) subpkt->type);
-    }
-
-    if (oklen) {
-        subpkt->parsed = 1;
+        RNP_LOG("wrong len %d of subpacket type %d", (int) subpkt.len, (int) subpkt.type);
+    } else {
+        subpkt.parsed = 1;
     }
 
     return oklen && checked;
@@ -1549,9 +1547,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t *subpkt)
 static bool
 signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool hashed)
 {
-    pgp_sig_subpkt_t subpkt;
-    size_t           splen;
-    bool             res = true;
+    bool res = true;
 
     while (len > 0) {
         if (len < 2) {
@@ -1560,6 +1556,7 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
         }
 
         /* subpacket length */
+        size_t splen;
         if (*buf < 192) {
             splen = *buf;
             buf++;
@@ -1589,9 +1586,8 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
             return false;
         }
 
-        memset(&subpkt, 0, sizeof(subpkt));
-
-        if ((subpkt.data = (uint8_t *) malloc(splen - 1)) == NULL) {
+        pgp_sig_subpkt_t subpkt;
+        if (!(subpkt.data = (uint8_t *) malloc(splen - 1))) {
             RNP_LOG("subpacket data allocation failed");
             return false;
         }
@@ -1603,13 +1599,13 @@ signature_parse_subpackets(pgp_signature_t *sig, uint8_t *buf, size_t len, bool 
         memcpy(subpkt.data, buf + 1, splen - 1);
         subpkt.len = splen - 1;
 
-        res = res && signature_parse_subpacket(&subpkt);
-
-        if (!list_append(&sig->subpkts, &subpkt, sizeof(subpkt))) {
-            RNP_LOG("allocation failed");
+        res = res && signature_parse_subpacket(subpkt);
+        try {
+            sig->subpkts.emplace_back(subpkt);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return false;
         }
-
         len -= splen;
         buf += splen;
     }
@@ -1838,20 +1834,6 @@ signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
     }
     return (sig1->material_len == sig2->material_len) &&
            !memcmp(sig1->material_buf, sig2->material_buf, sig1->material_len);
-}
-
-void
-free_signature_subpkt(pgp_sig_subpkt_t *subpkt)
-{
-    if (!subpkt) {
-        return;
-    }
-    if (subpkt->parsed && (subpkt->type == PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE)) {
-        (*subpkt->fields.sig).~pgp_signature_t();
-        free(subpkt->fields.sig);
-        subpkt->fields.sig = NULL;
-    }
-    free(subpkt->data);
 }
 
 bool
