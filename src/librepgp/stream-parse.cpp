@@ -823,7 +823,7 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     }
 
     try {
-        param->sigs.push_back(readsig);
+        param->sigs.push_back(std::move(readsig));
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -2030,9 +2030,6 @@ pgp_source_signed_param_t::~pgp_source_signed_param_t()
 {
     for (auto &hash : hashes) {
         pgp_hash_finish(&hash, NULL);
-    }
-    for (auto &sig : sigs) {
-        free_signature(&sig);
     }
 }
 

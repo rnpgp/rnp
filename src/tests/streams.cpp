@@ -371,7 +371,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* check forged file */
     assert_true(pgp_hash_copy(&hash, &hash_forged));
     assert_rnp_failure(signature_validate(&sig, pgp_key_get_material(key), &hash));
-    free_signature(&sig);
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -382,7 +381,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* fill signature */
     uint32_t create = time(NULL);
     uint32_t expire = 123456;
-    memset(&sig, 0, sizeof(sig));
+    sig = {};
     sig.version = PGP_V4;
     sig.halg = halg;
     sig.palg = pgp_key_get_alg(key);
@@ -410,7 +409,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_true(signature_get_keyfp(&sig, fp));
     assert_true(fp == pgp_key_get_fp(key));
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
-    free_signature(&sig);
     /* cleanup */
     delete pubring;
     delete secring;
@@ -421,7 +419,7 @@ TEST_F(rnp_tests, test_stream_signatures)
 
 TEST_F(rnp_tests, test_stream_signatures_revoked_key)
 {
-    pgp_signature_t sig = {(pgp_version_t) 0};
+    pgp_signature_t sig = {};
     pgp_source_t    sigsrc = {0};
 
     /* load signature */
@@ -439,7 +437,6 @@ TEST_F(rnp_tests, test_stream_signatures_revoked_key)
     assert_string_equal(reason, "For testing!");
     /* cleanup */
     free(reason);
-    free_signature(&sig);
 }
 
 TEST_F(rnp_tests, test_stream_key_load)

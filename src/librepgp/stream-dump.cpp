@@ -751,7 +751,6 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     }
 
     stream_dump_signature_pkt(ctx, &sig, dst);
-    free_signature(&sig);
 }
 
 static rnp_result_t
@@ -1731,10 +1730,7 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
     if (stream_parse_signature(src, &sig)) {
         return RNP_SUCCESS;
     }
-
-    rnp_result_t ret = stream_dump_signature_pkt_json(ctx, &sig, pkt);
-    free_signature(&sig);
-    return ret;
+    return stream_dump_signature_pkt_json(ctx, &sig, pkt);
 }
 
 static rnp_result_t

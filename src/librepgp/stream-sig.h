@@ -368,6 +368,6 @@ void signature_list_destroy(list *sigs);
  * @param sigs on success parsed signature structures will be put here.
  * @return RNP_SUCCESS or error code otherwise.
  */
-rnp_result_t process_pgp_signatures(pgp_source_t *src, list *sigs);
+rnp_result_t process_pgp_signatures(pgp_source_t *src, std::vector<pgp_signature_t> &sigs);
 
 #endif

@@ -721,8 +721,10 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("Allocation failed");
         goto finish;
     }
-    if (!copy_signature_packet(subpkt->fields.sig, esig)) {
-        RNP_LOG("failed to copy signature");
+    try {
+        *subpkt->fields.sig = *esig;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         free(subpkt->fields.sig);
         subpkt->fields.sig = NULL;
         goto finish;
@@ -1197,21 +1199,21 @@ void
 signature_list_destroy(list *sigs)
 {
     for (list_item *li = list_front(*sigs); li; li = list_next(li)) {
-        free_signature((pgp_signature_t *) li);
+        pgp_signature_t *sig = (pgp_signature_t *) li;
+        (*sig).~pgp_signature_t();
     }
     list_destroy(sigs);
 }
 
 rnp_result_t
-process_pgp_signatures(pgp_source_t *src, list *sigs)
+process_pgp_signatures(pgp_source_t *src, std::vector<pgp_signature_t> &sigs)
 {
-    bool             armored = false;
-    pgp_source_t     armorsrc = {0};
-    pgp_source_t *   origsrc = src;
-    pgp_signature_t *cursig = NULL;
-    rnp_result_t     ret = RNP_ERROR_GENERIC;
+    bool          armored = false;
+    pgp_source_t  armorsrc = {0};
+    pgp_source_t *origsrc = src;
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
 
-    *sigs = NULL;
+    sigs.clear();
     /* check whether signatures are armored */
 armoredpass:
     if (is_armored_source(src)) {
@@ -1233,14 +1235,15 @@ armoredpass:
             goto finish;
         }
 
-        if (!(cursig = (pgp_signature_t *) list_append(sigs, NULL, sizeof(*cursig)))) {
-            RNP_LOG("sig alloc failed");
+        try {
+            sigs.emplace_back();
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
-
-        if ((ret = stream_parse_signature(src, cursig))) {
-            list_remove((list_item *) cursig);
+        if ((ret = stream_parse_signature(src, &sigs.back()))) {
+            sigs.pop_back();
             goto finish;
         }
     }
@@ -1258,7 +1261,181 @@ finish:
         src_close(&armorsrc);
     }
     if (ret) {
-        signature_list_destroy(sigs);
+        sigs.clear();
     }
     return ret;
+}
+
+pgp_signature_t::pgp_signature_t()
+{
+    hashed_data = NULL;
+    material_buf = NULL;
+    subpkts = NULL;
+}
+
+pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
+{
+    version = src.version;
+    type = src.type;
+    palg = src.palg;
+    halg = src.halg;
+    memcpy(lbits, src.lbits, sizeof(src.lbits));
+    creation_time = src.creation_time;
+    signer = src.signer;
+
+    hashed_len = src.hashed_len;
+    hashed_data = NULL;
+    if (src.hashed_data) {
+        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(hashed_data, src.hashed_data, hashed_len);
+    }
+    material_len = src.material_len;
+    material_buf = NULL;
+    if (src.material_buf) {
+        if (!(material_buf = (uint8_t *) malloc(material_len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(material_buf, src.material_buf, material_len);
+    }
+
+    subpkts = NULL;
+    for (list_item *sp = list_front(src.subpkts); sp; sp = list_next(sp)) {
+        pgp_sig_subpkt_t *dstsp;
+        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
+        /* subpacket may have internal pointers to the subpkt->data ! */
+        dstsp = (pgp_sig_subpkt_t *) list_append(&subpkts, srcsp, sizeof(*dstsp));
+        if (!dstsp) {
+            throw std::bad_alloc();
+        }
+        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(dstsp->data, srcsp->data, srcsp->len);
+        dstsp->len = srcsp->len;
+        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
+        signature_parse_subpacket(dstsp);
+    }
+}
+
+pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
+{
+    version = src.version;
+    type = src.type;
+    palg = src.palg;
+    halg = src.halg;
+    memcpy(lbits, src.lbits, sizeof(src.lbits));
+    creation_time = src.creation_time;
+    signer = src.signer;
+    hashed_len = src.hashed_len;
+    hashed_data = src.hashed_data;
+    src.hashed_data = NULL;
+    material_len = src.material_len;
+    material_buf = src.material_buf;
+    src.material_buf = NULL;
+    subpkts = src.subpkts;
+    src.subpkts = NULL;
+}
+
+pgp_signature_t &
+pgp_signature_t::operator=(pgp_signature_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+
+    version = src.version;
+    type = src.type;
+    palg = src.palg;
+    halg = src.halg;
+    memcpy(lbits, src.lbits, sizeof(src.lbits));
+    creation_time = src.creation_time;
+    signer = src.signer;
+    hashed_len = src.hashed_len;
+    free(hashed_data);
+    hashed_data = src.hashed_data;
+    src.hashed_data = NULL;
+    material_len = src.material_len;
+    free(material_buf);
+    material_buf = src.material_buf;
+    src.material_buf = NULL;
+    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
+        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
+    }
+    list_destroy(&subpkts);
+    subpkts = src.subpkts;
+    src.subpkts = NULL;
+
+    return *this;
+}
+
+pgp_signature_t &
+pgp_signature_t::operator=(const pgp_signature_t &src)
+{
+    if (this == &src) {
+        return *this;
+    }
+
+    version = src.version;
+    type = src.type;
+    palg = src.palg;
+    halg = src.halg;
+    memcpy(lbits, src.lbits, sizeof(src.lbits));
+    creation_time = src.creation_time;
+    signer = src.signer;
+
+    hashed_len = src.hashed_len;
+    free(hashed_data);
+    hashed_data = NULL;
+    if (src.hashed_data) {
+        if (!(hashed_data = (uint8_t *) malloc(hashed_len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(hashed_data, src.hashed_data, hashed_len);
+    }
+    material_len = src.material_len;
+    free(material_buf);
+    material_buf = NULL;
+    if (src.material_buf) {
+        if (!(material_buf = (uint8_t *) malloc(material_len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(material_buf, src.material_buf, material_len);
+    }
+
+    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
+        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
+    }
+    list_destroy(&subpkts);
+    subpkts = NULL;
+    for (list_item *sp = list_front(src.subpkts); sp; sp = list_next(sp)) {
+        pgp_sig_subpkt_t *dstsp;
+        pgp_sig_subpkt_t *srcsp = (pgp_sig_subpkt_t *) sp;
+        /* subpacket may have internal pointers to the subpkt->data ! */
+        dstsp = (pgp_sig_subpkt_t *) list_append(&subpkts, srcsp, sizeof(*dstsp));
+        if (!dstsp) {
+            throw std::bad_alloc();
+        }
+        if (!(dstsp->data = (uint8_t *) malloc(dstsp->len))) {
+            throw std::bad_alloc();
+        }
+        memcpy(dstsp->data, srcsp->data, srcsp->len);
+        dstsp->len = srcsp->len;
+        memset(&dstsp->fields, 0, sizeof(dstsp->fields));
+        signature_parse_subpacket(dstsp);
+    }
+
+    return *this;
+}
+
+pgp_signature_t::~pgp_signature_t()
+{
+    free(hashed_data);
+    free(material_buf);
+
+    for (list_item *sp = list_front(subpkts); sp; sp = list_next(sp)) {
+        free_signature_subpkt((pgp_sig_subpkt_t *) sp);
+    }
+    list_destroy(&subpkts);
 }

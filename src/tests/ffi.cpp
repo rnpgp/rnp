@@ -8204,7 +8204,6 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_int_equal(code, PGP_REVOCATION_SUPERSEDED);
     assert_int_equal(strcmp(reason, "test key revocation"), 0);
     free(reason);
-    free_signature(&sig);
     assert_int_equal(unlink("alice-revocation.pgp"), 0);
 
     assert_rnp_success(rnp_ffi_destroy(ffi));
