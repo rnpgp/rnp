@@ -221,6 +221,13 @@ typedef struct pgp_signature_t {
 
     /* v4 - only fields */
     list subpkts;
+
+    pgp_signature_t();
+    pgp_signature_t(const pgp_signature_t &src);
+    pgp_signature_t(pgp_signature_t &&src);
+    pgp_signature_t &operator=(pgp_signature_t &&src);
+    pgp_signature_t &operator=(const pgp_signature_t &src);
+    ~pgp_signature_t();
 } pgp_signature_t;
 
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
