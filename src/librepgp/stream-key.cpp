@@ -47,14 +47,6 @@
 #include <set>
 
 void
-transferable_subkey_destroy(pgp_transferable_subkey_t *subkey)
-{
-    forget_secret_key_fields(&subkey->subkey.material);
-    free_key_pkt(&subkey->subkey);
-    signature_list_destroy(&subkey->signatures);
-}
-
-void
 transferable_userid_destroy(pgp_transferable_userid_t *userid)
 {
     free_userid_pkt(&userid->uid);
@@ -151,21 +143,16 @@ transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
                          const pgp_transferable_subkey_t *src,
                          bool                             pubonly)
 {
-    memset(dst, 0, sizeof(*dst));
-
     if (!copy_key_pkt(&dst->subkey, &src->subkey, pubonly)) {
         RNP_LOG("failed to copy subkey pkt");
-        goto error;
+        return false;
     }
 
     if (!copy_signatures(&dst->signatures, &src->signatures)) {
         RNP_LOG("failed to copy subkey signatures");
-        goto error;
+        return false;
     }
     return true;
-error:
-    transferable_subkey_destroy(dst);
-    return false;
 }
 
 rnp_result_t
@@ -178,7 +165,7 @@ transferable_subkey_from_key(pgp_transferable_subkey_t *dst, const pgp_key_t *ke
         return RNP_ERROR_BAD_STATE;
     }
 
-    ret = process_pgp_subkey(&memsrc, dst, false);
+    ret = process_pgp_subkey(memsrc, *dst, false);
     src_close(&memsrc);
     return ret;
 }
@@ -204,11 +191,9 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
                       const pgp_transferable_key_t *src,
                       bool                          pubonly)
 {
-    memset(dst, 0, sizeof(*dst));
-
     if (!copy_key_pkt(&dst->key, &src->key, pubonly)) {
         RNP_LOG("failed to copy key pkt");
-        goto error;
+        return false;
     }
 
     for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
@@ -216,7 +201,7 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
           (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*tuid));
         if (!tuid || !transferable_userid_copy(tuid, (pgp_transferable_userid_t *) uid)) {
             RNP_LOG("failed to copy uid");
-            goto error;
+            return false;
         }
     }
 
@@ -226,18 +211,15 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
         if (!tskey ||
             !transferable_subkey_copy(tskey, (pgp_transferable_subkey_t *) skey, pubonly)) {
             RNP_LOG("failed to copy subkey");
-            goto error;
+            return false;
         }
     }
 
     if (!copy_signatures(&dst->signatures, &src->signatures)) {
         RNP_LOG("failed to copy key signatures");
-        goto error;
+        return false;
     }
     return true;
-error:
-    transferable_key_destroy(dst);
-    return false;
 }
 
 rnp_result_t
@@ -250,7 +232,7 @@ transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key)
         return RNP_ERROR_BAD_STATE;
     }
 
-    ret = process_pgp_key(&memsrc, dst, false);
+    ret = process_pgp_key(&memsrc, *dst, false);
     src_close(&memsrc);
     return ret;
 }
@@ -725,34 +707,6 @@ transferable_key_revoke(const pgp_key_pkt_t *key,
     }
 }
 
-void
-transferable_key_destroy(pgp_transferable_key_t *key)
-{
-    forget_secret_key_fields(&key->key.material);
-
-    for (list_item *li = list_front(key->userids); li; li = list_next(li)) {
-        transferable_userid_destroy((pgp_transferable_userid_t *) li);
-    }
-    list_destroy(&key->userids);
-
-    for (list_item *li = list_front(key->subkeys); li; li = list_next(li)) {
-        transferable_subkey_destroy((pgp_transferable_subkey_t *) li);
-    }
-    list_destroy(&key->subkeys);
-
-    signature_list_destroy(&key->signatures);
-    free_key_pkt(&key->key);
-}
-
-void
-key_sequence_destroy(pgp_key_sequence_t *keys)
-{
-    for (list_item *li = list_front(keys->keys); li; li = list_next(li)) {
-        transferable_key_destroy((pgp_transferable_key_t *) li);
-    }
-    list_destroy(&keys->keys);
-}
-
 static bool
 skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 {
@@ -835,39 +789,35 @@ done:
 }
 
 rnp_result_t
-process_pgp_subkey(pgp_source_t *src, pgp_transferable_subkey_t *subkey, bool skiperrors)
+process_pgp_subkey(pgp_source_t &src, pgp_transferable_subkey_t &subkey, bool skiperrors)
 {
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
-    memset(subkey, 0, sizeof(*subkey));
-    uint64_t keypos = src->readb;
-    if (!is_subkey_pkt(ptag = stream_pkt_type(src))) {
+    subkey = {};
+    uint64_t keypos = src.readb;
+    if (!is_subkey_pkt(ptag = stream_pkt_type(&src))) {
         RNP_LOG("wrong subkey ptag: %d at %" PRIu64, ptag, keypos);
         return RNP_ERROR_BAD_FORMAT;
     }
 
-    if ((ret = stream_parse_key(src, &subkey->subkey))) {
+    if ((ret = stream_parse_key(&src, &subkey.subkey))) {
         RNP_LOG("failed to parse subkey at %" PRIu64, keypos);
         goto done;
     }
 
-    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
+    if (!skip_pgp_packets(&src, {PGP_PKT_TRUST})) {
         ret = RNP_ERROR_READ;
         goto done;
     }
 
-    ret = process_pgp_key_signatures(src, &subkey->signatures, skiperrors);
+    ret = process_pgp_key_signatures(&src, &subkey.signatures, skiperrors);
 done:
-    if (ret) {
-        transferable_subkey_destroy(subkey);
-        memset(subkey, 0, sizeof(*subkey));
-    }
     return ret;
 }
 
 rnp_result_t
-process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys, bool skiperrors)
+process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors)
 {
     int                     ptag;
     bool                    armored = false;
@@ -878,8 +828,7 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys, bool skiperrors)
     pgp_transferable_key_t *curkey = NULL;
     rnp_result_t            ret = RNP_ERROR_GENERIC;
 
-    memset(keys, 0, sizeof(*keys));
-
+    keys = {};
     /* check whether keys are armored */
 armoredpass:
     if (is_armored_source(src)) {
@@ -901,13 +850,17 @@ armoredpass:
         }
 
         if (!(curkey =
-                (pgp_transferable_key_t *) list_append(&keys->keys, NULL, sizeof(*curkey)))) {
+                (pgp_transferable_key_t *) list_append(&keys.keys, NULL, sizeof(*curkey)))) {
             RNP_LOG("key alloc failed");
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
 
-        ret = process_pgp_key(src, curkey, skiperrors);
+        ret = process_pgp_key(src, *curkey, skiperrors);
+        if (ret) {
+            curkey->~pgp_transferable_key_t();
+            list_remove((list_item *) curkey);
+        }
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
             skip_pgp_packets(src,
                              {PGP_PKT_TRUST,
@@ -916,7 +869,6 @@ armoredpass:
                               PGP_PKT_USER_ATTR,
                               PGP_PKT_PUBLIC_SUBKEY,
                               PGP_PKT_SECRET_SUBKEY})) {
-            list_remove((list_item *) curkey);
             continue;
         }
         if (ret) {
@@ -945,21 +897,20 @@ finish:
         src_close(&armorsrc);
     }
     if (ret) {
-        key_sequence_destroy(keys);
+        keys = {};
     }
     return ret;
 }
 
 rnp_result_t
-process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
+process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
 {
     pgp_source_t armorsrc = {0};
     bool         armored = false;
     int          ptag;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    memset(key, 0, sizeof(*key));
-
+    key = {};
     /* check whether keys are armored */
     if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {
@@ -979,7 +930,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
         goto finish;
     }
 
-    if ((ret = stream_parse_key(src, &key->key))) {
+    if ((ret = stream_parse_key(src, &key.key))) {
         RNP_LOG("failed to parse key pkt at %" PRIu64, keypos);
         goto finish;
     }
@@ -990,7 +941,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
     }
 
     /* direct-key signatures */
-    if ((ret = process_pgp_key_signatures(src, &key->signatures, skiperrors))) {
+    if ((ret = process_pgp_key_signatures(src, &key.signatures, skiperrors))) {
         goto finish;
     }
 
@@ -1001,7 +952,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
         }
 
         pgp_transferable_userid_t *uid =
-          (pgp_transferable_userid_t *) list_append(&key->userids, NULL, sizeof(*uid));
+          (pgp_transferable_userid_t *) list_append(&key.userids, NULL, sizeof(*uid));
         if (!uid) {
             RNP_LOG("uid alloc failed");
             ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -1026,16 +977,17 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
         }
 
         pgp_transferable_subkey_t *subkey =
-          (pgp_transferable_subkey_t *) list_append(&key->subkeys, NULL, sizeof(*subkey));
+          (pgp_transferable_subkey_t *) list_append(&key.subkeys, NULL, sizeof(*subkey));
         if (!subkey) {
             RNP_LOG("subkey alloc failed");
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
 
-        ret = process_pgp_subkey(src, subkey, skiperrors);
+        ret = process_pgp_subkey(*src, *subkey, skiperrors);
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
             skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            subkey->~pgp_transferable_subkey_t();
             list_remove((list_item *) subkey);
             /* skip malformed subkey */
             continue;
@@ -1049,9 +1001,6 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors)
 finish:
     if (armored) {
         src_close(&armorsrc);
-    }
-    if (ret) {
-        transferable_key_destroy(key);
     }
     return ret;
 }
@@ -1135,7 +1084,7 @@ finish:
 rnp_result_t
 write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor)
 {
-    pgp_key_sequence_t keys = {0};
+    pgp_key_sequence_t keys = {};
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     if (!list_append(&keys.keys, key, sizeof(*key))) {
@@ -1560,4 +1509,97 @@ forget_secret_key_fields(pgp_key_material_t *key)
     }
 
     key->secret = false;
+}
+
+pgp_transferable_subkey_t &
+pgp_transferable_subkey_t::operator=(pgp_transferable_subkey_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    free_key_pkt(&subkey);
+    subkey = src.subkey;
+    src.subkey = {};
+    signature_list_destroy(&signatures);
+    signatures = src.signatures;
+    src.signatures = NULL;
+    return *this;
+}
+
+pgp_transferable_subkey_t::~pgp_transferable_subkey_t()
+{
+    forget_secret_key_fields(&subkey.material);
+    free_key_pkt(&subkey);
+    signature_list_destroy(&signatures);
+}
+
+pgp_transferable_key_t &
+pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    forget_secret_key_fields(&key.material);
+    free_key_pkt(&key);
+    key = src.key;
+    src.key = {};
+
+    for (list_item *li = list_front(userids); li; li = list_next(li)) {
+        transferable_userid_destroy((pgp_transferable_userid_t *) li);
+    }
+    list_destroy(&userids);
+    userids = src.userids;
+    src.userids = NULL;
+
+    for (list_item *li = list_front(subkeys); li; li = list_next(li)) {
+        ((pgp_transferable_subkey_t *) li)->~pgp_transferable_subkey_t();
+    }
+    list_destroy(&subkeys);
+    subkeys = src.subkeys;
+    src.subkeys = NULL;
+
+    signature_list_destroy(&signatures);
+    signatures = src.signatures;
+    src.signatures = NULL;
+    return *this;
+}
+
+pgp_transferable_key_t::~pgp_transferable_key_t()
+{
+    forget_secret_key_fields(&key.material);
+    free_key_pkt(&key);
+
+    for (list_item *li = list_front(userids); li; li = list_next(li)) {
+        transferable_userid_destroy((pgp_transferable_userid_t *) li);
+    }
+    list_destroy(&userids);
+
+    for (list_item *li = list_front(subkeys); li; li = list_next(li)) {
+        ((pgp_transferable_subkey_t *) li)->~pgp_transferable_subkey_t();
+    }
+    list_destroy(&subkeys);
+    signature_list_destroy(&signatures);
+}
+
+pgp_key_sequence_t &
+pgp_key_sequence_t::operator=(pgp_key_sequence_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    for (list_item *li = list_front(keys); li; li = list_next(li)) {
+        ((pgp_transferable_key_t *) li)->~pgp_transferable_key_t();
+    }
+    list_destroy(&keys);
+    keys = src.keys;
+    src.keys = NULL;
+    return *this;
+}
+
+pgp_key_sequence_t::~pgp_key_sequence_t()
+{
+    for (list_item *li = list_front(keys); li; li = list_next(li)) {
+        ((pgp_transferable_key_t *) li)->~pgp_transferable_key_t();
+    }
+    list_destroy(&keys);
 }
