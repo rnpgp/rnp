@@ -44,6 +44,13 @@ typedef struct pgp_transferable_userid_t {
 typedef struct pgp_transferable_subkey_t {
     pgp_key_pkt_t subkey;
     list          signatures;
+
+    pgp_transferable_subkey_t() : subkey({}), signatures(NULL){};
+    pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src) = delete;
+    pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src) = delete;
+    pgp_transferable_subkey_t &operator=(pgp_transferable_subkey_t &&src);
+    pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &src) = delete;
+    ~pgp_transferable_subkey_t();
 } pgp_transferable_subkey_t;
 
 /* transferable key with userids, subkeys and revocation signatures */
@@ -52,16 +59,26 @@ typedef struct pgp_transferable_key_t {
     list          userids;
     list          subkeys;
     list          signatures;
+
+    pgp_transferable_key_t() : key({}), userids(NULL), subkeys(NULL), signatures(NULL){};
+    pgp_transferable_key_t(const pgp_transferable_key_t &src) = delete;
+    pgp_transferable_key_t(pgp_transferable_key_t &&src) = delete;
+    pgp_transferable_key_t &operator=(pgp_transferable_key_t &&src);
+    pgp_transferable_key_t &operator=(const pgp_transferable_key_t &src) = delete;
+    ~pgp_transferable_key_t();
 } pgp_transferable_key_t;
 
 /* sequence of OpenPGP transferable keys */
 typedef struct pgp_key_sequence_t {
     list keys; /* list of pgp_transferable_key_t records */
+
+    pgp_key_sequence_t() : keys(NULL){};
+    pgp_key_sequence_t(const pgp_key_sequence_t &src) = delete;
+    pgp_key_sequence_t(pgp_key_sequence_t &&src) = delete;
+    pgp_key_sequence_t &operator=(pgp_key_sequence_t &&src);
+    pgp_key_sequence_t &operator=(const pgp_key_sequence_t &src) = delete;
+    ~pgp_key_sequence_t();
 } pgp_key_sequence_t;
-
-void transferable_subkey_destroy(pgp_transferable_subkey_t *subkey);
-
-void transferable_key_destroy(pgp_transferable_key_t *key);
 
 void transferable_userid_destroy(pgp_transferable_userid_t *userid);
 
@@ -103,14 +120,12 @@ pgp_signature_t *transferable_key_revoke(const pgp_key_pkt_t *key,
                                          pgp_hash_alg_t       hash_alg,
                                          const pgp_revoke_t * revoke);
 
-void key_sequence_destroy(pgp_key_sequence_t *keys);
+rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors);
 
-rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t *keys, bool skiperrors);
+rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors);
 
-rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t *key, bool skiperrors);
-
-rnp_result_t process_pgp_subkey(pgp_source_t *             src,
-                                pgp_transferable_subkey_t *subkey,
+rnp_result_t process_pgp_subkey(pgp_source_t &             src,
+                                pgp_transferable_subkey_t &subkey,
                                 bool                       skiperrors);
 
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
