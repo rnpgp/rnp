@@ -40,7 +40,7 @@ TEST_F(rnp_tests, test_large_mpi_rsa_pub)
     /* Load RSA pubkey packet with 65535 bit modulus MPI. Must fail. */
     assert_rnp_success(init_file_src(&keysrc, "data/test_large_MPIs/rsa-pub-65535bits.pgp"));
     assert_rnp_failure(process_pgp_keys(&keysrc, keyseq, false));
-    assert_int_equal(list_length(keyseq.keys), 0);
+    assert_true(keyseq.keys.empty());
     src_close(&keysrc);
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
