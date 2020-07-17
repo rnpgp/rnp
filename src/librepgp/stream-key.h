@@ -62,7 +62,7 @@ typedef struct pgp_transferable_key_t {
 
     pgp_transferable_key_t() : key({}), userids(NULL), subkeys(NULL), signatures(NULL){};
     pgp_transferable_key_t(const pgp_transferable_key_t &src) = delete;
-    pgp_transferable_key_t(pgp_transferable_key_t &&src) = delete;
+    pgp_transferable_key_t(pgp_transferable_key_t &&src);
     pgp_transferable_key_t &operator=(pgp_transferable_key_t &&src);
     pgp_transferable_key_t &operator=(const pgp_transferable_key_t &src) = delete;
     ~pgp_transferable_key_t();
@@ -70,14 +70,7 @@ typedef struct pgp_transferable_key_t {
 
 /* sequence of OpenPGP transferable keys */
 typedef struct pgp_key_sequence_t {
-    list keys; /* list of pgp_transferable_key_t records */
-
-    pgp_key_sequence_t() : keys(NULL){};
-    pgp_key_sequence_t(const pgp_key_sequence_t &src) = delete;
-    pgp_key_sequence_t(pgp_key_sequence_t &&src) = delete;
-    pgp_key_sequence_t &operator=(pgp_key_sequence_t &&src);
-    pgp_key_sequence_t &operator=(const pgp_key_sequence_t &src) = delete;
-    ~pgp_key_sequence_t();
+    std::vector<pgp_transferable_key_t> keys;
 } pgp_key_sequence_t;
 
 void transferable_userid_destroy(pgp_transferable_userid_t *userid);
@@ -130,7 +123,7 @@ rnp_result_t process_pgp_subkey(pgp_source_t &             src,
 
 rnp_result_t write_pgp_key(pgp_transferable_key_t *key, pgp_dest_t *dst, bool armor);
 
-rnp_result_t write_pgp_keys(pgp_key_sequence_t *keys, pgp_dest_t *dst, bool armor);
+rnp_result_t write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor);
 
 rnp_result_t decrypt_secret_key(pgp_key_pkt_t *key, const char *password);
 

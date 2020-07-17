@@ -261,13 +261,13 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
     }
 
     /* process armored or raw transferable key packets sequence(s) */
-    pgp_key_sequence_t keys = {};
+    pgp_key_sequence_t keys;
     if ((ret = process_pgp_keys(src, keys, keyring->skip_parsing_errors))) {
         return ret;
     }
 
-    for (list_item *key = list_front(keys.keys); key; key = list_next(key)) {
-        if (!rnp_key_store_add_transferable_key(keyring, (pgp_transferable_key_t *) key)) {
+    for (auto &key : keys.keys) {
+        if (!rnp_key_store_add_transferable_key(keyring, &key)) {
             return RNP_ERROR_BAD_STATE;
         }
     }
