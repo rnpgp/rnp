@@ -3515,6 +3515,87 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
 }
 
 static pgp_key_t *
+find_encrypting_subkey(rnp_ffi_t ffi, const pgp_key_t &primary)
+{
+    pgp_key_search_t search = {};
+    search.type = PGP_KEY_SEARCH_FINGERPRINT;
+
+    for (auto &fp : primary.subkey_fps) {
+        search.by.fingerprint = fp;
+        pgp_key_t *subkey = find_key(ffi, &search, KEY_TYPE_PUBLIC, true);
+        if (!subkey) {
+            subkey = find_key(ffi, &search, KEY_TYPE_SECRET, true);
+        }
+        if (subkey && subkey->valid && pgp_key_can_encrypt(subkey)) {
+            return subkey;
+        }
+    }
+    return NULL;
+}
+
+rnp_result_t
+rnp_key_export_autocrypt(rnp_key_handle_t key,
+                         rnp_key_handle_t subkey,
+                         const char *     uid,
+                         rnp_output_t     output,
+                         uint32_t         flags)
+{
+    if (!key || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* Get the primary key */
+    pgp_key_t *primary = get_key_prefer_public(key);
+    if (!primary || !pgp_key_is_primary_key(primary) || !primary->valid ||
+        !pgp_key_can_sign(primary)) {
+        FFI_LOG(key->ffi, "No valid signing primary key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* Get encrypting subkey */
+    pgp_key_t *sub = NULL;
+    if (subkey) {
+        sub = get_key_prefer_public(subkey);
+        if (sub && (!sub->valid || !pgp_key_can_encrypt(sub))) {
+            FFI_LOG(key->ffi, "Invalid or non-encrypting subkey");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    } else {
+        sub = find_encrypting_subkey(key->ffi, *primary);
+    }
+    if (!sub) {
+        FFI_LOG(key->ffi, "No encrypting subkey");
+        return RNP_ERROR_KEY_NOT_FOUND;
+    }
+    /* Get userid */
+    size_t uididx = pgp_key_get_userid_count(primary);
+    if (uid) {
+        for (size_t idx = 0; idx < primary->uids.size(); idx++) {
+            if (primary->uids[idx].str == uid) {
+                uididx = idx;
+                break;
+            }
+        }
+    } else {
+        if (pgp_key_get_userid_count(primary) > 1) {
+            FFI_LOG(key->ffi, "Ambiguous userid");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        uididx = 0;
+    }
+    if (uididx >= pgp_key_get_userid_count(primary)) {
+        FFI_LOG(key->ffi, "Userid not found");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!pgp_key_write_autocrypt(output->dst, *primary, *sub, uididx)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+static pgp_key_t *
 rnp_key_get_revoker(rnp_key_handle_t key)
 {
     pgp_key_t *exkey = get_key_prefer_public(key);
