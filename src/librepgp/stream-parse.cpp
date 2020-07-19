@@ -2321,6 +2321,11 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
 
     if (ctx.msg_type == PGP_MESSAGE_DETACHED) {
         /* detached signature case */
+        if (!handler->ctx->detached) {
+            RNP_LOG("Unexpected detached signature input.");
+            res = RNP_ERROR_BAD_STATE;
+            goto finish;
+        }
         if (!handler->src_provider || !handler->src_provider(handler, &datasrc)) {
             RNP_LOG("no data source for detached signature verification");
             res = RNP_ERROR_READ;
@@ -2339,6 +2344,11 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         }
         src_close(&datasrc);
     } else {
+        if (handler->ctx->detached) {
+            RNP_LOG("Detached signature expected.");
+            res = RNP_ERROR_BAD_STATE;
+            goto finish;
+        }
         /* file processing case */
         decsrc = &ctx.sources.back();
         if (ctx.literal_src) {

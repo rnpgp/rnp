@@ -7005,6 +7005,44 @@ TEST_F(rnp_tests, test_ffi_detached_verify_input)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_detached_cleartext_signed_input)
+{
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+    /* verify detached signature with cleartext input - must fail */
+    rnp_input_t inputmsg = NULL;
+    assert_rnp_success(rnp_input_from_path(&inputmsg, "data/test_messages/message.txt"));
+    rnp_input_t inputsig = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&inputsig, "data/test_messages/message.txt.cleartext-signed"));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, inputmsg, inputsig));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(inputmsg);
+    rnp_input_destroy(inputsig);
+    /* verify detached signature with signed/embedded input - must fail */
+    assert_rnp_success(rnp_input_from_path(&inputmsg, "data/test_messages/message.txt"));
+    assert_rnp_success(
+      rnp_input_from_path(&inputsig, "data/test_messages/message.txt.empty.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, inputmsg, inputsig));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(inputmsg);
+    rnp_input_destroy(inputsig);
+    /* verify detached signature as a whole message - must fail */
+    assert_rnp_success(rnp_input_from_path(&inputmsg, "data/test_messages/message.txt.sig"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, inputmsg, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_output_destroy(output);
+    rnp_input_destroy(inputmsg);
+
+    rnp_ffi_destroy(ffi);
+}
+
 static bool
 check_signature(rnp_op_verify_t op, size_t idx, rnp_result_t status)
 {
