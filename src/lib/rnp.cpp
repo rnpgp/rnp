@@ -2702,10 +2702,12 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
                          const char *         filename)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
+    if (!op->output) {
+        return false;
+    }
     *dst = &(op->output->dst);
     *closedst = false;
     op->filename = filename ? strdup(filename) : NULL;
-
     return true;
 }
 
@@ -2845,6 +2847,7 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
     }
 
     rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    (*op)->rnpctx.detached = true;
     (*op)->ffi = ffi;
     (*op)->input = signature;
     (*op)->detached_input = input;
