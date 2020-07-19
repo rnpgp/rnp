@@ -22,8 +22,13 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-add_compile_options(-fsanitize=fuzzer-no-link)
-add_link_options(-fsanitize=fuzzer)
+
+if(NOT DEFINED ENV{LIB_FUZZING_ENGINE})
+  add_compile_options(-fsanitize=fuzzer-no-link)
+  add_link_options(-fsanitize=fuzzer)
+else()
+  add_link_options($ENV{LIB_FUZZING_ENGINE})
+endif()
 
 add_executable(fuzz_dump dump.c)
 
@@ -56,4 +61,3 @@ if (ENABLE_SANITIZERS)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
-
