@@ -174,19 +174,11 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
         return false;
     }
 
-    for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
-        pgp_transferable_userid_t *tuid =
-          (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*tuid));
-        if (!tuid) {
-            RNP_LOG("allocation failed");
-            return false;
-        }
-        try {
-            *tuid = *((pgp_transferable_userid_t *) uid);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
+    try {
+        dst->userids = src->userids;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
     }
 
     for (list_item *skey = list_front(src->subkeys); skey; skey = list_next(skey)) {
@@ -222,15 +214,13 @@ transferable_key_from_key(pgp_transferable_key_t *dst, const pgp_key_t *key)
 }
 
 static pgp_transferable_userid_t *
-transferable_key_has_userid(const pgp_transferable_key_t *src, const pgp_userid_pkt_t *userid)
+transferable_key_has_userid(pgp_transferable_key_t *src, const pgp_userid_pkt_t *userid)
 {
-    for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
-        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
-        if (userid_pkt_equal(&tuid->uid, userid)) {
-            return tuid;
+    for (auto &uid : src->userids) {
+        if (userid_pkt_equal(&uid.uid, userid)) {
+            return &uid;
         }
     }
-
     return NULL;
 }
 
@@ -262,25 +252,18 @@ transferable_key_merge(pgp_transferable_key_t *dst, const pgp_transferable_key_t
         return ret;
     }
     /* userids */
-    for (list_item *li = list_front(src->userids); li; li = list_next(li)) {
-        pgp_transferable_userid_t *luid = (pgp_transferable_userid_t *) li;
-        pgp_transferable_userid_t *userid = transferable_key_has_userid(dst, &luid->uid);
-        if (userid) {
-            if ((ret = transferable_userid_merge(userid, luid))) {
+    for (auto &srcuid : src->userids) {
+        pgp_transferable_userid_t *dstuid = transferable_key_has_userid(dst, &srcuid.uid);
+        if (dstuid) {
+            if ((ret = transferable_userid_merge(dstuid, &srcuid))) {
                 RNP_LOG("failed to merge userid");
                 return ret;
             }
             continue;
         }
         /* add userid */
-        userid =
-          (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*userid));
-        if (!userid) {
-            RNP_LOG("allocation failed");
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
         try {
-            *userid = *luid;
+            dst->userids.emplace_back(srcuid);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -316,24 +299,22 @@ transferable_key_merge(pgp_transferable_key_t *dst, const pgp_transferable_key_t
 pgp_transferable_userid_t *
 transferable_key_add_userid(pgp_transferable_key_t *key, const char *userid)
 {
-    pgp_userid_pkt_t           uid = {};
-    pgp_transferable_userid_t *tuid = NULL;
-
-    uid.tag = PGP_PKT_USER_ID;
-    uid.uid_len = strlen(userid);
-    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
-        return NULL;
-    }
-    memcpy(uid.uid, userid, uid.uid_len);
-
-    tuid = (pgp_transferable_userid_t *) list_append(&key->userids, NULL, sizeof(*tuid));
-    if (!tuid) {
-        free(uid.uid);
+    try {
+        key->userids.emplace_back();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return NULL;
     }
 
-    memcpy(&tuid->uid, &uid, sizeof(uid));
-    return tuid;
+    pgp_transferable_userid_t &uid = key->userids.back();
+    uid.uid.tag = PGP_PKT_USER_ID;
+    uid.uid.uid_len = strlen(userid);
+    if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
+        key->userids.pop_back();
+        return NULL;
+    }
+    memcpy(uid.uid.uid, userid, uid.uid.uid_len);
+    return &uid;
 }
 
 bool
@@ -929,17 +910,17 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
             break;
         }
 
-        pgp_transferable_userid_t *uid =
-          (pgp_transferable_userid_t *) list_append(&key.userids, NULL, sizeof(*uid));
-        if (!uid) {
-            RNP_LOG("uid alloc failed");
+        try {
+            key.userids.emplace_back();
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto finish;
         }
-
-        ret = process_pgp_userid(src, uid, skiperrors);
+        ret = process_pgp_userid(src, &key.userids.back(), skiperrors);
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
             skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            key.userids.pop_back();
             /* skip malformed uid */
             continue;
         }
@@ -1025,11 +1006,9 @@ write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
             goto finish;
         }
         /* user ids/attrs and signatures */
-        for (list_item *li = list_front(key.userids); li; li = list_next(li)) {
-            pgp_transferable_userid_t *uid = (pgp_transferable_userid_t *) li;
-
-            if (!stream_write_userid(&uid->uid, dst) ||
-                !write_pgp_signatures(uid->signatures, dst)) {
+        for (auto &uid : key.userids) {
+            if (!stream_write_userid(&uid.uid, dst) ||
+                !write_pgp_signatures(uid.signatures, dst)) {
                 ret = RNP_ERROR_WRITE;
                 goto finish;
             }
@@ -1494,6 +1473,17 @@ forget_secret_key_fields(pgp_key_material_t *key)
     key->secret = false;
 }
 
+pgp_transferable_userid_t::pgp_transferable_userid_t(const pgp_transferable_userid_t &src)
+{
+    if (!copy_userid_pkt(&uid, &src.uid)) {
+        throw std::bad_alloc();
+    }
+    signatures = NULL;
+    if (!copy_signatures(&signatures, &src.signatures)) {
+        throw std::bad_alloc();
+    }
+}
+
 pgp_transferable_userid_t &
 pgp_transferable_userid_t::operator=(const pgp_transferable_userid_t &src)
 {
@@ -1543,8 +1533,7 @@ pgp_transferable_key_t::pgp_transferable_key_t(pgp_transferable_key_t &&src)
 {
     key = src.key;
     src.key = {};
-    userids = src.userids;
-    src.userids = NULL;
+    userids = std::move(src.userids);
     subkeys = src.subkeys;
     src.subkeys = NULL;
     signatures = src.signatures;
@@ -1562,12 +1551,7 @@ pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
     key = src.key;
     src.key = {};
 
-    for (list_item *li = list_front(userids); li; li = list_next(li)) {
-        ((pgp_transferable_userid_t *) li)->~pgp_transferable_userid_t();
-    }
-    list_destroy(&userids);
-    userids = src.userids;
-    src.userids = NULL;
+    userids = std::move(src.userids);
 
     for (list_item *li = list_front(subkeys); li; li = list_next(li)) {
         ((pgp_transferable_subkey_t *) li)->~pgp_transferable_subkey_t();
@@ -1586,11 +1570,6 @@ pgp_transferable_key_t::~pgp_transferable_key_t()
 {
     forget_secret_key_fields(&key.material);
     free_key_pkt(&key);
-
-    for (list_item *li = list_front(userids); li; li = list_next(li)) {
-        ((pgp_transferable_userid_t *) li)->~pgp_transferable_userid_t();
-    }
-    list_destroy(&userids);
 
     for (list_item *li = list_front(subkeys); li; li = list_next(li)) {
         ((pgp_transferable_subkey_t *) li)->~pgp_transferable_subkey_t();

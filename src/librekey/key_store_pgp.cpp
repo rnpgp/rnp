@@ -207,9 +207,8 @@ rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
     }
 
     /* add userids and their signatures */
-    for (list_item *uid = list_front(tkey->userids); uid; uid = list_next(uid)) {
-        pgp_transferable_userid_t *tuid = (pgp_transferable_userid_t *) uid;
-        if (!rnp_key_add_transferable_userid(key, tuid)) {
+    for (auto &uid : tkey->userids) {
+        if (!rnp_key_add_transferable_userid(key, &uid)) {
             return false;
         }
     }
