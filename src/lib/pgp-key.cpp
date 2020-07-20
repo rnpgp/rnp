@@ -1671,59 +1671,53 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
                              pgp_hash_alg_t           hash_alg,
                              rnp_selfsig_cert_info_t *cert)
 {
-    bool                      ret = false;
-    pgp_transferable_userid_t uid = {};
-
     // sanity checks
     if (!key || !seckey || !cert || !cert->userid[0]) {
         RNP_LOG("wrong parameters");
-        goto done;
+        return false;
     }
     // userids are only valid for primary keys, not subkeys
     if (!pgp_key_is_primary_key(key)) {
         RNP_LOG("cannot add a userid to a subkey");
-        goto done;
+        return false;
     }
     // see if the key already has this userid
     if (pgp_key_has_userid(key, (const char *) cert->userid)) {
         RNP_LOG("key already has this userid");
-        goto done;
+        return false;
     }
     // this isn't really valid for this format
     if (key->format == PGP_KEY_STORE_G10) {
         RNP_LOG("Unsupported key store type");
-        goto done;
+        return false;
     }
     // We only support modifying v4 and newer keys
     if (key->pkt.version < PGP_V4) {
         RNP_LOG("adding a userid to V2/V3 key is not supported");
-        goto done;
+        return false;
     }
     // TODO: changing the primary userid is not currently supported
     if (key->uid0_set && cert->primary) {
         RNP_LOG("changing the primary userid is not supported");
-        goto done;
+        return false;
     }
 
     /* Fill the transferable userid */
+    pgp_transferable_userid_t uid = {};
     uid.uid.tag = PGP_PKT_USER_ID;
     uid.uid.uid_len = strlen((char *) cert->userid);
     if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
         RNP_LOG("allocation failed");
-        goto done;
+        return false;
     }
     /* uid.uid.uid looks really weird */
     memcpy(uid.uid.uid, (char *) cert->userid, uid.uid.uid_len);
-
     if (!transferable_userid_certify(seckey, &uid, seckey, hash_alg, cert)) {
         RNP_LOG("failed to add userid certification");
-        goto done;
+        return false;
     }
 
-    ret = rnp_key_add_transferable_userid(key, &uid) && pgp_key_refresh_data(key);
-done:
-    transferable_userid_destroy(&uid);
-    return ret;
+    return rnp_key_add_transferable_userid(key, &uid) && pgp_key_refresh_data(key);
 }
 
 static bool
