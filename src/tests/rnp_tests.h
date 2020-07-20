@@ -225,6 +225,8 @@ void test_ffi_enarmor_dearmor(void **state);
 
 void test_ffi_customized_enarmor(void **state);
 
+void test_ffi_dearmor_edge_cases(void **state);
+
 void test_ffi_version(void **state);
 
 void test_ffi_key_export(void **state);
