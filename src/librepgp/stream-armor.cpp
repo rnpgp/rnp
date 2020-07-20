@@ -575,23 +575,47 @@ armor_parse_header(pgp_source_t *src)
 }
 
 static bool
+armor_skip_line(pgp_source_t *src)
+{
+    char header[1024] = {0};
+    do {
+        size_t hdrlen = 0;
+        bool   res = src_peek_line(src, header, sizeof(header), &hdrlen);
+        if (hdrlen) {
+            src_skip(src, hdrlen);
+        }
+        if (res || (hdrlen < sizeof(header) - 1)) {
+            return res;
+        }
+    } while (1);
+}
+
+static bool
 armor_parse_headers(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
     char                        header[1024] = {0};
-    size_t                      hdrlen;
-    char *                      hdrval;
 
     do {
+        size_t hdrlen = 0;
         if (!src_peek_line(param->readsrc, header, sizeof(header), &hdrlen)) {
-            RNP_LOG("failed to peek line");
-            return false;
-        }
-        if (!hdrlen) {
+            /* if line is too long let's cut it to the reasonable size */
+            src_skip(param->readsrc, hdrlen);
+            if ((hdrlen != sizeof(header) - 1) || !armor_skip_line(param->readsrc)) {
+                RNP_LOG("failed to peek line: unexpected end of data");
+                return false;
+            }
+            RNP_LOG("Too long armor header - truncated.");
+            header[hdrlen] = '\0';
+        } else if (hdrlen) {
+            src_skip(param->readsrc, hdrlen);
+        } else {
+            /* empty line - end of the headers */
             return src_skip_eol(param->readsrc);
         }
 
-        if ((hdrval = (char *) malloc(hdrlen + 1)) == NULL) {
+        char *hdrval = (char *) malloc(hdrlen + 1);
+        if (!hdrval) {
             RNP_LOG("malloc failed");
             return false;
         }
@@ -617,12 +641,10 @@ armor_parse_headers(pgp_source_t *src)
             free(hdrval);
         }
 
-        src_skip(param->readsrc, hdrlen);
         if (!src_skip_eol(param->readsrc)) {
             return false;
         }
-    } while (hdrlen > 0);
-    return true;
+    } while (1);
 }
 
 rnp_result_t
