@@ -46,13 +46,6 @@
 #include "../librekey/key_store_pgp.h"
 #include <set>
 
-void
-transferable_userid_destroy(pgp_transferable_userid_t *userid)
-{
-    free_userid_pkt(&userid->uid);
-    signature_list_destroy(&userid->signatures);
-}
-
 static bool
 copy_signatures(list *dst, const list *src)
 {
@@ -123,21 +116,6 @@ transferable_userid_merge(pgp_transferable_userid_t *dst, const pgp_transferable
     return merge_signatures(&dst->signatures, &src->signatures);
 }
 
-static bool
-transferable_userid_copy(pgp_transferable_userid_t *dst, const pgp_transferable_userid_t *src)
-{
-    if (!copy_userid_pkt(&dst->uid, &src->uid)) {
-        return false;
-    }
-
-    if (!copy_signatures(&dst->signatures, &src->signatures)) {
-        transferable_userid_destroy(dst);
-        return false;
-    }
-
-    return true;
-}
-
 bool
 transferable_subkey_copy(pgp_transferable_subkey_t *      dst,
                          const pgp_transferable_subkey_t *src,
@@ -199,8 +177,14 @@ transferable_key_copy(pgp_transferable_key_t *      dst,
     for (list_item *uid = list_front(src->userids); uid; uid = list_next(uid)) {
         pgp_transferable_userid_t *tuid =
           (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*tuid));
-        if (!tuid || !transferable_userid_copy(tuid, (pgp_transferable_userid_t *) uid)) {
-            RNP_LOG("failed to copy uid");
+        if (!tuid) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
+        try {
+            *tuid = *((pgp_transferable_userid_t *) uid);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return false;
         }
     }
@@ -291,8 +275,14 @@ transferable_key_merge(pgp_transferable_key_t *dst, const pgp_transferable_key_t
         /* add userid */
         userid =
           (pgp_transferable_userid_t *) list_append(&dst->userids, NULL, sizeof(*userid));
-        if (!userid || !transferable_userid_copy(userid, luid)) {
-            list_remove((list_item *) userid);
+        if (!userid) {
+            RNP_LOG("allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        try {
+            *userid = *luid;
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -769,30 +759,16 @@ process_pgp_key_signatures(pgp_source_t *src, list *sigs, bool skiperrors)
 static rnp_result_t
 process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t *uid, bool skiperrors)
 {
-    int          ptag;
-    rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
-
-    memset(uid, 0, sizeof(*uid));
-    ptag = stream_pkt_type(src);
-
-    uint64_t uidpos = src->readb;
+    rnp_result_t ret;
+    uint64_t     uidpos = src->readb;
     if ((ret = stream_parse_userid(src, &uid->uid))) {
         RNP_LOG("failed to parse userid at %" PRIu64, uidpos);
-        goto done;
+        return ret;
     }
-
     if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
-        ret = RNP_ERROR_READ;
-        goto done;
+        return RNP_ERROR_READ;
     }
-
-    ret = process_pgp_key_signatures(src, &uid->signatures, skiperrors);
-done:
-    if (ret) {
-        transferable_userid_destroy(uid);
-        memset(uid, 0, sizeof(*uid));
-    }
-    return ret;
+    return process_pgp_key_signatures(src, &uid->signatures, skiperrors);
 }
 
 rnp_result_t
@@ -1518,6 +1494,29 @@ forget_secret_key_fields(pgp_key_material_t *key)
     key->secret = false;
 }
 
+pgp_transferable_userid_t &
+pgp_transferable_userid_t::operator=(const pgp_transferable_userid_t &src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    free_userid_pkt(&uid);
+    if (!copy_userid_pkt(&uid, &src.uid)) {
+        throw std::bad_alloc();
+    }
+    signature_list_destroy(&signatures);
+    if (!copy_signatures(&signatures, &src.signatures)) {
+        throw std::bad_alloc();
+    }
+    return *this;
+}
+
+pgp_transferable_userid_t::~pgp_transferable_userid_t()
+{
+    free_userid_pkt(&uid);
+    signature_list_destroy(&signatures);
+}
+
 pgp_transferable_subkey_t &
 pgp_transferable_subkey_t::operator=(pgp_transferable_subkey_t &&src)
 {
@@ -1564,7 +1563,7 @@ pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
     src.key = {};
 
     for (list_item *li = list_front(userids); li; li = list_next(li)) {
-        transferable_userid_destroy((pgp_transferable_userid_t *) li);
+        ((pgp_transferable_userid_t *) li)->~pgp_transferable_userid_t();
     }
     list_destroy(&userids);
     userids = src.userids;
@@ -1589,7 +1588,7 @@ pgp_transferable_key_t::~pgp_transferable_key_t()
     free_key_pkt(&key);
 
     for (list_item *li = list_front(userids); li; li = list_next(li)) {
-        transferable_userid_destroy((pgp_transferable_userid_t *) li);
+        ((pgp_transferable_userid_t *) li)->~pgp_transferable_userid_t();
     }
     list_destroy(&userids);
 
