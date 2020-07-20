@@ -305,30 +305,35 @@ src_skip_eol(pgp_source_t *src)
 bool
 src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
 {
-    size_t clen = 0;
-    size_t read;
-
-    /* we need some place for \0 */
-    len--;
+    size_t scan_pos = 0;
+    size_t inc = 64;
+    len = len - 1;
 
     do {
-        read = clen + 64 > len ? len - clen : 64;
-        if (!src_peek(src, buf + clen, read, &read) || !read) {
+        size_t to_peek = scan_pos + inc;
+        to_peek = to_peek > len ? len : to_peek;
+        inc = inc * 2;
+
+        /* inefficient, each time we again read from the beginning */
+        if (!src_peek(src, buf, to_peek, readres)) {
             return false;
         }
 
-        for (size_t i = 0; i < read; i++) {
-            if (buf[clen] == '\n') {
-                if ((clen > 0) && (buf[clen - 1] == '\r')) {
-                    clen--;
+        /* we continue scanning where we stopped previously */
+        for (; scan_pos < *readres; scan_pos++) {
+            if (buf[scan_pos] == '\n') {
+                if ((scan_pos > 0) && (buf[scan_pos - 1] == '\r')) {
+                    scan_pos--;
                 }
-                buf[clen] = '\0';
-                *readres = clen;
+                buf[scan_pos] = '\0';
+                *readres = scan_pos;
                 return true;
             }
-            clen++;
         }
-    } while (clen < len);
+        if (*readres < to_peek) {
+            return false;
+        }
+    } while (scan_pos < len);
     return false;
 }
 
