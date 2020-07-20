@@ -40,7 +40,7 @@ typedef struct pgp_transferable_userid_t {
     list             signatures;
 
     pgp_transferable_userid_t() : uid({}), signatures(NULL){};
-    pgp_transferable_userid_t(const pgp_transferable_userid_t &src) = delete;
+    pgp_transferable_userid_t(const pgp_transferable_userid_t &src);
     pgp_transferable_userid_t(pgp_transferable_userid_t &&src) = delete;
     pgp_transferable_userid_t &operator=(pgp_transferable_userid_t &&src);
     pgp_transferable_userid_t &operator=(const pgp_transferable_userid_t &src);
@@ -62,12 +62,12 @@ typedef struct pgp_transferable_subkey_t {
 
 /* transferable key with userids, subkeys and revocation signatures */
 typedef struct pgp_transferable_key_t {
-    pgp_key_pkt_t key; /* main key packet */
-    list          userids;
-    list          subkeys;
-    list          signatures;
+    pgp_key_pkt_t                          key; /* main key packet */
+    std::vector<pgp_transferable_userid_t> userids;
+    list                                   subkeys;
+    list                                   signatures;
 
-    pgp_transferable_key_t() : key({}), userids(NULL), subkeys(NULL), signatures(NULL){};
+    pgp_transferable_key_t() : key({}), subkeys(NULL), signatures(NULL){};
     pgp_transferable_key_t(const pgp_transferable_key_t &src) = delete;
     pgp_transferable_key_t(pgp_transferable_key_t &&src);
     pgp_transferable_key_t &operator=(pgp_transferable_key_t &&src);
