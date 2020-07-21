@@ -823,11 +823,10 @@ pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig)
 {
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
         const pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
-        if (signature_pkt_equal(&subsig->sig, sig)) {
+        if (subsig->sig == *sig) {
             return true;
         }
     }
-
     return false;
 }
 
@@ -837,7 +836,7 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
     pgp_subsig_t *subsig = NULL;
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
         subsig = pgp_key_get_subsig(key, i);
-        if (signature_pkt_equal(&subsig->sig, oldsig)) {
+        if (subsig->sig == *oldsig) {
             break;
         }
         subsig = NULL;
@@ -1712,7 +1711,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
     }
     /* uid.uid.uid looks really weird */
     memcpy(uid.uid.uid, (char *) cert->userid, uid.uid.uid_len);
-    if (!transferable_userid_certify(seckey, &uid, seckey, hash_alg, cert)) {
+    if (!transferable_userid_certify(*seckey, uid, *seckey, hash_alg, *cert)) {
         RNP_LOG("failed to add userid certification");
         return false;
     }

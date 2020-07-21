@@ -1164,18 +1164,8 @@ signature_check_subkey_revocation(pgp_signature_info_t *sinfo,
     return signature_check(sinfo, &hash);
 }
 
-void
-signature_list_destroy(list *sigs)
-{
-    for (list_item *li = list_front(*sigs); li; li = list_next(li)) {
-        pgp_signature_t *sig = (pgp_signature_t *) li;
-        (*sig).~pgp_signature_t();
-    }
-    list_destroy(sigs);
-}
-
 rnp_result_t
-process_pgp_signatures(pgp_source_t *src, std::vector<pgp_signature_t> &sigs)
+process_pgp_signatures(pgp_source_t *src, pgp_signature_list_t &sigs)
 {
     bool          armored = false;
     pgp_source_t  armorsrc = {0};
@@ -1443,6 +1433,25 @@ pgp_signature_t::operator=(const pgp_signature_t &src)
     subpkts = src.subpkts;
 
     return *this;
+}
+
+bool
+pgp_signature_t::operator==(const pgp_signature_t &src) const
+{
+    if ((lbits[0] != src.lbits[0]) || (lbits[1] != src.lbits[1])) {
+        return false;
+    }
+    if ((hashed_len != src.hashed_len) || memcmp(hashed_data, src.hashed_data, hashed_len)) {
+        return false;
+    }
+    return (material_len == src.material_len) &&
+           !memcmp(material_buf, src.material_buf, material_len);
+}
+
+bool
+pgp_signature_t::operator!=(const pgp_signature_t &src) const
+{
+    return !(*this == src);
 }
 
 pgp_signature_t::~pgp_signature_t()

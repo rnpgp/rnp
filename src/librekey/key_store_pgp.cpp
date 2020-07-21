@@ -84,10 +84,10 @@ rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
 }
 
 static bool
-rnp_key_add_signatures(pgp_key_t *key, list signatures)
+rnp_key_add_signatures(pgp_key_t *key, pgp_signature_list_t &signatures)
 {
-    for (list_item *sig = list_front(signatures); sig; sig = list_next(sig)) {
-        if (!rnp_key_add_signature(key, (pgp_signature_t *) sig)) {
+    for (auto &sig : signatures) {
+        if (!rnp_key_add_signature(key, &sig)) {
             return false;
         }
     }
