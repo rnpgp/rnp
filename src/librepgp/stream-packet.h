@@ -291,8 +291,6 @@ rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 
 bool parse_signature_material(const pgp_signature_t &sig, pgp_signature_material_t &material);
 
-bool signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2);
-
 /* Public/Private key or Subkey */
 
 bool is_key_pkt(int tag);
