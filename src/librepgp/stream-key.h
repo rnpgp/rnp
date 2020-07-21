@@ -53,10 +53,10 @@ typedef struct pgp_transferable_subkey_t {
     list          signatures;
 
     pgp_transferable_subkey_t() : subkey({}), signatures(NULL){};
-    pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src) = delete;
-    pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src) = delete;
+    pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src);
+    pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src);
     pgp_transferable_subkey_t &operator=(pgp_transferable_subkey_t &&src);
-    pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &src) = delete;
+    pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &src);
     ~pgp_transferable_subkey_t();
 } pgp_transferable_subkey_t;
 
@@ -64,10 +64,10 @@ typedef struct pgp_transferable_subkey_t {
 typedef struct pgp_transferable_key_t {
     pgp_key_pkt_t                          key; /* main key packet */
     std::vector<pgp_transferable_userid_t> userids;
-    list                                   subkeys;
+    std::vector<pgp_transferable_subkey_t> subkeys;
     list                                   signatures;
 
-    pgp_transferable_key_t() : key({}), subkeys(NULL), signatures(NULL){};
+    pgp_transferable_key_t() : key({}), signatures(NULL){};
     pgp_transferable_key_t(const pgp_transferable_key_t &src) = delete;
     pgp_transferable_key_t(pgp_transferable_key_t &&src);
     pgp_transferable_key_t &operator=(pgp_transferable_key_t &&src);
