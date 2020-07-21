@@ -244,7 +244,7 @@ copy_recursively(const char *src, const char *dst)
     // TODO: maybe use fts or something less hacky
     char buf[2048];
 #ifndef _WIN32
-    snprintf(buf, sizeof(buf), "/bin/cp -a '%s' '%s'", src, dst);
+    snprintf(buf, sizeof(buf), "cp -a '%s' '%s'", src, dst);
 #else
     snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /I /Q /E /Y", src, dst);
 #endif
