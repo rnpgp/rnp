@@ -378,19 +378,19 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
         goto end;
     }
 
-    uid = transferable_key_add_userid(&tkeysec, (char *) desc->cert.userid);
+    uid = transferable_key_add_userid(tkeysec, (char *) desc->cert.userid);
     if (!uid) {
         RNP_LOG("failed to add userid");
         goto end;
     }
 
     if (!transferable_userid_certify(
-          &tkeysec.key, uid, &tkeysec.key, desc->crypto.hash_alg, &desc->cert)) {
+          tkeysec.key, *uid, tkeysec.key, desc->crypto.hash_alg, desc->cert)) {
         RNP_LOG("failed to certify key");
         goto end;
     }
 
-    if (!transferable_key_copy(&tkeypub, &tkeysec, true)) {
+    if (!transferable_key_copy(tkeypub, tkeysec, true)) {
         RNP_LOG("failed to copy public key part");
         goto end;
     }
@@ -514,12 +514,12 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     }
 
     if (!transferable_subkey_bind(
-          primary_seckey, &tskeysec, desc->crypto.hash_alg, &desc->binding)) {
+          *primary_seckey, tskeysec, desc->crypto.hash_alg, desc->binding)) {
         RNP_LOG("failed to add subkey binding signature");
         goto end;
     }
 
-    if (!transferable_subkey_copy(&tskeypub, &tskeysec, true)) {
+    if (!transferable_subkey_copy(tskeypub, tskeysec, true)) {
         RNP_LOG("failed to copy public subkey part");
         goto end;
     }

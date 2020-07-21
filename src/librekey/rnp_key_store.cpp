@@ -249,12 +249,12 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
         return false;
     }
 
-    if (transferable_subkey_from_key(&dstkey, dst)) {
+    if (transferable_subkey_from_key(dstkey, *dst)) {
         RNP_LOG("failed to get transferable key from dstkey");
         return false;
     }
 
-    if (transferable_subkey_from_key(&srckey, src)) {
+    if (transferable_subkey_from_key(srckey, *src)) {
         RNP_LOG("failed to get transferable key from srckey");
         return false;
     }
@@ -266,7 +266,7 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
         srckey.subkey = tmp;
     }
 
-    if (transferable_subkey_merge(&dstkey, &srckey)) {
+    if (transferable_subkey_merge(dstkey, srckey)) {
         RNP_LOG("failed to merge transferable subkeys");
         return false;
     }
@@ -307,12 +307,12 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         return false;
     }
 
-    if (transferable_key_from_key(&dstkey, dst)) {
+    if (transferable_key_from_key(dstkey, *dst)) {
         RNP_LOG("failed to get transferable key from dstkey");
         return false;
     }
 
-    if (transferable_key_from_key(&srckey, src)) {
+    if (transferable_key_from_key(srckey, *src)) {
         RNP_LOG("failed to get transferable key from srckey");
         return false;
     }
@@ -325,7 +325,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         /* no subkey processing here - they are separated from the main key */
     }
 
-    if (transferable_key_merge(&dstkey, &srckey)) {
+    if (transferable_key_merge(dstkey, srckey)) {
         RNP_LOG("failed to merge transferable keys");
         return false;
     }

@@ -1819,20 +1819,6 @@ stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig)
 }
 
 bool
-signature_pkt_equal(const pgp_signature_t *sig1, const pgp_signature_t *sig2)
-{
-    if (memcmp(sig1->lbits, sig2->lbits, 2)) {
-        return false;
-    }
-    if ((sig1->hashed_len != sig2->hashed_len) ||
-        memcmp(sig1->hashed_data, sig2->hashed_data, sig1->hashed_len)) {
-        return false;
-    }
-    return (sig1->material_len == sig2->material_len) &&
-           !memcmp(sig1->material_buf, sig2->material_buf, sig1->material_len);
-}
-
-bool
 is_key_pkt(int tag)
 {
     switch (tag) {
