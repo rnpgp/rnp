@@ -174,9 +174,8 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     }
 
     /* add subkeys */
-    for (list_item *skey = list_front(tkey->subkeys); skey; skey = list_next(skey)) {
-        pgp_transferable_subkey_t *subkey = (pgp_transferable_subkey_t *) skey;
-        if (!rnp_key_store_add_transferable_subkey(keyring, subkey, addkey)) {
+    for (auto &subkey : tkey->subkeys) {
+        if (!rnp_key_store_add_transferable_subkey(keyring, &subkey, addkey)) {
             RNP_LOG("Failed to add subkey to key store.");
             goto error;
         }
