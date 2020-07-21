@@ -131,7 +131,8 @@ RNP_TO_GPG_CIPHERS = {'AES' : 'aes128', 'AES192' : 'aes192', 'AES256' : 'aes256'
                       'BLOWFISH' : 'blowfish'}
 
 def check_packets(fname, regexp):
-    ret, output, err = run_proc(GPG, ['--list-packets', path_for_gpg(fname)])
+    ret, output, err = run_proc(GPG, ['--homedir', '.',
+                                      '--list-packets', path_for_gpg(fname)])
     if ret != 0:
         logging.error(err)
         return None
