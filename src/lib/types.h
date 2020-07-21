@@ -319,6 +319,8 @@ typedef struct pgp_signature_t {
     pgp_signature_t(pgp_signature_t &&src);
     pgp_signature_t &operator=(pgp_signature_t &&src);
     pgp_signature_t &operator=(const pgp_signature_t &src);
+    bool             operator==(const pgp_signature_t &src) const;
+    bool             operator!=(const pgp_signature_t &src) const;
     ~pgp_signature_t();
 } pgp_signature_t;
 

@@ -45,6 +45,8 @@ typedef struct pgp_signature_info_t {
     bool             ignore_expiry; /* ignore signer's key expiration time */
 } pgp_signature_info_t;
 
+typedef std::vector<pgp_signature_t> pgp_signature_list_t;
+
 /**
  * @brief Check whether signature packet matches one-pass signature packet.
  * @param sig pointer to the read signature packet
@@ -354,13 +356,6 @@ rnp_result_t signature_check_subkey_revocation(pgp_signature_info_t *sinfo,
                                                const pgp_key_pkt_t * subkey);
 
 /**
- * @brief Destroy list of pgp_signature_t structures.
- *
- * @param sigs list of signatures, can be NULL.
- */
-void signature_list_destroy(list *sigs);
-
-/**
  * @brief Parse stream with signatures to the signatures list.
  *        Can handle binary or armored stream with signatures, including stream with multiple
  * armored signatures.
@@ -369,6 +364,6 @@ void signature_list_destroy(list *sigs);
  * @param sigs on success parsed signature structures will be put here.
  * @return RNP_SUCCESS or error code otherwise.
  */
-rnp_result_t process_pgp_signatures(pgp_source_t *src, std::vector<pgp_signature_t> &sigs);
+rnp_result_t process_pgp_signatures(pgp_source_t *src, pgp_signature_list_t &sigs);
 
 #endif
