@@ -1494,11 +1494,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t                 ret = RNP_ERROR_GENERIC;
-    json_object *                jsores = NULL;
-    json_object *                jsosigs = NULL;
-    std::vector<pgp_signature_t> sigs;
-    rnp_result_t                 sigret = process_pgp_signatures(&input->src, sigs);
+    rnp_result_t         ret = RNP_ERROR_GENERIC;
+    json_object *        jsores = NULL;
+    json_object *        jsosigs = NULL;
+    pgp_signature_list_t sigs;
+    rnp_result_t         sigret = process_pgp_signatures(&input->src, sigs);
     if (sigret) {
         ret = sigret;
         FFI_LOG(ffi, "failed to parse signature(s)");
@@ -3767,7 +3767,7 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         return RNP_ERROR_BAD_PASSWORD;
     }
     *sig =
-      transferable_key_revoke(pgp_key_get_pkt(key), pgp_key_get_pkt(revoker), halg, &revinfo);
+      transferable_key_revoke(*pgp_key_get_pkt(key), *pgp_key_get_pkt(revoker), halg, revinfo);
     if (!*sig) {
         FFI_LOG(ffi, "Failed to generate revocation signature");
     }

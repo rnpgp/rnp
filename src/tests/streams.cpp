@@ -923,13 +923,13 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
 TEST_F(rnp_tests, test_stream_key_encrypt)
 {
-    pgp_source_t               keysrc = {0};
-    pgp_dest_t                 keydst = {0};
-    uint8_t                    keybuf[16384];
-    size_t                     keylen;
-    pgp_key_sequence_t         keyseq;
-    pgp_key_sequence_t         keyseq2;
-    rng_t                      rng;
+    pgp_source_t       keysrc = {0};
+    pgp_dest_t         keydst = {0};
+    uint8_t            keybuf[16384];
+    size_t             keylen;
+    pgp_key_sequence_t keyseq;
+    pgp_key_sequence_t keyseq2;
+    rng_t              rng;
 
     /* we need rng for key encryption */
     assert_true(rng_init(&rng, RNG_SYSTEM));
@@ -954,7 +954,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
-        assert_rnp_success(write_pgp_key(&key, &keydst, false));
+        assert_rnp_success(write_pgp_key(key, &keydst, false));
         keylen = keydst.writeb;
         dst_close(&keydst, false);
         /* load and decrypt changed key */
@@ -979,7 +979,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
-        assert_rnp_success(write_pgp_key(&key2, &keydst, false));
+        assert_rnp_success(write_pgp_key(key2, &keydst, false));
         keylen = keydst.writeb;
         dst_close(&keydst, false);
         /* load non-encrypted key */
@@ -1025,7 +1025,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_non_null(uid = &key->userids.front());
-    assert_non_null(sig = (pgp_signature_t *) list_front(uid->signatures));
+    assert_non_null(sig = &uid->signatures.front());
     assert_true(signature_get_keyid(sig, keyid));
     assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
     /* check certification signature */
@@ -1050,29 +1050,29 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 
         for (auto &uid : key->userids) {
             /* userid certifications */
-            for (list_item *sli = list_front(uid.signatures); sli; sli = list_next(sli)) {
-                sig = (pgp_signature_t *) sli;
-
-                assert_true(signature_get_keyid(sig, keyid));
+            for (auto &sig : uid.signatures) {
+                assert_true(signature_get_keyid(&sig, keyid));
                 assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
                 /* high level interface */
-                sinfo.sig = sig;
+                sinfo.sig = &sig;
                 sinfo.signer = pkey;
                 assert_rnp_success(signature_check_certification(&sinfo, &key->key, &uid.uid));
                 /* low level check */
-                assert_true(signature_hash_certification(sig, &key->key, &uid.uid, &hash));
-                assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
+                assert_true(signature_hash_certification(&sig, &key->key, &uid.uid, &hash));
+                assert_rnp_success(
+                  signature_validate(&sig, pgp_key_get_material(pkey), &hash));
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
                 assert_rnp_failure(signature_check_certification(&sinfo, &key->key, &uid.uid));
-                assert_true(signature_hash_certification(sig, &key->key, &uid.uid, &hash));
-                assert_rnp_failure(signature_validate(sig, pgp_key_get_material(pkey), &hash));
+                assert_true(signature_hash_certification(&sig, &key->key, &uid.uid, &hash));
+                assert_rnp_failure(
+                  signature_validate(&sig, pgp_key_get_material(pkey), &hash));
             }
         }
 
         /* subkey binding signatures */
-        for (auto &subkey: key->subkeys) {
-            sig = (pgp_signature_t *) list_front(subkey.signatures);
+        for (auto &subkey : key->subkeys) {
+            sig = &subkey.signatures.front();
             assert_non_null(sig);
             assert_true(signature_get_keyid(sig, keyid));
             assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
