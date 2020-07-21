@@ -414,9 +414,35 @@ get_map_value(const pgp_map_t *map, size_t msize, int val, char **res)
     return RNP_SUCCESS;
 }
 
+static uint32_t
+ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ERROR_GENERIC)
+{
+    if (rnp_log_switch()) {
+        fprintf(
+          fp, "[%s()] Error 0x%08X (%s): %s\n", func, ret, rnp_result_to_string(ret), msg);
+    }
+    return ret;
+}
+
+#define FFI_GUARD_FP(fp)                                                            \
+    catch (std::bad_alloc &)                                                        \
+    {                                                                               \
+        return ffi_exception((fp), __func__, "bad_alloc", RNP_ERROR_OUT_OF_MEMORY); \
+    }                                                                               \
+    catch (std::exception & e)                                                      \
+    {                                                                               \
+        return ffi_exception((fp), __func__, e.what());                             \
+    }                                                                               \
+    catch (...)                                                                     \
+    {                                                                               \
+        return ffi_exception((fp), __func__, "unknown exception");                  \
+    }
+
+#define FFI_GUARD FFI_GUARD_FP((stderr))
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
-{
+try {
     struct rnp_ffi_st *ob = NULL;
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
@@ -464,6 +490,7 @@ done:
     *ffi = ob;
     return ret;
 }
+FFI_GUARD
 
 static bool
 is_std_file(FILE *fp)
@@ -482,7 +509,7 @@ close_io_file(FILE **fp)
 
 rnp_result_t
 rnp_ffi_destroy(rnp_ffi_t ffi)
-{
+try {
     if (ffi) {
         close_io_file(&ffi->errs);
         delete ffi->pubring;
@@ -492,10 +519,11 @@ rnp_ffi_destroy(rnp_ffi_t ffi)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd)
-{
+try {
     FILE *errs = NULL;
 
     // checks
@@ -514,10 +542,11 @@ rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd)
     ffi->errs = errs;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_ffi_set_key_provider(rnp_ffi_t ffi, rnp_get_key_cb getkeycb, void *getkeycb_ctx)
-{
+try {
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -525,10 +554,11 @@ rnp_ffi_set_key_provider(rnp_ffi_t ffi, rnp_get_key_cb getkeycb, void *getkeycb_
     ffi->getkeycb_ctx = getkeycb_ctx;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_ffi_set_pass_provider(rnp_ffi_t ffi, rnp_password_cb getpasscb, void *getpasscb_ctx)
-{
+try {
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -536,6 +566,7 @@ rnp_ffi_set_pass_provider(rnp_ffi_t ffi, rnp_password_cb getpasscb, void *getpas
     ffi->getpasscb_ctx = getpasscb_ctx;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static const char *
 operation_description(uint8_t op)
@@ -707,20 +738,22 @@ rnp_version_commit_timestamp()
 
 rnp_result_t
 rnp_enable_debug(const char *file)
-{
+try {
     return rnp_set_debug(file) ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_disable_debug()
-{
+try {
     rnp_clear_debug();
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_get_default_homedir(char **homedir)
-{
+try {
     // checks
     if (!homedir) {
         return RNP_ERROR_NULL_POINTER;
@@ -736,11 +769,12 @@ rnp_get_default_homedir(char **homedir)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_detect_homedir_info(
   const char *homedir, char **pub_format, char **pub_path, char **sec_format, char **sec_path)
-{
+try {
     rnp_result_t ret = RNP_ERROR_GENERIC;
     char *       path = NULL;
     size_t       path_size = 0;
@@ -832,10 +866,11 @@ done:
     free(path);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
-{
+try {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     // checks
@@ -875,10 +910,11 @@ rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
 done:
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations)
-{
+try {
     if (!hash || !iterations) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -890,10 +926,11 @@ rnp_calculate_iterations(const char *hash, size_t msec, size_t *iterations)
     *iterations = pgp_s2k_compute_iters(halg, msec, 0);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_supports_feature(const char *type, const char *name, bool *supported)
-{
+try {
     if (!type || !name || !supported) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -923,6 +960,7 @@ rnp_supports_feature(const char *type, const char *name, bool *supported)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 json_array_add_map_str(json_object *arr, const pgp_map_t *map, int from, int to)
@@ -945,7 +983,7 @@ json_array_add_map_str(json_object *arr, const pgp_map_t *map, int from, int to)
 
 rnp_result_t
 rnp_supported_features(const char *type, char **result)
-{
+try {
     if (!type || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1005,6 +1043,7 @@ done:
     json_object_put(features);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, char **password)
@@ -1194,7 +1233,7 @@ flags_to_key_type(uint32_t *flags)
 
 rnp_result_t
 rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t flags)
-{
+try {
     // checks
     if (!ffi || !format || !input) {
         return RNP_ERROR_NULL_POINTER;
@@ -1217,10 +1256,11 @@ rnp_load_keys(rnp_ffi_t ffi, const char *format, rnp_input_t input, uint32_t fla
     }
     return do_load_keys(ffi, input, ks_format, type);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags)
-{
+try {
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1238,6 +1278,7 @@ rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags)
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static const char *
 key_status_to_str(pgp_key_import_status_t status)
@@ -1278,7 +1319,7 @@ add_key_status(json_object *           keys,
 
 rnp_result_t
 rnp_import_keys(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results)
-{
+try {
     if (!ffi || !input) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1394,6 +1435,7 @@ done:
     json_object_put(jsores);
     return ret;
 }
+FFI_GUARD
 
 static const char *
 sig_status_to_str(pgp_sig_import_status_t status)
@@ -1443,7 +1485,7 @@ add_sig_status(json_object *           sigs,
 
 rnp_result_t
 rnp_import_signatures(rnp_ffi_t ffi, rnp_input_t input, uint32_t flags, char **results)
-{
+try {
     if (!ffi || !input) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1505,6 +1547,7 @@ done:
     json_object_put(jsores);
     return ret;
 }
+FFI_GUARD
 
 static bool
 copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
@@ -1590,7 +1633,7 @@ done:
 
 rnp_result_t
 rnp_save_keys(rnp_ffi_t ffi, const char *format, rnp_output_t output, uint32_t flags)
-{
+try {
     // checks
     if (!ffi || !format || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -1612,30 +1655,33 @@ rnp_save_keys(rnp_ffi_t ffi, const char *format, rnp_output_t output, uint32_t f
     }
     return do_save_keys(ffi, output, ks_format, type);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_get_public_key_count(rnp_ffi_t ffi, size_t *count)
-{
+try {
     if (!ffi || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
     *count = rnp_key_store_get_key_count(ffi->pubring);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count)
-{
+try {
     if (!ffi || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
     *count = rnp_key_store_get_key_count(ffi->secring);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_input_from_path(rnp_input_t *input, const char *path)
-{
+try {
     struct rnp_input_st *ob = NULL;
     struct stat          st = {0};
 
@@ -1666,10 +1712,11 @@ rnp_input_from_path(rnp_input_t *input, const char *path)
     *input = ob;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, bool do_copy)
-{
+try {
     if (!input || !buf) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1698,6 +1745,7 @@ rnp_input_from_memory(rnp_input_t *input, const uint8_t buf[], size_t buf_len, b
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static bool
 input_reader_bounce(pgp_source_t *src, void *buf, size_t len, size_t *read)
@@ -1723,7 +1771,7 @@ rnp_input_from_callback(rnp_input_t *       input,
                         rnp_input_reader_t *reader,
                         rnp_input_closer_t *closer,
                         void *              app_ctx)
-{
+try {
     struct rnp_input_st *obj = NULL;
 
     // checks
@@ -1749,10 +1797,11 @@ rnp_input_from_callback(rnp_input_t *       input,
     *input = obj;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_input_destroy(rnp_input_t input)
-{
+try {
     if (input) {
         src_close(&input->src);
         free(input->src_directory);
@@ -1760,10 +1809,11 @@ rnp_input_destroy(rnp_input_t input)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_to_path(rnp_output_t *output, const char *path)
-{
+try {
     struct rnp_output_st *ob = NULL;
     struct stat           st = {0};
 
@@ -1792,10 +1842,11 @@ rnp_output_to_path(rnp_output_t *output, const char *path)
     *output = ob;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_to_file(rnp_output_t *output, const char *path, uint32_t flags)
-{
+try {
     if (!output || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1829,10 +1880,11 @@ rnp_output_to_file(rnp_output_t *output, const char *path, uint32_t flags)
     *output = res;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
-{
+try {
     // checks
     if (!output) {
         return RNP_ERROR_NULL_POINTER;
@@ -1850,10 +1902,11 @@ rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_to_armor(rnp_output_t base, rnp_output_t *output, const char *type)
-{
+try {
     if (!base || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1879,10 +1932,11 @@ rnp_output_to_armor(rnp_output_t base, rnp_output_t *output, const char *type)
     (*output)->app_ctx = base;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool do_copy)
-{
+try {
     if (!output || !buf || !len) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1902,6 +1956,7 @@ rnp_output_memory_get_buf(rnp_output_t output, uint8_t **buf, size_t *len, bool 
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 output_writer_bounce(pgp_dest_t *dst, const void *buf, size_t len)
@@ -1927,7 +1982,7 @@ output_closer_bounce(pgp_dest_t *dst, bool discard)
 
 rnp_result_t
 rnp_output_to_null(rnp_output_t *output)
-{
+try {
     // checks
     if (!output) {
         return RNP_ERROR_NULL_POINTER;
@@ -1945,10 +2000,11 @@ rnp_output_to_null(rnp_output_t *output)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_write(rnp_output_t output, const void *data, size_t size, size_t *written)
-{
+try {
     if (!output || (!data && size)) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1966,13 +2022,14 @@ rnp_output_write(rnp_output_t output, const void *data, size_t size, size_t *wri
     output->keep = !output->dst.werr;
     return output->dst.werr;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_to_callback(rnp_output_t *       output,
                        rnp_output_writer_t *writer,
                        rnp_output_closer_t *closer,
                        void *               app_ctx)
-{
+try {
     // checks
     if (!output || !writer) {
         return RNP_ERROR_NULL_POINTER;
@@ -1995,19 +2052,21 @@ rnp_output_to_callback(rnp_output_t *       output,
     dst->werr = RNP_SUCCESS;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_finish(rnp_output_t output)
-{
+try {
     if (!output) {
         return RNP_ERROR_NULL_POINTER;
     }
     return dst_finish(&output->dst);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_destroy(rnp_output_t output)
-{
+try {
     if (output) {
         if (output->dst.type == PGP_STREAM_ARMORED) {
             ((rnp_output_t) output->app_ctx)->keep = output->keep;
@@ -2018,6 +2077,7 @@ rnp_output_destroy(rnp_output_t output)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 rnp_op_add_signature(rnp_ffi_t                ffi,
@@ -2160,7 +2220,7 @@ rnp_op_encrypt_create(rnp_op_encrypt_t *op,
                       rnp_ffi_t         ffi,
                       rnp_input_t       input,
                       rnp_output_t      output)
-{
+try {
     // checks
     if (!op || !ffi || !input || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -2177,10 +2237,11 @@ rnp_op_encrypt_create(rnp_op_encrypt_t *op,
     (*op)->output = output;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t handle)
-{
+try {
     // checks
     if (!op || !handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -2195,44 +2256,49 @@ rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t handle)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
                              rnp_key_handle_t         key,
                              rnp_op_sign_signature_t *sig)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_hash(rnp_op_encrypt_t op, const char *hash)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_creation_time(rnp_op_encrypt_t op, uint32_t create)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_creation_time(&op->rnpctx, create);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_expiration_time(rnp_op_encrypt_t op, uint32_t expire)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
@@ -2240,7 +2306,7 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
                             const char *     s2k_hash,
                             size_t           iterations,
                             const char *     s2k_cipher)
-{
+try {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
@@ -2286,20 +2352,22 @@ rnp_op_encrypt_add_password(rnp_op_encrypt_t op,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_armor(rnp_op_encrypt_t op, bool armored)
-{
+try {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_armor(&op->rnpctx, armored);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
-{
+try {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
@@ -2310,10 +2378,11 @@ rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
-{
+try {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
@@ -2324,10 +2393,11 @@ rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2337,34 +2407,38 @@ rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits)
     op->rnpctx.abits = bits;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_compression(rnp_op_encrypt_t op, const char *compression, int level)
-{
+try {
     // checks
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_file_name(&op->rnpctx, filename);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
+FFI_GUARD
 
 static pgp_write_handler_t
 pgp_write_handler(pgp_password_provider_t *pass_provider,
@@ -2413,7 +2487,7 @@ rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
 
 rnp_result_t
 rnp_op_encrypt_execute(rnp_op_encrypt_t op)
-{
+try {
     // checks
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
@@ -2442,10 +2516,11 @@ rnp_op_encrypt_execute(rnp_op_encrypt_t op)
     op->output = NULL;
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
-{
+try {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
         rnp_op_signatures_destroy(&op->signatures);
@@ -2453,10 +2528,11 @@ rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
-{
+try {
     // checks
     if (!op || !ffi || !input || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -2473,45 +2549,49 @@ rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_outp
     (*op)->output = output;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_cleartext_create(rnp_op_sign_t *op,
                              rnp_ffi_t      ffi,
                              rnp_input_t    input,
                              rnp_output_t   output)
-{
+try {
     rnp_result_t res = rnp_op_sign_create(op, ffi, input, output);
     if (!res) {
         (*op)->rnpctx.clearsign = true;
     }
     return res;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_detached_create(rnp_op_sign_t *op,
                             rnp_ffi_t      ffi,
                             rnp_input_t    input,
                             rnp_output_t   signature)
-{
+try {
     rnp_result_t res = rnp_op_sign_create(op, ffi, input, signature);
     if (!res) {
         (*op)->rnpctx.detached = true;
     }
     return res;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_add_signature(rnp_op_sign_t op, rnp_key_handle_t key, rnp_op_sign_signature_t *sig)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
-{
+try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2522,10 +2602,11 @@ rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
     sig->hash_set = true;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig, uint32_t create)
-{
+try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2533,10 +2614,11 @@ rnp_op_sign_signature_set_creation_time(rnp_op_sign_signature_t sig, uint32_t cr
     sig->create_set = true;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t expires)
-{
+try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2544,73 +2626,81 @@ rnp_op_sign_signature_set_expiration_time(rnp_op_sign_signature_t sig, uint32_t 
     sig->expiry_set = true;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_armor(rnp_op_sign_t op, bool armored)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_armor(&op->rnpctx, armored);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_compression(rnp_op_sign_t op, const char *compression, int level)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_creation_time(&op->rnpctx, create);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_expiration_time(rnp_op_sign_t op, uint32_t expire)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_expiration_time(&op->rnpctx, expire);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *filename)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_file_name(&op->rnpctx, filename);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_file_mtime(&op->rnpctx, mtime);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_execute(rnp_op_sign_t op)
-{
+try {
     // checks
     if (!op || !op->input || !op->output) {
         return RNP_ERROR_NULL_POINTER;
@@ -2635,10 +2725,11 @@ rnp_op_sign_execute(rnp_op_sign_t op)
     op->output = NULL;
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_sign_destroy(rnp_op_sign_t op)
-{
+try {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
         rnp_op_signatures_destroy(&op->signatures);
@@ -2646,6 +2737,7 @@ rnp_op_sign_destroy(rnp_op_sign_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static void
 rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void *param)
@@ -2813,7 +2905,7 @@ rnp_op_verify_create(rnp_op_verify_t *op,
                      rnp_ffi_t        ffi,
                      rnp_input_t      input,
                      rnp_output_t     output)
-{
+try {
     if (!op || !ffi || !input) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2830,13 +2922,14 @@ rnp_op_verify_create(rnp_op_verify_t *op,
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_detached_create(rnp_op_verify_t *op,
                               rnp_ffi_t        ffi,
                               rnp_input_t      input,
                               rnp_input_t      signature)
-{
+try {
     if (!op || !ffi || !input || !signature) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2854,10 +2947,11 @@ rnp_op_verify_detached_create(rnp_op_verify_t *op,
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
-{
+try {
     pgp_parse_handler_t handler;
 
     handler.password_provider = &op->ffi->pass_provider;
@@ -2879,10 +2973,11 @@ rnp_op_verify_execute(rnp_op_verify_t op)
     }
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count)
-{
+try {
     if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2890,10 +2985,11 @@ rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count)
     *count = op->signature_count;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_signature_t *sig)
-{
+try {
     if (!op || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2904,10 +3000,11 @@ rnp_op_verify_get_signature_at(rnp_op_verify_t op, size_t idx, rnp_op_verify_sig
     *sig = &op->signatures[idx];
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime)
-{
+try {
     if (mtime) {
         *mtime = op->file_mtime;
     }
@@ -2920,6 +3017,7 @@ rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static const char *
 get_protection_mode(rnp_op_verify_t op)
@@ -2956,7 +3054,7 @@ get_protection_cipher(rnp_op_verify_t op)
 
 rnp_result_t
 rnp_op_verify_get_protection_info(rnp_op_verify_t op, char **mode, char **cipher, bool *valid)
-{
+try {
     if (!op || (!mode && !cipher && !valid)) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -2978,32 +3076,35 @@ rnp_op_verify_get_protection_info(rnp_op_verify_t op, char **mode, char **cipher
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_recipient_count(rnp_op_verify_t op, size_t *count)
-{
+try {
     if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
     *count = op->recipient_count;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_used_recipient(rnp_op_verify_t op, rnp_recipient_handle_t *recipient)
-{
+try {
     if (!op || !recipient) {
         return RNP_ERROR_NULL_POINTER;
     }
     *recipient = op->used_recipient;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_recipient_at(rnp_op_verify_t         op,
                                size_t                  idx,
                                rnp_recipient_handle_t *recipient)
-{
+try {
     if (!op || !recipient) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3013,10 +3114,11 @@ rnp_op_verify_get_recipient_at(rnp_op_verify_t         op,
     *recipient = &op->recipients[idx];
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_recipient_get_keyid(rnp_recipient_handle_t recipient, char **keyid)
-{
+try {
     if (!recipient || !keyid) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3024,39 +3126,43 @@ rnp_recipient_get_keyid(rnp_recipient_handle_t recipient, char **keyid)
                   "rnp_recipient_handle_t.keyid size mismatch");
     return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_recipient_get_alg(rnp_recipient_handle_t recipient, char **alg)
-{
+try {
     if (!recipient || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), recipient->palg, alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_symenc_count(rnp_op_verify_t op, size_t *count)
-{
+try {
     if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
     *count = op->symenc_count;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_used_symenc(rnp_op_verify_t op, rnp_symenc_handle_t *symenc)
-{
+try {
     if (!op || !symenc) {
         return RNP_ERROR_NULL_POINTER;
     }
     *symenc = op->used_symenc;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_get_symenc_at(rnp_op_verify_t op, size_t idx, rnp_symenc_handle_t *symenc)
-{
+try {
     if (!op || !symenc) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3066,56 +3172,62 @@ rnp_op_verify_get_symenc_at(rnp_op_verify_t op, size_t idx, rnp_symenc_handle_t 
     *symenc = &op->symencs[idx];
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_symenc_get_cipher(rnp_symenc_handle_t symenc, char **cipher)
-{
+try {
     if (!symenc || !cipher) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(symm_alg_map, ARRAY_SIZE(symm_alg_map), symenc->alg, cipher);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_symenc_get_aead_alg(rnp_symenc_handle_t symenc, char **alg)
-{
+try {
     if (!symenc || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(aead_alg_map, ARRAY_SIZE(aead_alg_map), symenc->aalg, alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_symenc_get_hash_alg(rnp_symenc_handle_t symenc, char **alg)
-{
+try {
     if (!symenc || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), symenc->halg, alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_symenc_get_s2k_type(rnp_symenc_handle_t symenc, char **type)
-{
+try {
     if (!symenc || !type) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(s2k_type_map, ARRAY_SIZE(s2k_type_map), symenc->s2k_type, type);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_symenc_get_s2k_iterations(rnp_symenc_handle_t symenc, uint32_t *iterations)
-{
+try {
     if (!symenc || !iterations) {
         return RNP_ERROR_NULL_POINTER;
     }
     *iterations = symenc->iterations;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_destroy(rnp_op_verify_t op)
-{
+try {
     if (op) {
         rnp_ctx_free(&op->rnpctx);
         for (size_t i = 0; i < op->signature_count; i++) {
@@ -3131,20 +3243,22 @@ rnp_op_verify_destroy(rnp_op_verify_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
-{
+try {
     if (!sig) {
         return RNP_ERROR_NULL_POINTER;
     }
     return sig->verify_status;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
                                    rnp_signature_handle_t *  handle)
-{
+try {
     if (!sig || !handle) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3174,19 +3288,21 @@ rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
     (*handle)->own_sig = true;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig, char **hash)
-{
+try {
     if (!sig || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
     return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), sig->sig_pkt.halg, hash);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
-{
+try {
     rnp_ffi_t        ffi = sig->ffi;
     pgp_key_search_t search = {};
 
@@ -3214,12 +3330,13 @@ rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t 
     *key = handle;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
                                   uint32_t *                create,
                                   uint32_t *                expires)
-{
+try {
     if (create) {
         *create = signature_get_creation(&sig->sig_pkt);
     }
@@ -3229,6 +3346,7 @@ rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static bool
 rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
@@ -3243,7 +3361,7 @@ rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
 
 rnp_result_t
 rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
-{
+try {
     rnp_ctx_t rnpctx;
 
     // checks
@@ -3265,6 +3383,7 @@ rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
     output->keep = (ret == RNP_SUCCESS);
     return ret;
 }
+FFI_GUARD
 
 static rnp_result_t
 str_to_locator(rnp_ffi_t         ffi,
@@ -3383,7 +3502,7 @@ rnp_locate_key(rnp_ffi_t         ffi,
                const char *      identifier_type,
                const char *      identifier,
                rnp_key_handle_t *handle)
-{
+try {
     // checks
     if (!ffi || !identifier_type || !identifier || !handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -3415,10 +3534,11 @@ rnp_locate_key(rnp_ffi_t         ffi,
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
-{
+try {
     pgp_dest_t *     dst = NULL;
     pgp_dest_t       armordst = {};
     pgp_key_t *      key = NULL;
@@ -3513,6 +3633,7 @@ rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
     output->keep = true;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static pgp_key_t *
 find_encrypting_subkey(rnp_ffi_t ffi, const pgp_key_t &primary)
@@ -3539,7 +3660,7 @@ rnp_key_export_autocrypt(rnp_key_handle_t key,
                          const char *     uid,
                          rnp_output_t     output,
                          uint32_t         flags)
-{
+try {
     if (!key || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3594,6 +3715,7 @@ rnp_key_export_autocrypt(rnp_key_handle_t key,
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static pgp_key_t *
 rnp_key_get_revoker(rnp_key_handle_t key)
@@ -3668,7 +3790,7 @@ rnp_key_export_revocation(rnp_key_handle_t key,
                           const char *     hash,
                           const char *     code,
                           const char *     reason)
-{
+try {
     if (!key || !key->ffi || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3700,11 +3822,12 @@ rnp_key_export_revocation(rnp_key_handle_t key,
     free(sig);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_revoke(
   rnp_key_handle_t key, uint32_t flags, const char *hash, const char *code, const char *reason)
-{
+try {
     if (!key || !key->ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3745,10 +3868,11 @@ rnp_key_revoke(
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
-{
+try {
     if (!key || !key->ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -3798,6 +3922,7 @@ rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static bool
 pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
@@ -4216,7 +4341,7 @@ done:
 
 rnp_result_t
 rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results)
-{
+try {
     rnp_result_t        ret = RNP_ERROR_GENERIC;
     json_object *       jso = NULL;
     rnp_action_keygen_t keygen_desc = {};
@@ -4458,6 +4583,7 @@ done:
     pgp_free_user_prefs(&keygen_desc.primary.keygen.cert.prefs);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_ex(rnp_ffi_t         ffi,
@@ -4470,7 +4596,7 @@ rnp_generate_key_ex(rnp_ffi_t         ffi,
                     const char *      userid,
                     const char *      password,
                     rnp_key_handle_t *key)
-{
+try {
     rnp_op_generate_t op = NULL;
     rnp_op_generate_t subop = NULL;
     rnp_key_handle_t  primary = NULL;
@@ -4548,6 +4674,7 @@ done:
     rnp_op_generate_destroy(subop);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_rsa(rnp_ffi_t         ffi,
@@ -4556,7 +4683,7 @@ rnp_generate_key_rsa(rnp_ffi_t         ffi,
                      const char *      userid,
                      const char *      password,
                      rnp_key_handle_t *key)
-{
+try {
     return rnp_generate_key_ex(ffi,
                                RNP_ALGNAME_RSA,
                                subbits ? RNP_ALGNAME_RSA : NULL,
@@ -4568,6 +4695,7 @@ rnp_generate_key_rsa(rnp_ffi_t         ffi,
                                password,
                                key);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
@@ -4576,7 +4704,7 @@ rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
                         const char *      userid,
                         const char *      password,
                         rnp_key_handle_t *key)
-{
+try {
     return rnp_generate_key_ex(ffi,
                                RNP_ALGNAME_DSA,
                                subbits ? RNP_ALGNAME_ELGAMAL : NULL,
@@ -4588,6 +4716,7 @@ rnp_generate_key_dsa_eg(rnp_ffi_t         ffi,
                                password,
                                key);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_ec(rnp_ffi_t         ffi,
@@ -4595,17 +4724,18 @@ rnp_generate_key_ec(rnp_ffi_t         ffi,
                     const char *      userid,
                     const char *      password,
                     rnp_key_handle_t *key)
-{
+try {
     return rnp_generate_key_ex(
       ffi, RNP_ALGNAME_ECDSA, RNP_ALGNAME_ECDH, 0, 0, curve, curve, userid, password, key);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_25519(rnp_ffi_t         ffi,
                        const char *      userid,
                        const char *      password,
                        rnp_key_handle_t *key)
-{
+try {
     return rnp_generate_key_ex(ffi,
                                RNP_ALGNAME_EDDSA,
                                RNP_ALGNAME_ECDH,
@@ -4617,16 +4747,18 @@ rnp_generate_key_25519(rnp_ffi_t         ffi,
                                password,
                                key);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_generate_key_sm2(rnp_ffi_t         ffi,
                      const char *      userid,
                      const char *      password,
                      rnp_key_handle_t *key)
-{
+try {
     return rnp_generate_key_ex(
       ffi, RNP_ALGNAME_SM2, RNP_ALGNAME_SM2, 0, 0, NULL, NULL, userid, password, key);
 }
+FFI_GUARD
 
 static pgp_key_flags_t
 default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
@@ -4650,7 +4782,7 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
 
 rnp_result_t
 rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg)
-{
+try {
     pgp_pubkey_alg_t key_alg = PGP_PKA_NOTHING;
 
     if (!op || !ffi || !alg) {
@@ -4682,13 +4814,14 @@ rnp_op_generate_create(rnp_op_generate_t *op, rnp_ffi_t ffi, const char *alg)
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_subkey_create(rnp_op_generate_t *op,
                               rnp_ffi_t          ffi,
                               rnp_key_handle_t   primary,
                               const char *       alg)
-{
+try {
     if (!op || !ffi || !alg || !primary) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4731,10 +4864,11 @@ rnp_op_generate_subkey_create(rnp_op_generate_t *op,
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_bits(rnp_op_generate_t op, uint32_t bits)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4757,10 +4891,11 @@ rnp_op_generate_set_bits(rnp_op_generate_t op, uint32_t bits)
 
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_hash(rnp_op_generate_t op, const char *hash)
-{
+try {
     if (!op || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4770,10 +4905,11 @@ rnp_op_generate_set_hash(rnp_op_generate_t op, const char *hash)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_dsa_qbits(rnp_op_generate_t op, uint32_t qbits)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4783,10 +4919,11 @@ rnp_op_generate_set_dsa_qbits(rnp_op_generate_t op, uint32_t qbits)
     op->crypto.dsa.q_bitlen = qbits;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve)
-{
+try {
     if (!op || !curve) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4798,10 +4935,11 @@ rnp_op_generate_set_curve(rnp_op_generate_t op, const char *curve)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_protection_password(rnp_op_generate_t op, const char *password)
-{
+try {
     if (!op || !password) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4812,20 +4950,22 @@ rnp_op_generate_set_protection_password(rnp_op_generate_t op, const char *passwo
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_request_password(rnp_op_generate_t op, bool request)
-{
+try {
     if (!op || !request) {
         return RNP_ERROR_NULL_POINTER;
     }
     op->request_password = request;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher)
-{
+try {
     if (!op || !cipher) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4834,10 +4974,11 @@ rnp_op_generate_set_protection_cipher(rnp_op_generate_t op, const char *cipher)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_protection_hash(rnp_op_generate_t op, const char *hash)
-{
+try {
     if (!op || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4846,10 +4987,11 @@ rnp_op_generate_set_protection_hash(rnp_op_generate_t op, const char *hash)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_protection_mode(rnp_op_generate_t op, const char *mode)
-{
+try {
     if (!op || !mode) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4858,20 +5000,22 @@ rnp_op_generate_set_protection_mode(rnp_op_generate_t op, const char *mode)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_protection_iterations(rnp_op_generate_t op, uint32_t iterations)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     op->protection.iterations = iterations;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_add_usage(rnp_op_generate_t op, const char *usage)
-{
+try {
     if (!op || !usage) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4889,10 +5033,11 @@ rnp_op_generate_add_usage(rnp_op_generate_t op, const char *usage)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_clear_usage(rnp_op_generate_t op)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4903,10 +5048,11 @@ rnp_op_generate_clear_usage(rnp_op_generate_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_userid(rnp_op_generate_t op, const char *userid)
-{
+try {
     if (!op || !userid) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4919,10 +5065,11 @@ rnp_op_generate_set_userid(rnp_op_generate_t op, const char *userid)
     strcpy((char *) op->cert.userid, userid);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_expiration(rnp_op_generate_t op, uint32_t expiration)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4933,10 +5080,11 @@ rnp_op_generate_set_expiration(rnp_op_generate_t op, uint32_t expiration)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_clear_pref_hashes(rnp_op_generate_t op)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4948,10 +5096,11 @@ rnp_op_generate_clear_pref_hashes(rnp_op_generate_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_add_pref_hash(rnp_op_generate_t op, const char *hash)
-{
+try {
     if (!op || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4967,10 +5116,11 @@ rnp_op_generate_add_pref_hash(rnp_op_generate_t op, const char *hash)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_clear_pref_compression(rnp_op_generate_t op)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -4982,10 +5132,11 @@ rnp_op_generate_clear_pref_compression(rnp_op_generate_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_add_pref_compression(rnp_op_generate_t op, const char *compression)
-{
+try {
     if (!op || !compression) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5001,10 +5152,11 @@ rnp_op_generate_add_pref_compression(rnp_op_generate_t op, const char *compressi
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op)
-{
+try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5016,10 +5168,11 @@ rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_add_pref_cipher(rnp_op_generate_t op, const char *cipher)
-{
+try {
     if (!op || !cipher) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5035,10 +5188,11 @@ rnp_op_generate_add_pref_cipher(rnp_op_generate_t op, const char *cipher)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver)
-{
+try {
     uint8_t *_keyserver = NULL;
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
@@ -5056,10 +5210,11 @@ rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver)
     op->cert.prefs.key_server = _keyserver;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_execute(rnp_op_generate_t op)
-{
+try {
     if (!op || !op->ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5136,10 +5291,11 @@ done:
     }
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle)
-{
+try {
     if (!op || !handle) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5156,10 +5312,11 @@ rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle)
     (*handle)->sec = op->gen_sec;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_op_generate_destroy(rnp_op_generate_t op)
-{
+try {
     if (op) {
         pgp_free_user_prefs(&op->cert.prefs);
         if (op->password) {
@@ -5171,14 +5328,16 @@ rnp_op_generate_destroy(rnp_op_generate_t op)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_handle_destroy(rnp_key_handle_t key)
-{
+try {
     // This does not free key->key which is owned by the keyring
     free(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 void
 rnp_buffer_destroy(void *ptr)
@@ -5270,7 +5429,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
                 uint32_t         expiration,
                 uint8_t          key_flags,
                 bool             primary)
-{
+try {
     rnp_result_t            ret = RNP_ERROR_GENERIC;
     rnp_selfsig_cert_info_t info = {{0}};
     pgp_hash_alg_t          hash_alg = PGP_HASH_UNKNOWN;
@@ -5330,20 +5489,22 @@ done:
     free(decrypted_seckey);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_primary_uid(rnp_key_handle_t handle, char **uid)
-{
+try {
     if (handle == NULL || uid == NULL)
         return RNP_ERROR_NULL_POINTER;
 
     pgp_key_t *key = get_key_prefer_public(handle);
     return key_get_uid_at(key, key->uid0_set ? key->uid0 : 0, uid);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_uid_count(rnp_key_handle_t handle, size_t *count)
-{
+try {
     if (handle == NULL || count == NULL) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5352,20 +5513,22 @@ rnp_key_get_uid_count(rnp_key_handle_t handle, size_t *count)
     *count = pgp_key_get_userid_count(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_uid_at(rnp_key_handle_t handle, size_t idx, char **uid)
-{
+try {
     if (handle == NULL || uid == NULL)
         return RNP_ERROR_NULL_POINTER;
 
     pgp_key_t *key = get_key_prefer_public(handle);
     return key_get_uid_at(key, idx, uid);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *uid)
-{
+try {
     if (!key || !uid) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5389,6 +5552,7 @@ rnp_key_get_uid_handle_at(rnp_key_handle_t key, size_t idx, rnp_uid_handle_t *ui
     (*uid)->idx = idx;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
@@ -5429,7 +5593,7 @@ rnp_key_get_signature_at_for_uid(
 
 rnp_result_t
 rnp_key_get_signature_count(rnp_key_handle_t handle, size_t *count)
-{
+try {
     if (!handle || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5439,10 +5603,11 @@ rnp_key_get_signature_count(rnp_key_handle_t handle, size_t *count)
     }
     return rnp_key_get_signature_count_for_uid(key, count, (uint32_t) -1);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_signature_at(rnp_key_handle_t handle, size_t idx, rnp_signature_handle_t *sig)
-{
+try {
     if (!handle || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5453,10 +5618,11 @@ rnp_key_get_signature_at(rnp_key_handle_t handle, size_t idx, rnp_signature_hand
     }
     return rnp_key_get_signature_at_for_uid(handle->ffi, key, idx, (uint32_t) -1, sig);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_uid_get_signature_count(rnp_uid_handle_t handle, size_t *count)
-{
+try {
     if (!handle || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5465,10 +5631,11 @@ rnp_uid_get_signature_count(rnp_uid_handle_t handle, size_t *count)
     }
     return rnp_key_get_signature_count_for_uid(handle->key, count, handle->idx);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_uid_get_signature_at(rnp_uid_handle_t handle, size_t idx, rnp_signature_handle_t *sig)
-{
+try {
     if (!handle || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5477,10 +5644,11 @@ rnp_uid_get_signature_at(rnp_uid_handle_t handle, size_t idx, rnp_signature_hand
     }
     return rnp_key_get_signature_at_for_uid(handle->ffi, handle->key, idx, handle->idx, sig);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_alg(rnp_signature_handle_t handle, char **alg)
-{
+try {
     if (!handle || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5490,10 +5658,11 @@ rnp_signature_get_alg(rnp_signature_handle_t handle, char **alg)
     return get_map_value(
       pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), handle->sig->sig.palg, alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_hash_alg(rnp_signature_handle_t handle, char **alg)
-{
+try {
     if (!handle || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5502,10 +5671,11 @@ rnp_signature_get_hash_alg(rnp_signature_handle_t handle, char **alg)
     }
     return get_map_value(hash_alg_map, ARRAY_SIZE(hash_alg_map), handle->sig->sig.halg, alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_creation(rnp_signature_handle_t handle, uint32_t *create)
-{
+try {
     if (!handle || !create) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5515,10 +5685,11 @@ rnp_signature_get_creation(rnp_signature_handle_t handle, uint32_t *create)
     *create = signature_get_creation(&handle->sig->sig);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
-{
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5532,10 +5703,11 @@ rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
     }
     return hex_encode_value(keyid.data(), keyid.size(), result, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
-{
+try {
     char *       keyid = NULL;
     rnp_result_t ret = rnp_signature_get_keyid(sig, &keyid);
     if (ret) {
@@ -5550,10 +5722,11 @@ rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
     rnp_buffer_destroy(keyid);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_packet_to_json(rnp_signature_handle_t sig, uint32_t flags, char **json)
-{
+try {
     if (!sig || !json) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5579,20 +5752,22 @@ done:
     src_close(&memsrc);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_signature_handle_destroy(rnp_signature_handle_t sig)
-{
+try {
     if (sig && sig->own_sig) {
         delete sig->sig;
     }
     free(sig);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result)
-{
+try {
     if (!uid || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5605,17 +5780,19 @@ rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result)
     *result = revoke != NULL;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_uid_handle_destroy(rnp_uid_handle_t uid)
-{
+try {
     free(uid);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_subkey_count(rnp_key_handle_t handle, size_t *count)
-{
+try {
     if (!handle || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5623,10 +5800,11 @@ rnp_key_get_subkey_count(rnp_key_handle_t handle, size_t *count)
     *count = pgp_key_get_subkey_count(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_subkey_at(rnp_key_handle_t handle, size_t idx, rnp_key_handle_t *subkey)
-{
+try {
     if (!handle || !subkey) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5641,10 +5819,11 @@ rnp_key_get_subkey_at(rnp_key_handle_t handle, size_t idx, rnp_key_handle_t *sub
     }
     return rnp_locate_key(handle->ffi, "fingerprint", fphex, subkey);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_alg(rnp_key_handle_t handle, char **alg)
-{
+try {
     if (!handle || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5652,10 +5831,11 @@ rnp_key_get_alg(rnp_key_handle_t handle, char **alg)
     return get_map_value(
       pubkey_alg_map, ARRAY_SIZE(pubkey_alg_map), pgp_key_get_alg(key), alg);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_bits(rnp_key_handle_t handle, uint32_t *bits)
-{
+try {
     if (!handle || !bits) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5667,10 +5847,11 @@ rnp_key_get_bits(rnp_key_handle_t handle, uint32_t *bits)
     *bits = _bits;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_dsa_qbits(rnp_key_handle_t handle, uint32_t *qbits)
-{
+try {
     if (!handle || !qbits) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5682,10 +5863,11 @@ rnp_key_get_dsa_qbits(rnp_key_handle_t handle, uint32_t *qbits)
     *qbits = _qbits;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_curve(rnp_key_handle_t handle, char **curve)
-{
+try {
     if (!handle || !curve) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5705,10 +5887,11 @@ rnp_key_get_curve(rnp_key_handle_t handle, char **curve)
     *curve = curvenamecp;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
-{
+try {
     if (!handle || !fprint) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5716,10 +5899,11 @@ rnp_key_get_fprint(rnp_key_handle_t handle, char **fprint)
     const pgp_fingerprint_t &fp = pgp_key_get_fp(get_key_prefer_public(handle));
     return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
-{
+try {
     if (!handle || !keyid) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5728,10 +5912,11 @@ rnp_key_get_keyid(rnp_key_handle_t handle, char **keyid)
     return hex_encode_value(
       pgp_key_get_keyid(key).data(), pgp_key_get_keyid(key).size(), keyid, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
-{
+try {
     if (!handle || !grip) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5739,6 +5924,7 @@ rnp_key_get_grip(rnp_key_handle_t handle, char **grip)
     const pgp_key_grip_t &kgrip = pgp_key_get_grip(get_key_prefer_public(handle));
     return hex_encode_value(kgrip.data(), kgrip.size(), grip, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 static const pgp_key_grip_t *
 rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp_fingerprint_t &fp)
@@ -5755,7 +5941,7 @@ rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp_fingerprint_t &fp)
 
 rnp_result_t
 rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
-{
+try {
     if (!handle || !grip) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5775,10 +5961,11 @@ rnp_key_get_primary_grip(rnp_key_handle_t handle, char **grip)
     }
     return hex_encode_value(pgrip->data(), pgrip->size(), grip, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_primary_fprint(rnp_key_handle_t handle, char **fprint)
-{
+try {
     if (!handle || !fprint) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5794,10 +5981,11 @@ rnp_key_get_primary_fprint(rnp_key_handle_t handle, char **fprint)
     const pgp_fingerprint_t &fp = pgp_key_get_primary_fp(key);
     return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
-{
+try {
     if (!handle || !usage || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5812,10 +6000,11 @@ rnp_key_allows_usage(rnp_key_handle_t handle, const char *usage, bool *result)
     *result = pgp_key_get_flags(key) & flag;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_creation(rnp_key_handle_t handle, uint32_t *result)
-{
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5826,10 +6015,11 @@ rnp_key_get_creation(rnp_key_handle_t handle, uint32_t *result)
     *result = pgp_key_get_creation(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_revoked(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5840,10 +6030,11 @@ rnp_key_is_revoked(rnp_key_handle_t handle, bool *result)
     *result = key->revoked;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
-{
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5854,10 +6045,11 @@ rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
     *result = pgp_key_get_expiration(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
-{
+try {
     if (!key) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5907,10 +6099,11 @@ rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
-{
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -5925,6 +6118,7 @@ rnp_key_get_revocation_reason(rnp_key_handle_t handle, char **result)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 rnp_key_is_revoked_with_code(rnp_key_handle_t handle, bool *result, int code)
@@ -5943,25 +6137,28 @@ rnp_key_is_revoked_with_code(rnp_key_handle_t handle, bool *result, int code)
 
 rnp_result_t
 rnp_key_is_superseded(rnp_key_handle_t handle, bool *result)
-{
+try {
     return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_SUPERSEDED);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_compromised(rnp_key_handle_t handle, bool *result)
-{
+try {
     return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_COMPROMISED);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_retired(rnp_key_handle_t handle, bool *result)
-{
+try {
     return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_RETIRED);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_locked(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
 
@@ -5972,10 +6169,11 @@ rnp_key_is_locked(rnp_key_handle_t handle, bool *result)
     *result = pgp_key_is_locked(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_lock(rnp_key_handle_t handle)
-{
+try {
     if (handle == NULL)
         return RNP_ERROR_NULL_POINTER;
 
@@ -5988,10 +6186,11 @@ rnp_key_lock(rnp_key_handle_t handle)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_unlock(rnp_key_handle_t handle, const char *password)
-{
+try {
     if (!handle) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -6013,10 +6212,11 @@ rnp_key_unlock(rnp_key_handle_t handle, const char *password)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_protected(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
 
@@ -6027,6 +6227,7 @@ rnp_key_is_protected(rnp_key_handle_t handle, bool *result)
     *result = pgp_key_is_protected(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_protect(rnp_key_handle_t handle,
@@ -6035,7 +6236,7 @@ rnp_key_protect(rnp_key_handle_t handle,
                 const char *     cipher_mode,
                 const char *     hash,
                 size_t           iterations)
-{
+try {
     rnp_result_t                ret = RNP_ERROR_GENERIC;
     pgp_key_pkt_t *             seckey = NULL;
     pgp_key_pkt_t *             decrypted_seckey = NULL;
@@ -6084,10 +6285,11 @@ done:
     free(decrypted_seckey);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
-{
+try {
     // checks
     if (!handle) {
         return RNP_ERROR_NULL_POINTER;
@@ -6112,10 +6314,11 @@ rnp_key_unprotect(rnp_key_handle_t handle, const char *password)
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_primary(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
 
@@ -6127,10 +6330,11 @@ rnp_key_is_primary(rnp_key_handle_t handle, bool *result)
     *result = pgp_key_is_primary_key(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_is_sub(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
 
@@ -6142,25 +6346,28 @@ rnp_key_is_sub(rnp_key_handle_t handle, bool *result)
     *result = pgp_key_is_subkey(key);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_have_secret(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
 
     *result = handle->sec != NULL;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_key_have_public(rnp_key_handle_t handle, bool *result)
-{
+try {
     if (handle == NULL || result == NULL)
         return RNP_ERROR_NULL_POINTER;
     *result = handle->pub != NULL;
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
@@ -6184,7 +6391,7 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 
 rnp_result_t
 rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
-{
+try {
     // checks
     if (!handle || !buf || !buf_len) {
         return RNP_ERROR_NULL_POINTER;
@@ -6196,10 +6403,11 @@ rnp_get_public_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
     }
     return key_to_bytes(key, buf, buf_len);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
-{
+try {
     // checks
     if (!handle || !buf || !buf_len) {
         return RNP_ERROR_NULL_POINTER;
@@ -6211,6 +6419,7 @@ rnp_get_secret_key_data(rnp_key_handle_t handle, uint8_t **buf, size_t *buf_len)
     }
     return key_to_bytes(key, buf, buf_len);
 }
+FFI_GUARD
 
 static bool
 add_json_string_field(json_object *jso, const char *key, const char *value)
@@ -6853,7 +7062,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 
 rnp_result_t
 rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result)
-{
+try {
     rnp_result_t ret = RNP_ERROR_GENERIC;
     json_object *jso = NULL;
 
@@ -6884,6 +7093,7 @@ done:
     json_object_put(jso);
     return ret;
 }
+FFI_GUARD
 
 static rnp_result_t
 rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result)
@@ -6931,7 +7141,7 @@ done:
 
 rnp_result_t
 rnp_key_packets_to_json(rnp_key_handle_t handle, bool secret, uint32_t flags, char **result)
-{
+try {
     pgp_key_t *  key = NULL;
     rnp_result_t ret = RNP_ERROR_GENERIC;
     pgp_dest_t   memdst = {};
@@ -6966,20 +7176,22 @@ done:
     src_close(&memsrc);
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_dump_packets_to_json(rnp_input_t input, uint32_t flags, char **result)
-{
+try {
     if (!input || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
 
     return rnp_dump_src_to_json(&input->src, flags, result);
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_dump_packets_to_output(rnp_input_t input, rnp_output_t output, uint32_t flags)
-{
+try {
     if (!input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -7006,6 +7218,7 @@ rnp_dump_packets_to_output(rnp_input_t input, rnp_output_t output, uint32_t flag
     output->keep = true;
     return ret;
 }
+FFI_GUARD
 
 // move to next key
 static bool
@@ -7147,7 +7360,7 @@ rnp_result_t
 rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
                                rnp_identifier_iterator_t *it,
                                const char *               identifier_type)
-{
+try {
     rnp_result_t                       ret = RNP_ERROR_GENERIC;
     struct rnp_identifier_iterator_st *obj = NULL;
 
@@ -7184,10 +7397,11 @@ done:
     }
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_identifier_iterator_next(rnp_identifier_iterator_t it, const char **identifier)
-{
+try {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     // checks
@@ -7237,20 +7451,22 @@ done:
     }
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
-{
+try {
     if (it) {
         json_object_put(it->tbl);
         free(it);
     }
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_guess_contents(rnp_input_t input, char **contents)
-{
+try {
     if (!input || !contents) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -7271,10 +7487,11 @@ rnp_guess_contents(rnp_input_t input, char **contents)
     memcpy(*contents, msg, len);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type)
-{
+try {
     pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
     if (!input || !output) {
         return RNP_ERROR_NULL_POINTER;
@@ -7296,10 +7513,11 @@ rnp_enarmor(rnp_input_t input, rnp_output_t output, const char *type)
     output->keep = !ret;
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_dearmor(rnp_input_t input, rnp_output_t output)
-{
+try {
     if (!input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -7307,10 +7525,11 @@ rnp_dearmor(rnp_input_t input, rnp_output_t output)
     output->keep = !ret;
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_pipe(rnp_input_t input, rnp_output_t output)
-{
+try {
     if (!input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -7318,12 +7537,14 @@ rnp_output_pipe(rnp_input_t input, rnp_output_t output)
     output->keep = !ret;
     return ret;
 }
+FFI_GUARD
 
 rnp_result_t
 rnp_output_armor_set_line_length(rnp_output_t output, size_t llen)
-{
+try {
     if (!output || !llen) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return armored_dst_set_line_length(&output->dst, llen);
 }
+FFI_GUARD
