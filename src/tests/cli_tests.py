@@ -737,6 +737,7 @@ def setup(loglvl):
     RNPDIR = path.join(WORKDIR, '.rnp')
     RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
+    shutil.rmtree(RNPDIR, ignore_errors=True)
     os.mkdir(RNPDIR, 0o700)
 
     os.environ["RNP_LOG_CONSOLE"] = "1"
@@ -745,6 +746,7 @@ def setup(loglvl):
     GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
+    shutil.rmtree(GPGDIR, ignore_errors=True)
     os.mkdir(GPGDIR, 0o700)
 
 def data_path(subpath):
