@@ -9507,3 +9507,52 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     rnp_ffi_destroy(ffi);
 }
+
+/* This test checks that any exceptions thrown by the internal library
+ * will not propagate beyond the FFI boundary.
+ * In this case we (ab)use a callback to mimic this scenario.
+ */
+TEST_F(rnp_tests, test_ffi_exception)
+{
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+
+    // bad_alloc -> RNP_ERROR_OUT_OF_MEMORY
+    {
+        auto reader = [](void *app_ctx, void *buf, size_t len, size_t *read) {
+            throw std::bad_alloc();
+            return true;
+        };
+        assert_rnp_success(rnp_input_from_callback(&input, reader, NULL, NULL));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_int_equal(RNP_ERROR_OUT_OF_MEMORY, rnp_output_pipe(input, output));
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
+
+    // runtime_error -> RNP_ERROR_GENERIC
+    {
+        auto reader = [](void *app_ctx, void *buf, size_t len, size_t *read) {
+            throw std::runtime_error("");
+            return true;
+        };
+        assert_rnp_success(rnp_input_from_callback(&input, reader, NULL, NULL));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_int_equal(RNP_ERROR_GENERIC, rnp_output_pipe(input, output));
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
+
+    // everything else -> RNP_ERROR_GENERIC
+    {
+        auto reader = [](void *app_ctx, void *buf, size_t len, size_t *read) {
+            throw 5;
+            return true;
+        };
+        assert_rnp_success(rnp_input_from_callback(&input, reader, NULL, NULL));
+        assert_rnp_success(rnp_output_to_memory(&output, 0));
+        assert_int_equal(RNP_ERROR_GENERIC, rnp_output_pipe(input, output));
+        rnp_input_destroy(input);
+        rnp_output_destroy(output);
+    }
+}
