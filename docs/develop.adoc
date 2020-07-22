@@ -174,42 +174,21 @@ your web browser to view the results.
 
 === Dynamic Analysis
 
-==== Fuzzer
+==== Fuzzing
 
 It is often useful to utilize a fuzzer like
-http://lcamtuf.coredump.cx/afl/["american fuzzy lop" ("AFL")] to find
+http://lcamtuf.coredump.cx/afl/["american fuzzy lop" ("AFL")] or
+https://llvm.org/docs/LibFuzzer.html["libfuzzer"] to find
 ways to improve the robustness of the code base.
 
-Currently, we have a very simple test program in
-`src/fuzzers/fuzz_keys`, which will attempt to load an armored key file
-passed on the command line. We can use this with AFL to try to produce
-crashes, which we can then analyze for issues.
+Presently, rnp builds in
+https://github.com/google/oss-fuzz/tree/master/projects/rnp["OSS-Fuzz"]
+and certain fuzzers are enabled there.
 
-1. Install AFL.
-2. Rebuild, using the `afl-gcc` compiler.
-    * It's probably easiest to also do a static build, using the
-      `--disable-shared` option to `configure`.
-    * It may be helpful to occasionally enable the address sanitizer,
-      which tends to help produce crashes that may not otherwise be found.
-      Read the documentation for AFL first to understand the challenges
-      with ASan and AFL.
-3. Create directories for input files, and for AFL output.
-4. Run `afl-fuzz`.
-5. When satisfied, exit with `CTRL-C`.
-6. Analyze the crashes/hangs in the output directory.
-
-Here is an example:
-
-[source,console]
---
-env CXX=afl-g++ AFL_HARDEN=1 CXXFLAGS=-ggdb ./configure --disable-shared
-make -j$(grep -c '^$' /proc/cpuinfo) clean all
-mkdir afl_in afl_out
-cp some_tests/*.asc afl_in/
-afl-fuzz -i afl_in -o afl_out src/fuzzing/fuzz_keys @@
-ctrl-c to exit
-valgrind -q src/fuzzing/fuzz_keys < afl_out/[...]
---
+In the `src/fuzzing` directory, we have the fuzzers that run in OSS-Fuzz.
+Setting `-DENABLE_SANITIZERS=1 -DENABLE_FUZZERS=1` will build these fuzzers
+with the libfuzzer engine; and running the resulting executables will perform
+the fuzzing.
 
 ===== Further Reading
 
