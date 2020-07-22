@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
