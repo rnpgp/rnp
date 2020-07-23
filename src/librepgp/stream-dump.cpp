@@ -914,7 +914,6 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     default:;
     }
 
-    free_userid_pkt(&uid);
     indent_dest_decrease(dst);
     return RNP_SUCCESS;
 }
@@ -1910,23 +1909,17 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     case PGP_PKT_USER_ID:
         if (!obj_add_field_json(
               pkt, "userid", json_object_new_string_len((char *) uid.uid, uid.uid_len))) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKT_USER_ATTR:
         if (!obj_add_hex_json(pkt, "userattr", uid.uid, uid.uid_len)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     default:;
     }
-
-    ret = RNP_SUCCESS;
-done:
-    free_userid_pkt(&uid);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t

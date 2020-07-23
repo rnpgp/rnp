@@ -139,16 +139,14 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
         return false;
     }
 
-    if (!copy_userid_pkt(&userid->pkt, &uid->uid)) {
-        RNP_LOG("failed to copy user id pkt");
+    try {
+        userid->pkt = uid->uid;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return false;
     }
 
-    if (!rnp_key_add_signatures(key, uid->signatures)) {
-        return false;
-    }
-
-    return true;
+    return rnp_key_add_signatures(key, uid->signatures);
 }
 
 bool
