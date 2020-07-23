@@ -314,7 +314,7 @@ typedef struct pgp_signature_t {
     /* v4 - only fields */
     std::vector<pgp_sig_subpkt_t> subpkts;
 
-    pgp_signature_t();
+    pgp_signature_t() : hashed_data(NULL), material_buf(NULL){};
     pgp_signature_t(const pgp_signature_t &src);
     pgp_signature_t(pgp_signature_t &&src);
     pgp_signature_t &operator=(pgp_signature_t &&src);
