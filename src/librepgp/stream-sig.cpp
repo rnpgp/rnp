@@ -866,15 +866,12 @@ signature_fill_hashed_data(pgp_signature_t *sig)
 bool
 signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
 {
-    uint8_t       hdr[3] = {0x99, 0x00, 0x00};
-    pgp_key_pkt_t keycp = {};
-    bool          res = false;
-
     if (!key || !hash) {
         RNP_LOG("null key or hash");
         return false;
     }
 
+    uint8_t hdr[3] = {0x99, 0x00, 0x00};
     if (key->hashed_data) {
         write_uint16(hdr + 1, key->hashed_len);
         return !pgp_hash_add(hash, hdr, 3) &&
@@ -882,10 +879,13 @@ signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
     }
 
     /* call self recursively if hashed data is not filled, to overcome const restriction */
-    res = copy_key_pkt(&keycp, key, true) && key_fill_hashed_data(&keycp) &&
-          signature_hash_key(&keycp, hash);
-    free_key_pkt(&keycp);
-    return res;
+    try {
+        pgp_key_pkt_t keycp(*key, true);
+        return key_fill_hashed_data(&keycp) && signature_hash_key(&keycp, hash);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
 }
 
 bool

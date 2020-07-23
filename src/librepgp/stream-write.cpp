@@ -1102,11 +1102,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
 
     /* destroy decrypted secret key */
     if (pgp_key_is_encrypted(signer->key)) {
-        free_key_pkt(deckey);
-        free(deckey);
-        deckey = NULL;
+        delete deckey;
     }
-
     return ret;
 }
 

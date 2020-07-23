@@ -91,8 +91,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_non_null(seckey);
 
     // cleanup
-    free_key_pkt(seckey);
-    free(seckey);
+    delete seckey;
     delete key_store;
 }
 
