@@ -2323,34 +2323,3 @@ stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid)
     userid->uid_len = pkt.len;
     return RNP_SUCCESS;
 }
-
-bool
-copy_userid_pkt(pgp_userid_pkt_t *dst, const pgp_userid_pkt_t *src)
-{
-    *dst = *src;
-    if (src->uid) {
-        dst->uid = (uint8_t *) malloc(src->uid_len);
-        if (!dst->uid) {
-            return false;
-        }
-        memcpy(dst->uid, src->uid, src->uid_len);
-    }
-
-    return true;
-}
-
-bool
-userid_pkt_equal(const pgp_userid_pkt_t *uid1, const pgp_userid_pkt_t *uid2)
-{
-    if ((uid1->tag != uid2->tag) || (uid1->uid_len != uid2->uid_len)) {
-        return false;
-    }
-
-    return !memcmp(uid1->uid, uid2->uid, uid1->uid_len);
-}
-
-void
-free_userid_pkt(pgp_userid_pkt_t *userid)
-{
-    free(userid->uid);
-}

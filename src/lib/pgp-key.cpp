@@ -2307,9 +2307,7 @@ pgp_subsig_t::~pgp_subsig_t()
 
 pgp_userid_t::pgp_userid_t(const pgp_userid_t &src)
 {
-    if (!copy_userid_pkt(&pkt, &src.pkt)) {
-        throw std::bad_alloc();
-    }
+    pkt = src.pkt;
     rawpkt = src.rawpkt;
     str = src.str;
 }
@@ -2317,8 +2315,7 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_t &src)
 pgp_userid_t::pgp_userid_t(pgp_userid_t &&src)
 {
     str = std::move(src.str);
-    pkt = src.pkt;
-    src.pkt = {};
+    pkt = std::move(src.pkt);
     rawpkt = std::move(src.rawpkt);
 }
 
@@ -2328,11 +2325,7 @@ pgp_userid_t::operator=(const pgp_userid_t &src)
     if (&src == this) {
         return *this;
     }
-
-    free_userid_pkt(&pkt);
-    if (!copy_userid_pkt(&pkt, &src.pkt)) {
-        throw std::bad_alloc();
-    }
+    pkt = src.pkt;
     rawpkt = src.rawpkt;
     str = src.str;
     return *this;
@@ -2340,7 +2333,6 @@ pgp_userid_t::operator=(const pgp_userid_t &src)
 
 pgp_userid_t::~pgp_userid_t()
 {
-    free_userid_pkt(&pkt);
 }
 
 pgp_key_t::~pgp_key_t()

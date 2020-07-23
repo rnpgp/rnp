@@ -73,7 +73,7 @@ merge_signatures(pgp_signature_list_t &dst, const pgp_signature_list_t &src)
 static rnp_result_t
 transferable_userid_merge(pgp_transferable_userid_t &dst, const pgp_transferable_userid_t &src)
 {
-    if (!userid_pkt_equal(&dst.uid, &src.uid)) {
+    if (dst.uid != src.uid) {
         RNP_LOG("wrong userid merge attempt");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -146,7 +146,7 @@ static pgp_transferable_userid_t *
 transferable_key_has_userid(pgp_transferable_key_t &src, const pgp_userid_pkt_t &userid)
 {
     for (auto &uid : src.userids) {
-        if (userid_pkt_equal(&uid.uid, &userid)) {
+        if (uid.uid == userid) {
             return &uid;
         }
     }
@@ -1379,6 +1379,79 @@ forget_secret_key_fields(pgp_key_material_t *key)
     key->secret = false;
 }
 
+pgp_userid_pkt_t::pgp_userid_pkt_t(const pgp_userid_pkt_t &src)
+{
+    tag = src.tag;
+    uid_len = src.uid_len;
+    uid = NULL;
+    if (src.uid) {
+        uid = (uint8_t *) malloc(uid_len);
+        if (!uid) {
+            throw std::bad_alloc();
+        }
+        memcpy(uid, src.uid, uid_len);
+    }
+}
+
+pgp_userid_pkt_t::pgp_userid_pkt_t(pgp_userid_pkt_t &&src)
+{
+    tag = src.tag;
+    uid_len = src.uid_len;
+    uid = src.uid;
+    src.uid = NULL;
+}
+
+pgp_userid_pkt_t &
+pgp_userid_pkt_t::operator=(pgp_userid_pkt_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    tag = src.tag;
+    uid_len = src.uid_len;
+    free(uid);
+    uid = src.uid;
+    src.uid = NULL;
+    return *this;
+}
+
+pgp_userid_pkt_t &
+pgp_userid_pkt_t::operator=(const pgp_userid_pkt_t &src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    tag = src.tag;
+    uid_len = src.uid_len;
+    free(uid);
+    uid = NULL;
+    if (src.uid) {
+        uid = (uint8_t *) malloc(uid_len);
+        if (!uid) {
+            throw std::bad_alloc();
+        }
+        memcpy(uid, src.uid, uid_len);
+    }
+    return *this;
+}
+
+bool
+pgp_userid_pkt_t::operator==(const pgp_userid_pkt_t &src) const
+{
+    return (tag == src.tag) && (uid_len == src.uid_len) && !memcmp(uid, src.uid, uid_len);
+}
+
+bool
+pgp_userid_pkt_t::operator!=(const pgp_userid_pkt_t &src) const
+{
+    return !(*this == src);
+}
+
+pgp_userid_pkt_t::~pgp_userid_pkt_t()
+{
+    free(uid);
+}
+
 pgp_key_pkt_t::pgp_key_pkt_t()
 {
     tag = PGP_PKT_RESERVED;
@@ -1521,18 +1594,14 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
 
 pgp_transferable_userid_t::pgp_transferable_userid_t(const pgp_transferable_userid_t &src)
 {
-    if (!copy_userid_pkt(&uid, &src.uid)) {
-        throw std::bad_alloc();
-    }
+    uid = src.uid;
     signatures = src.signatures;
 }
 
 pgp_transferable_userid_t::pgp_transferable_userid_t(pgp_transferable_userid_t &&src)
 {
-    free_userid_pkt(&uid);
-    uid = src.uid;
-    src.uid = {};
-    signatures = src.signatures;
+    uid = std::move(src.uid);
+    signatures = std::move(src.signatures);
 }
 
 pgp_transferable_userid_t &
@@ -1541,17 +1610,14 @@ pgp_transferable_userid_t::operator=(const pgp_transferable_userid_t &src)
     if (this == &src) {
         return *this;
     }
-    free_userid_pkt(&uid);
-    if (!copy_userid_pkt(&uid, &src.uid)) {
-        throw std::bad_alloc();
-    }
+    uid = src.uid;
     signatures = src.signatures;
     return *this;
 }
 
 pgp_transferable_userid_t::~pgp_transferable_userid_t()
 {
-    free_userid_pkt(&uid);
+    ;
 }
 
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
