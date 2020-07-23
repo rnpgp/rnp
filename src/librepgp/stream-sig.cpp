@@ -1317,12 +1317,6 @@ pgp_sig_subpkt_t::~pgp_sig_subpkt_t()
     free(data);
 }
 
-pgp_signature_t::pgp_signature_t()
-{
-    hashed_data = NULL;
-    material_buf = NULL;
-}
-
 pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
 {
     version = src.version;
