@@ -996,8 +996,11 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails with incorrect uid
-        pgp_userid_pkt_t uid = {
-          .tag = PGP_PKT_USER_ID, .uid = (uint8_t *) "fake", .uid_len = 4};
+        pgp_userid_pkt_t uid;
+        uid.tag = PGP_PKT_USER_ID;
+        uid.uid = (uint8_t *) malloc(4);
+        uid.uid_len = 4;
+        memcpy(uid.uid, "fake", 4);
 
         assert_rnp_failure(
           signature_check_certification(&psiginfo, pgp_key_get_pkt(&pub), &uid));

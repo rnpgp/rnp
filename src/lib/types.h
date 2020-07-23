@@ -208,6 +208,15 @@ typedef struct pgp_userid_pkt_t {
     pgp_pkt_type_t tag;
     uint8_t *      uid;
     size_t         uid_len;
+
+    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED), uid(NULL), uid_len(0){};
+    pgp_userid_pkt_t(const pgp_userid_pkt_t &src);
+    pgp_userid_pkt_t(pgp_userid_pkt_t &&src);
+    pgp_userid_pkt_t &operator=(pgp_userid_pkt_t &&src);
+    pgp_userid_pkt_t &operator=(const pgp_userid_pkt_t &src);
+    bool              operator==(const pgp_userid_pkt_t &src) const;
+    bool              operator!=(const pgp_userid_pkt_t &src) const;
+    ~pgp_userid_pkt_t();
 } pgp_userid_pkt_t;
 
 typedef struct pgp_signature_t pgp_signature_t;
