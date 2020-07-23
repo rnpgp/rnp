@@ -115,12 +115,8 @@ transferable_key_copy(pgp_transferable_key_t &      dst,
                       const pgp_transferable_key_t &src,
                       bool                          pubonly)
 {
-    if (!copy_key_pkt(&dst.key, &src.key, pubonly)) {
-        RNP_LOG("failed to copy key pkt");
-        return false;
-    }
-
     try {
+        dst.key = pgp_key_pkt_t(src.key, pubonly);
         dst.userids = src.userids;
         dst.subkeys = src.subkeys;
         dst.signatures = src.signatures;
@@ -1383,6 +1379,146 @@ forget_secret_key_fields(pgp_key_material_t *key)
     key->secret = false;
 }
 
+pgp_key_pkt_t::pgp_key_pkt_t()
+{
+    tag = PGP_PKT_RESERVED;
+    version = PGP_VUNKNOWN;
+    alg = PGP_PKA_NOTHING;
+    hashed_data = NULL;
+    sec_data = NULL;
+    material = {};
+}
+
+pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
+{
+    if (pubonly && is_secret_key_pkt(src.tag)) {
+        tag = (src.tag == PGP_PKT_SECRET_KEY) ? PGP_PKT_PUBLIC_KEY : PGP_PKT_PUBLIC_SUBKEY;
+    } else {
+        tag = src.tag;
+    }
+    version = src.version;
+    creation_time = src.creation_time;
+    alg = src.alg;
+    v3_days = src.v3_days;
+    hashed_len = src.hashed_len;
+    hashed_data = NULL;
+    if (src.hashed_data) {
+        hashed_data = (uint8_t *) malloc(hashed_len);
+        if (!hashed_data) {
+            throw std::bad_alloc();
+        }
+        memcpy(hashed_data, src.hashed_data, hashed_len);
+    }
+    material = src.material;
+    if (pubonly) {
+        forget_secret_key_fields(&material);
+        sec_len = 0;
+        sec_data = NULL;
+        sec_protection = {};
+        return;
+    }
+    sec_len = src.sec_len;
+    sec_data = NULL;
+    if (src.sec_data) {
+        sec_data = (uint8_t *) malloc(sec_len);
+        if (!sec_data) {
+            free(hashed_data);
+            hashed_data = NULL;
+            throw std::bad_alloc();
+        }
+        memcpy(sec_data, src.sec_data, sec_len);
+    }
+    sec_protection = src.sec_protection;
+}
+
+pgp_key_pkt_t::pgp_key_pkt_t(pgp_key_pkt_t &&src)
+{
+    tag = src.tag;
+    version = src.version;
+    creation_time = src.creation_time;
+    alg = src.alg;
+    v3_days = src.v3_days;
+    hashed_len = src.hashed_len;
+    hashed_data = src.hashed_data;
+    src.hashed_data = NULL;
+    material = src.material;
+    forget_secret_key_fields(&src.material);
+    sec_len = src.sec_len;
+    sec_data = src.sec_data;
+    src.sec_data = NULL;
+    sec_protection = src.sec_protection;
+}
+
+pgp_key_pkt_t &
+pgp_key_pkt_t::operator=(pgp_key_pkt_t &&src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    tag = src.tag;
+    version = src.version;
+    creation_time = src.creation_time;
+    alg = src.alg;
+    v3_days = src.v3_days;
+    hashed_len = src.hashed_len;
+    free(hashed_data);
+    hashed_data = src.hashed_data;
+    src.hashed_data = NULL;
+    material = src.material;
+    forget_secret_key_fields(&src.material);
+    sec_len = src.sec_len;
+    free(sec_data);
+    sec_data = src.sec_data;
+    src.sec_data = NULL;
+    sec_protection = src.sec_protection;
+    return *this;
+}
+
+pgp_key_pkt_t &
+pgp_key_pkt_t::operator=(const pgp_key_pkt_t &src)
+{
+    if (this == &src) {
+        return *this;
+    }
+    tag = src.tag;
+    version = src.version;
+    creation_time = src.creation_time;
+    alg = src.alg;
+    v3_days = src.v3_days;
+    hashed_len = src.hashed_len;
+    free(hashed_data);
+    hashed_data = NULL;
+    if (src.hashed_data) {
+        hashed_data = (uint8_t *) malloc(hashed_len);
+        if (!hashed_data) {
+            throw std::bad_alloc();
+        }
+        memcpy(hashed_data, src.hashed_data, hashed_len);
+    }
+    material = src.material;
+    sec_len = src.sec_len;
+    free(sec_data);
+    sec_data = NULL;
+    if (src.sec_data) {
+        sec_data = (uint8_t *) malloc(sec_len);
+        if (!sec_data) {
+            free(hashed_data);
+            hashed_data = NULL;
+            throw std::bad_alloc();
+        }
+        memcpy(sec_data, src.sec_data, sec_len);
+    }
+    sec_protection = src.sec_protection;
+    return *this;
+}
+
+pgp_key_pkt_t::~pgp_key_pkt_t()
+{
+    forget_secret_key_fields(&material);
+    free(hashed_data);
+    free(sec_data);
+}
+
 pgp_transferable_userid_t::pgp_transferable_userid_t(const pgp_transferable_userid_t &src)
 {
     if (!copy_userid_pkt(&uid, &src.uid)) {
@@ -1421,17 +1557,13 @@ pgp_transferable_userid_t::~pgp_transferable_userid_t()
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
                                                      bool                             pubonly)
 {
-    subkey = {};
-    if (!copy_key_pkt(&subkey, &src.subkey, pubonly)) {
-        throw std::bad_alloc();
-    }
+    subkey = pgp_key_pkt_t(src.subkey, pubonly);
     signatures = src.signatures;
 }
 
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src)
 {
-    subkey = src.subkey;
-    src.subkey = {};
+    subkey = std::move(src.subkey);
     signatures = std::move(src.signatures);
 }
 
@@ -1441,8 +1573,7 @@ pgp_transferable_subkey_t::operator=(const pgp_transferable_subkey_t &src)
     if (this == &src) {
         return *this;
     }
-    free_key_pkt(&subkey);
-    copy_key_pkt(&subkey, &src.subkey, false);
+    subkey = src.subkey;
     signatures = src.signatures;
     return *this;
 }
@@ -1453,17 +1584,13 @@ pgp_transferable_subkey_t::operator=(pgp_transferable_subkey_t &&src)
     if (this == &src) {
         return *this;
     }
-    free_key_pkt(&subkey);
-    subkey = src.subkey;
-    src.subkey = {};
+    subkey = std::move(src.subkey);
     signatures = std::move(src.signatures);
     return *this;
 }
 
 pgp_transferable_subkey_t::~pgp_transferable_subkey_t()
 {
-    forget_secret_key_fields(&subkey.material);
-    free_key_pkt(&subkey);
 }
 
 pgp_transferable_key_t::pgp_transferable_key_t(pgp_transferable_key_t &&src)
@@ -1481,11 +1608,7 @@ pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
     if (this == &src) {
         return *this;
     }
-    forget_secret_key_fields(&key.material);
-    free_key_pkt(&key);
-    key = src.key;
-    src.key = {};
-
+    key = std::move(src.key);
     userids = std::move(src.userids);
     subkeys = std::move(src.subkeys);
     signatures = std::move(src.signatures);
@@ -1494,6 +1617,4 @@ pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
 
 pgp_transferable_key_t::~pgp_transferable_key_t()
 {
-    forget_secret_key_fields(&key.material);
-    free_key_pkt(&key);
 }

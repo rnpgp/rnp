@@ -190,6 +190,13 @@ typedef struct pgp_key_pkt_t {
     pgp_key_protection_t sec_protection;
     uint8_t *            sec_data;
     size_t               sec_len;
+
+    pgp_key_pkt_t();
+    pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly = false);
+    pgp_key_pkt_t(pgp_key_pkt_t &&src);
+    pgp_key_pkt_t &operator=(pgp_key_pkt_t &&src);
+    pgp_key_pkt_t &operator=(const pgp_key_pkt_t &src);
+    ~pgp_key_pkt_t();
 } pgp_key_pkt_t;
 
 typedef struct pgp_key_t pgp_key_t;

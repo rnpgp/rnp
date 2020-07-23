@@ -1940,8 +1940,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
             /* Destroy decrypted key */
             if (pgp_key_is_encrypted(seckey)) {
-                free_key_pkt(decrypted_seckey);
-                free(decrypted_seckey);
+                delete decrypted_seckey;
                 decrypted_seckey = NULL;
             }
 

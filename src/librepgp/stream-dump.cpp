@@ -873,7 +873,6 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         }
     }
 
-    free_key_pkt(&key);
     indent_dest_decrease(dst);
     return RNP_SUCCESS;
 }
@@ -1892,10 +1891,8 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
             goto done;
         }
     }
-
     ret = RNP_SUCCESS;
 done:
-    free_key_pkt(&key);
     return ret;
 }
 

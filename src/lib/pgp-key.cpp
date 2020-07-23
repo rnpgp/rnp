@@ -181,48 +181,40 @@ pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
         return false;
     }
     /* this is correct since changes ownership */
-    key->pkt = *pkt;
+    key->pkt = std::move(*pkt);
     return true;
 }
 
 bool
 pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
-    pgp_key_pkt_t keypkt = {};
-    *key = {};
+    try {
+        pgp_key_pkt_t keypkt = *pkt;
+        *key = {};
 
-    if (!copy_key_pkt(&keypkt, pkt, false)) {
-        RNP_LOG("failed to copy key packet");
-        return false;
-    }
+        /* parse secret key if not encrypted */
+        if (is_secret_key_pkt(keypkt.tag)) {
+            bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
+            if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
+                RNP_LOG("failed to setup key fields");
+                return false;
+            }
+        }
 
-    /* parse secret key if not encrypted */
-    if (is_secret_key_pkt(keypkt.tag)) {
-        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
-        if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
+        /* this call transfers ownership */
+        if (!pgp_key_init_with_pkt(key, &keypkt)) {
             RNP_LOG("failed to setup key fields");
-            free_key_pkt(&keypkt);
             return false;
         }
-    }
 
-    /* this call transfers ownership */
-    if (!pgp_key_init_with_pkt(key, &keypkt)) {
-        RNP_LOG("failed to setup key fields");
-        free_key_pkt(&keypkt);
-        return false;
-    }
-    keypkt = {};
-
-    /* add key rawpacket */
-    try {
+        /* add key rawpacket */
         key->rawpkt = pgp_rawpacket_t(key->pkt);
+        key->format = PGP_KEY_STORE_GPG;
+        return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;
     }
-    key->format = PGP_KEY_STORE_GPG;
-    return true;
 }
 
 static void
@@ -247,8 +239,10 @@ pgp_key_copy_g10(pgp_key_t &dst, const pgp_key_t &src, bool pubonly)
     }
 
     dst = {};
-    if (!copy_key_pkt(&dst.pkt, &src.pkt, false)) {
-        RNP_LOG("failed to copy key pkt");
+    try {
+        dst.pkt = src.pkt;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -276,11 +270,8 @@ pgp_key_copy(pgp_key_t &dst, const pgp_key_t &src, bool pubonly)
     }
 
     dst = {};
-    if (!copy_key_pkt(&dst.pkt, &src.pkt, pubonly)) {
-        RNP_LOG("failed to copy key pkt");
-        return RNP_ERROR_GENERIC;
-    }
     try {
+        dst.pkt = pgp_key_pkt_t(src.pkt, pubonly);
         dst.rawpkt = pubonly ? pgp_rawpacket_t(dst.pkt) : src.rawpkt;
     } catch (const std::exception &e) {
         RNP_LOG("failed to copy key rawpkt: %s", e.what());
@@ -529,13 +520,10 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        const char *         password)
 {
     pgp_source_t   src = {0};
-    pgp_key_pkt_t *res = (pgp_key_pkt_t *) calloc(1, sizeof(*res));
-    if (!res) {
-        return NULL;
-    }
+    pgp_key_pkt_t *res = new pgp_key_pkt_t();
 
     if (init_mem_src(&src, data, data_len, false)) {
-        free(res);
+        delete res;
         return NULL;
     }
 
@@ -551,8 +539,7 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
     return res;
 error:
     src_close(&src);
-    free_key_pkt(res);
-    free(res);
+    delete res;
     return NULL;
 }
 
@@ -1412,10 +1399,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
         // copy the decrypted mpis into the pgp_key_t
         key->pkt.material = decrypted_seckey->material;
         key->pkt.material.secret = true;
-
-        free_key_pkt(decrypted_seckey);
-        // free the actual structure
-        free(decrypted_seckey);
+        delete decrypted_seckey;
         return true;
     }
     return false;
@@ -1641,16 +1625,13 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         goto done;
     }
     if (decrypted_seckey) {
-        free_key_pkt(&key->pkt);
-        copy_key_pkt(&key->pkt, decrypted_seckey, false);
+        key->pkt = std::move(*decrypted_seckey);
         /* current logic is that unprotected key should be additionally unlocked */
         forget_secret_key_fields(&key->pkt.material);
     }
     ret = true;
-
 done:
-    free_key_pkt(decrypted_seckey);
-    free(decrypted_seckey);
+    delete decrypted_seckey;
     return ret;
 }
 
@@ -1960,28 +1941,30 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
     }
 
     bool res = false;
-    if (pgp_key_is_secret(&key)) {
-        pgp_key_pkt_t pkt = {};
-        res = copy_key_pkt(&pkt, &key.pkt, true) && stream_write_key(&pkt, &memdst);
-        free_key_pkt(&pkt);
-    } else {
-        res = stream_write_key(&key.pkt, &memdst);
-    }
+    try {
+        if (pgp_key_is_secret(&key)) {
+            pgp_key_pkt_t pkt(key.pkt, true);
+            res = stream_write_key(&pkt, &memdst);
+        } else {
+            res = stream_write_key(&key.pkt, &memdst);
+        }
 
-    res = res && stream_write_userid(&key.uids[uid].pkt, &memdst) &&
-          stream_write_signature(&cert->sig, &memdst);
+        res = res && stream_write_userid(&key.uids[uid].pkt, &memdst) &&
+              stream_write_signature(&cert->sig, &memdst);
 
-    if (res && pgp_key_is_secret(&sub)) {
-        pgp_key_pkt_t pkt = {};
-        res = res && copy_key_pkt(&pkt, &sub.pkt, true) && stream_write_key(&pkt, &memdst);
-        free_key_pkt(&pkt);
-    } else if (res) {
-        res = res && stream_write_key(&sub.pkt, &memdst);
-    }
-    res = res && stream_write_signature(&binding->sig, &memdst);
-    if (res) {
-        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
-        res = !dst.werr;
+        if (res && pgp_key_is_secret(&sub)) {
+            pgp_key_pkt_t pkt(sub.pkt, true);
+            res = stream_write_key(&pkt, &memdst);
+        } else if (res) {
+            res = stream_write_key(&sub.pkt, &memdst);
+        }
+        res = res && stream_write_signature(&binding->sig, &memdst);
+        if (res) {
+            dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
+            res = !dst.werr;
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
     }
     dst_close(&memdst, true);
     return res;
@@ -2363,7 +2346,6 @@ pgp_userid_t::~pgp_userid_t()
 pgp_key_t::~pgp_key_t()
 {
     pgp_key_clear_revokes(this);
-    free_key_pkt(&this->pkt);
 }
 
 pgp_key_t &
@@ -2381,9 +2363,7 @@ pgp_key_t::operator=(pgp_key_t &&src)
     primary_fp = std::move(src.primary_fp);
     primary_fp_set = src.primary_fp_set;
     expiration = src.expiration;
-    free_key_pkt(&pkt);
-    pkt = src.pkt;
-    src.pkt = {};
+    pkt = std::move(src.pkt);
     rawpkt = std::move(src.rawpkt);
     key_flags = src.key_flags;
     keyid = src.keyid;
