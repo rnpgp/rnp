@@ -1035,7 +1035,7 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
 done:
     destroy_s_exp(&s_exp);
     if (!ret) {
-        free_key_pkt(seckey);
+        *seckey = {};
     }
     return ret;
 }
@@ -1046,26 +1046,14 @@ g10_decrypt_seckey(const uint8_t *      data,
                    const pgp_key_pkt_t *pubkey,
                    const char *         password)
 {
-    pgp_key_pkt_t *seckey = NULL;
-    bool           ok = false;
-
     if (!password) {
         return NULL;
     }
 
-    seckey = (pgp_key_pkt_t *) calloc(1, sizeof(*seckey));
-    if (pubkey && !copy_key_pkt(seckey, pubkey, false)) {
-        goto done;
-    }
+    pgp_key_pkt_t *seckey = pubkey ? new pgp_key_pkt_t(*pubkey, false) : new pgp_key_pkt_t();
     if (!g10_parse_seckey(seckey, data, data_len, password)) {
-        goto done;
-    }
-    ok = true;
-
-done:
-    if (!ok) {
-        free(seckey);
-        seckey = NULL;
+        delete seckey;
+        return NULL;
     }
     return seckey;
 }
@@ -1150,7 +1138,10 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         }
 
         /* public key packet has some more info then the secret part */
-        if (!copy_key_pkt(&key.pkt, pgp_key_get_pkt(pubkey), false)) {
+        try {
+            key.pkt = *pgp_key_get_pkt(pubkey);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
             goto done;
         }
 
@@ -1158,8 +1149,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
             goto done;
         }
     } else {
-        key.pkt = seckey;
-        memset(&seckey, 0, sizeof(seckey));
+        key.pkt = std::move(seckey);
     }
 
     try {
@@ -1176,9 +1166,6 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
     ret = true;
 done:
     src_close(&memsrc);
-    if (!ret) {
-        free_key_pkt(&seckey);
-    }
     return ret;
 }
 

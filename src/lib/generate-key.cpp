@@ -555,8 +555,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
          pgp_subkey_refresh_data(subkey_sec, primary_sec);
 end:
     if (decrypted_primary_seckey) {
-        free_key_pkt(decrypted_primary_seckey);
-        free(decrypted_primary_seckey);
+        delete decrypted_primary_seckey;
     }
     return ok;
 }

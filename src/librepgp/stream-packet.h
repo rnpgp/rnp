@@ -311,11 +311,7 @@ bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
 
-bool copy_key_pkt(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src, bool pubonly);
-
 bool key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly);
-
-void free_key_pkt(pgp_key_pkt_t *key);
 
 /* User ID packet */
 
