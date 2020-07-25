@@ -27,7 +27,11 @@ if(NOT DEFINED ENV{LIB_FUZZING_ENGINE})
   add_compile_options(-fsanitize=fuzzer-no-link)
   add_link_options(-fsanitize=fuzzer)
 else()
+  # This section is used by OSS-Fuzz
   add_link_options($ENV{LIB_FUZZING_ENGINE})
+  if($ENV{FUZZING_ENGINE} STREQUAL "afl")
+    link_libraries(-stdlib=libc++)
+  endif()
 endif()
 
 add_executable(fuzz_dump dump.c)
