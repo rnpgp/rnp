@@ -1319,6 +1319,13 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
     if (!key->sec_protection.s2k.usage) {
         return parse_secret_key_mpis(key, key->sec_data, key->sec_len);
     }
+
+    /* check whether secret key data present */
+    if (!key->sec_len) {
+        RNP_LOG("No secret key data");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
     /* data is encrypted */
     if (!password) {
         return RNP_ERROR_NULL_POINTER;
