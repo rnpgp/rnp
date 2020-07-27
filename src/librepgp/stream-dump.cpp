@@ -434,6 +434,14 @@ static void
 dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 {
     dst_printf(dst, "s2k specifier: %d\n", (int) s2k->specifier);
+    if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
+        dst_printf(dst, "GPG extension num: %d\n", (int) s2k->gpg_ext_num);
+        if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
+            dst_print_hex(
+              dst, "card serial number", s2k->gpg_serial, s2k->gpg_serial_len, true);
+        }
+        return;
+    }
     dst_print_halg(dst, "s2k hash algorithm", s2k->hash_alg);
     if ((s2k->specifier == PGP_S2KS_SALTED) ||
         (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
@@ -823,11 +831,13 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             (key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED)) {
             dst_print_salg(dst, NULL, key.sec_protection.symm_alg);
             dst_print_s2k(dst, &key.sec_protection.s2k);
-            size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
-            if (bl_size) {
-                dst_print_hex(dst, "cipher iv", key.sec_protection.iv, bl_size, true);
-            } else {
-                dst_printf(dst, "cipher iv: unknown algorithm\n");
+            if (key.sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) {
+                size_t bl_size = pgp_block_size(key.sec_protection.symm_alg);
+                if (bl_size) {
+                    dst_print_hex(dst, "cipher iv", key.sec_protection.iv, bl_size, true);
+                } else {
+                    dst_printf(dst, "cipher iv: unknown algorithm\n");
+                }
             }
             dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
         }
@@ -1404,6 +1414,17 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
     }
     if (!obj_add_field_json(s2k_obj, "specifier", json_object_new_int(s2k->specifier))) {
         return false;
+    }
+    if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
+        if (!obj_add_field_json(
+              s2k_obj, "gpg extension", json_object_new_int(s2k->gpg_ext_num))) {
+            return false;
+        }
+        if ((s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) &&
+            !obj_add_hex_json(
+              s2k_obj, "card serial number", s2k->gpg_serial, s2k->gpg_serial_len)) {
+            return false;
+        }
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
         return false;
