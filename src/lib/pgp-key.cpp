@@ -212,13 +212,13 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
         free_key_pkt(&keypkt);
         return false;
     }
+    keypkt = {};
 
     /* add key rawpacket */
     try {
         key->rawpkt = pgp_rawpacket_t(key->pkt);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        free_key_pkt(&keypkt);
         return false;
     }
     key->format = PGP_KEY_STORE_GPG;
