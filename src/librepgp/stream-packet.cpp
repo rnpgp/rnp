@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <inttypes.h>
 #include <rnp/rnp_def.h>
 #include "types.h"
 #include "crypto.h"
@@ -397,6 +398,22 @@ add_packet_body_s2k(pgp_packet_body_t *body, const pgp_s2k_t *s2k)
         return add_packet_body(body, s2k->salt, PGP_SALT_SIZE) &&
                add_packet_body_byte(body, iter);
     }
+    case PGP_S2KS_EXPERIMENTAL: {
+        if ((s2k->gpg_ext_num != PGP_S2K_GPG_NO_SECRET) &&
+            (s2k->gpg_ext_num != PGP_S2K_GPG_SMARTCARD)) {
+            RNP_LOG("Unknown experimental s2k.");
+            return false;
+        }
+        if (!add_packet_body(body, "GNU", 3) ||
+            !add_packet_body_byte(body, s2k->gpg_ext_num)) {
+            return false;
+        }
+        if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
+            return add_packet_body_byte(body, s2k->gpg_serial_len) &&
+                   add_packet_body(body, s2k->gpg_serial, s2k->gpg_serial_len);
+        }
+        return true;
+    }
     default:
         RNP_LOG("unknown s2k specifier");
         return false;
@@ -579,8 +596,38 @@ get_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
         s2k->iterations = iter;
         return true;
     }
+    case PGP_S2KS_EXPERIMENTAL: {
+        uint8_t gnu[3] = {0};
+        if (!get_packet_body_buf(body, gnu, 3) || memcmp(gnu, "GNU", 3)) {
+            RNP_LOG("Unknown experimental s2k. Skipping.");
+            body->pos = body->len;
+            s2k->gpg_ext_num = PGP_S2K_GPG_NONE;
+            return true;
+        }
+        uint8_t ext_num = 0;
+        if (!get_packet_body_byte(body, &ext_num)) {
+            return false;
+        }
+        if ((ext_num != PGP_S2K_GPG_NO_SECRET) && (ext_num != PGP_S2K_GPG_SMARTCARD)) {
+            RNP_LOG("Unsupported gpg extension num: %" PRIu8, ext_num);
+        }
+        s2k->gpg_ext_num = (pgp_s2k_gpg_extension_t) ext_num;
+        if (s2k->gpg_ext_num == PGP_S2K_GPG_NO_SECRET) {
+            return true;
+        }
+        if (!get_packet_body_byte(body, &s2k->gpg_serial_len)) {
+            RNP_LOG("Failed to get GPG serial len");
+            return false;
+        }
+        size_t len = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
+        if (!get_packet_body_buf(body, s2k->gpg_serial, len)) {
+            RNP_LOG("Failed to get GPG serial");
+            return false;
+        }
+        return true;
+    }
     default:
-        RNP_LOG("unknown s2k specifier");
+        RNP_LOG("unknown s2k specifier: %d", (int) s2k->specifier);
         return false;
     }
 }
@@ -832,6 +879,9 @@ stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
         res = res && add_packet_body(&pktbody, skey->s2k.salt, sizeof(skey->s2k.salt)) &&
               add_packet_body_byte(&pktbody, skey->s2k.iterations);
         break;
+    default:
+        RNP_LOG("Unexpected s2k specifier: %d", (int) skey->s2k.specifier);
+        res = false;
     }
 
     /* v5 : iv */
@@ -2007,7 +2057,8 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
 
     if (is_secret_key_pkt(key->tag)) {
         /* secret key fields should be pre-populated in sec_data field */
-        if (!key->sec_data || !key->sec_len) {
+        if ((key->sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) &&
+            (!key->sec_data || !key->sec_len)) {
             RNP_LOG("secret key data is not populated");
             res = false;
             goto finish;
@@ -2020,14 +2071,13 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
             break;
         case PGP_S2KU_ENCRYPTED_AND_HASHED:
         case PGP_S2KU_ENCRYPTED: {
-            size_t blsize = pgp_block_size(key->sec_protection.symm_alg);
-            if (!blsize) {
-                res = false;
-                goto finish;
-            }
             res = add_packet_body_byte(&pktbody, key->sec_protection.symm_alg) &&
-                  add_packet_body_s2k(&pktbody, &key->sec_protection.s2k) &&
-                  add_packet_body(&pktbody, key->sec_protection.iv, blsize);
+                  add_packet_body_s2k(&pktbody, &key->sec_protection.s2k);
+            if (res && (key->sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+                size_t blsize = pgp_block_size(key->sec_protection.symm_alg);
+                res =
+                  res && blsize && add_packet_body(&pktbody, key->sec_protection.iv, blsize);
+            }
             if (!res) {
                 goto finish;
             }
@@ -2038,7 +2088,11 @@ stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst)
             res = false;
             goto finish;
         }
-        res = add_packet_body(&pktbody, key->sec_data, key->sec_len);
+        if (key->sec_len) {
+            /* if key is stored on card, or exported via gpg --export-secret-subkeys, then
+             * sec_data is empty */
+            res = add_packet_body(&pktbody, key->sec_data, key->sec_len);
+        }
     }
 
     if (res) {
@@ -2214,7 +2268,8 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
         }
 
         /* iv */
-        if (key->sec_protection.s2k.usage) {
+        if (key->sec_protection.s2k.usage &&
+            (key->sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
             size_t bl_size = pgp_block_size(key->sec_protection.symm_alg);
             if (!bl_size || !get_packet_body_buf(&pkt, key->sec_protection.iv, bl_size)) {
                 RNP_LOG("failed to read iv");
@@ -2224,13 +2279,17 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 
         /* encrypted/cleartext secret MPIs are left */
         size_t sec_len = pkt.len - pkt.pos;
-        if (!(key->sec_data = (uint8_t *) calloc(1, sec_len))) {
-            res = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
-        }
-        if (!get_packet_body_buf(&pkt, key->sec_data, sec_len)) {
-            res = RNP_ERROR_BAD_STATE;
-            goto finish;
+        if (!sec_len) {
+            key->sec_data = NULL;
+        } else {
+            if (!(key->sec_data = (uint8_t *) calloc(1, sec_len))) {
+                res = RNP_ERROR_OUT_OF_MEMORY;
+                goto finish;
+            }
+            if (!get_packet_body_buf(&pkt, key->sec_data, sec_len)) {
+                res = RNP_ERROR_BAD_STATE;
+                goto finish;
+            }
         }
         key->sec_len = sec_len;
     }
