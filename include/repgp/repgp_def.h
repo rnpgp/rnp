@@ -290,8 +290,15 @@ typedef enum {
 typedef enum {
     PGP_S2KS_SIMPLE = 0,
     PGP_S2KS_SALTED = 1,
-    PGP_S2KS_ITERATED_AND_SALTED = 3
+    PGP_S2KS_ITERATED_AND_SALTED = 3,
+    PGP_S2KS_EXPERIMENTAL = 101
 } pgp_s2k_specifier_t;
+
+typedef enum {
+    PGP_S2K_GPG_NONE = 0,
+    PGP_S2K_GPG_NO_SECRET = 1,
+    PGP_S2K_GPG_SMARTCARD = 2
+} pgp_s2k_gpg_extension_t;
 
 /** Signature Type.
  * OpenPGP defines different signature types that allow giving
