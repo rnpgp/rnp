@@ -1189,7 +1189,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
         break;
     default:
         RNP_LOG("unknown pk alg %d", (int) pkey->alg);
-        return RNP_ERROR_BAD_FORMAT;
+        goto finish;
     }
 
     if (pkt.pos < pkt.len) {
