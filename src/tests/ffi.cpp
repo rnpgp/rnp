@@ -9177,6 +9177,193 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* secret subkeys, exported via gpg --export-secret-subkeys (no primary secret key data) */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-1-subs.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    bool secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    size_t count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    /* signing secret subkey */
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    char *keyid = NULL;
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "22F3A217C0E439CB");
+    rnp_buffer_destroy(keyid);
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_false(locked);
+    rnp_key_handle_destroy(sub);
+    /* encrypting secret subkey */
+    assert_rnp_success(rnp_key_get_subkey_at(key, 1, &sub));
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "DD23CEB7FEBEFF17");
+    rnp_buffer_destroy(keyid);
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_false(locked);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* save keyrings and reload */
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_int_equal(unlink("pubring.gpg"), 0);
+    assert_int_equal(unlink("secring.gpg"), 0);
+
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    /* signing secret subkey */
+    sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    keyid = NULL;
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "22F3A217C0E439CB");
+    rnp_buffer_destroy(keyid);
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    rnp_key_handle_destroy(sub);
+    /* encrypting secret subkey */
+    assert_rnp_success(rnp_key_get_subkey_at(key, 1, &sub));
+    assert_rnp_success(rnp_key_get_keyid(sub, &keyid));
+    assert_string_equal(keyid, "DD23CEB7FEBEFF17");
+    rnp_buffer_destroy(keyid);
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* secret subkeys, and key stored on the smartcard by gpg */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-2-card.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    /* signing secret subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    rnp_key_handle_destroy(sub);
+    /* encrypting secret subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(sub, &locked));
+    assert_true(locked);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* save keyrings and reload */
+    output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_int_equal(unlink("pubring.gpg"), 0);
+    assert_int_equal(unlink("secring.gpg"), 0);
+
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_remove)
 {
     rnp_ffi_t ffi = NULL;
