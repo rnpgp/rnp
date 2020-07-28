@@ -4,6 +4,7 @@ set -ex
 . ci/utils.inc.sh
 
 macos_install() {
+  brew update
   brew bundle
 }
 
