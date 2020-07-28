@@ -24,16 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <unistd.h>
 #include <rnp/rnp.h>
-
-static bool
-stdout_writer(void *app_ctx, const void *buf, size_t len)
-{
-    ssize_t wlen = write(STDOUT_FILENO, buf, len);
-    return (wlen >= 0) && (size_t) wlen == len;
-}
 
 int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
@@ -43,12 +34,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     ret = rnp_input_from_memory(&input, data, size, false);
 
     rnp_output_t output = NULL;
-    ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
-    if (ret) {
-        fprintf(stderr, "failed to open stdout: error 0x%x\n", (int) ret);
-        rnp_input_destroy(input);
-        return 0;
-    }
+    ret = rnp_output_to_null(&output);
 
     ret = rnp_dump_packets_to_output(input, output, RNP_DUMP_RAW);
     rnp_output_destroy(output);
