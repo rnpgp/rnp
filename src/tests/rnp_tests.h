@@ -307,6 +307,8 @@ void test_ffi_decrypt_wrong_mpi_bits(void **state);
 
 void test_ffi_key_import_edge_cases(void **state);
 
+void test_ffi_key_import_gpg_s2k(void **state);
+
 void test_ffi_key_remove(void **state);
 
 void test_ffi_literal_packet(void **state);
