@@ -140,7 +140,7 @@ armor_read_crc(pgp_source_t *src)
     }
 
     for (int i = 0; i < 4; i++) {
-        if ((dec[i] = B64DEC[(int) crc[i + 1]]) >= 64) {
+        if ((dec[i] = B64DEC[(uint8_t) crc[i + 1]]) >= 64) {
             return false;
         }
     }
@@ -279,7 +279,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
                 param->eofb64 = true;
                 break;
             } else if (bval == 0xff) {
-                RNP_LOG("wrong base64 character %c", (char) *(bptr - 1));
+                RNP_LOG("wrong base64 character 0x%02hhX", *(bptr - 1));
                 return false;
             }
         }
@@ -550,7 +550,7 @@ armor_parse_header(pgp_source_t *src)
 
     /* if there are non-whitespaces before the armor header then issue warning */
     for (char *ch = hdr; ch < armhdr; ch++) {
-        if (B64DEC[(int) *ch] != 0xfd) {
+        if (B64DEC[(uint8_t) *ch] != 0xfd) {
             RNP_LOG("extra data before the header line");
             break;
         }
