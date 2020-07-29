@@ -4587,6 +4587,55 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     assert_int_equal(len, 2226);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+
+    /* invalid, > 127 (negative char), preceding the armor header - just warning */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_header.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* invalid, > 127, base64 chars at positions 1..4 */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_base64_1.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_base64_2.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_base64_3.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_base64_4.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* invalid, > 127 base64 char in the crc */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_chars_crc.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
 }
 
 TEST_F(rnp_tests, test_ffi_customized_enarmor)
