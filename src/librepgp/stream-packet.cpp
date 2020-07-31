@@ -1256,7 +1256,6 @@ finish:
 rnp_result_t
 stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
 {
-    uint8_t           buf[13];
     pgp_packet_body_t pkt = {};
     rnp_result_t      res;
 
@@ -1268,8 +1267,11 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
     memset(onepass, 0, sizeof(*onepass));
     res = RNP_ERROR_BAD_FORMAT;
 
-    if ((pkt.len != 13) || (!get_packet_body_buf(&pkt, buf, 13))) {
-        goto finish;
+    uint8_t buf[13] = {0};
+    bool    ok = (pkt.len == 13) && get_packet_body_buf(&pkt, buf, 13);
+    free_packet_body(&pkt);
+    if (!ok) {
+        return RNP_ERROR_BAD_FORMAT;
     }
 
     /* vesrion */
@@ -1278,28 +1280,19 @@ stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
         return RNP_ERROR_BAD_FORMAT;
     }
     onepass->version = buf[0];
-
     /* signature type */
     onepass->type = (pgp_sig_type_t) buf[1];
-
     /* hash algorithm */
     onepass->halg = (pgp_hash_alg_t) buf[2];
-
     /* pk algorithm */
     onepass->palg = (pgp_pubkey_alg_t) buf[3];
-
     /* key id */
     static_assert(std::tuple_size<decltype(onepass->keyid)>::value == PGP_KEY_ID_SIZE,
                   "pgp_one_pass_sig_t.keyid size mismatch");
     memcpy(onepass->keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
-
     /* nested flag */
     onepass->nested = !!buf[12];
-
-    res = RNP_SUCCESS;
-finish:
-    free_packet_body(&pkt);
-    return res;
+    return RNP_SUCCESS;
 }
 
 /* parse v3-specific fields, not the whole signature */
