@@ -506,10 +506,10 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
                                     const pgp_key_pkt_t *subkey,
                                     pgp_hash_alg_t       halg,
                                     pgp_signature_t *    sig,
-                                    pgp_hash_t *         hash,
                                     rng_t *              rng)
 {
     pgp_key_id_t keyid = {};
+    pgp_hash_t   hash = {};
     bool         res = false;
 
     memset(sig, 0, sizeof(*sig));
@@ -530,11 +530,15 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
         RNP_LOG("failed to set issuer key id");
         goto end;
     }
+    if (!signature_hash_binding(sig, key, subkey, &hash)) {
+        RNP_LOG("failed to hash key and subkey");
+        goto end;
+    }
     if (!signature_fill_hashed_data(sig)) {
         RNP_LOG("failed to hash signature");
         goto end;
     }
-    if (signature_calculate(sig, &subkey->material, hash, rng)) {
+    if (signature_calculate(sig, &subkey->material, &hash, rng)) {
         RNP_LOG("failed to calculate signature");
         goto end;
     }
@@ -542,6 +546,7 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
 end:
     if (!res) {
         free_signature(sig);
+        pgp_hash_finish(&hash, NULL);
     }
     return res;
 }
@@ -553,7 +558,6 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
                             bool                 subsign)
 {
     pgp_hash_t   hash = {};
-    pgp_hash_t   hashcp = {};
     rng_t        rng = {};
     pgp_key_id_t keyid;
 
@@ -568,8 +572,7 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
     }
 
     bool res = false;
-    if (!signature_fill_hashed_data(sig) || !signature_hash_binding(sig, key, sub, &hash) ||
-        !pgp_hash_copy(&hashcp, &hash)) {
+    if (!signature_fill_hashed_data(sig) || !signature_hash_binding(sig, key, sub, &hash)) {
         RNP_LOG("failed to hash signature");
         goto end;
     }
@@ -584,8 +587,7 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
         pgp_signature_t embsig = {};
         bool            embres;
 
-        if (!signature_calculate_primary_binding(
-              key, sub, sig->halg, &embsig, &hashcp, &rng)) {
+        if (!signature_calculate_primary_binding(key, sub, sig->halg, &embsig, &rng)) {
             RNP_LOG("failed to calculate primary key binding signature");
             goto end;
         }
@@ -605,7 +607,6 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
 
     res = true;
 end:
-    pgp_hash_finish(&hashcp, NULL);
     rng_destroy(&rng);
     return res;
 }
