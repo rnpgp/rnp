@@ -155,7 +155,7 @@ signature_calculate(pgp_signature_t *         sig,
         }
         /* "-2" because ECDSA on P-521 must work with SHA-512 digest */
         if (BITS_TO_BYTES(curve->bitlen) - 2 > hlen) {
-            RNP_LOG("Message hash to small");
+            RNP_LOG("Message hash too small");
             ret = RNP_ERROR_BAD_PARAMETERS;
             break;
         }
