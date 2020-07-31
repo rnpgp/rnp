@@ -814,7 +814,7 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
         goto done;
     }
     sub_el = sub_element_at(alg, 0);
-    if (strncmp("sha1", (const char *) sub_el->block.bytes, sub_el->block.len) != 0) {
+    if ((sub_el->block.len != 4) || memcmp("sha1", sub_el->block.bytes, 4)) {
         RNP_LOG("Wrong hashing algorithm, should be sha1 but %.*s\n",
                 (int) sub_el->block.len,
                 sub_el->block.bytes);
@@ -892,16 +892,14 @@ parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *passwo
             !sub_element_at(&sub_el->s_exp, 0)->is_block ||
             !sub_element_at(&sub_el->s_exp, 1)->is_block ||
             !sub_element_at(&sub_el->s_exp, 2)->is_block ||
-            strncmp("hash",
-                    (const char *) sub_element_at(&sub_el->s_exp, 0)->block.bytes,
-                    sub_element_at(&sub_el->s_exp, 0)->block.len) != 0) {
+            (sub_element_at(&sub_el->s_exp, 0)->block.len != 4) ||
+            memcmp("hash", sub_element_at(&sub_el->s_exp, 0)->block.bytes, 4)) {
             RNP_LOG("Has got wrong hash block at encrypted key data.");
             goto done;
         }
 
-        if (strncmp("sha1",
-                    (const char *) sub_element_at(&sub_el->s_exp, 1)->block.bytes,
-                    sub_element_at(&sub_el->s_exp, 1)->block.len) != 0) {
+        if ((sub_element_at(&sub_el->s_exp, 1)->block.len != 4) ||
+            memcmp("sha1", sub_element_at(&sub_el->s_exp, 1)->block.bytes, 4)) {
             RNP_LOG("Supported only sha1 hash at encrypted private key.");
             goto done;
         }
@@ -965,9 +963,10 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
     }
 
     block = &sub_element_at(&s_exp, 0)->block;
-    if (!strncmp("private-key", (const char *) block->bytes, block->len)) {
+    if ((block->len == 11) && !memcmp("private-key", block->bytes, block->len)) {
         is_protected = false;
-    } else if (!strncmp("protected-private-key", (const char *) block->bytes, block->len)) {
+    } else if ((block->len == 21) &&
+               !memcmp("protected-private-key", block->bytes, block->len)) {
         is_protected = true;
     } else {
         RNP_LOG("Unsupported top-level block: '%.*s'", (int) block->len, block->bytes);
