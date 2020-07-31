@@ -196,7 +196,7 @@ armor_read_trailer(pgp_source_t *src)
     }
 
     stlen = strlen(param->armorhdr);
-    if (stlen + 8 + 1 <= sizeof(st)) {
+    if ((stlen > 5) && (stlen + 8 + 1 <= sizeof(st))) {
         memcpy(st, ST_ARMOR_END, 8); /* 8 here is mandatory */
         memcpy(st + 8, param->armorhdr + 5, stlen - 5);
         memcpy(st + stlen + 3, ST_DASHES, 5);
@@ -453,29 +453,36 @@ find_armor_header(const char *buf, size_t len, size_t *hdrlen)
     return NULL;
 }
 
+static bool
+str_equals(const char *str, size_t len, const char *another)
+{
+    size_t alen = strlen(another);
+    return (len == alen) && !memcmp(str, another, alen);
+}
+
 static pgp_armored_msg_t
 armor_str_to_data_type(const char *str, size_t len)
 {
     if (!str) {
         return PGP_ARMORED_UNKNOWN;
     }
-    if (!strncmp(str, "BEGIN PGP MESSAGE", len)) {
+    if (str_equals(str, len, "BEGIN PGP MESSAGE")) {
         return PGP_ARMORED_MESSAGE;
     }
-    if (!strncmp(str, "BEGIN PGP PUBLIC KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP PUBLIC KEY", len)) {
+    if (str_equals(str, len, "BEGIN PGP PUBLIC KEY BLOCK") ||
+        str_equals(str, len, "BEGIN PGP PUBLIC KEY")) {
         return PGP_ARMORED_PUBLIC_KEY;
     }
-    if (!strncmp(str, "BEGIN PGP SECRET KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP SECRET KEY", len) ||
-        !strncmp(str, "BEGIN PGP PRIVATE KEY BLOCK", len) ||
-        !strncmp(str, "BEGIN PGP PRIVATE KEY", len)) {
+    if (str_equals(str, len, "BEGIN PGP SECRET KEY BLOCK") ||
+        str_equals(str, len, "BEGIN PGP SECRET KEY") ||
+        str_equals(str, len, "BEGIN PGP PRIVATE KEY BLOCK") ||
+        str_equals(str, len, "BEGIN PGP PRIVATE KEY")) {
         return PGP_ARMORED_SECRET_KEY;
     }
-    if (!strncmp(str, "BEGIN PGP SIGNATURE", len)) {
+    if (str_equals(str, len, "BEGIN PGP SIGNATURE")) {
         return PGP_ARMORED_SIGNATURE;
     }
-    if (!strncmp(str, "BEGIN PGP SIGNED MESSAGE", len)) {
+    if (str_equals(str, len, "BEGIN PGP SIGNED MESSAGE")) {
         return PGP_ARMORED_CLEARTEXT;
     }
     return PGP_ARMORED_UNKNOWN;
@@ -620,19 +627,19 @@ armor_parse_headers(pgp_source_t *src)
             return false;
         }
 
-        if (strncmp(header, ST_HEADER_VERSION, 9) == 0) {
+        if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_VERSION, 9)) {
             memcpy(hdrval, header + 9, hdrlen - 8);
             free(param->version);
             param->version = hdrval;
-        } else if (strncmp(header, ST_HEADER_COMMENT, 9) == 0) {
+        } else if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_COMMENT, 9)) {
             memcpy(hdrval, header + 9, hdrlen - 8);
             free(param->comment);
             param->comment = hdrval;
-        } else if (strncmp(header, ST_HEADER_HASH, 6) == 0) {
+        } else if ((hdrlen >= 5) && !strncmp(header, ST_HEADER_HASH, 6)) {
             memcpy(hdrval, header + 6, hdrlen - 5);
             free(param->hash);
             param->hash = hdrval;
-        } else if (strncmp(header, ST_HEADER_CHARSET, 9) == 0) {
+        } else if ((hdrlen >= 9) && !strncmp(header, ST_HEADER_CHARSET, 9)) {
             memcpy(hdrval, header + 9, hdrlen - 8);
             free(param->charset);
             param->charset = hdrval;
