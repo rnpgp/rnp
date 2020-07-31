@@ -1004,7 +1004,7 @@ cleartext_parse_headers(pgp_source_t *src)
             break;
         }
 
-        if (strncmp(hdr, ST_HEADER_HASH, 6) == 0) {
+        if ((hdrlen >= 6) && !strncmp(hdr, ST_HEADER_HASH, 6)) {
             hval = hdr + 6;
 
             std::string remainder = hval;
