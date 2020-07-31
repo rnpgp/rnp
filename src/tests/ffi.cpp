@@ -1230,6 +1230,59 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     /* cleanup */
     rnp_key_handle_destroy(key);
 
+    /* generate key with signing subkey */
+    rnp_op_generate_t op = NULL;
+    assert_rnp_success(rnp_op_generate_create(&op, ffi, "ECDSA"));
+    assert_rnp_success(rnp_op_generate_set_curve(op, "secp256k1"));
+    assert_rnp_success(rnp_op_generate_set_userid(op, "ecdsa_ecdsa"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(op, "certify"));
+    assert_rnp_success(rnp_op_generate_execute(op));
+    rnp_key_handle_t primary = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(op, &primary));
+    rnp_op_generate_destroy(op);
+    char *keyid = NULL;
+    assert_rnp_success(rnp_key_get_keyid(primary, &keyid));
+
+    rnp_op_generate_t subop = NULL;
+    assert_rnp_success(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDSA"));
+    assert_rnp_success(rnp_op_generate_set_curve(subop, "NIST P-256"));
+    assert_rnp_success(rnp_op_generate_add_usage(subop, "sign"));
+    assert_rnp_success(rnp_op_generate_add_usage(subop, "certify"));
+    assert_rnp_success(rnp_op_generate_execute(subop));
+    assert_rnp_success(rnp_op_generate_get_key(subop, &subkey));
+    rnp_op_generate_destroy(subop);
+    char *subid = NULL;
+    assert_rnp_success(rnp_key_get_keyid(subkey, &subid));
+
+    rnp_output_t output = NULL;
+    rnp_output_to_memory(&output, 0);
+    assert_rnp_success(
+      rnp_key_export(primary,
+                     output,
+                     RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS));
+    rnp_key_handle_destroy(primary);
+    rnp_key_handle_destroy(subkey);
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", keyid, &primary));
+    assert_non_null(primary);
+    assert_true(primary->pub->valid);
+    rnp_key_handle_destroy(primary);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", subid, &subkey));
+    assert_non_null(subkey);
+    assert_true(subkey->pub->valid);
+    rnp_key_handle_destroy(subkey);
+    rnp_buffer_destroy(keyid);
+    rnp_buffer_destroy(subid);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
     /* cleanup */
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
@@ -9222,6 +9275,19 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_rnp_success(rnp_key_get_subkey_count(key, &count));
     assert_int_equal(count, 0);
     rnp_key_handle_destroy(key);
+
+    /* key with signing subkey, where primary binding has different from subkey binding hash
+     * algorithm */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/key-binding-hash-alg.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "F81A30AA5DCBD01E", &key));
+    assert_true(key->pub->valid);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD716516A7249711", &sub));
+    assert_true(sub->pub->valid);
+    rnp_key_handle_destroy(sub);
 
     rnp_ffi_destroy(ffi);
 }
