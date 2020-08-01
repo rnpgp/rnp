@@ -619,7 +619,11 @@ get_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
             RNP_LOG("Failed to get GPG serial len");
             return false;
         }
-        size_t len = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
+        size_t len = s2k->gpg_serial_len;
+        if (s2k->gpg_serial_len > 16) {
+            RNP_LOG("Warning: gpg_serial_len is %d", (int) len);
+            len = 16;
+        }
         if (!get_packet_body_buf(body, s2k->gpg_serial, len)) {
             RNP_LOG("Failed to get GPG serial");
             return false;

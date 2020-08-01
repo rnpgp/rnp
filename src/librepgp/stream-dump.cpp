@@ -437,8 +437,9 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
     if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
         dst_printf(dst, "GPG extension num: %d\n", (int) s2k->gpg_ext_num);
         if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
-            dst_print_hex(
-              dst, "card serial number", s2k->gpg_serial, s2k->gpg_serial_len, true);
+            static_assert(sizeof(s2k->gpg_serial) == 16, "invalid s2k->gpg_serial size");
+            size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
+            dst_print_hex(dst, "card serial number", s2k->gpg_serial, slen, true);
         }
         return;
     }
@@ -1420,10 +1421,11 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
               s2k_obj, "gpg extension", json_object_new_int(s2k->gpg_ext_num))) {
             return false;
         }
-        if ((s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) &&
-            !obj_add_hex_json(
-              s2k_obj, "card serial number", s2k->gpg_serial, s2k->gpg_serial_len)) {
-            return false;
+        if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
+            size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
+            if (!obj_add_hex_json(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
+                return false;
+            }
         }
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
