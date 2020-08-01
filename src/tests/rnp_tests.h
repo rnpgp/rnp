@@ -235,6 +235,8 @@ void test_ffi_key_export_customized_enarmor(void **state);
 
 void test_ffi_key_dump(void **state);
 
+void test_ffi_key_dump_edge_cases(void **state);
+
 void test_ffi_key_userid_dump_has_no_special_chars(void **state);
 
 void test_ffi_pkt_dump(void **state);

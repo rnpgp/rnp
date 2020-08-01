@@ -5307,6 +5307,39 @@ TEST_F(rnp_tests, test_ffi_key_dump)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* secret key, stored on gpg card, with too large card serial len */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-2-card-len.pgp"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    buf[len - 1] = '\0';
+    assert_non_null(strstr(
+      (char *) buf, "card serial number: 0x000102030405060708090a0b0c0d0e0f (16 bytes)"));
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-2-card-len.pgp"));
+    char *json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    rnp_input_destroy(input);
+    assert_non_null(
+      strstr(json, "\"card serial number\":\"000102030405060708090a0b0c0d0e0f\""));
+    rnp_buffer_destroy(json);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_userid_dump_has_no_special_chars)
 {
     rnp_ffi_t    ffi = NULL;
@@ -9509,6 +9542,23 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     count = 0;
     assert_rnp_success(rnp_key_get_subkey_count(key, &count));
     assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
+    /* load key with too large gpg_serial_len */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-2-card-len.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
     rnp_key_handle_destroy(key);
 
     rnp_ffi_destroy(ffi);
