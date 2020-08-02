@@ -25,26 +25,37 @@
  */
 
 #include <stdio.h>
+#ifdef _MSC_VER
+#include "uniwin.h"
+#else
 #include <unistd.h> /* getopt() */
-#include <getopt.h>
-#include <rnp/rnp.h>
 #include <libgen.h> /* basename() */
+#endif
+#include <rnp/rnp.h>
 
 #define PFX "dump: "
 
 static void
 print_usage(char *program_name)
 {
+    const char *program_basename;
+#ifdef _MSC_VER
+    char fname[_MAX_FNAME];
+    program_basename =
+      _splitpath_s(program_name, NULL, 0, NULL, 0, fname, _MAX_FNAME, NULL, 0);
+#else
+    program_basename = basename(program_name);
+#endif
+
     fprintf(stderr,
-            PFX
-            "Program dumps PGP packets. \n\nUsage:\n"
+            "dump: " PFX "Program dumps PGP packets. \n\nUsage:\n"
             "\t%s [-d|-h] [input.pgp]\n"
             "\t  -d : indicates whether to print packet content. Data is represented as hex\n"
             "\t  -m : dump mpi values\n"
             "\t  -g : dump key fingerprints and grips\n"
             "\t  -j : JSON output\n"
             "\t  -h : prints help and exists\n",
-            basename(program_name));
+            program_basename);
 }
 
 static bool

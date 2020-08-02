@@ -41,13 +41,7 @@ extern "C" {
 
 #include <rnp/rnp_def.h>
 
-#ifndef PRINTFLIKE
-#define PRINTFLIKE(n, m) __attribute__((format(printf, n, m)))
-#endif
-
 typedef enum { RNP_HEX_LOWERCASE, RNP_HEX_UPPERCASE } rnp_hex_format_t;
-
-void rnp_log(const char *, ...) PRINTFLIKE(1, 2);
 
 int rnp_strcasecmp(const char *, const char *);
 

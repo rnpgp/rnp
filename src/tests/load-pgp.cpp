@@ -487,8 +487,9 @@ TEST_F(rnp_tests, test_load_merge)
     rnp_key_store_t *         key_store;
     pgp_transferable_key_t    tkey = {};
     pgp_transferable_subkey_t tskey = {};
-    pgp_password_provider_t   provider = (pgp_password_provider_t){
-      .callback = string_copy_password_callback, .userdata = (void *) "password"};
+    pgp_password_provider_t   provider = {};
+    provider.callback = string_copy_password_callback;
+    provider.userdata = (void *) "password";
 
     key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));

@@ -40,12 +40,6 @@ to_buf(buf_t *b, const uint8_t *in, size_t len)
     return true;
 }
 
-const buf_t
-mpi2buf(pgp_mpi_t *val, bool uselen)
-{
-    return (buf_t){.pbuf = val->mpi, .len = uselen ? val->len : sizeof(val->mpi)};
-}
-
 bignum_t *
 mpi2bn(const pgp_mpi_t *val)
 {

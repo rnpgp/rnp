@@ -28,6 +28,18 @@ add_library(rnp-common OBJECT
   file-utils.cpp
 )
 
+if(MSVC)
+  find_path(GETOPT_INCLUDE_DIR
+    NAMES getopt.h
+  )
+  find_library(GETOPT_LIBRARY
+    NAMES getopt
+  )
+  find_path(DIRENT_INCLUDE_DIR
+    NAMES dirent.h
+  )
+endif()
+
 target_include_directories(rnp-common
   PUBLIC
     "$<BUILD_INTERFACE:${PROJECT_BINARY_DIR}/src/lib>"
@@ -37,6 +49,13 @@ target_include_directories(rnp-common
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
 )
+if(MSVC)
+  target_include_directories(rnp-common
+    PRIVATE
+      "${GETOPT_INCLUDE_DIR}"
+      "${DIRENT_INCLUDE_DIR}"
+    )
+endif()
 
 set_target_properties(rnp-common PROPERTIES
   POSITION_INDEPENDENT_CODE ON

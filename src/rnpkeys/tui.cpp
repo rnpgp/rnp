@@ -25,8 +25,13 @@
  */
 
 #include <algorithm>
+#ifdef _MSC_VER
+#include "uniwin.h"
+#else
 #include <unistd.h>
+#endif
 #include <errno.h>
+#include <iterator>
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "defaults.h"

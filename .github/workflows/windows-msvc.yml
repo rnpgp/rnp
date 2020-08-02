@@ -1,0 +1,65 @@
+name: windows-msvc
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+jobs:
+  build_and_test:
+    name: debug-${{ matrix.arch }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [x64, Win32]
+        include:
+          - arch: x64
+            os: windows-latest
+            triplet: x64-windows
+            vcpkg_dir: 'C:\\vcpkg'
+          - arch: Win32
+            os: windows-latest
+            triplet: x86-windows
+            vcpkg_dir: 'C:\\vcpkg'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+        with:
+          submodules: true
+          lfs: true
+
+      - name: Configure vcpkg
+        shell: bash
+        run: |
+          cd ${{ matrix.vcpkg_dir }}
+          git fetch origin --tags
+          git reset --hard 2020.06
+          ./bootstrap-vcpkg.bat
+      - name: Cache vcpkg
+        uses: actions/cache@v2
+        with:
+          path: '${{ matrix.vcpkg_dir }}/installed'
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}
+          restore-keys: |
+            vcpkg-${{ matrix.triplet }}-
+      - name: Install vcpkg packages
+        shell: bash
+        run: vcpkg install --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
+      - name: Configure
+        env:
+          VCPKG_DIR: '${{ matrix.vcpkg_dir }}'
+        shell: bash
+        run: |
+          mkdir build
+          cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug .
+      - name: Compile
+        shell: bash
+        run: cmake --build ./build
+      - name: Testing
+        shell: bash
+        run: |
+          cd build
+          ctest -C Debug

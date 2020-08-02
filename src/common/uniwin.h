@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -23,36 +23,38 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/** File utilities
- *  @file
+#if !defined(_UNISTD_H) && defined(_MSC_VER)
+#define _UNISTD_H 1
+
+/* Taken partially from
+ * https://stackoverflow.com/a/826027/1202830
  */
 
-#include "file-utils.h"
+#include <io.h>
+#include "getoptwin.h"
+#include <direct.h> /* for _getcwd() and _chdir() */
 
-extern "C" {
-#ifdef _MSC_VER
-#include "uniwin.h"
+#ifdef _WIN64
+#define ssize_t __int64
 #else
-#include <sys/stat.h>
+#define ssize_t long
 #endif
-}
 
-bool
-rnp_file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
-}
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
 
-/* return the file modification time */
-int64_t
-rnp_filemtime(const char *path)
-{
-    struct stat st;
+#define NOMINMAX 1 /* to retain std::min and std::max */
+#include <windows.h>
+#include <dirent.h> /* for S_ISREG and S_ISDIR */
 
-    if (stat(path, &st) != 0) {
-        return 0;
-    } else {
-        return st.st_mtime;
-    }
-}
+#define strncasecmp strnicmp
+#define strcasecmp stricmp
+
+#ifndef MAXPATHLEN
+#define MAXPATHLEN _MAX_PATH
+#endif
+
+typedef unsigned short mode_t;
+
+#endif

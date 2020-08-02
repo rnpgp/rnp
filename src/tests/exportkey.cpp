@@ -34,7 +34,7 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
 {
     /* Generate the key and export it */
     cli_rnp_t rnp = {};
-    int       pipefd[2];
+    int       pipefd[2] = {-1, -1};
 
     /* Initialize the rnp structure. */
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
@@ -62,6 +62,8 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     /* try to export the key with specified userid parameter (which is wrong) */
     assert_false(cli_rnp_export_keys(&rnp, "LOGNAME"));
 
-    close(pipefd[0]);
+    if (pipefd[0] != -1) {
+        close(pipefd[0]);
+    }
     cli_rnp_end(&rnp); // Free memory and other allocated resources.
 }
