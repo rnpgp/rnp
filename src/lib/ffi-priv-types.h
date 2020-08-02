@@ -172,12 +172,12 @@ struct rnp_op_encrypt_st {
 };
 
 struct rnp_identifier_iterator_st {
-    rnp_ffi_t                      ffi;
-    pgp_key_search_type_t          type;
-    rnp_key_store_t *              store;
-    std::list<pgp_key_t>::iterator keyp;
-    unsigned                       uididx;
-    json_object *                  tbl;
+    rnp_ffi_t                       ffi;
+    pgp_key_search_type_t           type;
+    rnp_key_store_t *               store;
+    std::list<pgp_key_t>::iterator *keyp;
+    unsigned                        uididx;
+    json_object *                   tbl;
     char
       buf[1 + MAX(MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_KEY_GRIP_SIZE), PGP_FINGERPRINT_SIZE * 2),
                   MAX_ID_LENGTH)];

@@ -1,0 +1,32 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\..\\${name}",
+      "installRoot": "${projectDir}\\..\\install\\${name}",
+      "cmakeCommandArgs": "-DCMAKE_FIND_DEBUG_MODE=ON",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [],
+      "cmakeToolchain": "${env.VCPKG_DIR}\\scripts\\buildsystems\\vcpkg.cmake",
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "x32-Debug",
+      "generator": "Visual Studio 16 2019",
+      "configurationType": "Debug",
+      "buildRoot": "${projectDir}\\..\\${name}",
+      "installRoot": "${projectDir}\\..\\install\\${name}",
+      "cmakeCommandArgs": "-DCMAKE_FIND_DEBUG_MODE=ON",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "cmakeToolchain": "${env.VCPKG_DIR}\\scripts\\buildsystems\\vcpkg.cmake",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "variables": [],
+      "intelliSenseMode": "windows-msvc-x64"
+    }
+  ]
+}

@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2019 Ribose Inc.
+# Copyright (c) 2018-2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -103,6 +103,35 @@ add_executable(rnp_tests
   fuzz_keyring_g10.cpp
   fuzz_keyring_kbx.cpp
 )
+if(MSVC)
+  find_package(WindowsSDK)
+  GetUMWindowsSDKLibraryDir(WIN_LIBRARY_DIR)
+  message (STATUS "WIN_LIBRARY_DIR: ${WIN_LIBRARY_DIR}")
+  find_library(SHLWAPI_LIBRARY
+    PATHS
+       ${WIN_LIBRARY_DIR}
+    NAMES shlwapi)
+
+  find_path(GETOPT_INCLUDE_DIR
+    NAMES getopt.h
+  )
+  find_library(GETOPT_LIBRARY
+    NAMES getopt
+  )
+  find_path(DIRENT_INCLUDE_DIR
+    NAMES dirent.h
+  )
+  target_include_directories(rnp_tests
+    PRIVATE
+      "${GETOPT_INCLUDE_DIR}"
+      "${DIRENT_INCLUDE_DIR}"
+    )
+  target_link_libraries(rnp_tests
+    PRIVATE
+      "${SHLWAPI_LIBRARY}"
+      "${GETOPT_LIBRARY}"
+    )
+endif()
 target_include_directories(rnp_tests
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
@@ -116,6 +145,8 @@ target_link_libraries(rnp_tests
 )
 if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(rnp_tests PRIVATE regex)
+elseif(MSVC)
+  add_compile_definitions(RNP_USE_STD_REGEX)
 endif()
 target_compile_definitions(rnp_tests
   PRIVATE

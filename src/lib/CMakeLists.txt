@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018-2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -46,6 +46,8 @@ check_include_file_cxx(sys/cdefs.h HAVE_SYS_MMAN_H)
 check_include_file_cxx(sys/resource.h HAVE_SYS_RESOURCE_H)
 check_include_file_cxx(sys/stat.h HAVE_SYS_STAT_H)
 check_include_file_cxx(sys/types.h HAVE_SYS_TYPES_H)
+check_include_file_cxx(sys/param.h HAVE_SYS_PARAM_H)
+check_include_file_cxx(sys/time.h HAVE_SYS_TIME_H)
 check_include_file_cxx(unistd.h HAVE_UNISTD_H)
 check_include_file_cxx(sys/wait.h HAVE_SYS_WAIT_H)
 check_cxx_symbol_exists(mkdtemp "stdlib.h;unistd.h" HAVE_MKDTEMP)
@@ -298,7 +300,7 @@ function(get_linked_libs libsvar dirsvar tgt)
   foreach (lib ${linkedlibs})
     if (TARGET ${lib})
       list(FIND visited_targets ${lib} visited)
-      if (${visited} EQUAL -1)
+      if ((${visited} EQUAL -1) AND (${CMAKE_SHARED_LIBRARY_PREFIX}))
         # library
         get_target_property(liblocation ${lib} LOCATION)
         get_filename_component(linkedlib ${liblocation} NAME_WE)

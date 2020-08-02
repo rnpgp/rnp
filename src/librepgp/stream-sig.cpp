@@ -27,7 +27,11 @@
 #include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #include <type_traits>
 #include <rnp/rnp_def.h>

@@ -27,8 +27,12 @@
 #include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #include <string.h>
+#else
+#include "uniwin.h"
+#endif
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <errno.h>

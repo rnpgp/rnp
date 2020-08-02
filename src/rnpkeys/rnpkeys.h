@@ -2,7 +2,11 @@
 #define RNPKEYS_H_
 
 #include <stdbool.h>
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#else
+#include "uniwin.h"
+#endif
 #include "../rnp/fficli.h"
 
 #define DEFAULT_RSA_NUMBITS 2048

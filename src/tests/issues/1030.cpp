@@ -30,7 +30,7 @@
 static void
 test_issue_1030(const char *keystore)
 {
-    int         pipefd[2] = {0};
+    int         pipefd[2] = {-1, -1};
     cli_rnp_t   rnp = {};
     const char *userid = "user";
     size_t      keycount = 0;
@@ -62,7 +62,9 @@ test_issue_1030(const char *keystore)
     clear_key_handles(keys);
 
     // done
-    close(pipefd[0]);
+    if (pipefd[0] != -1) {
+        close(pipefd[0]);
+    }
     cli_rnp_end(&rnp);
     free(home);
 }

@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018-2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -22,6 +22,31 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
+if(MSVC)
+  # remove extra ${Configuration} subfolder
+  set(ArchiveOutputDir ${CMAKE_BINARY_DIR}\\src\\rnpkeys)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${ArchiveOutputDir})
+
+  set(RuntimeOutputDir ${CMAKE_BINARY_DIR}\\src\\rnpkeys)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${RuntimeOutputDir})
+
+  find_path(GETOPT_INCLUDE_DIR
+    NAMES getopt.h
+  )
+  find_library(GETOPT_LIBRARY
+    NAMES getopt
+  )
+  find_path(DIRENT_INCLUDE_DIR
+    NAMES dirent.h
+  )
+endif()
+
 # for the headers
 find_package(JSON-C 0.11 REQUIRED)
 
@@ -40,15 +65,30 @@ target_include_directories(rnpkeys
     "${PROJECT_SOURCE_DIR}/src/lib"
     "${JSON-C_INCLUDE_DIRS}"
 )
+if(MSVC)
+  target_include_directories(rnpkeys
+    PRIVATE
+      "${GETOPT_INCLUDE_DIR}"
+      "${DIRENT_INCLUDE_DIR}"
+    )
+endif()
 
 target_link_libraries(rnpkeys
   PRIVATE
     librnp
     JSON-C::JSON-C
 )
+if(MSVC)
+  target_link_libraries(rnpkeys
+    PRIVATE
+      "${GETOPT_LIBRARY}"
+    )
+endif()
 
 if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(rnpkeys PRIVATE regex)
+elseif(MSVC)
+  add_compile_definitions(RNP_USE_STD_REGEX)
 endif()
 
 include(GNUInstallDirs)

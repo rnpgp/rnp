@@ -28,7 +28,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#else
+#include "uniwin.h"
+#endif
 #include <sys/stat.h>
 #include <time.h>
 #include <errno.h>

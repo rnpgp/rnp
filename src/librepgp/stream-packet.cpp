@@ -28,7 +28,11 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #include <inttypes.h>
 #include <rnp/rnp_def.h>
@@ -1518,7 +1522,17 @@ signature_parse_subpacket(pgp_sig_subpkt_t &subpkt)
             subpkt.fields.issuer_fp.len = subpkt.len - 1;
         }
         break;
-    case PGP_SIG_SUBPKT_PRIVATE_FIRST ... PGP_SIG_SUBPKT_PRIVATE_LAST:
+    case PGP_SIG_SUBPKT_PRIVATE_100:
+    case PGP_SIG_SUBPKT_PRIVATE_101:
+    case PGP_SIG_SUBPKT_PRIVATE_102:
+    case PGP_SIG_SUBPKT_PRIVATE_103:
+    case PGP_SIG_SUBPKT_PRIVATE_104:
+    case PGP_SIG_SUBPKT_PRIVATE_105:
+    case PGP_SIG_SUBPKT_PRIVATE_106:
+    case PGP_SIG_SUBPKT_PRIVATE_107:
+    case PGP_SIG_SUBPKT_PRIVATE_108:
+    case PGP_SIG_SUBPKT_PRIVATE_109:
+    case PGP_SIG_SUBPKT_PRIVATE_110:
         oklen = true;
         checked = !subpkt.critical;
         if (!checked) {
