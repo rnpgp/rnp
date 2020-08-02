@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2020 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -23,36 +23,12 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-/** File utilities
- *  @file
- */
+#ifndef _GETOPTWIN_H
+#define _GETOPTWIN_H 1
 
-#include "file-utils.h"
+#include <getopt.h>
 
-extern "C" {
-#ifdef _MSC_VER
-#include "uniwin.h"
-#else
-#include <sys/stat.h>
-#endif
-}
+#define _BEGIN_EXTERN_C extern "C" {
+#define _END_EXTERN_C }
 
-bool
-rnp_file_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISREG(st.st_mode);
-}
-
-/* return the file modification time */
-int64_t
-rnp_filemtime(const char *path)
-{
-    struct stat st;
-
-    if (stat(path, &st) != 0) {
-        return 0;
-    } else {
-        return st.st_mtime;
-    }
-}
+#endif /* getoptwin.h  */

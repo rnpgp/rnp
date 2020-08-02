@@ -30,7 +30,11 @@
  */
 /* Command line program to perform rnp operations */
 
+#ifdef _MSC_VER
+#include "uniwin.h"
+#else
 #include <getopt.h>
+#endif
 #include <string.h>
 #include <stdarg.h>
 #include "../rnp/rnpcfg.h"

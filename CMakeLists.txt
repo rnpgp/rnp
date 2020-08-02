@@ -69,18 +69,21 @@ if (NOT CMAKE_BUILD_TYPE)
 endif()
 
 # set warning flags at the top level
-add_compile_options(
-  -Wall -Wextra
-  -Wunreachable-code -Wpointer-arith
-  -Wmissing-declarations
-)
+if(NOT MSVC)
+  add_compile_options(
+    -Wall -Wextra
+    -Wunreachable-code -Wpointer-arith
+    -Wmissing-declarations
+  )
 # relax some warnings a bit
-add_compile_options(
-  -Wno-pedantic
-  -Wno-ignored-qualifiers
-  -Wno-unused-parameter
-  -Wno-missing-field-initializers
-)
+  add_compile_options(
+    -Wno-pedantic
+    -Wno-ignored-qualifiers
+    -Wno-unused-parameter
+    -Wno-missing-field-initializers
+  )
+endif()
+
 # MSYS-specific options
 if(MSYS)
   add_compile_options(
@@ -99,6 +102,14 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)
+
+if(MSVC_VERSION GREATER_EQUAL "1900")
+    include(CheckCXXCompilerFlag)
+    CHECK_CXX_COMPILER_FLAG("/std:c++latest" _cpp_latest_flag_supported)
+    if (_cpp_latest_flag_supported)
+        add_compile_options("/std:c++latest")
+    endif()
+endif()
 
 if (ENABLE_COVERAGE OR ENABLE_SANITIZERS)
   message("Forcing build type to Debug (for code coverage or sanitizers).")

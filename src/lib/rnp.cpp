@@ -45,7 +45,12 @@
 #include <rnp/rnp.h>
 #include <stdarg.h>
 #include <stdlib.h>
+#ifdef _MSC_VER
+#include "uniwin.h"
+#include <inttypes.h>
+#else
 #include <unistd.h>
+#endif
 #include <string.h>
 #include <sys/stat.h>
 #include <stdexcept>
@@ -487,9 +492,10 @@ try {
         goto done;
     }
 
-    ob->key_provider = (pgp_key_provider_t){.callback = ffi_key_provider, .userdata = ob};
-    ob->pass_provider =
-      (pgp_password_provider_t){.callback = rnp_password_cb_bounce, .userdata = ob};
+    ob->key_provider.callback = ffi_key_provider;
+    ob->key_provider.userdata = ob;
+    ob->pass_provider.callback = rnp_password_cb_bounce;
+    ob->pass_provider.userdata = ob;
     if (!rng_init(&ob->rng, RNG_DRBG)) {
         ret = RNP_ERROR_RNG;
         goto done;
@@ -7378,20 +7384,25 @@ static bool
 key_iter_next_key(rnp_identifier_iterator_t it)
 {
     // check if we not reached the end of the ring
-    it->keyp = std::next(it->keyp);
-    if (it->keyp != it->store->keys.end()) {
+    *it->keyp = std::next(*it->keyp);
+    if (*it->keyp != it->store->keys.end()) {
         it->uididx = 0;
         return true;
     }
     // if we are currently on pubring, switch to secring (if not empty)
-    if (it->store == it->ffi->pubring && rnp_key_store_get_key_count(it->ffi->secring)) {
+    if (it->store == it->ffi->pubring && !it->ffi->secring->keys.empty()) {
         it->store = it->ffi->secring;
-        it->keyp = it->store->keys.begin();
-    } else {
-        // we've gone through both rings
-        return false;
+        *it->keyp = it->store->keys.begin();
+        it->uididx = 0;
+        return true;
     }
-    return true;
+    // we've gone through both rings
+    it->store = NULL;
+    if (it->keyp) {
+        delete it->keyp;
+        it->keyp = NULL;
+    }
+    return false;
 }
 
 // move to next item (key or userid)
@@ -7405,7 +7416,7 @@ key_iter_next_item(rnp_identifier_iterator_t it)
         return key_iter_next_key(it);
     case PGP_KEY_SEARCH_USERID:
         it->uididx++;
-        while (it->uididx >= pgp_key_get_userid_count(&*it->keyp)) {
+        while (it->uididx >= pgp_key_get_userid_count(&**it->keyp)) {
             if (!key_iter_next_key(it)) {
                 return false;
             }
@@ -7430,7 +7441,7 @@ key_iter_first_key(rnp_identifier_iterator_t it)
         it->store = NULL;
         return false;
     }
-    it->keyp = it->store->keys.begin();
+    it->keyp = new std::list<pgp_key_t>::iterator(it->store->keys.begin());
     it->uididx = 0;
     return true;
 }
@@ -7447,12 +7458,11 @@ key_iter_first_item(rnp_identifier_iterator_t it)
         if (!key_iter_first_key(it)) {
             return false;
         }
-        while (it->uididx >= pgp_key_get_userid_count(&*it->keyp)) {
+        it->uididx = 0;
+        while (it->uididx >= pgp_key_get_userid_count(&**it->keyp)) {
             if (!key_iter_next_key(it)) {
-                it->store = NULL;
                 return false;
             }
-            it->uididx = 0;
         }
         break;
     default:
@@ -7465,7 +7475,7 @@ key_iter_first_item(rnp_identifier_iterator_t it)
 static bool
 key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
 {
-    const pgp_key_t *key = &*it->keyp;
+    const pgp_key_t *key = &**it->keyp;
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID: {
         const pgp_key_id_t &keyid = pgp_key_get_keyid(key);
@@ -7572,8 +7582,9 @@ try {
         return RNP_ERROR_GENERIC;
     }
     bool exists;
+    bool iterator_valid = true;
     while ((exists = json_object_object_get_ex(it->tbl, it->buf, NULL))) {
-        if (!key_iter_next_item(it)) {
+        if (!((iterator_valid = key_iter_next_item(it)))) {
             break;
         }
         if (!key_iter_get_item(it, it->buf, sizeof(it->buf))) {
@@ -7592,9 +7603,8 @@ try {
         *identifier = it->buf;
     }
     // prepare for the next one
-    if (!key_iter_next_item(it)) {
-        // this means we're done
-        it->store = NULL;
+    if (iterator_valid) {
+        key_iter_next_item(it);
     }
     ret = RNP_SUCCESS;
 
@@ -7611,6 +7621,9 @@ rnp_identifier_iterator_destroy(rnp_identifier_iterator_t it)
 try {
     if (it) {
         json_object_put(it->tbl);
+        if (it->keyp) {
+            delete it->keyp;
+        }
         free(it);
     }
     return RNP_SUCCESS;

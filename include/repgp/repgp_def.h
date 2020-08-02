@@ -382,8 +382,17 @@ typedef enum {
     PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
     PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
     PGP_SIG_SUBPKT_PREFERRED_AEAD = 34,     /* preferred AEAD algorithms */
-    PGP_SIG_SUBPKT_PRIVATE_FIRST = 100,     /* private/experimental subpackets */
-    PGP_SIG_SUBPKT_PRIVATE_LAST = 110
+    PGP_SIG_SUBPKT_PRIVATE_100 = 100,       /* private/experimental subpackets */
+    PGP_SIG_SUBPKT_PRIVATE_101 = 101,
+    PGP_SIG_SUBPKT_PRIVATE_102 = 102,
+    PGP_SIG_SUBPKT_PRIVATE_103 = 103,
+    PGP_SIG_SUBPKT_PRIVATE_104 = 104,
+    PGP_SIG_SUBPKT_PRIVATE_105 = 105,
+    PGP_SIG_SUBPKT_PRIVATE_106 = 106,
+    PGP_SIG_SUBPKT_PRIVATE_107 = 107,
+    PGP_SIG_SUBPKT_PRIVATE_108 = 108,
+    PGP_SIG_SUBPKT_PRIVATE_109 = 109,
+    PGP_SIG_SUBPKT_PRIVATE_110 = 110
 } pgp_sig_subpacket_type_t;
 
 /** Key Flags

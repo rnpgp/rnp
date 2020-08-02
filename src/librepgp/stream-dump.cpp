@@ -28,7 +28,11 @@
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #include <time.h>
 #include "stream-def.h"

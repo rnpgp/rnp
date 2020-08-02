@@ -35,11 +35,12 @@
 #include <stdio.h>
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#else
+#include "uniwin.h"
 #endif
 #ifdef HAVE_LIMITS_H
 #include <limits.h>
 #endif
-#include <ftw.h>
 #ifdef HAVE_SYS_STAT_H
 #include <sys/stat.h>
 #endif
