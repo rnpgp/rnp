@@ -26,7 +26,6 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -35,8 +34,14 @@
 #include <string.h>
 #include <string>
 #include <vector>
+#include <iterator>
 #include <ctype.h>
+#ifdef _MSC_VER
+#include "uniwin.h"
+#else
+#include <sys/param.h>
 #include <unistd.h>
+#endif
 
 #ifndef _WIN32
 #include <termios.h>

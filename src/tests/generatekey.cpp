@@ -46,7 +46,7 @@ static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)
 {
     cli_rnp_t rnp = {};
-    int       pipefd[2] = {0};
+    int       pipefd[2] = {-1, -1};
     bool      res = false;
     size_t    keycount = 0;
 
@@ -80,7 +80,9 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
     }
     res = true;
 done:
-    close(pipefd[0]);
+    if (pipefd[0] != -1) {
+        close(pipefd[0]);
+    }
     clear_key_handles(keys);
     cli_rnp_end(&rnp);
     return res;
@@ -107,7 +109,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                              "sha512",
                              "sm3",
                              NULL};
-    int         pipefd[2];
+    int         pipefd[2] = {-1, -1};
     char        memToSign[] = "A simple test message";
     cli_rnp_t   rnp;
 
@@ -149,7 +151,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 
                 /* Sign the file */
                 assert_true(cli_rnp_protect_file(&rnp));
-                close(pipefd[0]);
+                if (pipefd[0] != -1) {
+                    close(pipefd[0]);
+                    pipefd[0] = -1;
+                }
 
                 /* Verify the file */
                 rnp_cfg_free(cfg);
@@ -201,7 +206,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
 
     cli_rnp_t   rnp = {};
     char        memToEncrypt[] = "A simple test message";
-    int         pipefd[2] = {0};
+    int         pipefd[2] = {-1, -1};
     const char *userid = "ciphertest";
 
     std::ofstream out("dummyfile.dat");
@@ -246,7 +251,9 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.decrypt");
             assert_true(cli_rnp_process_file(&rnp));
             cli_rnp_end(&rnp);
-            close(pipefd[0]);
+            if (pipefd[0] != -1) {
+                close(pipefd[0]);
+            }
 
             /* Ensure plaintext recovered */
             std::string decrypt = file_to_str("dummyfile.decrypt");
@@ -282,7 +289,6 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
 
     for (size_t i = 0; i < ARRAY_SIZE(hashAlg); i++) {
         const char *keystore = keystores[i % ARRAY_SIZE(keystores)];
-        delete_recursively(".rnp");
         /* Setting up rnp again and decrypting memory */
         printf("keystore: %s\n", keystore);
         /* Generate key with specified hash algorithm */
@@ -303,6 +309,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         assert_non_null(handle);
         rnp_key_handle_destroy(handle);
         cli_rnp_end(&rnp);
+        delete_recursively(".rnp");
     }
 }
 
@@ -325,7 +332,6 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
 
     for (size_t i = 0; i < ARRAY_SIZE(userIds); i++) {
         const char *keystore = keystores[i % ARRAY_SIZE(keystores)];
-        delete_recursively(".rnp");
         /* Generate key with specified hash algorithm */
         assert_true(generate_test_key(keystore, userIds[i], "SHA256", NULL));
 
@@ -345,6 +351,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
         assert_non_null(handle);
         rnp_key_handle_destroy(handle);
         cli_rnp_end(&rnp);
+        delete_recursively(".rnp");
     }
 }
 
@@ -512,8 +519,8 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
 {
     /* Run tests*/
     bool   ret = false;
-    int    pipefd[2] = {0};
-    int    user_input_pipefd[2] = {0};
+    int    pipefd[2] = {-1, -1};
+    int    user_input_pipefd[2] = {-1, -1};
     size_t rsp_len;
 
     if (pipe(pipefd) == -1) {
@@ -523,6 +530,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     write_pass_to_pipe(pipefd[1], 2);
     close(pipefd[1]);
     if (!rnpkeys_init(ctx, ops)) {
+        close(pipefd[0]); // otherwise will be closed via passfp
         goto end;
     }
 
@@ -548,9 +556,6 @@ end:
     /* Close & clean fd*/
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
-    }
-    if (pipefd[0]) {
-        close(pipefd[0]);
     }
     return ret;
 }

@@ -28,8 +28,14 @@
 #include "rnp_tests.h"
 #include "utils.h"
 
+#ifdef _MSC_VER
+#include "uniwin.h"
+#include <shlwapi.h>
+#else
 #include <sys/types.h>
 #include <sys/param.h>
+#endif
+
 #include <stdlib.h>
 #include <stdbool.h>
 #include <stdio.h>
@@ -37,6 +43,10 @@
 #include <crypto.h>
 #include <pgp-key.h>
 #include <fstream>
+
+#ifndef WINSHELLAPI
+#include <ftw.h>
+#endif
 
 extern rng_t global_rng;
 
@@ -220,8 +230,14 @@ is_tmp_path(const char *path)
 void
 delete_recursively(const char *path)
 {
+    bool relative =
+#ifdef _MSC_VER
+      PathIsRelativeA(path);
+#else
+      *path != '/';
+#endif
     char *fullpath = const_cast<char *>(path);
-    if (*path != '/') {
+    if (relative) {
         char *cwd = getcwd(NULL, 0);
         fullpath = rnp_compose_path(cwd, path, NULL);
         free(cwd);
@@ -229,10 +245,26 @@ delete_recursively(const char *path)
     /* sanity check, we should only be purging things from /tmp/ */
     assert_true(is_tmp_path(fullpath));
 
+#ifdef WINSHELLAPI
+    SHFILEOPSTRUCTA fileOp = {};
+    fileOp.fFlags = FOF_NOCONFIRMATION;
+    assert_true(strlen(fullpath) < MAX_PATH);
+    char newFrom[MAX_PATH + 1];
+    strcpy_s(newFrom, fullpath);
+    newFrom[strlen(fullpath) + 1] = NULL; // two NULLs are required
+    fileOp.pFrom = newFrom;
+    fileOp.pTo = NULL;
+    fileOp.wFunc = FO_DELETE;
+    fileOp.hNameMappings = NULL;
+    fileOp.hwnd = NULL;
+    fileOp.lpszProgressTitle = NULL;
+    assert_int_equal(0, SHFileOperationA(&fileOp));
+#else
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
     if (*path != '/') {
         free(fullpath);
     }
+#endif
 }
 
 void
@@ -241,14 +273,35 @@ copy_recursively(const char *src, const char *dst)
     /* sanity check, we should only be copying things to /tmp/ */
     assert_true(is_tmp_path(dst));
 
+#ifdef WINSHELLAPI
+    SHFILEOPSTRUCTA fileOp = {};
+    fileOp.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI | FOF_NOCONFIRMMKDIR;
+    fileOp.pFrom = src;
+    fileOp.pTo = dst;
+    assert_true(strlen(src) < MAX_PATH);
+    char newFrom[MAX_PATH + 1];
+    strcpy_s(newFrom, src);
+    newFrom[strlen(src) + 1] = NULL; // two NULLs are required
+    fileOp.pFrom = newFrom;
+    assert_true(strlen(dst) < MAX_PATH);
+    char newTo[MAX_PATH + 1];
+    strcpy_s(newTo, dst);
+    newTo[strlen(dst) + 1] = NULL; // two NULLs are required
+    fileOp.wFunc = FO_COPY;
+    fileOp.hNameMappings = NULL;
+    fileOp.hwnd = NULL;
+    fileOp.lpszProgressTitle = NULL;
+    assert_int_equal(0, SHFileOperationA(&fileOp));
+#else
     // TODO: maybe use fts or something less hacky
     char buf[2048];
 #ifndef _WIN32
     snprintf(buf, sizeof(buf), "cp -a '%s' '%s'", src, dst);
 #else
     snprintf(buf, sizeof(buf), "xcopy \"%s\" \"%s\" /I /Q /E /Y", src, dst);
-#endif
+#endif // _WIN32
     assert_int_equal(0, system(buf));
+#endif // WINSHELLAPI
 }
 
 /* Creates and returns a temporary directory path.
@@ -506,6 +559,8 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
             return res;
         }
         rnp_cfg_setint(cfg, CFG_PASSFD, pipefd[0]);
+        // pipefd[0] will be closed via passfp
+        pipefd[0] = -1;
     }
     /* setup keyring pathes */
     if (homedir == NULL) {

@@ -62,7 +62,6 @@ __COPYRIGHT("@(#) Copyright (c) 2009 The NetBSD Foundation, Inc. All rights rese
 __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #endif
 
-#include <sys/param.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -75,7 +74,10 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <errno.h>
 
 #ifdef HAVE_UNISTD_H
+#include <sys/param.h>
 #include <unistd.h>
+#else
+#include "uniwin.h"
 #endif
 
 #include <botan/ffi.h>

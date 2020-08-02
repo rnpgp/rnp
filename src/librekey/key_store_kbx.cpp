@@ -25,7 +25,11 @@
  */
 
 #include <sys/types.h>
+#ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #include <stdint.h>
 #include <time.h>

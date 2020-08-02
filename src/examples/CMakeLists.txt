@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018-2020 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -21,6 +21,28 @@
 # CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+
+if(MSVC)
+  # remove extra ${Configuration} subfolder
+  set(ArchiveOutputDir ${CMAKE_BINARY_DIR}\\src\\examples)
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE ${ArchiveOutputDir})
+  set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELWITHDEBINFO ${ArchiveOutputDir})
+
+  set(RuntimeOutputDir ${CMAKE_BINARY_DIR}\\src\\examples)
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_MINSIZEREL ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELEASE ${RuntimeOutputDir})
+  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_RELWITHDEBINFO ${RuntimeOutputDir})
+
+  find_path(GETOPT_INCLUDE_DIR
+    NAMES getopt.h
+  )
+  find_library(GETOPT_LIBRARY
+    NAMES getopt
+  )
+endif()
 
 add_executable(generate generate.c)
 
@@ -99,6 +121,17 @@ target_link_libraries(dump
   PRIVATE
     librnp
 )
+
+if(MSVC)
+  target_include_directories(dump
+    PRIVATE
+      "${GETOPT_INCLUDE_DIR}"
+  )
+  target_link_libraries(dump
+    PRIVATE
+      "${GETOPT_LIBRARY}"
+  )
+endif()
 
 if (ENABLE_SANITIZERS)
   foreach(tgt generate encrypt decrypt sign verify dump)

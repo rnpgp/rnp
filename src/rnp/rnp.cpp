@@ -30,19 +30,23 @@
  */
 /* Command line program to perform rnp operations */
 #include <sys/types.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <string>
+#ifdef _MSC_VER
+#include "uniwin.h"
+#else
+#include <sys/param.h>
 #include <unistd.h>
+#include <getopt.h>
+#endif
 #include <fcntl.h>
 #include <stdbool.h>
 #include <assert.h>
 #include <time.h>
 #include <errno.h>
-#include <getopt.h>
 
 #include "config.h"
 #include "fficli.h"

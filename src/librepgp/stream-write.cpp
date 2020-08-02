@@ -26,10 +26,14 @@
 
 #include "config.h"
 #include <sys/stat.h>
-#include <sys/param.h>
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
+#include <sys/param.h>
 #include <unistd.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #ifdef HAVE_ZLIB_H
 #include <zlib.h>

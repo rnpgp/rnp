@@ -27,7 +27,11 @@
 #include "config.h"
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
+#else
+#include "uniwin.h"
+#endif
 #include <string.h>
 #include <algorithm>
 #include <rnp/rnp_def.h>
@@ -1030,7 +1034,7 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {
     rnp_result_t res = RNP_ERROR_BAD_FORMAT;
     pgp_source_t armorsrc = {0};
-    uint8_t      readbuf[strlen(ST_CLEAR_BEGIN) + 1];
+    uint8_t      readbuf[sizeof(ST_CLEAR_BEGIN)];
     size_t       read;
 
     if (!src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN), &read) ||
