@@ -1207,6 +1207,14 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_printf(dst, "\n");
         }
 
+        /* do not allow endless recursion */
+        if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+            RNP_LOG("Too many OpenPGP nested layers during the dump.");
+            dst_printf(dst, ":too many OpenPGP packet layers, stopping.");
+            ret = RNP_SUCCESS;
+            goto finish;
+        }
+
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
             stream_dump_signature(ctx, src, dst);
@@ -1297,6 +1305,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     bool         indent = false;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
+    ctx->layers = 0;
     /* check whether source is cleartext - then skip till the signature */
     if (is_cleartext_source(src)) {
         dst_printf(dst, ":cleartext signed data\n");
@@ -2228,6 +2237,13 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             }
         }
 
+        /* do not allow endless recursion */
+        if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+            RNP_LOG("Too many OpenPGP nested layers during the dump.");
+            ret = json_object_array_add(pkts, pkt) ? RNP_ERROR_OUT_OF_MEMORY : RNP_SUCCESS;
+            goto done;
+        }
+
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
             ret = stream_dump_signature_json(ctx, src, pkt);
@@ -2299,6 +2315,7 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
     bool         armored = false;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
+    ctx->layers = 0;
     /* check whether source is cleartext - then skip till the signature */
     if (is_cleartext_source(src)) {
         if (!stream_skip_cleartext(src)) {
