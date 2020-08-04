@@ -38,6 +38,7 @@
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-dump.h>
 #include <librepgp/stream-armor.h>
+#include <librepgp/stream-write.h>
 
 static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
@@ -1498,4 +1499,103 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
     assert_false(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n=miZpp\n%s\n", HDR, b64, FTR);
     assert_false(try_dearmor(msg, len));
+}
+
+static void
+add_openpgp_layers(const char *msg, pgp_dest_t &pgpdst, int compr, int encr)
+{
+    pgp_source_t src = {};
+    pgp_dest_t   dst = {};
+
+    assert_rnp_success(init_mem_src(&src, msg, strlen(msg), false));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(rnp_wrap_src(src, dst, "message.txt", time(NULL)));
+    src_close(&src);
+    assert_rnp_success(init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true));
+    dst_close(&dst, false);
+
+    /* add compression layers */
+    for (int i = 0; i < compr; i++) {
+        pgp_compression_type_t alg = (pgp_compression_type_t)((i % 3) + 1);
+        assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+        assert_rnp_success(rnp_compress_src(src, dst, alg, 9));
+        src_close(&src);
+        assert_rnp_success(init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true));
+        dst_close(&dst, false);
+    }
+
+    /* add encryption layers */
+    for (int i = 0; i < encr; i++) {
+        assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+        assert_rnp_success(rnp_raw_encrypt_src(src, dst, "password"));
+        src_close(&src);
+        assert_rnp_success(init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true));
+        dst_close(&dst, false);
+    }
+
+    assert_rnp_success(init_mem_dest(&pgpdst, NULL, 0));
+    assert_rnp_success(dst_write_src(&src, &pgpdst));
+    src_close(&src);
+}
+
+TEST_F(rnp_tests, test_stream_deep_packet_nesting)
+{
+    const char *message = "message";
+    pgp_dest_t  dst = {};
+
+    /* add 30 compression layers and 2 encryption - must fail */
+    add_openpgp_layers(message, dst, 30, 2);
+#ifdef DUMP_TEST_CASE
+    /* remove ifdef if you want to write it to stdout */
+    pgp_source_t src = {};
+    assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));
+    pgp_dest_t outdst = {};
+    assert_rnp_success(init_stdout_dest(&outdst));
+    assert_rnp_success(rnp_armor_source(&src, &outdst, PGP_ARMORED_MESSAGE));
+    dst_close(&outdst, false);
+    src_close(&src);
+#endif
+    /* decrypt it via FFI for less code */
+    rnp_ffi_t ffi = NULL;
+    rnp_ffi_create(&ffi, "GPG", "GPG");
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(
+      &input, (const uint8_t *) mem_dest_get_memory(&dst), dst.writeb, false));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    dst_close(&dst, false);
+
+    /* add  27 compression & 4 encryption layers - must succeed */
+    add_openpgp_layers("message", dst, 27, 4);
+#ifdef DUMP_TEST_CASE
+    /* remove ifdef if you want to write it to stdout */
+    assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));
+    assert_rnp_success(init_stdout_dest(&outdst));
+    assert_rnp_success(rnp_armor_source(&src, &outdst, PGP_ARMORED_MESSAGE));
+    dst_close(&outdst, false);
+    src_close(&src);
+#endif
+    /* decrypt it via FFI for less code */
+    assert_rnp_success(rnp_input_from_memory(
+      &input, (const uint8_t *) mem_dest_get_memory(&dst), dst.writeb, false));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    /* check output */
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(strlen(message), len);
+    assert_int_equal(memcmp(buf, message, len), 0);
+
+    rnp_output_destroy(output);
+    dst_close(&dst, false);
+
+    rnp_ffi_destroy(ffi);
 }
