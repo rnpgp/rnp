@@ -69,4 +69,21 @@ rnp_result_t rnp_encrypt_sign_src(pgp_write_handler_t *handler,
                                   pgp_source_t *       src,
                                   pgp_dest_t *         dst);
 
+/* Following functions are used only in tests currently. Later could be used in CLI for debug
+ * commands like --wrap-literal, --encrypt-raw, --compress-raw, etc. */
+
+rnp_result_t rnp_compress_src(pgp_source_t &         src,
+                              pgp_dest_t &           dst,
+                              pgp_compression_type_t zalg,
+                              int                    zlevel);
+
+rnp_result_t rnp_wrap_src(pgp_source_t &     src,
+                          pgp_dest_t &       dst,
+                          const std::string &filename,
+                          uint32_t           modtime);
+
+rnp_result_t rnp_raw_encrypt_src(pgp_source_t &     src,
+                                 pgp_dest_t &       dst,
+                                 const std::string &password);
+
 #endif
