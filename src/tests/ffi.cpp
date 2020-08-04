@@ -9166,6 +9166,110 @@ TEST_F(rnp_tests, test_ffi_decrypt_edge_cases)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    /* endless recursive compression packets, 'quine'.
+     * Generated using the code by Taylor R. Campbell */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.zlib-quine"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.zlib-quine"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.zlib-quine"));
+    char *json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_non_null(json);
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+
+    /* 128 levels of compression - fail decryption*/
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr.128-rounds"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* but dumping will succeed */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr.128-rounds"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr.128-rounds"));
+    json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_non_null(json);
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+
+    /* 32 levels of compression + encryption */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.32-rounds"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.32-rounds"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.32-rounds"));
+    json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_non_null(json);
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+
+    /* 31 levels of compression + encryption */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(op));
+    rnp_op_verify_destroy(op);
+    rnp_input_destroy(input);
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 7);
+    assert_int_equal(memcmp(buf, "message", 7), 0);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.compr-encr.31-rounds"));
+    json = NULL;
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    assert_non_null(json);
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+
     rnp_ffi_destroy(ffi);
 }
 
