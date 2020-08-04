@@ -2160,26 +2160,29 @@ pgp_processing_ctx_t::~pgp_processing_ctx_t()
 static rnp_result_t
 init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
 {
-    uint8_t       ptag;
-    int           type;
-    pgp_source_t  psrc;
     pgp_source_t *lsrc = &src;
-    rnp_result_t  ret;
+    size_t        srcnum = ctx.sources.size();
 
     while (1) {
+        uint8_t ptag = 0;
         if (!src_peek_eq(lsrc, &ptag, 1)) {
             RNP_LOG("cannot read packet tag");
             return RNP_ERROR_READ;
         }
 
-        type = get_packet_type(ptag);
+        int type = get_packet_type(ptag);
         if (type < 0) {
             RNP_LOG("wrong pkt tag %d", (int) ptag);
             return RNP_ERROR_BAD_FORMAT;
         }
 
-        memset(&psrc, 0, sizeof(psrc));
+        if (ctx.sources.size() - srcnum == MAXIMUM_NESTING_LEVEL) {
+            RNP_LOG("Too many nested OpenPGP packets");
+            return RNP_ERROR_BAD_FORMAT;
+        }
 
+        pgp_source_t psrc = {};
+        rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
         switch (type) {
         case PGP_PKT_PK_SESSION_KEY:
         case PGP_PKT_SK_SESSION_KEY:

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -59,5 +59,8 @@
 
 /* Preallocated cache length for AEAD encryption/decryption */
 #define PGP_AEAD_CACHE_LEN (PGP_INPUT_CACHE_SIZE + PGP_AEAD_MAX_TAG_LEN)
+
+/* Maximum OpenPGP packet nesting level */
+#define MAXIMUM_NESTING_LEVEL 32
 
 #endif /* !STREAM_DEF_H_ */
