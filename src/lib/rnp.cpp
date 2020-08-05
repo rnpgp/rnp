@@ -414,6 +414,20 @@ get_map_value(const pgp_map_t *map, size_t msize, int val, char **res)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+ret_str_value(const char *str, char **res)
+{
+    if (!str) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    char *strcp = strdup(str);
+    if (!strcp) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    *res = strcp;
+    return RNP_SUCCESS;
+}
+
 static uint32_t
 ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ERROR_GENERIC)
 {
@@ -6161,6 +6175,130 @@ rnp_result_t
 rnp_key_is_retired(rnp_key_handle_t handle, bool *result)
 try {
     return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_RETIRED);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_protection_type(rnp_key_handle_t key, char **type)
+try {
+    if (!key || !type) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!key->sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    pgp_s2k_t & s2k = key->sec->pkt.sec_protection.s2k;
+    const char *res = NULL;
+    if (s2k.usage == PGP_S2KU_NONE) {
+        res = "None";
+    }
+    if ((s2k.usage == PGP_S2KU_ENCRYPTED) && (s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+        res = "Encrypted";
+    }
+    if ((s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED) &&
+        (s2k.specifier != PGP_S2KS_EXPERIMENTAL)) {
+        res = "Encrypted-Hashed";
+    }
+    if ((s2k.specifier == PGP_S2KS_EXPERIMENTAL) &&
+        (s2k.gpg_ext_num == PGP_S2K_GPG_NO_SECRET)) {
+        res = "GPG-None";
+    }
+    if ((s2k.specifier == PGP_S2KS_EXPERIMENTAL) &&
+        (s2k.gpg_ext_num == PGP_S2K_GPG_SMARTCARD)) {
+        res = "GPG-Smartcard";
+    }
+
+    return ret_str_value(res, type);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_protection_mode(rnp_key_handle_t key, char **mode)
+try {
+    if (!key || !mode) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!key->sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (key->sec->pkt.sec_protection.s2k.usage == PGP_S2KU_NONE) {
+        return ret_str_value("None", mode);
+    }
+    if (key->sec->pkt.sec_protection.s2k.specifier == PGP_S2KS_EXPERIMENTAL) {
+        return ret_str_value("Unknown", mode);
+    }
+
+    return get_map_value(cipher_mode_map,
+                         ARRAY_SIZE(cipher_mode_map),
+                         key->sec->pkt.sec_protection.cipher_mode,
+                         mode);
+}
+FFI_GUARD
+
+static bool
+pgp_key_has_encryption_info(const pgp_key_t *key)
+{
+    return (key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE) &&
+           (key->pkt.sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL);
+}
+
+rnp_result_t
+rnp_key_get_protection_cipher(rnp_key_handle_t key, char **cipher)
+try {
+    if (!key || !cipher) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!key->sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_key_has_encryption_info(key->sec)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return get_map_value(
+      symm_alg_map, ARRAY_SIZE(symm_alg_map), key->sec->pkt.sec_protection.symm_alg, cipher);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_protection_hash(rnp_key_handle_t key, char **hash)
+try {
+    if (!key || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!key->sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_key_has_encryption_info(key->sec)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return get_map_value(
+      hash_alg_map, ARRAY_SIZE(hash_alg_map), key->sec->pkt.sec_protection.s2k.hash_alg, hash);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_protection_iterations(rnp_key_handle_t key, size_t *iterations)
+try {
+    if (!key || !iterations) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!key->sec) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!pgp_key_has_encryption_info(key->sec)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (key->sec->pkt.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        *iterations = pgp_s2k_decode_iterations(key->sec->pkt.sec_protection.s2k.iterations);
+    } else {
+        *iterations = 1;
+    }
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
