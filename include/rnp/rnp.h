@@ -1349,6 +1349,85 @@ RNP_API rnp_result_t rnp_key_is_retired(rnp_key_handle_t key, bool *result);
  **/
 RNP_API rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
 
+/**
+ * @brief Get type of protection, used for secret key data.
+ *
+ * @param key key handle, cannot be NULL and should have secret part (see function
+ *            rnp_key_have_secret()).
+ * @param type on success protection type will be stored here. Cannot be NULL.
+ *             Must be freed by caller via rnp_buffer_destroy() call.
+ *             Currently defined values are:
+ *             - "None" : secret key data is stored in plaintext.
+ *             - "Encrypted" : secret key data is encrypted, using just CRC as integrity
+ *                 protection.
+ *             - "Encrypted-Hashed" : secret key data is encrypted, using the SHA1 hash as
+ *                 an integrity protection.
+ *             - "GPG-None" : secret key data is not available at all (this would happen if
+ *                 secret key is exported from GnuPG via --export-secret-subkeys)
+ *             - "GPG-Smartcard" : secret key data is stored on smartcard by GnuPG, so is not
+ *                 available
+ * @return RNP_SUCCESS on success, or any other value on error
+ */
+RNP_API rnp_result_t rnp_key_get_protection_type(rnp_key_handle_t key, char **type);
+
+/**
+ * @brief Get mode in which secret key data is encrypted.
+ *
+ * @param key key handle, cannot be NULL and should have secret part (see function
+ *            rnp_key_have_secret()).
+ * @param mode on success secret key protection mode name will be stored here. Cannot be NULL.
+ *             Must be freed by caller via rnp_buffer_destroy() call.
+ *             Currently defined values are:
+ *             - "None" : secret key data is not encrypted at all
+ *             - "Unknown" : it is not known how secret key data is encrypted, so there is no
+ *                 way to unlock/unprotect the key.
+ *             - "CFB" : secret key data is encrypted in CFB mode, using the password
+ *             - "CBC" : secret key data is encrypted in CBC mode, using the password
+ *                       (only for G10 keys)
+ *             - "OCB" : secert key data is encrypted in OCB mode, using the password
+ *                       (only for G10 keys)
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
+RNP_API rnp_result_t rnp_key_get_protection_mode(rnp_key_handle_t key, char **mode);
+
+/**
+ * @brief Get cipher, used to encrypt secret key data.
+ *        Note: this call will return an error if secret key data is not available or secret
+ *        key is not encrypted.
+ *
+ * @param key key handle, cannot be NULL and should have secret part.
+ * @param cipher on success cipher name will be stored here. See
+ *               rnp_op_generate_set_protection_cipher for possible values. Cannot be NULL.
+ *               Must be freed by caller via rnp_buffer_destroy() call.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
+RNP_API rnp_result_t rnp_key_get_protection_cipher(rnp_key_handle_t key, char **cipher);
+
+/**
+ * @brief Get hash, used to derive secret key data encrypting key from the password.
+ *        Note: this call will return an error if secret key data is not available or secret
+ *        key is not encrypted.
+ * @param key key handle, cannot be NULL and should have secret part.
+ * @param hash on success hash name will be stored here. See rnp_op_generate_set_hash() for the
+ *             whole list of possible values. Cannot be NULL.
+ *             Must be freed by caller via rnp_buffer_destroy() call.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
+RNP_API rnp_result_t rnp_key_get_protection_hash(rnp_key_handle_t key, char **hash);
+
+/**
+ * @brief Get number of iterations used to derive encrypting key from password, using the hash
+ *        function.
+ *        Note: this call will return an error if secret key data is not available or secret
+ *        key is not encrypted.
+ *
+ * @param key key handle, cannot be NULL and should have secret part.
+ * @param iterations on success number of iterations will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
+RNP_API rnp_result_t rnp_key_get_protection_iterations(rnp_key_handle_t key,
+                                                       size_t *         iterations);
+
 /** lock the key
  *
  *  A locked key does not have the secret key material immediately
