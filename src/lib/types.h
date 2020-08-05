@@ -208,11 +208,11 @@ typedef struct pgp_signature_t pgp_signature_t;
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
     pgp_sig_subpacket_type_t type;         /* type of the subpacket */
-    unsigned                 len;          /* length of the data */
+    size_t                   len;          /* length of the data */
     uint8_t *                data;         /* raw subpacket data, excluding the header */
-    unsigned                 critical : 1; /* critical flag */
-    unsigned                 hashed : 1;   /* whether subpacket is hashed or not */
-    unsigned                 parsed : 1;   /* whether subpacket was successfully parsed */
+    bool                     critical : 1; /* critical flag */
+    bool                     hashed : 1;   /* whether subpacket is hashed or not */
+    bool                     parsed : 1;   /* whether subpacket was successfully parsed */
     union {
         uint32_t create; /* 5.2.3.4.   Signature Creation Time */
         uint32_t expiry; /* 5.2.3.6.   Key Expiration Time */
@@ -287,7 +287,9 @@ typedef struct pgp_sig_subpkt_t {
         } issuer_fp; /* 5.2.3.28.  Issuer Fingerprint, RFC 4880 bis 04 */
     } fields;        /* parsed contents of the subpacket */
 
-    pgp_sig_subpkt_t();
+    pgp_sig_subpkt_t()
+        : type(PGP_SIG_SUBPKT_UNKNOWN), len(0), data(NULL), critical(false), hashed(false),
+          parsed(false), fields({}){};
     pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src);
     pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src);
     pgp_sig_subpkt_t &operator=(pgp_sig_subpkt_t &&src);
