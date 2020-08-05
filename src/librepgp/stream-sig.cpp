@@ -1222,13 +1222,6 @@ finish:
     return ret;
 }
 
-pgp_sig_subpkt_t::pgp_sig_subpkt_t()
-{
-    type = PGP_SIG_SUBPKT_UNKNOWN;
-    data = NULL;
-    fields = {};
-}
-
 pgp_sig_subpkt_t::pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src)
 {
     type = src.type;
