@@ -53,7 +53,7 @@ typedef struct pgp_transferable_subkey_t {
     pgp_signature_list_t signatures;
 
     pgp_transferable_subkey_t() : subkey({}){};
-    pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src);
+    pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src, bool pubonly = false);
     pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src);
     pgp_transferable_subkey_t &operator=(pgp_transferable_subkey_t &&src);
     pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &src);
@@ -88,10 +88,6 @@ rnp_result_t transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_ke
 
 rnp_result_t transferable_key_merge(pgp_transferable_key_t &      dst,
                                     const pgp_transferable_key_t &src);
-
-bool transferable_subkey_copy(pgp_transferable_subkey_t &      dst,
-                              const pgp_transferable_subkey_t &src,
-                              bool                             pubonly);
 
 rnp_result_t transferable_subkey_from_key(pgp_transferable_subkey_t &dst,
                                           const pgp_key_t &          key);

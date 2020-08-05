@@ -80,24 +80,6 @@ transferable_userid_merge(pgp_transferable_userid_t &dst, const pgp_transferable
     return merge_signatures(dst.signatures, src.signatures);
 }
 
-bool
-transferable_subkey_copy(pgp_transferable_subkey_t &      dst,
-                         const pgp_transferable_subkey_t &src,
-                         bool                             pubonly)
-{
-    if (!copy_key_pkt(&dst.subkey, &src.subkey, pubonly)) {
-        RNP_LOG("failed to copy subkey pkt");
-        return false;
-    }
-    try {
-        dst.signatures = src.signatures;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-    return true;
-}
-
 rnp_result_t
 transferable_subkey_from_key(pgp_transferable_subkey_t &dst, const pgp_key_t &key)
 {
@@ -1428,9 +1410,13 @@ pgp_transferable_userid_t::~pgp_transferable_userid_t()
     free_userid_pkt(&uid);
 }
 
-pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src)
+pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
+                                                     bool                             pubonly)
 {
-    copy_key_pkt(&subkey, &src.subkey, false);
+    subkey = {};
+    if (!copy_key_pkt(&subkey, &src.subkey, pubonly)) {
+        throw std::bad_alloc();
+    }
     signatures = src.signatures;
 }
 

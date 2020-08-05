@@ -519,8 +519,10 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         goto end;
     }
 
-    if (!transferable_subkey_copy(tskeypub, tskeysec, true)) {
-        RNP_LOG("failed to copy public subkey part");
+    try {
+        tskeypub = pgp_transferable_subkey_t(tskeysec, true);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to copy public subkey part: %s", e.what());
         goto end;
     }
 
