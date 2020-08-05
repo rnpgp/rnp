@@ -160,6 +160,7 @@ struct rnp_op_verify_st {
     rnp_symenc_handle_t    symencs;
     size_t                 symenc_count;
     rnp_symenc_handle_t    used_symenc;
+    size_t                 encrypted_layers;
 };
 
 struct rnp_op_encrypt_st {
