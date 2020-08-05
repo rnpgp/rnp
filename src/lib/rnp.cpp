@@ -2743,6 +2743,8 @@ rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void 
     rnp_op_verify_t op = (rnp_op_verify_t) param;
 
     try {
+        /* in case we have multiple signed layers */
+        delete[] op->signatures;
         op->signatures = new rnp_op_verify_signature_st[sigs.size()];
     } catch (const std::exception &e) {
         FFI_LOG(op->ffi, "%s", e.what());
@@ -2833,6 +2835,10 @@ rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
                          void *                               param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
+    /* store only top-level encrypted stream recipients info for now */
+    if (op->encrypted_layers++) {
+        return;
+    }
     if (!recipients.empty()) {
         op->recipients =
           (rnp_recipient_handle_t) calloc(recipients.size(), sizeof(*op->recipients));
@@ -2845,7 +2851,6 @@ rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
         }
     }
     op->recipient_count = recipients.size();
-
     if (!passwords.empty()) {
         op->symencs = (rnp_symenc_handle_t) calloc(passwords.size(), sizeof(*op->symencs));
         if (!op->symencs) {
@@ -2863,6 +2868,10 @@ static void
 rnp_verify_on_decryption_start(pgp_pk_sesskey_t *pubenc, pgp_sk_sesskey_t *symenc, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
+    /* store only top-level encrypted stream info */
+    if (op->encrypted_layers > 1) {
+        return;
+    }
     if (pubenc) {
         op->used_recipient = (rnp_recipient_handle_t) calloc(1, sizeof(*op->used_recipient));
         if (!op->used_recipient) {
@@ -2888,6 +2897,10 @@ static void
 rnp_verify_on_decryption_info(bool mdc, pgp_aead_alg_t aead, pgp_symm_alg_t salg, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
+    /* store only top-level encrypted stream info for now */
+    if (op->encrypted_layers > 1) {
+        return;
+    }
     op->mdc = mdc;
     op->aead = aead;
     op->salg = salg;
@@ -2898,6 +2911,9 @@ static void
 rnp_verify_on_decryption_done(bool validated, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
+    if (op->encrypted_layers > 1) {
+        return;
+    }
     op->validated = validated;
 }
 
