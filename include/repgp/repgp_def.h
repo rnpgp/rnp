@@ -422,6 +422,7 @@ enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4, PGP_SKSK_V5
  * \see RFC4880 5.2
  */
 typedef enum {
+    PGP_VUNKNOWN = 0,
     PGP_V2 = 2, /* Version 2 (essentially the same as v3) */
     PGP_V3 = 3, /* Version 3 */
     PGP_V4 = 4  /* Version 4 */
