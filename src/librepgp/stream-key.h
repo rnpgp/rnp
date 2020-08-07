@@ -41,7 +41,7 @@ typedef struct pgp_transferable_userid_t {
 
     pgp_transferable_userid_t() : uid({}){};
     pgp_transferable_userid_t(const pgp_transferable_userid_t &src);
-    pgp_transferable_userid_t(pgp_transferable_userid_t &&src) = delete;
+    pgp_transferable_userid_t(pgp_transferable_userid_t &&src);
     pgp_transferable_userid_t &operator=(pgp_transferable_userid_t &&src);
     pgp_transferable_userid_t &operator=(const pgp_transferable_userid_t &src);
     ~pgp_transferable_userid_t();
