@@ -1391,6 +1391,14 @@ pgp_transferable_userid_t::pgp_transferable_userid_t(const pgp_transferable_user
     signatures = src.signatures;
 }
 
+pgp_transferable_userid_t::pgp_transferable_userid_t(pgp_transferable_userid_t &&src)
+{
+    free_userid_pkt(&uid);
+    uid = src.uid;
+    src.uid = {};
+    signatures = src.signatures;
+}
+
 pgp_transferable_userid_t &
 pgp_transferable_userid_t::operator=(const pgp_transferable_userid_t &src)
 {
