@@ -1151,7 +1151,7 @@ do_load_keys(rnp_ffi_t              ffi,
 {
     rnp_result_t     ret = RNP_ERROR_GENERIC;
     rnp_key_store_t *tmp_store = NULL;
-    pgp_key_t        keycp = {};
+    pgp_key_t        keycp;
     rnp_result_t     tmpret;
 
     // create a temporary key store to hold the keys
@@ -4369,10 +4369,10 @@ try {
     rnp_action_keygen_t keygen_desc = {};
     char *              identifier_type = NULL;
     char *              identifier = NULL;
-    pgp_key_t           primary_pub = {};
-    pgp_key_t           primary_sec = {};
-    pgp_key_t           sub_pub = {};
-    pgp_key_t           sub_sec = {};
+    pgp_key_t           primary_pub;
+    pgp_key_t           primary_sec;
+    pgp_key_t           sub_pub;
+    pgp_key_t           sub_sec;
     json_object *       jsoprimary = NULL;
     json_object *       jsosub = NULL;
     json_tokener_error  error;
@@ -5242,8 +5242,8 @@ try {
     }
 
     rnp_result_t            ret = RNP_ERROR_GENERIC;
-    pgp_key_t               pub = {};
-    pgp_key_t               sec = {};
+    pgp_key_t               pub;
+    pgp_key_t               sec;
     pgp_password_provider_t prov = {.callback = NULL};
 
     if (op->primary) {

@@ -298,9 +298,9 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
 static bool
 rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
 {
-    pgp_transferable_key_t dstkey = {};
-    pgp_transferable_key_t srckey = {};
-    pgp_key_t              tmpkey = {};
+    pgp_transferable_key_t dstkey;
+    pgp_transferable_key_t srckey;
+    pgp_key_t              tmpkey;
 
     if (pgp_key_is_subkey(dst) || pgp_key_is_subkey(src)) {
         RNP_LOG("wrong key merge call");
@@ -526,7 +526,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
                          bool                     pubkey,
                          pgp_key_import_status_t *status)
 {
-    pgp_key_t  keycp = {};
+    pgp_key_t  keycp;
     pgp_key_t *exkey = NULL;
     size_t     expackets = 0;
     bool       changed = false;
@@ -595,7 +595,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
-    pgp_key_t tmpkey = {};
+    pgp_key_t tmpkey;
     if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
         !pgp_subkey_refresh_data(&tmpkey, primary)) {
         RNP_LOG("Failed to add signature to the key.");
@@ -626,7 +626,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
-    pgp_key_t tmpkey = {};
+    pgp_key_t tmpkey;
     if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
         !pgp_key_refresh_data(&tmpkey)) {
         RNP_LOG("Failed to add signature to the key.");

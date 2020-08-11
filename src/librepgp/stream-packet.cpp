@@ -2234,7 +2234,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
 finish:
     free_packet_body(&pkt);
     if (res) {
-        *key = {};
+        *key = pgp_key_pkt_t();
     }
     return res;
 }

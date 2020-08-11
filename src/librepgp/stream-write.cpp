@@ -1112,7 +1112,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_dest_signer_info_t * signer,
                        pgp_dest_t *             writedst)
 {
-    pgp_signature_t sig = {};
+    pgp_signature_t sig;
     rnp_result_t    ret;
 
     sig.version = (pgp_version_t) 4;
