@@ -190,7 +190,7 @@ pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
 {
     try {
         pgp_key_pkt_t keypkt = *pkt;
-        *key = {};
+        *key = pgp_key_t();
 
         /* parse secret key if not encrypted */
         if (is_secret_key_pkt(keypkt.tag)) {
@@ -1683,7 +1683,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
     }
 
     /* Fill the transferable userid */
-    pgp_transferable_userid_t uid = {};
+    pgp_transferable_userid_t uid;
     uid.uid.tag = PGP_PKT_USER_ID;
     uid.uid.uid_len = strlen((char *) cert->userid);
     if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
@@ -1747,7 +1747,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         RNP_LOG("Failed to unlock secret key");
         return false;
     }
-    pgp_signature_t newsig = {};
+    pgp_signature_t newsig;
     bool            res = false;
     if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
         goto done;
@@ -1815,7 +1815,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         RNP_LOG("Failed to unlock primary key");
         return false;
     }
-    pgp_signature_t newsig = {};
+    pgp_signature_t newsig;
     bool            sublocked = false;
     if (subsign && pgp_key_is_locked(secsub)) {
         if (!pgp_key_unlock(secsub, prov)) {
