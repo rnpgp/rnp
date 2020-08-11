@@ -240,9 +240,9 @@ rnp_key_store_get_key_count(const rnp_key_store_t *keyring)
 static bool
 rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *primary)
 {
-    pgp_transferable_subkey_t dstkey = {};
-    pgp_transferable_subkey_t srckey = {};
-    pgp_key_t                 tmpkey = {};
+    pgp_transferable_subkey_t dstkey;
+    pgp_transferable_subkey_t srckey;
+    pgp_key_t                 tmpkey;
 
     if (!pgp_key_is_subkey(dst) || !pgp_key_is_subkey(src)) {
         RNP_LOG("wrong subkey merge call");
