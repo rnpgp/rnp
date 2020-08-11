@@ -110,23 +110,6 @@ transferable_subkey_merge(pgp_transferable_subkey_t &dst, const pgp_transferable
     return ret;
 }
 
-bool
-transferable_key_copy(pgp_transferable_key_t &      dst,
-                      const pgp_transferable_key_t &src,
-                      bool                          pubonly)
-{
-    try {
-        dst.key = pgp_key_pkt_t(src.key, pubonly);
-        dst.userids = src.userids;
-        dst.subkeys = src.subkeys;
-        dst.signatures = src.signatures;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-    return true;
-}
-
 rnp_result_t
 transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key)
 {
@@ -671,7 +654,7 @@ process_pgp_subkey(pgp_source_t &src, pgp_transferable_subkey_t &subkey, bool sk
     int          ptag;
     rnp_result_t ret = RNP_ERROR_BAD_FORMAT;
 
-    subkey = {};
+    subkey = pgp_transferable_subkey_t();
     uint64_t keypos = src.readb;
     if (!is_subkey_pkt(ptag = stream_pkt_type(&src))) {
         RNP_LOG("wrong subkey ptag: %d at %" PRIu64, ptag, keypos);
@@ -1592,34 +1575,6 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
     free(sec_data);
 }
 
-pgp_transferable_userid_t::pgp_transferable_userid_t(const pgp_transferable_userid_t &src)
-{
-    uid = src.uid;
-    signatures = src.signatures;
-}
-
-pgp_transferable_userid_t::pgp_transferable_userid_t(pgp_transferable_userid_t &&src)
-{
-    uid = std::move(src.uid);
-    signatures = std::move(src.signatures);
-}
-
-pgp_transferable_userid_t &
-pgp_transferable_userid_t::operator=(const pgp_transferable_userid_t &src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    uid = src.uid;
-    signatures = src.signatures;
-    return *this;
-}
-
-pgp_transferable_userid_t::~pgp_transferable_userid_t()
-{
-    ;
-}
-
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
                                                      bool                             pubonly)
 {
@@ -1627,60 +1582,10 @@ pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subk
     signatures = src.signatures;
 }
 
-pgp_transferable_subkey_t::pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src)
+pgp_transferable_key_t::pgp_transferable_key_t(const pgp_transferable_key_t &src, bool pubonly)
 {
-    subkey = std::move(src.subkey);
-    signatures = std::move(src.signatures);
-}
-
-pgp_transferable_subkey_t &
-pgp_transferable_subkey_t::operator=(const pgp_transferable_subkey_t &src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    subkey = src.subkey;
+    key = pgp_key_pkt_t(src.key, pubonly);
+    userids = src.userids;
+    subkeys = src.subkeys;
     signatures = src.signatures;
-    return *this;
-}
-
-pgp_transferable_subkey_t &
-pgp_transferable_subkey_t::operator=(pgp_transferable_subkey_t &&src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    subkey = std::move(src.subkey);
-    signatures = std::move(src.signatures);
-    return *this;
-}
-
-pgp_transferable_subkey_t::~pgp_transferable_subkey_t()
-{
-}
-
-pgp_transferable_key_t::pgp_transferable_key_t(pgp_transferable_key_t &&src)
-{
-    key = src.key;
-    src.key = {};
-    userids = std::move(src.userids);
-    subkeys = std::move(src.subkeys);
-    signatures = std::move(src.signatures);
-}
-
-pgp_transferable_key_t &
-pgp_transferable_key_t::operator=(pgp_transferable_key_t &&src)
-{
-    if (this == &src) {
-        return *this;
-    }
-    key = std::move(src.key);
-    userids = std::move(src.userids);
-    subkeys = std::move(src.subkeys);
-    signatures = std::move(src.signatures);
-    return *this;
-}
-
-pgp_transferable_key_t::~pgp_transferable_key_t()
-{
 }

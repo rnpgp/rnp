@@ -246,7 +246,7 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src)
 
     /* check whether we have transferable subkey in source */
     if (is_subkey_pkt(stream_pkt_type(src))) {
-        pgp_transferable_subkey_t tskey = {};
+        pgp_transferable_subkey_t tskey;
         ret = process_pgp_subkey(*src, tskey, keyring->skip_parsing_errors);
         if (ret) {
             return ret;
