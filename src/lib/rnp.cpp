@@ -7372,6 +7372,10 @@ FFI_GUARD
 static bool
 key_iter_next_key(rnp_identifier_iterator_t it)
 {
+    // emulate MSVC behaviour
+    if (it->keyp == it->store->keys.end()) {
+        throw new std::runtime_error("iterating past end of list");
+    }
     // check if we not reached the end of the ring
     it->keyp = std::next(it->keyp);
     if (it->keyp != it->store->keys.end()) {
