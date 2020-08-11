@@ -1035,7 +1035,7 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
 done:
     destroy_s_exp(&s_exp);
     if (!ret) {
-        *seckey = {};
+        *seckey = pgp_key_pkt_t();
     }
     return ret;
 }
@@ -1100,8 +1100,8 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
                            const pgp_key_provider_t *key_provider)
 {
     const pgp_key_t *pubkey = NULL;
-    pgp_key_t        key = {};
-    pgp_key_pkt_t    seckey = {};
+    pgp_key_t        key;
+    pgp_key_pkt_t    seckey;
     pgp_source_t     memsrc = {};
     bool             ret = false;
 
