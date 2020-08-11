@@ -38,13 +38,6 @@
 typedef struct pgp_transferable_userid_t {
     pgp_userid_pkt_t     uid;
     pgp_signature_list_t signatures;
-
-    pgp_transferable_userid_t() : uid({}){};
-    pgp_transferable_userid_t(const pgp_transferable_userid_t &src);
-    pgp_transferable_userid_t(pgp_transferable_userid_t &&src);
-    pgp_transferable_userid_t &operator=(pgp_transferable_userid_t &&src);
-    pgp_transferable_userid_t &operator=(const pgp_transferable_userid_t &src);
-    ~pgp_transferable_userid_t();
 } pgp_transferable_userid_t;
 
 /* subkey with all corresponding signatures */
@@ -52,12 +45,9 @@ typedef struct pgp_transferable_subkey_t {
     pgp_key_pkt_t        subkey;
     pgp_signature_list_t signatures;
 
-    pgp_transferable_subkey_t() : subkey({}){};
+    pgp_transferable_subkey_t() = default;
     pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src, bool pubonly = false);
-    pgp_transferable_subkey_t(pgp_transferable_subkey_t &&src);
-    pgp_transferable_subkey_t &operator=(pgp_transferable_subkey_t &&src);
-    pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &src);
-    ~pgp_transferable_subkey_t();
+    pgp_transferable_subkey_t &operator=(const pgp_transferable_subkey_t &) = default;
 } pgp_transferable_subkey_t;
 
 /* transferable key with userids, subkeys and revocation signatures */
@@ -67,22 +57,15 @@ typedef struct pgp_transferable_key_t {
     std::vector<pgp_transferable_subkey_t> subkeys;
     pgp_signature_list_t                   signatures;
 
-    pgp_transferable_key_t() : key({}){};
-    pgp_transferable_key_t(const pgp_transferable_key_t &src) = delete;
-    pgp_transferable_key_t(pgp_transferable_key_t &&src);
-    pgp_transferable_key_t &operator=(pgp_transferable_key_t &&src);
-    pgp_transferable_key_t &operator=(const pgp_transferable_key_t &src) = delete;
-    ~pgp_transferable_key_t();
+    pgp_transferable_key_t() = default;
+    pgp_transferable_key_t(const pgp_transferable_key_t &src, bool pubonly = false);
+    pgp_transferable_key_t &operator=(const pgp_transferable_key_t &) = default;
 } pgp_transferable_key_t;
 
 /* sequence of OpenPGP transferable keys */
 typedef struct pgp_key_sequence_t {
     std::vector<pgp_transferable_key_t> keys;
 } pgp_key_sequence_t;
-
-bool transferable_key_copy(pgp_transferable_key_t &      dst,
-                           const pgp_transferable_key_t &src,
-                           bool                          pubonly);
 
 rnp_result_t transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key);
 
