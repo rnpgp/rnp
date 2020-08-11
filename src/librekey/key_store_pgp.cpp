@@ -99,7 +99,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_transferable_subkey_t *tskey,
                                       pgp_key_t *                pkey)
 {
-    pgp_key_t skey = {};
+    pgp_key_t skey;
 
     /* create subkey */
     if (!rnp_key_from_transferable_subkey(&skey, tskey, pkey)) {
@@ -152,7 +152,7 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 bool
 rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
 {
-    pgp_key_t  key = {};
+    pgp_key_t  key;
     pgp_key_t *addkey = NULL;
 
     /* create key from transferable key */
@@ -192,7 +192,7 @@ error:
 bool
 rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
-    *key = {};
+    *key = pgp_key_t();
     /* create key */
     if (!pgp_key_from_pkt(key, &tkey->key)) {
         return false;
@@ -218,7 +218,7 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                  pgp_transferable_subkey_t *tskey,
                                  pgp_key_t *                primary)
 {
-    *subkey = {};
+    *subkey = pgp_key_t();
 
     /* create key */
     if (!pgp_key_from_pkt(subkey, &tskey->subkey)) {

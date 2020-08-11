@@ -280,7 +280,7 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
                             pgp_hash_alg_t                 hash_alg,
                             const rnp_selfsig_cert_info_t &cert)
 {
-    pgp_signature_t   sig = {};
+    pgp_signature_t   sig;
     pgp_key_id_t      keyid = {};
     pgp_fingerprint_t keyfp;
 
@@ -446,7 +446,7 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
 
     /* unhashed subpackets. Primary key binding signature and issuer key id */
     if (subsign) {
-        pgp_signature_t embsig = {};
+        pgp_signature_t embsig;
 
         if (!signature_calculate_primary_binding(key, sub, sig->halg, &embsig, &rng)) {
             RNP_LOG("failed to calculate primary key binding signature");
@@ -481,7 +481,7 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
         return NULL;
     }
 
-    pgp_signature_t sig = {};
+    pgp_signature_t sig;
     pgp_key_flags_t realkf = (pgp_key_flags_t) 0;
 
     sig.version = PGP_V4;
@@ -610,7 +610,7 @@ process_pgp_key_signatures(pgp_source_t *src, pgp_signature_list_t &sigs, bool s
 {
     int ptag;
     while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
-        pgp_signature_t sig = {};
+        pgp_signature_t sig;
         uint64_t        sigpos = src->readb;
         rnp_result_t    ret = stream_parse_signature(src, &sig);
         if (ret) {
@@ -686,7 +686,7 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors)
     bool          has_public = false;
     rnp_result_t  ret = RNP_ERROR_GENERIC;
 
-    keys = {};
+    keys.keys.clear();
     /* check whether keys are armored */
 armoredpass:
     if (is_armored_source(src)) {
@@ -752,7 +752,7 @@ finish:
         src_close(&armorsrc);
     }
     if (ret) {
-        keys = {};
+        keys.keys.clear();
     }
     return ret;
 }
@@ -765,7 +765,7 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
     int          ptag;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    key = {};
+    key = pgp_transferable_key_t();
     /* check whether keys are armored */
     if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {

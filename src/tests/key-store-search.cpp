@@ -51,7 +51,7 @@ TEST_F(rnp_tests, test_key_store_search)
     // add our fake test keys
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         for (size_t n = 0; n < testdata[i].count; n++) {
-            pgp_key_t key = {};
+            pgp_key_t key;
 
             key.pkt.tag = PGP_PKT_PUBLIC_KEY;
             key.pkt.version = PGP_V4;

@@ -696,7 +696,7 @@ TEST_F(rnp_tests, test_load_merge)
 
 TEST_F(rnp_tests, test_load_public_from_secret)
 {
-    pgp_key_t *      key, *skey1, *skey2, keycp = {};
+    pgp_key_t *      key, *skey1, *skey2, keycp;
     pgp_key_id_t     keyid = {};
     pgp_key_id_t     sub1id = {};
     pgp_key_id_t     sub2id = {};
