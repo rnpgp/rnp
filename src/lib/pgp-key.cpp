@@ -69,6 +69,7 @@
 #include <assert.h>
 #include <time.h>
 #include <algorithm>
+#include <stdexcept>
 #include "defaults.h"
 
 static bool
@@ -226,61 +227,6 @@ pgp_key_clear_revokes(pgp_key_t *key)
 }
 
 static rnp_result_t
-pgp_key_copy_g10(pgp_key_t &dst, const pgp_key_t &src, bool pubonly)
-{
-    if (pubonly) {
-        RNP_LOG("attempt to copy public part from g10 key");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (pgp_key_get_rawpacket_count(&src) != 1) {
-        RNP_LOG("wrong g10 key packets");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    dst = {};
-    try {
-        dst.pkt = src.pkt;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (pgp_key_copy_fields(dst, src)) {
-        RNP_LOG("failed to copy key fields");
-        return RNP_ERROR_GENERIC;
-    }
-
-    try {
-        dst.rawpkt = src.rawpkt;
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to copy raw packet: %s", e.what());
-        return RNP_ERROR_GENERIC;
-    }
-
-    dst.format = PGP_KEY_STORE_G10;
-    return RNP_SUCCESS;
-}
-
-rnp_result_t
-pgp_key_copy(pgp_key_t &dst, const pgp_key_t &src, bool pubonly)
-{
-    if (src.format == PGP_KEY_STORE_G10) {
-        return pgp_key_copy_g10(dst, src, pubonly);
-    }
-
-    dst = {};
-    try {
-        dst.pkt = pgp_key_pkt_t(src.pkt, pubonly);
-        dst.rawpkt = pubonly ? pgp_rawpacket_t(dst.pkt) : src.rawpkt;
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to copy key rawpkt: %s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    return pgp_key_copy_fields(dst, src);
-}
-
-static rnp_result_t
 pgp_userprefs_copy(pgp_user_prefs_t *dst, const pgp_user_prefs_t *src)
 {
     rnp_result_t ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -318,57 +264,6 @@ pgp_userprefs_copy(pgp_user_prefs_t *dst, const pgp_user_prefs_t *src)
 error:
     pgp_free_user_prefs(dst);
     return ret;
-}
-
-rnp_result_t
-pgp_key_copy_fields(pgp_key_t &dst, const pgp_key_t &src)
-{
-    try {
-        dst.uids = src.uids;
-        dst.subsigs = src.subsigs;
-        dst.revokes = src.revokes;
-        dst.subkey_fps = src.subkey_fps;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    /* primary fp */
-    dst.primary_fp_set = src.primary_fp_set;
-    dst.primary_fp = src.primary_fp;
-
-    /* expiration */
-    dst.expiration = src.expiration;
-
-    /* key_flags */
-    dst.key_flags = src.key_flags;
-
-    /* key id / fingerprint / grip */
-    dst.keyid = src.keyid;
-    dst.fingerprint = src.fingerprint;
-    dst.grip = src.grip;
-
-    /* primary uid */
-    dst.uid0 = src.uid0;
-    dst.uid0_set = src.uid0_set;
-
-    /* revocation */
-    dst.revoked = src.revoked;
-    try {
-        dst.revocation = src.revocation;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    /* key store format */
-    dst.format = src.format;
-
-    /* key validity */
-    dst.valid = src.valid;
-    dst.validated = src.validated;
-
-    return RNP_SUCCESS;
 }
 
 /**
@@ -2335,9 +2230,46 @@ pgp_userid_t::~pgp_userid_t()
 {
 }
 
-pgp_key_t::~pgp_key_t()
+pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
 {
-    pgp_key_clear_revokes(this);
+    /* Do some checks for g10 keys */
+    if (src.format == PGP_KEY_STORE_G10) {
+        if (pubonly) {
+            RNP_LOG("attempt to copy public part from g10 key");
+            throw std::invalid_argument("pubonly");
+        }
+        if (pgp_key_get_rawpacket_count(&src) != 1) {
+            RNP_LOG("wrong g10 key packets");
+            throw std::invalid_argument("rawpacket_count");
+        }
+    }
+
+    if (pubonly) {
+        pkt = pgp_key_pkt_t(src.pkt, true);
+        rawpkt = pgp_rawpacket_t(pkt);
+    } else {
+        pkt = src.pkt;
+        rawpkt = src.rawpkt;
+    }
+
+    uids = src.uids;
+    subsigs = src.subsigs;
+    revokes = src.revokes;
+    subkey_fps = src.subkey_fps;
+    primary_fp_set = src.primary_fp_set;
+    primary_fp = src.primary_fp;
+    expiration = src.expiration;
+    key_flags = src.key_flags;
+    keyid = src.keyid;
+    fingerprint = src.fingerprint;
+    grip = src.grip;
+    uid0 = src.uid0;
+    uid0_set = src.uid0_set;
+    revoked = src.revoked;
+    revocation = src.revocation;
+    format = src.format;
+    valid = src.valid;
+    validated = src.validated;
 }
 
 pgp_key_t &

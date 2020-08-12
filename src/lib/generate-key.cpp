@@ -133,7 +133,13 @@ load_generated_g10_key(pgp_key_t *    dst,
     // if a primary key is provided, it should match the sub with regards to type
     assert(!primary_key ||
            (pgp_key_is_secret(primary_key) == pgp_key_is_secret(&key_store->keys.front())));
-    ok = !pgp_key_copy(*dst, key_store->keys.front(), false);
+    try {
+        *dst = pgp_key_t(key_store->keys.front());
+        ok = true;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to copy key: %s", e.what());
+        ok = false;
+    }
 end:
     delete key_store;
     src_close(&memsrc);
