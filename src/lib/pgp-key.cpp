@@ -858,7 +858,7 @@ pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
     return res;
 }
 
-pgp_subsig_t *
+static pgp_subsig_t *
 pgp_key_latest_uid_selfcert(pgp_key_t *key, uint32_t uid)
 {
     uint32_t      latest = 0;
