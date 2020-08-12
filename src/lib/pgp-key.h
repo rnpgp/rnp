@@ -84,11 +84,10 @@ struct pgp_key_t {
     bool                   valid;        /* this key is valid and usable */
     bool                   validated;    /* this key was validated */
 
-    ~pgp_key_t();
     pgp_key_t() = default;
+    pgp_key_t(const pgp_key_t &src, bool pubonly = false);
     pgp_key_t &operator=(pgp_key_t &&);
     /* make sure we use only empty constructor/move operator */
-    pgp_key_t(const pgp_key_t &src) = delete;
     pgp_key_t(pgp_key_t &&src) = delete;
     pgp_key_t &operator=(const pgp_key_t &) = delete;
 };
@@ -101,27 +100,6 @@ struct pgp_key_t {
  * @return true if operation succeeded or false otherwise.
  */
 bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt);
-
-/**
- * @brief Copy key, optionally copying only the public key part.
- *
- * @param dst destination of copying
- * @param src source key
- * @param public if true then only public key fields will be copied, i.e. key converted from
- *               secret to public
- * @return RNP_SUCCESS if operation succeeded or error code otherwise
- */
-rnp_result_t pgp_key_copy(pgp_key_t &dst, const pgp_key_t &src, bool pubonly);
-
-/**
- * @brief Copy calculated key fields (grip, userid list, etc). Does not copy key packet/raw
- *        packets. Zeroes dst so should not be used with pre-filled objects.
- *
- * @param dst destination of copying
- * @param src source key
- * @return RNP_SUCCESS if operation succeeded or error code otherwise
- */
-rnp_result_t pgp_key_copy_fields(pgp_key_t &dst, const pgp_key_t &src);
 
 void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
 

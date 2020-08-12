@@ -444,9 +444,12 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG("%s", e.what());
             return NULL;
         }
-        if (pgp_key_copy(*oldkey, *srckey, false)) {
+        try {
+            *oldkey = pgp_key_t(*srckey);
+        } catch (const std::exception &e) {
             RNP_LOG_KEY("key %s copying failed", srckey);
             RNP_LOG_KEY("primary key is %s", primary);
+            RNP_LOG("%s", e.what());
             keyring->keys.pop_back();
             keyring->keybyfp.erase(pgp_key_get_fp(srckey));
             return NULL;
@@ -498,8 +501,11 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG("%s", e.what());
             return NULL;
         }
-        if (pgp_key_copy(*added_key, *srckey, false)) {
+        try {
+            *added_key = pgp_key_t(*srckey);
+        } catch (const std::exception &e) {
             RNP_LOG_KEY("key %s copying failed", srckey);
+            RNP_LOG("%s", e.what());
             keyring->keys.pop_back();
             keyring->keybyfp.erase(pgp_key_get_fp(srckey));
             return NULL;
@@ -526,26 +532,24 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
                          bool                     pubkey,
                          pgp_key_import_status_t *status)
 {
-    pgp_key_t  keycp;
-    pgp_key_t *exkey = NULL;
-    size_t     expackets = 0;
-    bool       changed = false;
-
     /* add public key */
-    if (pgp_key_copy(keycp, *srckey, pubkey)) {
-        RNP_LOG_KEY("failed to create key %s copy", srckey);
+    pgp_key_t *exkey = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
+    size_t     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
+    keyring->disable_validation = true;
+    try {
+        pgp_key_t keycp(*srckey, pubkey);
+        exkey = rnp_key_store_add_key(keyring, &keycp);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        keyring->disable_validation = false;
         return NULL;
     }
-    exkey = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
-    expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
-    keyring->disable_validation = true;
-    exkey = rnp_key_store_add_key(keyring, &keycp);
     keyring->disable_validation = false;
     if (!exkey) {
         RNP_LOG("failed to add key to the keyring");
         return NULL;
     }
-    changed = pgp_key_get_rawpacket_count(exkey) > expackets;
+    bool changed = pgp_key_get_rawpacket_count(exkey) > expackets;
     if (changed || !exkey->validated) {
         /* this will revalidated primary key with all subkeys */
         pgp_key_revalidate_updated(exkey, keyring);
