@@ -1196,8 +1196,11 @@ do_load_keys(rnp_ffi_t              ffi,
             continue;
         }
 
-        if ((tmpret = pgp_key_copy(keycp, key, true))) {
-            ret = tmpret;
+        try {
+            keycp = pgp_key_t(key, true);
+        } catch (const std::exception &e) {
+            RNP_LOG("Failed to copy public key part: %s", e.what());
+            ret = RNP_ERROR_GENERIC;
             goto done;
         }
 

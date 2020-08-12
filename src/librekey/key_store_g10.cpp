@@ -1132,14 +1132,9 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
             goto done;
         }
 
-        if (pgp_key_copy_fields(key, *pubkey)) {
-            RNP_LOG("failed to copy key fields");
-            goto done;
-        }
-
         /* public key packet has some more info then the secret part */
         try {
-            key.pkt = *pgp_key_get_pkt(pubkey);
+            key = pgp_key_t(*pubkey, true);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             goto done;

@@ -76,9 +76,8 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_non_null(tmp = rnp_tests_get_key_by_id(ks, keyids[0], NULL));
 
         // steal this key from the store
-        key = new pgp_key_t();
+        key = new pgp_key_t(*tmp);
         assert_non_null(key);
-        pgp_key_copy(*key, *tmp, false);
         delete ks;
     }
 
