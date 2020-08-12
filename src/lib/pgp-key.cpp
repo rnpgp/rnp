@@ -2119,10 +2119,6 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
     tag = uid.tag;
 }
 
-pgp_rawpacket_t::~pgp_rawpacket_t()
-{
-}
-
 pgp_subsig_t::pgp_subsig_t(const pgp_subsig_t &src)
 {
     uid = src.uid;
@@ -2198,36 +2194,6 @@ pgp_subsig_t::operator=(const pgp_subsig_t &src)
 pgp_subsig_t::~pgp_subsig_t()
 {
     pgp_free_user_prefs(&prefs);
-}
-
-pgp_userid_t::pgp_userid_t(const pgp_userid_t &src)
-{
-    pkt = src.pkt;
-    rawpkt = src.rawpkt;
-    str = src.str;
-}
-
-pgp_userid_t::pgp_userid_t(pgp_userid_t &&src)
-{
-    str = std::move(src.str);
-    pkt = std::move(src.pkt);
-    rawpkt = std::move(src.rawpkt);
-}
-
-pgp_userid_t &
-pgp_userid_t::operator=(const pgp_userid_t &src)
-{
-    if (&src == this) {
-        return *this;
-    }
-    pkt = src.pkt;
-    rawpkt = src.rawpkt;
-    str = src.str;
-    return *this;
-}
-
-pgp_userid_t::~pgp_userid_t()
-{
 }
 
 pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)

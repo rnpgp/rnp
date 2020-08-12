@@ -357,7 +357,6 @@ typedef struct pgp_rawpacket_t {
     pgp_rawpacket_t(const pgp_signature_t &sig);
     pgp_rawpacket_t(pgp_key_pkt_t &key);
     pgp_rawpacket_t(const pgp_userid_pkt_t &uid);
-    ~pgp_rawpacket_t();
 } pgp_rawpacket_t;
 
 typedef enum {
@@ -470,15 +469,6 @@ typedef struct pgp_userid_t {
     pgp_userid_pkt_t pkt;    /* User ID or User Attribute packet as it was loaded */
     pgp_rawpacket_t  rawpkt; /* Raw packet contents */
     std::string      str;    /* Human-readable representation of the userid */
-
-    pgp_userid_t() = default;
-    pgp_userid_t(const pgp_userid_t &src);
-    pgp_userid_t(pgp_userid_t &&src);
-    pgp_userid_t &operator=(const pgp_userid_t &src);
-    ~pgp_userid_t();
-
-    /* make sure we use only explicitly defined constructors/operators */
-    pgp_userid_t &operator=(pgp_userid_t &&) = delete;
 } pgp_userid_t;
 
 struct rnp_keygen_ecc_params_t {
