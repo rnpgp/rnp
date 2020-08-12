@@ -715,7 +715,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(secstore, sub2id, NULL));
 
     /* copy the secret key */
-    assert_rnp_success(pgp_key_copy(keycp, *key, false));
+    keycp = pgp_key_t(*key, false);
     assert_true(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_true(pgp_key_get_subkey_fp(&keycp, 0) == pgp_key_get_fp(skey1));
@@ -724,7 +724,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_SECRET_KEY);
 
     /* copy the public part */
-    assert_rnp_success(pgp_key_copy(keycp, *key, true));
+    keycp = pgp_key_t(*key, true);
     assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_true(check_subkey_fp(&keycp, skey1, 0));
@@ -736,7 +736,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 1 */
-    assert_rnp_success(pgp_key_copy(keycp, *skey1, true));
+    keycp = pgp_key_t(*skey1, true);
     assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 0));
@@ -748,7 +748,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(pgp_key_get_pkt(&keycp)->material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 2 */
-    assert_rnp_success(pgp_key_copy(keycp, *skey2, true));
+    keycp = pgp_key_t(*skey2, true);
     assert_false(pgp_key_is_secret(&keycp));
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 1));
