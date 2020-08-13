@@ -41,6 +41,7 @@ typedef enum {
     OPT_WITH_SIGS,
     OPT_REV_TYPE,
     OPT_REV_REASON,
+    OPT_PERMISSIVE,
 
     /* debug */
     OPT_DEBUG
