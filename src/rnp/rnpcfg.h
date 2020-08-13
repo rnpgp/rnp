@@ -87,6 +87,7 @@
 #define CFG_RAW "raw"               /* dump raw packet contents */
 #define CFG_REV_TYPE "rev-type"     /* revocation reason code */
 #define CFG_REV_REASON "rev-reason" /* revocation reason human-readable string */
+#define CFG_PERMISSIVE "permissive" /* ignore bad packets during key import */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"
