@@ -64,6 +64,7 @@ const char *usage = "--help OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
                     "\t[--keyring=<keyring>] AND/OR\n"
+                    "\t[--permissive] AND/OR\n"
                     "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
@@ -114,6 +115,7 @@ struct option options[] = {
   {"secret", no_argument, NULL, OPT_SECRET},
   {"rev-type", required_argument, NULL, OPT_REV_TYPE},
   {"rev-reason", required_argument, NULL, OPT_REV_REASON},
+  {"permissive", no_argument, NULL, OPT_PERMISSIVE},
   {NULL, 0, NULL, 0},
 };
 
@@ -168,6 +170,11 @@ import_keys(cli_rnp_t *rnp, const char *file)
     char *       results = NULL;
     json_object *jso = NULL;
     json_object *keys = NULL;
+
+    bool permissive = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_PERMISSIVE);
+    if (permissive) {
+        flags |= RNP_LOAD_SAVE_PERMISSIVE;
+    }
 
     if (rnp_import_keys(rnp->ffi, input, flags, &results)) {
         ERR_MSG("failed to import keys from file %s", file);
@@ -575,6 +582,9 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
     }
     case OPT_REV_REASON:
         ret = rnp_cfg_setstr(cfg, CFG_REV_REASON, arg);
+        break;
+    case OPT_PERMISSIVE:
+        ret = rnp_cfg_setbool(cfg, CFG_PERMISSIVE, true);
         break;
     default:
         *cmd = CMD_HELP;
