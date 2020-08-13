@@ -1559,6 +1559,27 @@ class Misc(unittest.TestCase):
                         'exported packets mismatch')
         return
 
+    def test_rnp_permissive_key_import(self):
+        # Import keys while skipping bad packets, see #1160
+        clear_keyrings()
+        # Try to import  without --permissive option, should fail.
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_key_edge_cases/pubring-malf-cert.pgp')])
+        if ret == 0:
+            raise_err('Imported bad packets without --permissive option set!')
+        # Import with --permissive
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', '--permissive',data_path('test_key_edge_cases/pubring-malf-cert.pgp')])
+        if ret != 0:
+            raise_err('Failed to import keys with --permissive option')
+
+        # List imported keys and sigs
+        params = ['--homedir', RNPDIR, '--list-keys', '--with-sigs']
+        ret, out, err = run_proc(RNPK, params)
+        if ret != 0:
+            raise_err('packet listing failed', err)
+        compare_file_ex(data_path('test_cli_rnpkeys/pubring-malf-cert-permissive-import.txt'), out,
+                        'listing mismatch')
+        return
+
     def test_rnp_list_packets(self):
         # List packets in humand-readable format
         params = ['--list-packets', data_path('test_list_packets/ecc-p256-pub.asc')]
