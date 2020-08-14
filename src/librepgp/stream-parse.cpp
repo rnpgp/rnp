@@ -116,11 +116,13 @@ typedef struct pgp_source_signed_param_t {
     uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t               outlen;          /* total bytes in out */
     size_t               outpos;          /* offset of first available byte in out */
+    bool                 lastcr;          /* text sig: last char of previous chunk was cr */
 
-    std::vector<pgp_one_pass_sig_t>   onepasses; /* list of one-pass singatures */
-    std::list<pgp_signature_t>        sigs;      /* list of signatures */
-    std::vector<pgp_signature_info_t> siginfos;  /* signature validation info */
-    std::vector<pgp_hash_t>           hashes;    /* hash contexts */
+    std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
+    std::list<pgp_signature_t>        sigs;       /* list of signatures */
+    std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
+    std::vector<pgp_hash_t>           hashes;     /* hash contexts */
+    std::vector<pgp_hash_t>           txt_hashes; /* hash contexts for text-mode sigs */
 
     pgp_source_signed_param_t() = default;
     ~pgp_source_signed_param_t();
@@ -739,13 +741,34 @@ encrypted_src_close(pgp_source_t *src)
     src->param = NULL;
 }
 
+static bool
+add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_hash_alg_t halg)
+{
+    /* Cleartext always uses param->hashes instead of param->txt_hashes */
+    if (!param->cleartext && (stype == PGP_SIG_TEXT)) {
+        return pgp_hash_list_add(param->txt_hashes, halg);
+    }
+    return pgp_hash_list_add(param->hashes, halg);
+}
+
+static const pgp_hash_t *
+get_hash_for_sig(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
+{
+    /* Cleartext always uses param->hashes instead of param->txt_hashes */
+    if (!param->cleartext && (sinfo->sig->type == PGP_SIG_TEXT)) {
+        return pgp_hash_list_get(param->txt_hashes, sinfo->sig->halg);
+    }
+    return pgp_hash_list_get(param->hashes, sinfo->sig->halg);
+}
+
 static void
 signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
 {
     pgp_hash_t shash = {};
 
-    /* Get the hash context and clone it */
-    if (!pgp_hash_copy(&shash, pgp_hash_list_get(param->hashes, sinfo->sig->halg))) {
+    /* Get the hash context and clone it. */
+    const pgp_hash_t *hash = get_hash_for_sig(param, sinfo);
+    if (!hash || !pgp_hash_copy(&shash, hash)) {
         RNP_LOG("failed to clone hash context");
         sinfo->valid = false;
         return;
@@ -758,8 +781,49 @@ signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t
 static void
 signed_src_update(pgp_source_t *src, const void *buf, size_t len)
 {
+    if (!len) {
+        return;
+    }
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     pgp_hash_list_update(param->hashes, buf, len);
+    /* update text-mode sig hashes */
+    if (param->txt_hashes.empty()) {
+        return;
+    }
+    /* check whether we had CR at the end of last chunk and LF at the beginning */
+    uint8_t *ch = (uint8_t *) buf;
+    if (param->lastcr && (*ch == CH_LF)) {
+        ch++;
+    }
+    uint8_t *linebeg = ch;
+    uint8_t *end = (uint8_t *) buf + len;
+    /* we support CR, LF and CRLF line endings */
+    while (ch < end) {
+        /* continue if not reached CR or LF */
+        if ((*ch != CH_CR) && (*ch != CH_LF)) {
+            ch++;
+            continue;
+        }
+        /* reached eol: dump line contents */
+        if (ch > linebeg) {
+            pgp_hash_list_update(param->txt_hashes, linebeg, ch - linebeg);
+        }
+        /* dump EOL */
+        pgp_hash_list_update(param->txt_hashes, ST_CRLF, 2);
+        /* skip one more char if we have CRLF */
+        if ((*ch == CH_CR) && ((ch + 1 < end) && (*(ch + 1) == CH_LF))) {
+            ch++;
+        }
+        ch++;
+        linebeg = ch;
+    }
+    /* check if we have undumped line contents */
+    if (linebeg < end) {
+        pgp_hash_list_update(param->txt_hashes, linebeg, end - linebeg);
+    }
+    /* set lastcr to true to correctly react to case when CR is on the end of one chunk, and LF
+     * is at the beginning of the next chunk */
+    param->lastcr = *(end - 1) == CH_CR;
 }
 
 static bool
@@ -1018,7 +1082,7 @@ cleartext_parse_headers(pgp_source_t *src)
                 if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
                     RNP_LOG("unknown halg: %s", token.c_str());
                 }
-                pgp_hash_list_add(param->hashes, halg);
+                add_hash_for_sig(param, PGP_SIG_TEXT, halg);
             }
         } else {
             RNP_LOG("unknown header '%s'", hdr);
@@ -2030,6 +2094,9 @@ pgp_source_signed_param_t::~pgp_source_signed_param_t()
     for (auto &hash : hashes) {
         pgp_hash_finish(&hash, NULL);
     }
+    for (auto &hash : txt_hashes) {
+        pgp_hash_finish(&hash, NULL);
+    }
 }
 
 static rnp_result_t
@@ -2103,7 +2170,13 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             }
 
             /* adding hash context */
-            pgp_hash_list_add(param->hashes, onepass.halg);
+            if (!add_hash_for_sig(param, onepass.type, onepass.halg)) {
+                RNP_LOG("Failed to create hash %d for onepass %d.",
+                        (int) onepass.halg,
+                        (int) onepass.type);
+                errcode = RNP_ERROR_BAD_PARAMETERS;
+                goto finish;
+            }
 
             if (onepass.nested) {
                 /* despite the name non-zero value means that it is the last one-pass */
@@ -2113,8 +2186,11 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             /* no need to check the error here - we already know tag */
             signed_read_single_signature(param, readsrc, &sig);
             /* adding hash context */
-            if (sig) {
-                pgp_hash_list_add(param->hashes, sig->halg);
+            if (sig && !add_hash_for_sig(param, sig->type, sig->halg)) {
+                RNP_LOG(
+                  "Failed to create hash %d for sig %d.", (int) sig->halg, (int) sig->type);
+                errcode = RNP_ERROR_BAD_PARAMETERS;
+                goto finish;
             }
         } else {
             break;
