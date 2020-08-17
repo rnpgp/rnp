@@ -494,12 +494,13 @@ def gpg_sign_file(src, dst, signer, z=None, armor=False):
         raise_err('gpg signing failed', err)
 
 
-def gpg_sign_detached(src, signer, armor=False):
+def gpg_sign_detached(src, signer, armor=False, textsig=False):
     src = path_for_gpg(src)
     params = ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--yes',
               '--passphrase', PASSWORD, '--trust-model', 'always', '-u', signer,
               '--detach-sign', src]
     if armor: params.insert(2, '--armor')
+    if textsig: params.insert(2, '--text')
     ret, _, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg detached signing failed', err)
@@ -689,18 +690,17 @@ def rnp_signing_gpg_to_rnp(filesize, z=None):
     clear_workfiles()
 
 
-def rnp_detached_signing_gpg_to_rnp(filesize):
+def rnp_detached_signing_gpg_to_rnp(filesize, textsig=False):
     src, sig, asc = reg_workfiles('cleartext', '.txt', '.txt.sig', '.txt.asc')
     # Generate random file of required size
     random_text(src, filesize)
     for armor in [True, False]:
         # Sign file with GPG
-        gpg_sign_detached(src, KEY_SIGN_GPG, armor)
+        gpg_sign_detached(src, KEY_SIGN_GPG, armor, textsig)
         sigpath = asc if armor else sig
         # Verify file with RNP
         rnp_verify_detached(sigpath, KEY_SIGN_GPG)
     clear_workfiles()
-
 
 def rnp_cleartext_signing_gpg_to_rnp(filesize):
     src, asc = reg_workfiles('cleartext', '.txt', '.txt.asc')
@@ -2025,6 +2025,7 @@ class SignDefault(unittest.TestCase):
         for size in Sign.SIZES:
             rnp_signing_gpg_to_rnp(size)
             rnp_detached_signing_gpg_to_rnp(size)
+            rnp_detached_signing_gpg_to_rnp(size, True)
             rnp_cleartext_signing_gpg_to_rnp(size)
 
     def test_rnp_multiple_signers(self):
