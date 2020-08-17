@@ -7349,6 +7349,46 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(source);
     rnp_input_destroy(input);
 
+    /* detached text-mode signature */
+    source = NULL;
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig-text"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    source = NULL;
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt.cr"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig-text"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    source = NULL;
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt.crlf"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig-text"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
     /* malformed detached signature */
     sigcount = 255;
     assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
