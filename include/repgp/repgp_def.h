@@ -470,4 +470,11 @@ typedef enum {
     PGP_HASH_CRC24 = 106
 } pgp_hash_alg_t;
 
+typedef enum pgp_key_store_format_t {
+    PGP_KEY_STORE_UNKNOWN = 0,
+    PGP_KEY_STORE_GPG,
+    PGP_KEY_STORE_KBX,
+    PGP_KEY_STORE_G10,
+} pgp_key_store_format_t;
+
 #endif
