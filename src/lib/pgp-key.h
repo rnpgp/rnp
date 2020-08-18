@@ -92,6 +92,8 @@ struct pgp_key_t {
     pgp_key_t &operator=(const pgp_key_t &) = delete;
 };
 
+typedef struct rnp_key_store_t rnp_key_store_t;
+
 /**
  * @brief Create pgp_key_t object from the OpenPGP key packet.
  *
