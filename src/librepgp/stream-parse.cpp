@@ -2149,6 +2149,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
 
     /* Reading one-pass and signature packets */
     while (true) {
+        size_t readb = readsrc->readb;
         if (!src_peek_eq(readsrc, &ptag, 1)) {
             RNP_LOG("failed to read packet header");
             errcode = RNP_ERROR_READ;
@@ -2162,6 +2163,10 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             errcode = stream_parse_one_pass(readsrc, &onepass);
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
+                    goto finish;
+                }
+                if (readb == readsrc->readb) {
+                    errcode = RNP_ERROR_BAD_FORMAT;
                     goto finish;
                 }
                 continue;
@@ -2200,6 +2205,12 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             }
         } else {
             break;
+        }
+
+        /* check if we are not it endless loop */
+        if (readb == readsrc->readb) {
+            errcode = RNP_ERROR_BAD_FORMAT;
+            goto finish;
         }
 
         /* for detached signature we'll get eof */
