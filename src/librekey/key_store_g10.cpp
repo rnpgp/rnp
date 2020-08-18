@@ -270,7 +270,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
 
     s_exp_t new_s_exp = {0};
 
-    if (bytes == NULL || length == 0) {
+    if (!bytes || !length) {
         RNP_LOG("empty s-exp");
         return true;
     }
@@ -304,37 +304,49 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
             continue;
         }
 
-        char *next;
-        long  len = strtol(bytes, &next, 10);
+        size_t len = 0;
+        size_t chars = 0;
+        while (length > 1) {
+            if ((*bytes < '0') || (*bytes > '9')) {
+                break;
+            }
+            len = len * 10 + (long) (*bytes - '0');
+            length--;
+            bytes++;
+            /* no reason to read more then 8 chars */
+            if (++chars > 8) {
+                break;
+            }
+        }
 
-        if (*next != ':') { // doesn't contain :
+        if (!chars) {
+            RNP_LOG("s-exp contains empty len");
+            destroy_s_exp(&new_s_exp);
+            return false;
+        }
+
+        if (*bytes != ':') { // doesn't contain :
             RNP_LOG("s-exp doesn't contain ':'");
             destroy_s_exp(&new_s_exp);
             return false;
         }
 
-        next++;
+        bytes++;
+        length--;
 
-        length -= (next - bytes);
-        bytes = next;
-
-        if (len == LONG_MIN || len == LONG_MAX || len <= 0 || (size_t) len >= length) {
-            RNP_LOG(
-              "len over/under flow or bigger than remaining bytes, len: %ld, length: %zu",
-              len,
-              length);
+        if (!len || len >= length) {
+            RNP_LOG("zero or too large len, len: %zu, length: %zu", len, length);
             destroy_s_exp(&new_s_exp);
             return false;
         }
 
-        if (!add_block_to_sexp(&new_s_exp, (uint8_t *) bytes, (size_t) len)) {
+        if (!add_block_to_sexp(&new_s_exp, (uint8_t *) bytes, len)) {
             destroy_s_exp(&new_s_exp);
             return false;
         }
 
         bytes += len;
         length -= len;
-
     } while (*bytes != ')');
 
     bytes++;
