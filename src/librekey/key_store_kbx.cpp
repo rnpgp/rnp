@@ -396,7 +396,7 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
 
     has_bytes = memsrc.size;
     buf = (uint8_t *) mem_src_get_memory(&memsrc);
-    while (has_bytes > 0) {
+    while (has_bytes > 4) {
         blob_length = ru32(buf);
         if (blob_length > BLOB_SIZE_LIMIT) {
             RNP_LOG(
@@ -416,7 +416,8 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
         }
 
         *blob = rnp_key_store_kbx_parse_blob(buf, blob_length);
-        if (*blob == NULL) {
+        if (!*blob) {
+            list_remove((list_item *) blob);
             goto finish;
         }
 
