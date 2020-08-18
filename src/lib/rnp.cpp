@@ -2940,7 +2940,7 @@ rnp_op_verify_create(rnp_op_verify_t *op,
                      rnp_input_t      input,
                      rnp_output_t     output)
 try {
-    if (!op || !ffi || !input) {
+    if (!op || !ffi || !input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -2986,6 +2986,10 @@ FFI_GUARD
 rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
     pgp_parse_handler_t handler;
 
     handler.password_provider = &op->ffi->pass_provider;

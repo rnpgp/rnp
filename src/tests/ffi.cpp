@@ -7270,7 +7270,12 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
     assert_rnp_success(rnp_output_to_null(&output));
     rnp_op_verify_t verify = NULL;
+    assert_rnp_failure(rnp_op_verify_create(NULL, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_create(&verify, NULL, input, output));
+    assert_rnp_failure(rnp_op_verify_create(&verify, ffi, NULL, output));
+    assert_rnp_failure(rnp_op_verify_create(&verify, ffi, input, NULL));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(NULL));
     assert_rnp_success(rnp_op_verify_execute(verify));
     size_t sigcount = 0;
     assert_rnp_failure(rnp_op_verify_get_signature_count(verify, NULL));
@@ -7340,6 +7345,10 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     sigcount = 255;
     assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/message.txt"));
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.sig"));
+    assert_rnp_failure(rnp_op_verify_detached_create(NULL, ffi, source, input));
+    assert_rnp_failure(rnp_op_verify_detached_create(&verify, NULL, source, input));
+    assert_rnp_failure(rnp_op_verify_detached_create(&verify, ffi, NULL, input));
+    assert_rnp_failure(rnp_op_verify_detached_create(&verify, ffi, source, NULL));
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
     assert_rnp_success(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
