@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <inttypes.h>
 
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
@@ -67,9 +68,9 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
     image += BLOB_HEADER_SIZE;
 
     if (first_blob->blob.length != BLOB_FIRST_SIZE) {
-        RNP_LOG("The first blob has wrong length: %u but expected %u",
+        RNP_LOG("The first blob has wrong length: %" PRIu32 " but expected %d",
                 first_blob->blob.length,
-                BLOB_FIRST_SIZE);
+                (int) BLOB_FIRST_SIZE);
         return false;
     }
 
@@ -77,7 +78,7 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
     image += 1;
 
     if (first_blob->version != 1) {
-        RNP_LOG("Wrong version, expect 1 but has %u", first_blob->version);
+        RNP_LOG("Wrong version, expect 1 but has %" PRIu8, first_blob->version);
         return false;
     }
 
@@ -115,14 +116,20 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 {
     int      i;
     uint8_t *image = pgp_blob->blob.image;
+    uint32_t len = pgp_blob->blob.length;
 
     image += BLOB_HEADER_SIZE;
+    len -= BLOB_HEADER_SIZE;
 
+    if (len < 15) {
+        RNP_LOG("Too few data in the blob.");
+        return false;
+    }
     pgp_blob->version = ru8(image);
-    image += 1;
+    image++;
 
     if (pgp_blob->version != 1) {
-        RNP_LOG("Wrong version, expect 1 but has %u", pgp_blob->version);
+        RNP_LOG("Wrong version: %" PRIu8, pgp_blob->version);
         return false;
     }
 
@@ -137,7 +144,8 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
     if (pgp_blob->keyblock_offset > pgp_blob->blob.length ||
         pgp_blob->blob.length < (pgp_blob->keyblock_offset + pgp_blob->keyblock_length)) {
-        RNP_LOG("Wrong keyblock offset/length, blob size: %u, keyblock offset: %u, length: %u",
+        RNP_LOG("Wrong keyblock offset/length, blob size: %" PRIu32
+                ", keyblock offset: %" PRIu32 ", length: %" PRIu32,
                 pgp_blob->blob.length,
                 pgp_blob->keyblock_offset,
                 pgp_blob->keyblock_length);
@@ -148,23 +156,28 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
     image += 2;
 
     if (pgp_blob->nkeys < 1) {
-        RNP_LOG("PGP blob should contains at least 1 key, it contains: %u keys",
-                pgp_blob->nkeys);
+        RNP_LOG("PGP blob should contains at least 1 key");
         return false;
     }
 
+    /* Size of the single key record */
     pgp_blob->keys_len = ru16(image);
     image += 2;
 
     if (pgp_blob->keys_len < 28) {
-        RNP_LOG(
-          "PGP blob should contains keys structure at least 28 bytes, it contains: %u bytes",
-          pgp_blob->keys_len);
+        RNP_LOG("PGP blob needs 28 bytes, but contains: %" PRIu16 " bytes",
+                pgp_blob->keys_len);
         return false;
     }
+    len -= 15;
 
     for (i = 0; i < pgp_blob->nkeys; i++) {
         kbx_pgp_key_t nkey = {};
+
+        if (len < pgp_blob->keys_len) {
+            RNP_LOG("Too few bytes left for key blob");
+            return false;
+        }
 
         // copy fingerprint
         memcpy(nkey.fp, image, 20);
@@ -180,7 +193,8 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
         image += 2;
 
         // skip padding bytes if it existed
-        image += (pgp_blob->keys_len - 28);
+        image += pgp_blob->keys_len - 28;
+        len -= pgp_blob->keys_len;
 
         if (!list_append(&pgp_blob->keys, &nkey, sizeof(nkey))) {
             RNP_LOG("alloc failed");
@@ -188,13 +202,16 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
         }
     }
 
+    if (len < 2) {
+        RNP_LOG("No data for sn_size");
+        return false;
+    }
     pgp_blob->sn_size = ru16(image);
     image += 2;
+    len -= 2;
 
-    if (pgp_blob->sn_size > pgp_blob->blob.length - (image - pgp_blob->blob.image)) {
-        RNP_LOG("Serial number is %u and it's bigger that blob size it can use: %u",
-                pgp_blob->sn_size,
-                (uint32_t)(pgp_blob->blob.length - (image - pgp_blob->blob.image)));
+    if (pgp_blob->sn_size > len) {
+        RNP_LOG("SN is %" PRIu16 ", while bytes left are %" PRIu32, pgp_blob->sn_size, len);
         return false;
     }
 
@@ -207,24 +224,31 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
         memcpy(pgp_blob->sn, image, pgp_blob->sn_size);
         image += pgp_blob->sn_size;
+        len -= pgp_blob->sn_size;
     }
 
+    if (len < 4) {
+        RNP_LOG("Too few data for uids");
+        return false;
+    }
     pgp_blob->nuids = ru16(image);
     image += 2;
-
     pgp_blob->uids_len = ru16(image);
     image += 2;
+    len -= 4;
 
     if (pgp_blob->uids_len < 12) {
-        RNP_LOG(
-          "PGP blob should contains UID structure at least 12 bytes, it contains: %u bytes",
-          pgp_blob->uids_len);
+        RNP_LOG("Too few bytes for uid struct: %" PRIu16, pgp_blob->uids_len);
         return false;
     }
 
     for (i = 0; i < pgp_blob->nuids; i++) {
         kbx_pgp_uid_t nuid = {};
 
+        if (len < pgp_blob->uids_len) {
+            RNP_LOG("Too few bytes to read uid struct.");
+            return false;
+        }
         nuid.offset = ru32(image);
         image += 4;
 
@@ -242,6 +266,7 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 
         // skip padding bytes if it existed
         image += (pgp_blob->uids_len - 12);
+        len -= pgp_blob->uids_len;
 
         if (!list_append(&pgp_blob->uids, &nuid, sizeof(nuid))) {
             RNP_LOG("alloc failed");
@@ -249,32 +274,47 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
         }
     }
 
+    if (len < 4) {
+        RNP_LOG("No data left for sigs");
+        return false;
+    }
+
     pgp_blob->nsigs = ru16(image);
     image += 2;
 
     pgp_blob->sigs_len = ru16(image);
     image += 2;
+    len -= 4;
 
     if (pgp_blob->sigs_len < 4) {
-        RNP_LOG(
-          "PGP blob should contains SIGN structure at least 4 bytes, it contains: %u bytes",
-          pgp_blob->uids_len);
+        RNP_LOG("Too small SIGN structure: %" PRIu16, pgp_blob->uids_len);
         return false;
     }
 
     for (i = 0; i < pgp_blob->nsigs; i++) {
         kbx_pgp_sig_t nsig = {};
 
+        if (len < pgp_blob->sigs_len) {
+            RNP_LOG("Too few data for sig");
+            return false;
+        }
+
         nsig.expired = ru32(image);
         image += 4;
 
         // skip padding bytes if it existed
         image += (pgp_blob->sigs_len - 4);
+        len -= pgp_blob->sigs_len;
 
         if (!list_append(&pgp_blob->sigs, &nsig, sizeof(nsig))) {
             RNP_LOG("alloc failed");
             return false;
         }
+    }
+
+    if (len < 16) {
+        RNP_LOG("Too few data for trust/validities");
+        return false;
     }
 
     pgp_blob->ownertrust = ru8(image);
@@ -313,7 +353,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 
     // a blob shouldn't be less of length + type
     if (image_len < BLOB_HEADER_SIZE) {
-        RNP_LOG("Blob size is %u but it shouldn't be less of header", image_len);
+        RNP_LOG("Blob size is %" PRIu32 " but it shouldn't be less of header", image_len);
         return NULL;
     }
 
@@ -340,7 +380,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 
     // unsuported blob type
     default:
-        RNP_LOG("Unsupported blob type: %d", type);
+        RNP_LOG("Unsupported blob type: %d", (int) type);
         return NULL;
     }
 
@@ -399,12 +439,13 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
     while (has_bytes > 4) {
         blob_length = ru32(buf);
         if (blob_length > BLOB_SIZE_LIMIT) {
-            RNP_LOG(
-              "Blob size is %d bytes but limit is %d bytes", blob_length, BLOB_SIZE_LIMIT);
+            RNP_LOG("Blob size is %" PRIu32 " bytes but limit is %d bytes",
+                    blob_length,
+                    (int) BLOB_SIZE_LIMIT);
             goto finish;
         }
         if (has_bytes < blob_length) {
-            RNP_LOG("Blob have size %d bytes but file contains only %zu bytes",
+            RNP_LOG("Blob have size %" PRIu32 " bytes but file contains only %zu bytes",
                     blob_length,
                     has_bytes);
             goto finish;
