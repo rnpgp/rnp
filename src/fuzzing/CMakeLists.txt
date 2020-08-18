@@ -86,8 +86,34 @@ target_link_libraries(fuzz_verify_detached
     librnp
 )
 
+add_executable(fuzz_keyring_kbx keyring_kbx.c)
+
+target_include_directories(fuzz_keyring_kbx
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_keyring_kbx
+  PRIVATE
+    librnp
+)
+
+add_executable(fuzz_keyring_g10 keyring_g10.cpp)
+
+target_include_directories(fuzz_keyring_g10
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_keyring_g10
+  PRIVATE
+    librnp
+)
+
 if (ENABLE_SANITIZERS)
-  foreach(tgt fuzz_dump fuzz_keyring fuzz_verify fuzz_verify_detached)
+  foreach(tgt fuzz_dump fuzz_keyring fuzz_verify fuzz_verify_detached fuzz_keyring_kbx fuzz_keyring_g10)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
