@@ -60,8 +60,34 @@ target_link_libraries(fuzz_keyring
     librnp
 )
 
+add_executable(fuzz_verify verify.c)
+
+target_include_directories(fuzz_verify
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_verify
+  PRIVATE
+    librnp
+)
+
+add_executable(fuzz_verify_detached verify_detached.c)
+
+target_include_directories(fuzz_verify_detached
+  PRIVATE
+    "${PROJECT_SOURCE_DIR}/src"
+    "${PROJECT_SOURCE_DIR}/src/lib"
+)
+
+target_link_libraries(fuzz_verify_detached
+  PRIVATE
+    librnp
+)
+
 if (ENABLE_SANITIZERS)
-  foreach(tgt fuzz_dump fuzz_keyring)
+  foreach(tgt fuzz_dump fuzz_keyring fuzz_verify fuzz_verify_detached)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
