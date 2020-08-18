@@ -694,6 +694,11 @@ stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body)
     size_t len = 0;
     memset(body, 0, sizeof(*body));
 
+    /* Make sure we have enough data for packet header */
+    if (!src_peek_eq(src, body->hdr, 2)) {
+        return RNP_ERROR_READ;
+    }
+
     /* Read the packet header and length */
     if (!stream_pkt_hdr_len(src, &len)) {
         return RNP_ERROR_BAD_FORMAT;
