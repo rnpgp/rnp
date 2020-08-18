@@ -1015,9 +1015,6 @@ rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format, const std::stri
     }
     format = _format;
     path = _path;
-    disable_validation = false;
-    skip_parsing_errors = false;
-    blobs = NULL;
 }
 
 rnp_key_store_t::~rnp_key_store_t()

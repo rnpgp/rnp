@@ -35,12 +35,11 @@
 #include <stdbool.h>
 #include "rnp.h"
 #include "librepgp/stream-common.h"
+#include "pgp-key.h"
 #include <string>
 #include <list>
 #include <map>
 #include <unordered_map>
-
-typedef struct pgp_key_t pgp_key_t;
 
 typedef enum {
     KBX_EMPTY_BLOB = 0,
@@ -111,13 +110,6 @@ typedef struct {
     uint32_t blob_created_at;
 } kbx_pgp_blob_t;
 
-typedef enum pgp_key_store_format_t {
-    PGP_KEY_STORE_UNKNOWN = 0,
-    PGP_KEY_STORE_GPG,
-    PGP_KEY_STORE_KBX,
-    PGP_KEY_STORE_G10,
-} pgp_key_store_format_t;
-
 /* Key import status. Order of elements is important. */
 typedef enum pgp_key_import_status_t {
     PGP_KEY_IMPORT_STATUS_UNKNOWN = 0,
@@ -138,16 +130,17 @@ typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pg
 typedef struct rnp_key_store_t {
     std::string            path;
     pgp_key_store_format_t format;
-    bool disable_validation;  /* do not automatically validate keys, added to this key store */
-    bool skip_parsing_errors; /* do not fail on parsing errors */
+    bool                   disable_validation =
+      false; /* do not automatically validate keys, added to this key store */
+    bool skip_parsing_errors = false; /* do not fail on parsing errors */
 
     std::list<pgp_key_t> keys;
     pgp_key_fp_map_t     keybyfp;
 
-    list blobs; // list of kbx_blob_t
+    list blobs = NULL; // list of kbx_blob_t
 
     ~rnp_key_store_t();
-    rnp_key_store_t() = default;
+    rnp_key_store_t() : path(""), format(PGP_KEY_STORE_UNKNOWN){};
     rnp_key_store_t(pgp_key_store_format_t format, const std::string &path);
     /* make sure we use only empty constructor */
     rnp_key_store_t(rnp_key_store_t &&src) = delete;
