@@ -2045,7 +2045,9 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
         if (subkey) {
             pgp_key_validate_subkey(subkey, key);
-            pgp_subkey_refresh_data(subkey, key);
+            if (!pgp_subkey_refresh_data(subkey, key)) {
+                RNP_LOG("Failed to refresh subkey data");
+            }
         }
     }
 
