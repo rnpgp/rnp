@@ -802,16 +802,18 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
             if (rnp_signature_get_keyid(sig, &keyid)) {
                 goto next;
             }
-            /* lowercase key id */
-            for (char *idptr = keyid; *idptr; ++idptr) {
-                *idptr = tolower(*idptr);
-            }
-            /* signer primary uid */
-            if (rnp_locate_key(ffi, "keyid", keyid, &signer)) {
-                goto next;
-            }
-            if (signer) {
-                (void) rnp_key_get_primary_uid(signer, &signer_uid);
+            if (keyid) {
+                /* lowercase key id */
+                for (char *idptr = keyid; *idptr; ++idptr) {
+                    *idptr = tolower(*idptr);
+                }
+                /* signer primary uid */
+                if (rnp_locate_key(ffi, "keyid", keyid, &signer)) {
+                    goto next;
+                }
+                if (signer) {
+                    (void) rnp_key_get_primary_uid(signer, &signer_uid);
+                }
             }
 
             /* signer key id */
