@@ -399,7 +399,14 @@ pgp_key_is_subkey(const pgp_key_t *key)
 uint32_t
 pgp_key_get_expiration(const pgp_key_t *key)
 {
-    return (key->pkt.version >= 4) ? key->expiration : key->pkt.v3_days * 86400;
+    if (key->pkt.version >= 4) {
+        return key->expiration;
+    }
+    /* too large value for pkt.v3_days may overflow uint32_t */
+    if (key->pkt.v3_days > (0xffffffffu / 86400)) {
+        return 0xffffffffu;
+    }
+    return (uint32_t) key->pkt.v3_days * 86400;
 }
 
 uint32_t
