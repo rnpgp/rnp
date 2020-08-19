@@ -189,7 +189,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
     bool  ok = false;
     FILE *in = NULL;
     FILE *out = NULL;
-    FILE *userio_in = (rnp ? rnp->userio_in : stdin);
+    FILE *userio_in = (rnp && rnp->userio_in) ? rnp->userio_in : stdin;
 
     // validate args
     if (!buffer) {
