@@ -1129,7 +1129,12 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
         goto done;
     }
 #else
-    re.assign(str, std::regex_constants::extended | std::regex_constants::icase);
+    try {
+        re.assign(str, std::regex_constants::extended | std::regex_constants::icase);
+    } catch (const std::exception &e) {
+        ERR_MSG("Invalid regular expression : %s, error %s.", str.c_str(), e.what());
+        goto done;
+    }
 #endif
 
     for (size_t idx = 0; idx < uid_count; idx++) {
