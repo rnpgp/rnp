@@ -1435,16 +1435,6 @@ pgp_userid_pkt_t::~pgp_userid_pkt_t()
     free(uid);
 }
 
-pgp_key_pkt_t::pgp_key_pkt_t()
-{
-    tag = PGP_PKT_RESERVED;
-    version = PGP_VUNKNOWN;
-    alg = PGP_PKA_NOTHING;
-    hashed_data = NULL;
-    sec_data = NULL;
-    material = {};
-}
-
 pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
 {
     if (pubonly && is_secret_key_pkt(src.tag)) {

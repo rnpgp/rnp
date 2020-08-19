@@ -191,7 +191,10 @@ typedef struct pgp_key_pkt_t {
     uint8_t *            sec_data;
     size_t               sec_len;
 
-    pgp_key_pkt_t();
+    pgp_key_pkt_t()
+        : tag(PGP_PKT_RESERVED), version(PGP_VUNKNOWN), creation_time(0), alg(PGP_PKA_NOTHING),
+          v3_days(0), hashed_data(NULL), hashed_len(0), material({}), sec_protection({}),
+          sec_data(NULL), sec_len(0){};
     pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly = false);
     pgp_key_pkt_t(pgp_key_pkt_t &&src);
     pgp_key_pkt_t &operator=(pgp_key_pkt_t &&src);
