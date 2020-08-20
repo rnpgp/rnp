@@ -1159,6 +1159,14 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         return RNP_SUCCESS;
     }
 
+    /* do not allow endless recursion */
+    if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+        RNP_LOG("Too many OpenPGP nested layers during the dump.");
+        dst_printf(dst, ":too many OpenPGP packet layers, stopping.");
+        ret = RNP_SUCCESS;
+        goto finish;
+    }
+
     while (!src_eof(src)) {
         pgp_packet_hdr_t hdr = {};
         size_t           off = src->readb;
@@ -1203,14 +1211,6 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                 indent_dest_decrease(dst);
             }
             dst_printf(dst, "\n");
-        }
-
-        /* do not allow endless recursion */
-        if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
-            RNP_LOG("Too many OpenPGP nested layers during the dump.");
-            dst_printf(dst, ":too many OpenPGP packet layers, stopping.");
-            ret = RNP_SUCCESS;
-            goto finish;
         }
 
         switch (hdr.tag) {
@@ -2196,6 +2196,13 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         goto done;
     }
 
+    /* do not allow endless recursion */
+    if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
+        RNP_LOG("Too many OpenPGP nested layers during the dump.");
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+
     while (!src_eof(src)) {
         pgp_packet_hdr_t hdr = {};
 
@@ -2225,13 +2232,6 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
                 ret = RNP_ERROR_OUT_OF_MEMORY;
                 goto done;
             }
-        }
-
-        /* do not allow endless recursion */
-        if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
-            RNP_LOG("Too many OpenPGP nested layers during the dump.");
-            ret = json_object_array_add(pkts, pkt) ? RNP_ERROR_OUT_OF_MEMORY : RNP_SUCCESS;
-            goto done;
         }
 
         switch (hdr.tag) {

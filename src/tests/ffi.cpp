@@ -5415,6 +5415,8 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     jso = json_tokener_parse(json);
     assert_non_null(jso);
     assert_true(json_object_is_type(jso, json_type_array));
+    /* make sure that correct number of packets dumped */
+    assert_int_equal(json_object_array_length(jso), 35);
     json_object_put(jso);
     rnp_buffer_destroy(json);
 
@@ -5430,6 +5432,12 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     // dump
     assert_rnp_success(
       rnp_dump_packets_to_output(input, output, RNP_DUMP_MPI | RNP_DUMP_RAW | RNP_DUMP_GRIP));
+
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    /* make sure output is not cut */
+    assert_true(len > 45000);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
