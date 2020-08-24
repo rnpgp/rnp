@@ -784,6 +784,12 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     if (!len) {
         return;
     }
+    /* check for extremely unlikely pointer overflow/wrap case */
+    if (((uint8_t *) buf + len) < ((uint8_t *) buf + len - 1)) {
+        signed_src_update(src, buf, len - 1);
+        uint8_t last = *((uint8_t *) buf + len - 1);
+        signed_src_update(src, &last, 1);
+    }
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
     pgp_hash_list_update(param->hashes, buf, len);
     /* update text-mode sig hashes */
