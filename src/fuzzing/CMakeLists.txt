@@ -109,7 +109,7 @@ target_include_directories(fuzz_keyring_g10
 
 target_link_libraries(fuzz_keyring_g10
   PRIVATE
-    librnp
+    librnp-static
 )
 
 if (ENABLE_SANITIZERS)
