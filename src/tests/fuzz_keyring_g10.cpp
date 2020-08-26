@@ -24,25 +24,19 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../lib/pgp-key.h"
-#include "../librekey/key_store_g10.h"
-#include "../librepgp/stream-common.h"
+#include <rnp/rnp.h>
+#include "rnp_tests.h"
+#include "support.h"
 
-#ifdef RNP_RUN_TESTS
 int keyring_g10_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
-int
-keyring_g10_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#else
-extern "C" RNP_API int
-LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#endif
+
+#define DATA_PATH "data/test_fuzz_keyring_g10/"
+
+TEST_F(rnp_tests, test_fuzz_keyring_g10)
 {
-    rnp_key_store_t ks;
-    pgp_source_t    memsrc = {};
+    auto data = file_to_vec(DATA_PATH "crash_c9cabce6f8d7b36fde0306c86ce81c4f554cbd2a");
+    assert_int_equal(keyring_g10_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 
-    init_mem_src(&memsrc, data, size, false);
-    rnp_key_store_g10_from_src(&ks, &memsrc, NULL);
-    src_close(&memsrc);
-
-    return 0;
+    data = file_to_vec(DATA_PATH "crash_4ec166859e821aee27350dcde3e9c06b07a677f7");
+    assert_int_equal(keyring_g10_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
