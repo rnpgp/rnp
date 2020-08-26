@@ -66,6 +66,7 @@ add_executable(rnp_tests
   ../rnpkeys/main.cpp
   ../rnpkeys/tui.cpp
   ../fuzzing/keyring.c
+  ../fuzzing/keyring_g10.cpp
   cipher.cpp
   cli.cpp
   exportkey.cpp
@@ -98,6 +99,7 @@ add_executable(rnp_tests
   issues/1115.cpp
   issues/1171.cpp
   fuzz_keyring.cpp
+  fuzz_keyring_g10.cpp
 )
 target_include_directories(rnp_tests
   PRIVATE
