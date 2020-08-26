@@ -1080,7 +1080,11 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             /* high level interface */
             sinfo.sig = sig;
             sinfo.signer = pkey;
-            assert_rnp_success(signature_check_binding(&sinfo, &key->key, &subkey.subkey));
+            pgp_key_id_t subid;
+            assert_rnp_success(pgp_keyid(subid, &subkey.subkey));
+            pgp_key_t *psub = rnp_key_store_get_key_by_id(pubring, subid, NULL);
+            assert_non_null(psub);
+            assert_rnp_success(signature_check_binding(&sinfo, &key->key, psub));
             /* low level check */
             assert_true(signature_hash_binding(sig, &key->key, &subkey.subkey, &hash));
             assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));

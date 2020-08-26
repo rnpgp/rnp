@@ -347,7 +347,7 @@ rnp_result_t signature_check_certification(pgp_signature_info_t *  sinfo,
 
 rnp_result_t signature_check_binding(pgp_signature_info_t *sinfo,
                                      const pgp_key_pkt_t * key,
-                                     const pgp_key_pkt_t * subkey);
+                                     pgp_key_t *           subkey);
 
 rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key);
 
