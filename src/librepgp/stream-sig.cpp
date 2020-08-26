@@ -1091,12 +1091,12 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
 rnp_result_t
 signature_check_binding(pgp_signature_info_t *sinfo,
                         const pgp_key_pkt_t * key,
-                        const pgp_key_pkt_t * subkey)
+                        pgp_key_t *           subkey)
 {
     pgp_hash_t   hash = {};
     rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
 
-    if (!signature_hash_binding(sinfo->sig, key, subkey, &hash)) {
+    if (!signature_hash_binding(sinfo->sig, key, pgp_key_get_pkt(subkey), &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -1127,10 +1127,15 @@ signature_check_binding(pgp_signature_info_t *sinfo,
         return res;
     }
 
-    if (!signature_hash_binding(subpkt->fields.sig, key, subkey, &hash)) {
+    if (!signature_hash_binding(subpkt->fields.sig, key, pgp_key_get_pkt(subkey), &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
-    res = signature_validate(subpkt->fields.sig, &subkey->material, &hash);
+    pgp_signature_info_t bindinfo = {};
+    bindinfo.sig = subpkt->fields.sig;
+    bindinfo.signer = subkey;
+    bindinfo.signer_valid = true;
+    bindinfo.ignore_expiry = true;
+    res = signature_check(&bindinfo, &hash);
     sinfo->valid = !res;
     return res;
 }
