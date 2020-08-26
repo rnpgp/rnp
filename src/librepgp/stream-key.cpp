@@ -998,6 +998,10 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
     case PGP_S2KU_NONE:
     case PGP_S2KU_ENCRYPTED: {
         /* calculate and check sum16 of the cleartext */
+        if (len < 2) {
+            RNP_LOG("No space for checksum.");
+            return RNP_ERROR_BAD_FORMAT;
+        }
         uint16_t sum = 0;
         size_t   idx;
 
@@ -1012,6 +1016,10 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
         break;
     }
     case PGP_S2KU_ENCRYPTED_AND_HASHED: {
+        if (len < PGP_SHA1_HASH_SIZE) {
+            RNP_LOG("No space for hash");
+            return RNP_ERROR_BAD_FORMAT;
+        }
         /* calculate and check sha1 hash of the cleartext */
         pgp_hash_t hash;
         uint8_t    hval[PGP_MAX_HASH_SIZE];
