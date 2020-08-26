@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -401,14 +401,13 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
             return NULL;
         }
         break;
-
     case KBX_PGP_BLOB:
         if (!rnp_key_store_kbx_parse_pgp_blob((kbx_pgp_blob_t *) blob)) {
+            free_kbx_pgp_blob((kbx_pgp_blob_t *) blob);
             free(blob);
             return NULL;
         }
         break;
-
     default:
         break;
     }
