@@ -411,6 +411,8 @@ void test_issue_1171_key_import_and_remove(void **state);
 
 void test_log_switch(void **state);
 
+void test_fuzz_keyring(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
