@@ -959,7 +959,7 @@ pgp_key_validate_signature(pgp_key_t *   key,
             RNP_LOG("No primary key specified");
             return;
         }
-        signature_check_binding(&sinfo, pgp_key_get_pkt(primary), pgp_key_get_pkt(key));
+        signature_check_binding(&sinfo, pgp_key_get_pkt(primary), key);
         break;
     case PGP_SIG_DIRECT:
     case PGP_SIG_REV_KEY:
