@@ -283,7 +283,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
     length--;
 
     do {
-        if (length <= 0) { // unexpected end
+        if (!length) { // unexpected end
             RNP_LOG("s-exp finished before ')'");
             destroy_s_exp(&new_s_exp);
             return false;
@@ -301,6 +301,11 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
                 return false;
             }
 
+            if (!length) {
+                RNP_LOG("No space for closing ) left.");
+                destroy_s_exp(&new_s_exp);
+                return false;
+            }
             continue;
         }
 
