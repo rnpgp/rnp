@@ -415,6 +415,8 @@ void test_fuzz_keyring(void **state);
 
 void test_fuzz_keyring_g10(void **state);
 
+void test_fuzz_keyring_kbx(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
