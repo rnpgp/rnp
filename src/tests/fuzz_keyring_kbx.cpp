@@ -25,26 +25,15 @@
  */
 
 #include <rnp/rnp.h>
+#include "rnp_tests.h"
+#include "support.h"
 
-#ifdef RNP_RUN_TESTS
-int keyring_kbx_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
-int
-keyring_kbx_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#else
-int
-LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#endif
+extern "C" int keyring_kbx_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+
+#define DATA_PATH "data/test_fuzz_keyring_kbx/"
+
+TEST_F(rnp_tests, test_fuzz_keyring_kbx)
 {
-    rnp_input_t  input = NULL;
-    rnp_result_t ret = 0;
-    rnp_ffi_t    ffi = NULL;
-
-    ret = rnp_input_from_memory(&input, data, size, false);
-
-    ret = rnp_ffi_create(&ffi, "KBX", "G10");
-    ret = rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS);
-
-    rnp_input_destroy(input);
-    rnp_ffi_destroy(ffi);
-    return 0;
+    auto data = file_to_vec(DATA_PATH "leak-52c65c00b53997178f4cd9defa0343573ea8dda6");
+    assert_int_equal(keyring_kbx_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
