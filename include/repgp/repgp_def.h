@@ -452,7 +452,7 @@ typedef enum pgp_op_t {
  *
  * \see RFC4880 9.4
  */
-typedef enum {
+typedef enum : uint8_t {
     PGP_HASH_UNKNOWN = 0, /* used to indicate errors */
     PGP_HASH_MD5 = 1,
     PGP_HASH_SHA1 = 2,
