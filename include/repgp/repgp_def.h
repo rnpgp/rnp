@@ -180,7 +180,7 @@ typedef enum : uint8_t {
  *
  * \see RFC4880 9.1
  */
-typedef enum {
+typedef enum : uint8_t {
     PGP_PKA_NOTHING = 0,                  /* No PKA */
     PGP_PKA_RSA = 1,                      /* RSA (Encrypt or Sign) */
     PGP_PKA_RSA_ENCRYPT_ONLY = 2,         /* RSA Encrypt-Only (deprecated -
