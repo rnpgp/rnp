@@ -313,7 +313,7 @@ typedef enum {
  *
  * \see RFC4880 5.2.1
  */
-typedef enum {
+typedef enum : uint8_t {
     PGP_SIG_BINARY = 0x00,     /* Signature of a binary document */
     PGP_SIG_TEXT = 0x01,       /* Signature of a canonical text document */
     PGP_SIG_STANDALONE = 0x02, /* Standalone signature */
