@@ -287,7 +287,7 @@ typedef enum {
 
 /** s2k_specifier_t
  */
-typedef enum {
+typedef enum : uint8_t {
     PGP_S2KS_SIMPLE = 0,
     PGP_S2KS_SALTED = 1,
     PGP_S2KS_ITERATED_AND_SALTED = 3,
