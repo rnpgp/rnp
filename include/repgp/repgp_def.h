@@ -149,7 +149,7 @@ typedef enum {
  * @brief OpenPGP packet tags. See section 4.3 of RFC4880 for the detailed description.
  *
  */
-typedef enum {
+typedef enum : uint8_t {
     PGP_PKT_RESERVED = 0,       /* Reserved - a packet tag must not have this value */
     PGP_PKT_PK_SESSION_KEY = 1, /* Public-Key Encrypted Session Key Packet */
     PGP_PKT_SIGNATURE = 2,      /* Signature Packet */
