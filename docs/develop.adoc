@@ -190,6 +190,8 @@ Setting `-DENABLE_SANITIZERS=1 -DENABLE_FUZZERS=1` will build these fuzzers
 with the libfuzzer engine; and running the resulting executables will perform
 the fuzzing.
 
+To build and run fuzzers locally, or reproduce an issue, see https://google.github.io/oss-fuzz/advanced-topics/reproducing/
+
 ===== Further Reading
 
 * AFL's `README`, `parallel_fuzzing.txt`, and other bundled documentation.
