@@ -43,6 +43,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     rnp_op_verify_t verify = NULL;
     ret = rnp_op_verify_detached_create(&verify, ffi, msg_input, input);
     ret = rnp_op_verify_execute(verify);
+    ret = rnp_op_verify_destroy(verify);
 
     rnp_input_destroy(input);
     rnp_input_destroy(msg_input);
