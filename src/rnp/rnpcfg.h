@@ -46,7 +46,6 @@
 #define CFG_INFILE "infile"              /* name/path of the input file */
 #define CFG_RESULTS "results"            /* name/path for results, not used right now */
 #define CFG_KEYSTOREFMT "keystorefmt"    /* keyring format : GPG, G10, KBX */
-#define CFG_SUBDIRGPG "subdirgpg"        /* gpg/rnp files subdirectory: .rnp by default */
 #define CFG_COREDUMPS "coredumps"        /* enable/disable core dumps. 1 or 0. */
 #define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
