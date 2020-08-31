@@ -720,7 +720,11 @@ getpasscb(rnp_ffi_t        ffi,
           char *           buf,
           size_t           buf_len)
 {
-    strcpy(buf, (const char *) app_ctx);
+    size_t pass_len = strlen((const char *) app_ctx);
+    if (pass_len >= buf_len) {
+        return false;
+    }
+    memcpy(buf, app_ctx, pass_len + 1);
     return true;
 }
 
@@ -736,7 +740,11 @@ getpasscb_once(rnp_ffi_t        ffi,
     if (!*pass) {
         return false;
     }
-    strcpy(buf, *pass);
+    size_t pass_len = strlen(*pass);
+    if (pass_len >= buf_len) {
+        return false;
+    }
+    memcpy(buf, *pass, pass_len);
     *pass = NULL;
     return true;
 }
@@ -7719,12 +7727,20 @@ getpasscb_for_key(rnp_ffi_t        ffi,
     }
     char *keyid = NULL;
     rnp_key_get_keyid(key, &keyid);
+    if (!keyid) {
+        return false;
+    }
     const char *pass = "password";
-    if (strcmp(keyid, (const char *) app_ctx) != 0) {
+    if (strcmp(keyid, (const char *) app_ctx)) {
         pass = "wrongpassword";
     }
+    size_t pass_len = strlen(pass);
     rnp_buffer_destroy(keyid);
-    strcpy(buf, pass);
+
+    if (pass_len >= buf_len) {
+        return false;
+    }
+    memcpy(buf, pass, pass_len + 1);
     return true;
 }
 
