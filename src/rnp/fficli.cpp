@@ -1343,90 +1343,45 @@ done:
     return res;
 }
 
-/** @brief compose path from dir, subdir and filename, and store it in the res
- *  @param dir [in] null-terminated directory path, cannot be NULL
- *  @param subddir [in] null-terminated subdirectory to add to the path, can be NULL
- *  @param filename [in] null-terminated filename (or path/filename), cannot be NULL
- *  @param res [out] preallocated buffer
- *  @param res_size [in] size of output res buffer
+/** @brief compose path from dir, subdir and filename, and return it.
+ *  @param dir [in] directory path
+ *  @param subddir [in] subdirectory to add to the path, can be empty
+ *  @param filename [in] filename (or path/filename)
  *
- *  @return true if path constructed successfully, or false otherwise
+ *  @return constructed path
  **/
-static bool
-rnp_path_compose(
-  const char *dir, const char *subdir, const char *filename, char *res, size_t res_size)
+static std::string
+rnp_path_compose(const std::string &dir,
+                 const std::string &subdir,
+                 const std::string &filename)
 {
-    int pos;
-
-    /* checking input parameters for conrrectness */
-    if (!dir || !filename || !res) {
-        return false;
-    }
-
-    /* concatenating dir, subdir and filename */
-    if (strlen(dir) > res_size - 1) {
-        return false;
-    }
-
-    strcpy(res, dir);
-    pos = strlen(dir);
-
-    if (subdir) {
-        if ((pos > 0) && (res[pos - 1] != '/')) {
-            res[pos++] = '/';
+    std::string res = dir;
+    if (!subdir.empty()) {
+        if (!res.empty() && (res.back() != '/')) {
+            res.push_back('/');
         }
-
-        if (strlen(subdir) + pos > res_size - 1) {
-            return false;
-        }
-
-        strcpy(res + pos, subdir);
-        pos += strlen(subdir);
+        res.append(subdir);
     }
 
-    if ((pos > 0) && (res[pos - 1] != '/')) {
-        res[pos++] = '/';
+    if (!res.empty() && (res.back() != '/')) {
+        res.push_back('/');
     }
 
-    if (strlen(filename) + pos > res_size - 1) {
-        return false;
-    }
-
-    strcpy(res + pos, filename);
-
-    return true;
+    res.append(filename);
+    return res;
 }
 
 /* helper function : get key storage subdir in case when user didn't specify homedir */
-static const char *
-rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg, int defhomedir)
+static std::string
+rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg)
 {
-    const char *subdir;
-
-    if (!defhomedir) {
-        subdir = NULL;
-    } else {
-        if ((subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG)) == NULL) {
-            subdir = SUBDIRECTORY_RNP;
-        }
-    }
-
-    return subdir;
+    std::string subdir = rnp_cfg_getstring(cfg, CFG_SUBDIRGPG);
+    return subdir.empty() ? SUBDIRECTORY_RNP : subdir;
 }
 
 static bool
 rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
 {
-    bool        defhomedir = false;
-    const char *homedir;
-    const char *subdir;
-    const char *ks_format;
-    char        pubpath[MAXPATHLEN] = {0};
-    char        secpath[MAXPATHLEN] = {0};
-    struct stat st;
-
-    /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
-     * considered as the final path */
     if (rnp_cfg_getbool(cfg, CFG_KEYSTORE_DISABLED)) {
         return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, "") &&
                rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, "") &&
@@ -1434,27 +1389,28 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
                rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
     }
 
-    if (!(homedir = rnp_cfg_getstr(cfg, CFG_HOMEDIR))) {
+    /* getting path to keyrings. If it is specified by user in 'homedir' param then it is
+     * considered as the final path */
+    bool        defhomedir = false;
+    std::string homedir = rnp_cfg_getstring(cfg, CFG_HOMEDIR);
+    if (homedir.empty()) {
         homedir = getenv("HOME");
         defhomedir = true;
     }
 
     /* detecting key storage format */
-    if (!(ks_format = rnp_cfg_getstr(cfg, CFG_KEYSTOREFMT))) {
-        if (!(subdir = rnp_cfg_getstr(cfg, CFG_SUBDIRGPG))) {
-            subdir = SUBDIRECTORY_RNP;
-        }
-        if (!rnp_path_compose(
-              homedir, defhomedir ? subdir : NULL, PUBRING_KBX, pubpath, sizeof(pubpath))) {
-            return false;
-        }
-        if (!rnp_path_compose(
-              homedir, defhomedir ? subdir : NULL, SECRING_G10, secpath, sizeof(secpath))) {
-            return false;
-        }
+    std::string subdir = defhomedir ? rnp_cfg_get_ks_subdir(cfg) : "";
+    std::string pubpath;
+    std::string secpath;
+    std::string ks_format = rnp_cfg_getstring(cfg, CFG_KEYSTOREFMT);
 
-        bool pubpath_exists = stat(pubpath, &st) == 0;
-        bool secpath_exists = stat(secpath, &st) == 0;
+    if (ks_format.empty()) {
+        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
+        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
+
+        struct stat st;
+        bool        pubpath_exists = !stat(pubpath.c_str(), &st);
+        bool        secpath_exists = !stat(secpath.c_str(), &st);
 
         if (pubpath_exists && secpath_exists) {
             ks_format = RNP_KEYSTORE_GPG21;
@@ -1467,60 +1423,47 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         }
     }
 
-    /* building pubring/secring pathes */
-    subdir = rnp_cfg_get_ks_subdir(cfg, defhomedir);
-
     /* creating home dir if needed */
-    if (defhomedir && subdir) {
-        if (!rnp_path_compose(homedir, NULL, subdir, pubpath, sizeof(pubpath))) {
-            return false;
-        }
-        if (RNP_MKDIR(pubpath, 0700) == -1 && errno != EEXIST) {
-            ERR_MSG("cannot mkdir '%s' errno = %d", pubpath, errno);
+    if (!subdir.empty()) {
+        pubpath = rnp_path_compose(homedir, "", subdir);
+        if (RNP_MKDIR(pubpath.c_str(), 0700) == -1 && errno != EEXIST) {
+            ERR_MSG("cannot mkdir '%s' errno = %d", pubpath.c_str(), errno);
             return false;
         }
     }
 
-    const char *pub_format = RNP_KEYSTORE_GPG;
-    const char *sec_format = RNP_KEYSTORE_GPG;
+    std::string pub_format = RNP_KEYSTORE_GPG;
+    std::string sec_format = RNP_KEYSTORE_GPG;
 
-    if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_GPG, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose(homedir, subdir, SECRING_GPG, secpath, sizeof(secpath))) {
-            return false;
-        }
+    if (ks_format == RNP_KEYSTORE_GPG) {
+        pubpath = rnp_path_compose(homedir, subdir, PUBRING_GPG);
+        secpath = rnp_path_compose(homedir, subdir, SECRING_GPG);
         pub_format = RNP_KEYSTORE_GPG;
         sec_format = RNP_KEYSTORE_GPG;
-    } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
-            return false;
-        }
+    } else if (ks_format == RNP_KEYSTORE_GPG21) {
+        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
+        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_G10;
-    } else if (strcmp(ks_format, RNP_KEYSTORE_KBX) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_KBX, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose(homedir, subdir, SECRING_KBX, secpath, sizeof(secpath))) {
-            return false;
-        }
+    } else if (ks_format == RNP_KEYSTORE_KBX) {
+        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
+        secpath = rnp_path_compose(homedir, subdir, SECRING_KBX);
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_KBX;
-    } else if (strcmp(ks_format, RNP_KEYSTORE_G10) == 0) {
-        if (!rnp_path_compose(homedir, subdir, PUBRING_G10, pubpath, sizeof(pubpath)) ||
-            !rnp_path_compose(homedir, subdir, SECRING_G10, secpath, sizeof(secpath))) {
-            return false;
-        }
+    } else if (ks_format == RNP_KEYSTORE_G10) {
+        pubpath = rnp_path_compose(homedir, subdir, PUBRING_G10);
+        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
         pub_format = RNP_KEYSTORE_G10;
         sec_format = RNP_KEYSTORE_G10;
     } else {
-        ERR_MSG("unsupported keystore format: \"%s\"", ks_format);
+        ERR_MSG("unsupported keystore format: \"%s\"", ks_format.c_str());
         return false;
     }
 
-    return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, pubpath) &&
-           rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, secpath) &&
-           rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, pub_format) &&
-           rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, sec_format);
+    return rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, pubpath.c_str()) &&
+           rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, secpath.c_str()) &&
+           rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, pub_format.c_str()) &&
+           rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, sec_format.c_str());
 }
 
 /* read any gpg config file */
