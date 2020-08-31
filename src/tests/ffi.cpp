@@ -6291,15 +6291,6 @@ TEST_F(rnp_tests, test_ffi_elgamal4096)
     rnp_ffi_destroy(ffi);
 }
 
-static std::vector<uint8_t>
-read_file_to_vector(const char *valid_key_path)
-{
-    std::ifstream        stream(valid_key_path, std::ios::in | std::ios::binary);
-    std::vector<uint8_t> contents((std::istreambuf_iterator<char>(stream)),
-                                  std::istreambuf_iterator<char>());
-    return contents;
-}
-
 /* shrink the length to 1 packet
  * set packet length type as PGP_PTAG_OLD_LEN_1 and remove one octet from length header
  */
@@ -6375,7 +6366,7 @@ import_public_keys_from_vector(std::vector<uint8_t> keyring)
 
 TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
 {
-    std::vector<uint8_t> keyring = read_file_to_vector("data/keyrings/2/pubring.gpg");
+    std::vector<uint8_t> keyring = file_to_vec("data/keyrings/2/pubring.gpg");
     // check tag
     // we are assuming that original key uses old format and packet length type is
     // PGP_PTAG_OLD_LEN_2
