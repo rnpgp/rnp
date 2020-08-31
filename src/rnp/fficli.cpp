@@ -1371,14 +1371,6 @@ rnp_path_compose(const std::string &dir,
     return res;
 }
 
-/* helper function : get key storage subdir in case when user didn't specify homedir */
-static std::string
-rnp_cfg_get_ks_subdir(rnp_cfg_t *cfg)
-{
-    std::string subdir = rnp_cfg_getstring(cfg, CFG_SUBDIRGPG);
-    return subdir.empty() ? SUBDIRECTORY_RNP : subdir;
-}
-
 static bool
 rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
 {
@@ -1399,7 +1391,7 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
     }
 
     /* detecting key storage format */
-    std::string subdir = defhomedir ? rnp_cfg_get_ks_subdir(cfg) : "";
+    std::string subdir = defhomedir ? SUBDIRECTORY_RNP : "";
     std::string pubpath;
     std::string secpath;
     std::string ks_format = rnp_cfg_getstring(cfg, CFG_KEYSTOREFMT);
