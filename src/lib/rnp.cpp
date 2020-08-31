@@ -1084,7 +1084,7 @@ rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, c
     if (!*password) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    strcpy(*password, pass.data());
+    memcpy(*password, pass.data(), pass_len + 1);
     return RNP_SUCCESS;
 }
 
@@ -4183,10 +4183,11 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
                 return false;
             }
             const char *userid = json_object_get_string(value);
-            if (strlen(userid) >= sizeof(cert->userid)) {
+            size_t      userid_len = strlen(userid);
+            if (userid_len >= sizeof(cert->userid)) {
                 return false;
             }
-            strcpy((char *) cert->userid, userid);
+            memcpy(cert->userid, userid, userid_len + 1);
         } else if (!rnp_strcasecmp(key, "usage")) {
             switch (json_object_get_type(value)) {
             case json_type_array: {
@@ -5094,10 +5095,11 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (strlen(userid) >= sizeof(op->cert.userid)) {
+    size_t userid_len = strlen(userid);
+    if (userid_len >= sizeof(op->cert.userid)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    strcpy((char *) op->cert.userid, userid);
+    memcpy(op->cert.userid, userid, userid_len + 1);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5482,12 +5484,12 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (strlen(uid) >= MAX_ID_LENGTH) {
+    size_t uid_len = strlen(uid);
+    if (uid_len >= sizeof(info.userid)) {
         FFI_LOG(handle->ffi, "UserID too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    strcpy((char *) info.userid, uid);
+    memcpy(info.userid, uid, uid_len + 1);
 
     info.key_flags = key_flags;
     info.key_expiration = expiration;
@@ -7510,7 +7512,7 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
         if (uid->str.size() >= buf_len) {
             return false;
         }
-        strcpy(buf, uid->str.c_str());
+        memcpy(buf, uid->str.c_str(), uid->str.size() + 1);
     } break;
     default:
         assert(false);
