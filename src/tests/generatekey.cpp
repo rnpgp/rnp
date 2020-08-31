@@ -358,7 +358,6 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
 {
     /* Try to generate keypair in different home directories */
-    char      newhome[256];
     cli_rnp_t rnp = {};
 
     /* Initialize the rnp structure. */
@@ -394,23 +393,23 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
 
     /* Now we start over with a new home. When home is specified explicitly then it should
      * include .rnp as well */
-    strcpy(newhome, "newhome/.rnp");
+    std::string newhome = "newhome/.rnp";
     path_mkdir(0700, "newhome", NULL);
-    path_mkdir(0700, "newhome/.rnp", NULL);
+    path_mkdir(0700, newhome.c_str(), NULL);
 
     /* Initialize the rnp structure. */
-    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome, NULL));
+    assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome.c_str(), NULL));
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
+    assert_false(path_file_exists(newhome.c_str(), "pubring.gpg", NULL));
+    assert_false(path_file_exists(newhome.c_str(), "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
-    assert_true(generate_test_key(RNP_KEYSTORE_GPG, "newhomekey", "SHA256", newhome));
+    assert_true(generate_test_key(RNP_KEYSTORE_GPG, "newhomekey", "SHA256", newhome.c_str()));
 
     /* Pubring and secring should now exist */
-    assert_true(path_file_exists(newhome, "pubring.gpg", NULL));
-    assert_true(path_file_exists(newhome, "secring.gpg", NULL));
+    assert_true(path_file_exists(newhome.c_str(), "pubring.gpg", NULL));
+    assert_true(path_file_exists(newhome.c_str(), "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
@@ -928,7 +927,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
         desc.crypto.rng = &global_rng;
-        strcpy((char *) desc.cert.userid, "test");
+        memcpy(desc.cert.userid, "test", 5);
 
         // generate
         assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, PGP_KEY_STORE_GPG));
