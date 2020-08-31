@@ -409,8 +409,10 @@ add_packet_body_s2k(pgp_packet_body_t *body, const pgp_s2k_t *s2k)
             return false;
         }
         if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
+            static_assert(sizeof(s2k->gpg_serial) == 16, "invalid gpg serial length");
+            size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
             return add_packet_body_byte(body, s2k->gpg_serial_len) &&
-                   add_packet_body(body, s2k->gpg_serial, s2k->gpg_serial_len);
+                   add_packet_body(body, s2k->gpg_serial, slen);
         }
         return true;
     }
