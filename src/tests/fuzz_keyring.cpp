@@ -35,6 +35,7 @@ extern "C" int keyring_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 TEST_F(rnp_tests, test_fuzz_keyring)
 {
     auto data = file_to_vec(DATA_PATH "leak-542d4e51506e3e9d34c9b243e608a964dabfdb21");
+    assert_int_equal(data.size(), 540);
     assert_int_equal(keyring_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 
     data = file_to_vec(DATA_PATH "crash-7ff10f10a95b78461d6f3578f5f99e870c792b9f");

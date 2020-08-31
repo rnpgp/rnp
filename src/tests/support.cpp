@@ -94,6 +94,7 @@ std::string
 file_to_str(const std::string &path)
 {
     std::ifstream infile(path);
+    assert_true(infile);
     return std::string(std::istreambuf_iterator<char>(infile),
                        std::istreambuf_iterator<char>());
 }
@@ -101,12 +102,10 @@ file_to_str(const std::string &path)
 std::vector<uint8_t>
 file_to_vec(const std::string &path)
 {
-    std::ifstream        file(path, std::ios::binary | std::ios::ate);
-    std::vector<uint8_t> vec(file.tellg());
-    file.seekg(0, std::ios::beg);
-    vec.insert(
-      vec.begin(), std::istream_iterator<uint8_t>(file), std::istream_iterator<uint8_t>());
-    return vec;
+    std::ifstream stream(path, std::ios::in | std::ios::binary);
+    assert_true(stream);
+    return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
+                                std::istreambuf_iterator<char>());
 }
 
 off_t
