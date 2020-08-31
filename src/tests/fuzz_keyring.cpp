@@ -40,4 +40,8 @@ TEST_F(rnp_tests, test_fuzz_keyring)
 
     data = file_to_vec(DATA_PATH "crash-7ff10f10a95b78461d6f3578f5f99e870c792b9f");
     assert_int_equal(keyring_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    /* Issue 25292 in oss-fuzz: rnp:fuzz_keyring: Stack-buffer-overflow in stream_write_key */
+    data = file_to_vec(DATA_PATH "crash-8619144979e56d07ab4890bf564b90271ae9b1c9");
+    assert_int_equal(keyring_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
