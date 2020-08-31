@@ -771,7 +771,8 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
     struct stat            st;
     pgp_dest_file_param_t *param;
 
-    if (strlen(path) > sizeof(param->path)) {
+    size_t path_len = strlen(path);
+    if (path_len >= sizeof(param->path)) {
         RNP_LOG("path too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -814,7 +815,7 @@ init_file_dest(pgp_dest_t *dst, const char *path, bool overwrite)
 
     param = (pgp_dest_file_param_t *) dst->param;
     param->fd = fd;
-    strcpy(param->path, path);
+    memcpy(param->path, path, path_len + 1);
     dst->write = file_dst_write;
     dst->close = file_dst_close;
     dst->type = PGP_STREAM_FILE;
