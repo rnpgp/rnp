@@ -102,13 +102,16 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
     char s2k_algo_str[128];
     snprintf(s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", pgp_hash_name_botan(alg));
 
-    return botan_pbkdf(s2k_algo_str,
-                       out,
-                       output_len,
-                       password,
-                       salt,
-                       salt == NULL ? 0 : PGP_SALT_SIZE,
-                       iterations);
+    return botan_pwdhash(s2k_algo_str,
+                         iterations,
+                         0,
+                         0,
+                         out,
+                         output_len,
+                         password,
+                         0,
+                         salt,
+                         salt ? PGP_SALT_SIZE : 0);
 }
 
 size_t
