@@ -67,9 +67,7 @@ ru32(uint8_t *p)
 static bool
 rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
 {
-    uint8_t *image = first_blob->blob.image;
-
-    image += BLOB_HEADER_SIZE;
+    uint8_t *image = first_blob->blob.image + BLOB_HEADER_SIZE;
 
     if (first_blob->blob.length != BLOB_FIRST_SIZE) {
         RNP_LOG("The first blob has wrong length: %" PRIu32 " but expected %d",
@@ -80,7 +78,6 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
 
     first_blob->version = ru8(image);
     image += 1;
-
     if (first_blob->version != 1) {
         RNP_LOG("Wrong version, expect 1 but has %" PRIu8, first_blob->version);
         return false;
@@ -90,28 +87,21 @@ rnp_key_store_kbx_parse_header_blob(kbx_header_blob_t *first_blob)
     image += 2;
 
     // blob should contains a magic KBXf
-    if (strncasecmp((const char *) (image), "KBXf", 4)) {
+    if (memcmp(image, "KBXf", 4)) {
         RNP_LOG("The first blob hasn't got a KBXf magic string");
         return false;
     }
-
-    image += 3;
-
+    image += 4;
     // RFU
     image += 4;
-
+    // File creation time
     first_blob->file_created_at = ru32(image);
     image += 4;
-
-    first_blob->file_created_at = ru32(image + 15);
+    // Duplicated?
+    first_blob->file_created_at = ru32(image);
     image += 4;
-
-    // RFU
-    image += 4;
-
-    // RFU
-    image += 4;
-
+    // RFU +4 bytes
+    // RFU +4 bytes
     return true;
 }
 
@@ -351,44 +341,38 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
 static kbx_blob_t *
 rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
 {
-    uint32_t      length;
-    kbx_blob_t *  blob;
-    kbx_blob_type type;
-
     // a blob shouldn't be less of length + type
     if (image_len < BLOB_HEADER_SIZE) {
         RNP_LOG("Blob size is %" PRIu32 " but it shouldn't be less of header", image_len);
         return NULL;
     }
 
-    length = ru32(image + 0);
-    type = (kbx_blob_type) ru8(image + 4);
+    uint32_t      length = ru32(image + 0);
+    kbx_blob_type type = (kbx_blob_type) ru8(image + 4);
+    size_t        bloblen = 0;
 
     switch (type) {
     case KBX_EMPTY_BLOB:
-        blob = (kbx_blob_t *) calloc(1, sizeof(kbx_blob_t));
+        bloblen = sizeof(kbx_blob_t);
         break;
-
     case KBX_HEADER_BLOB:
-        blob = (kbx_blob_t *) calloc(1, sizeof(kbx_header_blob_t));
+        bloblen = sizeof(kbx_header_blob_t);
         break;
-
     case KBX_PGP_BLOB:
-        blob = (kbx_blob_t *) calloc(1, sizeof(kbx_pgp_blob_t));
+        bloblen = sizeof(kbx_pgp_blob_t);
         break;
-
     case KBX_X509_BLOB:
         // current we doesn't parse X509 blob, so, keep it as is
-        blob = (kbx_blob_t *) calloc(1, sizeof(kbx_blob_t));
+        bloblen = sizeof(kbx_blob_t);
         break;
-
     // unsuported blob type
     default:
         RNP_LOG("Unsupported blob type: %d", (int) type);
         return NULL;
     }
 
-    if (blob == NULL) {
+    kbx_blob_t *blob = (kbx_blob_t *) calloc(1, bloblen);
+    if (!blob) {
         RNP_LOG("Can't allocate memory");
         return NULL;
     }
