@@ -36,4 +36,9 @@ TEST_F(rnp_tests, test_fuzz_keyring_kbx)
 {
     auto data = file_to_vec(DATA_PATH "leak-52c65c00b53997178f4cd9defa0343573ea8dda6");
     assert_int_equal(keyring_kbx_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    /* Issue 25386 in oss-fuzz: rnp:fuzz_keyring_kbx: Heap-buffer-overflow in
+     * rnp_key_store_kbx_from_src */
+    data = file_to_vec(DATA_PATH "crash-5526a2e13255018c857ce493c28ce7108b8b2987");
+    assert_int_equal(keyring_kbx_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
