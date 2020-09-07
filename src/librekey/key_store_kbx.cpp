@@ -136,7 +136,8 @@ rnp_key_store_kbx_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
     pgp_blob->keyblock_length = ru32(image);
     image += 4;
 
-    if (pgp_blob->keyblock_offset > pgp_blob->blob.length ||
+    if ((pgp_blob->keyblock_offset > pgp_blob->blob.length) ||
+        (pgp_blob->keyblock_offset > (UINT32_MAX - pgp_blob->keyblock_length)) ||
         pgp_blob->blob.length < (pgp_blob->keyblock_offset + pgp_blob->keyblock_length)) {
         RNP_LOG("Wrong keyblock offset/length, blob size: %" PRIu32
                 ", keyblock offset: %" PRIu32 ", length: %" PRIu32,
@@ -454,7 +455,7 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
             // parse keyblock if it existed
             pgp_blob = (kbx_pgp_blob_t *) *blob;
 
-            if (pgp_blob->keyblock_length == 0) {
+            if (!pgp_blob->keyblock_length) {
                 RNP_LOG("PGP blob have zero size");
                 goto finish;
             }
