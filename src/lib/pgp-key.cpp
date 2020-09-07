@@ -1918,6 +1918,17 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
     return hash;
 }
 
+static bool
+is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
+{
+    /* key expiration: absense of subpkt or 0 means it never expires */
+    uint32_t expiration = signature_get_key_expiration(&sig.sig);
+    if (!expiration) {
+        return false;
+    }
+    return pgp_key_get_creation(&key) + expiration < time(NULL);
+}
+
 static void
 pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
 {
@@ -1937,15 +1948,11 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
         }
 
         if (pgp_sig_is_self_signature(key, sig) && !has_cert) {
-            /* check whether key is expired */
-            if (!signature_has_key_expiration(&sig->sig)) {
+            if (!is_key_expired(*key, *sig)) {
                 has_cert = true;
                 continue;
             }
-            time_t expiry =
-              pgp_key_get_creation(key) + signature_get_key_expiration(&sig->sig);
-            has_expired = expiry < time(NULL);
-            has_cert = !has_expired;
+            has_expired = true;
         } else if (pgp_sig_is_key_revocation(key, sig)) {
             return;
         }
@@ -1972,12 +1979,8 @@ pgp_key_validate_primary(pgp_key_t *key, rnp_key_store_t *keyring)
             continue;
         }
         /* check whether subkey is expired - then do not mark key as valid */
-        if (signature_has_key_expiration(&sig->sig)) {
-            time_t expiry =
-              pgp_key_get_creation(sub) + signature_get_key_expiration(&sig->sig);
-            if (expiry < time(NULL)) {
-                continue;
-            }
+        if (is_key_expired(*sub, *sig)) {
+            continue;
         }
         key->valid = true;
         return;
@@ -2006,12 +2009,8 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
 
         if (pgp_sig_is_subkey_binding(subkey, sig) && !has_binding) {
             /* check whether subkey is expired */
-            if (signature_has_key_expiration(&sig->sig)) {
-                time_t expiry =
-                  pgp_key_get_creation(subkey) + signature_get_key_expiration(&sig->sig);
-                if (expiry < time(NULL)) {
-                    continue;
-                }
+            if (is_key_expired(*subkey, *sig)) {
+                continue;
             }
             has_binding = true;
         } else if (pgp_sig_is_subkey_revocation(subkey, sig)) {
