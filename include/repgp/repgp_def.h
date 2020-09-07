@@ -141,7 +141,7 @@ typedef enum {
 #define MDC_PKT_TAG 0xd3
 #define MDC_V1_SIZE 22
 
-typedef enum {
+typedef enum : uint8_t {
     PGP_REVOCATION_NO_REASON = 0,
     PGP_REVOCATION_SUPERSEDED = 1,
     PGP_REVOCATION_COMPROMISED = 2,
