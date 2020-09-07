@@ -9554,6 +9554,18 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_true(sub->pub->valid);
     rnp_key_handle_destroy(sub);
 
+    /* key and subkey both has 0 key expiration with corresponding subpacket */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/key-sub-0-expiry.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "6EFF45F2201AC5F8", &key));
+    assert_true(key->pub->valid);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "74F971795A5DDBC9", &sub));
+    assert_true(sub->pub->valid);
+    rnp_key_handle_destroy(sub);
+
     rnp_ffi_destroy(ffi);
 }
 
