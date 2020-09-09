@@ -259,6 +259,8 @@ rnp_result_t stream_read_packet(pgp_source_t *src, pgp_dest_t *dst);
 
 rnp_result_t stream_skip_packet(pgp_source_t *src);
 
+rnp_result_t stream_parse_marker(pgp_source_t &src);
+
 /* Symmetric-key encrypted session key */
 
 bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);

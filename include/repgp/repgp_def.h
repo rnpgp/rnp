@@ -98,6 +98,10 @@
 /* Size of the key grip */
 #define PGP_KEY_GRIP_SIZE 20
 
+/* PGP marker packet contents */
+#define PGP_MARKER_CONTENTS "PGP"
+#define PGP_MARKER_LEN 3
+
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
  * old packet format.
