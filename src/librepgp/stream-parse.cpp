@@ -171,6 +171,7 @@ is_pgp_source(pgp_source_t &src)
     case PGP_PKT_SE_IP_DATA:
     case PGP_PKT_COMPRESSED:
     case PGP_PKT_LITDATA:
+    case PGP_PKT_MARKER:
         return true;
     default:
         return false;
@@ -2296,6 +2297,16 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
             }
             ret = init_literal_src(&psrc, lsrc);
             break;
+        case PGP_PKT_MARKER:
+            if (ctx.sources.size() != srcnum) {
+                RNP_LOG("Warning: marker packet wrapped in pgp stream.");
+            }
+            ret = stream_parse_marker(*lsrc);
+            if (ret) {
+                RNP_LOG("Invalid marker packet");
+                return ret;
+            }
+            continue;
         default:
             RNP_LOG("unexpected pkt %d", type);
             ret = RNP_ERROR_BAD_FORMAT;
