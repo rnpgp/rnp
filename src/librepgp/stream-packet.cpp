@@ -1078,6 +1078,23 @@ stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst)
 }
 
 rnp_result_t
+stream_parse_marker(pgp_source_t &src)
+{
+    pgp_packet_body_t pkt = {};
+    rnp_result_t      res = stream_read_packet_body(&src, &pkt);
+    if (res) {
+        return res;
+    }
+
+    if ((pkt.len != PGP_MARKER_LEN) || memcmp(pkt.data, PGP_MARKER_CONTENTS, PGP_MARKER_LEN)) {
+        res = RNP_ERROR_BAD_FORMAT;
+    }
+
+    free_packet_body(&pkt);
+    return res;
+}
+
+rnp_result_t
 stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
 {
     uint8_t           bt;

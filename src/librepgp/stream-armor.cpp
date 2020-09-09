@@ -509,6 +509,7 @@ rnp_armor_guess_type(pgp_source_t *src)
     case PGP_PKT_SE_IP_DATA:
     case PGP_PKT_COMPRESSED:
     case PGP_PKT_LITDATA:
+    case PGP_PKT_MARKER:
         return PGP_ARMORED_MESSAGE;
     case PGP_PKT_PUBLIC_KEY:
     case PGP_PKT_PUBLIC_SUBKEY:
