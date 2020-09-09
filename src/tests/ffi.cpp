@@ -5403,10 +5403,10 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     json_object *jso = NULL;
 
     // setup FFI
-    assert_int_equal(RNP_SUCCESS, rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     // setup input
-    assert_int_equal(RNP_SUCCESS, rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
 
     // try with wrong parameters
     assert_rnp_failure(rnp_dump_packets_to_json(input, 0, NULL));
@@ -5448,6 +5448,46 @@ TEST_F(rnp_tests, test_ffi_pkt_dump)
     assert_true(len > 45000);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+
+    // dump data with marker packet
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.marker"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(
+      rnp_dump_packets_to_output(input, output, RNP_DUMP_MPI | RNP_DUMP_RAW | RNP_DUMP_GRIP));
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    buf[len - 1] = '\0';
+    assert_non_null(strstr((char *) buf, "contents: PGP"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // dump data with marker packet to json
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.marker"));
+    assert_rnp_success(rnp_dump_packets_to_json(
+      input, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+    assert_non_null(strstr(json, "\"contents\":\"PGP\""));
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
+
+    // dump data with malformed marker packet
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.marker.malf"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(
+      rnp_dump_packets_to_output(input, output, RNP_DUMP_MPI | RNP_DUMP_RAW | RNP_DUMP_GRIP));
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    buf[len - 1] = '\0';
+    assert_non_null(strstr((char *) buf, "contents: invalid"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    // dump data with malformed marker packet to json
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.marker.malf"));
+    assert_rnp_success(rnp_dump_packets_to_json(
+      input, RNP_JSON_DUMP_MPI | RNP_JSON_DUMP_RAW | RNP_JSON_DUMP_GRIP, &json));
+    assert_non_null(strstr(json, "\"contents\":\"invalid\""));
+    rnp_buffer_destroy(json);
+    rnp_input_destroy(input);
 
     // cleanup
     rnp_ffi_destroy(ffi);
@@ -6968,6 +7008,12 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     assert_int_equal(strcmp(msgt, "unknown"), 0);
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
+
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.marker"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "message"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
 }
 
 TEST_F(rnp_tests, test_ffi_literal_filename)
@@ -7547,6 +7593,45 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     /* signed message with one-pass with wrong version */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.signed-no-z-malf"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* encrypted and signed message with marker packet */
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.marker"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* encrypted and signed message with marker packet, armored */
+    sigcount = 255;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.marker.asc"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_SUCCESS));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* encrypted and signed message with malformed marker packet */
+    sigcount = 255;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.marker.malf"));
     assert_rnp_success(rnp_output_to_null(&output));
     verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
