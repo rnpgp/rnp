@@ -62,27 +62,27 @@
 
 /* describes a user's key */
 struct pgp_key_t {
-    std::vector<pgp_userid_t> uids;    /* array of user ids */
-    std::vector<pgp_subsig_t> subsigs; /* array of key signatures */
-    std::vector<pgp_revoke_t> revokes; /* array of revocations */
+    std::vector<pgp_userid_t> uids{};    /* array of user ids */
+    std::vector<pgp_subsig_t> subsigs{}; /* array of key signatures */
+    std::vector<pgp_revoke_t> revokes{}; /* array of revocations */
     std::vector<pgp_fingerprint_t>
-                           subkey_fps; /* array of subkey fingerprints (for primary keys) */
-    pgp_fingerprint_t      primary_fp; /* fingerprint of primary key (for subkeys) */
-    bool                   primary_fp_set;
-    time_t                 expiration; /* key expiration time, if available */
-    pgp_key_pkt_t          pkt;        /* pubkey/seckey data packet */
-    pgp_rawpacket_t        rawpkt;     /* key raw packet */
-    uint8_t                key_flags;  /* key flags */
-    pgp_key_id_t           keyid;
-    pgp_fingerprint_t      fingerprint;
-    pgp_key_grip_t         grip;
-    uint32_t               uid0;         /* primary uid index in uids array */
+                           subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
+    pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
+    bool                   primary_fp_set{};
+    time_t                 expiration{}; /* key expiration time, if available */
+    pgp_key_pkt_t          pkt{};        /* pubkey/seckey data packet */
+    pgp_rawpacket_t        rawpkt{};     /* key raw packet */
+    uint8_t                key_flags{};  /* key flags */
+    pgp_key_id_t           keyid{};
+    pgp_fingerprint_t      fingerprint{};
+    pgp_key_grip_t         grip{};
+    uint32_t               uid0{};       /* primary uid index in uids array */
     unsigned               uid0_set : 1; /* flag for the above */
-    uint8_t                revoked;      /* key has been revoked */
-    pgp_revoke_t           revocation;   /* revocation reason */
-    pgp_key_store_format_t format;       /* the format of the key in packets[0] */
-    bool                   valid;        /* this key is valid and usable */
-    bool                   validated;    /* this key was validated */
+    uint8_t                revoked{};    /* key has been revoked */
+    pgp_revoke_t           revocation{}; /* revocation reason */
+    pgp_key_store_format_t format{};     /* the format of the key in packets[0] */
+    bool                   valid{};      /* this key is valid and usable */
+    bool                   validated{};  /* this key was validated */
 
     pgp_key_t() = default;
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
