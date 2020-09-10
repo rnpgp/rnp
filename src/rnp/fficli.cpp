@@ -1386,7 +1386,8 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
     bool        defhomedir = false;
     std::string homedir = rnp_cfg_getstring(cfg, CFG_HOMEDIR);
     if (homedir.empty()) {
-        homedir = getenv("HOME");
+        const char *home = getenv("HOME");
+        homedir = home ? home : "";
         defhomedir = true;
     }
 
