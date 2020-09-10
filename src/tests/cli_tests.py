@@ -1760,6 +1760,13 @@ class Misc(unittest.TestCase):
 
         shutil.rmtree(test_dir)
 
+    def test_no_home_dir(self):
+        home = os.environ['HOME']
+        del os.environ['HOME']
+        ret, _, _ = run_proc(RNP, ['-v', 'non-existing.pgp'])
+        os.environ['HOME'] = home
+        if ret != 2:
+            raise_err("failed to run without HOME env variable")
 
 class Encryption(unittest.TestCase):
     '''
