@@ -37,7 +37,7 @@ rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
 }
 
 rnp_result_t
-rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
+rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
                                 const char *   password,
                                 pgp_hash_alg_t halg,
                                 pgp_symm_alg_t ealg,
@@ -49,7 +49,7 @@ rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
     info.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     info.s2k.hash_alg = halg;
 
-    if (!rng_get_data(ctx->rng, info.s2k.salt, sizeof(info.s2k.salt))) {
+    if (!rng_get_data(ctx.rng, info.s2k.salt, sizeof(info.s2k.salt))) {
         return RNP_ERROR_GENERIC;
     }
     if (iterations == 0) {
@@ -74,19 +74,17 @@ rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
     if (!pgp_s2k_derive_key(&info.s2k, password, info.key, sizeof(info.key))) {
         return RNP_ERROR_GENERIC;
     }
-    if (!list_append(&ctx->passwords, &info, sizeof(info))) {
+    if (!list_append(&ctx.passwords, &info, sizeof(info))) {
         pgp_forget(&info, sizeof(info));
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
 }
 
-/* free operation context */
-void
-rnp_ctx_free(rnp_ctx_t *ctx)
+rnp_ctx_t::~rnp_ctx_t()
 {
-    free(ctx->filename);
-    list_destroy(&ctx->recipients);
-    list_destroy(&ctx->signers);
-    list_destroy(&ctx->passwords);
+    free(filename);
+    list_destroy(&recipients);
+    list_destroy(&signers);
+    list_destroy(&passwords);
 }
