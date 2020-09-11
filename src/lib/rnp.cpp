@@ -132,11 +132,10 @@ ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 }
 
 static void
-rnp_ctx_init_ffi(rnp_ctx_t *ctx, rnp_ffi_t ffi)
+rnp_ctx_init_ffi(rnp_ctx_t &ctx, rnp_ffi_t ffi)
 {
-    memset(ctx, 0, sizeof(*ctx));
-    ctx->rng = &ffi->rng;
-    ctx->ealg = DEFAULT_PGP_SYMM_ALG;
+    ctx.rng = &ffi->rng;
+    ctx.ealg = DEFAULT_PGP_SYMM_ALG;
 }
 
 static const pgp_map_t sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
@@ -2107,7 +2106,7 @@ static rnp_result_t
 rnp_op_add_signature(rnp_ffi_t                ffi,
                      list *                   signatures,
                      rnp_key_handle_t         key,
-                     rnp_ctx_t *              ctx,
+                     rnp_ctx_t &              ctx,
                      rnp_op_sign_signature_t *sig)
 {
     rnp_op_sign_signature_t newsig = NULL;
@@ -2134,8 +2133,8 @@ rnp_op_add_signature(rnp_ffi_t                ffi,
     }
 
     /* set default create/expire times */
-    newsig->signer.sigcreate = ctx->sigcreate;
-    newsig->signer.sigexpire = ctx->sigexpire;
+    newsig->signer.sigcreate = ctx.sigcreate;
+    newsig->signer.sigexpire = ctx.sigexpire;
     newsig->ffi = ffi;
 
     if (sig) {
@@ -2145,19 +2144,16 @@ rnp_op_add_signature(rnp_ffi_t                ffi,
 }
 
 static rnp_result_t
-rnp_op_set_armor(rnp_ctx_t *ctx, bool armored)
+rnp_op_set_armor(rnp_ctx_t &ctx, bool armored)
 {
-    if (!ctx) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    ctx->armor = armored;
+    ctx.armor = armored;
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, int level)
+rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t &ctx, const char *compression, int level)
 {
-    if (!ctx || !compression) {
+    if (!compression) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -2166,19 +2162,19 @@ rnp_op_set_compression(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *compression, i
         FFI_LOG(ffi, "Invalid compression: %s", compression);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    ctx->zalg = (int) zalg;
-    ctx->zlevel = level;
+    ctx.zalg = (int) zalg;
+    ctx.zlevel = level;
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *hash)
+rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t &ctx, const char *hash)
 {
-    if (!ctx || !hash) {
+    if (!hash) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    if (!str_to_hash_alg(hash, &ctx->halg)) {
+    if (!str_to_hash_alg(hash, &ctx.halg)) {
         FFI_LOG(ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -2186,50 +2182,38 @@ rnp_op_set_hash(rnp_ffi_t ffi, rnp_ctx_t *ctx, const char *hash)
 }
 
 static rnp_result_t
-rnp_op_set_creation_time(rnp_ctx_t *ctx, uint32_t create)
+rnp_op_set_creation_time(rnp_ctx_t &ctx, uint32_t create)
 {
-    if (!ctx) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    ctx->sigcreate = create;
+    ctx.sigcreate = create;
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_expiration_time(rnp_ctx_t *ctx, uint32_t expire)
+rnp_op_set_expiration_time(rnp_ctx_t &ctx, uint32_t expire)
 {
-    if (!ctx) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    ctx->sigexpire = expire;
+    ctx.sigexpire = expire;
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_file_name(rnp_ctx_t *ctx, const char *filename)
+rnp_op_set_file_name(rnp_ctx_t &ctx, const char *filename)
 {
-    if (!ctx) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    free(ctx->filename);
+    free(ctx.filename);
     if (!filename) {
-        ctx->filename = NULL;
+        ctx.filename = NULL;
         return RNP_SUCCESS;
     }
-    ctx->filename = strdup(filename);
-    if (!ctx->filename) {
+    ctx.filename = strdup(filename);
+    if (!ctx.filename) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
 }
 
 static rnp_result_t
-rnp_op_set_file_mtime(rnp_ctx_t *ctx, uint32_t mtime)
+rnp_op_set_file_mtime(rnp_ctx_t &ctx, uint32_t mtime)
 {
-    if (!ctx) {
-        return RNP_ERROR_NULL_POINTER;
-    }
-    ctx->filemtime = mtime;
+    ctx.filemtime = mtime;
     return RNP_SUCCESS;
 }
 
@@ -2250,12 +2234,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_encrypt_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    *op = new rnp_op_encrypt_st();
+    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
     (*op)->ffi = ffi;
     (*op)->input = input;
     (*op)->output = output;
@@ -2290,7 +2270,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, &op->signatures, key, op->rnpctx, sig);
 }
 FFI_GUARD
 
@@ -2300,7 +2280,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
+    return rnp_op_set_hash(op->ffi, op->rnpctx, hash);
 }
 FFI_GUARD
 
@@ -2310,7 +2290,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_creation_time(&op->rnpctx, create);
+    return rnp_op_set_creation_time(op->rnpctx, create);
 }
 FFI_GUARD
 
@@ -2320,7 +2300,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_expiration_time(&op->rnpctx, expire);
+    return rnp_op_set_expiration_time(op->rnpctx, expire);
 }
 FFI_GUARD
 
@@ -2370,7 +2350,7 @@ try {
             password = ask_pass.data();
         }
         return rnp_ctx_add_encryption_password(
-          &op->rnpctx, password, hash_alg, symm_alg, iterations);
+          op->rnpctx, password, hash_alg, symm_alg, iterations);
     } catch (const std::exception &e) {
         FFI_LOG(op->ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -2385,7 +2365,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_armor(&op->rnpctx, armored);
+    return rnp_op_set_armor(op->rnpctx, armored);
 }
 FFI_GUARD
 
@@ -2440,7 +2420,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
+    return rnp_op_set_compression(op->ffi, op->rnpctx, compression, level);
 }
 FFI_GUARD
 
@@ -2450,7 +2430,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_name(&op->rnpctx, filename);
+    return rnp_op_set_file_name(op->rnpctx, filename);
 }
 FFI_GUARD
 
@@ -2460,7 +2440,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_mtime(&op->rnpctx, mtime);
+    return rnp_op_set_file_mtime(op->rnpctx, mtime);
 }
 FFI_GUARD
 
@@ -2480,7 +2460,7 @@ pgp_write_handler(pgp_password_provider_t *pass_provider,
 }
 
 static rnp_result_t
-rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
+rnp_op_add_signatures(list opsigs, rnp_ctx_t &ctx)
 {
     for (list_item *sig = list_front(opsigs); sig; sig = list_next(sig)) {
         rnp_signer_info_t       sinfo = {};
@@ -2492,16 +2472,16 @@ rnp_op_add_signatures(list opsigs, rnp_ctx_t *ctx)
 
         sinfo = osig->signer;
         if (!osig->hash_set) {
-            sinfo.halg = ctx->halg;
+            sinfo.halg = ctx.halg;
         }
         if (!osig->expiry_set) {
-            sinfo.sigexpire = ctx->sigexpire;
+            sinfo.sigexpire = ctx.sigexpire;
         }
         if (!osig->create_set) {
-            sinfo.sigcreate = ctx->sigcreate;
+            sinfo.sigcreate = ctx.sigcreate;
         }
 
-        if (!list_append(&ctx->signers, &sinfo, sizeof(sinfo))) {
+        if (!list_append(&ctx.signers, &sinfo, sizeof(sinfo))) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
@@ -2526,7 +2506,7 @@ try {
 
     rnp_result_t ret;
     if (list_length(op->signatures)) {
-        if ((ret = rnp_op_add_signatures(op->signatures, &op->rnpctx))) {
+        if ((ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
             return ret;
         }
         ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
@@ -2545,14 +2525,15 @@ FFI_GUARD
 rnp_result_t
 rnp_op_encrypt_destroy(rnp_op_encrypt_t op)
 try {
-    if (op) {
-        rnp_ctx_free(&op->rnpctx);
-        rnp_op_signatures_destroy(&op->signatures);
-        free(op);
-    }
+    delete op;
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_op_encrypt_st::~rnp_op_encrypt_st()
+{
+    rnp_op_signatures_destroy(&signatures);
+}
 
 rnp_result_t
 rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
@@ -2562,12 +2543,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_sign_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    *op = new rnp_op_sign_st();
+    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
     (*op)->ffi = ffi;
     (*op)->input = input;
     (*op)->output = output;
@@ -2609,7 +2586,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(op->ffi, &op->signatures, key, &op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, &op->signatures, key, op->rnpctx, sig);
 }
 FFI_GUARD
 
@@ -2658,7 +2635,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_armor(&op->rnpctx, armored);
+    return rnp_op_set_armor(op->rnpctx, armored);
 }
 FFI_GUARD
 
@@ -2668,7 +2645,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_compression(op->ffi, &op->rnpctx, compression, level);
+    return rnp_op_set_compression(op->ffi, op->rnpctx, compression, level);
 }
 FFI_GUARD
 
@@ -2678,7 +2655,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_hash(op->ffi, &op->rnpctx, hash);
+    return rnp_op_set_hash(op->ffi, op->rnpctx, hash);
 }
 FFI_GUARD
 
@@ -2688,7 +2665,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_creation_time(&op->rnpctx, create);
+    return rnp_op_set_creation_time(op->rnpctx, create);
 }
 FFI_GUARD
 
@@ -2698,7 +2675,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_expiration_time(&op->rnpctx, expire);
+    return rnp_op_set_expiration_time(op->rnpctx, expire);
 }
 FFI_GUARD
 
@@ -2708,7 +2685,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_name(&op->rnpctx, filename);
+    return rnp_op_set_file_name(op->rnpctx, filename);
 }
 FFI_GUARD
 
@@ -2718,7 +2695,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_set_file_mtime(&op->rnpctx, mtime);
+    return rnp_op_set_file_mtime(op->rnpctx, mtime);
 }
 FFI_GUARD
 
@@ -2738,7 +2715,7 @@ try {
       pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
     rnp_result_t ret;
-    if ((ret = rnp_op_add_signatures(op->signatures, &op->rnpctx))) {
+    if ((ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
         return ret;
     }
     ret = rnp_sign_src(&handler, &op->input->src, &op->output->dst);
@@ -2754,14 +2731,15 @@ FFI_GUARD
 rnp_result_t
 rnp_op_sign_destroy(rnp_op_sign_t op)
 try {
-    if (op) {
-        rnp_ctx_free(&op->rnpctx);
-        rnp_op_signatures_destroy(&op->signatures);
-        free(op);
-    }
+    delete op;
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_op_sign_st::~rnp_op_sign_st()
+{
+    rnp_op_signatures_destroy(&signatures);
+}
 
 static void
 rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void *param)
@@ -2953,12 +2931,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_verify_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    *op = new rnp_op_verify_st();
+    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
     (*op)->ffi = ffi;
     (*op)->input = input;
     (*op)->output = output;
@@ -2977,12 +2951,8 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *op = (rnp_op_verify_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    rnp_ctx_init_ffi(&(*op)->rnpctx, ffi);
+    *op = new rnp_op_verify_st();
+    rnp_ctx_init_ffi((*op)->rnpctx, ffi);
     (*op)->rnpctx.detached = true;
     (*op)->ffi = ffi;
     (*op)->input = signature;
@@ -3275,19 +3245,20 @@ FFI_GUARD
 rnp_result_t
 rnp_op_verify_destroy(rnp_op_verify_t op)
 try {
-    if (op) {
-        rnp_ctx_free(&op->rnpctx);
-        delete[] op->signatures;
-        free(op->filename);
-        free(op->recipients);
-        free(op->used_recipient);
-        free(op->symencs);
-        free(op->used_symenc);
-        free(op);
-    }
+    delete op;
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_op_verify_st::~rnp_op_verify_st()
+{
+    delete[] signatures;
+    free(filename);
+    free(recipients);
+    free(used_recipient);
+    free(symencs);
+    free(used_symenc);
+}
 
 rnp_result_t
 rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig)
@@ -3402,14 +3373,13 @@ rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
 rnp_result_t
 rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
 try {
-    rnp_ctx_t rnpctx;
-
     // checks
     if (!ffi || !input || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    rnp_ctx_init_ffi(&rnpctx, ffi);
+    rnp_ctx_t rnpctx;
+    rnp_ctx_init_ffi(rnpctx, ffi);
     pgp_parse_handler_t handler;
     memset(&handler, 0, sizeof(handler));
     handler.password_provider = &ffi->pass_provider;
