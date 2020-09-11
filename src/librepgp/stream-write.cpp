@@ -1936,7 +1936,7 @@ rnp_result_t
 rnp_compress_src(pgp_source_t &src, pgp_dest_t &dst, pgp_compression_type_t zalg, int zlevel)
 {
     pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx = {};
+    rnp_ctx_t           ctx;
     ctx.zalg = zalg;
     ctx.zlevel = zlevel;
     handler.ctx = &ctx;
@@ -1949,7 +1949,6 @@ rnp_compress_src(pgp_source_t &src, pgp_dest_t &dst, pgp_compression_type_t zalg
     ret = dst_write_src(&src, &compressed);
 done:
     dst_close(&compressed, ret);
-    rnp_ctx_free(&ctx);
     return ret;
 }
 
@@ -1957,7 +1956,7 @@ rnp_result_t
 rnp_wrap_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &filename, uint32_t modtime)
 {
     pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx = {};
+    rnp_ctx_t           ctx;
     ctx.filename = strdup(filename.c_str());
     ctx.filemtime = modtime;
     handler.ctx = &ctx;
@@ -1971,7 +1970,6 @@ rnp_wrap_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &filename, ui
     ret = dst_write_src(&src, &literal);
 done:
     dst_close(&literal, ret);
-    rnp_ctx_free(&ctx);
     return ret;
 }
 
@@ -1979,7 +1977,7 @@ rnp_result_t
 rnp_raw_encrypt_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &password)
 {
     pgp_write_handler_t handler = {};
-    rnp_ctx_t           ctx = {};
+    rnp_ctx_t           ctx;
     rng_t               rng = {};
 
     if (!rng_init(&rng, RNG_SYSTEM)) {
@@ -1991,7 +1989,7 @@ rnp_raw_encrypt_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &passw
     pgp_dest_t encrypted = {};
 
     rnp_result_t ret = rnp_ctx_add_encryption_password(
-      &ctx, password.c_str(), DEFAULT_PGP_HASH_ALG, DEFAULT_PGP_SYMM_ALG, 0);
+      ctx, password.c_str(), DEFAULT_PGP_HASH_ALG, DEFAULT_PGP_SYMM_ALG, 0);
     if (ret) {
         goto done;
     }
@@ -2004,7 +2002,6 @@ rnp_raw_encrypt_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &passw
     ret = dst_write_src(&src, &encrypted);
 done:
     dst_close(&encrypted, ret);
-    rnp_ctx_free(&ctx);
     rng_destroy(&rng);
     return ret;
 }

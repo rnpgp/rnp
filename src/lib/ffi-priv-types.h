@@ -115,11 +115,13 @@ struct rnp_op_generate_st {
 };
 
 struct rnp_op_sign_st {
-    rnp_ffi_t    ffi;
-    rnp_input_t  input;
-    rnp_output_t output;
-    rnp_ctx_t    rnpctx;
-    list         signatures;
+    rnp_ffi_t    ffi{};
+    rnp_input_t  input{};
+    rnp_output_t output{};
+    rnp_ctx_t    rnpctx{};
+    list         signatures{};
+
+    ~rnp_op_sign_st();
 };
 
 struct rnp_op_sign_signature_st {
@@ -137,38 +139,42 @@ struct rnp_op_verify_signature_st {
 };
 
 struct rnp_op_verify_st {
-    rnp_ffi_t    ffi;
-    rnp_input_t  input;
-    rnp_input_t  detached_input; /* for detached signature will be source file/data */
-    rnp_output_t output;
-    rnp_ctx_t    rnpctx;
+    rnp_ffi_t    ffi{};
+    rnp_input_t  input{};
+    rnp_input_t  detached_input{}; /* for detached signature will be source file/data */
+    rnp_output_t output{};
+    rnp_ctx_t    rnpctx{};
     /* these fields are filled after operation execution */
-    rnp_op_verify_signature_t signatures;
-    size_t                    signature_count;
-    char *                    filename;
-    uint32_t                  file_mtime;
+    rnp_op_verify_signature_t signatures{};
+    size_t                    signature_count{};
+    char *                    filename{};
+    uint32_t                  file_mtime{};
     /* encryption information */
-    bool           encrypted;
-    bool           mdc;
-    bool           validated;
-    pgp_aead_alg_t aead;
-    pgp_symm_alg_t salg;
+    bool           encrypted{};
+    bool           mdc{};
+    bool           validated{};
+    pgp_aead_alg_t aead{};
+    pgp_symm_alg_t salg{};
     /* recipient/symenc information */
-    rnp_recipient_handle_t recipients;
-    size_t                 recipient_count;
-    rnp_recipient_handle_t used_recipient;
-    rnp_symenc_handle_t    symencs;
-    size_t                 symenc_count;
-    rnp_symenc_handle_t    used_symenc;
-    size_t                 encrypted_layers;
+    rnp_recipient_handle_t recipients{};
+    size_t                 recipient_count{};
+    rnp_recipient_handle_t used_recipient{};
+    rnp_symenc_handle_t    symencs{};
+    size_t                 symenc_count{};
+    rnp_symenc_handle_t    used_symenc{};
+    size_t                 encrypted_layers{};
+
+    ~rnp_op_verify_st();
 };
 
 struct rnp_op_encrypt_st {
-    rnp_ffi_t    ffi;
-    rnp_input_t  input;
-    rnp_output_t output;
-    rnp_ctx_t    rnpctx;
-    list         signatures;
+    rnp_ffi_t    ffi{};
+    rnp_input_t  input{};
+    rnp_output_t output{};
+    rnp_ctx_t    rnpctx{};
+    list         signatures{};
+
+    ~rnp_op_encrypt_st();
 };
 
 struct rnp_identifier_iterator_st {
