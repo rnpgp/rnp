@@ -82,26 +82,34 @@ typedef struct rnp_signer_info_t {
  */
 
 typedef struct rnp_ctx_t {
-    char *          filename;   /* name of the input file to store in literal data packet */
-    int64_t         filemtime;  /* file modification time to store in literal data packet */
-    int64_t         sigcreate;  /* signature creation time */
-    uint64_t        sigexpire;  /* signature expiration time */
-    bool            clearsign;  /* cleartext signature */
-    bool            detached;   /* detached signature */
-    pgp_hash_alg_t  halg;       /* hash algorithm */
-    pgp_symm_alg_t  ealg;       /* encryption algorithm */
-    int             zalg;       /* compression algorithm used */
-    int             zlevel;     /* compression level */
-    pgp_aead_alg_t  aalg;       /* non-zero to use AEAD */
-    int             abits;      /* AEAD chunk bits */
-    bool            overwrite;  /* allow to overwrite output file if exists */
-    bool            armor;      /* whether to use ASCII armor on output */
-    list            recipients; /* recipients of the encrypted message */
-    list            passwords;  /* list of rnp_symmetric_pass_info_t */
-    list            signers;    /* list of rnp_signer_info_t structures */
-    bool            discard;    /* discard the output */
-    rng_t *         rng;        /* pointer to rng_t */
-    rnp_operation_t operation;  /* current operation type */
+    char *          filename{};   /* name of the input file to store in literal data packet */
+    int64_t         filemtime{};  /* file modification time to store in literal data packet */
+    int64_t         sigcreate{};  /* signature creation time */
+    uint64_t        sigexpire{};  /* signature expiration time */
+    bool            clearsign{};  /* cleartext signature */
+    bool            detached{};   /* detached signature */
+    pgp_hash_alg_t  halg{};       /* hash algorithm */
+    pgp_symm_alg_t  ealg{};       /* encryption algorithm */
+    int             zalg{};       /* compression algorithm used */
+    int             zlevel{};     /* compression level */
+    pgp_aead_alg_t  aalg{};       /* non-zero to use AEAD */
+    int             abits{};      /* AEAD chunk bits */
+    bool            overwrite{};  /* allow to overwrite output file if exists */
+    bool            armor{};      /* whether to use ASCII armor on output */
+    list            recipients{}; /* recipients of the encrypted message */
+    list            passwords{};  /* list of rnp_symmetric_pass_info_t */
+    list            signers{};    /* list of rnp_signer_info_t structures */
+    bool            discard{};    /* discard the output */
+    rng_t *         rng{};        /* pointer to rng_t */
+    rnp_operation_t operation{};  /* current operation type */
+
+    rnp_ctx_t() = default;
+    rnp_ctx_t(const rnp_ctx_t &) = delete;
+    rnp_ctx_t(rnp_ctx_t &&) = delete;
+
+    rnp_ctx_t &operator=(const rnp_ctx_t &) = delete;
+    rnp_ctx_t &operator=(rnp_ctx_t &&) = delete;
+    ~rnp_ctx_t();
 } rnp_ctx_t;
 
 typedef struct rnp_symmetric_pass_info_t {
@@ -110,11 +118,9 @@ typedef struct rnp_symmetric_pass_info_t {
     uint8_t        key[PGP_MAX_KEY_SIZE];
 } rnp_symmetric_pass_info_t;
 
-/* free rnp operation context */
-void             rnp_ctx_free(rnp_ctx_t *);
 struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 
-rnp_result_t rnp_ctx_add_encryption_password(rnp_ctx_t *    ctx,
+rnp_result_t rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
                                              const char *   password,
                                              pgp_hash_alg_t halg,
                                              pgp_symm_alg_t ealg,
