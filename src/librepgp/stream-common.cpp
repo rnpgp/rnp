@@ -864,7 +864,7 @@ file_tmpdst_finish(pgp_dest_t *dst)
 
     /* rename the temporary file */
     close(param->fd);
-    param->fd = 0;
+    param->fd = -1;
 
     /* check if file already exists */
     if (!stat(origpath, &st)) {
