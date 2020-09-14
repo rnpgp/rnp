@@ -31,7 +31,7 @@
 #include <botan/ffi.h>
 #include <stdio.h>
 #include "config.h"
-#ifdef HAVE_SYS_TIME_H
+#ifndef _MSC_VER
 #include <sys/time.h>
 #else
 #include "uniwin.h"
@@ -153,7 +153,7 @@ pgp_s2k_encode_iterations(size_t iterations)
 static uint64_t
 get_timestamp_usec()
 {
-#ifdef HAVE_SYS_TIME_H
+#ifndef _MSC_VER
     // TODO: Consider clock_gettime
     struct timeval tv;
     ::gettimeofday(&tv, NULL);
