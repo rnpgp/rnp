@@ -27,7 +27,6 @@
 
 #include "crypto.h"
 #include "crypto/common.h"
-#include "list.h"
 #include "pgp-key.h"
 #include "defaults.h"
 #include <assert.h>
@@ -2103,35 +2102,36 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-rnp_op_add_signature(rnp_ffi_t                ffi,
-                     list *                   signatures,
-                     rnp_key_handle_t         key,
-                     rnp_ctx_t &              ctx,
-                     rnp_op_sign_signature_t *sig)
+rnp_op_add_signature(rnp_ffi_t                 ffi,
+                     rnp_op_sign_signatures_t &signatures,
+                     rnp_key_handle_t          key,
+                     rnp_ctx_t &               ctx,
+                     rnp_op_sign_signature_t * sig)
 {
-    rnp_op_sign_signature_t newsig = NULL;
-
-    if (!signatures || !key) {
+    if (!key) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    newsig = (rnp_op_sign_signature_t) list_append(signatures, NULL, sizeof(*newsig));
-    if (!newsig) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    newsig->signer.key = find_suitable_key(
+    pgp_key_t *signkey = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
-    if (newsig->signer.key && !pgp_key_is_secret(newsig->signer.key)) {
+    if (signkey && !pgp_key_is_secret(signkey)) {
         pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
         ctx.search.type = PGP_KEY_SEARCH_GRIP;
-        ctx.search.by.grip = pgp_key_get_grip(newsig->signer.key);
-        newsig->signer.key = pgp_request_key(&key->ffi->key_provider, &ctx);
+        ctx.search.by.grip = pgp_key_get_grip(signkey);
+        signkey = pgp_request_key(&key->ffi->key_provider, &ctx);
     }
-    if (!newsig->signer.key) {
-        list_remove((list_item *) newsig);
+    if (!signkey) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
+    try {
+        signatures.emplace_back();
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "%s", e.what());
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp_op_sign_signature_t newsig = &signatures.back();
+    newsig->signer.key = signkey;
     /* set default create/expire times */
     newsig->signer.sigcreate = ctx.sigcreate;
     newsig->signer.sigexpire = ctx.sigexpire;
@@ -2217,12 +2217,6 @@ rnp_op_set_file_mtime(rnp_ctx_t &ctx, uint32_t mtime)
     return RNP_SUCCESS;
 }
 
-static void
-rnp_op_signatures_destroy(list *signatures)
-{
-    list_destroy(signatures);
-}
-
 rnp_result_t
 rnp_op_encrypt_create(rnp_op_encrypt_t *op,
                       rnp_ffi_t         ffi,
@@ -2270,7 +2264,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(op->ffi, &op->signatures, key, op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, op->signatures, key, op->rnpctx, sig);
 }
 FFI_GUARD
 
@@ -2460,24 +2454,21 @@ pgp_write_handler(pgp_password_provider_t *pass_provider,
 }
 
 static rnp_result_t
-rnp_op_add_signatures(list opsigs, rnp_ctx_t &ctx)
+rnp_op_add_signatures(rnp_op_sign_signatures_t &opsigs, rnp_ctx_t &ctx)
 {
-    for (list_item *sig = list_front(opsigs); sig; sig = list_next(sig)) {
-        rnp_signer_info_t       sinfo = {};
-        rnp_op_sign_signature_t osig = (rnp_op_sign_signature_t) sig;
-
-        if (!osig->signer.key) {
+    for (auto &sig : opsigs) {
+        if (!sig.signer.key) {
             return RNP_ERROR_NO_SUITABLE_KEY;
         }
 
-        sinfo = osig->signer;
-        if (!osig->hash_set) {
+        rnp_signer_info_t sinfo = sig.signer;
+        if (!sig.hash_set) {
             sinfo.halg = ctx.halg;
         }
-        if (!osig->expiry_set) {
+        if (!sig.expiry_set) {
             sinfo.sigexpire = ctx.sigexpire;
         }
-        if (!osig->create_set) {
+        if (!sig.create_set) {
             sinfo.sigcreate = ctx.sigcreate;
         }
 
@@ -2485,7 +2476,6 @@ rnp_op_add_signatures(list opsigs, rnp_ctx_t &ctx)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-
     return RNP_SUCCESS;
 }
 
@@ -2505,7 +2495,7 @@ try {
       pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
     rnp_result_t ret;
-    if (list_length(op->signatures)) {
+    if (!op->signatures.empty()) {
         if ((ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
             return ret;
         }
@@ -2529,11 +2519,6 @@ try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
-
-rnp_op_encrypt_st::~rnp_op_encrypt_st()
-{
-    rnp_op_signatures_destroy(&signatures);
-}
 
 rnp_result_t
 rnp_op_sign_create(rnp_op_sign_t *op, rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
@@ -2586,7 +2571,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    return rnp_op_add_signature(op->ffi, &op->signatures, key, op->rnpctx, sig);
+    return rnp_op_add_signature(op->ffi, op->signatures, key, op->rnpctx, sig);
 }
 FFI_GUARD
 
@@ -2735,11 +2720,6 @@ try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
-
-rnp_op_sign_st::~rnp_op_sign_st()
-{
-    rnp_op_signatures_destroy(&signatures);
-}
 
 static void
 rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void *param)
