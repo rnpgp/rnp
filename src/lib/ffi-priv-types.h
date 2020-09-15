@@ -28,6 +28,7 @@
 #include <rnp/rnp.h>
 #include <json.h>
 #include "utils.h"
+#include <list>
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -114,22 +115,22 @@ struct rnp_op_generate_st {
     rnp_selfsig_binding_info_t  binding;
 };
 
-struct rnp_op_sign_st {
-    rnp_ffi_t    ffi{};
-    rnp_input_t  input{};
-    rnp_output_t output{};
-    rnp_ctx_t    rnpctx{};
-    list         signatures{};
-
-    ~rnp_op_sign_st();
-};
-
 struct rnp_op_sign_signature_st {
-    rnp_ffi_t         ffi;
-    rnp_signer_info_t signer;
+    rnp_ffi_t         ffi{};
+    rnp_signer_info_t signer{};
     bool              expiry_set : 1;
     bool              create_set : 1;
     bool              hash_set : 1;
+};
+
+typedef std::list<rnp_op_sign_signature_st> rnp_op_sign_signatures_t;
+
+struct rnp_op_sign_st {
+    rnp_ffi_t                ffi{};
+    rnp_input_t              input{};
+    rnp_output_t             output{};
+    rnp_ctx_t                rnpctx{};
+    rnp_op_sign_signatures_t signatures{};
 };
 
 struct rnp_op_verify_signature_st {
@@ -168,13 +169,11 @@ struct rnp_op_verify_st {
 };
 
 struct rnp_op_encrypt_st {
-    rnp_ffi_t    ffi{};
-    rnp_input_t  input{};
-    rnp_output_t output{};
-    rnp_ctx_t    rnpctx{};
-    list         signatures{};
-
-    ~rnp_op_encrypt_st();
+    rnp_ffi_t                ffi{};
+    rnp_input_t              input{};
+    rnp_output_t             output{};
+    rnp_ctx_t                rnpctx{};
+    rnp_op_sign_signatures_t signatures{};
 };
 
 struct rnp_identifier_iterator_st {
