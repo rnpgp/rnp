@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -27,6 +27,7 @@
 #include <string.h>
 #include <assert.h>
 #include "defaults.h"
+#include "utils.h"
 #include "stream-ctx.h"
 
 rng_t *
@@ -74,17 +75,16 @@ rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
     if (!pgp_s2k_derive_key(&info.s2k, password, info.key, sizeof(info.key))) {
         return RNP_ERROR_GENERIC;
     }
-    if (!list_append(&ctx.passwords, &info, sizeof(info))) {
-        pgp_forget(&info, sizeof(info));
+    try {
+        ctx.passwords.push_back(info);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
 }
 
-rnp_ctx_t::~rnp_ctx_t()
+rnp_symmetric_pass_info_t::~rnp_symmetric_pass_info_t()
 {
-    free(filename);
-    list_destroy(&recipients);
-    list_destroy(&signers);
-    list_destroy(&passwords);
+    pgp_forget(key, sizeof(key));
 }
