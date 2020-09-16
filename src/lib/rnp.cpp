@@ -2195,15 +2195,7 @@ rnp_op_set_expiration_time(rnp_ctx_t &ctx, uint32_t expire)
 static rnp_result_t
 rnp_op_set_file_name(rnp_ctx_t &ctx, const char *filename)
 {
-    free(ctx.filename);
-    if (!filename) {
-        ctx.filename = NULL;
-        return RNP_SUCCESS;
-    }
-    ctx.filename = strdup(filename);
-    if (!ctx.filename) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    ctx.filename = filename ? filename : "";
     return RNP_SUCCESS;
 }
 
@@ -2246,9 +2238,7 @@ try {
                                        get_key_prefer_public(handle),
                                        &handle->ffi->key_provider,
                                        PGP_KF_ENCRYPT);
-    if (!list_append(&op->rnpctx.recipients, &key, sizeof(key))) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    op->rnpctx.recipients.push_back(key);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -2468,10 +2458,7 @@ rnp_op_add_signatures(rnp_op_sign_signatures_t &opsigs, rnp_ctx_t &ctx)
         if (!sig.create_set) {
             sinfo.sigcreate = ctx.sigcreate;
         }
-
-        if (!list_append(&ctx.signers, &sinfo, sizeof(sinfo))) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+        ctx.signers.push_back(sinfo);
     }
     return RNP_SUCCESS;
 }
