@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2020, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -31,6 +31,8 @@
 #include <stdbool.h>
 #include <sys/types.h>
 #include "types.h"
+#include <string>
+#include <list>
 
 typedef enum rnp_operation_t {
     RNP_OP_UNKNOWN = 0,
@@ -41,11 +43,19 @@ typedef enum rnp_operation_t {
 
 /* signature info structure */
 typedef struct rnp_signer_info_t {
-    pgp_key_t *    key;
-    pgp_hash_alg_t halg;
-    int64_t        sigcreate;
-    uint64_t       sigexpire;
+    pgp_key_t *    key{};
+    pgp_hash_alg_t halg{};
+    int64_t        sigcreate{};
+    uint64_t       sigexpire{};
 } rnp_signer_info_t;
+
+typedef struct rnp_symmetric_pass_info_t {
+    pgp_s2k_t      s2k{};
+    pgp_symm_alg_t s2k_cipher{};
+    uint8_t        key[PGP_MAX_KEY_SIZE]{};
+
+    ~rnp_symmetric_pass_info_t();
+} rnp_symmetric_pass_info_t;
 
 /** rnp operation context : contains configuration data about the currently ongoing operation.
  *
@@ -82,26 +92,26 @@ typedef struct rnp_signer_info_t {
  */
 
 typedef struct rnp_ctx_t {
-    char *          filename{};   /* name of the input file to store in literal data packet */
-    int64_t         filemtime{};  /* file modification time to store in literal data packet */
-    int64_t         sigcreate{};  /* signature creation time */
-    uint64_t        sigexpire{};  /* signature expiration time */
-    bool            clearsign{};  /* cleartext signature */
-    bool            detached{};   /* detached signature */
-    pgp_hash_alg_t  halg{};       /* hash algorithm */
-    pgp_symm_alg_t  ealg{};       /* encryption algorithm */
-    int             zalg{};       /* compression algorithm used */
-    int             zlevel{};     /* compression level */
-    pgp_aead_alg_t  aalg{};       /* non-zero to use AEAD */
-    int             abits{};      /* AEAD chunk bits */
-    bool            overwrite{};  /* allow to overwrite output file if exists */
-    bool            armor{};      /* whether to use ASCII armor on output */
-    list            recipients{}; /* recipients of the encrypted message */
-    list            passwords{};  /* list of rnp_symmetric_pass_info_t */
-    list            signers{};    /* list of rnp_signer_info_t structures */
-    bool            discard{};    /* discard the output */
-    rng_t *         rng{};        /* pointer to rng_t */
-    rnp_operation_t operation{};  /* current operation type */
+    std::string    filename{};  /* name of the input file to store in literal data packet */
+    int64_t        filemtime{}; /* file modification time to store in literal data packet */
+    int64_t        sigcreate{}; /* signature creation time */
+    uint64_t       sigexpire{}; /* signature expiration time */
+    bool           clearsign{}; /* cleartext signature */
+    bool           detached{};  /* detached signature */
+    pgp_hash_alg_t halg{};      /* hash algorithm */
+    pgp_symm_alg_t ealg{};      /* encryption algorithm */
+    int            zalg{};      /* compression algorithm used */
+    int            zlevel{};    /* compression level */
+    pgp_aead_alg_t aalg{};      /* non-zero to use AEAD */
+    int            abits{};     /* AEAD chunk bits */
+    bool           overwrite{}; /* allow to overwrite output file if exists */
+    bool           armor{};     /* whether to use ASCII armor on output */
+    std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
+    std::list<rnp_symmetric_pass_info_t> passwords{}; /* passwords to encrypt message */
+    std::list<rnp_signer_info_t>         signers{};   /* keys to which sign message */
+    bool                                 discard{};   /* discard the output */
+    rng_t *                              rng{};       /* pointer to rng_t */
+    rnp_operation_t                      operation{}; /* current operation type */
 
     rnp_ctx_t() = default;
     rnp_ctx_t(const rnp_ctx_t &) = delete;
@@ -109,14 +119,7 @@ typedef struct rnp_ctx_t {
 
     rnp_ctx_t &operator=(const rnp_ctx_t &) = delete;
     rnp_ctx_t &operator=(rnp_ctx_t &&) = delete;
-    ~rnp_ctx_t();
 } rnp_ctx_t;
-
-typedef struct rnp_symmetric_pass_info_t {
-    pgp_s2k_t      s2k;
-    pgp_symm_alg_t s2k_cipher;
-    uint8_t        key[PGP_MAX_KEY_SIZE];
-} rnp_symmetric_pass_info_t;
 
 struct rng_st_t *rnp_ctx_rng_handle(const rnp_ctx_t *ctx);
 
