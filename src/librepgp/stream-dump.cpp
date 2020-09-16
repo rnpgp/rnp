@@ -447,6 +447,14 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
         }
         return;
     }
+    if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
+        dst_print_hex(dst,
+                      "Unknown experimental s2k",
+                      s2k->experimental.data(),
+                      s2k->experimental.size(),
+                      true);
+        return;
+    }
     dst_print_halg(dst, "s2k hash algorithm", s2k->hash_alg);
     if ((s2k->specifier == PGP_S2KS_SALTED) ||
         (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) {
@@ -1451,6 +1459,10 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
                 return false;
             }
         }
+    }
+    if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
+        return obj_add_hex_json(
+          s2k_obj, "unknown experimental", s2k->experimental.data(), s2k->experimental.size());
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
         return false;
