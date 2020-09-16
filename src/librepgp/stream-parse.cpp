@@ -1823,8 +1823,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     uint8_t          mdcver;
     uint8_t          hdr[4];
     int              ptype;
-    pgp_sk_sesskey_t skey = {0};
-    pgp_pk_sesskey_t pkey = {0};
+    pgp_sk_sesskey_t skey;
+    pgp_pk_sesskey_t pkey;
 
     /* Reading pk/sk encrypted session key(s) */
     while (true) {
