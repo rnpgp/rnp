@@ -1366,6 +1366,8 @@ RNP_API rnp_result_t rnp_key_is_locked(rnp_key_handle_t key, bool *result);
  *                 secret key is exported from GnuPG via --export-secret-subkeys)
  *             - "GPG-Smartcard" : secret key data is stored on smartcard by GnuPG, so is not
  *                 available
+ *             - "Unknown" : key protection type is unknown, so secret key data is not
+ *                 available
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_key_get_protection_type(rnp_key_handle_t key, char **type);

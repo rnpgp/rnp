@@ -406,7 +406,7 @@ add_packet_body_s2k(pgp_packet_body_t *body, const pgp_s2k_t *s2k)
         if ((s2k->gpg_ext_num != PGP_S2K_GPG_NO_SECRET) &&
             (s2k->gpg_ext_num != PGP_S2K_GPG_SMARTCARD)) {
             RNP_LOG("Unknown experimental s2k.");
-            return false;
+            return add_packet_body(body, s2k->experimental.data(), s2k->experimental.size());
         }
         if (!add_packet_body(body, "GNU", 3) ||
             !add_packet_body_byte(body, s2k->gpg_ext_num)) {
@@ -576,65 +576,74 @@ get_packet_body_key_curve(pgp_packet_body_t *body, pgp_curve_t *val)
 }
 
 static bool
-get_packet_body_s2k(pgp_packet_body_t *body, pgp_s2k_t *s2k)
+get_packet_body_s2k(pgp_packet_body_t &body, pgp_s2k_t &s2k)
 {
     uint8_t spec = 0, halg = 0;
-    if (!get_packet_body_byte(body, &spec) || !get_packet_body_byte(body, &halg)) {
+    if (!get_packet_body_byte(&body, &spec) || !get_packet_body_byte(&body, &halg)) {
         return false;
     }
-    s2k->specifier = (pgp_s2k_specifier_t) spec;
-    s2k->hash_alg = (pgp_hash_alg_t) halg;
+    s2k.specifier = (pgp_s2k_specifier_t) spec;
+    s2k.hash_alg = (pgp_hash_alg_t) halg;
 
-    switch (s2k->specifier) {
+    switch (s2k.specifier) {
     case PGP_S2KS_SIMPLE:
         return true;
     case PGP_S2KS_SALTED:
-        return get_packet_body_buf(body, s2k->salt, PGP_SALT_SIZE);
+        return get_packet_body_buf(&body, s2k.salt, PGP_SALT_SIZE);
     case PGP_S2KS_ITERATED_AND_SALTED: {
         uint8_t iter;
-        if (!get_packet_body_buf(body, s2k->salt, PGP_SALT_SIZE) ||
-            !get_packet_body_byte(body, &iter)) {
+        if (!get_packet_body_buf(&body, s2k.salt, PGP_SALT_SIZE) ||
+            !get_packet_body_byte(&body, &iter)) {
             return false;
         }
-        s2k->iterations = iter;
+        s2k.iterations = iter;
         return true;
     }
     case PGP_S2KS_EXPERIMENTAL: {
+        try {
+            s2k.experimental = {body.data + body.pos, body.data + body.len};
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
+        }
         uint8_t gnu[3] = {0};
-        if (!get_packet_body_buf(body, gnu, 3) || memcmp(gnu, "GNU", 3)) {
+        if (!get_packet_body_buf(&body, gnu, 3) || memcmp(gnu, "GNU", 3)) {
             RNP_LOG("Unknown experimental s2k. Skipping.");
-            body->pos = body->len;
-            s2k->gpg_ext_num = PGP_S2K_GPG_NONE;
+            body.pos = body.len;
+            s2k.gpg_ext_num = PGP_S2K_GPG_NONE;
             return true;
         }
         uint8_t ext_num = 0;
-        if (!get_packet_body_byte(body, &ext_num)) {
+        if (!get_packet_body_byte(&body, &ext_num)) {
             return false;
         }
         if ((ext_num != PGP_S2K_GPG_NO_SECRET) && (ext_num != PGP_S2K_GPG_SMARTCARD)) {
-            RNP_LOG("Unsupported gpg extension num: %" PRIu8, ext_num);
-        }
-        s2k->gpg_ext_num = (pgp_s2k_gpg_extension_t) ext_num;
-        if (s2k->gpg_ext_num == PGP_S2K_GPG_NO_SECRET) {
+            RNP_LOG("Unsupported gpg extension num: %" PRIu8 ", skipping", ext_num);
+            body.pos = body.len;
+            s2k.gpg_ext_num = PGP_S2K_GPG_NONE;
             return true;
         }
-        if (!get_packet_body_byte(body, &s2k->gpg_serial_len)) {
+        s2k.gpg_ext_num = (pgp_s2k_gpg_extension_t) ext_num;
+        if (s2k.gpg_ext_num == PGP_S2K_GPG_NO_SECRET) {
+            return true;
+        }
+        if (!get_packet_body_byte(&body, &s2k.gpg_serial_len)) {
             RNP_LOG("Failed to get GPG serial len");
             return false;
         }
-        size_t len = s2k->gpg_serial_len;
-        if (s2k->gpg_serial_len > 16) {
+        size_t len = s2k.gpg_serial_len;
+        if (s2k.gpg_serial_len > 16) {
             RNP_LOG("Warning: gpg_serial_len is %d", (int) len);
             len = 16;
         }
-        if (!get_packet_body_buf(body, s2k->gpg_serial, len)) {
+        if (!get_packet_body_buf(&body, s2k.gpg_serial, len)) {
             RNP_LOG("Failed to get GPG serial");
             return false;
         }
         return true;
     }
     default:
-        RNP_LOG("unknown s2k specifier: %d", (int) s2k->specifier);
+        RNP_LOG("unknown s2k specifier: %d", (int) s2k.specifier);
         return false;
     }
 }
@@ -1143,7 +1152,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
     }
 
     /* s2k */
-    if (!get_packet_body_s2k(&pkt, &skey->s2k)) {
+    if (!get_packet_body_s2k(pkt, skey->s2k)) {
         RNP_LOG("failed to parse s2k");
         goto finish;
     }
@@ -2221,7 +2230,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
             /* we have s2k */
             uint8_t salg = 0;
             if (!get_packet_body_byte(&pkt, &salg) ||
-                !get_packet_body_s2k(&pkt, &key->sec_protection.s2k)) {
+                !get_packet_body_s2k(pkt, key->sec_protection.s2k)) {
                 RNP_LOG("failed to read key protection");
                 goto finish;
             }
