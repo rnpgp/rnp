@@ -1111,7 +1111,7 @@ stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
         return res;
     }
 
-    memset(skey, 0, sizeof(*skey));
+    *skey = {};
     res = RNP_ERROR_BAD_FORMAT;
 
     /* version */
@@ -1216,7 +1216,7 @@ stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
         return res;
     }
 
-    memset(pkey, 0, sizeof(*pkey));
+    *pkey = {};
     res = RNP_ERROR_BAD_FORMAT;
 
     /* version */
@@ -2099,7 +2099,7 @@ stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key)
     }
 
     res = RNP_ERROR_BAD_FORMAT;
-    memset(key, 0, sizeof(*key));
+    *key = {};
 
     /* key type, i.e. tag */
     key->tag = pkt.tag;

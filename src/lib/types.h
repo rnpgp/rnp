@@ -152,24 +152,24 @@ typedef struct pgp_encrypted_material_t {
 } pgp_encrypted_material_t;
 
 typedef struct pgp_s2k_t {
-    pgp_s2k_usage_t usage;
+    pgp_s2k_usage_t usage{};
 
     /* below fields may not all be valid, depending on the usage field above */
-    pgp_s2k_specifier_t specifier;
-    pgp_hash_alg_t      hash_alg;
+    pgp_s2k_specifier_t specifier{};
+    pgp_hash_alg_t      hash_alg{};
     uint8_t             salt[PGP_SALT_SIZE];
-    unsigned            iterations;
+    unsigned            iterations{};
 
     /* GnuPG custom s2k data */
-    pgp_s2k_gpg_extension_t gpg_ext_num;
-    uint8_t                 gpg_serial_len;
+    pgp_s2k_gpg_extension_t gpg_ext_num{};
+    uint8_t                 gpg_serial_len{};
     uint8_t                 gpg_serial[16];
 } pgp_s2k_t;
 
 typedef struct pgp_key_protection_t {
-    pgp_s2k_t         s2k;         /* string-to-key kdf params */
-    pgp_symm_alg_t    symm_alg;    /* symmetric alg */
-    pgp_cipher_mode_t cipher_mode; /* block cipher mode */
+    pgp_s2k_t         s2k{};         /* string-to-key kdf params */
+    pgp_symm_alg_t    symm_alg{};    /* symmetric alg */
+    pgp_cipher_mode_t cipher_mode{}; /* block cipher mode */
     uint8_t           iv[PGP_MAX_BLOCK_SIZE];
 } pgp_key_protection_t;
 
@@ -404,24 +404,24 @@ typedef enum {
 
 /** public-key encrypted session key packet */
 typedef struct pgp_pk_sesskey_t {
-    unsigned         version;
-    pgp_key_id_t     key_id;
-    pgp_pubkey_alg_t alg;
+    unsigned         version{};
+    pgp_key_id_t     key_id{};
+    pgp_pubkey_alg_t alg{};
 
-    pgp_encrypted_material_t material;
+    pgp_encrypted_material_t material{};
 } pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */
-typedef struct {
-    unsigned       version;
-    pgp_symm_alg_t alg;
-    pgp_s2k_t      s2k;
-    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1];
-    unsigned       enckeylen;
+typedef struct pgp_sk_sesskey_t {
+    unsigned       version{};
+    pgp_symm_alg_t alg{};
+    pgp_s2k_t      s2k{};
+    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1]{};
+    unsigned       enckeylen{};
     /* v5 specific fields */
-    pgp_aead_alg_t aalg;
-    uint8_t        iv[PGP_MAX_BLOCK_SIZE];
-    unsigned       ivlen;
+    pgp_aead_alg_t aalg{};
+    uint8_t        iv[PGP_MAX_BLOCK_SIZE]{};
+    unsigned       ivlen{};
 } pgp_sk_sesskey_t;
 
 /* user revocation info */
