@@ -6140,7 +6140,7 @@ try {
     }
 
     pgp_s2k_t & s2k = key->sec->pkt.sec_protection.s2k;
-    const char *res = NULL;
+    const char *res = "Unknown";
     if (s2k.usage == PGP_S2KU_NONE) {
         res = "None";
     }

@@ -159,11 +159,12 @@ typedef struct pgp_s2k_t {
     pgp_hash_alg_t      hash_alg{};
     uint8_t             salt[PGP_SALT_SIZE];
     unsigned            iterations{};
-
     /* GnuPG custom s2k data */
     pgp_s2k_gpg_extension_t gpg_ext_num{};
     uint8_t                 gpg_serial_len{};
     uint8_t                 gpg_serial[16];
+    /* Experimental s2k data */
+    std::vector<uint8_t> experimental{};
 } pgp_s2k_t;
 
 typedef struct pgp_key_protection_t {
