@@ -5331,9 +5331,10 @@ TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
     uint8_t *buf = NULL;
     size_t   len = 0;
     assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
-    buf[len - 1] = '\0';
-    assert_non_null(strstr(
-      (char *) buf, "card serial number: 0x000102030405060708090a0b0c0d0e0f (16 bytes)"));
+    std::string dstr(buf, buf + len);
+    assert_true(
+      dstr.find("card serial number: 0x000102030405060708090a0b0c0d0e0f (16 bytes)") !=
+      std::string::npos);
     rnp_output_destroy(output);
 
     assert_rnp_success(
@@ -5341,8 +5342,49 @@ TEST_F(rnp_tests, test_ffi_key_dump_edge_cases)
     char *json = NULL;
     assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
     rnp_input_destroy(input);
-    assert_non_null(
-      strstr(json, "\"card serial number\":\"000102030405060708090a0b0c0d0e0f\""));
+    dstr = json;
+    assert_true(dstr.find("\"card serial number\":\"000102030405060708090a0b0c0d0e0f\"") !=
+                std::string::npos);
+    rnp_buffer_destroy(json);
+
+    /* secret key, stored with unknown gpg s2k */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    dstr = std::string(buf, buf + len);
+    assert_true(dstr.find("Unknown experimental s2k: 0x474e5503 (4 bytes)") !=
+                std::string::npos);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    rnp_input_destroy(input);
+    dstr = json;
+    assert_true(dstr.find("\"unknown experimental\":\"474e5503\"") != std::string::npos);
+    rnp_buffer_destroy(json);
+
+    /* secret key, stored with unknown s2k */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dump_packets_to_output(input, output, 0));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    dstr = std::string(buf, buf + len);
+    assert_true(dstr.find("Unknown experimental s2k: 0x554e4b4e (4 bytes)") !=
+                std::string::npos);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
+    assert_rnp_success(rnp_dump_packets_to_json(input, 0, &json));
+    rnp_input_destroy(input);
+    dstr = json;
+    assert_true(dstr.find("\"unknown experimental\":\"554e4b4e\"") != std::string::npos);
     rnp_buffer_destroy(json);
 
     rnp_ffi_destroy(ffi);
@@ -9890,6 +9932,118 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     assert_rnp_failure(rnp_key_unlock(key, "password"));
     rnp_key_handle_destroy(key);
 
+    /* secret subkeys, and primary key stored with unknown gpg s2k */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
+    /* save keyrings and reload */
+    output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_int_equal(unlink("pubring.gpg"), 0);
+    assert_int_equal(unlink("secring.gpg"), 0);
+
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    count = 0;
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
+    /* secret subkeys, and primary key stored with unknown s2k */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    locked = false;
+    assert_rnp_success(rnp_key_is_locked(key, &locked));
+    assert_true(locked);
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
+    /* save keyrings and reload */
+    output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
+    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_int_equal(unlink("pubring.gpg"), 0);
+    assert_int_equal(unlink("secring.gpg"), 0);
+
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    count = 0;
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 2);
+    rnp_key_handle_destroy(key);
+
     rnp_ffi_destroy(ffi);
 }
 
@@ -10183,6 +10337,44 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     assert_rnp_failure(rnp_key_get_protection_hash(sub, &hash));
     assert_rnp_failure(rnp_key_get_protection_iterations(sub, &iterations));
     rnp_key_handle_destroy(sub);
+
+    /* primary key is stored with unknown gpg s2k */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_key_get_protection_mode(key, &mode));
+    assert_string_equal(mode, "Unknown");
+    rnp_buffer_destroy(mode);
+    assert_rnp_failure(rnp_key_get_protection_cipher(key, &cipher));
+    assert_rnp_failure(rnp_key_get_protection_hash(key, &hash));
+    assert_rnp_failure(rnp_key_get_protection_iterations(key, &iterations));
+    rnp_key_handle_destroy(key);
+
+    /* primary key is stored with unknown s2k */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
+    assert_rnp_success(rnp_import_keys(
+      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_protection_type(key, &type));
+    assert_string_equal(type, "Unknown");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_key_get_protection_mode(key, &mode));
+    assert_string_equal(mode, "Unknown");
+    rnp_buffer_destroy(mode);
+    assert_rnp_failure(rnp_key_get_protection_cipher(key, &cipher));
+    assert_rnp_failure(rnp_key_get_protection_hash(key, &hash));
+    assert_rnp_failure(rnp_key_get_protection_iterations(key, &iterations));
+    rnp_key_handle_destroy(key);
 
     rnp_ffi_destroy(ffi);
 }
