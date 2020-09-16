@@ -504,7 +504,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 {
     uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
     unsigned                    checksum = 0;
-    pgp_pk_sesskey_t            pkey = {0};
+    pgp_pk_sesskey_t            pkey;
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
@@ -625,7 +625,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
                        const unsigned              keylen,
                        bool                        singlepass)
 {
-    pgp_sk_sesskey_t skey = {0};
+    pgp_sk_sesskey_t skey = {};
     unsigned         s2keylen; /* length of the s2k key */
     pgp_crypt_t      kcrypt;
     uint8_t          nonce[PGP_AEAD_MAX_NONCE_LEN];
