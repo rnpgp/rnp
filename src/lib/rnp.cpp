@@ -1760,6 +1760,9 @@ try {
     }
     rnp_result_t ret = init_mem_src(&(*input)->src, data, buf_len, do_copy);
     if (ret) {
+        if (do_copy) {
+            free(data);
+        }
         free(*input);
         *input = NULL;
         return ret;
