@@ -77,6 +77,7 @@ typedef uint32_t rnp_result_t;
 #define RNP_LOAD_SAVE_PUBLIC_KEYS (1U << 0)
 #define RNP_LOAD_SAVE_SECRET_KEYS (1U << 1)
 #define RNP_LOAD_SAVE_PERMISSIVE (1U << 8)
+#define RNP_LOAD_SAVE_SINGLE (1U << 9)
 
 /**
  * Flags for output structure creation.
@@ -428,10 +429,17 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  * @param flags see RNP_LOAD_SAVE_* constants. If RNP_LOAD_SAVE_PERMISSIVE is specified
  *              then import process will skip unrecognized or bad keys/signatures instead of
  *              failing the whole operation.
+ *              If flag RNP_LOAD_SAVE_SINGLE is set, then only first key will be loaded (subkey
+ *              or primary key with it's subkeys). In case RNP_LOAD_SAVE_PERMISSIVE and
+ *              erroneous first key on the stream RNP_SUCCESS will be returned, but results
+ *              will include an empty array. Also RNP_ERROR_EOF will be returned if the last
+ *              key was read.
  * @param results if not NULL then after the successfull execution will contain JSON with
  *                information about new and updated keys. You must free it using the
  *                rnp_buffer_destroy() function.
- * @return RNP_SUCCESS on success, or any other value on error.
+ * @return RNP_SUCCESS on success
+ *         RNP_ERROR_EOF if last key was read (if RNP_LOAD_SAVE_SINGLE was used)
+ *         any other value on error.
  */
 RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
                                      rnp_input_t input,
