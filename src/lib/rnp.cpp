@@ -1302,6 +1302,56 @@ try {
 }
 FFI_GUARD
 
+static rnp_result_t
+rnp_input_dearmor_if_needed(rnp_input_t input)
+{
+    if (!input) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (input->src_directory) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    bool require_armor = false;
+    /* check whether we already have armored stream */
+    if (input->src.type == PGP_STREAM_ARMORED) {
+        if (!src_eof(&input->src)) {
+            return RNP_SUCCESS;
+        }
+        /* eof - probably next we have another armored message */
+        src_close(&input->src);
+        void *app_ctx = input->app_ctx;
+        *input = *(rnp_input_t) app_ctx;
+        free(app_ctx);
+        /* we should not mix armored data with binary */
+        require_armor = true;
+    }
+    if (src_eof(&input->src)) {
+        return RNP_ERROR_EOF;
+    }
+    if (!is_armored_source(&input->src)) {
+        return require_armor ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
+    }
+
+    rnp_input_t app_ctx = (rnp_input_t) calloc(1, sizeof(*input));
+    if (!app_ctx) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    *app_ctx = *input;
+
+    pgp_source_t armored;
+    rnp_result_t ret = init_armored_src(&armored, &app_ctx->src);
+    if (ret) {
+        /* original src may be changed during init_armored_src call, so copy it back */
+        input->src = app_ctx->src;
+        free(app_ctx);
+        return ret;
+    }
+
+    input->src = armored;
+    input->app_ctx = app_ctx;
+    return RNP_SUCCESS;
+}
+
 static const char *
 key_status_to_str(pgp_key_import_status_t status)
 {
@@ -1825,7 +1875,11 @@ rnp_result_t
 rnp_input_destroy(rnp_input_t input)
 try {
     if (input) {
+        bool armored = input->src.type == PGP_STREAM_ARMORED;
         src_close(&input->src);
+        if (armored) {
+            rnp_input_destroy((rnp_input_t) input->app_ctx);
+        }
         free(input->src_directory);
         free(input);
     }
