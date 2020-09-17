@@ -1414,6 +1414,11 @@ try {
         skipbad = true;
         flags &= ~RNP_LOAD_SAVE_PERMISSIVE;
     }
+    bool single = false;
+    if (flags & RNP_LOAD_SAVE_SINGLE) {
+        single = true;
+        flags &= ~RNP_LOAD_SAVE_SINGLE;
+    }
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1433,9 +1438,26 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (!rnp_key_store_pgp_read_from_src(tmp_store, &input->src, skipbad)) {
-        ret = RNP_ERROR_BAD_FORMAT;
-        goto done;
+    if (single) {
+        /* we need to init and handle dearmor on this layer since it may be used for the next
+         * keys import */
+        ret = rnp_input_dearmor_if_needed(input);
+        if (ret == RNP_ERROR_EOF) {
+            goto done;
+        }
+        if (ret) {
+            FFI_LOG(ffi, "Failed to init/check dearmor.");
+            goto done;
+        }
+        ret = rnp_key_store_pgp_read_key_from_src(*tmp_store, input->src, skipbad);
+        if (ret) {
+            goto done;
+        }
+    } else {
+        ret = rnp_key_store_pgp_read_from_src(tmp_store, &input->src, skipbad);
+        if (ret) {
+            goto done;
+        }
     }
     jsores = json_object_new_object();
     if (!jsores) {
