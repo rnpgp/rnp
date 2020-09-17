@@ -6931,6 +6931,14 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     char *      msgt = NULL;
     rnp_input_t input = NULL;
     assert_rnp_failure(rnp_guess_contents(NULL, &msgt));
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/issue1188/armored_revocation_signature.pgp"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_int_equal(strcmp(msgt, "signature"), 0);
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
     assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-pub.pgp"));
     assert_rnp_failure(rnp_guess_contents(input, NULL));
     assert_rnp_success(rnp_guess_contents(input, &msgt));

@@ -524,9 +524,40 @@ rnp_armor_guess_type(pgp_source_t *src)
     }
 }
 
+static pgp_armored_msg_t
+rnp_armored_guess_type_by_readahead(pgp_source_t *src)
+{
+    if (!src->cache) {
+        return PGP_ARMORED_UNKNOWN;
+    }
+
+    pgp_source_t armorsrc = {0};
+    pgp_source_t memsrc = {0};
+    size_t       read;
+    // peek as much as the cache can take
+    bool cache_res = src_peek(src, NULL, sizeof(src->cache->buf), &read);
+    if (!cache_res || !read || init_mem_src(&memsrc, src->cache->buf, read, false)) {
+        return PGP_ARMORED_UNKNOWN;
+    }
+    rnp_result_t res = init_armored_src(&armorsrc, &memsrc);
+    if (res) {
+        RNP_LOG("failed to parse armored data");
+        return PGP_ARMORED_UNKNOWN;
+    }
+    pgp_armored_msg_t guessed = rnp_armor_guess_type(&armorsrc);
+    src_close(&armorsrc);
+    src_close(&memsrc);
+    return guessed;
+}
+
 pgp_armored_msg_t
 rnp_armored_get_type(pgp_source_t *src)
 {
+    pgp_armored_msg_t guessed = rnp_armored_guess_type_by_readahead(src);
+    if (guessed != PGP_ARMORED_UNKNOWN) {
+        return guessed;
+    }
+
     char        hdr[128];
     const char *armhdr;
     size_t      armhdrlen;
