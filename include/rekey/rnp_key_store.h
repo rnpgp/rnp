@@ -132,7 +132,6 @@ typedef struct rnp_key_store_t {
     pgp_key_store_format_t format;
     bool                   disable_validation =
       false; /* do not automatically validate keys, added to this key store */
-    bool skip_parsing_errors = false; /* do not fail on parsing errors */
 
     std::list<pgp_key_t> keys;
     pgp_key_fp_map_t     keybyfp;
