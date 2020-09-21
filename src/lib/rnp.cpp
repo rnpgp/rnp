@@ -32,6 +32,7 @@
 #include <assert.h>
 #include <json_object.h>
 #include <json.h>
+#include <librekey/key_store_pgp.h>
 #include <librepgp/stream-ctx.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-armor.h>
@@ -1382,8 +1383,7 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    tmp_store->skip_parsing_errors = skipbad;
-    if (!rnp_key_store_load_from_src(tmp_store, &input->src, NULL)) {
+    if (!rnp_key_store_pgp_read_from_src(tmp_store, &input->src, skipbad)) {
         ret = RNP_ERROR_BAD_FORMAT;
         goto done;
     }
