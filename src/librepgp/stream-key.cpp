@@ -593,8 +593,11 @@ skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 {
     do {
         int pkt = stream_pkt_type(src);
-        if (pkt <= 0) {
+        if (!pkt) {
             break;
+        }
+        if (pkt < 0) {
+            return false;
         }
         if (pkts.find((pgp_pkt_type_t) pkt) == pkts.end()) {
             return true;
