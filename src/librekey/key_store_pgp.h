@@ -61,6 +61,10 @@
 
 rnp_result_t rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src);
 
+rnp_result_t rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
+                                                 pgp_source_t &   src,
+                                                 bool             skiperrors = false);
+
 bool rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst);
 
 bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
