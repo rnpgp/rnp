@@ -97,6 +97,17 @@ pgp_signature_t *transferable_key_revoke(const pgp_key_pkt_t &key,
                                          pgp_hash_alg_t       hash_alg,
                                          const pgp_revoke_t & revoke);
 
+/* Process single primary key or subkey, skipping all key-related packets on error.
+   If key.key.tag is zero, then (on success) result is subkey and it is stored in
+   key.subkeys[0].
+   If returns RNP_ERROR_BAD_FORMAT then some packets failed parsing, but still key may contain
+   successfully read key or subkey.
+*/
+rnp_result_t process_pgp_key_auto(pgp_source_t &          src,
+                                  pgp_transferable_key_t &key,
+                                  bool                    allowsub,
+                                  bool                    skiperrors);
+
 rnp_result_t process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors);
 
 rnp_result_t process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors);
