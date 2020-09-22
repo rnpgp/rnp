@@ -47,25 +47,6 @@
 
 #define G10_PROTECTED_AT_SIZE 15
 
-typedef struct {
-    size_t   len;
-    uint8_t *bytes;
-} s_exp_block_t;
-
-typedef struct sub_element_t sub_element_t;
-
-typedef struct {
-    list sub_elements; // list of sub_element_t
-} s_exp_t;
-
-struct sub_element_t {
-    bool is_block;
-    union {
-        s_exp_t       s_exp;
-        s_exp_block_t block;
-    };
-};
-
 typedef struct format_info {
     pgp_symm_alg_t    cipher;
     pgp_cipher_mode_t cipher_mode;
@@ -174,7 +155,7 @@ parse_format(const char *format, size_t format_len)
     return NULL;
 }
 
-static void
+void
 destroy_s_exp(s_exp_t *s_exp)
 {
     if (s_exp == NULL) {
@@ -262,8 +243,8 @@ add_sub_sexp_to_sexp(s_exp_t *s_exp, s_exp_t **sub_s_exp)
  *     - a
  *
  */
-static bool
-parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
+bool
+parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth)
 {
     size_t      length = *r_length;
     const char *bytes = *r_bytes;
@@ -273,6 +254,11 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
     if (!bytes || !length) {
         RNP_LOG("empty s-exp");
         return true;
+    }
+
+    if (depth > SXP_MAX_DEPTH) {
+        RNP_LOG("sxp maximum recursion depth exceeded");
+        return false;
     }
 
     if (*bytes != '(') { // doesn't start from (
@@ -296,7 +282,7 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length)
                 return false;
             }
 
-            if (!parse_sexp(new_sub_s_exp, &bytes, &length)) {
+            if (!parse_sexp(new_sub_s_exp, &bytes, &length, depth + 1)) {
                 destroy_s_exp(&new_s_exp);
                 return false;
             }
