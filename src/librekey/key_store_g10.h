@@ -30,6 +30,27 @@
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-common.h>
 
+#define SXP_MAX_DEPTH 30
+
+typedef struct {
+    size_t   len;
+    uint8_t *bytes;
+} s_exp_block_t;
+
+typedef struct sub_element_t sub_element_t;
+
+typedef struct {
+    list sub_elements; // list of sub_element_t
+} s_exp_t;
+
+struct sub_element_t {
+    bool is_block;
+    union {
+        s_exp_t       s_exp;
+        s_exp_block_t block;
+    };
+};
+
 bool rnp_key_store_g10_from_src(rnp_key_store_t *, pgp_source_t *, const pgp_key_provider_t *);
 bool rnp_key_store_g10_key_to_dst(pgp_key_t *, pgp_dest_t *);
 bool g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password);
@@ -37,5 +58,7 @@ pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
                                   size_t               data_len,
                                   const pgp_key_pkt_t *pubkey,
                                   const char *         password);
+bool parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth = 1);
+void destroy_s_exp(s_exp_t *s_exp);
 
 #endif // RNP_KEY_STORE_G10_H
