@@ -198,6 +198,10 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
 rnp_result_t
 validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
 {
+#ifdef FUZZERS_ENABLED
+    /* do not timeout on large keys during fuzzing */
+    return RNP_SUCCESS;
+#else
     switch (material->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -221,6 +225,7 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
     }
 
     return RNP_ERROR_BAD_PARAMETERS;
+#endif
 }
 
 size_t
