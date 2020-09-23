@@ -31,6 +31,7 @@
 #include <stdbool.h>
 #include <time.h>
 #include "rnp/rnp.h"
+#include "rnp/rnp_err.h"
 #include "rnpcfg.h"
 #include "json.h"
 

@@ -164,62 +164,76 @@ import_keys(cli_rnp_t *rnp, const char *file)
 {
     rnp_input_t input = NULL;
     bool        res = false;
+    bool        updated = false;
 
     if (rnp_input_from_path(&input, file)) {
         ERR_MSG("failed to open file %s", file);
         return false;
     }
 
-    uint32_t     flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS;
-    char *       results = NULL;
-    json_object *jso = NULL;
-    json_object *keys = NULL;
+    uint32_t flags =
+      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
 
     bool permissive = rnp_cfg_getbool(cli_rnp_cfg(rnp), CFG_PERMISSIVE);
     if (permissive) {
         flags |= RNP_LOAD_SAVE_PERMISSIVE;
     }
 
-    if (rnp_import_keys(rnp->ffi, input, flags, &results)) {
-        ERR_MSG("failed to import keys from file %s", file);
-        goto done;
-    }
-    // print information about imported key(s)
-    jso = json_tokener_parse(results);
-    if (!jso || !json_object_object_get_ex(jso, "keys", &keys)) {
-        ERR_MSG("invalid key import result");
-        goto done;
-    }
-
-    for (size_t idx = 0; idx < (size_t) json_object_array_length(keys); idx++) {
-        json_object *    keyinfo = json_object_array_get_idx(keys, idx);
-        rnp_key_handle_t key = NULL;
-        if (!keyinfo || !imported_key_changed(keyinfo)) {
-            continue;
+    do {
+        /* load keys one-by-one */
+        char *       results = NULL;
+        rnp_result_t ret = rnp_import_keys(rnp->ffi, input, flags, &results);
+        if (ret == RNP_ERROR_EOF) {
+            res = true;
+            break;
         }
-        const char *fphex = json_obj_get_str(keyinfo, "fingerprint");
-        if (rnp_locate_key(rnp->ffi, "fingerprint", fphex, &key) || !key) {
-            ERR_MSG("failed to locate key with fingerprint %s", fphex);
-            continue;
+        if (ret) {
+            ERR_MSG("failed to import key(s), from file %s, stopping.", file);
+            break;
         }
-        cli_rnp_print_key_info(stdout, rnp->ffi, key, true, false);
-        rnp_key_handle_destroy(key);
-    }
 
-    // set default key if we didn't have one
-    if (cli_rnp_defkey(rnp).empty()) {
-        cli_rnp_set_default_key(rnp);
-    }
+        // print information about imported key(s)
+        json_object *jso = json_tokener_parse(results);
+        rnp_buffer_destroy(results);
+        if (!jso) {
+            ERR_MSG("invalid key import resulting JSON");
+            break;
+        }
+        json_object *keys = NULL;
+        if (!json_object_object_get_ex(jso, "keys", &keys)) {
+            ERR_MSG("invalid key import JSON contents");
+            json_object_put(jso);
+            break;
+        }
+        for (size_t idx = 0; idx < (size_t) json_object_array_length(keys); idx++) {
+            json_object *    keyinfo = json_object_array_get_idx(keys, idx);
+            rnp_key_handle_t key = NULL;
+            if (!keyinfo || !imported_key_changed(keyinfo)) {
+                continue;
+            }
+            const char *fphex = json_obj_get_str(keyinfo, "fingerprint");
+            if (rnp_locate_key(rnp->ffi, "fingerprint", fphex, &key) || !key) {
+                ERR_MSG("failed to locate key with fingerprint %s", fphex);
+                continue;
+            }
+            cli_rnp_print_key_info(stdout, rnp->ffi, key, true, false);
+            rnp_key_handle_destroy(key);
+            updated = true;
+        }
+        json_object_put(jso);
+    } while (1);
 
-    // save public and secret keyrings
-    if (!cli_rnp_save_keyrings(rnp)) {
-        ERR_MSG("failed to save keyrings");
-        goto done;
+    if (updated) {
+        // set default key if we didn't have one
+        if (cli_rnp_defkey(rnp).empty()) {
+            cli_rnp_set_default_key(rnp);
+        }
+
+        // save public and secret keyrings
+        if (!cli_rnp_save_keyrings(rnp)) {
+            ERR_MSG("failed to save keyrings");
+        }
     }
-    res = true;
-done:
-    json_object_put(jso);
-    rnp_buffer_destroy(results);
     rnp_input_destroy(input);
     return res;
 }
