@@ -253,6 +253,8 @@ void test_ffi_key_signatures(void **state);
 
 void test_ffi_keys_import(void **state);
 
+void test_ffi_iterated_key_import(void **state);
+
 void test_ffi_stripped_keys_import(void **state);
 
 void test_ffi_malformed_keys_import(void **state);

@@ -6238,6 +6238,176 @@ TEST_F(rnp_tests, test_ffi_malformed_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
+static bool
+check_import_key(rnp_ffi_t     ffi,
+                 json_object **jso,
+                 json_object **keyarr,
+                 uint32_t      flags,
+                 rnp_input_t   input,
+                 size_t        pubcount,
+                 size_t        seccount)
+{
+    bool   res = false;
+    char * keys = NULL;
+    size_t keycount = 0;
+    *jso = NULL;
+
+    if (rnp_import_keys(ffi, input, flags, &keys)) {
+        goto done;
+    }
+    if (rnp_get_public_key_count(ffi, &keycount) || (keycount != pubcount)) {
+        goto done;
+    }
+    if (rnp_get_secret_key_count(ffi, &keycount) || (keycount != seccount)) {
+        goto done;
+    }
+    if (!keys) {
+        goto done;
+    }
+
+    *jso = json_tokener_parse(keys);
+    if (!jso) {
+        goto done;
+    }
+    if (!json_object_is_type(*jso, json_type_object)) {
+        goto done;
+    }
+    if (!json_object_object_get_ex(*jso, "keys", keyarr)) {
+        goto done;
+    }
+    if (!json_object_is_type(*keyarr, json_type_array)) {
+        goto done;
+    }
+    res = true;
+done:
+    if (!res) {
+        json_object_put(*jso);
+        *jso = NULL;
+    }
+    rnp_buffer_destroy(keys);
+    return res;
+}
+
+TEST_F(rnp_tests, test_ffi_iterated_key_import)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+    uint32_t    flags =
+      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
+
+    /* two primary keys with attached subkeys in binary keyring */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    json_object *jso = NULL;
+    json_object *jsokeys = NULL;
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 4, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 4);
+    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
+    jsokey = json_object_array_get_idx(jsokeys, 3);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
+    json_object_put(jso);
+
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 7, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 3);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
+    json_object_put(jso);
+
+    char *results = NULL;
+    assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
+    assert_null(results);
+    rnp_input_destroy(input);
+
+    /* public + secret key, armored separately */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 3, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 3);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+    json_object_put(jso);
+
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 3, 3));
+    assert_int_equal(json_object_array_length(jsokeys), 3);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_key_status(
+      jsokey, "unchanged", "new", "090bd712a1166be572252c3c9747d2a6b3a63124"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(check_key_status(
+      jsokey, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(check_key_status(
+      jsokey, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+    json_object_put(jso);
+
+    assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
+    assert_null(results);
+    rnp_input_destroy(input);
+
+    /* public keyring, enarmored */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg.asc"));
+    flags |= RNP_LOAD_SAVE_PERMISSIVE;
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 4, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 4);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
+    jsokey = json_object_array_get_idx(jsokeys, 3);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
+    json_object_put(jso);
+
+    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 7, 0));
+    assert_int_equal(json_object_array_length(jsokeys), 3);
+    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
+    jsokey = json_object_array_get_idx(jsokeys, 1);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
+    jsokey = json_object_array_get_idx(jsokeys, 2);
+    assert_true(
+      check_key_status(jsokey, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
+    json_object_put(jso);
+
+    results = NULL;
+    assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
+    assert_null(results);
+    rnp_input_destroy(input);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_stripped_keys_import)
 {
     rnp_ffi_t   ffi = NULL;
