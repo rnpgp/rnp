@@ -1603,3 +1603,80 @@ TEST_F(rnp_tests, test_stream_deep_packet_nesting)
 
     rnp_ffi_destroy(ffi);
 }
+
+static bool
+src_reader_generator(pgp_source_t *, void *buf, size_t len, size_t *read)
+{
+    *read = len;
+    for (; len; buf = ((uint8_t *) buf) + 1, len--) {
+        *(uint8_t *) buf = len & 0x7F;
+    }
+    return true;
+}
+
+TEST_F(rnp_tests, test_stream_cache)
+{
+    pgp_source_t src = {0};
+    uint8_t      sample[sizeof(src.cache->buf)];
+    size_t       samplesize = sizeof(sample);
+    assert_true(src_reader_generator(NULL, sample, samplesize, &samplesize));
+    assert_int_equal(sizeof(sample), samplesize);
+
+    init_src_common(&src, 0);
+    int8_t *buf = (int8_t *) src.cache->buf;
+    src.read = src_reader_generator;
+    size_t len = sizeof(src.cache->buf);
+
+    // empty cache, pos=0
+    memset(src.cache->buf, 0xFF, len);
+    src.cache->pos = 0;
+    src.cache->len = 0;
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // empty cache, pos is somewhere in the middle
+    memset(src.cache->buf, 0xFF, len);
+    src.cache->pos = 100;
+    src.cache->len = 100;
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // empty cache, pos=max
+    memset(src.cache->buf, 0xFF, len);
+    src.cache->pos = len;
+    src.cache->len = len;
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // cache has some data in the middle
+    src.cache->pos = 128; // sample boundary
+    src.cache->len = 300;
+    memset(src.cache->buf, 0xFF, src.cache->pos);
+    memset(src.cache->buf + src.cache->len, 0xFF, len - src.cache->len);
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // cache has some data starting from pos until the end
+    src.cache->pos = 128; // sample boundary
+    src.cache->len = len;
+    memset(src.cache->buf, 0xFF, src.cache->pos);
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // cache is almost full
+    src.cache->pos = 0;
+    src.cache->len = len - 1;
+    src.cache->buf[len - 1] = 0xFF;
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    // cache is full
+    src.cache->pos = 0;
+    src.cache->len = len;
+    memset(src.cache->buf, 0xFF, src.cache->pos);
+    memset(src.cache->buf + src.cache->len, 0xFF, len - src.cache->len);
+    assert_true(src_peek_eq(&src, NULL, len));
+    assert_false(memcmp(buf, sample, samplesize));
+
+    src_close(&src);
+}
