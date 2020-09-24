@@ -43,7 +43,7 @@
 #include <limits.h>
 #endif
 #ifndef HAVE_MKSTEMP
-#include "mkstemp.h"
+#include "file-utils.h"
 #endif
 #include <rnp/rnp_def.h>
 #include "rnp.h"
