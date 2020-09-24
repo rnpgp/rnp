@@ -32,4 +32,15 @@
 bool    rnp_file_exists(const char *path);
 int64_t rnp_filemtime(const char *path);
 
+/** @private
+ *  generate a temporary file name based on TMPL.  TMPL must match the
+ *  rules for mk[s]temp (i.e. end in "XXXXXX").  The name constructed
+ *  does not exist at the time of the call to mkstemp.  TMPL is
+ *  overwritten with the result.get the list item at specified index
+ *
+ *  @param tmpl filename template
+ *  @return file descriptor of newly created and opened file, or -1 on error
+ **/
+int rnp_mkstemp(char *tmpl);
+
 #endif
