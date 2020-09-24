@@ -357,6 +357,8 @@ void test_stream_key_signature_validate(void **state);
 
 void test_stream_deep_packet_nesting(void **state);
 
+void test_stream_cache(void **state);
+
 void test_key_validity(void **state);
 
 void test_stream_814_dearmor_double_free(void **state);
