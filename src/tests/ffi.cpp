@@ -5863,25 +5863,21 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
 }
 
 static bool
-check_import_keys(rnp_ffi_t     ffi,
-                  json_object **jso,
-                  json_object **keyarr,
-                  const char *  keypath,
-                  size_t        pubcount,
-                  size_t        seccount)
+check_import_keys_ex(rnp_ffi_t     ffi,
+                     json_object **jso,
+                     uint32_t      flags,
+                     rnp_input_t   input,
+                     size_t        rescount,
+                     size_t        pubcount,
+                     size_t        seccount)
 {
-    rnp_input_t input = NULL;
-
-    if (rnp_input_from_path(&input, keypath)) {
-        return false;
-    }
-    bool   res = false;
-    char * keys = NULL;
-    size_t keycount = 0;
+    bool         res = false;
+    char *       keys = NULL;
+    size_t       keycount = 0;
+    json_object *keyarr = NULL;
     *jso = NULL;
 
-    if (rnp_import_keys(
-          ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, &keys)) {
+    if (rnp_import_keys(ffi, input, flags, &keys)) {
         goto done;
     }
     if (rnp_get_public_key_count(ffi, &keycount) || (keycount != pubcount)) {
@@ -5901,10 +5897,13 @@ check_import_keys(rnp_ffi_t     ffi,
     if (!json_object_is_type(*jso, json_type_object)) {
         goto done;
     }
-    if (!json_object_object_get_ex(*jso, "keys", keyarr)) {
+    if (!json_object_object_get_ex(*jso, "keys", &keyarr)) {
         goto done;
     }
-    if (!json_object_is_type(*keyarr, json_type_array)) {
+    if (!json_object_is_type(keyarr, json_type_array)) {
+        goto done;
+    }
+    if (json_object_array_length(keyarr) != rescount) {
         goto done;
     }
     res = true;
@@ -5913,17 +5912,52 @@ done:
         json_object_put(*jso);
         *jso = NULL;
     }
-    rnp_input_destroy(input);
     rnp_buffer_destroy(keys);
     return res;
 }
 
 static bool
-check_key_status(json_object *key, const char *pub, const char *sec, const char *fp)
+check_import_keys(rnp_ffi_t     ffi,
+                  json_object **jso,
+                  const char *  keypath,
+                  size_t        rescount,
+                  size_t        pubcount,
+                  size_t        seccount)
 {
-    if (!key) {
+    rnp_input_t input = NULL;
+
+    if (rnp_input_from_path(&input, keypath)) {
         return false;
     }
+    bool res = check_import_keys_ex(ffi,
+                                    jso,
+                                    RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS,
+                                    input,
+                                    rescount,
+                                    pubcount,
+                                    seccount);
+    rnp_input_destroy(input);
+    return res;
+}
+
+static bool
+check_key_status(
+  json_object *jso, size_t idx, const char *pub, const char *sec, const char *fp)
+{
+    if (!jso) {
+        return false;
+    }
+    if (!json_object_is_type(jso, json_type_object)) {
+        return false;
+    }
+    json_object *keys = NULL;
+    if (!json_object_object_get_ex(jso, "keys", &keys)) {
+        return false;
+    }
+    if (!json_object_is_type(keys, json_type_array)) {
+        return false;
+    }
+    json_object *key = json_object_array_get_idx(keys, idx);
     if (!json_object_is_type(key, json_type_object)) {
         return false;
     }
@@ -5989,99 +6023,66 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     // import just a public key without subkeys
     json_object *jso = NULL;
-    json_object *jsokeys = NULL;
     assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-pub-just-key.pgp", 1, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
+      ffi, &jso, "data/test_stream_key_merge/key-pub-just-key.pgp", 1, 1, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
+      check_key_status(jso, 0, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     json_object_put(jso);
     // import just subkey 1
     assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-pub-just-subkey-1.pgp", 2, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-1.pgp", 1, 2, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
+      check_key_status(jso, 0, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     json_object_put(jso);
     // import just subkey 2 without sigs
+    assert_true(check_import_keys(
+      ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-2-no-sigs.pgp", 1, 3, 0));
     assert_true(
-      check_import_keys(ffi,
-                        &jso,
-                        &jsokeys,
-                        "data/test_stream_key_merge/key-pub-just-subkey-2-no-sigs.pgp",
-                        3,
-                        0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
-    assert_true(
-      check_key_status(jsokey, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      check_key_status(jso, 0, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
     // import subkey 2 with sigs
     assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-pub-just-subkey-2.pgp", 3, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      ffi, &jso, "data/test_stream_key_merge/key-pub-just-subkey-2.pgp", 1, 3, 0));
     assert_true(
-      check_key_status(jsokey, "updated", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      check_key_status(jso, 0, "updated", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
     // import first uid
-    assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-pub-uid-1.pgp", 3, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
     assert_true(
-      check_key_status(jsokey, "updated", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
+      check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-pub-uid-1.pgp", 1, 3, 0));
+    assert_true(
+      check_key_status(jso, 0, "updated", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     json_object_put(jso);
     // import the whole key
     assert_true(
-      check_import_keys(ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-pub.pgp", 3, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-pub.pgp", 3, 3, 0));
     assert_true(
-      check_key_status(jsokey, "updated", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "updated", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      jso, 1, "unchanged", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      jso, 2, "unchanged", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
     // import the first secret subkey
     assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-sec-just-subkey-1.pgp", 3, 1));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      ffi, &jso, "data/test_stream_key_merge/key-sec-just-subkey-1.pgp", 1, 3, 1));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
+      jso, 0, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     json_object_put(jso);
     // import the second secret subkey
-    assert_true(
-      check_import_keys(ffi,
-                        &jso,
-                        &jsokeys,
-                        "data/test_stream_key_merge/key-sec-just-subkey-2-no-sigs.pgp",
-                        3,
-                        2));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys(
+      ffi, &jso, "data/test_stream_key_merge/key-sec-just-subkey-2-no-sigs.pgp", 1, 3, 2));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      jso, 0, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
     // import the whole secret key
     assert_true(
-      check_import_keys(ffi, &jso, &jsokeys, "data/test_stream_key_merge/key-sec.pgp", 3, 3));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      check_import_keys(ffi, &jso, "data/test_stream_key_merge/key-sec.pgp", 3, 3, 3));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      jso, 0, "unchanged", "new", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "unchanged", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      jso, 1, "unchanged", "unchanged", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "unchanged", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      jso, 2, "unchanged", "unchanged", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
     // cleanup
     rnp_ffi_destroy(ffi);
@@ -6238,56 +6239,6 @@ TEST_F(rnp_tests, test_ffi_malformed_keys_import)
     rnp_ffi_destroy(ffi);
 }
 
-static bool
-check_import_key(rnp_ffi_t     ffi,
-                 json_object **jso,
-                 json_object **keyarr,
-                 uint32_t      flags,
-                 rnp_input_t   input,
-                 size_t        pubcount,
-                 size_t        seccount)
-{
-    bool   res = false;
-    char * keys = NULL;
-    size_t keycount = 0;
-    *jso = NULL;
-
-    if (rnp_import_keys(ffi, input, flags, &keys)) {
-        goto done;
-    }
-    if (rnp_get_public_key_count(ffi, &keycount) || (keycount != pubcount)) {
-        goto done;
-    }
-    if (rnp_get_secret_key_count(ffi, &keycount) || (keycount != seccount)) {
-        goto done;
-    }
-    if (!keys) {
-        goto done;
-    }
-
-    *jso = json_tokener_parse(keys);
-    if (!jso) {
-        goto done;
-    }
-    if (!json_object_is_type(*jso, json_type_object)) {
-        goto done;
-    }
-    if (!json_object_object_get_ex(*jso, "keys", keyarr)) {
-        goto done;
-    }
-    if (!json_object_is_type(*keyarr, json_type_array)) {
-        goto done;
-    }
-    res = true;
-done:
-    if (!res) {
-        json_object_put(*jso);
-        *jso = NULL;
-    }
-    rnp_buffer_destroy(keys);
-    return res;
-}
-
 TEST_F(rnp_tests, test_ffi_iterated_key_import)
 {
     rnp_ffi_t   ffi = NULL;
@@ -6299,34 +6250,24 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     json_object *jso = NULL;
-    json_object *jsokeys = NULL;
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 4, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 4);
-    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 4, 4, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      check_key_status(jso, 1, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
-    jsokey = json_object_array_get_idx(jsokeys, 3);
+      check_key_status(jso, 2, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
+      check_key_status(jso, 3, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
     json_object_put(jso);
 
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 7, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 7, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      check_key_status(jso, 1, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
+      check_key_status(jso, 2, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
     json_object_put(jso);
 
     char *results = NULL;
@@ -6337,30 +6278,22 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
     /* public + secret key, armored separately */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-both.asc"));
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 3, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 3, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "new", "none", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      check_key_status(jso, 1, "new", "none", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      check_key_status(jso, 2, "new", "none", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
 
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 3, 3));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 3, 3));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "090bd712a1166be572252c3c9747d2a6b3a63124"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      jso, 0, "unchanged", "new", "090bd712a1166be572252c3c9747d2a6b3a63124"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      jso, 1, "unchanged", "new", "51b45a4c74917272e4e34180af1114a47f5f5b28"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
+      jso, 2, "unchanged", "new", "5fe514a54816e1b331686c2c16cd16f267ccdd4f"));
     json_object_put(jso);
 
     assert_int_equal(RNP_ERROR_EOF, rnp_import_keys(ffi, input, flags, &results));
@@ -6371,33 +6304,24 @@ TEST_F(rnp_tests, test_ffi_iterated_key_import)
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg.asc"));
     flags |= RNP_LOAD_SAVE_PERMISSIVE;
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 4, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 4);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 4, 4, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "new", "none", "e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      check_key_status(jso, 1, "new", "none", "e332b27caf4742a11baa677f1ed63ee56fadc34d"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
-    jsokey = json_object_array_get_idx(jsokeys, 3);
+      check_key_status(jso, 2, "new", "none", "c5b15209940a7816a7af3fb51d7e8a5393c997a8"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
+      check_key_status(jso, 3, "new", "none", "5cd46d2a0bd0b8cfe0b130ae8a05b89fad5aded1"));
     json_object_put(jso);
 
-    assert_true(check_import_key(ffi, &jso, &jsokeys, flags, input, 7, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 3);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(check_import_keys_ex(ffi, &jso, flags, input, 3, 7, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_key_status(jso, 0, "new", "none", "be1c4ab951f4c2f6b604c7f82fcadf05ffa501bb"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
-    jsokey = json_object_array_get_idx(jsokeys, 2);
+      check_key_status(jso, 1, "new", "none", "a3e94de61a8cb229413d348e54505a936a4a970e"));
     assert_true(
-      check_key_status(jsokey, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
+      check_key_status(jso, 2, "new", "none", "57f8ed6e5c197db63c60ffaf326ef111425d14a5"));
     json_object_put(jso);
 
     results = NULL;
@@ -6525,27 +6449,20 @@ TEST_F(rnp_tests, test_ffi_elgamal4096)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     /* load public key */
     json_object *jso = NULL;
-    json_object *jsokeys = NULL;
-    assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-eg-4096-pub.pgp", 2, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 2);
-    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
     assert_true(
-      check_key_status(jsokey, "new", "none", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-eg-4096-pub.pgp", 2, 2, 0));
     assert_true(
-      check_key_status(jsokey, "new", "none", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
+      check_key_status(jso, 0, "new", "none", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
+    assert_true(
+      check_key_status(jso, 1, "new", "none", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
     json_object_put(jso);
     /* load secret key */
-    assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-eg-4096-sec.pgp", 2, 2));
-    assert_int_equal(json_object_array_length(jsokeys), 2);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+    assert_true(
+      check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-eg-4096-sec.pgp", 2, 2, 2));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
-    jsokey = json_object_array_get_idx(jsokeys, 1);
+      jso, 0, "unchanged", "new", "6541db10cdfcdba89db2dffea8f0408eb3369d8e"));
     assert_true(check_key_status(
-      jsokey, "unchanged", "new", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
+      jso, 1, "unchanged", "new", "c402a09b74acd0c11efc0527a3d630b457a0b15b"));
     json_object_put(jso);
     // cleanup
     rnp_ffi_destroy(ffi);
@@ -9689,23 +9606,18 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
 
     /* key with empty uid - must succeed */
     json_object *jso = NULL;
-    json_object *jsokeys = NULL;
-    assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-empty-uid.pgp", 1, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    json_object *jsokey = json_object_array_get_idx(jsokeys, 0);
     assert_true(
-      check_key_status(jsokey, "new", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
+      check_import_keys(ffi, &jso, "data/test_key_edge_cases/key-empty-uid.pgp", 1, 1, 0));
+    assert_true(
+      check_key_status(jso, 0, "new", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
     json_object_put(jso);
 
     /* key with experimental signature subpackets - must succeed and append uid and signature
      */
     assert_true(check_import_keys(
-      ffi, &jso, &jsokeys, "data/test_key_edge_cases/key-subpacket-101-110.pgp", 1, 0));
-    assert_int_equal(json_object_array_length(jsokeys), 1);
-    jsokey = json_object_array_get_idx(jsokeys, 0);
+      ffi, &jso, "data/test_key_edge_cases/key-subpacket-101-110.pgp", 1, 1, 0));
     assert_true(
-      check_key_status(jsokey, "updated", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
+      check_key_status(jso, 0, "updated", "none", "753d5b947e9a2b2e01147c1fc972affd358bf887"));
     json_object_put(jso);
 
     rnp_key_handle_t key = NULL;
