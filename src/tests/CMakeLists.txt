@@ -73,6 +73,7 @@ add_executable(rnp_tests
   cli.cpp
   exportkey.cpp
   ffi.cpp
+  ffi-enc.cpp
   file-utils.cpp
   generatekey.cpp
   kbx-nsigs-test.cpp
