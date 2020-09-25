@@ -650,22 +650,6 @@ unused_getpasscb(rnp_ffi_t        ffi,
     return false;
 }
 
-static bool
-getpasscb(rnp_ffi_t        ffi,
-          void *           app_ctx,
-          rnp_key_handle_t key,
-          const char *     pgp_context,
-          char *           buf,
-          size_t           buf_len)
-{
-    size_t pass_len = strlen((const char *) app_ctx);
-    if (pass_len >= buf_len) {
-        return false;
-    }
-    memcpy(buf, app_ctx, pass_len + 1);
-    return true;
-}
-
 static void
 check_key_properties(rnp_key_handle_t key,
                      bool             primary_exptected,
@@ -800,7 +784,8 @@ TEST_F(rnp_tests, test_ffi_keygen_json_pair_dsa_elg)
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "abc"));
 
     // load our JSON
     load_test_data("test_ffi_json/generate-pair-dsa-elg.json", &json, NULL);
@@ -1084,7 +1069,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
       ffi, "ECDSA", "ECDH", 0, 1024, "Unknown", "Curve", NULL, "password", &key));
 
     /* generate RSA-RSA key without password */
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "abc"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "abc"));
     assert_rnp_success(rnp_generate_key_rsa(ffi, 1024, 1024, "rsa_1024", NULL, &key));
     assert_non_null(key);
     bool locked = false;
@@ -1715,7 +1701,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "123"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "123"));
 
     /* Generate RSA key with misc options set */
     rnp_op_generate_t keygen = NULL;
@@ -2097,7 +2084,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "123"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "123"));
 
     /* Generate RSA key with misc options set */
     rnp_op_generate_t keygen = NULL;
@@ -2270,7 +2258,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_protection)
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "123"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "123"));
 
     /* Generate key and subkey without protection */
     rnp_op_generate_t keygen = NULL;
@@ -2428,7 +2417,8 @@ TEST_F(rnp_tests, test_ffi_add_userid)
       rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
     // actually add the userid
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass"));
     assert_int_equal(
       RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
@@ -2525,17 +2515,19 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     rnp_buffer_destroy(primary_grip);
     primary_grip = NULL;
 
-    // generate the subkey (no getpasscb, should fail)
+    // generate the subkey (no ffi_string_password_provider, should fail)
     assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, NULL, NULL));
     assert_rnp_failure(rnp_generate_key_json(ffi, json, &results));
 
     // generate the subkey (wrong pass, should fail)
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong"));
     assert_rnp_failure(rnp_generate_key_json(ffi, json, &results));
 
     // generate the subkey
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass123"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass123"));
     assert_rnp_success(rnp_generate_key_json(ffi, json, &results));
     free(json);
     json = NULL;
@@ -2678,7 +2670,8 @@ test_ffi_setup_signatures(rnp_ffi_t *ffi, rnp_op_sign_t *op)
     assert_rnp_success(rnp_op_sign_set_expiration_time(*op, expires));
 
     // set pass provider
-    assert_rnp_success(rnp_ffi_set_pass_provider(*ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(*ffi, ffi_string_password_provider, (void *) "password"));
 
     // set first signature key
     assert_rnp_success(rnp_locate_key(*ffi, "userid", "key0-uid2", &key));
@@ -3645,7 +3638,8 @@ TEST_F(rnp_tests, test_ffi_signatures_detached_memory_g10)
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
     // load our keyrings
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
@@ -5611,7 +5605,8 @@ TEST_F(rnp_tests, test_ffi_stripped_keys_import)
       rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
     rnp_output_t output = NULL;
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
     rnp_input_destroy(input);
@@ -6625,7 +6620,8 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
     assert_non_null(output);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "pass1"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass1"));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
     // cleanup
     rnp_input_destroy(input);
@@ -6910,7 +6906,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.encrypted"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
@@ -7050,7 +7047,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
 
     // init ffi
     test_ffi_init(&ffi);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
     /* message just signed */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
@@ -7236,7 +7234,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
 
     // init ffi
     test_ffi_init(&ffi);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
     /* message just signed */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
@@ -7507,7 +7506,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     rnp_output_destroy(output);
 
     /* message encrypted to 3 recipients and 2 passwords: password1, password2 */
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrongpassword"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrongpassword"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
     rnp_input_destroy(input);
@@ -7548,7 +7548,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password2"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password2"));
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-3key-2p"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -7898,7 +7899,8 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     /* wrong password - must fail */
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong"));
     assert_rnp_failure(rnp_key_export_revocation(
       key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
     /* unlocked key - must succeed */
@@ -7908,7 +7910,8 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_rnp_success(rnp_output_to_path(&output, "alice-revocation.pgp"));
     /* correct password provider - must succeed */
     assert_rnp_success(rnp_key_lock(key_handle));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_key_export_revocation(
       key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
     /* make sure FFI locks key back */
@@ -8056,7 +8059,8 @@ TEST_F(rnp_tests, test_ffi_rnp_request_password)
     char *password = NULL;
     assert_rnp_failure(rnp_request_password(ffi, NULL, "sign", &password));
     assert_null(password);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_failure(rnp_request_password(NULL, NULL, "sign", &password));
     assert_rnp_failure(rnp_request_password(ffi, NULL, "sign", NULL));
     /* now it should succeed */
@@ -8123,7 +8127,8 @@ TEST_F(rnp_tests, test_ffi_key_revoke)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
     /* wrong password - must fail */
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong"));
     assert_rnp_failure(rnp_key_revoke(key_handle, 0, "SHA256", "superseded", NULL));
     assert_rnp_failure(rnp_key_revoke(sub_handle, 0, "SHA256", "superseded", NULL));
     /* unlocked key - must succeed */
@@ -8153,7 +8158,8 @@ TEST_F(rnp_tests, test_ffi_key_revoke)
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
     assert_false(revoked);
     assert_rnp_success(
@@ -8388,7 +8394,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
 
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "wrong"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong"));
     assert_rnp_failure(rnp_key_set_expiration(key, 1));
     expiry = 255;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
@@ -8404,7 +8411,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     locked = false;
     assert_rnp_success(rnp_key_is_locked(sub, &locked));
     assert_true(locked);
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     uint32_t creation = 0;
     assert_rnp_success(rnp_key_get_creation(key, &creation));
     creation = time(NULL) - creation;
@@ -8500,7 +8508,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* check whether things work for G10 keyring */
     assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
     assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
@@ -8558,7 +8567,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* load G10/KBX and unload public keys - must succeed */
     assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
     assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     rnp_input_destroy(input);
@@ -8595,7 +8605,8 @@ TEST_F(rnp_tests, test_ffi_mdc_8k_boundary)
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_input_destroy(input));
@@ -8670,7 +8681,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-malf-1"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
@@ -8681,7 +8693,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-malf-2"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
@@ -8692,7 +8705,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-malf-3"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
@@ -8703,7 +8717,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-malf-4"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
@@ -8714,7 +8729,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_wrong_mpi_bits)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-malf-5"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
@@ -8737,7 +8753,8 @@ TEST_F(rnp_tests, test_ffi_decrypt_edge_cases)
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-wrong-alg"));
     assert_rnp_success(rnp_output_to_null(&output));
-    assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb, (void *) "password"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
     assert_rnp_success(rnp_op_verify_create(&op, ffi, input, output));
     assert_rnp_failure(rnp_op_verify_execute(op));
     rnp_op_verify_destroy(op);
