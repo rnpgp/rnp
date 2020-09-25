@@ -536,7 +536,11 @@ rnp_armored_guess_type_by_readahead(pgp_source_t *src)
     size_t       read;
     // peek as much as the cache can take
     bool cache_res = src_peek(src, NULL, sizeof(src->cache->buf), &read);
-    if (!cache_res || !read || init_mem_src(&memsrc, src->cache->buf, read, false)) {
+    if (!cache_res || !read ||
+        init_mem_src(&memsrc,
+                     src->cache->buf + src->cache->pos,
+                     src->cache->len - src->cache->pos,
+                     false)) {
         return PGP_ARMORED_UNKNOWN;
     }
     rnp_result_t res = init_armored_src(&armorsrc, &memsrc);
