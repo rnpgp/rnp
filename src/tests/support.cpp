@@ -679,8 +679,11 @@ ffi_string_password_provider(rnp_ffi_t        ffi,
                              char *           buf,
                              size_t           buf_len)
 {
-    const char *str = (const char *) app_ctx;
-    strncpy(buf, str, buf_len - 1);
+    size_t pass_len = strlen((const char *) app_ctx);
+    if (pass_len >= buf_len) {
+        return false;
+    }
+    memcpy(buf, app_ctx, pass_len + 1);
     return true;
 }
 
