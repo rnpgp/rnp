@@ -199,6 +199,8 @@ void test_ffi_encrypt_pass_provider(void **state);
 
 void test_ffi_encrypt_pk(void **state);
 
+void test_ffi_encrypt_pk_subkey_selection(void **state);
+
 void test_ffi_encrypt_and_sign(void **state);
 
 void test_ffi_signatures_memory(void **state);
