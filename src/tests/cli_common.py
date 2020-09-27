@@ -11,6 +11,7 @@ from subprocess import Popen, PIPE
 
 RNP_ROOT = None
 WORKDIR = ''
+CONSOLE_ENCODING = 'UTF-8'
 
 class CLIError(Exception):
     def __init__(self, message, log = None):

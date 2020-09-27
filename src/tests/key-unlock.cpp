@@ -218,5 +218,5 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     cli_rnp_end(&rnp);
-    assert_int_equal(unlink("dummyfile.dat"), 0);
+    assert_int_equal(rnp_unlink("dummyfile.dat"), 0);
 }

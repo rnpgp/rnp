@@ -52,6 +52,8 @@ char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 
 bool rnp_path_exists(const char *path);
 bool rnp_dir_exists(const char *path);
+bool rnp_file_exists(const char *path);
+int  rnp_unlink(const char *path);
 
 bool rnp_hex_encode(
   const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);

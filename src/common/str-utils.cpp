@@ -30,6 +30,10 @@
 #include "str-utils.h"
 #include <cstddef>
 #include <cstring>
+#ifdef _WIN32
+#include <locale>
+#include <codecvt>
+#endif
 
 using std::size_t;
 using std::strlen;
@@ -45,3 +49,38 @@ rnp_strip_eol(char *s)
 
     return s;
 }
+
+#ifdef _WIN32
+std::wstring
+wstr_from_utf8(const char *s)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    return utf8conv.from_bytes(s);
+}
+
+std::wstring
+wstr_from_utf8(const char *first, const char *last)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    return utf8conv.from_bytes(first, last);
+}
+
+std::wstring
+wstr_from_utf8(const std::string &s)
+{
+    return wstr_from_utf8(s.c_str());
+}
+
+std::string
+wstr_to_utf8(const wchar_t *ws)
+{
+    std::wstring_convert<std::codecvt_utf8<wchar_t>> utf8conv;
+    return utf8conv.to_bytes(ws);
+}
+
+std::string
+wstr_to_utf8(const std::wstring &ws)
+{
+    return wstr_to_utf8(ws.c_str());
+}
+#endif

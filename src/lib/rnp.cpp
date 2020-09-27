@@ -1782,7 +1782,7 @@ try {
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+    if (rnp_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
         // a bit hacky, just save the directory path
         ob->src_directory = strdup(path);
         if (!ob->src_directory) {
@@ -1921,7 +1921,7 @@ try {
     if (!ob) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
+    if (rnp_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
         // a bit hacky, just save the directory path
         ob->dst_directory = strdup(path);
         if (!ob->dst_directory) {

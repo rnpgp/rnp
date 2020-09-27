@@ -188,12 +188,12 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 }
 
                 cli_rnp_end(&rnp);
-                assert_int_equal(unlink("dummyfile.dat.pgp"), 0);
-                unlink("dummyfile.verify");
+                assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), 0);
+                rnp_unlink("dummyfile.verify");
             }
         }
     }
-    assert_int_equal(unlink("dummyfile.dat"), 0);
+    assert_int_equal(rnp_unlink("dummyfile.dat"), 0);
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
@@ -258,11 +258,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             /* Ensure plaintext recovered */
             std::string decrypt = file_to_str("dummyfile.decrypt");
             assert_true(decrypt == memToEncrypt);
-            assert_int_equal(unlink("dummyfile.dat.pgp"), 0);
-            assert_int_equal(unlink("dummyfile.decrypt"), 0);
+            assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), 0);
+            assert_int_equal(rnp_unlink("dummyfile.decrypt"), 0);
         }
     }
-    assert_int_equal(unlink("dummyfile.dat"), 0);
+    assert_int_equal(rnp_unlink("dummyfile.dat"), 0);
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
@@ -364,15 +364,15 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(".rnp/secring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp/secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", NULL));
 
     /* Pubring and secring should now exist */
-    assert_true(path_file_exists(".rnp/pubring.gpg", NULL));
-    assert_true(path_file_exists(".rnp/secring.gpg", NULL));
+    assert_true(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
+    assert_true(path_rnp_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
@@ -401,15 +401,15 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, newhome.c_str(), NULL));
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(newhome.c_str(), "pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome.c_str(), "secring.gpg", NULL));
+    assert_false(path_rnp_file_exists(newhome.c_str(), "pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(newhome.c_str(), "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_GPG, "newhomekey", "SHA256", newhome.c_str()));
 
     /* Pubring and secring should now exist */
-    assert_true(path_file_exists(newhome.c_str(), "pubring.gpg", NULL));
-    assert_true(path_file_exists(newhome.c_str(), "secring.gpg", NULL));
+    assert_true(path_rnp_file_exists(newhome.c_str(), "pubring.gpg", NULL));
+    assert_true(path_rnp_file_exists(newhome.c_str(), "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
@@ -438,17 +438,17 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     /* Initialize the rnp structure. */
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_KBX, NULL, NULL));
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(".rnp/pubring.kbx", NULL));
-    assert_false(path_file_exists(".rnp/secring.kbx", NULL));
-    assert_false(path_file_exists(".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(".rnp/secring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp/pubring.kbx", NULL));
+    assert_false(path_rnp_file_exists(".rnp/secring.kbx", NULL));
+    assert_false(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp/secring.gpg", NULL));
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_KBX, NULL, "SHA256", NULL));
     /* Pubring and secring should now exist, but only for the KBX */
-    assert_true(path_file_exists(".rnp/pubring.kbx", NULL));
-    assert_true(path_file_exists(".rnp/secring.kbx", NULL));
-    assert_false(path_file_exists(".rnp/pubring.gpg", NULL));
-    assert_false(path_file_exists(".rnp/secring.gpg", NULL));
+    assert_true(path_rnp_file_exists(".rnp/pubring.kbx", NULL));
+    assert_true(path_rnp_file_exists(".rnp/secring.kbx", NULL));
+    assert_false(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
@@ -471,18 +471,18 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     /* Initialize the rnp structure. */
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_KBX, newhome, NULL));
     /* Pubring and secring should not exist yet */
-    assert_false(path_file_exists(newhome, "pubring.kbx", NULL));
-    assert_false(path_file_exists(newhome, "secring.kbx", NULL));
-    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
+    assert_false(path_rnp_file_exists(newhome, "pubring.kbx", NULL));
+    assert_false(path_rnp_file_exists(newhome, "secring.kbx", NULL));
+    assert_false(path_rnp_file_exists(newhome, "pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(newhome, "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_KBX, "newhomekey", "SHA256", newhome));
     /* Pubring and secring should now exist, but only for the KBX */
-    assert_true(path_file_exists(newhome, "pubring.kbx", NULL));
-    assert_true(path_file_exists(newhome, "secring.kbx", NULL));
-    assert_false(path_file_exists(newhome, "pubring.gpg", NULL));
-    assert_false(path_file_exists(newhome, "secring.gpg", NULL));
+    assert_true(path_rnp_file_exists(newhome, "pubring.kbx", NULL));
+    assert_true(path_rnp_file_exists(newhome, "secring.kbx", NULL));
+    assert_false(path_rnp_file_exists(newhome, "pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(newhome, "secring.gpg", NULL));
     /* Loading keyrings and checking whether they have correct key */
     assert_true(cli_rnp_load_keyrings(&rnp, true));
     keycount = 0;

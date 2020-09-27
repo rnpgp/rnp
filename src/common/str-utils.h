@@ -28,5 +28,12 @@
 #define RNP_STR_UTILS_H_
 
 char *rnp_strip_eol(char *s);
-
+#ifdef _WIN32
+#include <string>
+std::wstring wstr_from_utf8(const char *s);
+std::wstring wstr_from_utf8(const char *first, const char *last);
+std::wstring wstr_from_utf8(const std::string &s);
+std::string  wstr_to_utf8(const wchar_t *ws);
+std::string  wstr_to_utf8(const std::wstring &ws);
+#endif // _WIN32
 #endif
