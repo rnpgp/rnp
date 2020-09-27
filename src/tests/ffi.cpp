@@ -172,14 +172,14 @@ load_test_data(const char *file, char **data, size_t *size)
     path = rnp_compose_path("data", file, NULL);
     assert_non_null(path);
 
-    assert_int_equal(0, stat(path, &st));
+    assert_int_equal(0, rnp_stat(path, &st));
     if (size) {
         *size = st.st_size;
     }
     *data = (char *) calloc(1, st.st_size + 1);
     assert_non_null(*data);
 
-    FILE *fp = fopen(path, "rb");
+    FILE *fp = rnp_fopen(path, "rb");
     assert_non_null(fp);
     assert_int_equal(st.st_size, fread(*data, 1, st.st_size, fp));
     assert_int_equal(0, fclose(fp));
@@ -587,6 +587,135 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     free(sec_path);
     // save secring
     sec_path = rnp_compose_path(temp_dir, "private-keys-v1.d", NULL);
+    assert_false(rnp_dir_exists(sec_path));
+    assert_int_equal(0, RNP_MKDIR(sec_path, S_IRWXU));
+    assert_rnp_success(rnp_output_to_path(&output, sec_path));
+    assert_rnp_success(rnp_save_keys(ffi, "G10", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_true(rnp_dir_exists(sec_path));
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+    // start over (read from the saved locations)
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    // load pubring
+    assert_rnp_success(rnp_input_from_path(&input, pub_path));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // load secring
+    assert_rnp_success(rnp_input_from_path(&input, sec_path));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // check the counts
+    count = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(2, count);
+    count = 0;
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(2, count);
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+    free(pub_path);
+    free(sec_path);
+
+    // final cleanup
+    free(temp_dir);
+}
+
+TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
+{
+    rnp_ffi_t    ffi = NULL;
+    rnp_input_t  input = NULL;
+    rnp_output_t output = NULL;
+    char *       temp_dir = NULL;
+    char *       pub_path = NULL;
+    char *       sec_path = NULL;
+    char *       both_path = NULL;
+    size_t       count;
+    const char   kbx_pubring_utf8_filename[] = "pubring_\xC2\xA2.kbx";
+    const char   g10_secring_utf8_dirname[] = "private-keys-\xC2\xA2.d";
+    const char   utf8_filename[] = "bothring_\xC2\xA2.gpg";
+    temp_dir = make_temp_dir();
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load pubring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // load secring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // save pubring && secring
+    both_path = rnp_compose_path(temp_dir, utf8_filename, NULL);
+    assert_false(rnp_file_exists(both_path));
+    assert_rnp_success(rnp_output_to_path(&output, both_path));
+    assert_rnp_success(rnp_save_keys(
+      ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_true(rnp_file_exists(both_path));
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+    // start over (read from the saved locations)
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    // load both keyrings from the single file
+    assert_rnp_success(rnp_input_from_path(&input, both_path));
+    assert_non_null(input);
+    assert_rnp_success(
+      rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // check the counts. We should get both secret and public keys, since public keys are
+    // extracted from the secret ones.
+    count = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(7, count);
+    count = 0;
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(7, count);
+    // cleanup
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+    free(pub_path);
+    free(sec_path);
+    free(both_path);
+
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    // load pubring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/pubring.kbx"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "KBX", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // load secring
+    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/3/private-keys-v1.d"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_load_keys(ffi, "G10", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    input = NULL;
+    // save pubring
+    pub_path = rnp_compose_path(temp_dir, kbx_pubring_utf8_filename, NULL);
+    assert_rnp_success(rnp_output_to_path(&output, pub_path));
+    assert_rnp_success(rnp_save_keys(ffi, "KBX", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    output = NULL;
+    assert_true(rnp_file_exists(pub_path));
+    // save secring
+    sec_path = rnp_compose_path(temp_dir, g10_secring_utf8_dirname, NULL);
     assert_false(rnp_dir_exists(sec_path));
     assert_int_equal(0, RNP_MKDIR(sec_path, S_IRWXU));
     assert_rnp_success(rnp_output_to_path(&output, sec_path));
@@ -2557,9 +2686,9 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     parsed_results = NULL;
 
     // check the key counts
-    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(RNP_SUCCESS, rnp_get_public_key_count(ffi, &count));
     assert_int_equal(2, count);
-    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(RNP_SUCCESS, rnp_get_secret_key_count(ffi, &count));
     assert_int_equal(2, count);
 
     // check some key properties
@@ -2569,6 +2698,21 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub_pass_required)
     rnp_key_handle_destroy(primary);
     rnp_key_handle_destroy(sub);
     rnp_ffi_destroy(ffi);
+}
+
+static bool
+file_equals(const char *filename, const void *data, size_t len)
+{
+    pgp_source_t msrc = {};
+    bool         res = false;
+
+    if (file_to_mem_src(&msrc, filename)) {
+        return false;
+    }
+
+    res = (msrc.size == len) && !memcmp(mem_src_get_memory(&msrc), data, len);
+    src_close(&msrc);
+    return res;
 }
 
 static void
@@ -5252,13 +5396,13 @@ TEST_F(rnp_tests, test_ffi_file_output)
     assert_rnp_success(rnp_key_export(
       k256, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_SUBKEYS));
     assert_rnp_success(rnp_output_destroy(output));
-    assert_true(file_exists(KEY_OUT_PATH));
+    assert_true(rnp_file_exists(KEY_OUT_PATH));
     off_t sz = file_size(KEY_OUT_PATH);
     assert_rnp_success(rnp_output_to_path(&output, KEY_OUT_PATH));
     assert_rnp_success(rnp_key_export(
       k521, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_SUBKEYS));
     assert_rnp_success(rnp_output_destroy(output));
-    assert_true(file_exists(KEY_OUT_PATH));
+    assert_true(rnp_file_exists(KEY_OUT_PATH));
     assert_true(sz != file_size(KEY_OUT_PATH));
     sz = file_size(KEY_OUT_PATH);
     // test output to file - will fail without overwrite
@@ -5290,7 +5434,7 @@ TEST_F(rnp_tests, test_ffi_file_output)
     assert_rnp_success(rnp_output_finish(output));
     assert_rnp_success(rnp_output_destroy(output));
     assert_true(file_size(KEY_OUT_PATH) != sz);
-    assert_int_equal(unlink(KEY_OUT_PATH), 0);
+    assert_int_equal(rnp_unlink(KEY_OUT_PATH), 0);
     // cleanup
     assert_rnp_success(rnp_key_handle_destroy(k256));
     assert_rnp_success(rnp_key_handle_destroy(k521));
@@ -6808,8 +6952,8 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     rnp_output_destroy(output);
     output = NULL;
     // compare the decrypted file
-    assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
-    unlink("decrypted");
+    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    rnp_unlink("decrypted");
 
     // final cleanup
     rnp_ffi_destroy(ffi);
@@ -8372,7 +8516,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_int_not_equal(expiry, sub_expiry);
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(sub));
-    assert_int_equal(unlink("pubring.kbx"), 0);
+    assert_int_equal(rnp_unlink("pubring.kbx"), 0);
     assert_rnp_success(rnp_ffi_destroy(ffi));
 
     /* load G10/KBX and unload public keys - must succeed */
@@ -8979,8 +9123,8 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_int_equal(unlink("secring.gpg"), 0);
+    assert_int_equal(rnp_unlink("pubring.gpg"), 0);
+    assert_int_equal(rnp_unlink("secring.gpg"), 0);
 
     key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
@@ -9094,8 +9238,8 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_int_equal(unlink("secring.gpg"), 0);
+    assert_int_equal(rnp_unlink("pubring.gpg"), 0);
+    assert_int_equal(rnp_unlink("secring.gpg"), 0);
 
     key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
@@ -9170,8 +9314,8 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_int_equal(unlink("secring.gpg"), 0);
+    assert_int_equal(rnp_unlink("pubring.gpg"), 0);
+    assert_int_equal(rnp_unlink("secring.gpg"), 0);
 
     key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
@@ -9226,8 +9370,8 @@ TEST_F(rnp_tests, test_ffi_key_import_gpg_s2k)
     assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_int_equal(unlink("secring.gpg"), 0);
+    assert_int_equal(rnp_unlink("pubring.gpg"), 0);
+    assert_int_equal(rnp_unlink("secring.gpg"), 0);
 
     key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));

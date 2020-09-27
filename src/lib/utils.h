@@ -135,7 +135,7 @@ void         set_rnp_log_switch(int8_t);
 /* Formating helpers */
 #define PRItime "ll"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define PRIsize "I"
 #else
 #define PRIsize "z"
@@ -151,8 +151,9 @@ void         set_rnp_log_switch(int8_t);
 #define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
 #endif
 
+int rnp_mkdir(const char *path);
 #ifdef _WIN32
-#define RNP_MKDIR(pathname, mode) mkdir(pathname)
+#define RNP_MKDIR(pathname, mode) rnp_mkdir(pathname)
 #else
 #define RNP_MKDIR(pathname, mode) mkdir(pathname, mode)
 #endif

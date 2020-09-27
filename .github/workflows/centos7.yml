@@ -10,6 +10,9 @@ on:
 env:
   CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  LANG: en_US.UTF-8
+  LC_ALL: en_US.UTF-8
+  LC_LANG: en_US.UTF-8
 
 jobs:
   tests:
