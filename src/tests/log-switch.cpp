@@ -48,7 +48,7 @@ TEST_F(rnp_tests, test_log_switch)
     assert_int_not_equal(0, ftell(stream)); // something was written
 
     fclose(stream);
-    assert_int_equal(0, unlink(LOGTEST_FILENAME));
+    assert_int_equal(0, rnp_unlink(LOGTEST_FILENAME));
 
     stream = fopen(LOGTEST_FILENAME, "w");
     assert_non_null(stream);
@@ -87,5 +87,5 @@ TEST_F(rnp_tests, test_log_switch)
     set_rnp_log_switch(saved_rnp_log_switch ? 1 : 0);
 
     fclose(stream);
-    assert_int_equal(0, unlink(LOGTEST_FILENAME));
+    assert_int_equal(0, rnp_unlink(LOGTEST_FILENAME));
 }

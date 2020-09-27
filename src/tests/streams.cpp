@@ -268,7 +268,7 @@ TEST_F(rnp_tests, test_stream_file)
     }
     dst_close(&dst, false);
     assert_int_equal(file_size(file2name), filedatalen * iterations);
-    assert_int_equal(unlink(file2name), 0);
+    assert_int_equal(rnp_unlink(file2name), 0);
 
     /* create and populate file stream, using tmp name before closing */
     assert_rnp_success(init_tmpfile_dest(&dst, filename, false));
@@ -304,7 +304,7 @@ TEST_F(rnp_tests, test_stream_file)
     dst_close(&dst, false);
     assert_int_equal(file_size(tmpname), filedatalen);
     assert_int_equal(file_size(filename), filedatalen * iterations);
-    assert_int_equal(unlink(tmpname), 0);
+    assert_int_equal(rnp_unlink(tmpname), 0);
 
     /* create and then close file stream, using tmp name before closing. Overwrite existing. */
     assert_rnp_success(init_tmpfile_dest(&dst, filename, true));
@@ -331,7 +331,7 @@ TEST_F(rnp_tests, test_stream_file)
     assert_int_equal(file_size(dirname), filedatalen);
 
     /* cleanup */
-    assert_int_equal(unlink(dirname), 0);
+    assert_int_equal(rnp_unlink(dirname), 0);
 }
 
 TEST_F(rnp_tests, test_stream_signatures)

@@ -621,6 +621,16 @@ rnp_main(int argc, char **argv)
         return EXIT_ERROR;
     }
 
+#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
+    bool args_are_substituted = false;
+    try {
+        args_are_substituted = rnp_win_substitute_cmdline_args(&argc, &argv);
+    } catch (std::exception &ex) {
+        RNP_LOG("Error converting arguments ('%s')", ex.what());
+        return EXIT_ERROR;
+    }
+#endif
+
     rnp_cfg_init(&cfg);
     rnp_cfg_load_defaults(&cfg);
     optindex = 0;
@@ -755,5 +765,10 @@ rnp_main(int argc, char **argv)
 finish:
     rnp_cfg_free(&cfg);
     cli_rnp_end(&rnp);
+#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
+    if (args_are_substituted) {
+        rnp_win_clear_args(argc, argv);
+    }
+#endif
     return ret;
 }
