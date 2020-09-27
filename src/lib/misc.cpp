@@ -86,7 +86,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "utils.h"
 #include "json_utils.h"
 
-#ifdef WIN32
+#ifdef _WIN32
 #define vsnprintf _vsnprintf
 #endif
 
@@ -400,20 +400,6 @@ rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...)
     char *path = vcompose_path(buf, buf_len, first, ap);
     va_end(ap);
     return path;
-}
-
-bool
-rnp_path_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0;
-}
-
-bool
-rnp_dir_exists(const char *path)
-{
-    struct stat st;
-    return stat(path, &st) == 0 && S_ISDIR(st.st_mode);
 }
 
 bool

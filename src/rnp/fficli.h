@@ -135,6 +135,11 @@ const char *json_obj_get_str(json_object *obj, const char *key);
 int64_t     json_obj_get_int64(json_object *obj, const char *key);
 bool        rnp_casecmp(const std::string &str1, const std::string &str2);
 
+#ifdef _WIN32
+bool rnp_win_substitute_cmdline_args(int *argc, char ***argv);
+void rnp_win_clear_args(int argc, char **argv);
+#endif
+
 /* TODO: we should decide what to do with functions/constants/defines below */
 #define RNP_KEYID_SIZE 8
 #define RNP_FP_SIZE 20

@@ -96,6 +96,83 @@ disable_core_dumps(void)
 }
 #endif
 
+#ifdef _WIN32
+#include "str-utils.h"
+#include <windows.h>
+#include <vector>
+#include <stdexcept>
+
+static std::vector<std::string>
+get_utf8_args()
+{
+    int       arg_nb;
+    wchar_t **arg_w;
+
+    arg_w = CommandLineToArgvW(GetCommandLineW(), &arg_nb);
+    if (!arg_w) {
+        throw std::runtime_error("CommandLineToArgvW failed");
+    }
+
+    try {
+        std::vector<std::string> result;
+        result.reserve(arg_nb);
+        for (int i = 0; i < arg_nb; i++) {
+            auto utf8 = wstr_to_utf8(arg_w[i]);
+            result.push_back(utf8);
+        }
+        LocalFree(arg_w);
+        return result;
+    } catch (...) {
+        LocalFree(arg_w);
+        throw;
+    }
+}
+
+void
+rnp_win_clear_args(int argc, char **argv)
+{
+    for (int i = 0; i < argc; i++) {
+        if (argv[i]) {
+            free(argv[i]);
+        }
+    }
+    delete argv;
+}
+
+bool
+rnp_win_substitute_cmdline_args(int *argc, char ***argv)
+{
+    int    argc_utf8 = 0;
+    char **argv_utf8_cstrs = NULL;
+    try {
+        auto argv_utf8_strings = get_utf8_args();
+        argc_utf8 = argv_utf8_strings.size();
+        if (argc_utf8 != *argc) {
+            throw std::range_error("Unexpected number of arguments from unicode command line");
+        }
+        argv_utf8_cstrs = new (std::nothrow) char *[argc_utf8]();
+        if (!argv_utf8_cstrs) {
+            throw std::bad_alloc();
+        }
+        for (int i = 0; i < argc_utf8; i++) {
+            auto arg_utf8 = strdup(argv_utf8_strings[i].c_str());
+            if (!arg_utf8) {
+                throw std::bad_alloc();
+            }
+            argv_utf8_cstrs[i] = arg_utf8;
+        }
+    } catch (...) {
+        if (argv_utf8_cstrs) {
+            rnp_win_clear_args(argc_utf8, argv_utf8_cstrs);
+        }
+        throw;
+    }
+    *argc = argc_utf8;
+    *argv = argv_utf8_cstrs;
+    return true;
+}
+#endif
+
 static bool
 set_pass_fd(FILE **file, int passfd)
 {
@@ -150,7 +227,7 @@ rnp_get_output_filename(
     while (true) {
         if (rnp_file_exists(newpath)) {
             if (overwrite) {
-                unlink(newpath);
+                rnp_unlink(newpath);
                 return true;
             }
 
@@ -163,7 +240,7 @@ rnp_get_output_filename(
                 return false;
             }
             if (strlen(reply) > 0 && toupper(reply[0]) == 'Y') {
-                unlink(newpath);
+                rnp_unlink(newpath);
                 return true;
             }
 
@@ -410,12 +487,13 @@ cli_rnp_init(cli_rnp_t *rnp, rnp_cfg_t *cfg)
     }
 
     /* Configure the results stream. */
+    // TODO: UTF8?
     const char *ress = rnp_cfg_getstr(cfg, CFG_IO_RESS);
     if (!ress || !strcmp(ress, "<stderr>")) {
         rnp->resfp = stderr;
     } else if (strcmp(ress, "<stdout>") == 0) {
         rnp->resfp = stdout;
-    } else if (!(rnp->resfp = fopen(ress, "w"))) {
+    } else if (!(rnp->resfp = rnp_fopen(ress, "w"))) {
         ERR_MSG("cannot open results %s for writing", ress);
         return false;
     }
@@ -853,7 +931,7 @@ cli_rnp_save_keyrings(cli_rnp_t *rnp)
     // check whether we have G10 secret keyring - then need to create directory
     if (cli_rnp_secformat(rnp) == "G10") {
         struct stat path_stat;
-        if (stat(spath.c_str(), &path_stat) != -1) {
+        if (rnp_stat(spath.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
                 ERR_MSG("G10 keystore should be a directory: %s", spath.c_str());
                 return false;
@@ -1406,8 +1484,8 @@ rnp_cfg_set_ks_info(rnp_cfg_t *cfg)
         secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
 
         struct stat st;
-        bool        pubpath_exists = !stat(pubpath.c_str(), &st);
-        bool        secpath_exists = !stat(secpath.c_str(), &st);
+        bool        pubpath_exists = !rnp_stat(pubpath.c_str(), &st);
+        bool        secpath_exists = !rnp_stat(secpath.c_str(), &st);
 
         if (pubpath_exists && secpath_exists) {
             ks_format = RNP_KEYSTORE_GPG21;
@@ -1477,9 +1555,8 @@ conffile(const char *homedir, char *userid, size_t length)
     static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
                             std::regex_constants::extended);
 #endif
-
     (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
-    if ((fp = fopen(buf, "r")) == NULL) {
+    if ((fp = rnp_fopen(buf, "r")) == NULL) {
         return false;
     }
 #ifndef RNP_USE_STD_REGEX

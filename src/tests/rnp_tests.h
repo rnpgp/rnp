@@ -193,6 +193,8 @@ void test_ffi_clear_keys(void **state);
 
 void test_ffi_save_keys(void **state);
 
+void test_ffi_load_save_keys_to_utf8_path(void **state);
+
 void test_ffi_encrypt_pass(void **state);
 
 void test_ffi_encrypt_pass_provider(void **state);
@@ -378,6 +380,8 @@ void test_stream_825_dearmor_blank_line(void **state);
 void test_stream_dearmor_edge_cases(void **state);
 
 void test_cli_rnpkeys(void **state);
+
+void test_cli_rnpkeys_unicode(void **state);
 
 void test_cli_rnp(void **state);
 

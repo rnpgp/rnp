@@ -39,6 +39,11 @@
 #endif
 #endif
 
+#ifdef _WIN32
+#include <windows.h>
+#include "str-utils.h"
+#endif
+
 int rnp_main(int argc, char **argv);
 int rnpkeys_main(int argc, char **argv);
 
@@ -90,12 +95,12 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_true(file_exists(FILES "/hello.txt.pgp"));
+    assert_true(rnp_file_exists(FILES "/hello.txt.pgp"));
     /* verify signed file */
     ret =
       call_rnp("rnp", "--keyfile", MKEYS "key-pub.asc", "-v", FILES "/hello.txt.pgp", NULL);
     assert_int_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
 
     /* sign with keyfile, using user id */
     ret = call_rnp("rnp",
@@ -110,7 +115,7 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_true(file_exists(FILES "/hello.txt.asc"));
+    assert_true(rnp_file_exists(FILES "/hello.txt.asc"));
     /* verify signed file */
     ret = call_rnp("rnp", "-f", MKEYS "key-pub.asc", "-v", FILES "/hello.txt.asc", NULL);
     assert_int_equal(ret, 0);
@@ -118,12 +123,12 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
     ret =
       call_rnp("rnp", "-f", MKEYS "key-pub-just-key.pgp", "-v", FILES "/hello.txt.asc", NULL);
     assert_int_not_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.asc"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.asc"), 0);
 
     /* encrypt with keyfile, using default key */
     ret = call_rnp("rnp", "--keyfile", MKEYS "key-pub.asc", "-e", FILES "/hello.txt", NULL);
     assert_int_equal(ret, 0);
-    assert_true(file_exists(FILES "/hello.txt.pgp"));
+    assert_true(rnp_file_exists(FILES "/hello.txt.pgp"));
     /* decrypt it with raw seckey, without userids and sigs */
     ret = call_rnp("rnp",
                    "--keyfile",
@@ -134,7 +139,7 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt.pgp",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
 
     /* try to encrypt with keyfile, using the signing subkey */
     ret = call_rnp("rnp",
@@ -147,7 +152,7 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt",
                    NULL);
     assert_int_not_equal(ret, 0);
-    assert_false(file_exists(FILES "/hello.txt.asc"));
+    assert_false(rnp_file_exists(FILES "/hello.txt.asc"));
     /* now encrypt with keyfile, using the encrypting subkey */
     ret = call_rnp("rnp",
                    "--keyfile",
@@ -159,7 +164,7 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_true(file_exists(FILES "/hello.txt.asc"));
+    assert_true(rnp_file_exists(FILES "/hello.txt.asc"));
     /* fail to decrypt it with pubkey */
     ret = call_rnp("rnp",
                    "--keyfile",
@@ -180,7 +185,7 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    FILES "/hello.txt.asc",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.asc"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.asc"), 0);
 }
 
 static bool
@@ -208,7 +213,7 @@ test_cli_g10_key_sign(const char *userid)
     if (ret) {
         return false;
     }
-    unlink(FILES "/hello.txt.pgp");
+    rnp_unlink(FILES "/hello.txt.pgp");
     return true;
 }
 
@@ -235,7 +240,7 @@ test_cli_g10_key_encrypt(const char *userid)
     if (ret) {
         return false;
     }
-    unlink(FILES "/hello.txt.pgp");
+    rnp_unlink(FILES "/hello.txt.pgp");
     return true;
 }
 
@@ -251,7 +256,7 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     /* verify back */
     ret = call_rnp("rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", NULL);
     assert_int_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
 
     /* encrypt with default g10 key */
     ret = call_rnp("rnp", "--homedir", G10KEYS, "-e", FILES "/hello.txt", NULL);
@@ -267,7 +272,7 @@ TEST_F(rnp_tests, test_cli_g10_operations)
                    FILES "/hello.txt.pgp",
                    NULL);
     assert_int_equal(ret, 0);
-    assert_int_equal(unlink(FILES "/hello.txt.pgp"), 0);
+    assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
 
     /* check dsa/eg key */
     assert_true(test_cli_g10_key_sign("c8a10a7d78273e10"));    // signing key
@@ -332,6 +337,125 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     assert_true(test_cli_g10_key_encrypt("3ea5bb6f9692c1a0"));
     assert_false(test_cli_g10_key_sign("7635401f90d3e533"));
     assert_true(test_cli_g10_key_encrypt("7635401f90d3e533"));
+}
+
+TEST_F(rnp_tests, test_cli_rnpkeys_unicode)
+{
+#ifdef _WIN32
+    std::string  uid_acp = "\x80@a.com";
+    std::wstring uid2_wide =
+      L"\x03C9\x0410@b.com"; // some Greek and Cyrillic for CreateProcessW test
+    char *rnpkeys_path = rnp_compose_path(original_dir(), "../rnpkeys/rnpkeys.exe", NULL);
+    std::string homedir_s = std::string(m_dir) + "/unicode";
+    rnp_mkdir(homedir_s.c_str());
+    std::string path_s = rnpkeys_path;
+    std::string cmdline_s = path_s + " --numbits 2048 --homedir " + homedir_s +
+                            " --password password --userid " + uid_acp + " --generate-key";
+    UINT         acp = GetACP();
+    STARTUPINFOA si;
+    ZeroMemory(&si, sizeof si);
+    PROCESS_INFORMATION pi;
+    ZeroMemory(&pi, sizeof pi);
+    BOOL res = CreateProcessA(NULL, // (LPSTR) path_s.c_str(), // Module name
+                              (LPSTR) cmdline_s.c_str(), // Command line
+                              NULL,                      // Process handle not inheritable
+                              NULL,                      // Thread handle not inheritable
+                              FALSE,                     // Handle inheritance
+                              0,                         // Creation flags
+                              NULL,                      // Use parent's environment block
+                              NULL,                      // Use parent's starting directory
+                              &si,                       // Pointer to STARTUPINFO structure
+                              &pi); // Pointer to PROCESS_INFORMATION structure
+    assert_true(res);
+    assert_true(WaitForSingleObject(pi.hProcess, INFINITE) == WAIT_OBJECT_0);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+
+    std::wstring homedir_ws = wstr_from_utf8(homedir_s);
+    std::wstring path_ws = wstr_from_utf8(path_s);
+    std::wstring cmdline_ws = path_ws + L" --numbits 2048 --homedir " + homedir_ws +
+                              L" --password password --userid " + uid2_wide +
+                              L" --generate-key";
+    STARTUPINFOW siw;
+    ZeroMemory(&siw, sizeof siw);
+    ZeroMemory(&pi, sizeof pi);
+    res = CreateProcessW(NULL,
+                         (LPWSTR) cmdline_ws.c_str(), // Command line
+                         NULL,                        // Process handle not inheritable
+                         NULL,                        // Thread handle not inheritable
+                         FALSE,                       // Handle inheritance
+                         0,                           // Creation flags
+                         NULL,                        // Use parent's environment block
+                         NULL,                        // Use parent's starting directory
+                         &siw,                        // Pointer to STARTUPINFO structure
+                         &pi); // Pointer to PROCESS_INFORMATION structure
+    assert_true(res);
+    assert_true(WaitForSingleObject(pi.hProcess, INFINITE) == WAIT_OBJECT_0);
+    CloseHandle(pi.hProcess);
+    CloseHandle(pi.hThread);
+    // Load the keyring and check what was actually written
+    rnp_ffi_t ffi;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "unicode/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+
+    // convert from ACP to wide char via Windows native mechanism
+    int convertResult = MultiByteToWideChar(acp, 0, uid_acp.c_str(), uid_acp.size(), NULL, 0);
+    assert_true(convertResult > 0);
+    std::wstring uid_wide;
+    uid_wide.resize(convertResult);
+    convertResult = MultiByteToWideChar(
+      acp, 0, uid_acp.c_str(), uid_acp.size(), &uid_wide[0], (int) uid_wide.size());
+    assert_true(convertResult > 0);
+
+    // we expect to find UID in UTF-8
+    std::string      uid_utf8 = wstr_to_utf8(uid_wide);
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", uid_utf8.c_str(), &key));
+    assert_non_null(key);
+
+    size_t uids = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_non_null(uid);
+
+    size_t size = 0;
+    char * data = NULL;
+    assert_rnp_success(rnp_uid_get_data(uid, (void **) &data, &size));
+    std::string uid_read(data, data + size);
+    assert_int_equal(0, uid_read.compare(uid_utf8));
+    rnp_buffer_destroy(data);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    uid_utf8 = wstr_to_utf8(uid2_wide);
+    key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", uid_utf8.c_str(), &key));
+    assert_non_null(key);
+
+    uids = 0;
+    assert_rnp_success(rnp_key_get_uid_count(key, &uids));
+    assert_int_equal(uids, 1);
+
+    uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_non_null(uid);
+
+    size = 0;
+    data = NULL;
+    assert_rnp_success(rnp_uid_get_data(uid, (void **) &data, &size));
+    std::string uid2_read(data, data + size);
+    assert_int_equal(0, uid2_read.compare(uid_utf8));
+    rnp_buffer_destroy(data);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+#endif
 }
 
 TEST_F(rnp_tests, test_cli_rnp)
