@@ -737,9 +737,10 @@ process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors)
     keys.keys.clear();
     /* check whether keys are armored */
 armoredpass:
-    if (is_armored_source(src)) {
-        if ((ret = init_armored_src(&armorsrc, src))) {
+    if ((src->type != PGP_STREAM_ARMORED) && is_armored_source(src)) {
+        if (init_armored_src(&armorsrc, src)) {
             RNP_LOG("failed to parse armored data");
+            ret = RNP_ERROR_READ;
             goto finish;
         }
         armored = true;
@@ -802,10 +803,10 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
 
     key = pgp_transferable_key_t();
     /* check whether keys are armored */
-    if (is_armored_source(src)) {
-        if ((ret = init_armored_src(&armorsrc, src))) {
+    if ((src->type != PGP_STREAM_ARMORED) && is_armored_source(src)) {
+        if (init_armored_src(&armorsrc, src)) {
             RNP_LOG("failed to parse armored data");
-            return ret;
+            return RNP_ERROR_READ;
         }
         armored = true;
         src = &armorsrc;
