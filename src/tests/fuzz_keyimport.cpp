@@ -36,4 +36,7 @@ TEST_F(rnp_tests, test_fuzz_keyimport)
 {
     auto data = file_to_vec(DATA_PATH "crash_25f06f13b48d58a5faf6c36fae7fcbd958359199");
     assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "crash_e932261875271ccf497715de56adf7caf30ca8a7");
+    assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }

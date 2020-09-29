@@ -690,7 +690,8 @@ process_pgp_key_auto(pgp_source_t &          src,
                      bool                    skiperrors)
 {
     key = {};
-    int ptag = stream_pkt_type(&src);
+    uint64_t srcpos = src.readb;
+    int      ptag = stream_pkt_type(&src);
     if (is_subkey_pkt(ptag) && allowsub) {
         pgp_transferable_subkey_t subkey;
         rnp_result_t              ret = process_pgp_subkey(src, subkey, skiperrors);
@@ -701,6 +702,10 @@ process_pgp_key_auto(pgp_source_t &          src,
                 RNP_LOG("%s", e.what());
                 ret = RNP_ERROR_OUT_OF_MEMORY;
             }
+        }
+        /* change error code if we didn't process anything at all */
+        if (srcpos == src.readb) {
+            ret = RNP_ERROR_BAD_STATE;
         }
         return ret;
     }
@@ -720,6 +725,10 @@ process_pgp_key_auto(pgp_source_t &          src,
                            PGP_PKT_PUBLIC_SUBKEY,
                            PGP_PKT_SECRET_SUBKEY})) {
         ret = RNP_ERROR_READ;
+    }
+    /* change error code if we didn't process anything at all */
+    if (srcpos == src.readb) {
+        ret = RNP_ERROR_BAD_STATE;
     }
     return ret;
 }
