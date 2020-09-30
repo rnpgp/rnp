@@ -48,26 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Add subpacket of the specified type to v4 signature
- * @param sig loaded or populated signature, could not be NULL
- * @param type type of the subpacket
- * @param datalen length of the subpacket body
- * @param reuse replace already existing subpacket of the specified type if any
- * @return pointer to the subpacket structure or NULL if error occurred
- */
-pgp_sig_subpkt_t *signature_add_subpkt(pgp_signature_t *        sig,
-                                       pgp_sig_subpacket_type_t type,
-                                       size_t                   datalen,
-                                       bool                     reuse);
-
-/**
- * @brief Remove signature's subpacket
- * @param sig loaded or populated signature, could not be NULL
- * @param subpkt subpacket to remove. If not in the subpackets list then no action is taken.
- */
-void signature_remove_subpkt(pgp_signature_t *sig, pgp_sig_subpkt_t *subpkt);
-
-/**
  * @brief Get type of the signature.
  * @param sig loaded or populated signature, could not be NULL
  * @return type of the signature
