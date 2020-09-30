@@ -390,7 +390,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.version = PGP_V4;
     sig.halg = halg;
     sig.palg = pgp_key_get_alg(key);
-    sig.type = PGP_SIG_BINARY;
+    sig.set_type(PGP_SIG_BINARY);
     assert_true(signature_set_keyfp(&sig, pgp_key_get_fp(key)));
     assert_true(signature_set_keyid(&sig, pgp_key_get_keyid(key)));
     assert_true(signature_set_creation(&sig, create));

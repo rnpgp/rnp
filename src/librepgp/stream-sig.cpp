@@ -45,12 +45,6 @@
 
 #include <time.h>
 
-pgp_sig_type_t
-signature_get_type(const pgp_signature_t *sig)
-{
-    return sig->type;
-}
-
 bool
 signature_has_keyfp(const pgp_signature_t *sig)
 {
@@ -723,11 +717,11 @@ signature_fill_hashed_data(pgp_signature_t *sig)
     }
 
     if (sig->version < PGP_V4) {
-        res = add_packet_body_byte(&hbody, sig->type) &&
+        res = add_packet_body_byte(&hbody, sig->type()) &&
               add_packet_body_uint32(&hbody, sig->creation_time);
     } else {
         res = add_packet_body_byte(&hbody, sig->version) &&
-              add_packet_body_byte(&hbody, sig->type) &&
+              add_packet_body_byte(&hbody, sig->type()) &&
               add_packet_body_byte(&hbody, sig->palg) &&
               add_packet_body_byte(&hbody, sig->halg) &&
               add_packet_body_subpackets(&hbody, sig, true);
@@ -1000,7 +994,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
         RNP_LOG("invalid embedded signature subpacket");
         return res;
     }
-    if (subpkt->fields.sig->type != PGP_SIG_PRIMARY) {
+    if (subpkt->fields.sig->type() != PGP_SIG_PRIMARY) {
         RNP_LOG("invalid primary key binding signature");
         return res;
     }
@@ -1197,7 +1191,7 @@ pgp_sig_subpkt_t::~pgp_sig_subpkt_t()
 pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
 {
     version = src.version;
-    type = src.type;
+    type_ = src.type_;
     palg = src.palg;
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
@@ -1226,7 +1220,7 @@ pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
 pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
 {
     version = src.version;
-    type = src.type;
+    type_ = src.type_;
     palg = src.palg;
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
@@ -1249,7 +1243,7 @@ pgp_signature_t::operator=(pgp_signature_t &&src)
     }
 
     version = src.version;
-    type = src.type;
+    type_ = src.type_;
     palg = src.palg;
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
@@ -1276,7 +1270,7 @@ pgp_signature_t::operator=(const pgp_signature_t &src)
     }
 
     version = src.version;
-    type = src.type;
+    type_ = src.type_;
     palg = src.palg;
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
@@ -1407,6 +1401,6 @@ pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
     if (!signature_get_keyid(this, keyid)) {
         return false;
     }
-    return (halg == onepass.halg) && (palg == onepass.palg) && (type == onepass.type) &&
+    return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type) &&
            (keyid == onepass.keyid);
 }

@@ -1110,11 +1110,11 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     if (signer->onepass.version) {
         sig.halg = signer->onepass.halg;
         sig.palg = signer->onepass.palg;
-        sig.type = signer->onepass.type;
+        sig.set_type(signer->onepass.type);
     } else {
         sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
         sig.palg = pgp_key_get_alg(signer->key);
-        sig.type = param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT;
+        sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
     }
 
     if (!(ret = signed_fill_signature(param, &sig, signer))) {

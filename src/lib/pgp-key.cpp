@@ -767,7 +767,7 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
 static bool
 pgp_sig_is_certification(const pgp_subsig_t *sig)
 {
-    pgp_sig_type_t type = signature_get_type(&sig->sig);
+    pgp_sig_type_t type = sig->sig.type();
     return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
            (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
 }
@@ -805,7 +805,7 @@ pgp_sig_is_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
 static bool
 pgp_sig_is_direct_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
-    if (!pgp_key_is_primary_key(key) || (signature_get_type(&sig->sig) != PGP_SIG_DIRECT)) {
+    if (!pgp_key_is_primary_key(key) || (sig->sig.type() != PGP_SIG_DIRECT)) {
         return false;
     }
 
@@ -815,25 +815,25 @@ pgp_sig_is_direct_self_signature(const pgp_key_t *key, const pgp_subsig_t *sig)
 static bool
 pgp_sig_is_key_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
-    return pgp_key_is_primary_key(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_KEY);
+    return pgp_key_is_primary_key(key) && (sig->sig.type() == PGP_SIG_REV_KEY);
 }
 
 static bool
 pgp_sig_is_userid_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
-    return pgp_key_is_primary_key(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_CERT);
+    return pgp_key_is_primary_key(key) && (sig->sig.type() == PGP_SIG_REV_CERT);
 }
 
 static bool
 pgp_sig_is_subkey_binding(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
-    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_SUBKEY);
+    return pgp_key_is_subkey(key) && (sig->sig.type() == PGP_SIG_SUBKEY);
 }
 
 static bool
 pgp_sig_is_subkey_revocation(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
-    return pgp_key_is_subkey(key) && (signature_get_type(&sig->sig) == PGP_SIG_REV_SUBKEY);
+    return pgp_key_is_subkey(key) && (sig->sig.type() == PGP_SIG_REV_SUBKEY);
 }
 
 pgp_subsig_t *
@@ -939,7 +939,7 @@ pgp_key_validate_signature(pgp_key_t *   key,
         sinfo.ignore_expiry = true;
     }
 
-    pgp_sig_type_t stype = signature_get_type(&sig->sig);
+    pgp_sig_type_t stype = sig->sig.type();
     switch (stype) {
     case PGP_SIG_BINARY:
     case PGP_SIG_TEXT:

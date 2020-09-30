@@ -322,7 +322,7 @@ typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
 typedef struct pgp_signature_t {
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_sig_type_t   type;
+    pgp_sig_type_t   type_;
     pgp_pubkey_alg_t palg;
     pgp_hash_alg_t   halg;
     uint8_t          lbits[2];
@@ -339,7 +339,7 @@ typedef struct pgp_signature_t {
     std::vector<pgp_sig_subpkt_t> subpkts;
 
     pgp_signature_t()
-        : version(PGP_VUNKNOWN), type(PGP_SIG_BINARY), palg(PGP_PKA_NOTHING),
+        : version(PGP_VUNKNOWN), type_(PGP_SIG_BINARY), palg(PGP_PKA_NOTHING),
           halg(PGP_HASH_UNKNOWN), hashed_data(NULL), hashed_len(0), material_buf(NULL),
           material_len(0), creation_time(0){};
     pgp_signature_t(const pgp_signature_t &src);
@@ -349,6 +349,18 @@ typedef struct pgp_signature_t {
     bool             operator==(const pgp_signature_t &src) const;
     bool             operator!=(const pgp_signature_t &src) const;
     ~pgp_signature_t();
+
+    /* @brief Get signature's type */
+    pgp_sig_type_t
+    type() const
+    {
+        return type_;
+    };
+    void
+    set_type(pgp_sig_type_t atype)
+    {
+        type_ = atype;
+    };
 
     /**
      * @brief Get v4 signature's subpacket of the specified type and hashedness.

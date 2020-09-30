@@ -1380,7 +1380,7 @@ signature_read_v3(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     sig->hashed_len = 5;
 
     /* signature type */
-    sig->type = (pgp_sig_type_t) buf[1];
+    sig->set_type((pgp_sig_type_t) buf[1]);
 
     /* creation time */
     sig->creation_time = read_uint32(&buf[2]);
@@ -1675,7 +1675,7 @@ signature_read_v4(pgp_packet_body_t *pkt, pgp_signature_t *sig)
     }
 
     /* signature type */
-    sig->type = (pgp_sig_type_t) buf[0];
+    sig->set_type((pgp_sig_type_t) buf[0]);
 
     /* public key algorithm */
     sig->palg = (pgp_pubkey_alg_t) buf[1];

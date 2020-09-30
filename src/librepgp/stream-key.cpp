@@ -301,7 +301,7 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, &signer);
     sig.palg = signer.alg;
-    sig.type = PGP_CERT_POSITIVE;
+    sig.set_type(PGP_CERT_POSITIVE);
 
     if (!signature_set_keyfp(&sig, keyfp)) {
         RNP_LOG("failed to set issuer fingerprint");
@@ -383,7 +383,7 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
     sig->version = PGP_V4;
     sig->halg = pgp_hash_adjust_alg_to_key(halg, subkey);
     sig->palg = subkey->alg;
-    sig->type = PGP_SIG_PRIMARY;
+    sig->set_type(PGP_SIG_PRIMARY);
 
     if (pgp_keyid(keyid, subkey)) {
         RNP_LOG("failed to calculate keyid");
@@ -491,7 +491,7 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, &key);
     sig.palg = key.alg;
-    sig.type = PGP_SIG_SUBKEY;
+    sig.set_type(PGP_SIG_SUBKEY);
 
     if (!signature_set_keyfp(&sig, keyfp)) {
         RNP_LOG("failed to set issuer fingerprint");
@@ -551,7 +551,7 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, &signer);
     sig.palg = signer.alg;
-    sig.type = is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY;
+    sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
 
     if (!signature_set_keyfp(&sig, keyfp)) {
         RNP_LOG("failed to set issuer fingerprint");
