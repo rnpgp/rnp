@@ -48,14 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Check whether signature packet matches one-pass signature packet.
- * @param sig pointer to the read signature packet
- * @param onepass pointer to the read one-pass signature packet
- * @return true if sig corresponds to onepass or false otherwise
- */
-bool signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass);
-
-/**
  * @brief Add subpacket of the specified type to v4 signature
  * @param sig loaded or populated signature, could not be NULL
  * @param type type of the subpacket
