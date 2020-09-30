@@ -360,6 +360,21 @@ typedef struct pgp_signature_t {
     pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
     const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
                                        bool                     hashed = true) const;
+    /**
+     * @brief Add subpacket of the specified type to v4 signature
+     * @param type type of the subpacket
+     * @param datalen length of the subpacket body
+     * @param reuse replace already existing subpacket of the specified type if any
+     * @return reference to the subpacket structure or throws an exception
+     */
+    pgp_sig_subpkt_t &add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse);
+
+    /**
+     * @brief Remove signature's subpacket
+     * @param subpkt subpacket to remove. If not in the subpackets list then no action is
+     * taken.
+     */
+    void remove_subpkt(pgp_sig_subpkt_t *subpkt);
 
     /**
      * @brief Check whether signature packet matches one-pass signature packet.
