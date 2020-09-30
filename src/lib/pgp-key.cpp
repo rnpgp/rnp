@@ -852,7 +852,7 @@ pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
             continue;
         }
 
-        if (subpkt && !signature_get_subpkt(&sig->sig, subpkt)) {
+        if (subpkt && !sig->sig.get_subpkt(subpkt)) {
             continue;
         }
 
@@ -1612,7 +1612,7 @@ update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t
         return false;
     }
     if (!expiry) {
-        pgp_sig_subpkt_t *subpkt = signature_get_subpkt(dst, PGP_SIG_SUBPKT_KEY_EXPIRY);
+        pgp_sig_subpkt_t *subpkt = dst->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
         signature_remove_subpkt(dst, subpkt);
     } else {
         signature_set_key_expiration(dst, expiry);

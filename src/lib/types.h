@@ -347,6 +347,11 @@ typedef struct pgp_signature_t {
     bool             operator==(const pgp_signature_t &src) const;
     bool             operator!=(const pgp_signature_t &src) const;
     ~pgp_signature_t();
+
+    /* Get v4 signature's subpacket of the specified type and hashedness */
+    pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
+    const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
+                                       bool                     hashed = true) const;
 } pgp_signature_t;
 
 /** pgp_rawpacket_t */
