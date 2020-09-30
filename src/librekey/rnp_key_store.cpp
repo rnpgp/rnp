@@ -388,7 +388,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         for (unsigned i = 0; i < pgp_key_get_subsig_count(&skey); i++) {
             const pgp_subsig_t *subsig = pgp_key_get_subsig(&skey, i);
 
-            if (subsig->sig.type != PGP_SIG_SUBKEY) {
+            if (subsig->sig.type() != PGP_SIG_SUBKEY) {
                 continue;
             }
 
@@ -590,8 +590,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
                                       pgp_key_t *            key,
                                       const pgp_signature_t *sig)
 {
-    pgp_sig_type_t sigtype = signature_get_type(sig);
-    if ((sigtype != PGP_SIG_SUBKEY) && (sigtype != PGP_SIG_REV_SUBKEY)) {
+    if ((sig->type() != PGP_SIG_SUBKEY) && (sig->type() != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
     pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, sig);
@@ -629,9 +628,8 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     if (pgp_key_is_subkey(key)) {
         return rnp_key_store_import_subkey_signature(keyring, key, sig);
     }
-    pgp_sig_type_t sigtype = signature_get_type(sig);
-    if ((sigtype != PGP_SIG_DIRECT) && (sigtype != PGP_SIG_REV_KEY)) {
-        RNP_LOG("Wrong signature type: %d", (int) sigtype);
+    if ((sig->type() != PGP_SIG_DIRECT) && (sig->type() != PGP_SIG_REV_KEY)) {
+        RNP_LOG("Wrong signature type: %d", (int) sig->type());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
@@ -663,9 +661,8 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
     }
     *status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
 
-    pgp_sig_type_t sigtype = signature_get_type(sig);
     /* we support only direct-key and key revocation signatures here */
-    if ((sigtype != PGP_SIG_DIRECT) && (sigtype != PGP_SIG_REV_KEY)) {
+    if ((sig->type() != PGP_SIG_DIRECT) && (sig->type() != PGP_SIG_REV_KEY)) {
         return NULL;
     }
 
@@ -814,7 +811,7 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
 
     for (unsigned i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
         const pgp_subsig_t *subsig = pgp_key_get_subsig(subkey, i);
-        if (subsig->sig.type != PGP_SIG_SUBKEY) {
+        if (subsig->sig.type() != PGP_SIG_SUBKEY) {
             continue;
         }
 

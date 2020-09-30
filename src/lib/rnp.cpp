@@ -6920,7 +6920,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     json_object_object_add(jso, "version", jsoversion);
     // signature type
     const char *type = "unknown";
-    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, sig->type, type);
+    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, sig->type(), type);
     if (!add_json_string_field(jso, "type", type)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

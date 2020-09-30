@@ -48,13 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Get type of the signature.
- * @param sig loaded or populated signature, could not be NULL
- * @return type of the signature
- */
-pgp_sig_type_t signature_get_type(const pgp_signature_t *sig);
-
-/**
  * @brief Check whether signature has signing key fingerprint
  * @param sig loaded or populated v4 signature, could not be NULL
  * @return true if fingerprint is available or false otherwise
