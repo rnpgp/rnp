@@ -7946,7 +7946,7 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     pgp_signature_t sig = {};
     assert_rnp_success(stream_parse_signature(&src, &sig));
     src_close(&src);
-    assert_int_equal(signature_get_type(&sig), PGP_SIG_REV_KEY);
+    assert_int_equal(sig.type(), PGP_SIG_REV_KEY);
     assert_true(signature_has_revocation_reason(&sig));
     assert_true(signature_has_keyfp(&sig));
     pgp_revocation_type_t code = PGP_REVOCATION_NO_REASON;

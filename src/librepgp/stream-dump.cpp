@@ -700,7 +700,7 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) sig->version);
-    dst_print_sig_type(dst, "type", sig->type);
+    dst_print_sig_type(dst, "type", sig->type());
     if (sig->version < PGP_V4) {
         dst_print_time(dst, "creation time", sig->creation_time);
         dst_print_keyid(dst, "signing key id", sig->signer);
@@ -1702,7 +1702,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     if (!obj_add_field_json(pkt, "version", json_object_new_int(sig->version))) {
         goto done;
     }
-    if (!obj_add_intstr_json(pkt, "type", sig->type, sig_type_map)) {
+    if (!obj_add_intstr_json(pkt, "type", sig->type(), sig_type_map)) {
         goto done;
     }
 
