@@ -317,6 +317,8 @@ typedef struct pgp_sig_subpkt_t {
     ~pgp_sig_subpkt_t();
 } pgp_sig_subpkt_t;
 
+typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
+
 typedef struct pgp_signature_t {
     pgp_version_t version;
     /* common v3 and v4 fields */
@@ -358,6 +360,13 @@ typedef struct pgp_signature_t {
     pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
     const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
                                        bool                     hashed = true) const;
+
+    /**
+     * @brief Check whether signature packet matches one-pass signature packet.
+     * @param onepass reference to the read one-pass signature packet
+     * @return true if sig corresponds to onepass or false otherwise
+     */
+    bool matches_onepass(const pgp_one_pass_sig_t &onepass) const;
 } pgp_signature_t;
 
 /** pgp_rawpacket_t */

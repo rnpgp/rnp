@@ -943,7 +943,7 @@ signed_read_signatures(pgp_source_t *src)
             return ret;
         }
 
-        if (!signature_matches_onepass(sig, &*op)) {
+        if (!sig || !sig->matches_onepass(*op)) {
             RNP_LOG("signature doesn't match one-pass");
             return RNP_ERROR_BAD_FORMAT;
         }
