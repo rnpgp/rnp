@@ -44,22 +44,6 @@
 
 #include <time.h>
 
-bool
-signature_matches_onepass(pgp_signature_t *sig, pgp_one_pass_sig_t *onepass)
-{
-    if (!sig || !onepass) {
-        return false;
-    }
-
-    pgp_key_id_t keyid = {};
-    if (!signature_get_keyid(sig, keyid)) {
-        return false;
-    }
-
-    return (keyid == onepass->keyid) && (sig->halg == onepass->halg) &&
-           (sig->palg == onepass->palg) && (sig->type == onepass->type);
-}
-
 pgp_sig_subpkt_t *
 signature_add_subpkt(pgp_signature_t *        sig,
                      pgp_sig_subpacket_type_t type,
@@ -1443,4 +1427,15 @@ pgp_signature_t::get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed) const
         }
     }
     return NULL;
+}
+
+bool
+pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
+{
+    pgp_key_id_t keyid = {};
+    if (!signature_get_keyid(this, keyid)) {
+        return false;
+    }
+    return (halg == onepass.halg) && (palg == onepass.palg) && (type == onepass.type) &&
+           (keyid == onepass.keyid);
 }
