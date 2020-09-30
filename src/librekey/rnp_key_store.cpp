@@ -573,7 +573,8 @@ rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
 {
     pgp_key_search_t search = {};
     // prefer using the issuer fingerprint when available
-    if (signature_has_keyfp(sig) && signature_get_keyfp(sig, search.by.fingerprint)) {
+    if (sig->has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR) &&
+        signature_get_keyfp(sig, search.by.fingerprint)) {
         search.type = PGP_KEY_SEARCH_FINGERPRINT;
         return rnp_key_store_search(store, &search, NULL);
     }
