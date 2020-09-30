@@ -968,15 +968,15 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(signature_get_keyfp(psig, fp));
         assert_true(fp == pgp_key_get_fp(&pub));
         // check subpackets and their contents
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
         assert_int_equal(
           0, memcmp(subpkt->fields.issuer, pgp_key_get_keyid(&pub).data(), PGP_KEY_ID_SIZE));
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_CREATION_TIME);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
         assert_true(subpkt->fields.create <= time(NULL));
@@ -1097,17 +1097,17 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(signature_get_keyfp(psig, fp));
         assert_true(fp == pgp_key_get_fp(primary_pub));
         // check subpackets and their contents
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_FPR);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_ISSUER_KEY_ID);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
         assert_int_equal(0,
                          memcmp(subpkt->fields.issuer,
                                 pgp_key_get_keyid(primary_pub).data(),
                                 PGP_KEY_ID_SIZE));
-        subpkt = signature_get_subpkt(psig, PGP_SIG_SUBPKT_CREATION_TIME);
+        subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
         assert_true(subpkt->fields.create <= time(NULL));
