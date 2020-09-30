@@ -756,7 +756,7 @@ static const pgp_hash_t *
 get_hash_for_sig(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
-    if (!param->cleartext && (sinfo->sig->type == PGP_SIG_TEXT)) {
+    if (!param->cleartext && (sinfo->sig->type() == PGP_SIG_TEXT)) {
         return pgp_hash_list_get(param->txt_hashes, sinfo->sig->halg);
     }
     return pgp_hash_list_get(param->hashes, sinfo->sig->halg);
@@ -2198,9 +2198,9 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             /* no need to check the error here - we already know tag */
             signed_read_single_signature(param, readsrc, &sig);
             /* adding hash context */
-            if (sig && !add_hash_for_sig(param, sig->type, sig->halg)) {
+            if (sig && !add_hash_for_sig(param, sig->type(), sig->halg)) {
                 RNP_LOG(
-                  "Failed to create hash %d for sig %d.", (int) sig->halg, (int) sig->type);
+                  "Failed to create hash %d for sig %d.", (int) sig->halg, (int) sig->type());
                 errcode = RNP_ERROR_BAD_PARAMETERS;
                 goto finish;
             }
