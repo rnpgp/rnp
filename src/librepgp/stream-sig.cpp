@@ -46,12 +46,6 @@
 #include <time.h>
 
 bool
-signature_has_keyfp(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-}
-
-bool
 signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp)
 {
     if (!sig || (sig->version < PGP_V4)) {
@@ -91,17 +85,6 @@ signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp)
         RNP_LOG("%s", e.what());
         return false;
     }
-}
-
-bool
-signature_has_keyid(const pgp_signature_t *sig)
-{
-    if (!sig) {
-        return false;
-    }
-
-    return (sig->version < PGP_V4) || sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false) ||
-           sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
 }
 
 bool
@@ -228,12 +211,6 @@ signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
     }
 }
 
-bool
-signature_has_key_expiration(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
-}
-
 uint32_t
 signature_get_key_expiration(const pgp_signature_t *sig)
 {
@@ -255,12 +232,6 @@ signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime)
         RNP_LOG("%s", e.what());
         return false;
     }
-}
-
-bool
-signature_has_key_flags(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS);
 }
 
 uint8_t
@@ -349,12 +320,6 @@ signature_get_preferred_algs(const pgp_signature_t *  sig,
 }
 
 bool
-signature_has_preferred_symm_algs(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_PREFERRED_SKA);
-}
-
-bool
 signature_get_preferred_symm_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count)
 {
     return signature_get_preferred_algs(sig, algs, count, PGP_SIG_SUBPKT_PREFERRED_SKA);
@@ -364,12 +329,6 @@ bool
 signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
 {
     return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_SKA);
-}
-
-bool
-signature_has_preferred_hash_algs(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_PREFERRED_HASH);
 }
 
 bool
@@ -385,12 +344,6 @@ signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t l
 }
 
 bool
-signature_has_preferred_z_algs(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_PREF_COMPRESS);
-}
-
-bool
 signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count)
 {
     return signature_get_preferred_algs(sig, algs, count, PGP_SIG_SUBPKT_PREF_COMPRESS);
@@ -400,12 +353,6 @@ bool
 signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
 {
     return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREF_COMPRESS);
-}
-
-bool
-signature_has_key_server_prefs(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS);
 }
 
 uint8_t
@@ -447,12 +394,6 @@ signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri)
         RNP_LOG("%s", e.what());
         return false;
     }
-}
-
-bool
-signature_has_trust(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_TRUST);
 }
 
 bool
@@ -621,12 +562,6 @@ signature_add_notation_data(pgp_signature_t *sig,
     }
 }
 
-bool
-signature_has_key_server(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
-}
-
 char *
 signature_get_key_server(const pgp_signature_t *sig)
 {
@@ -641,12 +576,6 @@ signature_get_key_server(const pgp_signature_t *sig)
         res[subpkt->len] = '\0';
     }
     return res;
-}
-
-bool
-signature_has_revocation_reason(const pgp_signature_t *sig)
-{
-    return sig->get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
 }
 
 bool
@@ -1353,6 +1282,28 @@ pgp_signature_t::get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed) const
         }
     }
     return NULL;
+}
+
+bool
+pgp_signature_t::has_subpkt(pgp_sig_subpacket_type_t stype, bool hashed) const
+{
+    if (version < PGP_V4) {
+        return false;
+    }
+    for (auto &subpkt : subpkts) {
+        /* if hashed is false then accept any hashed/not hashed subpacket */
+        if ((subpkt.type == stype) && (!hashed || subpkt.hashed)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool
+pgp_signature_t::has_keyid() const
+{
+    return (version < PGP_V4) || has_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false) ||
+           has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
 }
 
 pgp_sig_subpkt_t &

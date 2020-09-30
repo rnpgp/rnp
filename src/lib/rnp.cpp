@@ -6951,7 +6951,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     // signer
     json_object *jsosigner = NULL;
     // TODO: add signer fingerprint as well (no support internally yet)
-    if (signature_has_keyid(sig)) {
+    if (sig->has_keyid()) {
         jsosigner = json_object_new_object();
         if (!jsosigner) {
             return RNP_ERROR_OUT_OF_MEMORY;
