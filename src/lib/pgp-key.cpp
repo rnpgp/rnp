@@ -658,7 +658,7 @@ pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
 {
     pgp_subsig_t subsig = {};
     subsig.sig = *sig;
-    if (signature_has_trust(&subsig.sig)) {
+    if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
         signature_get_trust(&subsig.sig, &subsig.trustlevel, &subsig.trustamount);
     }
     uint8_t *algs = NULL;
@@ -678,17 +678,17 @@ pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
         RNP_LOG("failed to alloc z algs");
         return false;
     }
-    if (signature_has_key_flags(&subsig.sig)) {
+    if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         subsig.key_flags = signature_get_key_flags(&subsig.sig);
     }
-    if (signature_has_key_server_prefs(&subsig.sig)) {
+    if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
         uint8_t ks_pref = signature_get_key_server_prefs(&subsig.sig);
         if (!pgp_user_prefs_set_ks_prefs(&subsig.prefs, &ks_pref, 1)) {
             RNP_LOG("failed to alloc ks prefs");
             return false;
         }
     }
-    if (signature_has_key_server(&subsig.sig)) {
+    if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
         subsig.prefs.key_server = (uint8_t *) signature_get_key_server(&subsig.sig);
         if (!subsig.prefs.key_server) {
             RNP_LOG("failed to alloc ks");
@@ -776,13 +776,13 @@ static bool
 pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
     /* if we have fingerprint let's check it */
-    if (signature_has_keyfp(&sig->sig)) {
+    if (sig->sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR)) {
         pgp_fingerprint_t sigfp = {};
         if (signature_get_keyfp(&sig->sig, sigfp)) {
             return pgp_key_get_fp(key) == sigfp;
         }
     }
-    if (!signature_has_keyid(&sig->sig)) {
+    if (!sig->sig.has_keyid()) {
         return false;
     }
     pgp_key_id_t sigid = {};
@@ -1038,7 +1038,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
     /* subkey expiration */
     sub->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
     /* subkey flags */
-    if (sig && signature_has_key_flags(&sig->sig)) {
+    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         sub->key_flags = sig->key_flags;
     } else {
         sub->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(sub));
@@ -1052,7 +1052,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
         }
         sub->revoked = true;
         char *reason = NULL;
-        if (!signature_has_revocation_reason(&sig->sig)) {
+        if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
             RNP_LOG("Warning: no revocation reason in subkey revocation");
             sub->revocation.code = PGP_REVOCATION_NO_REASON;
         } else if (!signature_get_revocation_reason(
@@ -1088,7 +1088,7 @@ pgp_key_refresh_data(pgp_key_t *key)
     pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
     key->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
     /* key flags */
-    if (sig && signature_has_key_flags(&sig->sig)) {
+    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         key->key_flags = sig->key_flags;
     } else {
         key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
@@ -1134,7 +1134,7 @@ pgp_key_refresh_data(pgp_key_t *key)
         }
 
         char *reason = NULL;
-        if (!signature_has_revocation_reason(&sig->sig)) {
+        if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
             RNP_LOG("Warning: no revocation reason in key/userid revocation");
             revocation->code = PGP_REVOCATION_NO_REASON;
         } else if (!signature_get_revocation_reason(&sig->sig, &revocation->code, &reason)) {
@@ -1639,7 +1639,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     }
 
     /* update signature and re-sign it */
-    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+    if (!expiry && !subsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY)) {
         return true;
     }
 
@@ -1705,7 +1705,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         RNP_LOG("No valid subkey binding");
         return false;
     }
-    if (!expiry && !signature_has_key_expiration(&subsig->sig)) {
+    if (!expiry && !subsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY)) {
         return true;
     }
 

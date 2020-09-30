@@ -410,7 +410,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* validate signature and fields */
     assert_int_equal(signature_get_creation(&sig), create);
     assert_int_equal(signature_get_expiration(&sig), expire);
-    assert_true(signature_has_keyfp(&sig));
+    assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(signature_get_keyfp(&sig, fp));
     assert_true(fp == pgp_key_get_fp(key));
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));

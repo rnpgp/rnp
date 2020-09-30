@@ -372,6 +372,11 @@ typedef struct pgp_signature_t {
     pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
     const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
                                        bool                     hashed = true) const;
+    /* @brief Check whether v4 signature has subpacket of the specified type/hashedness */
+    bool has_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true) const;
+    /* @brief Check whether signature has signing key id (via v3 field, or v4 key id/key fp
+     * subpacket) */
+    bool has_keyid() const;
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
