@@ -9783,6 +9783,25 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_true(sub->pub->valid);
     rnp_key_handle_destroy(sub);
 
+    /* key/subkey with expiration times in unhashed subpackets */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/key-unhashed-subpkts.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", &key));
+    assert_true(key->pub->valid);
+    uint32_t expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_int_equal(expiry, 0);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ED63EE56FADC34D", &sub));
+    assert_true(sub->pub->valid);
+    expiry = 100;
+    assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
+    assert_int_equal(expiry, 0);
+    rnp_key_handle_destroy(sub);
+
     rnp_ffi_destroy(ffi);
 }
 
