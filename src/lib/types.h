@@ -348,7 +348,13 @@ typedef struct pgp_signature_t {
     bool             operator!=(const pgp_signature_t &src) const;
     ~pgp_signature_t();
 
-    /* Get v4 signature's subpacket of the specified type and hashedness */
+    /**
+     * @brief Get v4 signature's subpacket of the specified type and hashedness.
+     * @param stype subpacket type.
+     * @param hashed If true (default), then will search for subpacket only in hashed (i.e.
+     * covered by signature) area, otherwise will search in both hashed and non-hashed areas.
+     * @return pointer to the subpacket, or NULL if subpacket was not found.
+     */
     pgp_sig_subpkt_t *      get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed = true);
     const pgp_sig_subpkt_t *get_subpkt(pgp_sig_subpacket_type_t stype,
                                        bool                     hashed = true) const;
