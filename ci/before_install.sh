@@ -86,8 +86,9 @@ msys_install() {
     mingw64/mingw-w64-x86_64-python3
   "
   pacman --noconfirm -S --needed ${packages}
-  pacman --noconfirm -U \
-    http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-libbotan-2.13.0-1-any.pkg.tar.xz
+  botan_pkg="mingw-w64-x86_64-libbotan-2.13.0-1-any.pkg.tar.xz"
+  pacman --noconfirm -U http://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
+  pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
 
   # msys includes ruby 2.6.1 while we need lower version
   #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
