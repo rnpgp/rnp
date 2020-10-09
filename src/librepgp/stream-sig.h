@@ -64,14 +64,6 @@ bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp);
 bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp);
 
 /**
- * @brief Set the signature's key id
- * @param sig signature being populated. Version should be set prior of setting key id.
- * @param id reference to key identifier
- * @return true on success or false otherwise
- */
-bool signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id);
-
-/**
  * @brief Get signature's creation time
  * @param sig pointer to the loaded or populated signature.
  * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned even
