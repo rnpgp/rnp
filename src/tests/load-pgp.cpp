@@ -188,7 +188,6 @@ TEST_F(rnp_tests, test_load_keyring_and_count_pgp)
 TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 {
     pgp_key_id_t           keyid = {};
-    pgp_key_id_t           signer_id = {};
     const pgp_key_t *      key;
     const pgp_signature_t *sig = NULL;
 
@@ -346,7 +345,6 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 {
     pgp_key_id_t           keyid = {};
-    pgp_key_id_t           signer_id = {};
     const pgp_key_t *      key;
     const pgp_signature_t *sig = NULL;
 

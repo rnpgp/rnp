@@ -140,8 +140,10 @@ main(int argc, char **argv)
         }
     }
 
-    if (!signature_set_keyid(binding, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    try {
+        binding->set_keyid(keyid);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer key id: %s", e.what());
         return 1;
     }
 
