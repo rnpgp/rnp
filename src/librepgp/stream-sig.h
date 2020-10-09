@@ -64,14 +64,6 @@ bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp);
 bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp);
 
 /**
- * @brief Get signature's signing key id
- * @param sig populated or loaded signature
- * @param id reference to return key identifier
- * @return true on success or false otherwise
- */
-bool signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id);
-
-/**
  * @brief Set the signature's key id
  * @param sig signature being populated. Version should be set prior of setting key id.
  * @param id reference to key identifier

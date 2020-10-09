@@ -987,11 +987,12 @@ signed_src_finish(pgp_source_t *src)
         keyctx.secret = false;
 
         /* Get the key id */
-        if (!signature_get_keyid(sinfo.sig, keyctx.search.by.keyid)) {
+        if (!sinfo.sig->has_keyid()) {
             RNP_LOG("cannot get signer's key id from signature");
             sinfo.unknown = true;
             continue;
         }
+        keyctx.search.by.keyid = sinfo.sig->keyid();
 
         /* Get the public key */
         if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
