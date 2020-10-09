@@ -401,6 +401,9 @@ typedef struct pgp_signature_t {
      * @return signer's key id if available, or throws an exception otherwise.
      */
     pgp_key_id_t keyid() const;
+    /** @brief Set the signer's key id for the signature being populated. Version should be set
+     * prior of setting key id.*/
+    void set_keyid(const pgp_key_id_t &id);
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket

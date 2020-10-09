@@ -87,35 +87,6 @@ signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp)
     }
 }
 
-bool
-signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id)
-{
-    if (!sig) {
-        return false;
-    }
-
-    if (sig->version < PGP_V4) {
-        sig->signer = id;
-        return true;
-    }
-
-    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
-                    PGP_KEY_ID_SIZE,
-                  "pgp_key_id_t size mismatch");
-    try {
-        pgp_sig_subpkt_t &subpkt =
-          sig->add_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
-        subpkt.parsed = true;
-        subpkt.hashed = false;
-        memcpy(subpkt.data, id.data(), PGP_KEY_ID_SIZE);
-        subpkt.fields.issuer = subpkt.data;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 uint32_t
 signature_get_creation(const pgp_signature_t *sig)
 {
@@ -1300,6 +1271,24 @@ pgp_signature_t::keyid() const
         return res;
     }
     throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+}
+
+void
+pgp_signature_t::set_keyid(const pgp_key_id_t &id)
+{
+    if (version < PGP_V4) {
+        signer = id;
+        return;
+    }
+
+    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
+                    PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, PGP_KEY_ID_SIZE, true);
+    subpkt.parsed = true;
+    subpkt.hashed = false;
+    memcpy(subpkt.data, id.data(), PGP_KEY_ID_SIZE);
+    subpkt.fields.issuer = subpkt.data;
 }
 
 pgp_sig_subpkt_t &
