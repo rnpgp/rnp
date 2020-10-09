@@ -397,6 +397,11 @@ typedef struct pgp_signature_t {
      * subpacket) */
     bool has_keyid() const;
     /**
+     * @brief Get signer's key id if available. Availability may be checked via has_keyid().
+     * @return signer's key id if available, or throws an exception otherwise.
+     */
+    pgp_key_id_t keyid() const;
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
