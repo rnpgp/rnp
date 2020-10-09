@@ -3364,9 +3364,10 @@ try {
     rnp_ffi_t        ffi = sig->ffi;
     pgp_key_search_t search = {};
 
-    if (!signature_get_keyid(&sig->sig_pkt, search.by.keyid)) {
+    if (!sig->sig_pkt.has_keyid()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    search.by.keyid = sig->sig_pkt.keyid();
     // create a search (since we'll use this later anyways)
     search.type = PGP_KEY_SEARCH_KEYID;
 
@@ -5752,11 +5753,11 @@ try {
     if (!handle->sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_id_t keyid = {};
-    if (!signature_get_keyid(&handle->sig->sig, keyid)) {
+    if (!handle->sig->sig.has_keyid()) {
         *result = NULL;
         return RNP_SUCCESS;
     }
+    pgp_key_id_t keyid = handle->sig->sig.keyid();
     return hex_encode_value(keyid.data(), keyid.size(), result, RNP_HEX_UPPERCASE);
 }
 FFI_GUARD
@@ -6961,9 +6962,8 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         char         keyid[PGP_KEY_ID_SIZE * 2 + 1];
-        pgp_key_id_t signer = {};
-        if (!signature_get_keyid(sig, signer) ||
-            !rnp_hex_encode(
+        pgp_key_id_t signer = sig->keyid();
+        if (!rnp_hex_encode(
               signer.data(), signer.size(), keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
             return RNP_ERROR_GENERIC;
         }

@@ -785,11 +785,7 @@ pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
     if (!sig->sig.has_keyid()) {
         return false;
     }
-    pgp_key_id_t sigid = {};
-    if (!signature_get_keyid(&sig->sig, sigid)) {
-        return false;
-    }
-    return pgp_key_get_keyid(key) == sigid;
+    return pgp_key_get_keyid(key) == sig->sig.keyid();
 }
 
 static bool
