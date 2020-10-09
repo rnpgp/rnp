@@ -112,6 +112,25 @@ typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
 
 typedef std::array<uint8_t, PGP_KEY_ID_SIZE> pgp_key_id_t;
 
+namespace rnp {
+class rnp_exception : public std::exception {
+    rnp_result_t code_;
+
+  public:
+    rnp_exception(rnp_result_t code = RNP_ERROR_GENERIC) : code_(code){};
+    virtual const char *
+    what() const throw()
+    {
+        return "rnp_exception";
+    };
+    rnp_result_t
+    code()
+    {
+        return code_;
+    };
+};
+} // namespace rnp
+
 /**
  * Type to keep public/secret key mpis without any openpgp-dependent data.
  */
