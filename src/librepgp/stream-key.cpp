@@ -351,8 +351,10 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         RNP_LOG("failed to set preferred key server");
         return NULL;
     }
-    if (!signature_set_keyid(&sig, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    try {
+        sig.set_keyid(keyid);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer key id: %s", e.what());
         return NULL;
     }
 
@@ -393,8 +395,10 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
         RNP_LOG("failed to set embedded sig creation time");
         return false;
     }
-    if (!signature_set_keyid(sig, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    try {
+        sig->set_keyid(keyid);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer key id: %s", e.what());
         return false;
     }
     if (!signature_hash_binding(sig, key, subkey, &hash)) {
@@ -463,8 +467,10 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
     }
 
     /* add keyid since it should (probably) be after the primary key binding if any */
-    if (!signature_set_keyid(sig, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    try {
+        sig->set_keyid(keyid);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer key id: %s", e.what());
         goto end;
     }
     res = true;
@@ -565,8 +571,10 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
         RNP_LOG("failed to set revocation reason");
         return NULL;
     }
-    if (!signature_set_keyid(&sig, keyid)) {
-        RNP_LOG("failed to set issuer key id");
+    try {
+        sig.set_keyid(keyid);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer key id: %s", e.what());
         return NULL;
     }
 

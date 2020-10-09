@@ -1061,8 +1061,13 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     /* fill signature fields */
-    res = signature_set_keyfp(sig, pgp_key_get_fp(signer->key)) &&
-          signature_set_keyid(sig, pgp_key_get_keyid(signer->key)) &&
+    res = signature_set_keyfp(sig, pgp_key_get_fp(signer->key));
+    try {
+        sig->set_keyid(pgp_key_get_keyid(signer->key));
+    } catch (const std::exception &e) {
+        res = false;
+    }
+    res = res &&
           signature_set_creation(sig, signer->sigcreate ? signer->sigcreate : time(NULL)) &&
           signature_set_expiration(sig, signer->sigexpire) && signature_fill_hashed_data(sig);
 
