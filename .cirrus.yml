@@ -17,7 +17,7 @@ task:
     pkg install -y sudo
     # add rnpuser
     pw useradd -n rnpuser -m
-    echo 'rnpuser ALL=(ALL) NOPASSWD: ALL' > /usr/local/etc/sudoers.d/rnpuser
+    printf "\nrnpuser ALL=(ALL) NOPASSWD: ALL\n" > /usr/local/etc/sudoers.d/rnpuser
     # change ownership for the cloned repo
     chown -R rnpuser:rnpuser "$PWD"
   before_install_script: |
