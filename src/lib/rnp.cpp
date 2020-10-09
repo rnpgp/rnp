@@ -443,6 +443,10 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 }
 
 #define FFI_GUARD_FP(fp)                                                            \
+    catch (rnp::rnp_exception & e)                                                  \
+    {                                                                               \
+        return ffi_exception((fp), __func__, e.what(), e.code());                   \
+    }                                                                               \
     catch (std::bad_alloc &)                                                        \
     {                                                                               \
         return ffi_exception((fp), __func__, "bad_alloc", RNP_ERROR_OUT_OF_MEMORY); \
