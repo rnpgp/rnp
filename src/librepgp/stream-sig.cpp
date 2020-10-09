@@ -88,37 +88,6 @@ signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp)
 }
 
 bool
-signature_get_keyid(const pgp_signature_t *sig, pgp_key_id_t &id)
-{
-    if (!sig) {
-        return false;
-    }
-
-    /* version 3 uses signature field */
-    if (sig->version < PGP_V4) {
-        id = sig->signer;
-        return true;
-    }
-
-    /* version 4 and up use subpackets */
-    const pgp_sig_subpkt_t *subpkt;
-    static_assert(std::tuple_size<std::remove_reference<decltype(id)>::type>::value ==
-                    PGP_KEY_ID_SIZE,
-                  "pgp_key_id_t size mismatch");
-    if ((subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false))) {
-        memcpy(id.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
-        return true;
-    }
-    if ((subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR))) {
-        memcpy(id.data(),
-               subpkt->fields.issuer_fp.fp + subpkt->fields.issuer_fp.len - PGP_KEY_ID_SIZE,
-               PGP_KEY_ID_SIZE);
-        return true;
-    }
-    return false;
-}
-
-bool
 signature_set_keyid(pgp_signature_t *sig, const pgp_key_id_t &id)
 {
     if (!sig) {
@@ -1306,6 +1275,33 @@ pgp_signature_t::has_keyid() const
            has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
 }
 
+pgp_key_id_t
+pgp_signature_t::keyid() const
+{
+    /* version 3 uses signature field */
+    if (version < PGP_V4) {
+        return signer;
+    }
+
+    /* version 4 and up use subpackets */
+    pgp_key_id_t res;
+    static_assert(std::tuple_size<decltype(res)>::value == PGP_KEY_ID_SIZE,
+                  "pgp_key_id_t size mismatch");
+
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
+    if (subpkt) {
+        memcpy(res.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
+        return res;
+    }
+    if ((subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR))) {
+        memcpy(res.data(),
+               subpkt->fields.issuer_fp.fp + subpkt->fields.issuer_fp.len - PGP_KEY_ID_SIZE,
+               PGP_KEY_ID_SIZE);
+        return res;
+    }
+    throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+}
+
 pgp_sig_subpkt_t &
 pgp_signature_t::add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse)
 {
@@ -1348,10 +1344,9 @@ pgp_signature_t::remove_subpkt(pgp_sig_subpkt_t *subpkt)
 bool
 pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
 {
-    pgp_key_id_t keyid = {};
-    if (!signature_get_keyid(this, keyid)) {
+    if (!has_keyid()) {
         return false;
     }
     return (halg == onepass.halg) && (palg == onepass.palg) && (type_ == onepass.type) &&
-           (keyid == onepass.keyid);
+           (onepass.keyid == keyid());
 }

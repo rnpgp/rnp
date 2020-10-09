@@ -344,7 +344,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     pgp_hash_t        hash;
     pgp_hash_alg_t    halg;
     pgp_source_t      sigsrc;
-    pgp_key_id_t      keyid = {};
     pgp_key_t *       key = NULL;
     rng_t             rng;
     pgp_fingerprint_t fp;
@@ -367,8 +366,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_true(
       stream_hash_file(&hash_forged, "data/test_stream_signatures/source_forged.txt"));
     /* find signing key */
-    assert_true(signature_get_keyid(&sig, keyid));
-    assert_non_null(key = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
     /* validate signature and fields */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     assert_int_equal(signature_get_creation(&sig), 1522241943);
@@ -381,7 +379,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* load secret key */
     secring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/test_stream_signatures/sec.asc");
     assert_true(rnp_key_store_load_from_path(secring, NULL));
-    assert_non_null(key = rnp_key_store_get_key_by_id(secring, keyid, NULL));
+    assert_non_null(key = rnp_key_store_get_key_by_id(secring, sig.keyid(), NULL));
     assert_true(pgp_key_is_secret(key));
     /* fill signature */
     uint32_t create = time(NULL);
@@ -1013,7 +1011,6 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     pgp_transferable_userid_t *uid = NULL;
     rng_t                      rng;
     pgp_signature_t *          sig;
-    pgp_key_id_t               keyid = {};
     pgp_key_t *                pkey = NULL;
     pgp_hash_t                 hash;
     pgp_signature_info_t       sinfo = {};
@@ -1031,8 +1028,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     assert_non_null(key = &keyseq.keys.front());
     assert_non_null(uid = &key->userids.front());
     assert_non_null(sig = &uid->signatures.front());
-    assert_true(signature_get_keyid(sig, keyid));
-    assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
+    assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, sig->keyid(), NULL));
     /* check certification signature */
     assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
     assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
@@ -1056,8 +1052,8 @@ TEST_F(rnp_tests, test_stream_key_signatures)
         for (auto &uid : key->userids) {
             /* userid certifications */
             for (auto &sig : uid.signatures) {
-                assert_true(signature_get_keyid(&sig, keyid));
-                assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
+                assert_non_null(pkey =
+                                  rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
                 /* high level interface */
                 sinfo.sig = &sig;
                 sinfo.signer = pkey;
@@ -1079,8 +1075,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
         for (auto &subkey : key->subkeys) {
             sig = &subkey.signatures.front();
             assert_non_null(sig);
-            assert_true(signature_get_keyid(sig, keyid));
-            assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, keyid, NULL));
+            assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, sig->keyid(), NULL));
             /* high level interface */
             sinfo.sig = sig;
             sinfo.signer = pkey;
