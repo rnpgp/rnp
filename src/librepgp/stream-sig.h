@@ -47,12 +47,6 @@ typedef struct pgp_signature_info_t {
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
-uint8_t signature_get_key_server_prefs(const pgp_signature_t *sig);
-
-bool signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs);
-
-bool signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri);
-
 bool signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount);
 
 bool signature_set_trust(pgp_signature_t *sig, uint8_t level, uint8_t amount);
@@ -71,8 +65,6 @@ bool signature_add_notation_data(pgp_signature_t *sig,
                                  bool             readable,
                                  const char *     name,
                                  const char *     value);
-
-char *signature_get_key_server(const pgp_signature_t *sig);
 
 bool signature_get_revocation_reason(const pgp_signature_t *sig,
                                      pgp_revocation_type_t *code,

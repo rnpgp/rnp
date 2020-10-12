@@ -324,24 +324,15 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         if (!cert.prefs.z_algs.empty()) {
             sig.set_preferred_z_algs(cert.prefs.z_algs);
         }
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    const pgp_user_prefs_t &prefs = cert.prefs;
-    if (!prefs.ks_prefs.empty() && !signature_set_key_server_prefs(&sig, prefs.ks_prefs[0])) {
-        RNP_LOG("failed to set key server prefs");
-        return NULL;
-    }
-    if (!prefs.key_server.empty() &&
-        !signature_set_preferred_key_server(&sig, prefs.key_server.c_str())) {
-        RNP_LOG("failed to set preferred key server");
-        return NULL;
-    }
-    try {
+        if (!cert.prefs.ks_prefs.empty()) {
+            sig.set_key_server_prefs(cert.prefs.ks_prefs[0]);
+        }
+        if (!cert.prefs.key_server.empty()) {
+            sig.set_key_server(cert.prefs.key_server);
+        }
         sig.set_keyid(keyid);
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer key id: %s", e.what());
+        RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
 

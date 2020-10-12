@@ -45,47 +45,6 @@
 
 #include <time.h>
 
-uint8_t
-signature_get_key_server_prefs(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS);
-    return subpkt ? subpkt->data[0] : 0;
-}
-
-bool
-signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS, 1, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = prefs;
-        subpkt.fields.ks_prefs.no_modify = prefs & 0x80;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
-signature_set_preferred_key_server(pgp_signature_t *sig, const char *uri)
-{
-    try {
-        size_t            len = strlen(uri);
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV, len, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        memcpy(subpkt.data, uri, len);
-        subpkt.fields.preferred_ks.uri = (char *) subpkt.data;
-        subpkt.fields.preferred_ks.len = len;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 bool
 signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount)
 {
@@ -250,22 +209,6 @@ signature_add_notation_data(pgp_signature_t *sig,
         RNP_LOG("%s", e.what());
         return false;
     }
-}
-
-char *
-signature_get_key_server(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
-    if (!subpkt) {
-        return NULL;
-    }
-
-    char *res = (char *) malloc(subpkt->len + 1);
-    if (res) {
-        memcpy(res, subpkt->data, subpkt->len);
-        res[subpkt->len] = '\0';
-    }
-    return res;
 }
 
 bool
@@ -1250,6 +1193,57 @@ void
 pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
 {
     set_preferred(algs, PGP_SIG_SUBPKT_PREF_COMPRESS);
+}
+
+uint8_t
+pgp_signature_t::key_server_prefs() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS);
+    return subpkt ? subpkt->data[0] : 0;
+}
+
+void
+pgp_signature_t::set_key_server_prefs(uint8_t prefs)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS, 1, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = prefs;
+    subpkt.fields.ks_prefs.no_modify = prefs & 0x80;
+}
+
+std::string
+pgp_signature_t::key_server() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
+    return subpkt ? std::string((char *) subpkt->data, subpkt->len) : "";
+}
+
+void
+pgp_signature_t::set_key_server(const std::string &uri)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    if (uri.empty()) {
+        pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV);
+        if (subpkt) {
+            remove_subpkt(subpkt);
+        }
+        return;
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV, uri.size(), true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    memcpy(subpkt.data, uri.data(), uri.size());
+    subpkt.fields.preferred_ks.uri = (char *) subpkt.data;
+    subpkt.fields.preferred_ks.len = uri.size();
 }
 
 pgp_sig_subpkt_t &
