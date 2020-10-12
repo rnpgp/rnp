@@ -306,12 +306,11 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
     try {
         sig.set_keyfp(keyfp);
         sig.set_creation(time(NULL));
+        if (cert.key_expiration) {
+            sig.set_key_expiration(cert.key_expiration);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (cert.key_expiration && !signature_set_key_expiration(&sig, cert.key_expiration)) {
-        RNP_LOG("failed to set key expiration time");
         return NULL;
     }
     if (cert.key_flags && !signature_set_key_flags(&sig, cert.key_flags)) {
@@ -498,13 +497,11 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
     try {
         sig.set_keyfp(keyfp);
         sig.set_creation(time(NULL));
+        if (binding.key_expiration) {
+            sig.set_key_expiration(binding.key_expiration);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (binding.key_expiration &&
-        !signature_set_key_expiration(&sig, binding.key_expiration)) {
-        RNP_LOG("failed to set key expiration time");
         return NULL;
     }
     if (binding.key_flags && !signature_set_key_flags(&sig, binding.key_flags)) {

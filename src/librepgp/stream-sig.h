@@ -48,21 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Get the key expiration time
- * @param sig populated or loaded signature
- * @return expiration time in seconds since the creation time. 0 if key never expires.
- */
-uint32_t signature_get_key_expiration(const pgp_signature_t *sig);
-
-/**
- * @brief Set the key expiration time
- * @param sig signature being populated
- * @param etime expiration time
- * @return true on success or false otherwise
- */
-bool signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime);
-
-/**
  * @brief Get the key flags
  * @param sig populated or loaded signature
  * @return byte of key flags. If there is no corresponding subpackets then 0 is returned.
