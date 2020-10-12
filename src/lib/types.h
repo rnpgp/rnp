@@ -422,6 +422,19 @@ typedef struct pgp_signature_t {
     void set_keyfp(const pgp_fingerprint_t &fp);
 
     /**
+     * @brief Get signature's creation time
+     * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned
+     *         even if creation time is not available
+     */
+    uint32_t creation() const;
+
+    /**
+     * @brief Set signature's creation time
+     * @param ctime creation time in seconds since the Jan 1, 1970 UTC.
+     */
+    void set_creation(uint32_t ctime);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body

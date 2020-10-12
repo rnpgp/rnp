@@ -48,22 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Get signature's creation time
- * @param sig pointer to the loaded or populated signature.
- * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned even
- *         if creation time is not available
- */
-uint32_t signature_get_creation(const pgp_signature_t *sig);
-
-/**
- * @brief Set signature's creation time
- * @param sig signature being populated
- * @param ctime creation time in seconds since the Jan 1, 1970 UTC.
- * @return true on success or false otherwise
- */
-bool signature_set_creation(pgp_signature_t *sig, uint32_t ctime);
-
-/**
  * @brief Get the signature's expiration time
  * @param sig populated or loaded signature
  * @return expiration time in seconds since the creation time. 0 if signature never expires.
