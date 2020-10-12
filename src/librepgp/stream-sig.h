@@ -48,21 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Get the key flags
- * @param sig populated or loaded signature
- * @return byte of key flags. If there is no corresponding subpackets then 0 is returned.
- */
-uint8_t signature_get_key_flags(const pgp_signature_t *sig);
-
-/**
- * @brief Set the key flags
- * @param sig signature being populated
- * @param flags byte of key flags
- * @return true on success or false otherwise
- */
-bool signature_set_key_flags(pgp_signature_t *sig, uint8_t flags);
-
-/**
  * @brief Get the primary user id flag
  * @param sig populated or loaded signature
  * @return true if user id is marked as primary or false otherwise
