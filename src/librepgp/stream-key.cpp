@@ -312,12 +312,11 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         if (cert.key_flags) {
             sig.set_key_flags(cert.key_flags);
         }
+        if (cert.primary) {
+            sig.set_primary_uid(true);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (cert.primary && !signature_set_primary_uid(&sig, true)) {
-        RNP_LOG("failed to set primary userid");
         return NULL;
     }
     const pgp_user_prefs_t *prefs = &cert.prefs;
