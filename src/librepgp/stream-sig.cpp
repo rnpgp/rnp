@@ -45,29 +45,6 @@
 
 #include <time.h>
 
-uint32_t
-signature_get_key_expiration(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
-    return subpkt ? subpkt->fields.expiry : 0;
-}
-
-bool
-signature_set_key_expiration(pgp_signature_t *sig, uint32_t etime)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY, 4, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        STORE32BE(subpkt.data, etime);
-        subpkt.fields.expiry = etime;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 uint8_t
 signature_get_key_flags(const pgp_signature_t *sig)
 {
@@ -1266,6 +1243,27 @@ pgp_signature_t::set_expiration(uint32_t etime)
     }
 
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    STORE32BE(subpkt.data, etime);
+    subpkt.fields.expiry = etime;
+}
+
+uint32_t
+pgp_signature_t::key_expiration() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
+    return subpkt ? subpkt->fields.expiry : 0;
+}
+
+void
+pgp_signature_t::set_key_expiration(uint32_t etime)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY, 4, true);
     subpkt.parsed = true;
     subpkt.hashed = true;
     STORE32BE(subpkt.data, etime);
