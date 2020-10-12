@@ -303,8 +303,10 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
     sig.palg = signer.alg;
     sig.set_type(PGP_CERT_POSITIVE);
 
-    if (!signature_set_keyfp(&sig, keyfp)) {
-        RNP_LOG("failed to set issuer fingerprint");
+    try {
+        sig.set_keyfp(keyfp);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
         return NULL;
     }
     if (!signature_set_creation(&sig, time(NULL))) {
@@ -499,8 +501,10 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
     sig.palg = key.alg;
     sig.set_type(PGP_SIG_SUBKEY);
 
-    if (!signature_set_keyfp(&sig, keyfp)) {
-        RNP_LOG("failed to set issuer fingerprint");
+    try {
+        sig.set_keyfp(keyfp);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
         return NULL;
     }
     if (!signature_set_creation(&sig, time(NULL))) {
@@ -559,8 +563,10 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
     sig.palg = signer.alg;
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
 
-    if (!signature_set_keyfp(&sig, keyfp)) {
-        RNP_LOG("failed to set issuer fingerprint");
+    try {
+        sig.set_keyfp(keyfp);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
         return NULL;
     }
     if (!signature_set_creation(&sig, time(NULL))) {

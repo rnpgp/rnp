@@ -402,8 +402,25 @@ typedef struct pgp_signature_t {
      */
     pgp_key_id_t keyid() const;
     /** @brief Set the signer's key id for the signature being populated. Version should be set
-     * prior of setting key id.*/
+     *         prior of setting key id. */
     void set_keyid(const pgp_key_id_t &id);
+    /**
+     * @brief Check whether signature has valid issuer fingerprint subpacket.
+     * @return true if there is one, and it can be safely returned via keyfp() method or false
+     *         otherwise.
+     */
+    bool has_keyfp() const;
+    /**
+     * @brief Get signing key's fingerprint if it is available. Availability may be checked via
+     *        has_keyfp() method.
+     * @return fingerprint or throws an error if it is unavailable.
+     */
+    pgp_fingerprint_t keyfp() const;
+
+    /** @brief Set signing key's fingerprint. Works only for signatures with version 4 and up,
+     *         so version should be set prior to fingerprint. */
+    void set_keyfp(const pgp_fingerprint_t &fp);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket

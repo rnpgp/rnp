@@ -7948,7 +7948,7 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     src_close(&src);
     assert_int_equal(sig.type(), PGP_SIG_REV_KEY);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON));
-    assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
+    assert_true(sig.has_keyfp());
     pgp_revocation_type_t code = PGP_REVOCATION_NO_REASON;
     char *                reason = NULL;
     assert_true(signature_get_revocation_reason(&sig, &code, &reason));
