@@ -391,7 +391,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.set_keyfp(pgp_key_get_fp(key));
     sig.set_keyid(pgp_key_get_keyid(key));
     sig.set_creation(create);
-    assert_true(signature_set_expiration(&sig, expire));
+    sig.set_expiration(expire);
     assert_true(signature_fill_hashed_data(&sig));
     /* try to sign without decrypting of the secret key */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
@@ -406,7 +406,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     /* validate signature and fields */
     assert_int_equal(sig.creation(), create);
-    assert_int_equal(signature_get_expiration(&sig), expire);
+    assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == pgp_key_get_fp(key));
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
