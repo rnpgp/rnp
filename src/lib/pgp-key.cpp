@@ -849,7 +849,7 @@ pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
             continue;
         }
 
-        uint32_t creation = signature_get_creation(&sig->sig);
+        uint32_t creation = sig->sig.creation();
         if (creation >= latest) {
             latest = creation;
             res = sig;
@@ -873,7 +873,7 @@ pgp_key_latest_uid_selfcert(pgp_key_t *key, uint32_t uid)
             continue;
         }
 
-        uint32_t creation = signature_get_creation(&sig->sig);
+        uint32_t creation = sig->sig.creation();
         if (creation >= latest) {
             latest = creation;
             res = sig;
@@ -897,7 +897,7 @@ pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
             continue;
         }
 
-        uint32_t creation = signature_get_creation(&sig->sig);
+        uint32_t creation = sig->sig.creation();
         if (creation >= latest) {
             latest = creation;
             res = sig;
@@ -1600,17 +1600,17 @@ update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t
 {
     try {
         *dst = *src;
+        if (!expiry) {
+            dst->remove_subpkt(dst->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY));
+        } else {
+            signature_set_key_expiration(dst, expiry);
+        }
+        dst->set_creation(time(NULL));
+        return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;
     }
-    if (!expiry) {
-        dst->remove_subpkt(dst->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY));
-    } else {
-        signature_set_key_expiration(dst, expiry);
-    }
-    signature_set_creation(dst, time(NULL));
-    return true;
 }
 
 bool

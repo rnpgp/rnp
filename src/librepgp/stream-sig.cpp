@@ -46,43 +46,6 @@
 #include <time.h>
 
 uint32_t
-signature_get_creation(const pgp_signature_t *sig)
-{
-    if (!sig) {
-        return 0;
-    }
-    if (sig->version < PGP_V4) {
-        return sig->creation_time;
-    }
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
-    return subpkt ? subpkt->fields.create : 0;
-}
-
-bool
-signature_set_creation(pgp_signature_t *sig, uint32_t ctime)
-{
-    if (!sig) {
-        return false;
-    }
-    if (sig->version < PGP_V4) {
-        sig->creation_time = ctime;
-        return true;
-    }
-
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_CREATION_TIME, 4, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        STORE32BE(subpkt.data, ctime);
-        subpkt.fields.create = ctime;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-uint32_t
 signature_get_expiration(const pgp_signature_t *sig)
 {
     const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME);
@@ -733,7 +696,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
 
     /* Check signature's expiration time */
     now = time(NULL);
-    create = signature_get_creation(sinfo->sig);
+    create = sinfo->sig->creation();
     expiry = signature_get_expiration(sinfo->sig);
     if (create > now) {
         /* signature created later then now */
@@ -1288,6 +1251,31 @@ pgp_signature_t::set_keyfp(const pgp_fingerprint_t &fp)
     subpkt.fields.issuer_fp.len = fp.length;
     subpkt.fields.issuer_fp.version = subpkt.data[0];
     subpkt.fields.issuer_fp.fp = subpkt.data + 1;
+}
+
+uint32_t
+pgp_signature_t::creation() const
+{
+    if (version < PGP_V4) {
+        return creation_time;
+    }
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
+    return subpkt ? subpkt->fields.create : 0;
+}
+
+void
+pgp_signature_t::set_creation(uint32_t ctime)
+{
+    if (version < PGP_V4) {
+        creation_time = ctime;
+        return;
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_CREATION_TIME, 4, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    STORE32BE(subpkt.data, ctime);
+    subpkt.fields.create = ctime;
 }
 
 pgp_sig_subpkt_t &

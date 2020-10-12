@@ -210,7 +210,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         // check SS_ISSUER_KEY_ID
         assert_true(keyid == sig->keyid());
         // check SS_CREATION_TIME
-        assert_int_equal(signature_get_creation(sig), expected_creation_times[i]);
+        assert_int_equal(sig->creation(), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
         assert_int_equal(signature_get_expiration(sig), 0);
     }
@@ -229,8 +229,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
-    assert_int_equal(signature_get_creation(sig), 1500569820);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1500569820);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -248,8 +248,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
-    assert_int_equal(signature_get_creation(sig), 1500569851);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1500569851);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -267,8 +267,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
-    assert_int_equal(signature_get_creation(sig), 1500569896);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1500569896);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -290,7 +290,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         // check SS_ISSUER_KEY_ID
         assert_true(keyid == sig->keyid());
         // check SS_CREATION_TIME
-        assert_int_equal(signature_get_creation(sig), expected_creation_times[i]);
+        assert_int_equal(sig->creation(), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
         assert_int_equal(signature_get_expiration(sig), 0);
     }
@@ -309,8 +309,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
-    assert_int_equal(signature_get_creation(sig), 1500569946);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1500569946);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -328,8 +328,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
-    assert_int_equal(signature_get_creation(sig), 1500570165);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1500570165);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(signature_get_expiration(sig), 0);
     // check SS_KEY_EXPIRY
@@ -369,8 +369,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     assert_true(rnp_hex_decode("DC70C124A50283F1", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check creation time
-    assert_int_equal(signature_get_creation(sig), 1005209227);
-    assert_int_equal(signature_get_creation(sig), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), 1005209227);
+    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(signature_get_expiration(sig), 0);
     // check key expiration
