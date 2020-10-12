@@ -594,7 +594,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         }
         // load signature expirations while we're at it
         for (i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
-            expiration = signature_get_key_expiration(&pgp_key_get_subsig(subkey, i)->sig);
+            expiration = pgp_key_get_subsig(subkey, i)->sig.key_expiration();
             if (list_append(&subkey_sig_expirations, &expiration, sizeof(expiration)) ==
                 NULL) {
                 goto finish;
@@ -635,7 +635,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     }
 
     for (i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        if (!pu32(&memdst, signature_get_key_expiration(&pgp_key_get_subsig(key, i)->sig))) {
+        if (!pu32(&memdst, pgp_key_get_subsig(key, i)->sig.key_expiration())) {
             goto finish;
         }
     }

@@ -448,6 +448,18 @@ typedef struct pgp_signature_t {
     void set_expiration(uint32_t etime);
 
     /**
+     * @brief Get the key expiration time
+     * @return expiration time in seconds since the creation time. 0 if key never expires.
+     */
+    uint32_t key_expiration() const;
+
+    /**
+     * @brief Set the key expiration time
+     * @param etime expiration time
+     */
+    void set_key_expiration(uint32_t etime);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
