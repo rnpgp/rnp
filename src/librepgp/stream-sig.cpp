@@ -45,81 +45,6 @@
 
 #include <time.h>
 
-static bool
-signature_set_preferred_algs(pgp_signature_t *        sig,
-                             const uint8_t            algs[],
-                             size_t                   len,
-                             pgp_sig_subpacket_type_t type)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(type, len, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        memcpy(subpkt.data, algs, len);
-        subpkt.fields.preferred.arr = subpkt.data;
-        subpkt.fields.preferred.len = len;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-static bool
-signature_get_preferred_algs(const pgp_signature_t *  sig,
-                             uint8_t **               algs,
-                             size_t *                 len,
-                             pgp_sig_subpacket_type_t type)
-{
-    if (!algs || !len) {
-        return false;
-    }
-
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(type);
-    if (subpkt) {
-        *algs = subpkt->fields.preferred.arr;
-        *len = subpkt->fields.preferred.len;
-        return true;
-    }
-    return false;
-}
-
-bool
-signature_get_preferred_symm_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count)
-{
-    return signature_get_preferred_algs(sig, algs, count, PGP_SIG_SUBPKT_PREFERRED_SKA);
-}
-
-bool
-signature_set_preferred_symm_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
-{
-    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_SKA);
-}
-
-bool
-signature_get_preferred_hash_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count)
-{
-    return signature_get_preferred_algs(sig, algs, count, PGP_SIG_SUBPKT_PREFERRED_HASH);
-}
-
-bool
-signature_set_preferred_hash_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
-{
-    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_HASH);
-}
-
-bool
-signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count)
-{
-    return signature_get_preferred_algs(sig, algs, count, PGP_SIG_SUBPKT_PREF_COMPRESS);
-}
-
-bool
-signature_set_preferred_z_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
-{
-    return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREF_COMPRESS);
-}
-
 uint8_t
 signature_get_key_server_prefs(const pgp_signature_t *sig)
 {
@@ -1256,6 +1181,75 @@ pgp_signature_t::set_primary_uid(bool primary)
     subpkt.hashed = true;
     subpkt.data[0] = primary;
     subpkt.fields.primary_uid = primary;
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred(pgp_sig_subpacket_type_t type) const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(type);
+    return subpkt ? std::vector<uint8_t>(subpkt->fields.preferred.arr,
+                                         subpkt->fields.preferred.arr +
+                                           subpkt->fields.preferred.len) :
+                    std::vector<uint8_t>();
+}
+
+void
+pgp_signature_t::set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    if (data.empty()) {
+        pgp_sig_subpkt_t *subpkt = get_subpkt(type);
+        if (subpkt) {
+            remove_subpkt(subpkt);
+        }
+        return;
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(type, data.size(), true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    memcpy(subpkt.data, data.data(), data.size());
+    subpkt.fields.preferred.arr = subpkt.data;
+    subpkt.fields.preferred.len = data.size();
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred_symm_algs() const
+{
+    return preferred(PGP_SIG_SUBPKT_PREFERRED_SKA);
+}
+
+void
+pgp_signature_t::set_preferred_symm_algs(const std::vector<uint8_t> &algs)
+{
+    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_SKA);
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred_hash_algs() const
+{
+    return preferred(PGP_SIG_SUBPKT_PREFERRED_HASH);
+}
+
+void
+pgp_signature_t::set_preferred_hash_algs(const std::vector<uint8_t> &algs)
+{
+    set_preferred(algs, PGP_SIG_SUBPKT_PREFERRED_HASH);
+}
+
+std::vector<uint8_t>
+pgp_signature_t::preferred_z_algs() const
+{
+    return preferred(PGP_SIG_SUBPKT_PREF_COMPRESS);
+}
+
+void
+pgp_signature_t::set_preferred_z_algs(const std::vector<uint8_t> &algs)
+{
+    set_preferred(algs, PGP_SIG_SUBPKT_PREF_COMPRESS);
 }
 
 pgp_sig_subpkt_t &
