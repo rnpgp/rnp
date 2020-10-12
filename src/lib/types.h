@@ -512,6 +512,21 @@ typedef struct pgp_signature_t {
      *         corresponding subpacket is deleted. */
     void set_preferred_z_algs(const std::vector<uint8_t> &algs);
 
+    /** @brief Get key server preferences flags. If subpacket is not available then 0 is
+     *         returned. */
+    uint8_t key_server_prefs() const;
+
+    /** @brief Set key server preferences flags. */
+    void set_key_server_prefs(uint8_t prefs);
+
+    /** @brief Get preferred key server URI, if available. Otherwise empty string is returned.
+     */
+    std::string key_server() const;
+
+    /** @brief Set preferred key server URI. If it is empty string then subpacket is deleted if
+     *         it is available. */
+    void set_key_server(const std::string &uri);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
