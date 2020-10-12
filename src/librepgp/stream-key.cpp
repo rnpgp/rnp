@@ -319,31 +319,28 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
-    const pgp_user_prefs_t *prefs = &cert.prefs;
-    if (prefs->symm_alg_count &&
-        !signature_set_preferred_symm_algs(
-          &sig, (uint8_t *) prefs->symm_algs, prefs->symm_alg_count)) {
+    const pgp_user_prefs_t &prefs = cert.prefs;
+    if (!prefs.symm_algs.empty() && !signature_set_preferred_symm_algs(
+                                      &sig, prefs.symm_algs.data(), prefs.symm_algs.size())) {
         RNP_LOG("failed to set symm alg prefs");
         return NULL;
     }
-    if (prefs->hash_alg_count &&
-        !signature_set_preferred_hash_algs(
-          &sig, (uint8_t *) prefs->hash_algs, prefs->hash_alg_count)) {
+    if (!prefs.hash_algs.empty() && !signature_set_preferred_hash_algs(
+                                      &sig, prefs.hash_algs.data(), prefs.hash_algs.size())) {
         RNP_LOG("failed to set hash alg prefs");
         return NULL;
     }
-    if (prefs->z_alg_count &&
-        !signature_set_preferred_z_algs(&sig, (uint8_t *) prefs->z_algs, prefs->z_alg_count)) {
+    if (!prefs.z_algs.empty() &&
+        !signature_set_preferred_z_algs(&sig, prefs.z_algs.data(), prefs.z_algs.size())) {
         RNP_LOG("failed to set compress alg prefs");
         return NULL;
     }
-    if (prefs->ks_pref_count &&
-        !signature_set_key_server_prefs(&sig, (uint8_t) prefs->ks_prefs[0])) {
+    if (!prefs.ks_prefs.empty() && !signature_set_key_server_prefs(&sig, prefs.ks_prefs[0])) {
         RNP_LOG("failed to set key server prefs");
         return NULL;
     }
-    if (prefs->key_server &&
-        !signature_set_preferred_key_server(&sig, (char *) prefs->key_server)) {
+    if (!prefs.key_server.empty() &&
+        !signature_set_preferred_key_server(&sig, prefs.key_server.c_str())) {
         RNP_LOG("failed to set preferred key server");
         return NULL;
     }
