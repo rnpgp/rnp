@@ -776,11 +776,8 @@ static bool
 pgp_sig_self_signed(const pgp_key_t *key, const pgp_subsig_t *sig)
 {
     /* if we have fingerprint let's check it */
-    if (sig->sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR)) {
-        pgp_fingerprint_t sigfp = {};
-        if (signature_get_keyfp(&sig->sig, sigfp)) {
-            return pgp_key_get_fp(key) == sigfp;
-        }
+    if (sig->sig.has_keyfp()) {
+        return sig->sig.keyfp() == pgp_key_get_fp(key);
     }
     if (!sig->sig.has_keyid()) {
         return false;
