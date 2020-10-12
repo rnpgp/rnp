@@ -158,69 +158,69 @@ pk_alg_default_flags(pgp_pubkey_alg_t alg)
 // TODO: Similar as pgp_pick_hash_alg but different enough to
 //       keep another version. This will be changed when refactoring crypto
 static void
-adjust_hash_alg(rnp_keygen_crypto_params_t *crypto)
+adjust_hash_alg(rnp_keygen_crypto_params_t &crypto)
 {
-    if (!crypto->hash_alg) {
-        crypto->hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
+    if (!crypto.hash_alg) {
+        crypto.hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
     }
 
-    if ((crypto->key_alg != PGP_PKA_DSA) && (crypto->key_alg != PGP_PKA_ECDSA)) {
+    if ((crypto.key_alg != PGP_PKA_DSA) && (crypto.key_alg != PGP_PKA_ECDSA)) {
         return;
     }
 
-    pgp_hash_alg_t min_hash = (crypto->key_alg == PGP_PKA_ECDSA) ?
-                                ecdsa_get_min_hash(crypto->ecc.curve) :
-                                dsa_get_min_hash(crypto->dsa.q_bitlen);
+    pgp_hash_alg_t min_hash = (crypto.key_alg == PGP_PKA_ECDSA) ?
+                                ecdsa_get_min_hash(crypto.ecc.curve) :
+                                dsa_get_min_hash(crypto.dsa.q_bitlen);
 
-    if (pgp_digest_length(crypto->hash_alg) < pgp_digest_length(min_hash)) {
-        crypto->hash_alg = min_hash;
+    if (pgp_digest_length(crypto.hash_alg) < pgp_digest_length(min_hash)) {
+        crypto.hash_alg = min_hash;
     }
 }
 
 static void
-keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t *crypto)
+keygen_merge_crypto_defaults(rnp_keygen_crypto_params_t &crypto)
 {
     // default to RSA
-    if (!crypto->key_alg) {
-        crypto->key_alg = PGP_PKA_RSA;
+    if (!crypto.key_alg) {
+        crypto.key_alg = PGP_PKA_RSA;
     }
 
-    switch (crypto->key_alg) {
+    switch (crypto.key_alg) {
     case PGP_PKA_RSA:
-        if (!crypto->rsa.modulus_bit_len) {
-            crypto->rsa.modulus_bit_len = DEFAULT_RSA_NUMBITS;
+        if (!crypto.rsa.modulus_bit_len) {
+            crypto.rsa.modulus_bit_len = DEFAULT_RSA_NUMBITS;
         }
         break;
 
     case PGP_PKA_SM2:
-        if (!crypto->hash_alg) {
-            crypto->hash_alg = PGP_HASH_SM3;
+        if (!crypto.hash_alg) {
+            crypto.hash_alg = PGP_HASH_SM3;
         }
-        if (!crypto->ecc.curve) {
-            crypto->ecc.curve = PGP_CURVE_SM2_P_256;
+        if (!crypto.ecc.curve) {
+            crypto.ecc.curve = PGP_CURVE_SM2_P_256;
         }
         break;
 
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA: {
-        if (!crypto->hash_alg) {
-            crypto->hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
+        if (!crypto.hash_alg) {
+            crypto.hash_alg = (pgp_hash_alg_t) DEFAULT_HASH_ALGS[0];
         }
         break;
     }
 
     case PGP_PKA_EDDSA:
-        if (!crypto->ecc.curve) {
-            crypto->ecc.curve = PGP_CURVE_ED25519;
+        if (!crypto.ecc.curve) {
+            crypto.ecc.curve = PGP_CURVE_ED25519;
         }
         break;
 
     case PGP_PKA_DSA: {
-        if (!crypto->dsa.p_bitlen) {
-            crypto->dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
+        if (!crypto.dsa.p_bitlen) {
+            crypto.dsa.p_bitlen = DSA_DEFAULT_P_BITLEN;
         }
-        if (!crypto->dsa.q_bitlen) {
-            crypto->dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto->dsa.p_bitlen);
+        if (!crypto.dsa.q_bitlen) {
+            crypto.dsa.q_bitlen = dsa_choose_qsize_by_psize(crypto.dsa.p_bitlen);
         }
         break;
     }
@@ -290,24 +290,18 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     }
 }
 
-static bool
-set_default_user_prefs(pgp_user_prefs_t *prefs)
+static void
+set_default_user_prefs(pgp_user_prefs_t &prefs)
 {
-    if (!prefs->symm_algs &&
-        !pgp_user_prefs_set_symm_algs(
-          prefs, &DEFAULT_SYMMETRIC_ALGS[0], ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS))) {
-        return false;
+    if (prefs.symm_algs.empty()) {
+        prefs.set_symm_algs(DEFAULT_SYMMETRIC_ALGS, ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS));
     }
-    if (!prefs->hash_algs && !pgp_user_prefs_set_hash_algs(
-                               prefs, &DEFAULT_HASH_ALGS[0], ARRAY_SIZE(DEFAULT_HASH_ALGS))) {
-        return false;
+    if (prefs.hash_algs.empty()) {
+        prefs.set_hash_algs(DEFAULT_HASH_ALGS, ARRAY_SIZE(DEFAULT_HASH_ALGS));
     }
-    if (!prefs->z_algs && !pgp_user_prefs_set_z_algs(prefs,
-                                                     &DEFAULT_COMPRESS_ALGS[0],
-                                                     ARRAY_SIZE(DEFAULT_COMPRESS_ALGS))) {
-        return false;
+    if (prefs.z_algs.empty()) {
+        prefs.set_z_algs(DEFAULT_COMPRESS_ALGS, ARRAY_SIZE(DEFAULT_COMPRESS_ALGS));
     }
-    return true;
 }
 
 static const char *
@@ -317,21 +311,21 @@ pgp_show_pka(pgp_pubkey_alg_t pka)
 }
 
 static void
-keygen_primary_merge_defaults(rnp_keygen_primary_desc_t *desc)
+keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
 {
-    keygen_merge_crypto_defaults(&desc->crypto);
-    set_default_user_prefs(&desc->cert.prefs);
+    keygen_merge_crypto_defaults(desc.crypto);
+    set_default_user_prefs(desc.cert.prefs);
 
-    if (!desc->cert.key_flags) {
+    if (!desc.cert.key_flags) {
         // set some default key flags if none are provided
-        desc->cert.key_flags = pk_alg_default_flags(desc->crypto.key_alg);
+        desc.cert.key_flags = pk_alg_default_flags(desc.crypto.key_alg);
     }
-    if (desc->cert.userid[0] == '\0') {
-        snprintf((char *) desc->cert.userid,
-                 sizeof(desc->cert.userid),
+    if (desc.cert.userid[0] == '\0') {
+        snprintf((char *) desc.cert.userid,
+                 sizeof(desc.cert.userid),
                  "%s %d-bit key <%s@localhost>",
-                 pgp_show_pka(desc->crypto.key_alg),
-                 get_numbits(&desc->crypto),
+                 pgp_show_pka(desc.crypto.key_alg),
+                 get_numbits(&desc.crypto),
                  getenv_logname());
     }
 }
@@ -355,86 +349,84 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
                          pgp_key_t *                primary_pub,
                          pgp_key_store_format_t     secformat)
 {
-    bool                       ok = false;
-    pgp_transferable_key_t     tkeysec;
-    pgp_transferable_key_t     tkeypub;
-    pgp_transferable_userid_t *uid = NULL;
-
     // validate args
     if (!desc || !primary_pub || !primary_sec) {
-        goto end;
+        return false;
     }
     if (pgp_key_get_type(primary_sec) || pgp_key_get_type(primary_pub)) {
         RNP_LOG("invalid parameters (should be zeroed)");
-        goto end;
+        return false;
     }
 
     // merge some defaults in, if requested
     if (merge_defaults) {
-        keygen_primary_merge_defaults(desc);
+        try {
+            keygen_primary_merge_defaults(*desc);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
+        }
     }
 
     // now validate the keygen fields
     if (!validate_keygen_primary(desc)) {
-        goto end;
+        return false;
     }
 
     // generate the raw key and fill tag/secret fields
+    pgp_transferable_key_t tkeysec;
     if (!pgp_generate_seckey(&desc->crypto, &tkeysec.key, true)) {
-        goto end;
+        return false;
     }
 
-    uid = transferable_key_add_userid(tkeysec, (char *) desc->cert.userid);
+    pgp_transferable_userid_t *uid =
+      transferable_key_add_userid(tkeysec, (char *) desc->cert.userid);
     if (!uid) {
         RNP_LOG("failed to add userid");
-        goto end;
+        return false;
     }
 
     if (!transferable_userid_certify(
           tkeysec.key, *uid, tkeysec.key, desc->crypto.hash_alg, desc->cert)) {
         RNP_LOG("failed to certify key");
-        goto end;
+        return false;
     }
 
+    pgp_transferable_key_t tkeypub;
     try {
         tkeypub = pgp_transferable_key_t(tkeysec, true);
     } catch (const std::exception &e) {
         RNP_LOG("failed to copy public key part: %s", e.what());
-        goto end;
+        return false;
     }
 
     if (!rnp_key_from_transferable_key(primary_pub, &tkeypub)) {
-        goto end;
+        return false;
     }
 
     switch (secformat) {
     case PGP_KEY_STORE_GPG:
     case PGP_KEY_STORE_KBX:
         if (!rnp_key_from_transferable_key(primary_sec, &tkeysec)) {
-            goto end;
+            return false;
         }
         break;
     case PGP_KEY_STORE_G10:
         if (!load_generated_g10_key(primary_sec, &tkeysec.key, NULL, primary_pub)) {
             RNP_LOG("failed to load generated key");
-            goto end;
+            return false;
         }
         break;
     default:
         RNP_LOG("invalid format");
-        goto end;
-        break;
+        return false;
     }
 
     /* mark it as valid */
     pgp_key_mark_valid(primary_pub);
     pgp_key_mark_valid(primary_sec);
     /* refresh key's data */
-    ok = pgp_key_refresh_data(primary_pub) && pgp_key_refresh_data(primary_sec);
-end:
-    // free any user preferences
-    pgp_free_user_prefs(&desc->cert.prefs);
-    return ok;
+    return pgp_key_refresh_data(primary_pub) && pgp_key_refresh_data(primary_sec);
 }
 
 static bool
@@ -452,12 +444,12 @@ validate_keygen_subkey(rnp_keygen_subkey_desc_t *desc)
 }
 
 static void
-keygen_subkey_merge_defaults(rnp_keygen_subkey_desc_t *desc)
+keygen_subkey_merge_defaults(rnp_keygen_subkey_desc_t &desc)
 {
-    keygen_merge_crypto_defaults(&desc->crypto);
-    if (!desc->binding.key_flags) {
+    keygen_merge_crypto_defaults(desc.crypto);
+    if (!desc.binding.key_flags) {
         // set some default key flags if none are provided
-        desc->binding.key_flags = pk_alg_default_flags(desc->crypto.key_alg);
+        desc.binding.key_flags = pk_alg_default_flags(desc.crypto.key_alg);
     }
 }
 
@@ -495,7 +487,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 
     // merge some defaults in, if requested
     if (merge_defaults) {
-        keygen_subkey_merge_defaults(desc);
+        keygen_subkey_merge_defaults(*desc);
     }
 
     // now validate the keygen fields

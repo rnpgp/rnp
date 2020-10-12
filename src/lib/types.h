@@ -592,19 +592,24 @@ typedef struct pgp_revoke_t {
 
 typedef struct pgp_user_prefs_t {
     // preferred symmetric algs (pgp_symm_alg_t)
-    uint8_t *symm_algs;
-    size_t   symm_alg_count;
+    std::vector<uint8_t> symm_algs{};
     // preferred hash algs (pgp_hash_alg_t)
-    uint8_t *hash_algs;
-    size_t   hash_alg_count;
+    std::vector<uint8_t> hash_algs{};
     // preferred compression algs (pgp_compression_type_t)
-    uint8_t *z_algs;
-    size_t   z_alg_count;
+    std::vector<uint8_t> z_algs{};
     // key server preferences (pgp_key_server_prefs_t)
-    uint8_t *ks_prefs;
-    size_t   ks_pref_count;
+    std::vector<uint8_t> ks_prefs{};
     // preferred key server
-    uint8_t *key_server;
+    std::string key_server{};
+
+    void set_symm_algs(const uint8_t algs[], size_t len);
+    void add_symm_alg(pgp_symm_alg_t alg);
+    void set_hash_algs(const uint8_t algs[], size_t len);
+    void add_hash_alg(pgp_hash_alg_t alg);
+    void set_z_algs(const uint8_t algs[], size_t len);
+    void add_z_alg(pgp_compression_type_t alg);
+    void set_ks_prefs(const uint8_t prefs[], size_t len);
+    void add_ks_pref(pgp_key_server_prefs_t pref);
 } pgp_user_prefs_t;
 
 /** information about the signature */
@@ -618,13 +623,6 @@ typedef struct pgp_subsig_t {
     pgp_user_prefs_t prefs;       /* user preferences for certification sig */
     bool             validated;   /* signature was validated */
     bool             valid;       /* signature was validated and is valid */
-
-    pgp_subsig_t() = default;
-    pgp_subsig_t(const pgp_subsig_t &src);
-    pgp_subsig_t(pgp_subsig_t &&src);
-    pgp_subsig_t &operator=(pgp_subsig_t &&src);
-    pgp_subsig_t &operator=(const pgp_subsig_t &src);
-    ~pgp_subsig_t();
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
@@ -667,11 +665,11 @@ typedef struct rnp_keygen_crypto_params_t {
 } rnp_keygen_crypto_params_t;
 
 typedef struct rnp_selfsig_cert_info_t {
-    uint8_t          userid[MAX_ID_LENGTH]; /* userid, required */
-    uint8_t          key_flags;             /* key flags */
-    uint32_t         key_expiration;        /* key expiration time (sec), 0 = no expiration */
-    pgp_user_prefs_t prefs;                 /* user preferences, optional */
-    unsigned         primary : 1;           /* mark this as the primary user id */
+    uint8_t          userid[MAX_ID_LENGTH]{}; /* userid, required */
+    uint8_t          key_flags{};             /* key flags */
+    uint32_t         key_expiration{}; /* key expiration time (sec), 0 = no expiration */
+    pgp_user_prefs_t prefs{};          /* user preferences, optional */
+    bool             primary : 1;      /* mark this as the primary user id */
 } rnp_selfsig_cert_info_t;
 
 typedef struct rnp_selfsig_binding_info_t {
@@ -680,8 +678,8 @@ typedef struct rnp_selfsig_binding_info_t {
 } rnp_selfsig_binding_info_t;
 
 typedef struct rnp_keygen_primary_desc_t {
-    rnp_keygen_crypto_params_t crypto;
-    rnp_selfsig_cert_info_t    cert;
+    rnp_keygen_crypto_params_t crypto{};
+    rnp_selfsig_cert_info_t    cert{};
 } rnp_keygen_primary_desc_t;
 
 typedef struct rnp_keygen_subkey_desc_t {
