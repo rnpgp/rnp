@@ -472,6 +472,18 @@ typedef struct pgp_signature_t {
     void set_key_flags(uint8_t flags);
 
     /**
+     * @brief Get the primary user id flag
+     * @return true if user id is marked as primary or false otherwise
+     */
+    bool primary_uid() const;
+
+    /**
+     * @brief Set the primary user id flag
+     * @param primary true if user id should be marked as primary
+     */
+    void set_primary_uid(bool primary);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
