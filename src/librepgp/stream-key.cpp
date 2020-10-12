@@ -315,26 +315,20 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         if (cert.primary) {
             sig.set_primary_uid(true);
         }
+        if (!cert.prefs.symm_algs.empty()) {
+            sig.set_preferred_symm_algs(cert.prefs.symm_algs);
+        }
+        if (!cert.prefs.hash_algs.empty()) {
+            sig.set_preferred_hash_algs(cert.prefs.hash_algs);
+        }
+        if (!cert.prefs.z_algs.empty()) {
+            sig.set_preferred_z_algs(cert.prefs.z_algs);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
     const pgp_user_prefs_t &prefs = cert.prefs;
-    if (!prefs.symm_algs.empty() && !signature_set_preferred_symm_algs(
-                                      &sig, prefs.symm_algs.data(), prefs.symm_algs.size())) {
-        RNP_LOG("failed to set symm alg prefs");
-        return NULL;
-    }
-    if (!prefs.hash_algs.empty() && !signature_set_preferred_hash_algs(
-                                      &sig, prefs.hash_algs.data(), prefs.hash_algs.size())) {
-        RNP_LOG("failed to set hash alg prefs");
-        return NULL;
-    }
-    if (!prefs.z_algs.empty() &&
-        !signature_set_preferred_z_algs(&sig, prefs.z_algs.data(), prefs.z_algs.size())) {
-        RNP_LOG("failed to set compress alg prefs");
-        return NULL;
-    }
     if (!prefs.ks_prefs.empty() && !signature_set_key_server_prefs(&sig, prefs.ks_prefs[0])) {
         RNP_LOG("failed to set key server prefs");
         return NULL;
