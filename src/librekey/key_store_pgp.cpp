@@ -76,7 +76,7 @@ rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
         return false;
     }
     /* setup subsig and key from signature */
-    if (!pgp_subsig_from_signature(subsig, sig)) {
+    if (!pgp_subsig_from_signature(*subsig, *sig)) {
         return false;
     }
     subsig->uid = pgp_key_get_userid_count(key) - 1;

@@ -51,17 +51,17 @@ bool signature_get_preferred_symm_algs(const pgp_signature_t *sig,
                                        uint8_t **             algs,
                                        size_t *               count);
 
-bool signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+bool signature_set_preferred_symm_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
 
 bool signature_get_preferred_hash_algs(const pgp_signature_t *sig,
                                        uint8_t **             algs,
                                        size_t *               count);
 
-bool signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+bool signature_set_preferred_hash_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
 
 bool signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count);
 
-bool signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len);
+bool signature_set_preferred_z_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
 
 uint8_t signature_get_key_server_prefs(const pgp_signature_t *sig);
 
