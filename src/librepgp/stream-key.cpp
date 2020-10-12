@@ -305,12 +305,9 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
 
     try {
         sig.set_keyfp(keyfp);
+        sig.set_creation(time(NULL));
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
-        return NULL;
-    }
-    if (!signature_set_creation(&sig, time(NULL))) {
-        RNP_LOG("failed to set creation time");
+        RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
     if (cert.key_expiration && !signature_set_key_expiration(&sig, cert.key_expiration)) {
@@ -393,14 +390,11 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
         RNP_LOG("failed to calculate keyid");
         return false;
     }
-    if (!signature_set_creation(sig, time(NULL))) {
-        RNP_LOG("failed to set embedded sig creation time");
-        return false;
-    }
     try {
+        sig->set_creation(time(NULL));
         sig->set_keyid(keyid);
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer key id: %s", e.what());
+        RNP_LOG("failed to setup embedded signature: %s", e.what());
         return false;
     }
     if (!signature_hash_binding(sig, key, subkey, &hash)) {
@@ -503,12 +497,9 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
 
     try {
         sig.set_keyfp(keyfp);
+        sig.set_creation(time(NULL));
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
-        return NULL;
-    }
-    if (!signature_set_creation(&sig, time(NULL))) {
-        RNP_LOG("failed to set creation time");
+        RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
     if (binding.key_expiration &&
@@ -565,12 +556,9 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
 
     try {
         sig.set_keyfp(keyfp);
+        sig.set_creation(time(NULL));
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer fingerprint: %s", e.what());
-        return NULL;
-    }
-    if (!signature_set_creation(&sig, time(NULL))) {
-        RNP_LOG("failed to set creation time");
+        RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
     if (!signature_set_revocation_reason(&sig, revoke.code, revoke.reason.c_str())) {

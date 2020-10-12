@@ -368,7 +368,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_non_null(key = rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
     /* validate signature and fields */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
-    assert_int_equal(signature_get_creation(&sig), 1522241943);
+    assert_int_equal(sig.creation(), 1522241943);
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
     /* check forged file */
     assert_true(pgp_hash_copy(&hash, &hash_forged));
@@ -390,7 +390,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.set_type(PGP_SIG_BINARY);
     sig.set_keyfp(pgp_key_get_fp(key));
     sig.set_keyid(pgp_key_get_keyid(key));
-    assert_true(signature_set_creation(&sig, create));
+    sig.set_creation(create);
     assert_true(signature_set_expiration(&sig, expire));
     assert_true(signature_fill_hashed_data(&sig));
     /* try to sign without decrypting of the secret key */
@@ -405,7 +405,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* now verify signature */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     /* validate signature and fields */
-    assert_int_equal(signature_get_creation(&sig), create);
+    assert_int_equal(sig.creation(), create);
     assert_int_equal(signature_get_expiration(&sig), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == pgp_key_get_fp(key));

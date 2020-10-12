@@ -3397,7 +3397,7 @@ rnp_op_verify_signature_get_times(rnp_op_verify_signature_t sig,
                                   uint32_t *                expires)
 try {
     if (create) {
-        *create = signature_get_creation(&sig->sig_pkt);
+        *create = sig->sig_pkt.creation();
     }
     if (expires) {
         *expires = signature_get_expiration(&sig->sig_pkt);
@@ -5739,7 +5739,7 @@ try {
     if (!handle->sig) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    *create = signature_get_creation(&handle->sig->sig);
+    *create = handle->sig->sig.creation();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6942,7 +6942,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // creation time
-    json_object *jsocreation_time = json_object_new_int64(signature_get_creation(sig));
+    json_object *jsocreation_time = json_object_new_int64(sig->creation());
     if (!jsocreation_time) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
