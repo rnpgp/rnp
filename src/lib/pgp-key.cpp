@@ -534,11 +534,11 @@ pgp_subsig_from_signature(pgp_subsig_t &dst, const pgp_signature_t &sig)
             subsig.key_flags = subsig.sig.key_flags();
         }
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
-            uint8_t ks_pref = signature_get_key_server_prefs(&subsig.sig);
+            uint8_t ks_pref = subsig.sig.key_server_prefs();
             subsig.prefs.set_ks_prefs(&ks_pref, 1);
         }
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
-            subsig.prefs.key_server = signature_get_key_server(&subsig.sig);
+            subsig.prefs.key_server = subsig.sig.key_server();
         }
     } catch (const std::exception &e) {
         RNP_LOG("Failed to copy preferences: %s", e.what());
