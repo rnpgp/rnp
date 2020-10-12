@@ -1029,7 +1029,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
     }
     pgp_subsig_t *sig = pgp_key_latest_binding(sub, key);
     /* subkey expiration */
-    sub->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
+    sub->expiration = sig ? sig->sig.key_expiration() : 0;
     /* subkey flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         sub->key_flags = sig->key_flags;
@@ -1079,7 +1079,7 @@ pgp_key_refresh_data(pgp_key_t *key)
     pgp_key_validate_self_signatures(key);
     /* key expiration */
     pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
-    key->expiration = sig ? signature_get_key_expiration(&sig->sig) : 0;
+    key->expiration = sig ? sig->sig.key_expiration() : 0;
     /* key flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
         key->key_flags = sig->key_flags;
@@ -1603,7 +1603,7 @@ update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t
         if (!expiry) {
             dst->remove_subpkt(dst->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY));
         } else {
-            signature_set_key_expiration(dst, expiry);
+            dst->set_key_expiration(expiry);
         }
         dst->set_creation(time(NULL));
         return true;
@@ -1918,7 +1918,7 @@ static bool
 is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
     /* key expiration: absense of subpkt or 0 means it never expires */
-    uint32_t expiration = signature_get_key_expiration(&sig.sig);
+    uint32_t expiration = sig.sig.key_expiration();
     if (!expiration) {
         return false;
     }
