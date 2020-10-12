@@ -46,33 +46,6 @@
 #include <time.h>
 
 uint32_t
-signature_get_expiration(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME);
-    return subpkt ? subpkt->fields.expiry : 0;
-}
-
-bool
-signature_set_expiration(pgp_signature_t *sig, uint32_t etime)
-{
-    if (!sig || (sig->version < PGP_V4)) {
-        return false;
-    }
-
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        STORE32BE(subpkt.data, etime);
-        subpkt.fields.expiry = etime;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-uint32_t
 signature_get_key_expiration(const pgp_signature_t *sig)
 {
     const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY);
@@ -697,7 +670,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     /* Check signature's expiration time */
     now = time(NULL);
     create = sinfo->sig->creation();
-    expiry = signature_get_expiration(sinfo->sig);
+    expiry = sinfo->sig->expiration();
     if (create > now) {
         /* signature created later then now */
         RNP_LOG("signature created %d seconds in future", (int) (create - now));
@@ -1276,6 +1249,27 @@ pgp_signature_t::set_creation(uint32_t ctime)
     subpkt.hashed = true;
     STORE32BE(subpkt.data, ctime);
     subpkt.fields.create = ctime;
+}
+
+uint32_t
+pgp_signature_t::expiration() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME);
+    return subpkt ? subpkt->fields.expiry : 0;
+}
+
+void
+pgp_signature_t::set_expiration(uint32_t etime)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    STORE32BE(subpkt.data, etime);
+    subpkt.fields.expiry = etime;
 }
 
 pgp_sig_subpkt_t &

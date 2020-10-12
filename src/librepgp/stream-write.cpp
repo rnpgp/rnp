@@ -1057,23 +1057,19 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
     pgp_key_pkt_t *    deckey = NULL;
     pgp_hash_t         hash;
     pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = signer->key};
-    bool               res;
     rnp_result_t       ret = RNP_ERROR_GENERIC;
 
     /* fill signature fields */
-    res = true;
     try {
         sig->set_keyfp(pgp_key_get_fp(signer->key));
         sig->set_keyid(pgp_key_get_keyid(signer->key));
         sig->set_creation(signer->sigcreate ? signer->sigcreate : time(NULL));
+        sig->set_expiration(signer->sigexpire);
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature fields: %s", e.what());
-        res = false;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    res = res && signature_set_expiration(sig, signer->sigexpire) &&
-          signature_fill_hashed_data(sig);
-
-    if (!res) {
+    if (!signature_fill_hashed_data(sig)) {
         RNP_LOG("failed to fill the signature data");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
