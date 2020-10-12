@@ -45,48 +45,6 @@
 
 #include <time.h>
 
-bool
-signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp)
-{
-    if (!sig || (sig->version < PGP_V4)) {
-        return false;
-    }
-
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-    if (!subpkt) {
-        return false;
-    }
-    fp.length = subpkt->fields.issuer_fp.len;
-    if (subpkt->fields.issuer_fp.len <= sizeof(fp.fingerprint)) {
-        memcpy(fp.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
-        return true;
-    }
-    return false;
-}
-
-bool
-signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp)
-{
-    if (!sig) {
-        return false;
-    }
-    try {
-        pgp_sig_subpkt_t &subpkt =
-          sig->add_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp.length, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = 4;
-        memcpy(subpkt.data + 1, fp.fingerprint, fp.length);
-        subpkt.fields.issuer_fp.len = fp.length;
-        subpkt.fields.issuer_fp.version = subpkt.data[0];
-        subpkt.fields.issuer_fp.fp = subpkt.data + 1;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 uint32_t
 signature_get_creation(const pgp_signature_t *sig)
 {
@@ -746,10 +704,9 @@ signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_
 rnp_result_t
 signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
 {
-    time_t            now;
-    uint32_t          create, expiry, kcreate;
-    pgp_fingerprint_t fp = {};
-    rnp_result_t      ret = RNP_ERROR_SIGNATURE_INVALID;
+    time_t       now;
+    uint32_t     create, expiry, kcreate;
+    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
 
     sinfo->no_signer = !sinfo->signer;
     sinfo->valid = false;
@@ -804,7 +761,7 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* Check signer's fingerprint */
-    if (signature_get_keyfp(sinfo->sig, fp) && (fp != pgp_key_get_fp(sinfo->signer))) {
+    if (sinfo->sig->has_keyfp() && (sinfo->sig->keyfp() != pgp_key_get_fp(sinfo->signer))) {
         RNP_LOG("issuer fingerprint doesn't match signer's one");
         sinfo->valid = false;
     }
@@ -1243,7 +1200,7 @@ bool
 pgp_signature_t::has_keyid() const
 {
     return (version < PGP_V4) || has_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false) ||
-           has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
+           has_keyfp();
 }
 
 pgp_key_id_t
@@ -1289,6 +1246,48 @@ pgp_signature_t::set_keyid(const pgp_key_id_t &id)
     subpkt.hashed = false;
     memcpy(subpkt.data, id.data(), PGP_KEY_ID_SIZE);
     subpkt.fields.issuer = subpkt.data;
+}
+
+bool
+pgp_signature_t::has_keyfp() const
+{
+    if (version < PGP_V4) {
+        return false;
+    }
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
+    return subpkt && (subpkt->fields.issuer_fp.len <= PGP_FINGERPRINT_SIZE);
+}
+
+pgp_fingerprint_t
+pgp_signature_t::keyfp() const
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
+    pgp_fingerprint_t       res;
+    if (!subpkt || (subpkt->fields.issuer_fp.len > sizeof(res.fingerprint))) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    res.length = subpkt->fields.issuer_fp.len;
+    memcpy(res.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
+    return res;
+}
+
+void
+pgp_signature_t::set_keyfp(const pgp_fingerprint_t &fp)
+{
+    if (version < PGP_V4) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp.length, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = 4;
+    memcpy(subpkt.data + 1, fp.fingerprint, fp.length);
+    subpkt.fields.issuer_fp.len = fp.length;
+    subpkt.fields.issuer_fp.version = subpkt.data[0];
+    subpkt.fields.issuer_fp.fp = subpkt.data + 1;
 }
 
 pgp_sig_subpkt_t &
