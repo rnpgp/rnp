@@ -98,21 +98,23 @@ struct rnp_output_st {
 };
 
 struct rnp_op_generate_st {
-    rnp_ffi_t  ffi;
-    bool       primary;
-    pgp_key_t *primary_sec;
-    pgp_key_t *primary_pub;
-    pgp_key_t *gen_sec;
-    pgp_key_t *gen_pub;
+    rnp_ffi_t  ffi{};
+    bool       primary{};
+    pgp_key_t *primary_sec{};
+    pgp_key_t *primary_pub{};
+    pgp_key_t *gen_sec{};
+    pgp_key_t *gen_pub{};
     /* password used to encrypt the key, if specified */
-    char *password;
+    char *password{};
     /* request password for key encryption via ffi's password provider */
-    bool request_password;
+    bool request_password{};
     /* we don't use top-level keygen action here for easier fields access */
-    rnp_keygen_crypto_params_t  crypto;
-    rnp_key_protection_params_t protection;
-    rnp_selfsig_cert_info_t     cert;
-    rnp_selfsig_binding_info_t  binding;
+    rnp_keygen_crypto_params_t  crypto{};
+    rnp_key_protection_params_t protection{};
+    rnp_selfsig_cert_info_t     cert{};
+    rnp_selfsig_binding_info_t  binding{};
+
+    ~rnp_op_generate_st();
 };
 
 struct rnp_op_sign_signature_st {

@@ -3994,7 +3994,7 @@ pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 }
 
 static bool
-parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
+parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
 {
     static const struct {
         const char *   key;
@@ -4015,56 +4015,52 @@ parse_preferences(json_object *jso, pgp_user_prefs_t *prefs)
         if (!json_object_is_type(value, properties[iprop].type)) {
             return false;
         }
-        if (!rnp_strcasecmp(key, "hashes")) {
-            int length = json_object_array_length(value);
-            for (int i = 0; i < length; i++) {
-                json_object *item = json_object_array_get_idx(value, i);
-                if (!json_object_is_type(item, json_type_string)) {
-                    return false;
+        try {
+            if (!rnp_strcasecmp(key, "hashes")) {
+                int length = json_object_array_length(value);
+                for (int i = 0; i < length; i++) {
+                    json_object *item = json_object_array_get_idx(value, i);
+                    if (!json_object_is_type(item, json_type_string)) {
+                        return false;
+                    }
+                    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
+                    if (!str_to_hash_alg(json_object_get_string(item), &hash_alg)) {
+                        return false;
+                    }
+                    prefs.add_hash_alg(hash_alg);
                 }
-                pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
-                if (!str_to_hash_alg(json_object_get_string(item), &hash_alg)) {
-                    return false;
+            } else if (!rnp_strcasecmp(key, "ciphers")) {
+                int length = json_object_array_length(value);
+                for (int i = 0; i < length; i++) {
+                    json_object *item = json_object_array_get_idx(value, i);
+                    if (!json_object_is_type(item, json_type_string)) {
+                        return false;
+                    }
+                    pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
+                    if (!str_to_cipher(json_object_get_string(item), &symm_alg)) {
+                        return false;
+                    }
+                    prefs.add_symm_alg(symm_alg);
                 }
-                if (!pgp_user_prefs_add_hash_alg(prefs, hash_alg)) {
-                    return false;
+            } else if (!rnp_strcasecmp(key, "compression")) {
+                int length = json_object_array_length(value);
+                for (int i = 0; i < length; i++) {
+                    json_object *item = json_object_array_get_idx(value, i);
+                    if (!json_object_is_type(item, json_type_string)) {
+                        return false;
+                    }
+                    pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
+                    if (!str_to_compression_alg(json_object_get_string(item), &z_alg)) {
+                        return false;
+                    }
+                    prefs.add_z_alg(z_alg);
                 }
+            } else if (!rnp_strcasecmp(key, "key server")) {
+                prefs.key_server = json_object_get_string(value);
             }
-        } else if (!rnp_strcasecmp(key, "ciphers")) {
-            int length = json_object_array_length(value);
-            for (int i = 0; i < length; i++) {
-                json_object *item = json_object_array_get_idx(value, i);
-                if (!json_object_is_type(item, json_type_string)) {
-                    return false;
-                }
-                pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
-                if (!str_to_cipher(json_object_get_string(item), &symm_alg)) {
-                    return false;
-                }
-                if (!pgp_user_prefs_add_symm_alg(prefs, symm_alg)) {
-                    return false;
-                }
-            }
-        } else if (!rnp_strcasecmp(key, "compression")) {
-            int length = json_object_array_length(value);
-            for (int i = 0; i < length; i++) {
-                json_object *item = json_object_array_get_idx(value, i);
-                if (!json_object_is_type(item, json_type_string)) {
-                    return false;
-                }
-                pgp_compression_type_t z_alg = PGP_C_UNKNOWN;
-                if (!str_to_compression_alg(json_object_get_string(item), &z_alg)) {
-                    return false;
-                }
-                if (!pgp_user_prefs_add_z_alg(prefs, z_alg)) {
-                    return false;
-                }
-            }
-        } else if (!rnp_strcasecmp(key, "key server")) {
-            prefs->key_server = (uint8_t *) strdup(json_object_get_string(value));
-            if (!prefs->key_server) {
-                return false;
-            }
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
         }
         // delete this field since it has been handled
         json_object_object_del(jso, key);
@@ -4246,7 +4242,7 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
             if (!json_object_is_type(value, json_type_object)) {
                 return false;
             }
-            if (!parse_preferences(value, &cert->prefs)) {
+            if (!parse_preferences(value, cert->prefs)) {
                 return false;
             }
             if (json_object_object_length(value) != 0) {
@@ -4637,7 +4633,6 @@ done:
     json_object_put(jso);
     free(identifier_type);
     free(identifier);
-    pgp_free_user_prefs(&keygen_desc.primary.keygen.cert.prefs);
     return ret;
 }
 FFI_GUARD
@@ -4858,11 +4853,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *op = (rnp_op_generate_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
+    *op = new rnp_op_generate_st();
     (*op)->ffi = ffi;
     (*op)->primary = true;
     (*op)->crypto.key_alg = key_alg;
@@ -4906,11 +4897,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    *op = (rnp_op_generate_t) calloc(1, sizeof(**op));
-    if (!*op) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
+    *op = new rnp_op_generate_st();
     (*op)->ffi = ffi;
     (*op)->primary = false;
     (*op)->crypto.key_alg = key_alg;
@@ -5149,9 +5136,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_set_hash_algs(&op->cert.prefs, NULL, 0)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.set_hash_algs(NULL, 0);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5169,9 +5154,7 @@ try {
     if (!str_to_hash_alg(hash, &hash_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_add_hash_alg(&op->cert.prefs, hash_alg)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.add_hash_alg(hash_alg);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5185,9 +5168,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_set_z_algs(&op->cert.prefs, NULL, 0)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.set_z_algs(NULL, 0);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5205,9 +5186,7 @@ try {
     if (!str_to_compression_alg(compression, &z_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_add_z_alg(&op->cert.prefs, z_alg)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.add_z_alg(z_alg);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5221,9 +5200,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_set_symm_algs(&op->cert.prefs, NULL, 0)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.set_symm_algs(NULL, 0);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5241,9 +5218,7 @@ try {
     if (!str_to_cipher(cipher, &symm_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_user_prefs_add_symm_alg(&op->cert.prefs, symm_alg)) {
-        return RNP_ERROR_BAD_STATE;
-    }
+    op->cert.prefs.add_symm_alg(symm_alg);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5251,21 +5226,13 @@ FFI_GUARD
 rnp_result_t
 rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op, const char *keyserver)
 try {
-    uint8_t *_keyserver = NULL;
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (keyserver) {
-        _keyserver = (uint8_t *) strdup(keyserver);
-        if (!_keyserver) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-    }
-    free(op->cert.prefs.key_server);
-    op->cert.prefs.key_server = _keyserver;
+    op->cert.prefs.key_server = keyserver ? keyserver : "";
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5375,18 +5342,19 @@ FFI_GUARD
 rnp_result_t
 rnp_op_generate_destroy(rnp_op_generate_t op)
 try {
-    if (op) {
-        pgp_free_user_prefs(&op->cert.prefs);
-        if (op->password) {
-            pgp_forget(op->password, strlen(op->password) + 1);
-            free(op->password);
-            op->password = NULL;
-        }
-        free(op);
-    }
+    delete op;
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+rnp_op_generate_st::~rnp_op_generate_st()
+{
+    if (password) {
+        pgp_forget(password, strlen(password) + 1);
+        free(password);
+        password = NULL;
+    }
+}
 
 rnp_result_t
 rnp_key_handle_destroy(rnp_key_handle_t key)
@@ -5489,7 +5457,7 @@ rnp_key_add_uid(rnp_key_handle_t handle,
                 bool             primary)
 try {
     rnp_result_t            ret = RNP_ERROR_GENERIC;
-    rnp_selfsig_cert_info_t info = {{0}};
+    rnp_selfsig_cert_info_t info = {};
     pgp_hash_alg_t          hash_alg = PGP_HASH_UNKNOWN;
     pgp_key_t *             public_key = NULL;
     pgp_key_t *             secret_key = NULL;
@@ -6790,19 +6758,18 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 }
 
 static bool
-add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
+add_json_user_prefs(json_object *jso, const pgp_user_prefs_t &prefs)
 {
     // TODO: instead of using a string "Unknown" as a fallback for these,
     // we could add a string of hex/dec (or even an int)
-    if (prefs->symm_alg_count) {
+    if (!prefs.symm_algs.empty()) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "ciphers", jsoarr);
-        for (unsigned i = 0; i < prefs->symm_alg_count; i++) {
-            const char *   name = "Unknown";
-            pgp_symm_alg_t alg = (pgp_symm_alg_t) prefs->symm_algs[i];
+        for (auto alg : prefs.symm_algs) {
+            const char *name = "Unknown";
             ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -6810,15 +6777,14 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->hash_alg_count) {
+    if (!prefs.hash_algs.empty()) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "hashes", jsoarr);
-        for (unsigned i = 0; i < prefs->hash_alg_count; i++) {
-            const char *   name = "Unknown";
-            pgp_hash_alg_t alg = (pgp_hash_alg_t) prefs->hash_algs[i];
+        for (auto alg : prefs.hash_algs) {
+            const char *name = "Unknown";
             ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -6826,15 +6792,14 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->z_alg_count) {
+    if (!prefs.z_algs.empty()) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "compression", jsoarr);
-        for (unsigned i = 0; i < prefs->z_alg_count; i++) {
-            const char *           name = "Unknown";
-            pgp_compression_type_t alg = (pgp_compression_type_t) prefs->z_algs[i];
+        for (auto alg : prefs.z_algs) {
+            const char *name = "Unknown";
             ARRAY_LOOKUP_BY_ID(compress_alg_map, type, string, alg, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -6842,15 +6807,14 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->ks_pref_count) {
+    if (!prefs.ks_prefs.empty()) {
         json_object *jsoarr = json_object_new_array();
         if (!jsoarr) {
             return false;
         }
         json_object_object_add(jso, "key server preferences", jsoarr);
-        for (unsigned i = 0; i < prefs->ks_pref_count; i++) {
-            const char *           name = "Unknown";
-            pgp_key_server_prefs_t flag = (pgp_key_server_prefs_t) prefs->ks_prefs[i];
+        for (auto flag : prefs.ks_prefs) {
+            const char *name = "Unknown";
             ARRAY_LOOKUP_BY_ID(key_server_prefs_map, type, string, flag, name);
             json_object *jsoname = json_object_new_string(name);
             if (!jsoname || json_object_array_add(jsoarr, jsoname)) {
@@ -6858,8 +6822,8 @@ add_json_user_prefs(json_object *jso, const pgp_user_prefs_t *prefs)
             }
         }
     }
-    if (prefs->key_server) {
-        if (!add_json_string_field(jso, "key server", (const char *) prefs->key_server)) {
+    if (!prefs.key_server.empty()) {
+        if (!add_json_string_field(jso, "key server", prefs.key_server.c_str())) {
             return false;
         }
     }
@@ -6904,9 +6868,9 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // preferences
-    const pgp_user_prefs_t *prefs = &subsig->prefs;
-    if (prefs->symm_alg_count || prefs->hash_alg_count || prefs->z_alg_count ||
-        prefs->ks_pref_count || prefs->key_server) {
+    const pgp_user_prefs_t &prefs = subsig->prefs;
+    if (!prefs.symm_algs.empty() || !prefs.hash_algs.empty() || !prefs.z_algs.empty() ||
+        !prefs.ks_prefs.empty() || !prefs.key_server.empty()) {
         json_object *jsoprefs = json_object_new_object();
         if (!jsoprefs) {
             return RNP_ERROR_OUT_OF_MEMORY;

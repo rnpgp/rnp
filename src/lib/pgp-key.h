@@ -103,24 +103,6 @@ typedef struct rnp_key_store_t rnp_key_store_t;
  */
 bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt);
 
-void pgp_free_user_prefs(pgp_user_prefs_t *prefs);
-
-bool pgp_user_prefs_set_symm_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
-
-bool pgp_user_prefs_add_symm_alg(pgp_user_prefs_t *prefs, pgp_symm_alg_t alg);
-
-bool pgp_user_prefs_set_hash_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
-
-bool pgp_user_prefs_add_hash_alg(pgp_user_prefs_t *prefs, pgp_hash_alg_t alg);
-
-bool pgp_user_prefs_set_z_algs(pgp_user_prefs_t *prefs, const uint8_t *algs, size_t len);
-
-bool pgp_user_prefs_add_z_alg(pgp_user_prefs_t *prefs, pgp_compression_type_t alg);
-
-bool pgp_user_prefs_set_ks_prefs(pgp_user_prefs_t *prefs, const uint8_t *vals, size_t len);
-
-bool pgp_user_prefs_add_ks_pref(pgp_user_prefs_t *prefs, pgp_key_server_prefs_t val);
-
 const pgp_key_pkt_t *pgp_key_get_pkt(const pgp_key_t *);
 
 const pgp_key_material_t *pgp_key_get_material(const pgp_key_t *key);
@@ -253,7 +235,7 @@ size_t pgp_key_get_subsig_count(const pgp_key_t *);
 const pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 pgp_subsig_t *      pgp_key_get_subsig(pgp_key_t *, size_t);
 
-bool pgp_subsig_from_signature(pgp_subsig_t *subsig, const pgp_signature_t *sig);
+bool pgp_subsig_from_signature(pgp_subsig_t &subsig, const pgp_signature_t &sig);
 
 bool pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig);
 

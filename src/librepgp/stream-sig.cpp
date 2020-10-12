@@ -47,7 +47,7 @@
 
 static bool
 signature_set_preferred_algs(pgp_signature_t *        sig,
-                             uint8_t                  algs[],
+                             const uint8_t            algs[],
                              size_t                   len,
                              pgp_sig_subpacket_type_t type)
 {
@@ -91,7 +91,7 @@ signature_get_preferred_symm_algs(const pgp_signature_t *sig, uint8_t **algs, si
 }
 
 bool
-signature_set_preferred_symm_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+signature_set_preferred_symm_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
 {
     return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_SKA);
 }
@@ -103,7 +103,7 @@ signature_get_preferred_hash_algs(const pgp_signature_t *sig, uint8_t **algs, si
 }
 
 bool
-signature_set_preferred_hash_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+signature_set_preferred_hash_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
 {
     return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREFERRED_HASH);
 }
@@ -115,7 +115,7 @@ signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_
 }
 
 bool
-signature_set_preferred_z_algs(pgp_signature_t *sig, uint8_t algs[], size_t len)
+signature_set_preferred_z_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len)
 {
     return signature_set_preferred_algs(sig, algs, len, PGP_SIG_SUBPKT_PREF_COMPRESS);
 }
