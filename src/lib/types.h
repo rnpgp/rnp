@@ -339,9 +339,14 @@ typedef struct pgp_sig_subpkt_t {
 typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
 
 typedef struct pgp_signature_t {
+  private:
+    pgp_sig_type_t       type_;
+    std::vector<uint8_t> preferred(pgp_sig_subpacket_type_t type) const;
+    void set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type);
+
+  public:
     pgp_version_t version;
     /* common v3 and v4 fields */
-    pgp_sig_type_t   type_;
     pgp_pubkey_alg_t palg;
     pgp_hash_alg_t   halg;
     uint8_t          lbits[2];
@@ -358,7 +363,7 @@ typedef struct pgp_signature_t {
     std::vector<pgp_sig_subpkt_t> subpkts;
 
     pgp_signature_t()
-        : version(PGP_VUNKNOWN), type_(PGP_SIG_BINARY), palg(PGP_PKA_NOTHING),
+        : type_(PGP_SIG_BINARY), version(PGP_VUNKNOWN), palg(PGP_PKA_NOTHING),
           halg(PGP_HASH_UNKNOWN), hashed_data(NULL), hashed_len(0), material_buf(NULL),
           material_len(0), creation_time(0){};
     pgp_signature_t(const pgp_signature_t &src);
@@ -482,6 +487,30 @@ typedef struct pgp_signature_t {
      * @param primary true if user id should be marked as primary
      */
     void set_primary_uid(bool primary);
+
+    /** @brief Get preferred symmetric algorithms if any. If there are no ones then empty
+     *         vector is returned. */
+    std::vector<uint8_t> preferred_symm_algs() const;
+
+    /** @brief Set the preferred symmetric algorithms. If empty vector is passed then
+     *         corresponding subpacket is deleted. */
+    void set_preferred_symm_algs(const std::vector<uint8_t> &algs);
+
+    /** @brief Get preferred hash algorithms if any. If there are no ones then empty vector is
+     *         returned.*/
+    std::vector<uint8_t> preferred_hash_algs() const;
+
+    /** @brief Set the preferred hash algorithms. If empty vector is passed then corresponding
+     *         subpacket is deleted. */
+    void set_preferred_hash_algs(const std::vector<uint8_t> &algs);
+
+    /** @brief Get preferred compression algorithms if any. If there are no ones then empty
+     *         vector is returned.*/
+    std::vector<uint8_t> preferred_z_algs() const;
+
+    /** @brief Set the preferred compression algorithms. If empty vector is passed then
+     *         corresponding subpacket is deleted. */
+    void set_preferred_z_algs(const std::vector<uint8_t> &algs);
 
     /**
      * @brief Add subpacket of the specified type to v4 signature
