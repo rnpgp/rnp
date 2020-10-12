@@ -523,17 +523,13 @@ pgp_subsig_from_signature(pgp_subsig_t &dst, const pgp_signature_t &sig)
         signature_get_trust(&subsig.sig, &subsig.trustlevel, &subsig.trustamount);
     }
     try {
-        uint8_t *algs = NULL;
-        size_t   count = 0;
-        if (signature_get_preferred_symm_algs(&subsig.sig, &algs, &count)) {
-            subsig.prefs.set_symm_algs(algs, count);
-        }
-        if (signature_get_preferred_hash_algs(&subsig.sig, &algs, &count)) {
-            subsig.prefs.set_hash_algs(algs, count);
-        }
-        if (signature_get_preferred_z_algs(&subsig.sig, &algs, &count)) {
-            subsig.prefs.set_z_algs(algs, count);
-        }
+        auto algs = subsig.sig.preferred_symm_algs();
+        subsig.prefs.set_symm_algs(algs.data(), algs.size());
+        algs = subsig.sig.preferred_hash_algs();
+        subsig.prefs.set_hash_algs(algs.data(), algs.size());
+        algs = subsig.sig.preferred_z_algs();
+        subsig.prefs.set_z_algs(algs.data(), algs.size());
+
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
             subsig.key_flags = subsig.sig.key_flags();
         }

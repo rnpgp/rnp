@@ -47,22 +47,6 @@ typedef struct pgp_signature_info_t {
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
-bool signature_get_preferred_symm_algs(const pgp_signature_t *sig,
-                                       uint8_t **             algs,
-                                       size_t *               count);
-
-bool signature_set_preferred_symm_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
-
-bool signature_get_preferred_hash_algs(const pgp_signature_t *sig,
-                                       uint8_t **             algs,
-                                       size_t *               count);
-
-bool signature_set_preferred_hash_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
-
-bool signature_get_preferred_z_algs(const pgp_signature_t *sig, uint8_t **algs, size_t *count);
-
-bool signature_set_preferred_z_algs(pgp_signature_t *sig, const uint8_t algs[], size_t len);
-
 uint8_t signature_get_key_server_prefs(const pgp_signature_t *sig);
 
 bool signature_set_key_server_prefs(pgp_signature_t *sig, uint8_t prefs);
