@@ -3400,7 +3400,7 @@ try {
         *create = sig->sig_pkt.creation();
     }
     if (expires) {
-        *expires = signature_get_expiration(&sig->sig_pkt);
+        *expires = sig->sig_pkt.expiration();
     }
 
     return RNP_SUCCESS;
@@ -6948,7 +6948,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
     }
     json_object_object_add(jso, "creation time", jsocreation_time);
     // expiration (seconds)
-    json_object *jsoexpiration = json_object_new_int64(signature_get_expiration(sig));
+    json_object *jsoexpiration = json_object_new_int64(sig->expiration());
     if (!jsoexpiration) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }

@@ -212,7 +212,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         // check SS_CREATION_TIME
         assert_int_equal(sig->creation(), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
-        assert_int_equal(signature_get_expiration(sig), 0);
+        assert_int_equal(sig->expiration(), 0);
     }
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 0);
@@ -232,7 +232,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(sig->creation(), 1500569820);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 0);
 
@@ -251,7 +251,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(sig->creation(), 1500569851);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 123 * 24 * 60 * 60 /* 123 days */);
 
@@ -270,7 +270,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(sig->creation(), 1500569896);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 0);
 
@@ -292,7 +292,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         // check SS_CREATION_TIME
         assert_int_equal(sig->creation(), expected_creation_times[i]);
         // check SS_EXPIRATION_TIME
-        assert_int_equal(signature_get_expiration(sig), 0);
+        assert_int_equal(sig->expiration(), 0);
     }
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 2076663808);
@@ -312,7 +312,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(sig->creation(), 1500569946);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 2076663808);
 
@@ -331,7 +331,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_int_equal(sig->creation(), 1500570165);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check SS_EXPIRATION_TIME [0]
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
     assert_int_equal(pgp_key_get_expiration(key), 0);
 
@@ -372,7 +372,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     assert_int_equal(sig->creation(), 1005209227);
     assert_int_equal(sig->creation(), pgp_key_get_creation(key));
     // check signature expiration time (V3 sigs have none)
-    assert_int_equal(signature_get_expiration(sig), 0);
+    assert_int_equal(sig->expiration(), 0);
     // check key expiration
     assert_int_equal(pgp_key_get_expiration(key), 0); // only for V4 keys
     assert_int_equal(pgp_key_get_pkt(key)->v3_days, 0);
