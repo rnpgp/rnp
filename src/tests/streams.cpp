@@ -336,17 +336,16 @@ TEST_F(rnp_tests, test_stream_file)
 
 TEST_F(rnp_tests, test_stream_signatures)
 {
-    rnp_key_store_t * pubring;
-    rnp_key_store_t * secring;
-    pgp_signature_t   sig;
-    pgp_hash_t        hash_orig;
-    pgp_hash_t        hash_forged;
-    pgp_hash_t        hash;
-    pgp_hash_alg_t    halg;
-    pgp_source_t      sigsrc;
-    pgp_key_t *       key = NULL;
-    rng_t             rng;
-    pgp_fingerprint_t fp;
+    rnp_key_store_t *pubring;
+    rnp_key_store_t *secring;
+    pgp_signature_t  sig;
+    pgp_hash_t       hash_orig;
+    pgp_hash_t       hash_forged;
+    pgp_hash_t       hash;
+    pgp_hash_alg_t   halg;
+    pgp_source_t     sigsrc;
+    pgp_key_t *      key = NULL;
+    rng_t            rng;
 
     /* we need rng for key validation */
     assert_true(rng_init(&rng, RNG_SYSTEM));
@@ -389,7 +388,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.halg = halg;
     sig.palg = pgp_key_get_alg(key);
     sig.set_type(PGP_SIG_BINARY);
-    assert_true(signature_set_keyfp(&sig, pgp_key_get_fp(key)));
+    sig.set_keyfp(pgp_key_get_fp(key));
     sig.set_keyid(pgp_key_get_keyid(key));
     assert_true(signature_set_creation(&sig, create));
     assert_true(signature_set_expiration(&sig, expire));
@@ -409,8 +408,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_int_equal(signature_get_creation(&sig), create);
     assert_int_equal(signature_get_expiration(&sig), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
-    assert_true(signature_get_keyfp(&sig, fp));
-    assert_true(fp == pgp_key_get_fp(key));
+    assert_true(sig.keyfp() == pgp_key_get_fp(key));
     assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
     /* cleanup */
     delete pubring;

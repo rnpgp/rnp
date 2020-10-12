@@ -48,22 +48,6 @@ typedef struct pgp_signature_info_t {
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /**
- * @brief Get signing key's fingerprint if it is available
- * @param sig loaded or populated v4 signature, could not be NULL
- * @param fp reference to the fingerprint structure
- * @return true if fingerprint is available and returned or false otherwise
- */
-bool signature_get_keyfp(const pgp_signature_t *sig, pgp_fingerprint_t &fp);
-
-/**
- * @brief Set signing key fingerprint
- * @param sig v4 signature being populated
- * @param fp fingerprint structure
- * @return true on success or false otherwise;
- */
-bool signature_set_keyfp(pgp_signature_t *sig, const pgp_fingerprint_t &fp);
-
-/**
  * @brief Get signature's creation time
  * @param sig pointer to the loaded or populated signature.
  * @return time in seconds since the Jan 1, 1970 UTC. 0 is the default value and returned even

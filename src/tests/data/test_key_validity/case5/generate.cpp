@@ -96,7 +96,7 @@ main(int argc, char **argv)
 
     binding->halg = pgp_hash_adjust_alg_to_key(binding->halg, &tskey.key);
     binding->palg = tskey.key.alg;
-    signature_set_keyfp(binding, &keyfp);
+    binding->set_keyfp(keyfp);
 
     pgp_hash_t hash = {};
     pgp_hash_t hashcp = {};
