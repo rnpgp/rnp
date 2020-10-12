@@ -309,12 +309,11 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
         if (cert.key_expiration) {
             sig.set_key_expiration(cert.key_expiration);
         }
+        if (cert.key_flags) {
+            sig.set_key_flags(cert.key_flags);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (cert.key_flags && !signature_set_key_flags(&sig, cert.key_flags)) {
-        RNP_LOG("failed to set key flags");
         return NULL;
     }
     if (cert.primary && !signature_set_primary_uid(&sig, true)) {
@@ -500,12 +499,11 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
         if (binding.key_expiration) {
             sig.set_key_expiration(binding.key_expiration);
         }
+        if (binding.key_flags) {
+            sig.set_key_flags(binding.key_flags);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (binding.key_flags && !signature_set_key_flags(&sig, binding.key_flags)) {
-        RNP_LOG("failed to set key flags");
         return NULL;
     }
 

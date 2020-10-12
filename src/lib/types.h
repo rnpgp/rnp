@@ -460,6 +460,18 @@ typedef struct pgp_signature_t {
     void set_key_expiration(uint32_t etime);
 
     /**
+     * @brief Get the key flags
+     * @return byte of key flags. If there is no corresponding subpackets then 0 is returned.
+     */
+    uint8_t key_flags() const;
+
+    /**
+     * @brief Set the key flags
+     * @param flags byte of key flags
+     */
+    void set_key_flags(uint8_t flags);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
