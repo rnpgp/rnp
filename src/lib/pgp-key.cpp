@@ -679,7 +679,7 @@ pgp_subsig_from_signature(pgp_subsig_t *dst, const pgp_signature_t *sig)
         return false;
     }
     if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        subsig.key_flags = signature_get_key_flags(&subsig.sig);
+        subsig.key_flags = subsig.sig.key_flags();
     }
     if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
         uint8_t ks_pref = signature_get_key_server_prefs(&subsig.sig);
