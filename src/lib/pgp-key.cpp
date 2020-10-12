@@ -1093,7 +1093,7 @@ pgp_key_refresh_data(pgp_key_t *key)
         if (!sig->valid || !pgp_sig_is_self_signature(key, sig)) {
             continue;
         }
-        if (signature_get_primary_uid(&sig->sig)) {
+        if (sig->sig.primary_uid()) {
             key->uid0 = sig->uid;
             key->uid0_set = true;
             break;

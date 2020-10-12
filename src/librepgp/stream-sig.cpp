@@ -45,29 +45,6 @@
 
 #include <time.h>
 
-bool
-signature_get_primary_uid(pgp_signature_t *sig)
-{
-    pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
-    return subpkt ? subpkt->fields.primary_uid : false;
-}
-
-bool
-signature_set_primary_uid(pgp_signature_t *sig, bool primary)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID, 1, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = primary;
-        subpkt.fields.primary_uid = primary;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 static bool
 signature_set_preferred_algs(pgp_signature_t *        sig,
                              uint8_t                  algs[],
@@ -1262,6 +1239,23 @@ pgp_signature_t::set_key_flags(uint8_t flags)
     subpkt.hashed = true;
     subpkt.data[0] = flags;
     subpkt.fields.key_flags = flags;
+}
+
+bool
+pgp_signature_t::primary_uid() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
+    return subpkt ? subpkt->fields.primary_uid : false;
+}
+
+void
+pgp_signature_t::set_primary_uid(bool primary)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID, 1, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = primary;
+    subpkt.fields.primary_uid = primary;
 }
 
 pgp_sig_subpkt_t &

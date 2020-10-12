@@ -47,21 +47,6 @@ typedef struct pgp_signature_info_t {
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
-/**
- * @brief Get the primary user id flag
- * @param sig populated or loaded signature
- * @return true if user id is marked as primary or false otherwise
- */
-bool signature_get_primary_uid(pgp_signature_t *sig);
-
-/**
- * @brief Set the primary user id flag
- * @param sig signature being populated
- * @param primary true if user id should be marked as primary
- * @return true on success or false otherwise
- */
-bool signature_set_primary_uid(pgp_signature_t *sig, bool primary);
-
 bool signature_get_preferred_symm_algs(const pgp_signature_t *sig,
                                        uint8_t **             algs,
                                        size_t *               count);
