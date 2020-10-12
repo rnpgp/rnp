@@ -45,29 +45,6 @@
 
 #include <time.h>
 
-uint8_t
-signature_get_key_flags(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS);
-    return subpkt ? subpkt->fields.key_flags : 0;
-}
-
-bool
-signature_set_key_flags(pgp_signature_t *sig, uint8_t flags)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS, 1, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = flags;
-        subpkt.fields.key_flags = flags;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 bool
 signature_get_primary_uid(pgp_signature_t *sig)
 {
@@ -716,7 +693,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
     }
 
     res = signature_check(sinfo, &hash);
-    if (res || !(signature_get_key_flags(sinfo->sig) & PGP_KF_SIGN)) {
+    if (res || !(sinfo->sig->key_flags() & PGP_KF_SIGN)) {
         return res;
     }
 
@@ -1268,6 +1245,23 @@ pgp_signature_t::set_key_expiration(uint32_t etime)
     subpkt.hashed = true;
     STORE32BE(subpkt.data, etime);
     subpkt.fields.expiry = etime;
+}
+
+uint8_t
+pgp_signature_t::key_flags() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS);
+    return subpkt ? subpkt->fields.key_flags : 0;
+}
+
+void
+pgp_signature_t::set_key_flags(uint8_t flags)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS, 1, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = flags;
+    subpkt.fields.key_flags = flags;
 }
 
 pgp_sig_subpkt_t &

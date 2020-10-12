@@ -119,7 +119,7 @@ main(int argc, char **argv)
         return 1;
     }
 
-    pgp_key_flags_t realkf = (pgp_key_flags_t) signature_get_key_flags(binding);
+    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.key_flags();
     if (!realkf) {
         realkf = pgp_pk_alg_capabilities(subkey->subkey.alg);
     }
