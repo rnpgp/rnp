@@ -11,6 +11,7 @@ macos_install() {
 freebsd_install() {
   packages="
     git
+    readline
     bash
     gnupg
     devel/pkgconf
