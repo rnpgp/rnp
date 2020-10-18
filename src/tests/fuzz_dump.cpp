@@ -25,26 +25,16 @@
  */
 
 #include <rnp/rnp.h>
+#include "rnp_tests.h"
+#include "support.h"
 
-#ifdef RNP_RUN_TESTS
-int dump_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
-int
-dump_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#else
-int
-LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#endif
+extern "C" int dump_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+
+#define DATA_PATH "data/test_fuzz_dump/"
+
+TEST_F(rnp_tests, test_fuzz_dump)
 {
-    rnp_input_t  input = NULL;
-    rnp_result_t ret = 0;
-    ret = rnp_input_from_memory(&input, data, size, false);
-
-    rnp_output_t output = NULL;
-    ret = rnp_output_to_null(&output);
-
-    ret = rnp_dump_packets_to_output(input, output, RNP_DUMP_RAW);
-    rnp_output_destroy(output);
-    rnp_input_destroy(input);
-
-    return 0;
+    auto data =
+      file_to_vec(DATA_PATH "clusterfuzz-testcase-minimized-fuzz_dump-5757362284265472");
+    assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
