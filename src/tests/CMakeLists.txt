@@ -69,6 +69,7 @@ add_executable(rnp_tests
   ../fuzzing/keyring_g10.cpp
   ../fuzzing/keyring_kbx.c
   ../fuzzing/keyimport.c
+  ../fuzzing/dump.c
   cipher.cpp
   cli.cpp
   exportkey.cpp
@@ -108,6 +109,7 @@ add_executable(rnp_tests
   fuzz_keyring_g10.cpp
   fuzz_keyring_kbx.cpp
   fuzz_keyimport.cpp
+  fuzz_dump.cpp
 )
 if(MSVC)
   find_package(WindowsSDK)
