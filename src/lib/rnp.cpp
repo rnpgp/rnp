@@ -6561,6 +6561,9 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
     *buf_len = memdst.writeb;
     *buf = (uint8_t *) mem_dest_own_memory(&memdst);
     dst_close(&memdst, true);
+    if (*buf_len && !*buf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     return RNP_SUCCESS;
 }
 
