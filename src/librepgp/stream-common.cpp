@@ -1100,8 +1100,17 @@ mem_dest_own_memory(pgp_dest_t *dst)
     dst_finish(dst);
 
     if (param->free) {
-        /* it may be larger then required */
-        param->memory = realloc(param->memory, dst->writeb);
+        if (!dst->writeb) {
+            free(param->memory);
+            param->memory = NULL;
+            return param->memory;
+        }
+        /* it may be larger then required - let's truncate */
+        void *newalloc = realloc(param->memory, dst->writeb);
+        if (!newalloc) {
+            return NULL;
+        }
+        param->memory = newalloc;
         param->allocated = dst->writeb;
         param->free = false;
         return param->memory;
