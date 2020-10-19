@@ -136,8 +136,6 @@ static rnp_result_t
 partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_partial_param_t *param = (pgp_dest_partial_param_t *) dst->param;
-    int                       wrlen;
-
     if (!param) {
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -145,7 +143,7 @@ partial_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (len > param->partlen - param->len) {
         /* we have full part - in block and in buf */
-        wrlen = param->partlen - param->len;
+        size_t wrlen = param->partlen - param->len;
         dst_write(param->writedst, &param->parthdr, 1);
         dst_write(param->writedst, param->part, param->len);
         dst_write(param->writedst, buf, wrlen);
