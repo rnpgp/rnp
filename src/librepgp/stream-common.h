@@ -343,7 +343,9 @@ void *mem_dest_get_memory(pgp_dest_t *dst);
 /** @brief get ownership on the memory dest's contents. This must be called only before
  *         closing the dest
  *  @param dst pre-allocated and initialized memory dest
- *  @return pointer to the memory area or NULL if memory was not allocated
+ *  @return pointer to the memory area or NULL if memory was not allocated (i.e. nothing was
+ *          written to the destination). Also NULL will be returned on possible (re-)allocation
+ *          failure, this case can be identified by non-zero dst->writeb.
  **/
 void *mem_dest_own_memory(pgp_dest_t *dst);
 
