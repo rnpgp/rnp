@@ -95,6 +95,10 @@ TEST_F(rnp_tests, test_stream_memory)
     /* make sure we own data after close */
     assert_false(memcmp(mown, data, datalen));
     free(mown);
+    /* make sure init_mem_src fails with NULL parameter */
+    pgp_source_t memsrc;
+    assert_rnp_failure(init_mem_src(&memsrc, NULL, 12, false));
+    assert_rnp_failure(init_mem_src(&memsrc, NULL, 12, true));
 }
 
 TEST_F(rnp_tests, test_stream_memory_discard)
