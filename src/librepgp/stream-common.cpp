@@ -515,14 +515,15 @@ mem_src_close(pgp_source_t *src)
 rnp_result_t
 init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
 {
-    pgp_source_mem_param_t *param;
-
+    if (!mem && len) {
+        return RNP_ERROR_NULL_POINTER;
+    }
     /* this is actually double buffering, but then src_peek will fail */
     if (!init_src_common(src, sizeof(pgp_source_mem_param_t))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_mem_param_t *) src->param;
+    pgp_source_mem_param_t *param = (pgp_source_mem_param_t *) src->param;
     param->memory = mem;
     param->len = len;
     param->pos = 0;
