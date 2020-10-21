@@ -520,7 +520,8 @@ pgp_subsig_from_signature(pgp_subsig_t &dst, const pgp_signature_t &sig)
     pgp_subsig_t subsig = {};
     subsig.sig = sig;
     if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
-        signature_get_trust(&subsig.sig, &subsig.trustlevel, &subsig.trustamount);
+        subsig.trustlevel = subsig.sig.trust_level();
+        subsig.trustamount = subsig.sig.trust_amount();
     }
     try {
         auto algs = subsig.sig.preferred_symm_algs();

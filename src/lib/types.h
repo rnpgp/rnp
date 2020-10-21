@@ -527,6 +527,21 @@ typedef struct pgp_signature_t {
      *         it is available. */
     void set_key_server(const std::string &uri);
 
+    /** @brief Get trust level, if available. Otherwise will return 0. See RFC 4880, 5.2.3.14.
+     *         for the detailed information on trust level and amount.
+     */
+    uint8_t trust_level() const;
+
+    /** @brief Get trust amount, if available. Otherwise will return 0. See RFC 4880, 5.2.3.14.
+     *         for the detailed information on trust level and amount.
+     */
+    uint8_t trust_amount() const;
+
+    /** @brief Set the trust level and amount. See RFC 4880, 5.2.3.14.
+     *         for the detailed information on trust level and amount.
+     */
+    void set_trust(uint8_t level, uint8_t amount);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
