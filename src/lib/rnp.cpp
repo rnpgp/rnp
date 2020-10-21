@@ -5136,7 +5136,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_hash_algs(NULL, 0);
+    op->cert.prefs.set_hash_algs({});
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5168,7 +5168,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_z_algs(NULL, 0);
+    op->cert.prefs.set_z_algs({});
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5200,7 +5200,7 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    op->cert.prefs.set_symm_algs(NULL, 0);
+    op->cert.prefs.set_symm_algs({});
     return RNP_SUCCESS;
 }
 FFI_GUARD
