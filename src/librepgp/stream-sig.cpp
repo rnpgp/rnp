@@ -46,20 +46,6 @@
 #include <time.h>
 
 bool
-signature_set_features(pgp_signature_t *sig, uint8_t features)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_FEATURES, 1, true);
-        subpkt.hashed = true;
-        subpkt.data[0] = features;
-        return signature_parse_subpacket(subpkt);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len)
 {
     try {
@@ -1214,6 +1200,23 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
     if (!signature_parse_subpacket(subpkt)) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
+}
+
+bool
+pgp_signature_t::key_has_features(pgp_key_feature_t flags) const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_FEATURES);
+    return subpkt ? subpkt->data[0] & flags : false;
+}
+
+void
+pgp_signature_t::set_key_features(pgp_key_feature_t flags)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_FEATURES, 1, true);
+    subpkt.hashed = true;
+    subpkt.data[0] = flags;
+    subpkt.fields.features = flags;
+    subpkt.parsed = true;
 }
 
 pgp_sig_subpkt_t &
