@@ -550,6 +550,22 @@ typedef struct pgp_signature_t {
      */
     void set_revocable(bool status);
 
+    /** @brief Get the key/subkey revocation reason in humand-readable form. If there is no
+     * revocation reason subpacket, then empty string will be returned.
+     */
+    std::string revocation_reason() const;
+
+    /** @brief Get the key/subkey revocation code. If there is no revocation reason subpacket,
+     *         then PGP_REVOCATION_NO_REASON will be rerturned. See the RFC 4880, 5.2.3.24 for
+     *         the detailed explanation.
+     */
+    pgp_revocation_type_t revocation_code() const;
+
+    /** @brief Set the revocation reason and code for key/subkey revocation signature. See the
+     *         RFC 4880, 5.2.3.24 for the detailed explanation.
+     */
+    void set_revocation_reason(pgp_revocation_type_t code, const std::string &reason);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
