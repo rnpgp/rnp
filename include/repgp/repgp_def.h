@@ -418,6 +418,12 @@ typedef enum {
     PGP_KF_ENCRYPT = PGP_KF_ENCRYPT_COMMS | PGP_KF_ENCRYPT_STORAGE,
 } pgp_key_flags_t;
 
+typedef enum {
+    PGP_KEY_FEATURE_MDC = 0x01,
+    PGP_KEY_FEATURE_AEAD = 0x02,
+    PGP_KEY_FEATURE_V5 = 0x04
+} pgp_key_feature_t;
+
 /** Types of Compression */
 typedef enum {
     PGP_C_NONE = 0,

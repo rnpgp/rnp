@@ -1512,9 +1512,7 @@ signature_parse_subpacket(pgp_sig_subpkt_t &subpkt)
         break;
     case PGP_SIG_SUBPKT_FEATURES:
         if ((oklen = subpkt.len >= 1)) {
-            subpkt.fields.features.mdc = subpkt.data[0] & 0x01;
-            subpkt.fields.features.aead = subpkt.data[0] & 0x02;
-            subpkt.fields.features.key_v5 = subpkt.data[0] & 0x04;
+            subpkt.fields.features = subpkt.data[0];
         }
         break;
     case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
