@@ -46,29 +46,6 @@
 #include <time.h>
 
 bool
-signature_get_revocable(const pgp_signature_t *sig)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_REVOCABLE);
-    return subpkt ? subpkt->fields.revocable : true;
-}
-
-bool
-signature_set_revocable(pgp_signature_t *sig, bool revocable)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_REVOCABLE, 1, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = revocable;
-        subpkt.fields.revocable = revocable;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 signature_set_features(pgp_signature_t *sig, uint8_t features)
 {
     try {
@@ -1236,6 +1213,23 @@ pgp_signature_t::set_trust(uint8_t level, uint8_t amount)
     subpkt.data[1] = amount;
     subpkt.fields.trust.level = level;
     subpkt.fields.trust.amount = amount;
+}
+
+bool
+pgp_signature_t::revocable() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCABLE);
+    return subpkt ? subpkt->fields.revocable : true;
+}
+
+void
+pgp_signature_t::set_revocable(bool status)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCABLE, 1, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = status;
+    subpkt.fields.revocable = status;
 }
 
 pgp_sig_subpkt_t &
