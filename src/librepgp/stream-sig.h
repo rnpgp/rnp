@@ -47,8 +47,6 @@ typedef struct pgp_signature_info_t {
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
-bool signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len);
-
 bool signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig);
 
 bool signature_add_notation_data(pgp_signature_t *sig,
