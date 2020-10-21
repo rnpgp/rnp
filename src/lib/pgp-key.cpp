@@ -893,23 +893,21 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
             continue;
         }
         sub->revoked = true;
-        char *reason = NULL;
-        if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
-            RNP_LOG("Warning: no revocation reason in subkey revocation");
-            sub->revocation.code = PGP_REVOCATION_NO_REASON;
-        } else if (!signature_get_revocation_reason(
-                     &sig->sig, &sub->revocation.code, &reason)) {
-            return false;
-        }
-
         try {
-            sub->revocation.reason = (reason && strlen(reason)) ?
-                                       reason :
-                                       pgp_str_from_map(sub->revocation.code, ss_rr_code_map);
-            free(reason);
+            if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
+                RNP_LOG("Warning: no revocation reason in subkey revocation");
+                sub->revocation.code = PGP_REVOCATION_NO_REASON;
+            } else {
+                sub->revocation.code = sig->sig.revocation_code();
+                sub->revocation.reason = sig->sig.revocation_reason();
+            }
+
+            if (sub->revocation.reason.empty()) {
+                sub->revocation.reason =
+                  pgp_str_from_map(sub->revocation.code, ss_rr_code_map);
+            }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
-            free(reason);
             return false;
         }
         break;
@@ -975,22 +973,19 @@ pgp_key_refresh_data(pgp_key_t *key)
             continue;
         }
 
-        char *reason = NULL;
-        if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
-            RNP_LOG("Warning: no revocation reason in key/userid revocation");
-            revocation->code = PGP_REVOCATION_NO_REASON;
-        } else if (!signature_get_revocation_reason(&sig->sig, &revocation->code, &reason)) {
-            return false;
-        }
-
         try {
-            revocation->reason = (reason && strlen(reason)) ?
-                                   reason :
-                                   pgp_str_from_map(revocation->code, ss_rr_code_map);
-            free(reason);
+            if (!sig->sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
+                RNP_LOG("Warning: no revocation reason in key/userid revocation");
+                revocation->code = PGP_REVOCATION_NO_REASON;
+            } else {
+                revocation->code = sig->sig.revocation_code();
+                revocation->reason = sig->sig.revocation_reason();
+            }
+            if (revocation->reason.empty()) {
+                revocation->reason = pgp_str_from_map(revocation->code, ss_rr_code_map);
+            }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
-            free(reason);
             return false;
         }
     }

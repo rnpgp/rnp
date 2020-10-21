@@ -533,18 +533,10 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
     try {
         sig.set_keyfp(keyfp);
         sig.set_creation(time(NULL));
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-    if (!signature_set_revocation_reason(&sig, revoke.code, revoke.reason.c_str())) {
-        RNP_LOG("failed to set revocation reason");
-        return NULL;
-    }
-    try {
+        sig.set_revocation_reason(revoke.code, revoke.reason);
         sig.set_keyid(keyid);
     } catch (const std::exception &e) {
-        RNP_LOG("failed to set issuer key id: %s", e.what());
+        RNP_LOG("failed to setup signature: %s", e.what());
         return NULL;
     }
 

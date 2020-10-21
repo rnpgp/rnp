@@ -155,52 +155,6 @@ signature_add_notation_data(pgp_signature_t *sig,
 }
 
 bool
-signature_get_revocation_reason(const pgp_signature_t *sig,
-                                pgp_revocation_type_t *code,
-                                char **                reason)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
-    if (!subpkt) {
-        return false;
-    }
-    if (code) {
-        *code = subpkt->fields.revocation_reason.code;
-    }
-    if (reason) {
-        size_t len = subpkt->fields.revocation_reason.len;
-        *reason = (char *) malloc(len + 1);
-        if (!*reason) {
-            RNP_LOG("alloc failed");
-            return false;
-        }
-        memcpy(*reason, subpkt->fields.revocation_reason.str, len);
-        (*reason)[len] = '\0';
-    }
-    return true;
-}
-
-bool
-signature_set_revocation_reason(pgp_signature_t *     sig,
-                                pgp_revocation_type_t code,
-                                const char *          reason)
-{
-    size_t datalen = 1 + (reason ? strlen(reason) : 0);
-    try {
-        pgp_sig_subpkt_t &subpkt =
-          sig->add_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON, datalen, true);
-        subpkt.hashed = true;
-        subpkt.data[0] = code;
-        if (reason) {
-            memcpy(subpkt.data + 1, reason, datalen - 1);
-        }
-        return signature_parse_subpacket(subpkt);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 signature_fill_hashed_data(pgp_signature_t *sig)
 {
     pgp_packet_body_t hbody;
@@ -1230,6 +1184,36 @@ pgp_signature_t::set_revocable(bool status)
     subpkt.hashed = true;
     subpkt.data[0] = status;
     subpkt.fields.revocable = status;
+}
+
+std::string
+pgp_signature_t::revocation_reason() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
+    return subpkt ? std::string(subpkt->fields.revocation_reason.str,
+                                subpkt->fields.revocation_reason.len) :
+                    "";
+}
+
+pgp_revocation_type_t
+pgp_signature_t::revocation_code() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
+    return subpkt ? subpkt->fields.revocation_reason.code : PGP_REVOCATION_NO_REASON;
+}
+
+void
+pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::string &reason)
+{
+    size_t            datalen = 1 + reason.size();
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON, datalen, true);
+    subpkt.hashed = true;
+    subpkt.data[0] = code;
+    memcpy(subpkt.data + 1, reason.data(), reason.size());
+
+    if (!signature_parse_subpacket(subpkt)) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
 }
 
 pgp_sig_subpkt_t &
