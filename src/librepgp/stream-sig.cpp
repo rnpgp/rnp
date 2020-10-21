@@ -46,20 +46,6 @@
 #include <time.h>
 
 bool
-signature_set_signer_uid(pgp_signature_t *sig, uint8_t *uid, size_t len)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_SIGNERS_USER_ID, len, true);
-        subpkt.hashed = true;
-        memcpy(subpkt.data, uid, len);
-        return signature_parse_subpacket(subpkt);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
 {
     pgp_sig_subpkt_t *subpkt = NULL;
@@ -1216,6 +1202,24 @@ pgp_signature_t::set_key_features(pgp_key_feature_t flags)
     subpkt.hashed = true;
     subpkt.data[0] = flags;
     subpkt.fields.features = flags;
+    subpkt.parsed = true;
+}
+
+std::string
+pgp_signature_t::signer_uid() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_SIGNERS_USER_ID);
+    return subpkt ? std::string(subpkt->fields.signer.uid, subpkt->fields.signer.len) : "";
+}
+
+void
+pgp_signature_t::set_signer_uid(const std::string &uid)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_SIGNERS_USER_ID, uid.size(), true);
+    subpkt.hashed = true;
+    memcpy(subpkt.data, uid.data(), uid.size());
+    subpkt.fields.signer.uid = (const char *) subpkt.data;
+    subpkt.fields.signer.len = subpkt.len;
     subpkt.parsed = true;
 }
 
