@@ -542,6 +542,14 @@ typedef struct pgp_signature_t {
      */
     void set_trust(uint8_t level, uint8_t amount);
 
+    /** @brief check whether signature is revocable. True by default.
+     */
+    bool revocable() const;
+
+    /** @brief Set the signature's revocability status.
+     */
+    void set_revocable(bool status);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
