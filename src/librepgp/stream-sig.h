@@ -58,14 +58,6 @@ bool signature_add_notation_data(pgp_signature_t *sig,
                                  const char *     name,
                                  const char *     value);
 
-bool signature_get_revocation_reason(const pgp_signature_t *sig,
-                                     pgp_revocation_type_t *code,
-                                     char **                reason);
-
-bool signature_set_revocation_reason(pgp_signature_t *     sig,
-                                     pgp_revocation_type_t code,
-                                     const char *          reason);
-
 /**
  * @brief Fill signature's hashed data. This includes all the fields from signature which are
  *        hashed after the previous document or key fields.
