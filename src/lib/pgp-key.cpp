@@ -524,19 +524,15 @@ pgp_subsig_from_signature(pgp_subsig_t &dst, const pgp_signature_t &sig)
         subsig.trustamount = subsig.sig.trust_amount();
     }
     try {
-        auto algs = subsig.sig.preferred_symm_algs();
-        subsig.prefs.set_symm_algs(algs.data(), algs.size());
-        algs = subsig.sig.preferred_hash_algs();
-        subsig.prefs.set_hash_algs(algs.data(), algs.size());
-        algs = subsig.sig.preferred_z_algs();
-        subsig.prefs.set_z_algs(algs.data(), algs.size());
+        subsig.prefs.set_symm_algs(subsig.sig.preferred_symm_algs());
+        subsig.prefs.set_hash_algs(subsig.sig.preferred_hash_algs());
+        subsig.prefs.set_z_algs(subsig.sig.preferred_z_algs());
 
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
             subsig.key_flags = subsig.sig.key_flags();
         }
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
-            uint8_t ks_pref = subsig.sig.key_server_prefs();
-            subsig.prefs.set_ks_prefs(&ks_pref, 1);
+            subsig.prefs.set_ks_prefs({subsig.sig.key_server_prefs()});
         }
         if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
             subsig.prefs.key_server = subsig.sig.key_server();
@@ -1917,16 +1913,6 @@ mem_dest_to_vector(pgp_dest_t *dst, std::vector<uint8_t> &vec)
 }
 
 static void
-bytevec_assign_ptr(std::vector<uint8_t> &vec, const uint8_t data[], size_t len)
-{
-    if (!data || !len) {
-        vec.resize(0);
-        return;
-    }
-    vec.assign(data, data + len);
-}
-
-static void
 bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
 {
     if (std::find(vec.begin(), vec.end(), val) == vec.end()) {
@@ -1935,9 +1921,9 @@ bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
 }
 
 void
-pgp_user_prefs_t::set_symm_algs(const uint8_t algs[], size_t len)
+pgp_user_prefs_t::set_symm_algs(const std::vector<uint8_t> &algs)
 {
-    bytevec_assign_ptr(symm_algs, algs, len);
+    symm_algs = algs;
 }
 
 void
@@ -1947,9 +1933,9 @@ pgp_user_prefs_t::add_symm_alg(pgp_symm_alg_t alg)
 }
 
 void
-pgp_user_prefs_t::set_hash_algs(const uint8_t algs[], size_t len)
+pgp_user_prefs_t::set_hash_algs(const std::vector<uint8_t> &algs)
 {
-    bytevec_assign_ptr(hash_algs, algs, len);
+    hash_algs = algs;
 }
 
 void
@@ -1959,9 +1945,9 @@ pgp_user_prefs_t::add_hash_alg(pgp_hash_alg_t alg)
 }
 
 void
-pgp_user_prefs_t::set_z_algs(const uint8_t algs[], size_t len)
+pgp_user_prefs_t::set_z_algs(const std::vector<uint8_t> &algs)
 {
-    bytevec_assign_ptr(z_algs, algs, len);
+    z_algs = algs;
 }
 
 void
@@ -1971,9 +1957,9 @@ pgp_user_prefs_t::add_z_alg(pgp_compression_type_t alg)
 }
 
 void
-pgp_user_prefs_t::set_ks_prefs(const uint8_t prefs[], size_t len)
+pgp_user_prefs_t::set_ks_prefs(const std::vector<uint8_t> &prefs)
 {
-    bytevec_assign_ptr(ks_prefs, prefs, len);
+    ks_prefs = prefs;
 }
 
 void
