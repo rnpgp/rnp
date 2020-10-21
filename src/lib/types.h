@@ -579,6 +579,17 @@ typedef struct pgp_signature_t {
      */
     void set_key_features(pgp_key_feature_t flags);
 
+    /** @brief Get signer's user id, if available. Otherwise empty string is returned. See the
+     *         RFC 4880bis, 5.2.3.23 for details.
+     */
+    std::string signer_uid() const;
+
+    /**
+     * @brief Set the signer's uid, responcible for the signature creation. See the RFC
+     * 4880bis, 5.2.3.23 for details.
+     */
+    void set_signer_uid(const std::string &uid);
+
     /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
