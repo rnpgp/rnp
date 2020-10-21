@@ -294,13 +294,17 @@ static void
 set_default_user_prefs(pgp_user_prefs_t &prefs)
 {
     if (prefs.symm_algs.empty()) {
-        prefs.set_symm_algs(DEFAULT_SYMMETRIC_ALGS, ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS));
+        prefs.set_symm_algs(
+          std::vector<uint8_t>(DEFAULT_SYMMETRIC_ALGS,
+                               DEFAULT_SYMMETRIC_ALGS + ARRAY_SIZE(DEFAULT_SYMMETRIC_ALGS)));
     }
     if (prefs.hash_algs.empty()) {
-        prefs.set_hash_algs(DEFAULT_HASH_ALGS, ARRAY_SIZE(DEFAULT_HASH_ALGS));
+        prefs.set_hash_algs(std::vector<uint8_t>(
+          DEFAULT_HASH_ALGS, DEFAULT_HASH_ALGS + ARRAY_SIZE(DEFAULT_HASH_ALGS)));
     }
     if (prefs.z_algs.empty()) {
-        prefs.set_z_algs(DEFAULT_COMPRESS_ALGS, ARRAY_SIZE(DEFAULT_COMPRESS_ALGS));
+        prefs.set_z_algs(std::vector<uint8_t>(
+          DEFAULT_COMPRESS_ALGS, DEFAULT_COMPRESS_ALGS + ARRAY_SIZE(DEFAULT_COMPRESS_ALGS)));
     }
 }
 
