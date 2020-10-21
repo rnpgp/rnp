@@ -46,40 +46,6 @@
 #include <time.h>
 
 bool
-signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount)
-{
-    const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_TRUST);
-    if (subpkt) {
-        if (level) {
-            *level = subpkt->fields.trust.level;
-        }
-        if (amount) {
-            *amount = subpkt->fields.trust.amount;
-        }
-        return true;
-    }
-    return false;
-}
-
-bool
-signature_set_trust(pgp_signature_t *sig, uint8_t level, uint8_t amount)
-{
-    try {
-        pgp_sig_subpkt_t &subpkt = sig->add_subpkt(PGP_SIG_SUBPKT_TRUST, 2, true);
-        subpkt.parsed = true;
-        subpkt.hashed = true;
-        subpkt.data[0] = level;
-        subpkt.data[1] = amount;
-        subpkt.fields.trust.level = level;
-        subpkt.fields.trust.amount = amount;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 signature_get_revocable(const pgp_signature_t *sig)
 {
     const pgp_sig_subpkt_t *subpkt = sig->get_subpkt(PGP_SIG_SUBPKT_REVOCABLE);
@@ -1244,6 +1210,32 @@ pgp_signature_t::set_key_server(const std::string &uri)
     memcpy(subpkt.data, uri.data(), uri.size());
     subpkt.fields.preferred_ks.uri = (char *) subpkt.data;
     subpkt.fields.preferred_ks.len = uri.size();
+}
+
+uint8_t
+pgp_signature_t::trust_level() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_TRUST);
+    return subpkt ? subpkt->fields.trust.level : 0;
+}
+
+uint8_t
+pgp_signature_t::trust_amount() const
+{
+    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_TRUST);
+    return subpkt ? subpkt->fields.trust.amount : 0;
+}
+
+void
+pgp_signature_t::set_trust(uint8_t level, uint8_t amount)
+{
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_TRUST, 2, true);
+    subpkt.parsed = true;
+    subpkt.hashed = true;
+    subpkt.data[0] = level;
+    subpkt.data[1] = amount;
+    subpkt.fields.trust.level = level;
+    subpkt.fields.trust.amount = amount;
 }
 
 pgp_sig_subpkt_t &

@@ -47,10 +47,6 @@ typedef struct pgp_signature_info_t {
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
-bool signature_get_trust(const pgp_signature_t *sig, uint8_t *level, uint8_t *amount);
-
-bool signature_set_trust(pgp_signature_t *sig, uint8_t level, uint8_t amount);
-
 bool signature_get_revocable(const pgp_signature_t *sig);
 
 bool signature_set_revocable(pgp_signature_t *sig, bool revocable);
