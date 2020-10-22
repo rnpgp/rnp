@@ -348,22 +348,22 @@ bool
 init_src_common(pgp_source_t *src, size_t paramsize)
 {
     memset(src, 0, sizeof(*src));
-
-    if ((src->cache = (pgp_source_cache_t *) calloc(1, sizeof(pgp_source_cache_t))) == NULL) {
+    src->cache = (pgp_source_cache_t *) calloc(1, sizeof(*src->cache));
+    if (!src->cache) {
         RNP_LOG("cache allocation failed");
         return false;
     }
     src->cache->readahead = true;
-
-    if (paramsize > 0) {
-        if ((src->param = calloc(1, paramsize)) == NULL) {
-            RNP_LOG("param allocation failed");
-            free(src->cache);
-            src->cache = NULL;
-            return false;
-        }
+    if (!paramsize) {
+        return true;
     }
-
+    src->param = calloc(1, paramsize);
+    if (!src->param) {
+        RNP_LOG("param allocation failed");
+        free(src->cache);
+        src->cache = NULL;
+        return false;
+    }
     return true;
 }
 
@@ -616,16 +616,14 @@ bool
 init_dst_common(pgp_dest_t *dst, size_t paramsize)
 {
     memset(dst, 0, sizeof(*dst));
-
-    if (paramsize > 0) {
-        if ((dst->param = calloc(1, paramsize)) == NULL) {
+    if (paramsize) {
+        dst->param = calloc(1, paramsize);
+        if (!dst->param) {
             RNP_LOG("allocation failed");
             return false;
         }
     }
-
     dst->werr = RNP_SUCCESS;
-
     return true;
 }
 
