@@ -91,7 +91,7 @@ int stream_pkt_type(pgp_source_t *src);
  **/
 bool stream_pkt_hdr_len(pgp_source_t *src, size_t *hdrlen);
 
-bool stream_intedeterminate_pkt_len(pgp_source_t *src);
+bool stream_old_indeterminate_pkt_len(pgp_source_t *src);
 
 bool stream_partial_pkt_len(pgp_source_t *src);
 
