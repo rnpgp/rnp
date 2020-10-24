@@ -1601,7 +1601,7 @@ init_packet_params(pgp_source_packet_param_t *param)
         param->partial = true;
         param->origsrc = param->readsrc;
         param->readsrc = partsrc;
-    } else if (stream_intedeterminate_pkt_len(param->readsrc)) {
+    } else if (stream_old_indeterminate_pkt_len(param->readsrc)) {
         param->indeterminate = true;
         src_skip(param->readsrc, 1);
     } else {
