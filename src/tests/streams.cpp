@@ -1304,6 +1304,24 @@ TEST_F(rnp_tests, test_stream_dumper)
     assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, false);
+
+    assert_rnp_success(init_file_src(&src, "data/test_messages/message.txt.enc-no-mdc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
+
+    assert_rnp_success(init_file_src(&src, "data/test_messages/message.txt.enc-mdc"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
+
+    assert_rnp_success(init_file_src(&src, "data/test_messages/message-32k-crlf.txt.gpg"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    dst_close(&dst, false);
 }
 
 TEST_F(rnp_tests, test_stream_z)
