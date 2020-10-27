@@ -5579,6 +5579,58 @@ try {
 }
 FFI_GUARD
 
+static pgp_userid_t *
+rnp_uid_handle_get_uid(rnp_uid_handle_t uid)
+{
+    if (!uid || !uid->key) {
+        return NULL;
+    }
+    return pgp_key_get_userid(uid->key, uid->idx);
+}
+
+rnp_result_t
+rnp_uid_get_type(rnp_uid_handle_t uid, uint32_t *type)
+try {
+    if (!type) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    if (!id) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    switch (id->pkt.tag) {
+    case PGP_PKT_USER_ID:
+        *type = RNP_USER_ID;
+        return RNP_SUCCESS;
+    case PGP_PKT_USER_ATTR:
+        *type = RNP_USER_ATTR;
+        return RNP_SUCCESS;
+    default:
+        return RNP_ERROR_BAD_STATE;
+    }
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t *size)
+try {
+    if (!data || !size) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    if (!id) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *data = malloc(id->pkt.uid_len);
+    if (id->pkt.uid_len && !*data) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(*data, id->pkt.uid, id->pkt.uid_len);
+    *size = id->pkt.uid_len;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
 static rnp_result_t
 rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
 {
