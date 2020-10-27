@@ -86,6 +86,12 @@ typedef uint32_t rnp_result_t;
 #define RNP_OUTPUT_FILE_RANDOM (1U << 1)
 
 /**
+ * User id type
+ */
+#define RNP_USER_ID (1U)
+#define RNP_USER_ATTR (2U)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -1001,6 +1007,27 @@ RNP_API rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char *
 RNP_API rnp_result_t rnp_key_get_uid_handle_at(rnp_key_handle_t  key,
                                                size_t            idx,
                                                rnp_uid_handle_t *uid);
+
+/** Get userid's type. Currently two possible values are defined:
+ *  - RNP_USER_ID - string representation of user's name and email.
+ *  - RNP_USER_ATTR - binary photo of the user
+
+ * @param uid uid handle, cannot be NULL.
+ * @param type on success userid type will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_get_type(rnp_uid_handle_t uid, uint32_t *type);
+
+/** Get userid's data. Representation of data depends on userid type (see rnp_uid_get_type()
+ * function)
+ *
+ * @param uid uid handle, cannot be NULL.
+ * @param data cannot be NULL. On success pointer to the allocated buffer with data will be
+ * stored here. Must be deallocated by caller via rnp_buffer_destroy().
+ * @param size cannot be NULL. On success size of the data will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t *size);
 
 /** Get number of key's signatures.
  *  Note: this will not count user id certifications and subkey(s) signatures if any.
