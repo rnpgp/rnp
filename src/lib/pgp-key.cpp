@@ -856,6 +856,17 @@ pgp_subkey_validate_self_signatures(pgp_key_t *sub, pgp_key_t *key)
     }
 }
 
+static bool
+is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
+{
+    /* key expiration: absense of subpkt or 0 means it never expires */
+    uint32_t expiration = sig.sig.key_expiration();
+    if (!expiration) {
+        return false;
+    }
+    return pgp_key_get_creation(&key) + expiration < time(NULL);
+}
+
 static pgp_map_t ss_rr_code_map[] = {
   {PGP_REVOCATION_NO_REASON, "No reason specified"},
   {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
@@ -983,6 +994,31 @@ pgp_key_refresh_data(pgp_key_t *key)
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
+        }
+    }
+    /* userid validities */
+    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
+        pgp_userid_t *uid = pgp_key_get_userid(key, i);
+        uid->valid = false;
+    }
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        sig = pgp_key_get_subsig(key, i);
+        /* if certification expires key then consider userid as expired too */
+        if (!sig->valid || !pgp_sig_is_certification(sig) || !pgp_sig_self_signed(key, sig) ||
+            is_key_expired(*key, *sig)) {
+            continue;
+        }
+        pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
+        if (!uid) {
+            continue;
+        }
+        uid->valid = true;
+    }
+    /* check whether uid is revoked */
+    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
+        pgp_userid_t *uid = pgp_key_get_userid(key, pgp_key_get_revoke(key, i)->uid);
+        if (uid) {
+            uid->valid = false;
         }
     }
 
@@ -1752,17 +1788,6 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         return hash_min;
     }
     return hash;
-}
-
-static bool
-is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    /* key expiration: absense of subpkt or 0 means it never expires */
-    uint32_t expiration = sig.sig.key_expiration();
-    if (!expiration) {
-        return false;
-    }
-    return pgp_key_get_creation(&key) + expiration < time(NULL);
 }
 
 static void

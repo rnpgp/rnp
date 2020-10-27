@@ -733,9 +733,10 @@ typedef struct pgp_subsig_t {
 } pgp_subsig_t;
 
 typedef struct pgp_userid_t {
-    pgp_userid_pkt_t pkt;    /* User ID or User Attribute packet as it was loaded */
-    pgp_rawpacket_t  rawpkt; /* Raw packet contents */
-    std::string      str;    /* Human-readable representation of the userid */
+    pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
+    pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
+    std::string      str{};    /* Human-readable representation of the userid */
+    bool valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
 } pgp_userid_t;
 
 struct rnp_keygen_ecc_params_t {

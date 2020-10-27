@@ -1029,6 +1029,15 @@ RNP_API rnp_result_t rnp_uid_get_type(rnp_uid_handle_t uid, uint32_t *type);
  */
 RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t *size);
 
+/** Get userid validity status. Userid is considered as valid if it has at least one
+ *  valid, non-expired self-certification.
+ *
+ * @param uid user id handle.
+ * @param valid validity status will be stored here on success.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_is_valid(rnp_uid_handle_t uid, bool *valid);
+
 /** Get number of key's signatures.
  *  Note: this will not count user id certifications and subkey(s) signatures if any.
  *        I.e. it will return only number of direct-key and key revocation signatures for the
