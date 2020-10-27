@@ -4,7 +4,7 @@ set -ex
 . ci/utils.inc.sh
 
 macos_install() {
-  brew update
+  brew update-reset
   # homebrew fails because `openssl` is a symlink while it tries to remove a directory.
   rm /usr/local/Cellar/openssl || true
   brew bundle
