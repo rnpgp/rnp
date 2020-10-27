@@ -5631,6 +5631,21 @@ try {
 }
 FFI_GUARD
 
+rnp_result_t
+rnp_uid_is_valid(rnp_uid_handle_t uid, bool *valid)
+try {
+    if (!valid) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    if (!id) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *valid = id->valid;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
 static rnp_result_t
 rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
 {
