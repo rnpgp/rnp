@@ -5632,6 +5632,21 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_uid_is_primary(rnp_uid_handle_t uid, bool *primary)
+try {
+    if (!primary) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_userid_t *id = rnp_uid_handle_get_uid(uid);
+    if (!id) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    *primary = uid->key->uid0_set && (uid->key->uid0 == uid->idx);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_uid_is_valid(rnp_uid_handle_t uid, bool *valid)
 try {
     if (!valid) {
