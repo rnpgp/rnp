@@ -1029,6 +1029,14 @@ RNP_API rnp_result_t rnp_uid_get_type(rnp_uid_handle_t uid, uint32_t *type);
  */
 RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t *size);
 
+/** Check whether uid is marked as primary.
+ *
+ * @param uid uid handle, cannot be NULL
+ * @param primary cannot be NULL. On success true or false will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_is_primary(rnp_uid_handle_t uid, bool *primary);
+
 /** Get userid validity status. Userid is considered as valid if it has at least one
  *  valid, non-expired self-certification.
  *
