@@ -485,7 +485,8 @@ RNP_API rnp_result_t rnp_save_keys(rnp_ffi_t    ffi,
 RNP_API rnp_result_t rnp_get_public_key_count(rnp_ffi_t ffi, size_t *count);
 RNP_API rnp_result_t rnp_get_secret_key_count(rnp_ffi_t ffi, size_t *count);
 
-/** search for the key
+/** Search for the key
+ *  Note: only valid userids are checked while searching by userid.
  *
  *  @param ffi
  *  @param identifier_type string with type of the identifier: userid, keyid, fingerprint, grip
@@ -969,7 +970,10 @@ RNP_API rnp_result_t rnp_enarmor(rnp_input_t input, rnp_output_t output, const c
 RNP_API rnp_result_t rnp_dearmor(rnp_input_t input, rnp_output_t output);
 
 /** Get key's primary user id.
- *
+ *  Note: userid considered as primary if it has marked as primary in self-certification, and
+ *        is valid (i.e. both certification and key are valid, not expired and not revoked). If
+ *        there is no userid marked as primary then the first valid userid handle will be
+ *        returned.
  * @param key key handle.
  * @param uid pointer to the string with primary user id will be stored here.
  *            You must free it using the rnp_buffer_destroy().
