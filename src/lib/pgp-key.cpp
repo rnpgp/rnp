@@ -435,6 +435,9 @@ bool
 pgp_key_has_userid(const pgp_key_t *key, const char *uid)
 {
     for (auto &userid : key->uids) {
+        if (!userid.valid) {
+            continue;
+        }
         if (userid.str == uid) {
             return true;
         }
@@ -940,19 +943,6 @@ pgp_key_refresh_data(pgp_key_t *key)
     } else {
         key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     }
-    /* primary userid */
-    key->uid0_set = false;
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        sig = pgp_key_get_subsig(key, i);
-        if (!sig->valid || !pgp_sig_is_self_signature(key, sig)) {
-            continue;
-        }
-        if (sig->sig.primary_uid()) {
-            key->uid0 = sig->uid;
-            key->uid0_set = true;
-            break;
-        }
-    }
     /* revocation(s) */
     pgp_key_clear_revokes(key);
     for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
@@ -1019,6 +1009,23 @@ pgp_key_refresh_data(pgp_key_t *key)
         pgp_userid_t *uid = pgp_key_get_userid(key, pgp_key_get_revoke(key, i)->uid);
         if (uid) {
             uid->valid = false;
+        }
+    }
+    /* primary userid: pick it only from valid ones */
+    key->uid0_set = false;
+    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        sig = pgp_key_get_subsig(key, i);
+        if (!sig->valid || !pgp_sig_is_certification(sig) || !pgp_sig_self_signed(key, sig)) {
+            continue;
+        }
+        pgp_userid_t *uid = pgp_key_get_userid(key, sig->uid);
+        if (!uid || !uid->valid) {
+            continue;
+        }
+        if (sig->sig.primary_uid()) {
+            key->uid0 = sig->uid;
+            key->uid0_set = true;
+            break;
         }
     }
 

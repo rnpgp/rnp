@@ -5519,11 +5519,21 @@ FFI_GUARD
 rnp_result_t
 rnp_key_get_primary_uid(rnp_key_handle_t handle, char **uid)
 try {
-    if (handle == NULL || uid == NULL)
+    if (!handle || !uid) {
         return RNP_ERROR_NULL_POINTER;
+    }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    return key_get_uid_at(key, key->uid0_set ? key->uid0 : 0, uid);
+    if (key->uid0_set) {
+        return key_get_uid_at(key, key->uid0, uid);
+    }
+    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
+        if (!pgp_key_get_userid(key, i)->valid) {
+            continue;
+        }
+        return key_get_uid_at(key, i, uid);
+    }
+    return RNP_ERROR_BAD_PARAMETERS;
 }
 FFI_GUARD
 
