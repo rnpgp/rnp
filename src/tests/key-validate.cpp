@@ -160,7 +160,8 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "C8A10A7D78273E10", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "dsa-eg");
+    /* malformed key material causes keyid change */
+    key = rnp_tests_get_key_by_id(pubring, "C258AB3B54097B9B", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
@@ -183,7 +184,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
     /* load eddsa key with forged key material */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-material.pgp");
-    key = rnp_tests_key_search(pubring, "ecc-25519");
+    key = rnp_tests_get_key_by_id(pubring, "1BEF78DF765B79A2", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     rnp_key_store_clear(pubring);
@@ -205,7 +206,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "23674F21B2441527", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "ecc-p256");
+    key = rnp_tests_get_key_by_id(pubring, "41DEA786D18E5184", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     assert_true(key_check(pubring, "37E285E9E9851491", false));
@@ -251,7 +252,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-material.pgp");
     key = rnp_tests_get_key_by_id(pubring, "2FB9179118898E8B", NULL);
     assert_null(key);
-    key = rnp_tests_key_search(pubring, "rsa-rsa");
+    key = rnp_tests_get_key_by_id(pubring, "791B14952D8F906C", NULL);
     assert_non_null(key);
     assert_false(key->valid);
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", false));
@@ -324,7 +325,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case2/pubring.gpg");
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
+    assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
     assert_false(key->valid);
     assert_non_null(key = rnp_tests_key_search(pubring, "Basil <basil@rnp>"));
     assert_true(key->valid);
@@ -337,7 +338,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case3/pubring.gpg");
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
+    assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
     assert_false(key->valid);
     assert_non_null(key = rnp_tests_key_search(pubring, "Basil <basil@rnp>"));
     assert_true(key->valid);
