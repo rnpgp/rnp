@@ -505,7 +505,8 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
+    assert_null(rnp_tests_key_search(key_store, "key-merge-uid-1"));
+    assert_true(key == rnp_tests_get_key_by_id(key_store, "9747D2A6B3A63124", NULL));
 
     /* load key + user id 1 with sigs */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-uid-1.pgp"));

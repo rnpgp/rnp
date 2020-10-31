@@ -8454,7 +8454,11 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
       rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-exp-sec.asc"));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
+    /* Alice key is not searchable by userid since it is expired */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
+    assert_non_null(key);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
     assert_false(key->pub->valid);
     assert_true(key->sec->valid);
