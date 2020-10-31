@@ -73,7 +73,6 @@ TEST_F(rnp_tests, test_ffi_uid_properties)
     assert_rnp_failure(rnp_uid_is_primary(uid, NULL));
     assert_rnp_success(rnp_uid_is_primary(uid, &primary));
     assert_true(primary);
-
     rnp_uid_handle_destroy(uid);
 
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 1, &uid));
@@ -103,6 +102,7 @@ TEST_F(rnp_tests, test_ffi_uid_properties)
     assert_rnp_success(rnp_uid_is_primary(uid, &primary));
     assert_false(primary);
     rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
 
     rnp_ffi_destroy(ffi);
 }
@@ -228,5 +228,20 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
     assert_null(newkey);
 
     rnp_key_handle_destroy(key);
+
+    /* Load expired key with single uid: now should be no primary */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-expired.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
+    assert_non_null(key);
+
+    uid_str = NULL;
+    assert_rnp_failure(rnp_key_get_primary_uid(key, &uid_str));
+    assert_null(uid_str);
+    rnp_key_handle_destroy(key);
+
     rnp_ffi_destroy(ffi);
 }

@@ -4,9 +4,9 @@ pub   1024/RSA (Encrypt or Sign) 7bc6709b15c23a4a 2017-07-20 [SC]
       e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a
 uid           key0-uid0
 uid           key0-uid1
-sig           7bc6709b15c23a4a 2017-07-20 key0-uid0
+sig           7bc6709b15c23a4a 2017-07-20 key0-uid1
 uid           key0-uid2
-sig           7bc6709b15c23a4a 2017-07-20 key0-uid0
+sig           7bc6709b15c23a4a 2017-07-20 key0-uid1
 sub   1024/RSA (Encrypt or Sign) 1ed63ee56fadc34d 2017-07-20 [E]
       e332b27caf4742a11baa677f1ed63ee56fadc34d
 sub   1024/DSA 1d7e8a5393c997a8 2017-07-20 [S] [EXPIRED 2017-11-20]
