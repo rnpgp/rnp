@@ -424,7 +424,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG_KEY("Warning: different primary keys for subkey %s", srckey);
             pgp_key_t *srcprim =
               rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_primary_fp(srckey));
-            if (srcprim != primary) {
+            if (srcprim && (srcprim != primary)) {
                 pgp_key_remove_subkey_fp(srcprim, pgp_key_get_fp(srckey));
             }
         }
