@@ -598,21 +598,27 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
-    pgp_key_t tmpkey;
-    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
-        !pgp_subkey_refresh_data(&tmpkey, primary)) {
-        RNP_LOG("Failed to add signature to the key.");
-        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
-    }
+    try {
+        pgp_key_t tmpkey(key->pkt);
+        if (!rnp_key_add_signature(&tmpkey, sig) ||
+            !pgp_subkey_refresh_data(&tmpkey, primary)) {
+            RNP_LOG("Failed to add signature to the key.");
+            return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        }
 
-    size_t expackets = pgp_key_get_rawpacket_count(key);
-    key = rnp_key_store_add_key(keyring, &tmpkey);
-    if (!key) {
-        RNP_LOG("Failed to add key with imported sig to the keyring");
+        size_t expackets = pgp_key_get_rawpacket_count(key);
+        key = rnp_key_store_add_key(keyring, &tmpkey);
+        if (!key) {
+            RNP_LOG("Failed to add key with imported sig to the keyring");
+            return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        }
+        return (pgp_key_get_rawpacket_count(key) > expackets) ?
+                 PGP_SIG_IMPORT_STATUS_NEW :
+                 PGP_SIG_IMPORT_STATUS_UNCHANGED;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
-    return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
-                                                            PGP_SIG_IMPORT_STATUS_UNCHANGED;
 }
 
 pgp_sig_import_status_t
@@ -628,21 +634,26 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
 
-    pgp_key_t tmpkey;
-    if (!pgp_key_from_pkt(&tmpkey, &key->pkt) || !rnp_key_add_signature(&tmpkey, sig) ||
-        !pgp_key_refresh_data(&tmpkey)) {
-        RNP_LOG("Failed to add signature to the key.");
-        return PGP_SIG_IMPORT_STATUS_UNKNOWN;
-    }
+    try {
+        pgp_key_t tmpkey(key->pkt);
+        if (!rnp_key_add_signature(&tmpkey, sig) || !pgp_key_refresh_data(&tmpkey)) {
+            RNP_LOG("Failed to add signature to the key.");
+            return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        }
 
-    size_t expackets = pgp_key_get_rawpacket_count(key);
-    key = rnp_key_store_add_key(keyring, &tmpkey);
-    if (!key) {
-        RNP_LOG("Failed to add key with imported sig to the keyring");
+        size_t expackets = pgp_key_get_rawpacket_count(key);
+        key = rnp_key_store_add_key(keyring, &tmpkey);
+        if (!key) {
+            RNP_LOG("Failed to add key with imported sig to the keyring");
+            return PGP_SIG_IMPORT_STATUS_UNKNOWN;
+        }
+        return (pgp_key_get_rawpacket_count(key) > expackets) ?
+                 PGP_SIG_IMPORT_STATUS_NEW :
+                 PGP_SIG_IMPORT_STATUS_UNCHANGED;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
-    return (pgp_key_get_rawpacket_count(key) > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
-                                                            PGP_SIG_IMPORT_STATUS_UNCHANGED;
 }
 
 pgp_key_t *
