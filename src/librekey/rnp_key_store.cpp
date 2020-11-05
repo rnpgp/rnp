@@ -386,17 +386,17 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             continue;
         }
 
-        for (unsigned i = 0; i < pgp_key_get_subsig_count(&skey); i++) {
-            const pgp_subsig_t *subsig = pgp_key_get_subsig(&skey, i);
+        for (size_t i = 0; i < skey.sig_count(); i++) {
+            const pgp_subsig_t &subsig = skey.get_sig(i);
 
-            if (subsig->sig.type() != PGP_SIG_SUBKEY) {
+            if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
             }
-            if (subsig->sig.has_keyfp() && (pgp_key_get_fp(key) == subsig->sig.keyfp())) {
+            if (subsig.sig.has_keyfp() && (pgp_key_get_fp(key) == subsig.sig.keyfp())) {
                 found = true;
                 break;
             }
-            if (subsig->sig.has_keyid() && (pgp_key_get_keyid(key) == subsig->sig.keyid())) {
+            if (subsig.sig.has_keyid() && (pgp_key_get_keyid(key) == subsig.sig.keyid())) {
                 found = true;
                 break;
             }
@@ -817,18 +817,18 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
         return rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_primary_fp(subkey));
     }
 
-    for (unsigned i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
-        const pgp_subsig_t *subsig = pgp_key_get_subsig(subkey, i);
-        if (subsig->sig.type() != PGP_SIG_SUBKEY) {
+    for (size_t i = 0; i < subkey->sig_count(); i++) {
+        const pgp_subsig_t &subsig = subkey->get_sig(i);
+        if (subsig.sig.type() != PGP_SIG_SUBKEY) {
             continue;
         }
 
-        if (subsig->sig.has_keyfp()) {
-            return rnp_key_store_get_key_by_fpr(keyring, subsig->sig.keyfp());
+        if (subsig.sig.has_keyfp()) {
+            return rnp_key_store_get_key_by_fpr(keyring, subsig.sig.keyfp());
         }
 
-        if (subsig->sig.has_keyid()) {
-            return rnp_key_store_get_key_by_id(keyring, subsig->sig.keyid(), NULL);
+        if (subsig.sig.has_keyid()) {
+            return rnp_key_store_get_key_by_id(keyring, subsig.sig.keyid(), NULL);
         }
     }
 

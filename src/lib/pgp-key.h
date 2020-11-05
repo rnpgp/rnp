@@ -55,16 +55,22 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <vector>
+#include <unordered_map>
 #include "pass-provider.h"
 #include "../librepgp/stream-key.h"
 #include <rekey/rnp_key_store.h>
 #include "crypto/symmetric.h"
 #include "types.h"
 
+typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
+
 /* describes a user's key */
 struct pgp_key_t {
+  private:
+    pgp_sig_map_t             sigs_map_{}; /* map with subsigs stored by their id */
+    std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
+  public:
     std::vector<pgp_userid_t> uids{};    /* array of user ids */
-    std::vector<pgp_subsig_t> subsigs{}; /* array of key signatures */
     std::vector<pgp_revoke_t> revokes{}; /* array of revocations */
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
@@ -95,8 +101,15 @@ struct pgp_key_t {
     pgp_key_t(pgp_key_t &&src) = delete;
     pgp_key_t &operator=(const pgp_key_t &) = delete;
 
-    pgp_subsig_t &add_sig(const pgp_signature_t &sig, size_t uid = -1);
-    pgp_userid_t &add_uid(const pgp_transferable_userid_t &uid);
+    size_t              sig_count() const;
+    pgp_subsig_t &      get_sig(size_t idx);
+    const pgp_subsig_t &get_sig(size_t idx) const;
+    bool                has_sig(const pgp_sig_id_t &id) const;
+    pgp_subsig_t &      replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
+    pgp_subsig_t &      get_sig(const pgp_sig_id_t &id);
+    const pgp_subsig_t &get_sig(const pgp_sig_id_t &id) const;
+    pgp_subsig_t &      add_sig(const pgp_signature_t &sig, size_t uid = -1);
+    pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -223,17 +236,6 @@ size_t pgp_key_get_revoke_count(const pgp_key_t *);
 const pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
 
 pgp_revoke_t *pgp_key_get_revoke(pgp_key_t *key, size_t idx);
-
-size_t pgp_key_get_subsig_count(const pgp_key_t *);
-
-const pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
-pgp_subsig_t *      pgp_key_get_subsig(pgp_key_t *, size_t);
-
-bool pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig);
-
-pgp_subsig_t *pgp_key_replace_signature(pgp_key_t *      key,
-                                        pgp_signature_t *oldsig,
-                                        pgp_signature_t *newsig);
 
 /**
  * @brief Get the latest valid self-signature with information about the primary key,

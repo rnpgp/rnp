@@ -56,6 +56,7 @@
 #include <vector>
 #include <array>
 #include <cstring>
+#include <type_traits>
 
 #include <rnp/rnp_def.h>
 #include "list.h"
@@ -95,6 +96,8 @@ typedef struct pgp_fingerprint_t {
     bool     operator!=(const pgp_fingerprint_t &src) const;
 } pgp_fingerprint_t;
 
+typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_sig_id_t;
+
 namespace std {
 template <> struct hash<pgp_fingerprint_t> {
     std::size_t
@@ -102,11 +105,27 @@ template <> struct hash<pgp_fingerprint_t> {
     {
         /* since fingerprint value is hash itself, we may use it's low bytes */
         size_t res = 0;
+        static_assert(sizeof(fp.fingerprint) == PGP_FINGERPRINT_SIZE,
+                      "pgp_fingerprint_t size mismatch");
+        static_assert(PGP_FINGERPRINT_SIZE >= sizeof(res), "pgp_fingerprint_t size mismatch");
         std::memcpy(&res, fp.fingerprint, sizeof(res));
         return res;
     }
 };
-} // namespace std
+
+template <> struct hash<pgp_sig_id_t> {
+    std::size_t
+    operator()(pgp_sig_id_t const &sigid) const noexcept
+    {
+        /* since signature id value is hash itself, we may use it's low bytes */
+        size_t res = 0;
+        static_assert(std::tuple_size<pgp_sig_id_t>::value >= sizeof(res),
+                      "pgp_sig_id_t size mismatch");
+        std::memcpy(&res, sigid.data(), sizeof(res));
+        return res;
+    }
+};
+}; // namespace std
 
 typedef std::array<uint8_t, PGP_KEY_GRIP_SIZE> pgp_key_grip_t;
 
@@ -381,6 +400,9 @@ typedef struct pgp_signature_t {
     {
         type_ = atype;
     };
+
+    /** @brief Calculate the unique signature identifier by hashing signature's fields. */
+    pgp_sig_id_t get_id() const;
 
     /**
      * @brief Get v4 signature's subpacket of the specified type and hashedness.
@@ -725,6 +747,7 @@ typedef struct pgp_user_prefs_t {
 typedef struct pgp_subsig_t {
     uint32_t         uid{};         /* index in userid array in key for certification sig */
     pgp_signature_t  sig{};         /* signature packet */
+    pgp_sig_id_t     sigid{};       /* signature identifier */
     pgp_rawpacket_t  rawpkt{};      /* signature's rawpacket */
     uint8_t          trustlevel{};  /* level of trust */
     uint8_t          trustamount{}; /* amount of trust */

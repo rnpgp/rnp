@@ -946,16 +946,16 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // check packet and subsig counts
         assert_int_equal(3, pgp_key_get_rawpacket_count(&pub));
         assert_int_equal(3, pgp_key_get_rawpacket_count(&sec));
-        assert_int_equal(1, pgp_key_get_subsig_count(&pub));
-        assert_int_equal(1, pgp_key_get_subsig_count(&sec));
-        psig = &pgp_key_get_subsig(&pub, 0)->sig;
-        ssig = &pgp_key_get_subsig(&sec, 0)->sig;
+        assert_int_equal(1, pub.sig_count());
+        assert_int_equal(1, sec.sig_count());
+        psig = &pub.get_sig(0).sig;
+        ssig = &sec.get_sig(0).sig;
         // make sure our sig MPI is not NULL
         assert_int_not_equal(psig->material_len, 0);
         assert_int_not_equal(ssig->material_len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
 
         // validate the userid self-sig
 
@@ -1031,17 +1031,16 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(primary_sec->valid);
         assert_true(primary_sec->validated);
         // modify a hashed portion of the sig packet, offset may change in future
-        pgp_subsig_t *sig = pgp_key_get_subsig(primary_pub, 0);
-        assert_non_null(sig);
-        sig->sig.hashed_data[10] ^= 0xff;
-        sig->validated = false;
+        pgp_subsig_t &sig = primary_pub->get_sig(0);
+        sig.sig.hashed_data[10] ^= 0xff;
+        sig.validated = false;
         // ensure validation fails
         pgp_key_validate(primary_pub, pubring);
         assert_false(primary_pub->valid);
         assert_true(primary_pub->validated);
         // restore the original data
-        sig->sig.hashed_data[10] ^= 0xff;
-        sig->validated = false;
+        sig.sig.hashed_data[10] ^= 0xff;
+        sig.validated = false;
         pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
         assert_true(primary_pub->validated);
@@ -1074,16 +1073,16 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // check packet and subsig counts
         assert_int_equal(2, pgp_key_get_rawpacket_count(&pub));
         assert_int_equal(2, pgp_key_get_rawpacket_count(&sec));
-        assert_int_equal(1, pgp_key_get_subsig_count(&pub));
-        assert_int_equal(1, pgp_key_get_subsig_count(&sec));
-        psig = &pgp_key_get_subsig(&pub, 0)->sig;
-        ssig = &pgp_key_get_subsig(&sec, 0)->sig;
+        assert_int_equal(1, pub.sig_count());
+        assert_int_equal(1, sec.sig_count());
+        psig = &pub.get_sig(0).sig;
+        ssig = &sec.get_sig(0).sig;
         // make sure our sig MPI is not NULL
         assert_int_not_equal(psig->material_len, 0);
         assert_int_not_equal(ssig->material_len, 0);
         // make sure we're targeting the right packet
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&pub, 0)->rawpkt.tag);
-        assert_int_equal(PGP_PKT_SIGNATURE, pgp_key_get_subsig(&sec, 0)->rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, pub.get_sig(0).rawpkt.tag);
+        assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
         // validate the binding sig
         psiginfo.sig = psig;
         psiginfo.signer = primary_pub;

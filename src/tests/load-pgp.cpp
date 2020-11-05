@@ -202,10 +202,10 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 3);
+    assert_int_equal(key->sig_count(), 3);
     // check subsig properties
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        sig = &pgp_key_get_subsig(key, i)->sig;
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        sig = &key->get_sig(i).sig;
         static const time_t expected_creation_times[] = {1500569820, 1500569836, 1500569846};
         // check SS_ISSUER_KEY_ID
         assert_true(keyid == sig->keyid());
@@ -223,8 +223,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
@@ -242,8 +242,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
@@ -261,8 +261,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
@@ -281,10 +281,10 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_non_null(key);
     // check subsig count
 
-    assert_int_equal(pgp_key_get_subsig_count(key), 3);
+    assert_int_equal(key->sig_count(), 3);
     // check subsig properties
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        sig = &pgp_key_get_subsig(key, i)->sig;
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        sig = &key->get_sig(i).sig;
         static const time_t expected_creation_times[] = {1501372449, 1500570153, 1500570147};
 
         // check SS_ISSUER_KEY_ID
@@ -303,8 +303,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
@@ -322,8 +322,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
     assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
@@ -361,8 +361,8 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     // check key version
     assert_int_equal(pgp_key_get_version(key), PGP_V3);
     // check subsig count
-    assert_int_equal(pgp_key_get_subsig_count(key), 1);
-    sig = &pgp_key_get_subsig(key, 0)->sig;
+    assert_int_equal(key->sig_count(), 1);
+    sig = &key->get_sig(0).sig;
     // check signature version
     assert_int_equal(sig->version, 3);
     // check issuer
@@ -403,9 +403,9 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
@@ -414,7 +414,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_true(pgp_key_is_secret(key));
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     assert_true(rnp_hex_decode("16CD16F267CCDD4F", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
@@ -423,7 +423,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_true(pgp_key_is_secret(key));
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     /* both user ids should be present */
     assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-1"));
@@ -518,7 +518,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 3);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
 
     /* load key + user id 2 with sigs */
@@ -533,9 +533,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
@@ -553,9 +553,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey1), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 1);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_PUBLIC_SUBKEY);
@@ -576,13 +576,13 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey1), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey1, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     /* load key + subkey 2 with signature */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-subkey-2.pgp"));
@@ -603,17 +603,17 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey1), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey1, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey2), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey2), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey2).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey2, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey2->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     /* load secret key & subkeys */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-sec-no-uid-no-sigs.pgp"));
@@ -634,17 +634,17 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey1), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey1, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey2), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey2), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey2).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey2, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey2->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
     assert_true(pgp_key_unlock(key, &provider));
     assert_true(pgp_key_unlock(skey1, &provider));
@@ -669,17 +669,17 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid(key, 1)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 1)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey1), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey1, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_int_equal(pgp_key_get_userid_count(skey2), 0);
     assert_int_equal(pgp_key_get_rawpacket_count(skey2), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey2).tag, PGP_PKT_SECRET_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey2, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey2->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-1"));
     assert_true(key == rnp_tests_key_search(key_store, "key-merge-uid-2"));
 
@@ -964,7 +964,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_false(skey1->valid);
     assert_int_equal(pgp_key_get_rawpacket_count(skey1), 2);
     assert_int_equal(pgp_key_get_rawpacket(skey1).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_int_equal(pgp_key_get_subsig(skey1, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_false(pgp_key_has_primary_fp(skey1));
 
     /* load second subkey, without signature */
@@ -985,7 +985,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_int_equal(pgp_key_get_rawpacket_count(key), 3);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(pgp_key_get_userid(key, 0)->rawpkt.tag, PGP_PKT_USER_ID);
-    assert_int_equal(pgp_key_get_subsig(key, 0)->rawpkt.tag, PGP_PKT_SIGNATURE);
+    assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
     assert_true(skey1 == rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_true(skey2 == rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
     assert_true(pgp_key_has_primary_fp(skey1));
