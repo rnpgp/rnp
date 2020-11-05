@@ -10028,7 +10028,7 @@ check_key_autocrypt(rnp_output_t       memout,
     if (!key->pub->valid || !sub->pub->valid) {
         return false;
     }
-    if ((key->pub->subsigs.size() != 1) || (sub->pub->subsigs.size() != 1)) {
+    if ((key->pub->sig_count() != 1) || (sub->pub->sig_count() != 1)) {
         return false;
     }
     if (!pgp_key_can_sign(key->pub) || !pgp_key_can_encrypt(sub->pub)) {
@@ -10171,7 +10171,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     rnp_input_destroy(input);
 
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
-    assert_int_equal(key->pub->subsigs.size(), 4);
+    assert_int_equal(key->pub->sig_count(), 4);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, NULL, output, 0));
     assert_true(check_key_autocrypt(

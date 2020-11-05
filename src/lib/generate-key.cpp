@@ -339,10 +339,10 @@ pgp_key_mark_valid(pgp_key_t *key)
 {
     key->valid = true;
     key->validated = true;
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        pgp_subsig_t *sub = pgp_key_get_subsig(key, i);
-        sub->validated = true;
-        sub->valid = true;
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        pgp_subsig_t &sub = key->get_sig(i);
+        sub.validated = true;
+        sub.valid = true;
     }
 }
 
