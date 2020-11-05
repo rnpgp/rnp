@@ -220,7 +220,7 @@ TEST_F(rnp_tests, rnp_test_x25519)
     key_desc.ecc.curve = PGP_CURVE_25519;
 
     assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
-    assert_rnp_success(pgp_fingerprint(fp, &seckey));
+    assert_rnp_success(pgp_fingerprint(fp, seckey));
     assert_rnp_success(
       ecdh_encrypt_pkcs5(&global_rng, &enc, in, sizeof(in), &seckey.material.ec, fp));
     assert_true(enc.mlen > 16);
@@ -340,7 +340,7 @@ TEST_F(rnp_tests, ecdh_roundtrip)
         assert_true(pgp_generate_seckey(&key_desc, &ecdh_key1, true));
 
         pgp_fingerprint_t ecdh_key1_fpr = {};
-        assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, &ecdh_key1));
+        assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
 
         assert_rnp_success(ecdh_encrypt_pkcs5(
           &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.material.ec, ecdh_key1_fpr));
@@ -371,7 +371,7 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     assert_true(pgp_generate_seckey(&key_desc, &ecdh_key1, true));
 
     pgp_fingerprint_t ecdh_key1_fpr = {};
-    assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, &ecdh_key1));
+    assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
 
     assert_rnp_success(ecdh_encrypt_pkcs5(
       &global_rng, &enc, plaintext, plaintext_len, &ecdh_key1.material.ec, ecdh_key1_fpr));
