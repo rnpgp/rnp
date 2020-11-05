@@ -247,7 +247,6 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
 {
     pgp_transferable_subkey_t dstkey;
     pgp_transferable_subkey_t srckey;
-    pgp_key_t                 tmpkey;
 
     if (!pgp_key_is_subkey(dst) || !pgp_key_is_subkey(src)) {
         RNP_LOG("wrong subkey merge call");
@@ -276,8 +275,11 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
         return false;
     }
 
-    if (!rnp_key_from_transferable_subkey(&tmpkey, &dstkey, primary)) {
-        RNP_LOG("failed to process subkey");
+    pgp_key_t tmpkey;
+    try {
+        tmpkey = pgp_key_t(dstkey, primary);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to process subkey: %s", e.what());
         return false;
     }
 
@@ -305,7 +307,6 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
 {
     pgp_transferable_key_t dstkey;
     pgp_transferable_key_t srckey;
-    pgp_key_t              tmpkey;
 
     if (pgp_key_is_subkey(dst) || pgp_key_is_subkey(src)) {
         RNP_LOG("wrong key merge call");
@@ -335,7 +336,10 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         return false;
     }
 
-    if (!rnp_key_from_transferable_key(&tmpkey, &dstkey)) {
+    pgp_key_t tmpkey;
+    try {
+        tmpkey = std::move(dstkey);
+    } catch (const std::exception &e) {
         RNP_LOG("failed to process key");
         return false;
     }

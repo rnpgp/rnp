@@ -72,45 +72,14 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_transferable_subkey_t *tskey,
                                       pgp_key_t *                pkey)
 {
-    pgp_key_t skey;
-
-    /* create subkey */
-    if (!rnp_key_from_transferable_subkey(&skey, tskey, pkey)) {
+    try {
+        /* create subkey */
+        pgp_key_t skey(*tskey, pkey);
+        /* add it to the storage */
+        return rnp_key_store_add_key(keyring, &skey);
+    } catch (const std::exception &e) {
         RNP_LOG_KEY_PKT("failed to create subkey %s", tskey->subkey);
         RNP_LOG_KEY("primary key is %s", pkey);
-        return false;
-    }
-
-    /* add it to the storage */
-    return rnp_key_store_add_key(keyring, &skey);
-}
-
-bool
-rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
-{
-    pgp_userid_t *userid = pgp_key_add_userid(key);
-    if (!userid) {
-        RNP_LOG("Failed to add userid");
-        return false;
-    }
-    try {
-        /* build rawpacket */
-        userid->rawpkt = pgp_rawpacket_t(uid->uid);
-        /* populate uid string */
-        if (uid->uid.tag == PGP_PKT_USER_ID) {
-            userid->str = std::string(uid->uid.uid, uid->uid.uid + uid->uid.uid_len);
-        } else {
-            userid->str = "(photo)";
-        }
-        /* copy packet */
-        userid->pkt = uid->uid;
-        /* add certifications */
-        for (auto &sig : uid->signatures) {
-            key->add_sig(sig, pgp_key_get_userid_count(key) - 1);
-        }
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
         return false;
     }
 }
@@ -118,21 +87,23 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
 bool
 rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
 {
-    pgp_key_t  key;
     pgp_key_t *addkey = NULL;
 
     /* create key from transferable key */
-    if (!rnp_key_from_transferable_key(&key, tkey)) {
-        RNP_LOG_KEY_PKT("failed to create key %s", tkey->key);
+    try {
+        pgp_key_t key(*tkey);
+        /* temporary disable key validation */
+        keyring->disable_validation = true;
+        /* add key to the storage before subkeys */
+        addkey = rnp_key_store_add_key(keyring, &key);
+    } catch (const std::exception &e) {
+        keyring->disable_validation = false;
+        RNP_LOG_KEY_PKT("failed to add key %s", tkey->key);
         return false;
     }
 
-    /* temporary disable key validation */
-    keyring->disable_validation = true;
-
-    /* add key to the storage before subkeys */
-    addkey = rnp_key_store_add_key(keyring, &key);
     if (!addkey) {
+        keyring->disable_validation = false;
         RNP_LOG("Failed to add key to key store.");
         return false;
     }
@@ -141,6 +112,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     for (auto &subkey : tkey->subkeys) {
         if (!rnp_key_store_add_transferable_subkey(keyring, &subkey, addkey)) {
             RNP_LOG("Failed to add subkey to key store.");
+            keyring->disable_validation = false;
             goto error;
         }
     }
@@ -153,56 +125,6 @@ error:
     /* during key addition all fields are copied so will be cleaned below */
     rnp_key_store_remove_key(keyring, addkey, false);
     return false;
-}
-
-bool
-rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
-{
-    try {
-        /* create key */
-        *key = pgp_key_t(tkey->key);
-        /* add direct-key signatures */
-        for (auto &sig : tkey->signatures) {
-            key->add_sig(sig);
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to create key from packet");
-        return false;
-    }
-
-    /* add userids and their signatures */
-    for (auto &uid : tkey->userids) {
-        if (!rnp_key_add_transferable_userid(key, &uid)) {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-bool
-rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
-                                 pgp_transferable_subkey_t *tskey,
-                                 pgp_key_t *                primary)
-{
-    try {
-        /* create key */
-        *subkey = pgp_key_t(tskey->subkey);
-        /* add subkey binding signatures */
-        for (auto &sig : tskey->signatures) {
-            subkey->add_sig(sig);
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to create subkey from packet");
-        return false;
-    }
-
-    /* setup key grips if primary is available */
-    if (primary && !pgp_key_link_subkey_fp(primary, subkey)) {
-        return false;
-    }
-
-    return true;
 }
 
 rnp_result_t
