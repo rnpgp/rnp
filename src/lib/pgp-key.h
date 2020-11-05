@@ -85,6 +85,7 @@ struct pgp_key_t {
     bool                   validated{};  /* this key was validated */
 
     pgp_key_t() = default;
+    pgp_key_t(const pgp_key_pkt_t &pkt);
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
     pgp_key_t &operator=(pgp_key_t &&);
     /* make sure we use only empty constructor/move operator */
@@ -93,15 +94,6 @@ struct pgp_key_t {
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
-
-/**
- * @brief Create pgp_key_t object from the OpenPGP key packet.
- *
- * @param key pointer to the key object, cannot be NULL.
- * @param pkt pointer to the key packet, cannot be NULL.
- * @return true if operation succeeded or false otherwise.
- */
-bool pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt);
 
 const pgp_key_pkt_t *pgp_key_get_pkt(const pgp_key_t *);
 
