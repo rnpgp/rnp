@@ -192,9 +192,11 @@ error:
 bool
 rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
-    *key = pgp_key_t();
     /* create key */
-    if (!pgp_key_from_pkt(key, &tkey->key)) {
+    try {
+        *key = pgp_key_t(tkey->key);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to create key from packet");
         return false;
     }
 
@@ -218,10 +220,11 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                  pgp_transferable_subkey_t *tskey,
                                  pgp_key_t *                primary)
 {
-    *subkey = pgp_key_t();
-
     /* create key */
-    if (!pgp_key_from_pkt(subkey, &tskey->subkey)) {
+    try {
+        *subkey = pgp_key_t(tskey->subkey);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to create subkey from packet");
         return false;
     }
 
