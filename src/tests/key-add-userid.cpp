@@ -63,7 +63,7 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // save the counts for a few items
     unsigned uidc = pgp_key_get_userid_count(key);
-    unsigned subsigc = pgp_key_get_subsig_count(key);
+    unsigned subsigc = key->sig_count();
 
     // add a userid
 
@@ -104,7 +104,7 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // confirm that the counts have increased as expected
     assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
-    assert_int_equal(pgp_key_get_subsig_count(key), subsigc + 2);
+    assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure key expiration and flags are now updated
     assert_int_equal(0, pgp_key_get_expiration(key));
@@ -112,12 +112,12 @@ TEST_F(rnp_tests, test_key_add_userid)
     // check the userids array
     // added1
     assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
-    assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
-    assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
+    assert_int_equal(uidc, key->get_sig(subsigc).uid);
+    assert_int_equal(0xAB, key->get_sig(subsigc).key_flags);
     // added2
     assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
-    assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
-    assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
+    assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
 
     // save the raw packets for the key (to reload later)
     assert_rnp_success(init_mem_dest(&dst, NULL, 0));
@@ -138,7 +138,7 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // confirm that the counts have increased as expected
     assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
-    assert_int_equal(pgp_key_get_subsig_count(key), subsigc + 2);
+    assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure correct key expiration and flags are set
     assert_int_equal(0, pgp_key_get_expiration(key));
@@ -147,12 +147,12 @@ TEST_F(rnp_tests, test_key_add_userid)
     // check the userids array
     // added1
     assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
-    assert_int_equal(uidc, pgp_key_get_subsig(key, subsigc)->uid);
-    assert_int_equal(0xAB, pgp_key_get_subsig(key, subsigc)->key_flags);
+    assert_int_equal(uidc, key->get_sig(subsigc).uid);
+    assert_int_equal(0xAB, key->get_sig(subsigc).key_flags);
     // added2
     assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
-    assert_int_equal(uidc + 1, pgp_key_get_subsig(key, subsigc + 1)->uid);
-    assert_int_equal(0xCD, pgp_key_get_subsig(key, subsigc + 1)->key_flags);
+    assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
 
     // cleanup
     delete ks;
