@@ -91,8 +91,8 @@ main(int argc, char **argv)
     binding->hashed_data = NULL;
     binding->hashed_len = 0;
 
-    pgp_keyid(keyid, sizeof(keyid), &tskey.key);
-    pgp_fingerprint(&keyfp, &tskey.key);
+    pgp_keyid(keyid, sizeof(keyid), tskey.key);
+    pgp_fingerprint(&keyfp, tskey.key);
 
     binding->halg = pgp_hash_adjust_alg_to_key(binding->halg, &tskey.key);
     binding->palg = tskey.key.alg;

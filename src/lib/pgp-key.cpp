@@ -78,7 +78,7 @@ pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
     assert(!key->pkt.version);
     assert(is_key_pkt(pkt->tag));
     assert(pkt->material.alg);
-    if (pgp_keyid(key->keyid, pkt) || pgp_fingerprint(key->fingerprint, pkt) ||
+    if (pgp_keyid(key->keyid, *pkt) || pgp_fingerprint(key->fingerprint, *pkt) ||
         !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
         return false;
     }
