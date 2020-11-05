@@ -585,7 +585,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
 
     // same as above, for each subkey
     for (auto &sfp : key->subkey_fps) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
+        pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
         if (!pbuf(&memdst, pgp_key_get_fp(subkey).fingerprint, PGP_FINGERPRINT_SIZE) ||
             !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
             !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
@@ -593,8 +593,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
             goto finish;
         }
         // load signature expirations while we're at it
-        for (i = 0; i < pgp_key_get_subsig_count(subkey); i++) {
-            expiration = pgp_key_get_subsig(subkey, i)->sig.key_expiration();
+        for (i = 0; i < subkey->sig_count(); i++) {
+            expiration = subkey->get_sig(i).sig.key_expiration();
             if (list_append(&subkey_sig_expirations, &expiration, sizeof(expiration)) ==
                 NULL) {
                 goto finish;
@@ -629,13 +629,13 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         }
     }
 
-    if (!pu16(&memdst, pgp_key_get_subsig_count(key) + list_length(subkey_sig_expirations)) ||
+    if (!pu16(&memdst, key->sig_count() + list_length(subkey_sig_expirations)) ||
         !pu16(&memdst, 4)) {
         goto finish;
     }
 
-    for (i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        if (!pu32(&memdst, pgp_key_get_subsig(key, i)->sig.key_expiration())) {
+    for (i = 0; i < key->sig_count(); i++) {
+        if (!pu32(&memdst, key->get_sig(i).sig.key_expiration())) {
             goto finish;
         }
     }

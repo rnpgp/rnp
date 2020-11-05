@@ -5671,8 +5671,8 @@ static rnp_result_t
 rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
 {
     *count = 0;
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        if (pgp_key_get_subsig(key, i)->uid == uid) {
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        if (key->get_sig(i).uid == uid) {
             (*count)++;
         }
     }
@@ -5684,9 +5684,9 @@ rnp_key_get_signature_at_for_uid(
   rnp_ffi_t ffi, pgp_key_t *key, size_t idx, uint32_t uid, rnp_signature_handle_t *sig)
 {
     size_t skipped = 0;
-    for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
-        pgp_subsig_t *subsig = pgp_key_get_subsig(key, i);
-        if (subsig->uid != uid) {
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        pgp_subsig_t &subsig = key->get_sig(i);
+        if (subsig.uid != uid) {
             continue;
         }
         if (skipped == idx) {
@@ -5696,7 +5696,7 @@ rnp_key_get_signature_at_for_uid(
             }
             (*sig)->ffi = ffi;
             (*sig)->key = key;
-            (*sig)->sig = subsig;
+            (*sig)->sig = &subsig;
             return RNP_SUCCESS;
         }
         skipped++;
@@ -7280,15 +7280,15 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "signatures", jsosigs_arr);
-        for (size_t i = 0; i < pgp_key_get_subsig_count(key); i++) {
+        for (size_t i = 0; i < key->sig_count(); i++) {
             json_object *jsosig = json_object_new_object();
             if (!jsosig || json_object_array_add(jsosigs_arr, jsosig)) {
                 json_object_put(jsosig);
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
             rnp_result_t tmpret;
-            if ((tmpret = add_json_subsig(
-                   jsosig, pgp_key_is_subkey(key), flags, pgp_key_get_subsig(key, i)))) {
+            if ((tmpret =
+                   add_json_subsig(jsosig, pgp_key_is_subkey(key), flags, &key->get_sig(i)))) {
                 return tmpret;
             }
         }
