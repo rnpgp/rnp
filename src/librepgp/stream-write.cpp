@@ -941,20 +941,15 @@ cleartext_dst_writeline(pgp_dest_signed_param_t *param,
     dst_write(param->writedst, buf, len);
 
     if (eol) {
-        /* skipping trailing eol - \n, or \r\n. For the last line eol may be true without \n */
         bool hashcrlf = false;
         ptr = buf + len - 1;
-        if (*ptr == CH_LF) {
-            ptr--;
-            hashcrlf = true;
 
-            if ((ptr >= buf) && (*ptr == CH_CR)) {
-                ptr--;
+        /* skipping trailing characters - space, tab, carriage return, line feed */
+        while ((ptr >= buf) && ((*ptr == CH_SPACE) || (*ptr == CH_TAB) || (*ptr == CH_CR) ||
+                                (*ptr == CH_LF))) {
+            if (*ptr == CH_LF) {
+                hashcrlf = true;
             }
-        }
-
-        /* skipping trailing spaces */
-        while ((ptr >= buf) && ((*ptr == CH_SPACE) || (*ptr == CH_TAB))) {
             ptr--;
         }
 
