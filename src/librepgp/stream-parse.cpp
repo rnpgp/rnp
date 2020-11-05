@@ -1132,7 +1132,9 @@ cleartext_process_line(pgp_source_t *src, const uint8_t *buf, size_t len, bool e
 
     /* if we have eol after this line then strip trailing spaces and tabs */
     if (eol) {
-        for (; (bufen >= buf) && ((*bufen == CH_SPACE) || (*bufen == CH_TAB)); bufen--)
+        for (; (bufen >= buf) &&
+               ((*bufen == CH_SPACE) || (*bufen == CH_TAB) || (*bufen == CH_CR));
+             bufen--)
             ;
     }
 
