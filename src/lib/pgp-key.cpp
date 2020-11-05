@@ -72,53 +72,6 @@
 #include <stdexcept>
 #include "defaults.h"
 
-static bool
-pgp_key_init_with_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
-{
-    assert(!key->pkt.version);
-    assert(is_key_pkt(pkt->tag));
-    assert(pkt->material.alg);
-    if (pgp_keyid(key->keyid, *pkt) || pgp_fingerprint(key->fingerprint, *pkt) ||
-        !rnp_key_store_get_key_grip(&pkt->material, key->grip)) {
-        return false;
-    }
-    /* this is correct since changes ownership */
-    key->pkt = std::move(*pkt);
-    return true;
-}
-
-bool
-pgp_key_from_pkt(pgp_key_t *key, const pgp_key_pkt_t *pkt)
-{
-    try {
-        pgp_key_pkt_t keypkt = *pkt;
-        *key = pgp_key_t();
-
-        /* parse secret key if not encrypted */
-        if (is_secret_key_pkt(keypkt.tag)) {
-            bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
-            if (cleartext && decrypt_secret_key(&keypkt, NULL)) {
-                RNP_LOG("failed to setup key fields");
-                return false;
-            }
-        }
-
-        /* this call transfers ownership */
-        if (!pgp_key_init_with_pkt(key, &keypkt)) {
-            RNP_LOG("failed to setup key fields");
-            return false;
-        }
-
-        /* add key rawpacket */
-        key->rawpkt = pgp_rawpacket_t(key->pkt);
-        key->format = PGP_KEY_STORE_GPG;
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 static void
 pgp_key_clear_revokes(pgp_key_t *key)
 {
@@ -2049,6 +2002,30 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
 
     mem_dest_to_vector(&dst, raw);
     tag = uid.tag;
+}
+
+pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt)
+{
+    if (!is_key_pkt(keypkt.tag) || !keypkt.material.alg) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    pkt = keypkt;
+    if (pgp_keyid(keyid, pkt) || pgp_fingerprint(fingerprint, pkt) ||
+        !rnp_key_store_get_key_grip(&pkt.material, grip)) {
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+
+    /* parse secret key if not encrypted */
+    if (is_secret_key_pkt(pkt.tag)) {
+        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
+        if (cleartext && decrypt_secret_key(&pkt, NULL)) {
+            RNP_LOG("failed to setup key fields");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        }
+    }
+    /* add rawpacket */
+    rawpkt = pgp_rawpacket_t(pkt);
+    format = PGP_KEY_STORE_GPG;
 }
 
 pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
