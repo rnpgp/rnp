@@ -68,33 +68,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "pgp-key.h"
 
 bool
-rnp_key_add_signature(pgp_key_t *key, const pgp_signature_t *sig)
-{
-    pgp_subsig_t *subsig = pgp_key_add_subsig(key);
-    if (!subsig) {
-        RNP_LOG("Failed to add subsig");
-        return false;
-    }
-    /* setup subsig and key from signature */
-    if (!pgp_subsig_from_signature(*subsig, *sig)) {
-        return false;
-    }
-    subsig->uid = pgp_key_get_userid_count(key) - 1;
-    return true;
-}
-
-static bool
-rnp_key_add_signatures(pgp_key_t *key, pgp_signature_list_t &signatures)
-{
-    for (auto &sig : signatures) {
-        if (!rnp_key_add_signature(key, &sig)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool
 rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
                                       pgp_transferable_subkey_t *tskey,
                                       pgp_key_t *                pkey)
@@ -121,32 +94,25 @@ rnp_key_add_transferable_userid(pgp_key_t *key, pgp_transferable_userid_t *uid)
         return false;
     }
     try {
+        /* build rawpacket */
         userid->rawpkt = pgp_rawpacket_t(uid->uid);
-    } catch (const std::exception &e) {
-        RNP_LOG("Raw packet allocation failed: %s", e.what());
-        return false;
-    }
-
-    try {
+        /* populate uid string */
         if (uid->uid.tag == PGP_PKT_USER_ID) {
             userid->str = std::string(uid->uid.uid, uid->uid.uid + uid->uid.uid_len);
         } else {
             userid->str = "(photo)";
         }
-    } catch (const std::exception &e) {
-        RNP_LOG(
-          "%s alloc failed: %s", uid->uid.tag == PGP_PKT_USER_ID ? "uid" : "uattr", e.what());
-        return false;
-    }
-
-    try {
+        /* copy packet */
         userid->pkt = uid->uid;
+        /* add certifications */
+        for (auto &sig : uid->signatures) {
+            key->add_sig(sig, pgp_key_get_userid_count(key) - 1);
+        }
+        return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;
     }
-
-    return rnp_key_add_signatures(key, uid->signatures);
 }
 
 bool
@@ -192,16 +158,15 @@ error:
 bool
 rnp_key_from_transferable_key(pgp_key_t *key, pgp_transferable_key_t *tkey)
 {
-    /* create key */
     try {
+        /* create key */
         *key = pgp_key_t(tkey->key);
+        /* add direct-key signatures */
+        for (auto &sig : tkey->signatures) {
+            key->add_sig(sig);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to create key from packet");
-        return false;
-    }
-
-    /* add direct-key signatures */
-    if (!rnp_key_add_signatures(key, tkey->signatures)) {
         return false;
     }
 
@@ -220,17 +185,15 @@ rnp_key_from_transferable_subkey(pgp_key_t *                subkey,
                                  pgp_transferable_subkey_t *tskey,
                                  pgp_key_t *                primary)
 {
-    /* create key */
     try {
+        /* create key */
         *subkey = pgp_key_t(tskey->subkey);
+        /* add subkey binding signatures */
+        for (auto &sig : tskey->signatures) {
+            subkey->add_sig(sig);
+        }
     } catch (const std::exception &e) {
         RNP_LOG("failed to create subkey from packet");
-        return false;
-    }
-
-    /* add subkey binding signatures */
-    if (!rnp_key_add_signatures(subkey, tskey->signatures)) {
-        RNP_LOG("failed to add subkey signatures");
         return false;
     }
 
