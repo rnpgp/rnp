@@ -70,10 +70,11 @@ TEST_F(rnp_tests, test_key_store_search)
             key.fingerprint.fingerprint[0] = (uint8_t) n;
             key.fingerprint.length = PGP_FINGERPRINT_SIZE;
             // set the userids
+            pgp_transferable_key_t tkey;
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
-                pgp_userid_t *userid = pgp_key_add_userid(&key);
-                assert_non_null(userid);
-                userid->str = testdata[i].userids[uidn];
+                pgp_transferable_userid_t *uid = transferable_key_add_userid(tkey, testdata[i].userids[uidn]);
+                assert_non_null(uid);
+                key.add_uid(*uid);
             }
             // add to the store
             assert_true(rnp_key_store_add_key(store, &key));

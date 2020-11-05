@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
+#include "types.h"
 
 #define PGP_INPUT_CACHE_SIZE 32768
 #define PGP_OUTPUT_CACHE_SIZE 32768

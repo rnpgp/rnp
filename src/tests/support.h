@@ -49,6 +49,7 @@
 #endif
 
 #include "rnp.h"
+#include "rekey/rnp_key_store.h"
 #include "../rnp/fficli.h"
 
 #ifdef _WIN32

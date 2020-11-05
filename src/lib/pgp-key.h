@@ -56,6 +56,7 @@
 #include <stdio.h>
 #include <vector>
 #include "pass-provider.h"
+#include "../librepgp/stream-key.h"
 #include <rekey/rnp_key_store.h>
 #include "crypto/symmetric.h"
 #include "types.h"
@@ -87,12 +88,15 @@ struct pgp_key_t {
     pgp_key_t() = default;
     pgp_key_t(const pgp_key_pkt_t &pkt);
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
+    pgp_key_t(const pgp_transferable_key_t &src);
+    pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary);
     pgp_key_t &operator=(pgp_key_t &&);
     /* make sure we use only empty constructor/move operator */
     pgp_key_t(pgp_key_t &&src) = delete;
     pgp_key_t &operator=(const pgp_key_t &) = delete;
 
     pgp_subsig_t &add_sig(const pgp_signature_t &sig, size_t uid = -1);
+    pgp_userid_t &add_uid(const pgp_transferable_userid_t &uid);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -211,8 +215,6 @@ pgp_userid_t *pgp_key_get_userid(pgp_key_t *, size_t);
 const pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
 
 bool pgp_key_has_userid(const pgp_key_t *, const char *);
-
-pgp_userid_t *pgp_key_add_userid(pgp_key_t *);
 
 pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
 
