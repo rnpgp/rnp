@@ -3330,17 +3330,13 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    pgp_subsig_t *subsig = NULL;
     try {
-        subsig = new pgp_subsig_t();
-        subsig->sig = sig->sig_pkt;
+        (*handle)->sig = new pgp_subsig_t(sig->sig_pkt);
     } catch (const std::exception &e) {
         FFI_LOG(sig->ffi, "%s", e.what());
-        delete subsig;
         free(*handle);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    (*handle)->sig = subsig;
     (*handle)->ffi = sig->ffi;
     (*handle)->key = NULL;
     (*handle)->own_sig = true;

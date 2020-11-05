@@ -91,6 +91,8 @@ struct pgp_key_t {
     /* make sure we use only empty constructor/move operator */
     pgp_key_t(pgp_key_t &&src) = delete;
     pgp_key_t &operator=(const pgp_key_t &) = delete;
+
+    pgp_subsig_t &add_sig(const pgp_signature_t &sig, size_t uid = -1);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -220,14 +222,10 @@ const pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
 
 pgp_revoke_t *pgp_key_get_revoke(pgp_key_t *key, size_t idx);
 
-pgp_subsig_t *pgp_key_add_subsig(pgp_key_t *);
-
 size_t pgp_key_get_subsig_count(const pgp_key_t *);
 
 const pgp_subsig_t *pgp_key_get_subsig(const pgp_key_t *, size_t);
 pgp_subsig_t *      pgp_key_get_subsig(pgp_key_t *, size_t);
-
-bool pgp_subsig_from_signature(pgp_subsig_t &subsig, const pgp_signature_t &sig);
 
 bool pgp_key_has_signature(const pgp_key_t *key, const pgp_signature_t *sig);
 

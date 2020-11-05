@@ -440,18 +440,6 @@ pgp_key_get_revoke(pgp_key_t *key, size_t idx)
     return (idx < key->revokes.size()) ? &key->revokes[idx] : NULL;
 }
 
-pgp_subsig_t *
-pgp_key_add_subsig(pgp_key_t *key)
-{
-    try {
-        key->subsigs.push_back({});
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-    return &key->subsigs.back();
-}
-
 size_t
 pgp_key_get_subsig_count(const pgp_key_t *key)
 {
@@ -468,44 +456,6 @@ pgp_subsig_t *
 pgp_key_get_subsig(pgp_key_t *key, size_t idx)
 {
     return (idx < key->subsigs.size()) ? &key->subsigs[idx] : NULL;
-}
-
-bool
-pgp_subsig_from_signature(pgp_subsig_t &dst, const pgp_signature_t &sig)
-{
-    pgp_subsig_t subsig = {};
-    subsig.sig = sig;
-    if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
-        subsig.trustlevel = subsig.sig.trust_level();
-        subsig.trustamount = subsig.sig.trust_amount();
-    }
-    try {
-        subsig.prefs.set_symm_algs(subsig.sig.preferred_symm_algs());
-        subsig.prefs.set_hash_algs(subsig.sig.preferred_hash_algs());
-        subsig.prefs.set_z_algs(subsig.sig.preferred_z_algs());
-
-        if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-            subsig.key_flags = subsig.sig.key_flags();
-        }
-        if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
-            subsig.prefs.set_ks_prefs({subsig.sig.key_server_prefs()});
-        }
-        if (subsig.sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
-            subsig.prefs.key_server = subsig.sig.key_server();
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to copy preferences: %s", e.what());
-        return false;
-    }
-    /* add signature rawpacket */
-    try {
-        subsig.rawpkt = pgp_rawpacket_t(sig);
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to build sig rawpacket: %s", e.what());
-        return false;
-    }
-    dst = std::move(subsig);
-    return true;
 }
 
 bool
@@ -535,34 +485,15 @@ pgp_key_replace_signature(pgp_key_t *key, pgp_signature_t *oldsig, pgp_signature
         return NULL;
     }
 
-    /* create rawpackets here since oldsig may be equal to subsig */
-    pgp_rawpacket_t oldraw;
-    pgp_rawpacket_t newraw;
     try {
-        oldraw = *oldsig;
-        newraw = *newsig;
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to create rawpacket: %s", e.what());
-        return NULL;
-    }
-
-    /* fill new subsig */
-    pgp_subsig_t newsubsig = {};
-    if (!pgp_subsig_from_signature(newsubsig, *newsig)) {
-        RNP_LOG("failed to fill subsig");
-        return NULL;
-    }
-    newsubsig.uid = subsig->uid;
-    /* replace rawpacket */
-    try {
-        newsubsig.rawpkt = pgp_rawpacket_t(*newsig);
+        pgp_subsig_t newsubsig(*newsig);
+        newsubsig.uid = subsig->uid;
+        *subsig = std::move(newsubsig);
+        return subsig;
     } catch (const std::exception &e) {
         RNP_LOG("failed to replace rawpacket: %s", e.what());
         return NULL;
     }
-
-    *subsig = std::move(newsubsig);
-    return subsig;
 }
 
 static bool
@@ -2004,6 +1935,30 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
     tag = uid.tag;
 }
 
+pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
+{
+    sig = pkt;
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_TRUST)) {
+        trustlevel = sig.trust_level();
+        trustamount = sig.trust_amount();
+    }
+    prefs.set_symm_algs(sig.preferred_symm_algs());
+    prefs.set_hash_algs(sig.preferred_hash_algs());
+    prefs.set_z_algs(sig.preferred_z_algs());
+
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        key_flags = sig.key_flags();
+    }
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_KEYSERV_PREFS)) {
+        prefs.set_ks_prefs({sig.key_server_prefs()});
+    }
+    if (sig.has_subpkt(PGP_SIG_SUBPKT_PREF_KEYSERV)) {
+        prefs.key_server = sig.key_server();
+    }
+    /* add signature rawpacket */
+    rawpkt = pgp_rawpacket_t(sig);
+}
+
 pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt)
 {
     if (!is_key_pkt(keypkt.tag) || !keypkt.material.alg) {
@@ -2101,4 +2056,12 @@ pgp_key_t::operator=(pgp_key_t &&src)
     validated = src.validated;
 
     return *this;
+}
+
+pgp_subsig_t &
+pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
+{
+    subsigs.emplace_back(sig);
+    subsigs.back().uid = uid;
+    return subsigs.back();
 }

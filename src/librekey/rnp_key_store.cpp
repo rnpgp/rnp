@@ -600,8 +600,8 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
 
     try {
         pgp_key_t tmpkey(key->pkt);
-        if (!rnp_key_add_signature(&tmpkey, sig) ||
-            !pgp_subkey_refresh_data(&tmpkey, primary)) {
+        tmpkey.add_sig(*sig);
+        if (!pgp_subkey_refresh_data(&tmpkey, primary)) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
@@ -636,7 +636,8 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
 
     try {
         pgp_key_t tmpkey(key->pkt);
-        if (!rnp_key_add_signature(&tmpkey, sig) || !pgp_key_refresh_data(&tmpkey)) {
+        tmpkey.add_sig(*sig);
+        if (!pgp_key_refresh_data(&tmpkey)) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
