@@ -398,18 +398,6 @@ pgp_key_has_userid(const pgp_key_t *key, const char *uid)
     return false;
 }
 
-pgp_userid_t *
-pgp_key_add_userid(pgp_key_t *key)
-{
-    try {
-        key->uids.push_back({});
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-    return &key->uids.back();
-}
-
 pgp_revoke_t *
 pgp_key_add_revoke(pgp_key_t *key)
 {
@@ -1358,8 +1346,14 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         RNP_LOG("failed to add userid certification");
         return false;
     }
+    try {
+        key->add_uid(uid);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
 
-    return rnp_key_add_transferable_userid(key, &uid) && pgp_key_refresh_data(key);
+    return pgp_key_refresh_data(key);
 }
 
 static bool
@@ -2025,6 +2019,33 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     validated = src.validated;
 }
 
+pgp_key_t::pgp_key_t(const pgp_transferable_key_t &src) : pgp_key_t(src.key)
+{
+    /* add direct-key signatures */
+    for (auto &sig : src.signatures) {
+        add_sig(sig);
+    }
+
+    /* add userids and their signatures */
+    for (auto &uid : src.userids) {
+        add_uid(uid);
+    }
+}
+
+pgp_key_t::pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary)
+    : pgp_key_t(src.subkey)
+{
+    /* add subkey binding signatures */
+    for (auto &sig : src.signatures) {
+        add_sig(sig);
+    }
+
+    /* setup key grips if primary is available */
+    if (primary && !pgp_key_link_subkey_fp(primary, this)) {
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    }
+}
+
 pgp_key_t &
 pgp_key_t::operator=(pgp_key_t &&src)
 {
@@ -2064,4 +2085,26 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
     subsigs.emplace_back(sig);
     subsigs.back().uid = uid;
     return subsigs.back();
+}
+
+pgp_userid_t &
+pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
+{
+    uids.push_back({});
+    pgp_userid_t &userid = uids.back();
+    /* build rawpacket */
+    userid.rawpkt = pgp_rawpacket_t(uid.uid);
+    /* populate uid string */
+    if (uid.uid.tag == PGP_PKT_USER_ID) {
+        userid.str = std::string(uid.uid.uid, uid.uid.uid + uid.uid.uid_len);
+    } else {
+        userid.str = "(photo)";
+    }
+    /* copy packet */
+    userid.pkt = uid.uid;
+    /* add certifications */
+    for (auto &sig : uid.signatures) {
+        add_sig(sig, pgp_key_get_userid_count(this) - 1);
+    }
+    return userid;
 }

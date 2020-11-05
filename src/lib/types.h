@@ -614,6 +614,8 @@ typedef struct pgp_signature_t {
     bool matches_onepass(const pgp_one_pass_sig_t &onepass) const;
 } pgp_signature_t;
 
+typedef std::vector<pgp_signature_t> pgp_signature_list_t;
+
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
     pgp_pkt_type_t       tag;
