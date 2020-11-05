@@ -38,12 +38,12 @@
 #include "utils.h"
 
 rnp_result_t
-pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key)
+pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
 {
     pgp_hash_t hash = {0};
 
-    if ((key->version == PGP_V2) || (key->version == PGP_V3)) {
-        if (!is_rsa_key_alg(key->alg)) {
+    if ((key.version == PGP_V2) || (key.version == PGP_V3)) {
+        if (!is_rsa_key_alg(key.alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
@@ -51,19 +51,19 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key)
             RNP_LOG("bad md5 alloc");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        (void) mpi_hash(&key->material.rsa.n, &hash);
-        (void) mpi_hash(&key->material.rsa.e, &hash);
+        (void) mpi_hash(&key.material.rsa.n, &hash);
+        (void) mpi_hash(&key.material.rsa.e, &hash);
         fp.length = pgp_hash_finish(&hash, fp.fingerprint);
         RNP_DHEX("v2/v3 fingerprint", fp.fingerprint, fp.length);
         return RNP_SUCCESS;
     }
 
-    if (key->version == PGP_V4) {
+    if (key.version == PGP_V4) {
         if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
             RNP_LOG("bad sha1 alloc");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        if (!signature_hash_key(key, &hash)) {
+        if (!signature_hash_key(&key, &hash)) {
             return RNP_ERROR_GENERIC;
         }
         fp.length = pgp_hash_finish(&hash, fp.fingerprint);
@@ -83,19 +83,19 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t *key)
  */
 
 rnp_result_t
-pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t *key)
+pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
 {
     pgp_fingerprint_t fp;
     rnp_result_t      ret;
     size_t            n;
 
-    if ((key->version == PGP_V2) || (key->version == PGP_V3)) {
-        if (!is_rsa_key_alg(key->alg)) {
+    if ((key.version == PGP_V2) || (key.version == PGP_V3)) {
+        if (!is_rsa_key_alg(key.alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        n = mpi_bytes(&key->material.rsa.n);
-        (void) memcpy(keyid.data(), key->material.rsa.n.mpi + n - keyid.size(), keyid.size());
+        n = mpi_bytes(&key.material.rsa.n);
+        (void) memcpy(keyid.data(), key.material.rsa.n.mpi + n - keyid.size(), keyid.size());
         return RNP_SUCCESS;
     }
 
