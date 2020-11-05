@@ -51,7 +51,7 @@ void         set_rnp_log_switch(int8_t);
 
 #define RNP_LOG_KEY(msg, key)                                                          \
     do {                                                                               \
-        if (!key) {                                                                    \
+        if (!(key)) {                                                                  \
             RNP_LOG(msg, "(null)");                                                    \
             break;                                                                     \
         }                                                                              \

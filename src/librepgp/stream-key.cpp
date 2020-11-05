@@ -288,12 +288,12 @@ transferable_userid_certify(const pgp_key_pkt_t &          key,
     pgp_key_id_t      keyid = {};
     pgp_fingerprint_t keyfp;
 
-    if (pgp_keyid(keyid, &signer)) {
+    if (pgp_keyid(keyid, signer)) {
         RNP_LOG("failed to calculate keyid");
         return NULL;
     }
 
-    if (pgp_fingerprint(keyfp, &signer)) {
+    if (pgp_fingerprint(keyfp, signer)) {
         RNP_LOG("failed to calculate keyfp");
         return NULL;
     }
@@ -365,7 +365,7 @@ signature_calculate_primary_binding(const pgp_key_pkt_t *key,
     sig->palg = subkey->alg;
     sig->set_type(PGP_SIG_PRIMARY);
 
-    if (pgp_keyid(keyid, subkey)) {
+    if (pgp_keyid(keyid, *subkey)) {
         RNP_LOG("failed to calculate keyid");
         return false;
     }
@@ -406,7 +406,7 @@ signature_calculate_binding(const pgp_key_pkt_t *key,
     rng_t        rng = {};
     pgp_key_id_t keyid;
 
-    if (pgp_keyid(keyid, key)) {
+    if (pgp_keyid(keyid, *key)) {
         RNP_LOG("failed to calculate keyid");
         return false;
     }
@@ -461,7 +461,7 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
                          const rnp_selfsig_binding_info_t &binding)
 {
     pgp_fingerprint_t keyfp;
-    if (pgp_fingerprint(keyfp, &key)) {
+    if (pgp_fingerprint(keyfp, key)) {
         RNP_LOG("failed to calculate keyfp");
         return NULL;
     }
@@ -516,11 +516,11 @@ transferable_key_revoke(const pgp_key_pkt_t &key,
     pgp_key_id_t      keyid;
     pgp_fingerprint_t keyfp;
 
-    if (pgp_keyid(keyid, &signer)) {
+    if (pgp_keyid(keyid, signer)) {
         RNP_LOG("failed to calculate keyid");
         return NULL;
     }
-    if (pgp_fingerprint(keyfp, &signer)) {
+    if (pgp_fingerprint(keyfp, signer)) {
         RNP_LOG("failed to calculate keyfp");
         return NULL;
     }
