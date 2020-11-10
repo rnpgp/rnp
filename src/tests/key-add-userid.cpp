@@ -62,7 +62,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_true(pgp_key_unlock(key, &pprov));
 
     // save the counts for a few items
-    unsigned uidc = pgp_key_get_userid_count(key);
+    unsigned uidc = key->uid_count();
     unsigned subsigc = key->sig_count();
 
     // add a userid
@@ -76,7 +76,7 @@ TEST_F(rnp_tests, test_key_add_userid)
       pgp_key_add_userid_certified(key, pgp_key_get_pkt(key), PGP_HASH_SHA1, &selfsig));
 
     // make sure this userid has been marked as primary
-    assert_int_equal(pgp_key_get_userid_count(key) - 1, key->uid0);
+    assert_int_equal(key->uid_count() - 1, key->uid0);
     // make sure key expiration and flags are set
     assert_int_equal(123456789, pgp_key_get_expiration(key));
     assert_int_equal(0xAB, pgp_key_get_flags(key));
@@ -103,7 +103,7 @@ TEST_F(rnp_tests, test_key_add_userid)
       pgp_key_add_userid_certified(key, pgp_key_get_pkt(key), PGP_HASH_SHA1, &selfsig2));
 
     // confirm that the counts have increased as expected
-    assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
+    assert_int_equal(key->uid_count(), uidc + 2);
     assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure key expiration and flags are now updated
@@ -111,11 +111,11 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_int_equal(0xCD, pgp_key_get_flags(key));
     // check the userids array
     // added1
-    assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
+    assert_true(key->get_uid(uidc).str == "added1");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
     assert_int_equal(0xAB, key->get_sig(subsigc).key_flags);
     // added2
-    assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
+    assert_true(key->get_uid(uidc + 1).str == "added2");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
     assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
 
@@ -137,7 +137,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[0], NULL));
 
     // confirm that the counts have increased as expected
-    assert_int_equal(pgp_key_get_userid_count(key), uidc + 2);
+    assert_int_equal(key->uid_count(), uidc + 2);
     assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure correct key expiration and flags are set
@@ -146,11 +146,11 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // check the userids array
     // added1
-    assert_true(pgp_key_get_userid(key, uidc)->str == "added1");
+    assert_true(key->get_uid(uidc).str == "added1");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
     assert_int_equal(0xAB, key->get_sig(subsigc).key_flags);
     // added2
-    assert_true(pgp_key_get_userid(key, uidc + 1)->str == "added2");
+    assert_true(key->get_uid(uidc + 1).str == "added2");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
     assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
 

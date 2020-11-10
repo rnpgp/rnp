@@ -72,7 +72,8 @@ TEST_F(rnp_tests, test_key_store_search)
             // set the userids
             pgp_transferable_key_t tkey;
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
-                pgp_transferable_userid_t *uid = transferable_key_add_userid(tkey, testdata[i].userids[uidn]);
+                pgp_transferable_userid_t *uid =
+                  transferable_key_add_userid(tkey, testdata[i].userids[uidn]);
                 assert_non_null(uid);
                 key.add_uid(*uid);
             }
@@ -121,8 +122,8 @@ TEST_F(rnp_tests, test_key_store_search)
 
     // userid search (literal)
     for (auto &key : store->keys) {
-        for (auto &uid : key.uids) {
-            uid.valid = true;
+        for (size_t i = 0; i < key.uid_count(); i++) {
+            key.get_uid(i).valid = true;
         }
     }
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
@@ -133,8 +134,8 @@ TEST_F(rnp_tests, test_key_store_search)
             while (key) {
                 // check that the userid actually matches
                 bool found = false;
-                for (unsigned j = 0; j < pgp_key_get_userid_count(key); j++) {
-                    if (pgp_key_get_userid(key, j)->str == userid) {
+                for (unsigned j = 0; j < key->uid_count(); j++) {
+                    if (key->get_uid(j).str == userid) {
                         found = true;
                     }
                 }

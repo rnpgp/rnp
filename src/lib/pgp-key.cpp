@@ -354,24 +354,6 @@ pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey)
     return true;
 }
 
-size_t
-pgp_key_get_userid_count(const pgp_key_t *key)
-{
-    return key->uids.size();
-}
-
-const pgp_userid_t *
-pgp_key_get_userid(const pgp_key_t *key, size_t idx)
-{
-    return (idx < key->uids.size()) ? &key->uids[idx] : NULL;
-}
-
-pgp_userid_t *
-pgp_key_get_userid(pgp_key_t *key, size_t idx)
-{
-    return (idx < key->uids.size()) ? &key->uids[idx] : NULL;
-}
-
 const pgp_revoke_t *
 pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
 {
@@ -382,20 +364,6 @@ pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
         }
     }
     return NULL;
-}
-
-bool
-pgp_key_has_userid(const pgp_key_t *key, const char *uid)
-{
-    for (auto &userid : key->uids) {
-        if (!userid.valid) {
-            continue;
-        }
-        if (userid.str == uid) {
-            return true;
-        }
-    }
-    return false;
 }
 
 pgp_revoke_t *
@@ -579,15 +547,6 @@ pgp_key_validate_signature(pgp_key_t &   key,
     sig.validated = false;
     sig.valid = false;
 
-    pgp_userid_t *uid = NULL;
-    if (pgp_sig_is_certification(sig) || pgp_sig_is_userid_revocation(key, sig)) {
-        uid = pgp_key_get_userid(&key, sig.uid);
-        if (!uid) {
-            RNP_LOG("Userid not found");
-            return;
-        }
-    }
-
     pgp_signature_info_t sinfo = {};
     sinfo.sig = &sig.sig;
     sinfo.signer = &signer;
@@ -608,9 +567,15 @@ pgp_key_validate_signature(pgp_key_t &   key,
     case PGP_CERT_PERSONA:
     case PGP_CERT_CASUAL:
     case PGP_CERT_POSITIVE:
-    case PGP_SIG_REV_CERT:
-        signature_check_certification(&sinfo, pgp_key_get_pkt(&key), &uid->pkt);
+    case PGP_SIG_REV_CERT: {
+        if (sig.uid >= key.uid_count()) {
+            RNP_LOG("Userid not found");
+            return;
+        }
+        signature_check_certification(
+          &sinfo, pgp_key_get_pkt(&key), &key.get_uid(sig.uid).pkt);
         break;
+    }
     case PGP_SIG_SUBKEY:
         if (!primary) {
             RNP_LOG("No primary key specified");
@@ -803,9 +768,8 @@ pgp_key_refresh_data(pgp_key_t *key)
         }
     }
     /* userid validities */
-    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
-        pgp_userid_t *uid = pgp_key_get_userid(key, i);
-        uid->valid = false;
+    for (size_t i = 0; i < key->uid_count(); i++) {
+        key->get_uid(i).valid = false;
     }
     for (size_t i = 0; i < key->sig_count(); i++) {
         pgp_subsig_t &sig = key->get_sig(i);
@@ -814,18 +778,18 @@ pgp_key_refresh_data(pgp_key_t *key)
             is_key_expired(*key, sig)) {
             continue;
         }
-        pgp_userid_t *uid = pgp_key_get_userid(key, sig.uid);
-        if (!uid) {
+        if (sig.uid >= key->uid_count()) {
             continue;
         }
-        uid->valid = true;
+        key->get_uid(sig.uid).valid = true;
     }
     /* check whether uid is revoked */
     for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        pgp_userid_t *uid = pgp_key_get_userid(key, pgp_key_get_revoke(key, i)->uid);
-        if (uid) {
-            uid->valid = false;
+        uint32_t uid = pgp_key_get_revoke(key, i)->uid;
+        if (uid >= key->uid_count()) {
+            continue;
         }
+        key->get_uid(uid).valid = false;
     }
     /* primary userid: pick it only from valid ones */
     key->uid0_set = false;
@@ -834,8 +798,7 @@ pgp_key_refresh_data(pgp_key_t *key)
         if (!sig.valid || !pgp_sig_is_certification(sig) || !pgp_sig_self_signed(*key, sig)) {
             continue;
         }
-        pgp_userid_t *uid = pgp_key_get_userid(key, sig.uid);
-        if (!uid || !uid->valid) {
+        if ((sig.uid >= key->uid_count()) || !key->get_uid(sig.uid).valid) {
             continue;
         }
         if (sig.sig.primary_uid()) {
@@ -854,7 +817,7 @@ pgp_key_get_rawpacket_count(const pgp_key_t *key)
     if (key->format == PGP_KEY_STORE_G10) {
         return 1;
     }
-    return 1 + key->uids.size() + key->sig_count();
+    return 1 + key->uid_count() + key->sig_count();
 }
 
 pgp_rawpacket_t &
@@ -1256,7 +1219,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         return false;
     }
     // see if the key already has this userid
-    if (pgp_key_has_userid(key, (const char *) cert->userid)) {
+    if (key->has_uid((const char *) cert->userid)) {
         RNP_LOG("key already has this userid");
         return false;
     }
@@ -1353,13 +1316,14 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         goto done;
     }
     if (pgp_sig_is_certification(*subsig)) {
-        pgp_userid_t *uid = pgp_key_get_userid(key, subsig->uid);
-        if (!uid) {
+        if (subsig->uid >= key->uid_count()) {
             RNP_LOG("uid not found");
             goto done;
         }
-        if (!signature_calculate_certification(
-              pgp_key_get_pkt(key), &uid->pkt, &newsig, pgp_key_get_pkt(seckey))) {
+        if (!signature_calculate_certification(pgp_key_get_pkt(key),
+                                               &key->get_uid(subsig->uid).pkt,
+                                               &newsig,
+                                               pgp_key_get_pkt(seckey))) {
             RNP_LOG("failed to calculate signature");
             goto done;
         }
@@ -1516,9 +1480,9 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
     size_t idx = pgp_key_write_signatures(dst, key, (uint32_t) -1, 0);
 
     /* write uids and their signatures */
-    for (size_t i = 0; i < pgp_key_get_userid_count(key); i++) {
-        const pgp_userid_t *uid = pgp_key_get_userid(key, i);
-        dst_write(dst, uid->rawpkt.raw.data(), uid->rawpkt.raw.size());
+    for (size_t i = 0; i < key->uid_count(); i++) {
+        const pgp_userid_t &uid = key->get_uid(i);
+        dst_write(dst, uid.rawpkt.raw.data(), uid.rawpkt.raw.size());
         idx = pgp_key_write_signatures(dst, key, i, idx);
     }
     return !dst->werr;
@@ -1582,7 +1546,7 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
             res = stream_write_key(&key.pkt, &memdst);
         }
 
-        res = res && stream_write_userid(&key.uids[uid].pkt, &memdst) &&
+        res = res && stream_write_userid(&key.get_uid(uid).pkt, &memdst) &&
               stream_write_signature(&cert->sig, &memdst);
 
         if (res && pgp_key_is_secret(&sub)) {
@@ -1932,6 +1896,19 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
     rawpkt = pgp_rawpacket_t(sig);
 }
 
+pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
+{
+    /* copy packet data */
+    pkt = uidpkt;
+    rawpkt = pgp_rawpacket_t(uidpkt);
+    /* populate uid string */
+    if (uidpkt.tag == PGP_PKT_USER_ID) {
+        str = std::string(uidpkt.uid, uidpkt.uid + uidpkt.uid_len);
+    } else {
+        str = "(photo)";
+    }
+}
+
 pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt)
 {
     if (!is_key_pkt(keypkt.tag) || !keypkt.material.alg) {
@@ -1978,7 +1955,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
         rawpkt = src.rawpkt;
     }
 
-    uids = src.uids;
+    uids_ = src.uids_;
     sigs_ = src.sigs_;
     sigs_map_ = src.sigs_map_;
     revokes = src.revokes;
@@ -2032,7 +2009,7 @@ pgp_key_t::operator=(pgp_key_t &&src)
     if (&src == this) {
         return *this;
     }
-    uids = std::move(src.uids);
+    uids_ = std::move(src.uids_);
     sigs_ = std::move(src.sigs_);
     sigs_map_ = std::move(src.sigs_map_);
     pgp_key_clear_revokes(this);
@@ -2138,24 +2115,52 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
     return res.first->second;
 }
 
+size_t
+pgp_key_t::uid_count() const
+{
+    return uids_.size();
+}
+
+pgp_userid_t &
+pgp_key_t::get_uid(size_t idx)
+{
+    if (idx >= uids_.size()) {
+        throw std::out_of_range("idx");
+    }
+    return uids_[idx];
+}
+
+const pgp_userid_t &
+pgp_key_t::get_uid(size_t idx) const
+{
+    if (idx >= uids_.size()) {
+        throw std::out_of_range("idx");
+    }
+    return uids_[idx];
+}
+
+bool
+pgp_key_t::has_uid(const std::string &uidstr) const
+{
+    for (auto &userid : uids_) {
+        if (!userid.valid) {
+            continue;
+        }
+        if (userid.str == uidstr) {
+            return true;
+        }
+    }
+    return false;
+}
+
 pgp_userid_t &
 pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
 {
-    uids.push_back({});
-    pgp_userid_t &userid = uids.back();
-    /* build rawpacket */
-    userid.rawpkt = pgp_rawpacket_t(uid.uid);
-    /* populate uid string */
-    if (uid.uid.tag == PGP_PKT_USER_ID) {
-        userid.str = std::string(uid.uid.uid, uid.uid.uid + uid.uid.uid_len);
-    } else {
-        userid.str = "(photo)";
-    }
-    /* copy packet */
-    userid.pkt = uid.uid;
+    /* construct userid */
+    uids_.emplace_back(uid.uid);
     /* add certifications */
     for (auto &sig : uid.signatures) {
-        add_sig(sig, pgp_key_get_userid_count(this) - 1);
+        add_sig(sig, uid_count() - 1);
     }
-    return userid;
+    return uids_.back();
 }

@@ -10034,7 +10034,7 @@ check_key_autocrypt(rnp_output_t       memout,
     if (!pgp_key_can_sign(key->pub) || !pgp_key_can_encrypt(sub->pub)) {
         return false;
     }
-    if ((key->pub->uids.size() != 1) || (key->pub->uids[0].str != uid)) {
+    if ((key->pub->uid_count() != 1) || (key->pub->get_uid(0).str != uid)) {
         return false;
     }
     rnp_key_handle_destroy(key);

@@ -765,6 +765,8 @@ typedef struct pgp_userid_t {
     pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
     std::string      str{};    /* Human-readable representation of the userid */
     bool valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
+
+    pgp_userid_t(const pgp_userid_pkt_t &pkt);
 } pgp_userid_t;
 
 struct rnp_keygen_ecc_params_t {
