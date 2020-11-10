@@ -685,18 +685,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
         }
         sub->revoked = true;
         try {
-            if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
-                RNP_LOG("Warning: no revocation reason in subkey revocation");
-                sub->revocation.code = PGP_REVOCATION_NO_REASON;
-            } else {
-                sub->revocation.code = sig.sig.revocation_code();
-                sub->revocation.reason = sig.sig.revocation_reason();
-            }
-
-            if (sub->revocation.reason.empty()) {
-                sub->revocation.reason =
-                  pgp_str_from_map(sub->revocation.code, ss_rr_code_map);
-            }
+            sub->revocation = pgp_revoke_t(sig);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
@@ -731,36 +720,20 @@ pgp_key_refresh_data(pgp_key_t *key)
         if (!sig.valid) {
             continue;
         }
-        pgp_revoke_t *revocation = NULL;
-        if (pgp_sig_is_key_revocation(*key, sig)) {
-            if (key->revoked) {
-                continue;
-            }
-            key->revoked = true;
-            revocation = &key->revocation;
-            revocation->uid = -1;
-        } else if (pgp_sig_is_userid_revocation(*key, sig)) {
-            if (!(revocation = pgp_key_add_revoke(key))) {
-                RNP_LOG("failed to add revoke");
-                return false;
-            }
-            revocation->uid = sig.uid;
-        }
-
-        if (!revocation) {
-            continue;
-        }
-
         try {
-            if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
-                RNP_LOG("Warning: no revocation reason in key/userid revocation");
-                revocation->code = PGP_REVOCATION_NO_REASON;
-            } else {
-                revocation->code = sig.sig.revocation_code();
-                revocation->reason = sig.sig.revocation_reason();
-            }
-            if (revocation->reason.empty()) {
-                revocation->reason = pgp_str_from_map(revocation->code, ss_rr_code_map);
+            if (pgp_sig_is_key_revocation(*key, sig)) {
+                if (key->revoked) {
+                    continue;
+                }
+                key->revoked = true;
+                key->revocation = pgp_revoke_t(sig);
+            } else if (pgp_sig_is_userid_revocation(*key, sig)) {
+                pgp_revoke_t *revoke = pgp_key_add_revoke(key);
+                if (!revoke) {
+                    RNP_LOG("failed to add revoke");
+                    return false;
+                }
+                *revoke = pgp_revoke_t(sig);
             }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
@@ -1906,6 +1879,22 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
         str = std::string(uidpkt.uid, uidpkt.uid + uidpkt.uid_len);
     } else {
         str = "(photo)";
+    }
+}
+
+pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
+{
+    uid = sig.uid;
+    sigid = sig.sigid;
+    if (!sig.sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON)) {
+        RNP_LOG("Warning: no revocation reason in the revocation");
+        code = PGP_REVOCATION_NO_REASON;
+    } else {
+        code = sig.sig.revocation_code();
+        reason = sig.sig.revocation_reason();
+    }
+    if (reason.empty()) {
+        reason = pgp_str_from_map(code, ss_rr_code_map);
     }
 }
 
