@@ -71,7 +71,6 @@ struct pgp_key_t {
     std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
     std::vector<pgp_userid_t> uids_{};     /* array of user ids */
   public:
-    std::vector<pgp_revoke_t> revokes{}; /* array of revocations */
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
     pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
@@ -85,7 +84,7 @@ struct pgp_key_t {
     pgp_key_grip_t         grip{};
     uint32_t               uid0{};       /* primary uid index in uids array */
     unsigned               uid0_set : 1; /* flag for the above */
-    uint8_t                revoked{};    /* key has been revoked */
+    bool                   revoked{};    /* key has been revoked */
     pgp_revoke_t           revocation{}; /* revocation reason */
     pgp_key_store_format_t format{};     /* the format of the key in packets[0] */
     bool                   valid{};      /* this key is valid and usable */
@@ -114,6 +113,7 @@ struct pgp_key_t {
     const pgp_userid_t &get_uid(size_t idx) const;
     pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
     bool                has_uid(const std::string &uid) const;
+    void                clear_revokes();
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -222,16 +222,6 @@ void pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
  * @return true on success or false otherwise (allocation failed, wrong key types)
  */
 bool pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey);
-
-const pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
-
-pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
-
-size_t pgp_key_get_revoke_count(const pgp_key_t *);
-
-const pgp_revoke_t *pgp_key_get_revoke(const pgp_key_t *, size_t);
-
-pgp_revoke_t *pgp_key_get_revoke(pgp_key_t *key, size_t idx);
 
 /**
  * @brief Get the latest valid self-signature with information about the primary key,
