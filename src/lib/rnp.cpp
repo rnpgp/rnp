@@ -5888,8 +5888,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    const pgp_revoke_t *revoke = pgp_key_get_userid_revoke(uid->key, uid->idx);
-    *result = revoke != NULL;
+    *result = uid->key->get_uid(uid->idx).revoked;
     return RNP_SUCCESS;
 }
 FFI_GUARD
