@@ -770,7 +770,9 @@ typedef struct pgp_userid_t {
     pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
     pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
     std::string      str{};    /* Human-readable representation of the userid */
-    bool valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
+    bool         valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
+    bool         revoked{};
+    pgp_revoke_t revocation{};
 
     pgp_userid_t(const pgp_userid_pkt_t &pkt);
 } pgp_userid_t;

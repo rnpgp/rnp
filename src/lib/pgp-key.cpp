@@ -72,14 +72,6 @@
 #include <stdexcept>
 #include "defaults.h"
 
-static void
-pgp_key_clear_revokes(pgp_key_t *key)
-{
-    key->revoked = false;
-    key->revokes.clear();
-    key->revocation = {};
-}
-
 /**
  \ingroup HighLevel_KeyGeneral
 
@@ -352,48 +344,6 @@ pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey)
         return false;
     }
     return true;
-}
-
-const pgp_revoke_t *
-pgp_key_get_userid_revoke(const pgp_key_t *key, size_t uid)
-{
-    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        const pgp_revoke_t *revoke = pgp_key_get_revoke(key, i);
-        if (revoke->uid == uid) {
-            return revoke;
-        }
-    }
-    return NULL;
-}
-
-pgp_revoke_t *
-pgp_key_add_revoke(pgp_key_t *key)
-{
-    try {
-        key->revokes.push_back({});
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-    return &key->revokes.back();
-}
-
-size_t
-pgp_key_get_revoke_count(const pgp_key_t *key)
-{
-    return key->revokes.size();
-}
-
-const pgp_revoke_t *
-pgp_key_get_revoke(const pgp_key_t *key, size_t idx)
-{
-    return (idx < key->revokes.size()) ? &key->revokes[idx] : NULL;
-}
-
-pgp_revoke_t *
-pgp_key_get_revoke(pgp_key_t *key, size_t idx)
-{
-    return (idx < key->revokes.size()) ? &key->revokes[idx] : NULL;
 }
 
 static bool
@@ -677,7 +627,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
         sub->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(sub));
     }
     /* revocation */
-    pgp_key_clear_revokes(sub);
+    sub->clear_revokes();
     for (size_t i = 0; i < sub->sig_count(); i++) {
         pgp_subsig_t &sig = sub->get_sig(i);
         if (!sig.valid || !pgp_sig_is_subkey_revocation(*sub, sig)) {
@@ -714,7 +664,7 @@ pgp_key_refresh_data(pgp_key_t *key)
         key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
     }
     /* revocation(s) */
-    pgp_key_clear_revokes(key);
+    key->clear_revokes();
     for (size_t i = 0; i < key->sig_count(); i++) {
         pgp_subsig_t &sig = key->get_sig(i);
         if (!sig.valid) {
@@ -728,12 +678,16 @@ pgp_key_refresh_data(pgp_key_t *key)
                 key->revoked = true;
                 key->revocation = pgp_revoke_t(sig);
             } else if (pgp_sig_is_userid_revocation(*key, sig)) {
-                pgp_revoke_t *revoke = pgp_key_add_revoke(key);
-                if (!revoke) {
-                    RNP_LOG("failed to add revoke");
-                    return false;
+                if (sig.uid >= key->uid_count()) {
+                    RNP_LOG("Invalid uid index");
+                    continue;
                 }
-                *revoke = pgp_revoke_t(sig);
+                pgp_userid_t &uid = key->get_uid(sig.uid);
+                if (uid.revoked) {
+                    continue;
+                }
+                uid.revoked = true;
+                uid.revocation = pgp_revoke_t(sig);
             }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
@@ -757,12 +711,11 @@ pgp_key_refresh_data(pgp_key_t *key)
         key->get_uid(sig.uid).valid = true;
     }
     /* check whether uid is revoked */
-    for (size_t i = 0; i < pgp_key_get_revoke_count(key); i++) {
-        uint32_t uid = pgp_key_get_revoke(key, i)->uid;
-        if (uid >= key->uid_count()) {
-            continue;
+    for (size_t i = 0; i < key->uid_count(); i++) {
+        pgp_userid_t &uid = key->get_uid(i);
+        if (uid.revoked) {
+            uid.valid = false;
         }
-        key->get_uid(uid).valid = false;
     }
     /* primary userid: pick it only from valid ones */
     key->uid0_set = false;
@@ -1947,7 +1900,6 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     uids_ = src.uids_;
     sigs_ = src.sigs_;
     sigs_map_ = src.sigs_map_;
-    revokes = src.revokes;
     subkey_fps = src.subkey_fps;
     primary_fp_set = src.primary_fp_set;
     primary_fp = src.primary_fp;
@@ -2001,9 +1953,6 @@ pgp_key_t::operator=(pgp_key_t &&src)
     uids_ = std::move(src.uids_);
     sigs_ = std::move(src.sigs_);
     sigs_map_ = std::move(src.sigs_map_);
-    pgp_key_clear_revokes(this);
-    revokes = std::move(src.revokes);
-
     subkey_fps = std::move(src.subkey_fps);
     primary_fp = std::move(src.primary_fp);
     primary_fp_set = src.primary_fp_set;
@@ -2017,8 +1966,7 @@ pgp_key_t::operator=(pgp_key_t &&src)
     uid0 = src.uid0;
     uid0_set = src.uid0_set;
     revoked = src.revoked;
-    revocation = src.revocation;
-    src.revocation = {};
+    revocation = std::move(src.revocation);
     format = src.format;
     valid = src.valid;
     validated = src.validated;
@@ -2152,4 +2100,15 @@ pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
         add_sig(sig, uid_count() - 1);
     }
     return uids_.back();
+}
+
+void
+pgp_key_t::clear_revokes()
+{
+    revoked = false;
+    revocation = {};
+    for (auto &uid : uids_) {
+        uid.revoked = false;
+        uid.revocation = {};
+    }
 }
