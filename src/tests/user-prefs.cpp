@@ -35,8 +35,8 @@ find_subsig(const pgp_key_t *key, const char *userid)
 {
     // find the userid index
     int uididx = -1;
-    for (unsigned i = 0; i < pgp_key_get_userid_count(key); i++) {
-        if (pgp_key_get_userid(key, i)->str == userid) {
+    for (unsigned i = 0; i < key->uid_count(); i++) {
+        if (key->get_uid(i).str == userid) {
             uididx = i;
             break;
         }

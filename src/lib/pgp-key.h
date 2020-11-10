@@ -69,8 +69,8 @@ struct pgp_key_t {
   private:
     pgp_sig_map_t             sigs_map_{}; /* map with subsigs stored by their id */
     std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
+    std::vector<pgp_userid_t> uids_{};     /* array of user ids */
   public:
-    std::vector<pgp_userid_t> uids{};    /* array of user ids */
     std::vector<pgp_revoke_t> revokes{}; /* array of revocations */
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
@@ -109,7 +109,11 @@ struct pgp_key_t {
     pgp_subsig_t &      get_sig(const pgp_sig_id_t &id);
     const pgp_subsig_t &get_sig(const pgp_sig_id_t &id) const;
     pgp_subsig_t &      add_sig(const pgp_signature_t &sig, size_t uid = -1);
+    size_t              uid_count() const;
+    pgp_userid_t &      get_uid(size_t idx);
+    const pgp_userid_t &get_uid(size_t idx) const;
     pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
+    bool                has_uid(const std::string &uid) const;
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -219,15 +223,7 @@ void pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
  */
 bool pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey);
 
-size_t pgp_key_get_userid_count(const pgp_key_t *);
-
-const pgp_userid_t *pgp_key_get_userid(const pgp_key_t *, size_t);
-
-pgp_userid_t *pgp_key_get_userid(pgp_key_t *, size_t);
-
 const pgp_revoke_t *pgp_key_get_userid_revoke(const pgp_key_t *, size_t userid);
-
-bool pgp_key_has_userid(const pgp_key_t *, const char *);
 
 pgp_revoke_t *pgp_key_add_revoke(pgp_key_t *);
 

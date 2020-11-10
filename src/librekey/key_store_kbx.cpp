@@ -608,13 +608,13 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
 
     // skip serial number
 
-    if (!pu16(&memdst, pgp_key_get_userid_count(key)) || !pu16(&memdst, 12)) {
+    if (!pu16(&memdst, key->uid_count()) || !pu16(&memdst, 12)) {
         goto finish;
     }
 
     uid_start = memdst.writeb;
 
-    for (i = 0; i < pgp_key_get_userid_count(key); i++) {
+    for (i = 0; i < key->uid_count(); i++) {
         if (!pu32(&memdst, 0) ||
             !pu32(&memdst, 0)) { // UID offset and length, update when blob has done
             goto finish;
@@ -666,18 +666,18 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     }
 
     // wrtite UID, we might redesign PGP write and use this information from keyblob
-    for (i = 0; i < pgp_key_get_userid_count(key); i++) {
-        const char *uid = (const char *) pgp_key_get_userid(key, i);
+    for (i = 0; i < key->uid_count(); i++) {
+        const pgp_userid_t &uid = key->get_uid(i);
         p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i);
         /* store absolute uid offset in the output stream */
         pt = memdst.writeb + dst->writeb;
         STORE32BE(p, pt);
         /* and uid length */
-        pt = strlen(uid);
+        pt = uid.str.size();
         p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i) + 4;
         STORE32BE(p, pt);
         /* uid data itself */
-        if (!pbuf(&memdst, uid, pt)) {
+        if (!pbuf(&memdst, uid.str.c_str(), pt)) {
             goto finish;
         }
     }
