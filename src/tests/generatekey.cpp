@@ -962,7 +962,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psiginfo.sig = psig;
         psiginfo.signer = &pub;
         assert_rnp_success(signature_check_certification(
-          &psiginfo, pgp_key_get_pkt(&pub), &pgp_key_get_userid(&pub, 0)->pkt));
+          &psiginfo, pgp_key_get_pkt(&pub), &pub.get_uid(0).pkt));
         assert_true(psig->keyfp() == pgp_key_get_fp(&pub));
         // check subpackets and their contents
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
@@ -981,7 +981,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssiginfo.sig = ssig;
         ssiginfo.signer = &sec;
         assert_rnp_success(signature_check_certification(
-          &ssiginfo, pgp_key_get_pkt(&sec), &pgp_key_get_userid(&sec, 0)->pkt));
+          &ssiginfo, pgp_key_get_pkt(&sec), &sec.get_uid(0).pkt));
         assert_true(ssig->keyfp() == pgp_key_get_fp(&sec));
 
         // modify a hashed portion of the sig packets
@@ -989,9 +989,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails
         assert_rnp_failure(signature_check_certification(
-          &psiginfo, pgp_key_get_pkt(&pub), &pgp_key_get_userid(&pub, 0)->pkt));
+          &psiginfo, pgp_key_get_pkt(&pub), &pub.get_uid(0).pkt));
         assert_rnp_failure(signature_check_certification(
-          &ssiginfo, pgp_key_get_pkt(&sec), &pgp_key_get_userid(&sec, 0)->pkt));
+          &ssiginfo, pgp_key_get_pkt(&sec), &sec.get_uid(0).pkt));
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
