@@ -1680,7 +1680,13 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
                            ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
 
     if (!param->pkt.indeterminate && !param->pkt.partial) {
-        src->size = param->pkt.len - (1 + 1 + bt + 4);
+        /* format filename-length filename timestamp */
+        const uint16_t nbytes = 1 + 1 + bt + 4;
+        if (param->pkt.len < nbytes) {
+            ret = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+        src->size = param->pkt.len - nbytes;
         src->knownsize = 1;
     }
 
