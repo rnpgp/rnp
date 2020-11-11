@@ -822,7 +822,8 @@ rnp_result_t
 stream_read_packet(pgp_source_t *src, pgp_dest_t *dst)
 {
     if (stream_old_indeterminate_pkt_len(src)) {
-        return RNP_ERROR_BAD_FORMAT;
+        src->limit = src->readb + PGP_MAX_OLD_LEN_INDETERMINATE_PKT_SIZE;
+        return dst_write_src(src, dst);
     }
 
     if (stream_partial_pkt_len(src)) {

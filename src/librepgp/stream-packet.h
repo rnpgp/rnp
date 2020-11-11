@@ -36,6 +36,9 @@
 /* maximum size of the 'small' packet */
 #define PGP_MAX_PKT_SIZE 0x100000
 
+/* maximum size of indeterminate-size packet allowed with old length format */
+#define PGP_MAX_OLD_LEN_INDETERMINATE_PKT_SIZE 0x40000000
+
 typedef struct pgp_packet_hdr_t {
     pgp_pkt_type_t tag;
     uint8_t        hdr[PGP_MAX_HEADER_SIZE];
