@@ -134,7 +134,7 @@ finish:
         src->eof = 1;
     }
     *readres = len;
-    return true;
+    return (!src->limit || src->limit <= src->readb);
 }
 
 bool

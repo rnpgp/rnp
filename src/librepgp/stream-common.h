@@ -80,6 +80,8 @@ typedef struct pgp_source_t {
     uint64_t size;  /* size of the data if available, see knownsize */
     uint64_t readb; /* number of bytes read from the stream via src_read. Do not confuse with
                        number of bytes as returned via the read since data may be cached */
+    uint64_t limit; /* maximum number of bytes allowed to be read
+                       0 means unlimited */
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
