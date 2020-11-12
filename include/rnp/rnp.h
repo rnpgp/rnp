@@ -1075,6 +1075,17 @@ RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
                                               size_t                  idx,
                                               rnp_signature_handle_t *sig);
 
+/**
+ * @brief Get key's revocation signature handle, if any.
+ *
+ * @param key key handle
+ * @param sig signature handle or NULL will be stored here on success. NULL will be stored in
+ *            case when there is no valid revocation signature.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_get_revocation_signature(rnp_key_handle_t        key,
+                                                      rnp_signature_handle_t *sig);
+
 /** Get the number of user id's signatures.
  *
  * @param uid user id handle.
@@ -1169,6 +1180,16 @@ RNP_API rnp_result_t rnp_signature_handle_destroy(rnp_signature_handle_t sig);
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result);
+
+/** Retrieve uid revocation signature, if any.
+ *
+ * @param uid user id handle, should not be NULL.
+ * @param sig on success signature handle or NULL will be stored here. NULL will be stored in
+ *            case when uid is not revoked.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_get_revocation_signature(rnp_uid_handle_t        uid,
+                                                      rnp_signature_handle_t *sig);
 
 /** Destroy previously allocated user id handle.
  *
