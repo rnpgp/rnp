@@ -36,5 +36,7 @@ TEST_F(rnp_tests, test_fuzz_dump)
 {
     auto data =
       file_to_vec(DATA_PATH "clusterfuzz-testcase-minimized-fuzz_dump-5757362284265472");
+    time_t start = time(NULL);
     assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+    assert_true(time(NULL) - start <= 1800);
 }
