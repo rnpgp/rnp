@@ -5679,6 +5679,22 @@ rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
 }
 
 static rnp_result_t
+rnp_key_return_signature(rnp_ffi_t               ffi,
+                         pgp_key_t *             key,
+                         pgp_subsig_t *          subsig,
+                         rnp_signature_handle_t *sig)
+{
+    *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
+    if (!*sig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    (*sig)->ffi = ffi;
+    (*sig)->key = key;
+    (*sig)->sig = subsig;
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
 rnp_key_get_signature_at_for_uid(
   rnp_ffi_t ffi, pgp_key_t *key, size_t idx, uint32_t uid, rnp_signature_handle_t *sig)
 {
@@ -5689,14 +5705,7 @@ rnp_key_get_signature_at_for_uid(
             continue;
         }
         if (skipped == idx) {
-            *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
-            if (!*sig) {
-                return RNP_ERROR_OUT_OF_MEMORY;
-            }
-            (*sig)->ffi = ffi;
-            (*sig)->key = key;
-            (*sig)->sig = &subsig;
-            return RNP_SUCCESS;
+            return rnp_key_return_signature(ffi, key, &subsig, sig);
         }
         skipped++;
     }
@@ -5729,6 +5738,28 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return rnp_key_get_signature_at_for_uid(handle->ffi, key, idx, (uint32_t) -1, sig);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_revocation_signature(rnp_key_handle_t handle, rnp_signature_handle_t *sig)
+try {
+    if (!handle || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!key->revoked) {
+        *sig = NULL;
+        return RNP_SUCCESS;
+    }
+    if (!key->has_sig(key->revocation.sigid)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return rnp_key_return_signature(
+      handle->ffi, key, &key->get_sig(key->revocation.sigid), sig);
 }
 FFI_GUARD
 
@@ -5890,6 +5921,31 @@ try {
 
     *result = uid->key->get_uid(uid->idx).revoked;
     return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_uid_get_revocation_signature(rnp_uid_handle_t uid, rnp_signature_handle_t *sig)
+try {
+    if (!uid || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!uid->key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (uid->idx >= uid->key->uid_count()) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    const pgp_userid_t &userid = uid->key->get_uid(uid->idx);
+    if (!userid.revoked) {
+        *sig = NULL;
+        return RNP_SUCCESS;
+    }
+    if (!uid->key->has_sig(userid.revocation.sigid)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return rnp_key_return_signature(
+      uid->ffi, uid->key, &uid->key->get_sig(userid.revocation.sigid), sig);
 }
 FFI_GUARD
 
