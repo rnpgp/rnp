@@ -134,7 +134,7 @@ finish:
         src->eof = 1;
     }
     *readres = len;
-    return (!src->limit || src->limit <= src->readb);
+    return true;
 }
 
 bool
@@ -1150,28 +1150,46 @@ init_null_dest(pgp_dest_t *dst)
 }
 
 rnp_result_t
-dst_write_src(pgp_source_t *src, pgp_dest_t *dst)
+dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
 {
-    uint8_t      readbuf[PGP_INPUT_CACHE_SIZE];
-    rnp_result_t res = RNP_SUCCESS;
-    size_t       read;
-
-    while (!src->eof) {
-        if (!src_read(src, readbuf, sizeof(readbuf), &read)) {
-            res = RNP_ERROR_GENERIC;
-            break;
-        }
-        if (!read) {
-            continue;
-        }
-        dst_write(dst, readbuf, read);
-        if (dst->werr) {
-            RNP_LOG("failed to output data");
-            res = RNP_ERROR_WRITE;
-            break;
-        }
+    const size_t bufsize = PGP_INPUT_CACHE_SIZE;
+    uint8_t *    readbuf = (uint8_t *) malloc(bufsize);
+    if (!readbuf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (res) {
+    rnp_result_t res = RNP_SUCCESS;
+    try {
+        size_t   read;
+        uint64_t totalread = 0;
+
+        while (!src->eof) {
+            if (!src_read(src, readbuf, bufsize, &read)) {
+                res = RNP_ERROR_GENERIC;
+                break;
+            }
+            if (!read) {
+                continue;
+            }
+            totalread += read;
+            if (limit && totalread > limit) {
+                res = RNP_ERROR_GENERIC;
+                break;
+            }
+            if (dst) {
+                dst_write(dst, readbuf, read);
+                if (dst->werr) {
+                    RNP_LOG("failed to output data");
+                    res = RNP_ERROR_WRITE;
+                    break;
+                }
+            }
+        }
+    } catch (...) {
+        free(readbuf);
+        throw;
+    }
+    free(readbuf);
+    if (res || !dst) {
         return res;
     }
     dst_flush(dst);

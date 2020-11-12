@@ -80,8 +80,6 @@ typedef struct pgp_source_t {
     uint64_t size;  /* size of the data if available, see knownsize */
     uint64_t readb; /* number of bytes read from the stream via src_read. Do not confuse with
                        number of bytes as returned via the read since data may be cached */
-    uint64_t limit; /* maximum number of bytes allowed to be read
-                       0 means unlimited */
     pgp_source_cache_t *cache; /* cache if used */
     void *              param; /* source-specific additional data */
 
@@ -360,8 +358,11 @@ rnp_result_t init_null_dest(pgp_dest_t *dst);
 /** @brief reads from source and writes to destination
  *  @param src initialized source
  *  @param dst initialized destination
+ *  @param limit sets the maximum amount of bytes to be read,
+ *         returning an error if the source hasn't come to eof after that amount
+ *         if 0, no limit is imposed
  *  @return RNP_SUCCESS or error code
  **/
-rnp_result_t dst_write_src(pgp_source_t *src, pgp_dest_t *dst);
+rnp_result_t dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit = 0);
 
 #endif
