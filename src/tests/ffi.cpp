@@ -4886,6 +4886,11 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_rnp_failure(rnp_uid_is_revoked(uid_handle, NULL));
     assert_rnp_success(rnp_uid_is_revoked(uid_handle, &revoked));
     assert_false(revoked);
+    rnp_signature_handle_t sig = (rnp_signature_handle_t) 0xdeadbeef;
+    assert_rnp_failure(rnp_uid_get_revocation_signature(NULL, &sig));
+    assert_rnp_failure(rnp_uid_get_revocation_signature(uid_handle, NULL));
+    assert_rnp_success(rnp_uid_get_revocation_signature(uid_handle, &sig));
+    assert_null(sig);
     assert_rnp_success(rnp_uid_handle_destroy(uid_handle));
     // check userid 1: ecc-p256-revoked
     assert_rnp_success(rnp_key_get_uid_at(key, 1, &uid));
@@ -4895,6 +4900,12 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_non_null(uid_handle);
     assert_rnp_success(rnp_uid_is_revoked(uid_handle, &revoked));
     assert_true(revoked);
+    assert_rnp_success(rnp_uid_get_revocation_signature(uid_handle, &sig));
+    assert_non_null(sig);
+    uint32_t creation = 0;
+    assert_rnp_success(rnp_signature_get_creation(sig, &creation));
+    assert_int_equal(creation, 1556630215);
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
     assert_rnp_success(rnp_uid_handle_destroy(uid_handle));
     assert_rnp_success(rnp_key_handle_destroy(key));
 
@@ -4908,6 +4919,10 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
     assert_rnp_success(rnp_key_is_revoked(key, &revoked));
     assert_false(revoked);
+    assert_rnp_failure(rnp_key_get_revocation_signature(NULL, &sig));
+    assert_rnp_failure(rnp_key_get_revocation_signature(key, NULL));
+    assert_rnp_success(rnp_key_get_revocation_signature(key, &sig));
+    assert_null(sig);
     assert_rnp_success(rnp_key_handle_destroy(key));
     // subkey is revoked
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "37E285E9E9851491", &key));
@@ -4923,6 +4938,11 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_true(revoked);
     assert_rnp_success(rnp_key_is_retired(key, &revoked));
     assert_false(revoked);
+    assert_rnp_success(rnp_key_get_revocation_signature(key, &sig));
+    assert_non_null(sig);
+    assert_rnp_success(rnp_signature_get_creation(sig, &creation));
+    assert_int_equal(creation, 1556630749);
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     // load revoked key
@@ -4945,6 +4965,11 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_false(revoked);
     assert_rnp_success(rnp_key_is_retired(key, &revoked));
     assert_false(revoked);
+    assert_rnp_success(rnp_key_get_revocation_signature(key, &sig));
+    assert_non_null(sig);
+    assert_rnp_success(rnp_signature_get_creation(sig, &creation));
+    assert_int_equal(creation, 1556799806);
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     // cleanup
