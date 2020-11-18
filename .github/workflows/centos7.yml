@@ -54,7 +54,7 @@ jobs:
           . ci/gha/setup-env.inc.sh
       - name: Cache
         id: cache
-        uses: actions/cache@v1
+        uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}

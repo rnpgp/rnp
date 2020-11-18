@@ -1,7 +1,7 @@
 set -euxo pipefail
 # execute this script in a separate, early step
 
-echo "::set-env name=LOCAL_BUILDS::$GITHUB_WORKSPACE/builds"
+echo "LOCAL_BUILDS=$GITHUB_WORKSPACE/builds" >> $GITHUB_ENV
 
 # To install and cache our dependencies we need an absolute path
 # that does not change, is writable, and resides within
@@ -12,9 +12,8 @@ echo "::set-env name=LOCAL_BUILDS::$GITHUB_WORKSPACE/builds"
 # referencing paths that no longer exist.
 mkdir -p installs
 ln -s "$GITHUB_WORKSPACE/installs" /tmp/rnp-local-installs
-echo "::set-env name=CACHE_DIR::installs"
-echo "::set-env name=LOCAL_INSTALLS::/tmp/rnp-local-installs"
+echo "CACHE_DIR=installs" >> $GITHUB_ENV
+echo "LOCAL_INSTALLS=/tmp/rnp-local-installs" >> $GITHUB_ENV
 
 # set this explicitly since we don't want to cache the rnp installation
-echo "::set-env name=RNP_INSTALL::$GITHUB_WORKSPACE/rnp-install"
-
+echo "RNP_INSTALL=$GITHUB_WORKSPACE/rnp-install" >> $GITHUB_ENV
