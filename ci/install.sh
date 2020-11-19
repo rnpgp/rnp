@@ -120,7 +120,7 @@ install_gpg() {
 
     if [ "$GPG_VERSION" = "stable" ]; then
       #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-      _install_gpg component-version 1.6  1.36         1.8.5     2.5.3     1.3.5   1.1.0    2.2.17
+      _install_gpg component-version 1.6  1.39         1.8.7     2.5.4     1.5.0   1.1.0    2.2.24
     elif [ "$GPG_VERSION" = "beta" ]; then
       #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
       _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
