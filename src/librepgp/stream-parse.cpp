@@ -779,6 +779,18 @@ signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t
     signature_check(sinfo, &shash);
 }
 
+static size_t
+stripped_line_len(uint8_t *begin, uint8_t *end)
+{
+    uint8_t *stripped_end = end;
+
+    while (stripped_end >= begin && (*stripped_end == CH_CR || *stripped_end == CH_LF)) {
+        stripped_end--;
+    }
+
+    return stripped_end - begin + 1;
+}
+
 static void
 signed_src_update(pgp_source_t *src, const void *buf, size_t len)
 {
@@ -804,29 +816,32 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     }
     uint8_t *linebeg = ch;
     uint8_t *end = (uint8_t *) buf + len;
-    /* we support CR, LF and CRLF line endings */
+    /* we support LF and CRLF line endings */
     while (ch < end) {
-        /* continue if not reached CR or LF */
-        if ((*ch != CH_CR) && (*ch != CH_LF)) {
+        /* continue if not reached LF */
+        if (*ch != CH_LF) {
             ch++;
             continue;
         }
         /* reached eol: dump line contents */
         if (ch > linebeg) {
-            pgp_hash_list_update(param->txt_hashes, linebeg, ch - linebeg);
+            size_t stripped_len = stripped_line_len(linebeg, ch);
+            if (stripped_len > 0) {
+                pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
+            }
         }
         /* dump EOL */
         pgp_hash_list_update(param->txt_hashes, ST_CRLF, 2);
-        /* skip one more char if we have CRLF */
-        if ((*ch == CH_CR) && ((ch + 1 < end) && (*(ch + 1) == CH_LF))) {
-            ch++;
-        }
+
         ch++;
         linebeg = ch;
     }
     /* check if we have undumped line contents */
     if (linebeg < end) {
-        pgp_hash_list_update(param->txt_hashes, linebeg, end - linebeg);
+        size_t stripped_len = stripped_line_len(linebeg, end - 1);
+        if (stripped_len > 0) {
+            pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
+        }
     }
     /* set lastcr to true to correctly react to case when CR is on the end of one chunk, and LF
      * is at the beginning of the next chunk */
