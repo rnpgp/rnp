@@ -82,7 +82,7 @@ msys_install() {
     automake-wrapper
     gnupg2
     make
-    pkgconfig
+    pkg-config
     mingw64/mingw-w64-x86_64-cmake
     mingw64/mingw-w64-x86_64-gcc
     mingw64/mingw-w64-x86_64-json-c
