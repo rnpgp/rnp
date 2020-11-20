@@ -116,7 +116,6 @@ typedef struct pgp_source_signed_param_t {
     uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t               outlen;          /* total bytes in out */
     size_t               outpos;          /* offset of first available byte in out */
-    bool                 lastcr;          /* text sig: last char of previous chunk was cr */
 
     std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
     std::list<pgp_signature_t>        sigs;       /* list of signatures */
@@ -809,11 +808,8 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     if (param->txt_hashes.empty()) {
         return;
     }
-    /* check whether we had CR at the end of last chunk and LF at the beginning */
+
     uint8_t *ch = (uint8_t *) buf;
-    if (param->lastcr && (*ch == CH_LF)) {
-        ch++;
-    }
     uint8_t *linebeg = ch;
     uint8_t *end = (uint8_t *) buf + len;
     /* we support LF and CRLF line endings */
@@ -843,9 +839,6 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
             pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
         }
     }
-    /* set lastcr to true to correctly react to case when CR is on the end of one chunk, and LF
-     * is at the beginning of the next chunk */
-    param->lastcr = *(end - 1) == CH_CR;
 }
 
 static bool
