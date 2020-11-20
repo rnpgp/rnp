@@ -36,6 +36,7 @@ jobs:
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
     env: ${{ matrix.env }}
+    continue-on-error: true
     steps:
       - run: |
           yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
