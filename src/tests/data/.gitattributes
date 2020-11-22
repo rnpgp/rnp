@@ -1,5 +1,6 @@
 # for test_ffi_op_verify_sig_count
 test_messages/message-32k-crlf.txt			-text
+test_messages/message-trailing-cr.txt			-text
 # for test_stream_signatures
 test_stream_signatures/source*.txt   			-text
 # for cleartext tests
