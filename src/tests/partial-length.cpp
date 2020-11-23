@@ -208,10 +208,8 @@ TEST_F(rnp_tests, test_partial_length_first_packet_length)
     assert_rnp_success(rnp_output_memory_get_buf(output, &mem, &len, false));
     assert_rnp_success(init_mem_src(&src, mem, len, false));
     // skip first packet (one-pass signature)
-    pgp_packet_body_t body;
-    assert_rnp_success(stream_read_packet_body(&src, &body));
-    assert_int_equal(body.tag, PGP_PKT_ONE_PASS_SIG);
-    free_packet_body(&body);
+    pgp_packet_body_t body(PGP_PKT_ONE_PASS_SIG);
+    assert_rnp_success(body.read(src));
     // checking next packet header (should be partial length literal data)
     uint8_t flags = 0;
     assert_true(src_read_eq(&src, &flags, 1));

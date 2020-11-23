@@ -50,15 +50,110 @@ typedef struct pgp_packet_hdr_t {
 
 /* structure for convenient writing or parsing of non-stream packets */
 typedef struct pgp_packet_body_t {
-    pgp_pkt_type_t tag;       /* packet tag */
-    uint8_t *      data;      /* packet body data */
-    size_t         len;       /* length of the data */
-    size_t         allocated; /* allocated bytes in data */
-
+  private:
+    pgp_pkt_type_t       tag_;  /* packet tag */
+    std::vector<uint8_t> data_; /* packet bytes */
     /* fields below are filled only for parsed packet */
-    uint8_t hdr[PGP_MAX_HEADER_SIZE]; /* packet header bytes */
-    size_t  hdr_len;                  /* number of bytes in hdr */
-    size_t  pos;                      /* current read position in packet data */
+    uint8_t hdr_[PGP_MAX_HEADER_SIZE]{}; /* packet header bytes */
+    size_t  hdr_len_{};                  /* number of bytes in hdr */
+    size_t  pos_{};                      /* current read position in packet data */
+    bool secure_{}; /* contents of the packet are secure so must be wiped in the destructor */
+  public:
+    /** @brief initialize writing of packet body
+     *  @param tag tag of the packet
+     **/
+    pgp_packet_body_t(pgp_pkt_type_t tag);
+    /** @brief init packet body (without headers) with memory. Used for easier data parsing.
+     *  @param data buffer with packet body part
+     *  @param len number of available bytes in mem
+     */
+    pgp_packet_body_t(const uint8_t *data, size_t len);
+
+    pgp_packet_body_t(const pgp_packet_body_t &src) = delete;
+    pgp_packet_body_t(pgp_packet_body_t &&src) = delete;
+    pgp_packet_body_t &operator=(const pgp_packet_body_t &) = delete;
+    pgp_packet_body_t &operator=(pgp_packet_body_t &&) = delete;
+    ~pgp_packet_body_t();
+
+    /** @brief pointer to the data, kept in the packet */
+    uint8_t *data() noexcept;
+    /** @brief number of bytes, kept in the packet (without the header) */
+    size_t size() const noexcept;
+    /** @brief number of bytes left to read */
+    size_t left() const noexcept;
+    /** @brief get next byte from the packet body, populated with read() call.
+     *  @param val result will be stored here on success
+     *  @return true on success or false otherwise (if end of the packet is reached)
+     **/
+    bool get(uint8_t &val) noexcept;
+    /** @brief get next big-endian uint16 from the packet body, populated with read() call.
+     *  @param val result will be stored here on success
+     *  @return true on success or false otherwise (if end of the packet is reached)
+     **/
+    bool get(uint16_t &val) noexcept;
+    /** @brief get next big-endian uint32 from the packet body, populated with read() call.
+     *  @param val result will be stored here on success
+     *  @return true on success or false otherwise (if end of the packet is reached)
+     **/
+    bool get(uint32_t &val) noexcept;
+    /** @brief get some bytes from the packet body, populated with read() call.
+     *  @param val packet body bytes will be stored here. Must be capable of storing len bytes.
+     *  @param len number of bytes to read
+     *  @return true on success or false otherwise (if end of the packet is reached)
+     **/
+    bool get(uint8_t *val, size_t len) noexcept;
+    /** @brief get next keyid from the packet body, populated with read() call.
+     *  @param val result will be stored here on success
+     *  @return true on success or false otherwise (if end of the packet is reached)
+     **/
+    bool get(pgp_key_id_t &val) noexcept;
+    /** @brief get next mpi from the packet body, populated with read() call.
+     *  @param val result will be stored here on success
+     *  @return true on success or false otherwise (if end of the packet is reached
+     *          or mpi is ill-formed)
+     **/
+    bool get(pgp_mpi_t &val) noexcept;
+    /** @brief append chunk of the data to the packet body
+     *  @param data non-NULL pointer to the data
+     *  @param len number of bytes to add
+     **/
+    /** @brief Read ECC key curve and convert it to pgp_curve_t */
+    bool get(pgp_curve_t &val) noexcept;
+    /** @brief read s2k from the packet */
+    bool get(pgp_s2k_t &s2k) noexcept;
+    /** @brief append some bytes to the packet body */
+    void add(const void *data, size_t len);
+    /** @brief append single byte to the packet body */
+    void add_byte(uint8_t bt);
+    /** @brief append big endian 16-bit value to the packet body */
+    void add_uint16(uint16_t val);
+    /** @brief append big endian 32-bit value to the packet body */
+    void add_uint32(uint32_t val);
+    /** @brief append keyid to the packet body */
+    void add(const pgp_key_id_t &val);
+    /** @brief add pgp mpi (including header) to the packet body */
+    void add(const pgp_mpi_t &val);
+    /**
+     * @brief add pgp signature subpackets (including their length) to the packet body
+     * @param sig signature, containing subpackets
+     * @param hashed whether write hashed or not hashed subpackets
+     */
+    void add_subpackets(const pgp_signature_t &sig, bool hashed);
+    /** @brief add ec curve description to the packet body */
+    void add(const pgp_curve_t curve);
+    /** @brief add s2k description to the packet body */
+    void add(const pgp_s2k_t &s2k);
+    /** @brief read 'short-length' packet body (including tag and length bytes) from the source
+     *  @param src source to read from
+     *  @return RNP_SUCCESS or error code if operation failed
+     **/
+    rnp_result_t read(pgp_source_t &src) noexcept;
+    /** @brief write packet header, length and body to the dst
+     *  @param dst destination to write to.
+     **/
+    void write(pgp_dest_t &dst, bool hdr = true) noexcept;
+    /** @brief mark contents as secure, so pgp_forget() must be called in the destructor */
+    void mark_secure(bool secure = true) noexcept;
 } pgp_packet_body_t;
 
 uint16_t read_uint16(const uint8_t *buf);
@@ -119,113 +214,6 @@ bool stream_read_pkt_len(pgp_source_t *src, size_t *pktlen);
  **/
 bool stream_read_partial_chunk_len(pgp_source_t *src, size_t *clen, bool *last);
 
-/** @brief initialize writing of packet body
- *  @param body preallocated structure
- *  @param tag tag of the packet
- *  @return true on success or false otherwise
- **/
-bool init_packet_body(pgp_packet_body_t *body, pgp_pkt_type_t tag);
-
-/** @brief append chunk of the data to packet body
- *  @param body pointer to the structure, initialized with init_packet_body
- *  @param data non-NULL pointer to the data
- *  @param len number of bytes to add
- *  @return true if data was copied successfully, or false otherwise
- **/
-bool add_packet_body(pgp_packet_body_t *body, const void *data, size_t len);
-
-/** @brief append single byte to packet body
- *  @param body pointer to the structure, initialized with init_packet_body
- *  @param byte byte to append
- *  @return true if byte was appended successfully, or false otherwise
- **/
-bool add_packet_body_byte(pgp_packet_body_t *body, uint8_t byte);
-
-/** @brief append big endian 16-bit value to packet body
- *  @param body pointer to the structure, initialized with init_packet_body
- *  @param val value to append
- *  @return true if value was appended successfully, or false otherwise
- **/
-bool add_packet_body_uint16(pgp_packet_body_t *body, uint16_t val);
-
-/** @brief append big endian 32-bit value to packet body
- *  @param body pointer to the structure, initialized with init_packet_body
- *  @param val value to append
- *  @return true if value was appended successfully, or false otherwise
- **/
-bool add_packet_body_uint32(pgp_packet_body_t *body, uint32_t val);
-
-/** @brief add pgp mpi (including header) to packet body
- *  @param body pointer to the structure, initialized with init_packet_body
- *  @param val pointer to structure with mpi data
- *  @return true if mpi was added successfully, or false otherwise
- **/
-bool add_packet_body_mpi(pgp_packet_body_t *body, const pgp_mpi_t *val);
-
-/**
- * @brief add pgp signature subpackets (including their length) to the packet body
- *
- * @param body pointer to the structure, initialized with init_packet_body
- * @param sig signature, containing subpackets
- * @param hashed whether write hashed or not hashed subpackets
- * @return true on success or false otherwise (if out of memory)
- */
-bool add_packet_body_subpackets(pgp_packet_body_t *    body,
-                                const pgp_signature_t *sig,
-                                bool                   hashed);
-
-/** @brief get next byte from the packet body
- *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val result will be stored here
- *  @return true on success or false otherwise (if end of the packet is reached)
- **/
-bool get_packet_body_byte(pgp_packet_body_t *body, uint8_t *val);
-
-/** @brief get next big-endian uint16 from the packet body
- *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val result will be stored here
- *  @return true on success or false otherwise (if end of the packet is reached)
- **/
-bool get_packet_body_uint16(pgp_packet_body_t *body, uint16_t *val);
-
-/** @brief get next big-endian uint32 from the packet body
- *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val result will be stored here
- *  @return true on success or false otherwise (if end of the packet is reached)
- **/
-bool get_packet_body_uint32(pgp_packet_body_t *body, uint32_t *val);
-
-/** @brief get some bytes from the packet body
- *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val packet body bytes will be stored here. Must be capable of storing len bytes.
- *  @param len number of bytes to read
- *  @return true on success or false otherwise (if end of the packet is reached)
- **/
-bool get_packet_body_buf(pgp_packet_body_t *body, uint8_t *val, size_t len);
-
-/** @brief get next mpi from the packet body
- *  @param body pointer to the structure. It must be filled via stream_read_packet_body
- *  @param val pointer to structure where result will be stored
- *  @return true on success or false otherwise (if end of the packet is reached
- *          or mpi is ill-formed)
- **/
-bool get_packet_body_mpi(pgp_packet_body_t *body, pgp_mpi_t *val);
-
-/** @brief deallocate data inside of packet body structure
- *  @param body initialized packet body
- *  @return void
- **/
-void free_packet_body(pgp_packet_body_t *body);
-
-/** @brief write packet header, length and body to the dest
- *  This will also deallocate internally used memory, so no free_packet_body call is needed
- *
- *  @param body populated with data packet body
- *  @param dst destination to write to
- *  @return void
- **/
-void stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst);
-
 /** @brief get and parse OpenPGP packet header to the structure.
  *         Note: this will not read but just peek required bytes.
  *
@@ -234,21 +222,6 @@ void stream_flush_packet_body(pgp_packet_body_t *body, pgp_dest_t *dst);
  *  @return RNP_SUCCESS or error code if operation failed
  **/
 rnp_result_t stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr);
-
-/** @brief read 'short-length' packet body (including tag and length bytes) from the source
- *  @param src source to read from
- *  @param body pre-allocated body structure. Do not call init_packet_body on it!
- *  @return RNP_SUCCESS or error code if operation failed
- **/
-rnp_result_t stream_read_packet_body(pgp_source_t *src, pgp_packet_body_t *body);
-
-/** @brief put part of the packet body, i.e. without headers, to structure.
- *         Used for easier data parsing, using get_packet_body_* functions. Mem is not copied.
- *  @param mem buffer with packet body part
- *  @param len number of available bytes in mem
- *  @param body pre-allocated body structure
- */
-void packet_body_part_from_mem(pgp_packet_body_t *body, const void *mem, size_t len);
 
 /* Packet handling functions */
 
@@ -266,19 +239,19 @@ rnp_result_t stream_parse_marker(pgp_source_t &src);
 
 /* Symmetric-key encrypted session key */
 
-bool stream_write_sk_sesskey(pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
+bool stream_write_sk_sesskey(const pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
 /* Public-key encrypted session key */
 
-bool stream_write_pk_sesskey(pgp_pk_sesskey_t *pkey, pgp_dest_t *dst);
+bool stream_write_pk_sesskey(const pgp_pk_sesskey_t *pkey, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey);
 
 /* One-pass signature */
 
-bool stream_write_one_pass(pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
+bool stream_write_one_pass(const pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
 
 rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
 
@@ -289,8 +262,6 @@ bool stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst);
 bool write_signature_material(pgp_signature_t &sig, const pgp_signature_material_t &material);
 
 bool signature_parse_subpacket(pgp_sig_subpkt_t &subpkt);
-
-rnp_result_t stream_parse_signature_body(pgp_packet_body_t *pkt, pgp_signature_t *sig);
 
 rnp_result_t stream_parse_signature(pgp_source_t *src, pgp_signature_t *sig);
 

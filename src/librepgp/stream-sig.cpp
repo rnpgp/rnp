@@ -129,45 +129,37 @@ signature_add_notation_data(pgp_signature_t *sig,
 bool
 signature_fill_hashed_data(pgp_signature_t *sig)
 {
-    pgp_packet_body_t hbody;
-    bool              res;
-
-    if (!sig) {
-        RNP_LOG("null signature");
-        return false;
-    }
     /* we don't have a need to write v2-v3 signatures */
     if ((sig->version < PGP_V2) || (sig->version > PGP_V4)) {
         RNP_LOG("don't know version %d", (int) sig->version);
         return false;
     }
+    try {
+        pgp_packet_body_t hbody(PGP_PKT_RESERVED);
+        if (sig->version < PGP_V4) {
+            hbody.add_byte(sig->type());
+            hbody.add_uint32(sig->creation_time);
+        } else {
+            hbody.add_byte(sig->version);
+            hbody.add_byte(sig->type());
+            hbody.add_byte(sig->palg);
+            hbody.add_byte(sig->halg);
+            hbody.add_subpackets(*sig, true);
+        }
 
-    if (!init_packet_body(&hbody, PGP_PKT_RESERVED)) {
-        RNP_LOG("allocation failed");
+        free(sig->hashed_data);
+        sig->hashed_data = (uint8_t *) malloc(hbody.size());
+        if (!sig->hashed_data) {
+            RNP_LOG("allocation failed");
+            return false;
+        }
+        memcpy(sig->hashed_data, hbody.data(), hbody.size());
+        sig->hashed_len = hbody.size();
+        return true;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return false;
     }
-
-    if (sig->version < PGP_V4) {
-        res = add_packet_body_byte(&hbody, sig->type()) &&
-              add_packet_body_uint32(&hbody, sig->creation_time);
-    } else {
-        res = add_packet_body_byte(&hbody, sig->version) &&
-              add_packet_body_byte(&hbody, sig->type()) &&
-              add_packet_body_byte(&hbody, sig->palg) &&
-              add_packet_body_byte(&hbody, sig->halg) &&
-              add_packet_body_subpackets(&hbody, sig, true);
-    }
-
-    if (res) {
-        free(sig->hashed_data);
-        /* get ownership on body data */
-        sig->hashed_data = hbody.data;
-        sig->hashed_len = hbody.len;
-        return res;
-    }
-
-    free_packet_body(&hbody);
-    return res;
 }
 
 bool
