@@ -1825,59 +1825,64 @@ get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
 static rnp_result_t
 encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 {
-    rnp_result_t     errcode = RNP_ERROR_GENERIC;
-    uint8_t          ptag;
-    uint8_t          mdcver;
-    uint8_t          hdr[4];
-    int              ptype;
-    pgp_sk_sesskey_t skey;
-    pgp_pk_sesskey_t pkey;
-
+    int ptype;
     /* Reading pk/sk encrypted session key(s) */
-    while (true) {
-        if (!src_peek_eq(param->pkt.readsrc, &ptag, 1)) {
-            RNP_LOG("failed to read packet header");
-            return RNP_ERROR_READ;
-        }
-        ptype = get_packet_type(ptag);
-
-        if (ptype == PGP_PKT_SK_SESSION_KEY) {
-            if ((errcode = stream_parse_sk_sesskey(param->pkt.readsrc, &skey))) {
-                return errcode;
+    try {
+        bool stop = false;
+        while (!stop) {
+            uint8_t ptag;
+            if (!src_peek_eq(param->pkt.readsrc, &ptag, 1)) {
+                RNP_LOG("failed to read packet header");
+                return RNP_ERROR_READ;
             }
-            try {
+            ptype = get_packet_type(ptag);
+            switch (ptype) {
+            case PGP_PKT_SK_SESSION_KEY: {
+                pgp_sk_sesskey_t skey;
+                rnp_result_t     ret = skey.parse(*param->pkt.readsrc);
+                if (ret) {
+                    return ret;
+                }
                 param->symencs.push_back(skey);
-            } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
-                return RNP_ERROR_OUT_OF_MEMORY;
+                break;
             }
-        } else if (ptype == PGP_PKT_PK_SESSION_KEY) {
-            if ((errcode = stream_parse_pk_sesskey(param->pkt.readsrc, &pkey))) {
-                return errcode;
-            }
-            try {
+            case PGP_PKT_PK_SESSION_KEY: {
+                pgp_pk_sesskey_t pkey;
+                rnp_result_t     ret = stream_parse_pk_sesskey(param->pkt.readsrc, &pkey);
+                if (ret) {
+                    return ret;
+                }
                 param->pubencs.push_back(pkey);
-            } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
-                return RNP_ERROR_OUT_OF_MEMORY;
+                break;
             }
-        } else if ((ptype == PGP_PKT_SE_DATA) || (ptype == PGP_PKT_SE_IP_DATA) ||
-                   (ptype == PGP_PKT_AEAD_ENCRYPTED)) {
-            break;
-        } else {
-            RNP_LOG("unknown packet type: %d", ptype);
-            return RNP_ERROR_BAD_FORMAT;
+            case PGP_PKT_SE_DATA:
+            case PGP_PKT_SE_IP_DATA:
+            case PGP_PKT_AEAD_ENCRYPTED:
+                stop = true;
+                break;
+            default:
+                RNP_LOG("unknown packet type: %d", ptype);
+                return RNP_ERROR_BAD_FORMAT;
+            }
         }
+    } catch (const rnp::rnp_exception &e) {
+        RNP_LOG("%s: %d", e.what(), e.code());
+        return e.code();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
 
     /* Reading packet length/checking whether it is partial */
-    if ((errcode = init_packet_params(&param->pkt))) {
+    rnp_result_t errcode = init_packet_params(&param->pkt);
+    if (errcode) {
         return errcode;
     }
 
     /* Reading header of encrypted packet */
     if (ptype == PGP_PKT_AEAD_ENCRYPTED) {
         param->aead = true;
+        uint8_t hdr[4];
         if (!src_peek_eq(param->pkt.readsrc, hdr, 4)) {
             return RNP_ERROR_READ;
         }
@@ -1908,6 +1913,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
         memcpy(param->aead_ad + 1, hdr, 4);
         memset(param->aead_ad + 5, 0, 8);
     } else if (ptype == PGP_PKT_SE_IP_DATA) {
+        uint8_t mdcver;
         if (!src_read_eq(param->pkt.readsrc, &mdcver, 1)) {
             return RNP_ERROR_READ;
         }

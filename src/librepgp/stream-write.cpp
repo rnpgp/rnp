@@ -699,10 +699,12 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
     }
 
     /* Writing symmetric key encrypted session key packet */
-    if (!stream_write_sk_sesskey(&skey, param->pkt.origdst)) {
+    try {
+        skey.write(*param->pkt.origdst);
+    } catch (const std::exception &e) {
         return RNP_ERROR_WRITE;
     }
-    return RNP_SUCCESS;
+    return param->pkt.origdst->werr;
 }
 
 static rnp_result_t
