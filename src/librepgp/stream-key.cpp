@@ -999,17 +999,14 @@ decrypt_secret_key_v3(pgp_crypt_t *crypt, uint8_t *dec, const uint8_t *enc, size
 }
 
 static rnp_result_t
-parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
+parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
 {
-    pgp_packet_body_t body;
-    bool              res;
-
     if (!mpis) {
         return RNP_ERROR_NULL_POINTER;
     }
 
     /* check the cleartext data */
-    switch (key->sec_protection.s2k.usage) {
+    switch (key.sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
     case PGP_S2KU_ENCRYPTED: {
         /* calculate and check sum16 of the cleartext */
@@ -1018,10 +1015,8 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
             return RNP_ERROR_BAD_FORMAT;
         }
         uint16_t sum = 0;
-        size_t   idx;
-
         len -= 2;
-        for (idx = 0; idx < len; idx++) {
+        for (size_t idx = 0; idx < len; idx++) {
             sum += mpis[idx];
         }
         if (sum != read_uint16(mpis + len)) {
@@ -1053,53 +1048,61 @@ parse_secret_key_mpis(pgp_key_pkt_t *key, const uint8_t *mpis, size_t len)
         break;
     }
     default:
-        RNP_LOG("unknown s2k usage: %d", (int) key->sec_protection.s2k.usage);
+        RNP_LOG("unknown s2k usage: %d", (int) key.sec_protection.s2k.usage);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    /* parse mpis depending on algorithm */
-    packet_body_part_from_mem(&body, mpis, len);
+    try {
+        /* parse mpis depending on algorithm */
+        pgp_packet_body_t body(mpis, len);
 
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-    case PGP_PKA_RSA_SIGN_ONLY:
-        res = get_packet_body_mpi(&body, &key->material.rsa.d) &&
-              get_packet_body_mpi(&body, &key->material.rsa.p) &&
-              get_packet_body_mpi(&body, &key->material.rsa.q) &&
-              get_packet_body_mpi(&body, &key->material.rsa.u);
-        break;
-    case PGP_PKA_DSA:
-        res = get_packet_body_mpi(&body, &key->material.dsa.x);
-        break;
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_SM2:
-    case PGP_PKA_ECDH:
-        res = get_packet_body_mpi(&body, &key->material.ec.x);
-        break;
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res = get_packet_body_mpi(&body, &key->material.eg.x);
-        break;
-    default:
-        RNP_LOG("uknown pk alg : %d", (int) key->alg);
-        return RNP_ERROR_BAD_PARAMETERS;
+        switch (key.alg) {
+        case PGP_PKA_RSA:
+        case PGP_PKA_RSA_ENCRYPT_ONLY:
+        case PGP_PKA_RSA_SIGN_ONLY:
+            if (!body.get(key.material.rsa.d) || !body.get(key.material.rsa.p) ||
+                !body.get(key.material.rsa.q) || !body.get(key.material.rsa.u)) {
+                RNP_LOG("failed to parse rsa secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            break;
+        case PGP_PKA_DSA:
+            if (!body.get(key.material.dsa.x)) {
+                RNP_LOG("failed to parse dsa secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            break;
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_ECDSA:
+        case PGP_PKA_SM2:
+        case PGP_PKA_ECDH:
+            if (!body.get(key.material.ec.x)) {
+                RNP_LOG("failed to parse ecc secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            break;
+        case PGP_PKA_ELGAMAL:
+        case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+            if (!body.get(key.material.eg.x)) {
+                RNP_LOG("failed to parse eg secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            break;
+        default:
+            RNP_LOG("uknown pk alg : %d", (int) key.alg);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+
+        if (body.left()) {
+            RNP_LOG("extra data in sec key");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        key.material.secret = true;
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-
-    if (!res) {
-        RNP_LOG("failed to parse secret data");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    if (body.pos < body.len) {
-        RNP_LOG("extra data in sec key");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    key->material.secret = true;
-
-    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -1120,7 +1123,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
 
     /* check whether data is not encrypted */
     if (!key->sec_protection.s2k.usage) {
-        return parse_secret_key_mpis(key, key->sec_data, key->sec_len);
+        return parse_secret_key_mpis(*key, key->sec_data, key->sec_len);
     }
 
     /* check whether secret key data present */
@@ -1180,7 +1183,7 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         goto finish;
     }
 
-    ret = parse_secret_key_mpis(key, decdata, key->sec_len);
+    ret = parse_secret_key_mpis(*key, decdata, key->sec_len);
 finish:
     pgp_forget(keybuf, sizeof(keybuf));
     if (decdata) {
@@ -1190,77 +1193,65 @@ finish:
     return ret;
 }
 
-static bool
-write_secret_key_mpis(pgp_packet_body_t *body, pgp_key_pkt_t *key)
+static void
+write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 {
-    pgp_hash_t hash;
-    uint8_t    hval[PGP_MAX_HASH_SIZE];
-    bool       res = false;
-
     /* add mpis */
-    switch (key->alg) {
+    switch (key.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        res = add_packet_body_mpi(body, &key->material.rsa.d) &&
-              add_packet_body_mpi(body, &key->material.rsa.p) &&
-              add_packet_body_mpi(body, &key->material.rsa.q) &&
-              add_packet_body_mpi(body, &key->material.rsa.u);
+        body.add(key.material.rsa.d);
+        body.add(key.material.rsa.p);
+        body.add(key.material.rsa.q);
+        body.add(key.material.rsa.u);
         break;
     case PGP_PKA_DSA:
-        res = add_packet_body_mpi(body, &key->material.dsa.x);
+        body.add(key.material.dsa.x);
         break;
     case PGP_PKA_EDDSA:
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
-        res = add_packet_body_mpi(body, &key->material.ec.x);
+        body.add(key.material.ec.x);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        res = add_packet_body_mpi(body, &key->material.eg.x);
+        body.add(key.material.eg.x);
         break;
     default:
-        RNP_LOG("uknown pk alg : %d", (int) key->alg);
-        return false;
-    }
-
-    if (!res) {
-        return false;
+        RNP_LOG("uknown pk alg : %d", (int) key.alg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
     /* add sum16 if sha1 is not used */
-    if (key->sec_protection.s2k.usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
+    if (key.sec_protection.s2k.usage != PGP_S2KU_ENCRYPTED_AND_HASHED) {
         uint16_t sum = 0;
-        for (size_t i = 0; i < body->len; i++) {
-            sum += body->data[i];
+        for (size_t i = 0; i < body.size(); i++) {
+            sum += body.data()[i];
         }
-        return add_packet_body_uint16(body, sum);
+        body.add_uint16(sum);
+        return;
     }
 
     /* add sha1 hash */
+    pgp_hash_t hash;
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
         RNP_LOG("failed to create sha1 hash");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    pgp_hash_add(&hash, body->data, body->len);
+    pgp_hash_add(&hash, body.data(), body.size());
+    uint8_t hval[PGP_MAX_HASH_SIZE];
     if (pgp_hash_finish(&hash, hval) != PGP_SHA1_HASH_SIZE) {
         RNP_LOG("failed to finish hash");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    return add_packet_body(body, hval, PGP_SHA1_HASH_SIZE);
+    body.add(hval, PGP_SHA1_HASH_SIZE);
 }
 
 rnp_result_t
 encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
 {
-    pgp_packet_body_t body;
-    uint8_t           keybuf[PGP_MAX_KEY_SIZE];
-    size_t            keysize;
-    size_t            blsize;
-    pgp_crypt_t       crypt;
-    rnp_result_t      ret = RNP_ERROR_GENERIC;
-
     if (!is_secret_key_pkt(key->tag) || !key->material.secret) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1270,83 +1261,87 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    /* build secret key data */
-    if (!init_packet_body(&body, PGP_PKT_RESERVED)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    if (!write_secret_key_mpis(&body, key)) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto error;
-    }
-    /* check whether data is not encrypted */
-    if (key->sec_protection.s2k.usage == PGP_S2KU_NONE) {
+    try {
+        /* build secret key data */
+        pgp_packet_body_t body(PGP_PKT_RESERVED);
+        body.mark_secure();
+        write_secret_key_mpis(body, *key);
+
+        /* check whether data is not encrypted */
+        if (key->sec_protection.s2k.usage == PGP_S2KU_NONE) {
+            free(key->sec_data);
+            key->sec_data = (uint8_t *) malloc(body.size());
+            if (!key->sec_data) {
+                RNP_LOG("allocation failed");
+                return RNP_ERROR_OUT_OF_MEMORY;
+            }
+            memcpy(key->sec_data, body.data(), body.size());
+            key->sec_len = body.size();
+            return RNP_SUCCESS;
+        }
+        if (key->version < PGP_V4) {
+            RNP_LOG("encryption of v3 keys is not supported");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+
+        /* data is encrypted */
+        size_t keysize = pgp_key_size(key->sec_protection.symm_alg);
+        size_t blsize = pgp_block_size(key->sec_protection.symm_alg);
+        if (!keysize || !blsize) {
+            RNP_LOG("wrong symm alg");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        /* generate iv and s2k salt */
+        if (rng) {
+            if (!rng_get_data(rng, key->sec_protection.iv, blsize)) {
+                return RNP_ERROR_RNG;
+            }
+            if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
+                !rng_get_data(rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+                return RNP_ERROR_RNG;
+            }
+        } else {
+            /* temporary solution! */
+            if (!rng_generate(key->sec_protection.iv, blsize)) {
+                return RNP_ERROR_RNG;
+            }
+            if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
+                !rng_generate(key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+                return RNP_ERROR_RNG;
+            }
+        }
+        /* derive key */
+        uint8_t keybuf[PGP_MAX_KEY_SIZE];
+        if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
+            RNP_LOG("failed to derive key");
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        /* encrypt sec data */
+        pgp_crypt_t crypt;
+        if (!pgp_cipher_cfb_start(
+              &crypt, key->sec_protection.symm_alg, keybuf, key->sec_protection.iv)) {
+            RNP_LOG("failed to start cfb encryption");
+            pgp_forget(keybuf, sizeof(keybuf));
+            return RNP_ERROR_DECRYPT_FAILED;
+        }
+        pgp_forget(keybuf, sizeof(keybuf));
+        pgp_cipher_cfb_encrypt(&crypt, body.data(), body.data(), body.size());
+        pgp_cipher_cfb_finish(&crypt);
         free(key->sec_data);
-        key->sec_data = body.data;
-        key->sec_len = body.len;
+        key->sec_data = (uint8_t *) malloc(body.size());
+        if (!key->sec_data) {
+            RNP_LOG("allocation failed");
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        memcpy(key->sec_data, body.data(), body.size());
+        key->sec_len = body.size();
+        /* cleanup cleartext fields */
+        forget_secret_key_fields(&key->material);
         return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-    /* data is encrypted */
-    keysize = pgp_key_size(key->sec_protection.symm_alg);
-    blsize = pgp_block_size(key->sec_protection.symm_alg);
-    if (!keysize || !blsize) {
-        RNP_LOG("wrong symm alg");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto error;
-    }
-    /* generate iv and s2k salt */
-    if (rng) {
-        if (!rng_get_data(rng, key->sec_protection.iv, blsize)) {
-            ret = RNP_ERROR_RNG;
-            goto error;
-        }
-        if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
-            !rng_get_data(rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
-            ret = RNP_ERROR_RNG;
-            goto error;
-        }
-    } else {
-        /* temporary solution! */
-        if (!rng_generate(key->sec_protection.iv, blsize)) {
-            ret = RNP_ERROR_RNG;
-            goto error;
-        }
-        if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
-            !rng_generate(key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
-            ret = RNP_ERROR_RNG;
-            goto error;
-        }
-    }
-    /* derive key */
-    if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
-        RNP_LOG("failed to derive key");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto error;
-    }
-    /* encrypt sec data */
-    if (key->version < PGP_V4) {
-        RNP_LOG("encryption of v3 keys is not supported");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto error;
-    }
-    if (!pgp_cipher_cfb_start(
-          &crypt, key->sec_protection.symm_alg, keybuf, key->sec_protection.iv)) {
-        RNP_LOG("failed to start cfb encryption");
-        ret = RNP_ERROR_DECRYPT_FAILED;
-        goto error;
-    }
-    pgp_cipher_cfb_encrypt(&crypt, body.data, body.data, body.len);
-    pgp_cipher_cfb_finish(&crypt);
-    free(key->sec_data);
-    key->sec_data = body.data;
-    key->sec_len = body.len;
-    /* cleanup cleartext fields */
-    forget_secret_key_fields(&key->material);
-    return RNP_SUCCESS;
-error:
-    pgp_forget(keybuf, sizeof(keybuf));
-    pgp_forget(body.data, body.len);
-    free_packet_body(&body);
-    return ret;
 }
 
 void
