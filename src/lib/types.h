@@ -143,7 +143,7 @@ class rnp_exception : public std::exception {
         return "rnp_exception";
     };
     rnp_result_t
-    code()
+    code() const
     {
         return code_;
     };
@@ -691,28 +691,6 @@ typedef enum {
     PGP_LDT_LOCAL = 'l',
     PGP_LDT_LOCAL2 = '1'
 } pgp_litdata_enum;
-
-/** public-key encrypted session key packet */
-typedef struct pgp_pk_sesskey_t {
-    unsigned         version{};
-    pgp_key_id_t     key_id{};
-    pgp_pubkey_alg_t alg{};
-
-    pgp_encrypted_material_t material{};
-} pgp_pk_sesskey_t;
-
-/** pkp_sk_sesskey_t */
-typedef struct pgp_sk_sesskey_t {
-    unsigned       version{};
-    pgp_symm_alg_t alg{};
-    pgp_s2k_t      s2k{};
-    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1]{};
-    unsigned       enckeylen{};
-    /* v5 specific fields */
-    pgp_aead_alg_t aalg{};
-    uint8_t        iv[PGP_MAX_BLOCK_SIZE]{};
-    unsigned       ivlen{};
-} pgp_sk_sesskey_t;
 
 /* user revocation info */
 typedef struct pgp_subsig_t pgp_subsig_t;
