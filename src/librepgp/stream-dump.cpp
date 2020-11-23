@@ -986,7 +986,12 @@ stream_dump_sk_session_key(pgp_source_t *src, pgp_dest_t *dst)
     pgp_sk_sesskey_t skey;
     rnp_result_t     ret;
 
-    if ((ret = stream_parse_sk_sesskey(src, &skey))) {
+    try {
+        ret = skey.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
@@ -2020,9 +2025,15 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
     pgp_sk_sesskey_t skey;
     rnp_result_t     ret;
 
-    if ((ret = stream_parse_sk_sesskey(src, &skey))) {
+    try {
+        ret = skey.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
+
     if (!obj_add_field_json(pkt, "version", json_object_new_int(skey.version)) ||
         !obj_add_intstr_json(pkt, "algorithm", skey.alg, symm_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
