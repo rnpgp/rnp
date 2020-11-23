@@ -591,101 +591,6 @@ stream_parse_marker(pgp_source_t &src)
 }
 
 rnp_result_t
-stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey)
-{
-    try {
-        pgp_packet_body_t pkt(PGP_PKT_SK_SESSION_KEY);
-        rnp_result_t      res = pkt.read(*src);
-        if (res) {
-            return res;
-        }
-
-        /* version */
-        uint8_t bt;
-        if (!pkt.get(bt) || ((bt != PGP_SKSK_V4) && (bt != PGP_SKSK_V5))) {
-            RNP_LOG("wrong packet version");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        skey->version = bt;
-        /* symmetric algorithm */
-        if (!pkt.get(bt)) {
-            RNP_LOG("failed to get symm alg");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        skey->alg = (pgp_symm_alg_t) bt;
-
-        if (skey->version == PGP_SKSK_V5) {
-            /* aead algorithm */
-            if (!pkt.get(bt)) {
-                RNP_LOG("failed to get aead alg");
-                return RNP_ERROR_BAD_FORMAT;
-            }
-            skey->aalg = (pgp_aead_alg_t) bt;
-            if ((skey->aalg != PGP_AEAD_EAX) && (skey->aalg != PGP_AEAD_OCB)) {
-                RNP_LOG("unsupported AEAD algorithm : %d", (int) skey->aalg);
-                return RNP_ERROR_BAD_PARAMETERS;
-            }
-        }
-
-        /* s2k */
-        if (!pkt.get(skey->s2k)) {
-            RNP_LOG("failed to parse s2k");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-
-        /* v4 key */
-        if (skey->version == PGP_SKSK_V4) {
-            /* encrypted session key if present */
-            size_t keylen = pkt.left();
-            if (keylen) {
-                if (keylen > PGP_MAX_KEY_SIZE + 1) {
-                    RNP_LOG("too long esk");
-                    return RNP_ERROR_BAD_FORMAT;
-                }
-                if (!pkt.get(skey->enckey, keylen)) {
-                    RNP_LOG("failed to get key");
-                    return RNP_ERROR_BAD_FORMAT;
-                }
-            }
-            skey->enckeylen = keylen;
-            return RNP_SUCCESS;
-        }
-
-        /* v5: iv + esk + tag. For both EAX and OCB ivlen and taglen are 16 octets */
-        size_t ivlen = pgp_cipher_aead_nonce_len(skey->aalg);
-        size_t taglen = pgp_cipher_aead_tag_len(skey->aalg);
-        size_t keylen = 0;
-
-        if (pkt.left() > ivlen + taglen + PGP_MAX_KEY_SIZE) {
-            RNP_LOG("too long esk");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        if (pkt.left() < ivlen + taglen + 8) {
-            RNP_LOG("too short esk");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        /* iv */
-        if (!pkt.get(skey->iv, ivlen)) {
-            RNP_LOG("failed to get iv");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        skey->ivlen = ivlen;
-
-        /* key */
-        keylen = pkt.left();
-        if (!pkt.get(skey->enckey, keylen)) {
-            RNP_LOG("failed to get key");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        skey->enckeylen = keylen;
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_GENERIC;
-    }
-}
-
-rnp_result_t
 stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey)
 {
     try {
@@ -2181,4 +2086,134 @@ void
 pgp_packet_body_t::mark_secure(bool secure) noexcept
 {
     secure_ = secure;
+}
+
+void
+pgp_sk_sesskey_t::write(pgp_dest_t &dst) const
+{
+    pgp_packet_body_t pktbody(PGP_PKT_SK_SESSION_KEY);
+    /* version and algorithm fields */
+    pktbody.add_byte(version);
+    pktbody.add_byte(alg);
+    if (version == PGP_SKSK_V5) {
+        pktbody.add_byte(aalg);
+    }
+    /* S2K specifier */
+    pktbody.add_byte(s2k.specifier);
+    pktbody.add_byte(s2k.hash_alg);
+
+    switch (s2k.specifier) {
+    case PGP_S2KS_SIMPLE:
+        break;
+    case PGP_S2KS_SALTED:
+        pktbody.add(s2k.salt, sizeof(s2k.salt));
+        break;
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        pktbody.add(s2k.salt, sizeof(s2k.salt));
+        pktbody.add_byte(s2k.iterations);
+        break;
+    default:
+        RNP_LOG("Unexpected s2k specifier: %d", (int) s2k.specifier);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    /* v5 : iv */
+    if (version == PGP_SKSK_V5) {
+        pktbody.add(iv, ivlen);
+    }
+    /* encrypted key and auth tag for v5 */
+    if (enckeylen) {
+        pktbody.add(enckey, enckeylen);
+    }
+    /* write packet */
+    pktbody.write(dst);
+}
+
+rnp_result_t
+pgp_sk_sesskey_t::parse(pgp_source_t &src)
+{
+    pgp_packet_body_t pkt(PGP_PKT_SK_SESSION_KEY);
+    rnp_result_t      res = pkt.read(src);
+    if (res) {
+        return res;
+    }
+
+    /* version */
+    uint8_t bt;
+    if (!pkt.get(bt) || ((bt != PGP_SKSK_V4) && (bt != PGP_SKSK_V5))) {
+        RNP_LOG("wrong packet version");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    version = bt;
+    /* symmetric algorithm */
+    if (!pkt.get(bt)) {
+        RNP_LOG("failed to get symm alg");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    alg = (pgp_symm_alg_t) bt;
+
+    if (version == PGP_SKSK_V5) {
+        /* aead algorithm */
+        if (!pkt.get(bt)) {
+            RNP_LOG("failed to get aead alg");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        aalg = (pgp_aead_alg_t) bt;
+        if ((aalg != PGP_AEAD_EAX) && (aalg != PGP_AEAD_OCB)) {
+            RNP_LOG("unsupported AEAD algorithm : %d", (int) aalg);
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    }
+
+    /* s2k */
+    if (!pkt.get(s2k)) {
+        RNP_LOG("failed to parse s2k");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    /* v4 key */
+    if (version == PGP_SKSK_V4) {
+        /* encrypted session key if present */
+        size_t keylen = pkt.left();
+        if (keylen) {
+            if (keylen > PGP_MAX_KEY_SIZE + 1) {
+                RNP_LOG("too long esk");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (!pkt.get(enckey, keylen)) {
+                RNP_LOG("failed to get key");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+        }
+        enckeylen = keylen;
+        return RNP_SUCCESS;
+    }
+
+    /* v5: iv + esk + tag. For both EAX and OCB ivlen and taglen are 16 octets */
+    size_t noncelen = pgp_cipher_aead_nonce_len(aalg);
+    size_t taglen = pgp_cipher_aead_tag_len(aalg);
+    size_t keylen = 0;
+
+    if (pkt.left() > noncelen + taglen + PGP_MAX_KEY_SIZE) {
+        RNP_LOG("too long esk");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    if (pkt.left() < noncelen + taglen + 8) {
+        RNP_LOG("too short esk");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* iv */
+    if (!pkt.get(iv, noncelen)) {
+        RNP_LOG("failed to get iv");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    ivlen = noncelen;
+
+    /* key */
+    keylen = pkt.left();
+    if (!pkt.get(enckey, keylen)) {
+        RNP_LOG("failed to get key");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    enckeylen = keylen;
+    return RNP_SUCCESS;
 }

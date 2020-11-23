@@ -153,6 +153,31 @@ typedef struct pgp_packet_body_t {
     void mark_secure(bool secure = true) noexcept;
 } pgp_packet_body_t;
 
+/** public-key encrypted session key packet */
+typedef struct pgp_pk_sesskey_t {
+    unsigned         version{};
+    pgp_key_id_t     key_id{};
+    pgp_pubkey_alg_t alg{};
+
+    pgp_encrypted_material_t material{};
+} pgp_pk_sesskey_t;
+
+/** pkp_sk_sesskey_t */
+typedef struct pgp_sk_sesskey_t {
+    unsigned       version{};
+    pgp_symm_alg_t alg{};
+    pgp_s2k_t      s2k{};
+    uint8_t        enckey[PGP_MAX_KEY_SIZE + PGP_AEAD_MAX_TAG_LEN + 1]{};
+    unsigned       enckeylen{};
+    /* v5 specific fields */
+    pgp_aead_alg_t aalg{};
+    uint8_t        iv[PGP_MAX_BLOCK_SIZE]{};
+    unsigned       ivlen{};
+
+    void         write(pgp_dest_t &dst) const;
+    rnp_result_t parse(pgp_source_t &src);
+} pgp_sk_sesskey_t;
+
 uint16_t read_uint16(const uint8_t *buf);
 
 uint32_t read_uint32(const uint8_t *buf);
@@ -233,12 +258,6 @@ rnp_result_t stream_read_packet(pgp_source_t *src, pgp_dest_t *dst);
 rnp_result_t stream_skip_packet(pgp_source_t *src);
 
 rnp_result_t stream_parse_marker(pgp_source_t &src);
-
-/* Symmetric-key encrypted session key */
-
-bool stream_write_sk_sesskey(const pgp_sk_sesskey_t *skey, pgp_dest_t *dst);
-
-rnp_result_t stream_parse_sk_sesskey(pgp_source_t *src, pgp_sk_sesskey_t *skey);
 
 /* Public-key encrypted session key */
 
