@@ -615,7 +615,12 @@ process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t &uid, bool skipe
 {
     rnp_result_t ret;
     uint64_t     uidpos = src->readb;
-    if ((ret = stream_parse_userid(src, &uid.uid))) {
+    try {
+        ret = uid.uid.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         RNP_LOG("failed to parse userid at %" PRIu64, uidpos);
         return ret;
     }
@@ -822,20 +827,20 @@ process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
         }
 
         try {
-            key.userids.emplace_back();
+            pgp_transferable_userid_t uid;
+            ret = process_pgp_userid(src, uid, skiperrors);
+            if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+                skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+                /* skip malformed uid */
+                continue;
+            }
+            if (ret) {
+                goto finish;
+            }
+            key.userids.push_back(std::move(uid));
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
-        }
-        ret = process_pgp_userid(src, key.userids.back(), skiperrors);
-        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
-            skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
-            key.userids.pop_back();
-            /* skip malformed uid */
-            continue;
-        }
-        if (ret) {
             goto finish;
         }
     }
@@ -913,8 +918,13 @@ write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
         }
         /* user ids/attrs and signatures */
         for (auto &uid : key.userids) {
-            if (!stream_write_userid(&uid.uid, dst) ||
-                !write_pgp_signatures(uid.signatures, dst)) {
+            try {
+                uid.uid.write(*dst);
+            } catch (const std::exception &e) {
+                ret = RNP_ERROR_WRITE;
+                goto finish;
+            }
+            if (!write_pgp_signatures(uid.signatures, dst)) {
                 ret = RNP_ERROR_WRITE;
                 goto finish;
             }
@@ -1451,6 +1461,54 @@ pgp_userid_pkt_t::operator!=(const pgp_userid_pkt_t &src) const
 pgp_userid_pkt_t::~pgp_userid_pkt_t()
 {
     free(uid);
+}
+
+void
+pgp_userid_pkt_t::write(pgp_dest_t &dst) const
+{
+    if ((tag != PGP_PKT_USER_ID) && (tag != PGP_PKT_USER_ATTR)) {
+        RNP_LOG("wrong userid tag");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    if (uid_len && !uid) {
+        RNP_LOG("null but non-empty userid");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    pgp_packet_body_t pktbody(tag);
+    if (uid) {
+        pktbody.add(uid, uid_len);
+    }
+    pktbody.write(dst);
+}
+
+rnp_result_t
+pgp_userid_pkt_t::parse(pgp_source_t &src)
+{
+    /* check the tag */
+    int stag = stream_pkt_type(&src);
+    if ((stag != PGP_PKT_USER_ID) && (stag != PGP_PKT_USER_ATTR)) {
+        RNP_LOG("wrong userid tag: %d", stag);
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    pgp_packet_body_t pkt(PGP_PKT_RESERVED);
+    rnp_result_t      res = pkt.read(src);
+    if (res) {
+        return res;
+    }
+
+    /* userid type, i.e. tag */
+    tag = (pgp_pkt_type_t) stag;
+    free(uid);
+    uid = (uint8_t *) malloc(pkt.size());
+    if (!uid) {
+        RNP_LOG("allocation failed");
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    memcpy(uid, pkt.data(), pkt.size());
+    uid_len = pkt.size();
+    return RNP_SUCCESS;
 }
 
 pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
