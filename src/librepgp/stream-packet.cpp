@@ -434,25 +434,6 @@ stream_write_sk_sesskey(const pgp_sk_sesskey_t *skey, pgp_dest_t *dst)
 }
 
 bool
-stream_write_one_pass(const pgp_one_pass_sig_t *onepass, pgp_dest_t *dst)
-{
-    try {
-        pgp_packet_body_t pktbody(PGP_PKT_ONE_PASS_SIG);
-        pktbody.add_byte(onepass->version);
-        pktbody.add_byte(onepass->type);
-        pktbody.add_byte(onepass->halg);
-        pktbody.add_byte(onepass->palg);
-        pktbody.add(onepass->keyid);
-        pktbody.add_byte(onepass->nested);
-        pktbody.write(*dst);
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-bool
 write_signature_material(pgp_signature_t &sig, const pgp_signature_material_t &material)
 {
     try {
@@ -549,47 +530,6 @@ stream_parse_marker(pgp_source_t &src)
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
-    }
-}
-
-rnp_result_t
-stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass)
-{
-    try {
-        pgp_packet_body_t pkt(PGP_PKT_ONE_PASS_SIG);
-        /* Read the packet into memory */
-        rnp_result_t res = pkt.read(*src);
-        if (res) {
-            return res;
-        }
-
-        uint8_t buf[13] = {0};
-        bool    ok = (pkt.size() == 13) && pkt.get(buf, 13);
-        if (!ok) {
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        /* version */
-        if (buf[0] != 3) {
-            RNP_LOG("wrong packet version");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-        onepass->version = buf[0];
-        /* signature type */
-        onepass->type = (pgp_sig_type_t) buf[1];
-        /* hash algorithm */
-        onepass->halg = (pgp_hash_alg_t) buf[2];
-        /* pk algorithm */
-        onepass->palg = (pgp_pubkey_alg_t) buf[3];
-        /* key id */
-        static_assert(std::tuple_size<decltype(onepass->keyid)>::value == PGP_KEY_ID_SIZE,
-                      "pgp_one_pass_sig_t.keyid size mismatch");
-        memcpy(onepass->keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
-        /* nested flag */
-        onepass->nested = !!buf[12];
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_GENERIC;
     }
 }
 
@@ -2203,5 +2143,53 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
         RNP_LOG("extra %d bytes in pk packet", (int) pkt.left());
         return RNP_ERROR_BAD_FORMAT;
     }
+    return RNP_SUCCESS;
+}
+
+void
+pgp_one_pass_sig_t::write(pgp_dest_t &dst) const
+{
+    pgp_packet_body_t pktbody(PGP_PKT_ONE_PASS_SIG);
+    pktbody.add_byte(version);
+    pktbody.add_byte(type);
+    pktbody.add_byte(halg);
+    pktbody.add_byte(palg);
+    pktbody.add(keyid);
+    pktbody.add_byte(nested);
+    pktbody.write(dst);
+}
+
+rnp_result_t
+pgp_one_pass_sig_t::parse(pgp_source_t &src)
+{
+    pgp_packet_body_t pkt(PGP_PKT_ONE_PASS_SIG);
+    /* Read the packet into memory */
+    rnp_result_t res = pkt.read(src);
+    if (res) {
+        return res;
+    }
+
+    uint8_t buf[13] = {0};
+    if ((pkt.size() != 13) || !pkt.get(buf, 13)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    /* version */
+    if (buf[0] != 3) {
+        RNP_LOG("wrong packet version");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    version = buf[0];
+    /* signature type */
+    type = (pgp_sig_type_t) buf[1];
+    /* hash algorithm */
+    halg = (pgp_hash_alg_t) buf[2];
+    /* pk algorithm */
+    palg = (pgp_pubkey_alg_t) buf[3];
+    /* key id */
+    static_assert(std::tuple_size<decltype(keyid)>::value == PGP_KEY_ID_SIZE,
+                  "pgp_one_pass_sig_t.keyid size mismatch");
+    memcpy(keyid.data(), &buf[4], PGP_KEY_ID_SIZE);
+    /* nested flag */
+    nested = buf[12];
     return RNP_SUCCESS;
 }

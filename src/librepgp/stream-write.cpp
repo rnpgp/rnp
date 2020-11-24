@@ -1261,17 +1261,19 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     }
 
     // write onepasses in reverse order so signature order will match signers list
-    if (last) {
+    if (!last) {
+        return RNP_SUCCESS;
+    }
+    try {
         for (auto it = param->siginfos.rbegin(); it != param->siginfos.rend(); it++) {
             pgp_dest_signer_info_t &sinfo = *it;
             sinfo.onepass.nested = &sinfo == &param->siginfos.front();
-            if (!stream_write_one_pass(&sinfo.onepass, param->writedst)) {
-                return RNP_ERROR_WRITE;
-            }
+            sinfo.onepass.write(*param->writedst);
         }
+        return param->writedst->werr;
+    } catch (const std::exception &e) {
+        return RNP_ERROR_WRITE;
     }
-
-    return RNP_SUCCESS;
 }
 
 pgp_dest_signed_param_t::~pgp_dest_signed_param_t()

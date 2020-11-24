@@ -184,6 +184,19 @@ typedef struct pgp_sk_sesskey_t {
     rnp_result_t parse(pgp_source_t &src);
 } pgp_sk_sesskey_t;
 
+/** pgp_one_pass_sig_t */
+typedef struct pgp_one_pass_sig_t {
+    uint8_t          version{};
+    pgp_sig_type_t   type{};
+    pgp_hash_alg_t   halg{};
+    pgp_pubkey_alg_t palg{};
+    pgp_key_id_t     keyid{};
+    unsigned         nested{};
+
+    void         write(pgp_dest_t &dst) const;
+    rnp_result_t parse(pgp_source_t &src);
+} pgp_one_pass_sig_t;
+
 uint16_t read_uint16(const uint8_t *buf);
 
 uint32_t read_uint32(const uint8_t *buf);
@@ -264,12 +277,6 @@ rnp_result_t stream_read_packet(pgp_source_t *src, pgp_dest_t *dst);
 rnp_result_t stream_skip_packet(pgp_source_t *src);
 
 rnp_result_t stream_parse_marker(pgp_source_t &src);
-
-/* One-pass signature */
-
-bool stream_write_one_pass(const pgp_one_pass_sig_t *onepass, pgp_dest_t *dst);
-
-rnp_result_t stream_parse_one_pass(pgp_source_t *src, pgp_one_pass_sig_t *onepass);
 
 /* Signature */
 

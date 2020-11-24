@@ -2173,8 +2173,12 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
         ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PKT_ONE_PASS_SIG) {
-            pgp_one_pass_sig_t onepass = {};
-            errcode = stream_parse_one_pass(readsrc, &onepass);
+            pgp_one_pass_sig_t onepass;
+            try {
+                errcode = onepass.parse(*readsrc);
+            } catch (const std::exception &e) {
+                errcode = RNP_ERROR_GENERIC;
+            }
             if (errcode) {
                 if (errcode == RNP_ERROR_READ) {
                     goto finish;
