@@ -1093,7 +1093,12 @@ stream_dump_one_pass(pgp_source_t *src, pgp_dest_t *dst)
     pgp_one_pass_sig_t onepass;
     rnp_result_t       ret;
 
-    if ((ret = stream_parse_one_pass(src, &onepass))) {
+    try {
+        ret = onepass.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
@@ -2096,7 +2101,12 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     pgp_one_pass_sig_t onepass;
     rnp_result_t       ret;
 
-    if ((ret = stream_parse_one_pass(src, &onepass))) {
+    try {
+        ret = onepass.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
