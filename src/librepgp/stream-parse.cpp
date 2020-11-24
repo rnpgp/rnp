@@ -1848,7 +1848,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             }
             case PGP_PKT_PK_SESSION_KEY: {
                 pgp_pk_sesskey_t pkey;
-                rnp_result_t     ret = stream_parse_pk_sesskey(param->pkt.readsrc, &pkey);
+                rnp_result_t     ret = pkey.parse(*param->pkt.readsrc);
                 if (ret) {
                     return ret;
                 }
