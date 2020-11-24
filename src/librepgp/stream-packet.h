@@ -160,6 +160,9 @@ typedef struct pgp_pk_sesskey_t {
     pgp_pubkey_alg_t alg{};
 
     pgp_encrypted_material_t material{};
+
+    void         write(pgp_dest_t &dst) const;
+    rnp_result_t parse(pgp_source_t &src);
 } pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */
@@ -258,12 +261,6 @@ rnp_result_t stream_read_packet(pgp_source_t *src, pgp_dest_t *dst);
 rnp_result_t stream_skip_packet(pgp_source_t *src);
 
 rnp_result_t stream_parse_marker(pgp_source_t &src);
-
-/* Public-key encrypted session key */
-
-bool stream_write_pk_sesskey(const pgp_pk_sesskey_t *pkey, pgp_dest_t *dst);
-
-rnp_result_t stream_parse_pk_sesskey(pgp_source_t *src, pgp_pk_sesskey_t *pkey);
 
 /* One-pass signature */
 

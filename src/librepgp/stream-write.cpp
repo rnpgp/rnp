@@ -591,12 +591,12 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
 
     /* Writing symmetric key encrypted session key packet */
-    if (!stream_write_pk_sesskey(&pkey, param->pkt.origdst)) {
+    try {
+        pkey.write(*param->pkt.origdst);
+        ret = param->pkt.origdst->werr;
+    } catch (const std::exception &e) {
         ret = RNP_ERROR_WRITE;
-        goto finish;
     }
-
-    ret = RNP_SUCCESS;
 finish:
     pgp_forget(enckey, sizeof(enckey));
     pgp_forget(&checksum, sizeof(checksum));

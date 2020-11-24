@@ -936,7 +936,12 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     pgp_pk_sesskey_t pkey;
     rnp_result_t     ret;
 
-    if ((ret = stream_parse_pk_sesskey(src, &pkey))) {
+    try {
+        ret = pkey.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
@@ -1967,7 +1972,12 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     pgp_pk_sesskey_t pkey;
     rnp_result_t     ret;
 
-    if ((ret = stream_parse_pk_sesskey(src, &pkey))) {
+    try {
+        ret = pkey.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
