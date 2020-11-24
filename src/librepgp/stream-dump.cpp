@@ -896,7 +896,12 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
     rnp_result_t     ret;
     const char *     utype;
 
-    if ((ret = stream_parse_userid(src, &uid))) {
+    try {
+        ret = uid.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
@@ -1950,7 +1955,12 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
     pgp_userid_pkt_t uid;
     rnp_result_t     ret;
 
-    if ((ret = stream_parse_userid(src, &uid))) {
+    try {
+        ret = uid.parse(*src);
+    } catch (const std::exception &e) {
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 

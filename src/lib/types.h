@@ -241,27 +241,9 @@ typedef struct pgp_key_pkt_t {
     ~pgp_key_pkt_t();
 } pgp_key_pkt_t;
 
-typedef struct pgp_key_t pgp_key_t;
-
-/** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
- *  binary blob as it is. It may be distinguished by tag field.
- */
-typedef struct pgp_userid_pkt_t {
-    pgp_pkt_type_t tag;
-    uint8_t *      uid;
-    size_t         uid_len;
-
-    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED), uid(NULL), uid_len(0){};
-    pgp_userid_pkt_t(const pgp_userid_pkt_t &src);
-    pgp_userid_pkt_t(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(pgp_userid_pkt_t &&src);
-    pgp_userid_pkt_t &operator=(const pgp_userid_pkt_t &src);
-    bool              operator==(const pgp_userid_pkt_t &src) const;
-    bool              operator!=(const pgp_userid_pkt_t &src) const;
-    ~pgp_userid_pkt_t();
-} pgp_userid_pkt_t;
-
-typedef struct pgp_signature_t pgp_signature_t;
+typedef struct pgp_key_t        pgp_key_t;
+typedef struct pgp_userid_pkt_t pgp_userid_pkt_t;
+typedef struct pgp_signature_t  pgp_signature_t;
 
 /* Signature subpacket, see 5.2.3.1 in RFC 4880 and RFC 4880 bis 02 */
 typedef struct pgp_sig_subpkt_t {
@@ -733,17 +715,6 @@ typedef struct pgp_subsig_t {
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
 } pgp_subsig_t;
-
-typedef struct pgp_userid_t {
-    pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
-    pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
-    std::string      str{};    /* Human-readable representation of the userid */
-    bool         valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
-    bool         revoked{};
-    pgp_revoke_t revocation{};
-
-    pgp_userid_t(const pgp_userid_pkt_t &pkt);
-} pgp_userid_t;
 
 struct rnp_keygen_ecc_params_t {
     pgp_curve_t curve;
