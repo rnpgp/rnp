@@ -1414,64 +1414,6 @@ key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly
     return key_material_equal(&key1->material, &key2->material);
 }
 
-bool
-stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst)
-{
-    if ((userid->tag != PGP_PKT_USER_ID) && (userid->tag != PGP_PKT_USER_ATTR)) {
-        RNP_LOG("wrong userid tag");
-        return false;
-    }
-    if (userid->uid_len && !userid->uid) {
-        RNP_LOG("null but non-empty userid");
-        return false;
-    }
-
-    try {
-        pgp_packet_body_t pktbody(userid->tag);
-        if (userid->uid) {
-            pktbody.add(userid->uid, userid->uid_len);
-        }
-        pktbody.write(*dst);
-        return dst->werr == RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-rnp_result_t
-stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid)
-{
-    /* check the tag */
-    int tag = stream_pkt_type(src);
-    if ((tag != PGP_PKT_USER_ID) && (tag != PGP_PKT_USER_ATTR)) {
-        RNP_LOG("wrong userid tag: %d", tag);
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
-    try {
-        pgp_packet_body_t pkt(PGP_PKT_RESERVED);
-        rnp_result_t      res = pkt.read(*src);
-        if (res) {
-            return res;
-        }
-
-        /* userid type, i.e. tag */
-        userid->tag = (pgp_pkt_type_t) tag;
-        userid->uid = (uint8_t *) malloc(pkt.size());
-        if (!userid->uid) {
-            RNP_LOG("allocation failed");
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        memcpy(userid->uid, pkt.data(), pkt.size());
-        userid->uid_len = pkt.size();
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_GENERIC;
-    }
-}
-
 pgp_packet_body_t::pgp_packet_body_t(pgp_pkt_type_t tag)
 {
     data_.reserve(16);

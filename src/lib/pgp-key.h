@@ -59,10 +59,23 @@
 #include "pass-provider.h"
 #include "../librepgp/stream-key.h"
 #include <rekey/rnp_key_store.h>
+#include "../librepgp/stream-packet.h"
 #include "crypto/symmetric.h"
 #include "types.h"
 
 typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
+
+/* userid, built on top of userid packet structure */
+typedef struct pgp_userid_t {
+    pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
+    pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
+    std::string      str{};    /* Human-readable representation of the userid */
+    bool         valid{}; /* User ID is valid, i.e. has valid, non-expired self-signature */
+    bool         revoked{};
+    pgp_revoke_t revocation{};
+
+    pgp_userid_t(const pgp_userid_pkt_t &pkt);
+} pgp_userid_t;
 
 /* describes a user's key */
 struct pgp_key_t {
