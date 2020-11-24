@@ -331,6 +331,7 @@ typedef struct pgp_sig_subpkt_t {
     pgp_sig_subpkt_t &operator=(pgp_sig_subpkt_t &&src);
     pgp_sig_subpkt_t &operator=(const pgp_sig_subpkt_t &src);
     ~pgp_sig_subpkt_t();
+    bool parse();
 } pgp_sig_subpkt_t;
 
 typedef struct pgp_one_pass_sig_t pgp_one_pass_sig_t;
