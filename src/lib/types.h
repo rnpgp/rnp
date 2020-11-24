@@ -657,16 +657,6 @@ typedef enum {
     PGP_KEY_SERVER_NO_MODIFY = 0x80
 } pgp_key_server_prefs_t;
 
-/** pgp_one_pass_sig_t */
-typedef struct pgp_one_pass_sig_t {
-    uint8_t          version{};
-    pgp_sig_type_t   type{};
-    pgp_hash_alg_t   halg{};
-    pgp_pubkey_alg_t palg{};
-    pgp_key_id_t     keyid{};
-    unsigned         nested{};
-} pgp_one_pass_sig_t;
-
 typedef struct pgp_literal_hdr_t {
     uint8_t  format;
     char     fname[256];
