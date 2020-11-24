@@ -119,7 +119,7 @@ signature_add_notation_data(pgp_signature_t *sig,
         memcpy(subpkt.data + 6, name, nlen);
         write_uint16(subpkt.data + 6 + nlen, vlen);
         memcpy(subpkt.data + 8 + nlen, value, vlen);
-        return signature_parse_subpacket(subpkt);
+        return subpkt.parse();
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;
@@ -537,7 +537,7 @@ pgp_sig_subpkt_t::pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src)
     critical = src.critical;
     hashed = src.hashed;
     parsed = false;
-    signature_parse_subpacket(*this);
+    parse();
 }
 
 pgp_sig_subpkt_t::pgp_sig_subpkt_t(pgp_sig_subpkt_t &&src)
@@ -598,8 +598,192 @@ pgp_sig_subpkt_t::operator=(const pgp_sig_subpkt_t &src)
     hashed = src.hashed;
     parsed = false;
     fields = {};
-    signature_parse_subpacket(*this);
+    parse();
     return *this;
+}
+
+bool
+pgp_sig_subpkt_t::parse()
+{
+    bool oklen = true;
+    bool checked = true;
+
+    switch (type) {
+    case PGP_SIG_SUBPKT_CREATION_TIME:
+        if (!hashed) {
+            RNP_LOG("creation time subpacket must be hashed");
+            checked = false;
+        }
+        if ((oklen = len == 4)) {
+            fields.create = read_uint32(data);
+        }
+        break;
+    case PGP_SIG_SUBPKT_EXPIRATION_TIME:
+    case PGP_SIG_SUBPKT_KEY_EXPIRY:
+        if ((oklen = len == 4)) {
+            fields.expiry = read_uint32(data);
+        }
+        break;
+    case PGP_SIG_SUBPKT_EXPORT_CERT:
+        if ((oklen = len == 1)) {
+            fields.exportable = data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_TRUST:
+        if ((oklen = len == 2)) {
+            fields.trust.level = data[0];
+            fields.trust.amount = data[1];
+        }
+        break;
+    case PGP_SIG_SUBPKT_REGEXP:
+        fields.regexp.str = (const char *) data;
+        fields.regexp.len = len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCABLE:
+        if ((oklen = len == 1)) {
+            fields.revocable = data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_PREFERRED_SKA:
+    case PGP_SIG_SUBPKT_PREFERRED_HASH:
+    case PGP_SIG_SUBPKT_PREF_COMPRESS:
+    case PGP_SIG_SUBPKT_PREFERRED_AEAD:
+        fields.preferred.arr = data;
+        fields.preferred.len = len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_KEY:
+        if ((oklen = len == 22)) {
+            fields.revocation_key.klass = data[0];
+            fields.revocation_key.pkalg = (pgp_pubkey_alg_t) data[1];
+            fields.revocation_key.fp = &data[2];
+        }
+        break;
+    case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
+        if ((oklen = len == 8)) {
+            fields.issuer = data;
+        }
+        break;
+    case PGP_SIG_SUBPKT_NOTATION_DATA:
+        if ((oklen = len >= 8)) {
+            memcpy(fields.notation.flags, data, 4);
+            fields.notation.nlen = read_uint16(&data[4]);
+            fields.notation.vlen = read_uint16(&data[6]);
+
+            if (len != 8 + fields.notation.nlen + fields.notation.vlen) {
+                oklen = false;
+            } else {
+                fields.notation.name = (const char *) &data[8];
+                fields.notation.value = (const char *) &data[8 + fields.notation.nlen];
+            }
+        }
+        break;
+    case PGP_SIG_SUBPKT_KEYSERV_PREFS:
+        if ((oklen = len >= 1)) {
+            fields.ks_prefs.no_modify = (data[0] & 0x80) != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_PREF_KEYSERV:
+        fields.preferred_ks.uri = (const char *) data;
+        fields.preferred_ks.len = len;
+        break;
+    case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
+        if ((oklen = len == 1)) {
+            fields.primary_uid = data[0] != 0;
+        }
+        break;
+    case PGP_SIG_SUBPKT_POLICY_URI:
+        fields.policy.uri = (const char *) data;
+        fields.policy.len = len;
+        break;
+    case PGP_SIG_SUBPKT_KEY_FLAGS:
+        if ((oklen = len >= 1)) {
+            fields.key_flags = data[0];
+        }
+        break;
+    case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
+        fields.signer.uid = (const char *) data;
+        fields.signer.len = len;
+        break;
+    case PGP_SIG_SUBPKT_REVOCATION_REASON:
+        if ((oklen = len >= 1)) {
+            fields.revocation_reason.code = (pgp_revocation_type_t) data[0];
+            fields.revocation_reason.str = (const char *) &data[1];
+            fields.revocation_reason.len = len - 1;
+        }
+        break;
+    case PGP_SIG_SUBPKT_FEATURES:
+        if ((oklen = len >= 1)) {
+            fields.features = data[0];
+        }
+        break;
+    case PGP_SIG_SUBPKT_SIGNATURE_TARGET:
+        if ((oklen = len >= 18)) {
+            fields.sig_target.pkalg = (pgp_pubkey_alg_t) data[0];
+            fields.sig_target.halg = (pgp_hash_alg_t) data[1];
+            fields.sig_target.hash = &data[2];
+            fields.sig_target.hlen = len - 2;
+        }
+        break;
+    case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
+        try {
+            /* parse signature */
+            pgp_packet_body_t pkt(data, len);
+            pgp_signature_t   sig;
+            oklen = checked = !stream_parse_signature_body(pkt, sig);
+            if (checked) {
+                fields.sig = new pgp_signature_t(std::move(sig));
+            }
+            break;
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
+        }
+    case PGP_SIG_SUBPKT_ISSUER_FPR:
+        if ((oklen = len >= 21)) {
+            fields.issuer_fp.version = data[0];
+            fields.issuer_fp.fp = &data[1];
+            fields.issuer_fp.len = len - 1;
+        }
+        break;
+    case PGP_SIG_SUBPKT_PRIVATE_100:
+    case PGP_SIG_SUBPKT_PRIVATE_101:
+    case PGP_SIG_SUBPKT_PRIVATE_102:
+    case PGP_SIG_SUBPKT_PRIVATE_103:
+    case PGP_SIG_SUBPKT_PRIVATE_104:
+    case PGP_SIG_SUBPKT_PRIVATE_105:
+    case PGP_SIG_SUBPKT_PRIVATE_106:
+    case PGP_SIG_SUBPKT_PRIVATE_107:
+    case PGP_SIG_SUBPKT_PRIVATE_108:
+    case PGP_SIG_SUBPKT_PRIVATE_109:
+    case PGP_SIG_SUBPKT_PRIVATE_110:
+        oklen = true;
+        checked = !critical;
+        if (!checked) {
+            RNP_LOG("unknown critical private subpacket %d", (int) type);
+        }
+        break;
+    case PGP_SIG_SUBPKT_RESERVED_1:
+    case PGP_SIG_SUBPKT_RESERVED_8:
+    case PGP_SIG_SUBPKT_PLACEHOLDER:
+    case PGP_SIG_SUBPKT_RESERVED_13:
+    case PGP_SIG_SUBPKT_RESERVED_14:
+    case PGP_SIG_SUBPKT_RESERVED_15:
+    case PGP_SIG_SUBPKT_RESERVED_17:
+    case PGP_SIG_SUBPKT_RESERVED_18:
+    case PGP_SIG_SUBPKT_RESERVED_19:
+        /* do not report reserved/placeholder subpacket */
+        return !critical;
+    default:
+        RNP_LOG("unknown subpacket : %d", (int) type);
+        return !critical;
+    }
+
+    if (!oklen) {
+        RNP_LOG("wrong len %d of subpacket type %d", (int) len, (int) type);
+    } else {
+        parsed = 1;
+    }
+    return oklen && checked;
 }
 
 pgp_sig_subpkt_t::~pgp_sig_subpkt_t()
@@ -1193,7 +1377,7 @@ pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::st
     subpkt.data[0] = code;
     memcpy(subpkt.data + 1, reason.data(), reason.size());
 
-    if (!signature_parse_subpacket(subpkt)) {
+    if (!subpkt.parse()) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 }
