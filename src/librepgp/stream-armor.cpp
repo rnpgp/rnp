@@ -40,6 +40,7 @@
 #include "stream-packet.h"
 #include "crypto/hash.h"
 #include "types.h"
+#include "utils.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
 #define ARMORED_MIN_LINE_LENGTH (16)

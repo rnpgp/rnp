@@ -30,7 +30,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <sys/types.h>
-#include "rnp.h"
+#include "types.h"
 #include "stream-common.h"
 
 /* maximum size of the 'small' packet */
@@ -197,6 +197,27 @@ typedef struct pgp_one_pass_sig_t {
     rnp_result_t parse(pgp_source_t &src);
 } pgp_one_pass_sig_t;
 
+/** Struct to hold userid or userattr packet. We don't parse userattr now, just storing the
+ *  binary blob as it is. It may be distinguished by tag field.
+ */
+typedef struct pgp_userid_pkt_t {
+    pgp_pkt_type_t tag;
+    uint8_t *      uid;
+    size_t         uid_len;
+
+    pgp_userid_pkt_t() : tag(PGP_PKT_RESERVED), uid(NULL), uid_len(0){};
+    pgp_userid_pkt_t(const pgp_userid_pkt_t &src);
+    pgp_userid_pkt_t(pgp_userid_pkt_t &&src);
+    pgp_userid_pkt_t &operator=(pgp_userid_pkt_t &&src);
+    pgp_userid_pkt_t &operator=(const pgp_userid_pkt_t &src);
+    bool              operator==(const pgp_userid_pkt_t &src) const;
+    bool              operator!=(const pgp_userid_pkt_t &src) const;
+    ~pgp_userid_pkt_t();
+
+    void         write(pgp_dest_t &dst) const;
+    rnp_result_t parse(pgp_source_t &src);
+} pgp_userid_pkt_t;
+
 uint16_t read_uint16(const uint8_t *buf);
 
 uint32_t read_uint32(const uint8_t *buf);
@@ -311,11 +332,5 @@ bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
 rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
 
 bool key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly);
-
-/* User ID packet */
-
-bool stream_write_userid(const pgp_userid_pkt_t *userid, pgp_dest_t *dst);
-
-rnp_result_t stream_parse_userid(pgp_source_t *src, pgp_userid_pkt_t *userid);
 
 #endif

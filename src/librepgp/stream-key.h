@@ -33,6 +33,7 @@
 #include "rnp.h"
 #include "stream-common.h"
 #include "stream-sig.h"
+#include "stream-packet.h"
 
 /* userid/userattr with all the corresponding signatures */
 typedef struct pgp_transferable_userid_t {

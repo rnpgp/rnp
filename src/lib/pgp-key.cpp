@@ -1472,8 +1472,8 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
             res = stream_write_key(&key.pkt, &memdst);
         }
 
-        res = res && stream_write_userid(&key.get_uid(uid).pkt, &memdst) &&
-              stream_write_signature(&cert->sig, &memdst);
+        key.get_uid(uid).pkt.write(memdst);
+        res = res && stream_write_signature(&cert->sig, &memdst);
 
         if (res && pgp_key_is_secret(&sub)) {
             pgp_key_pkt_t pkt(sub.pkt, true);
@@ -1488,6 +1488,7 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
         }
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
+        res = false;
     }
     dst_close(&memdst, true);
     return res;
@@ -1788,11 +1789,7 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
         throw std::bad_alloc();
     }
 
-    if (!stream_write_userid(&uid, &dst)) {
-        dst_close(&dst, true);
-        throw std::bad_alloc();
-    }
-
+    uid.write(dst);
     mem_dest_to_vector(&dst, raw);
     tag = uid.tag;
 }
