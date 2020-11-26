@@ -58,8 +58,10 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("alloc failed");
         return false;
     }
-    if (!stream_write_signature(esig, &memdst)) {
-        RNP_LOG("failed to write signature");
+    try {
+        esig->write(memdst);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to write signature: %s", e.what());
         goto finish;
     }
     if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
@@ -1480,6 +1482,7 @@ pgp_signature_t::parse_v3(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* hashed data */
+    free(hashed_data);
     if (!(hashed_data = (uint8_t *) malloc(5))) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1557,7 +1560,7 @@ pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
         subpkt.len = splen - 1;
 
         res = res && subpkt.parse();
-        subpkts.emplace_back(subpkt);
+        subpkts.push_back(std::move(subpkt));
         len -= splen;
         buf += splen;
     }
@@ -1588,6 +1591,7 @@ pgp_signature_t::parse_v4(pgp_packet_body_t &pkt)
         return RNP_ERROR_BAD_FORMAT;
     }
     /* building hashed data */
+    free(hashed_data);
     if (!(hashed_data = (uint8_t *) malloc(splen + 6))) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1732,4 +1736,72 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         return false;
     }
     return true;
+}
+
+void
+pgp_signature_t::write(pgp_dest_t &dst) const
+{
+    if ((version < PGP_V2) || (version > PGP_V4)) {
+        RNP_LOG("don't know version %d", (int) version);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
+
+    if (version < PGP_V4) {
+        /* for v3 signatures hashed data includes only type + creation_time */
+        pktbody.add_byte(version);
+        pktbody.add_byte(hashed_len);
+        pktbody.add(hashed_data, hashed_len);
+        pktbody.add(signer);
+        pktbody.add_byte(palg);
+        pktbody.add_byte(halg);
+    } else {
+        /* for v4 sig->hashed_data must contain most of signature fields */
+        pktbody.add(hashed_data, hashed_len);
+        pktbody.add_subpackets(*this, false);
+    }
+    pktbody.add(lbits, 2);
+    /* write mpis */
+    pktbody.add(material_buf, material_len);
+    pktbody.write(dst);
+}
+
+void
+pgp_signature_t::write_material(const pgp_signature_material_t &material)
+{
+    pgp_packet_body_t pktbody(PGP_PKT_SIGNATURE);
+    switch (palg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        pktbody.add(material.rsa.s);
+        break;
+    case PGP_PKA_DSA:
+        pktbody.add(material.dsa.r);
+        pktbody.add(material.dsa.s);
+        break;
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_SM2:
+    case PGP_PKA_ECDH:
+        pktbody.add(material.ecc.r);
+        pktbody.add(material.ecc.s);
+        break;
+    case PGP_PKA_ELGAMAL: /* we support writing it but will not generate */
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        pktbody.add(material.eg.r);
+        pktbody.add(material.eg.s);
+        break;
+    default:
+        RNP_LOG("Unknown pk algorithm : %d", (int) palg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    free(material_buf);
+    material_buf = (uint8_t *) malloc(pktbody.size());
+    if (!material_buf) {
+        RNP_LOG("allocation failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    memcpy(material_buf, pktbody.data(), pktbody.size());
+    material_len = pktbody.size();
 }

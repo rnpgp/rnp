@@ -3869,7 +3869,8 @@ try {
         return ret;
     }
 
-    ret = stream_write_signature(sig, &output->dst) ? RNP_SUCCESS : RNP_ERROR_WRITE;
+    sig->write(output->dst);
+    ret = output->dst.werr;
     dst_flush(&output->dst);
     output->keep = !ret;
     delete sig;
@@ -5878,7 +5879,10 @@ try {
     if (init_mem_dest(&memdst, NULL, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!stream_write_signature(&sig->sig->sig, &memdst)) {
+    try {
+        sig->sig->sig.write(memdst);
+    } catch (const std::exception &e) {
+        FFI_LOG(sig->ffi, "%s", e.what());
         dst_close(&memdst, true);
         return RNP_ERROR_BAD_PARAMETERS;
     }

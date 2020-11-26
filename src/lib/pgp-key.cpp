@@ -1473,17 +1473,16 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
         }
         if (res) {
             key.get_uid(uid).pkt.write(memdst);
+            cert->sig.write(memdst);
         }
-        res = res && stream_write_signature(&cert->sig, &memdst);
-
         if (res && pgp_key_is_secret(&sub)) {
             pgp_key_pkt_t pkt(sub.pkt, true);
             res = stream_write_key(&pkt, &memdst);
         } else if (res) {
             res = stream_write_key(&sub.pkt, &memdst);
         }
-        res = res && stream_write_signature(&binding->sig, &memdst);
         if (res) {
+            binding->sig.write(memdst);
             dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
             res = !dst.werr;
         }
@@ -1756,11 +1755,12 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
         throw std::bad_alloc();
     }
 
-    if (!stream_write_signature(&sig, &dst)) {
+    try {
+        sig.write(dst);
+    } catch (const std::exception &e) {
         dst_close(&dst, true);
-        throw std::bad_alloc();
+        throw;
     }
-
     mem_dest_to_vector(&dst, raw);
     tag = PGP_PKT_SIGNATURE;
 }
@@ -1789,8 +1789,12 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
     if (init_mem_dest(&dst, NULL, 0)) {
         throw std::bad_alloc();
     }
-
-    uid.write(dst);
+    try {
+        uid.write(dst);
+    } catch (const std::exception &e) {
+        dst_close(&dst, true);
+        throw;
+    }
     mem_dest_to_vector(&dst, raw);
     tag = uid.tag;
 }
