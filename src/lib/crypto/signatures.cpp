@@ -27,6 +27,7 @@
 #include <string.h>
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
+#include "librepgp/stream-sig.h"
 #include "utils.h"
 
 /**
@@ -221,7 +222,12 @@ signature_validate(const pgp_signature_t *sig, const pgp_key_material_t *key, pg
     /* validate signature */
 
     pgp_signature_material_t material = {};
-    parse_signature_material(*sig, material);
+    try {
+        sig->parse_material(material);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     switch (sig->palg) {
     case PGP_PKA_DSA:
         ret = dsa_verify(&material.dsa, hval, hlen, &key->dsa);
