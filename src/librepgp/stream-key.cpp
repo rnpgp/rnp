@@ -587,21 +587,21 @@ process_pgp_key_signatures(pgp_source_t *src, pgp_signature_list_t &sigs, bool s
 {
     int ptag;
     while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
-        pgp_signature_t sig;
-        uint64_t        sigpos = src->readb;
-        rnp_result_t    ret = stream_parse_signature(src, &sig);
-        if (ret) {
-            RNP_LOG("failed to parse signature at %" PRIu64, sigpos);
-            if (!skiperrors) {
-                return ret;
-            }
-        } else {
-            try {
+        uint64_t sigpos = src->readb;
+        try {
+            pgp_signature_t sig;
+            rnp_result_t    ret = sig.parse(*src);
+            if (ret) {
+                RNP_LOG("failed to parse signature at %" PRIu64, sigpos);
+                if (!skiperrors) {
+                    return ret;
+                }
+            } else {
                 sigs.emplace_back(std::move(sig));
-            } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
-                return RNP_ERROR_OUT_OF_MEMORY;
             }
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
             return RNP_ERROR_READ;

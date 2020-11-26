@@ -7969,7 +7969,7 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     pgp_source_t src = {};
     assert_rnp_success(init_file_src(&src, "alice-revocation.pgp"));
     pgp_signature_t sig = {};
-    assert_rnp_success(stream_parse_signature(&src, &sig));
+    assert_rnp_success(sig.parse(src));
     src_close(&src);
     assert_int_equal(sig.type(), PGP_SIG_REV_KEY);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON));

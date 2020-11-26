@@ -354,7 +354,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     /* load signature */
     assert_rnp_success(init_file_src(&sigsrc, "data/test_stream_signatures/source.txt.sig"));
-    assert_rnp_success(stream_parse_signature(&sigsrc, &sig));
+    assert_rnp_success(sig.parse(sigsrc));
     src_close(&sigsrc);
     /* hash signed file */
     halg = sig.halg;
@@ -426,7 +426,7 @@ TEST_F(rnp_tests, test_stream_signatures_revoked_key)
     /* load signature */
     assert_rnp_success(
       init_file_src(&sigsrc, "data/test_stream_signatures/revoked-key-sig.gpg"));
-    assert_rnp_success(stream_parse_signature(&sigsrc, &sig));
+    assert_rnp_success(sig.parse(sigsrc));
     src_close(&sigsrc);
     /* check revocation */
     assert_int_equal(sig.revocation_code(), PGP_REVOCATION_RETIRED);

@@ -859,18 +859,13 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
                              pgp_source_t *             readsrc,
                              pgp_signature_t **         sig)
 {
-    uint8_t               ptag;
-    int                   ptype;
-    pgp_signature_t       readsig;
-    pgp_signature_info_t *siginfo;
-
+    uint8_t ptag;
     if (!src_peek_eq(readsrc, &ptag, 1)) {
         RNP_LOG("failed to read signature packet header");
         return RNP_ERROR_READ;
     }
 
-    ptype = get_packet_type(ptag);
-
+    int ptype = get_packet_type(ptag);
     if (ptype != PGP_PKT_SIGNATURE) {
         RNP_LOG("unexpected packet %d", ptype);
         return RNP_ERROR_BAD_FORMAT;
@@ -878,32 +873,26 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 
     try {
         param->siginfos.push_back({});
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    siginfo = &param->siginfos.back();
-
-    if (stream_parse_signature(readsrc, &readsig) != RNP_SUCCESS) {
-        RNP_LOG("failed to parse signature");
-        siginfo->unknown = true;
+        pgp_signature_info_t &siginfo = param->siginfos.back();
+        pgp_signature_t       readsig;
+        if (readsig.parse(*readsrc)) {
+            RNP_LOG("failed to parse signature");
+            siginfo.unknown = true;
+            if (sig) {
+                *sig = NULL;
+            }
+            return RNP_SUCCESS;
+        }
+        param->sigs.push_back(std::move(readsig));
+        siginfo.sig = &param->sigs.back();
         if (sig) {
-            *sig = NULL;
+            *sig = siginfo.sig;
         }
         return RNP_SUCCESS;
-    }
-
-    try {
-        param->sigs.push_back(std::move(readsig));
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    siginfo->sig = &param->sigs.back();
-    if (sig) {
-        *sig = &param->sigs.back();
-    }
-    return RNP_SUCCESS;
 }
 
 static rnp_result_t
