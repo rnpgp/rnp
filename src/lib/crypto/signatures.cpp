@@ -181,10 +181,16 @@ signature_calculate(pgp_signature_t *         sig,
         RNP_LOG("Unsupported algorithm %d", sig->palg);
         break;
     }
-    if (!ret) {
-        write_signature_material(*sig, material);
+    if (ret) {
+        return ret;
     }
-    return ret;
+    try {
+        sig->write_material(material);
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
+    }
 }
 
 rnp_result_t
