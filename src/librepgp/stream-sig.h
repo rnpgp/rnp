@@ -342,20 +342,32 @@ typedef struct pgp_signature_t {
      * @return true on success or false otherwise. May also throw an exception.
      */
     bool parse_material(pgp_signature_material_t &material) const;
+
+    /**
+     * @brief Write signature to the destination. May throw an exception.
+     */
+    void write(pgp_dest_t &dst) const;
+
+    /**
+     * @brief Write the signature material's raw representation. May throw an exception.
+     *
+     * @param material populated signature material.
+     */
+    void write_material(const pgp_signature_material_t &material);
 } pgp_signature_t;
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 
 /* information about the validated signature */
 typedef struct pgp_signature_info_t {
-    pgp_signature_t *sig;       /* signature, or NULL if there were parsing error */
-    pgp_key_t *      signer;    /* signer's public key if found */
-    bool             valid;     /* signature is cryptographically valid (but may be expired) */
-    bool             unknown;   /* signature is unknown - parsing error, wrong version, etc */
-    bool             no_signer; /* no signer's public key available */
-    bool             expired;   /* signature is expired */
-    bool             signer_valid;  /* assume that signing key is valid */
-    bool             ignore_expiry; /* ignore signer's key expiration time */
+    pgp_signature_t *sig{};     /* signature, or NULL if there were parsing error */
+    pgp_key_t *      signer{};  /* signer's public key if found */
+    bool             valid{};   /* signature is cryptographically valid (but may be expired) */
+    bool             unknown{}; /* signature is unknown - parsing error, wrong version, etc */
+    bool             no_signer{};     /* no signer's public key available */
+    bool             expired{};       /* signature is expired */
+    bool             signer_valid{};  /* assume that signing key is valid */
+    bool             ignore_expiry{}; /* ignore signer's key expiration time */
 } pgp_signature_info_t;
 
 bool signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig);

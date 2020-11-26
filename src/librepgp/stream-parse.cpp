@@ -872,7 +872,7 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     }
 
     try {
-        param->siginfos.push_back({});
+        param->siginfos.emplace_back();
         pgp_signature_info_t &siginfo = param->siginfos.back();
         pgp_signature_t       readsig;
         if (readsig.parse(*readsrc)) {
