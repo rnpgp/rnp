@@ -342,6 +342,18 @@ typedef struct pgp_signature_t {
      * @return true on success or false otherwise. May also throw an exception.
      */
     bool parse_material(pgp_signature_material_t &material) const;
+
+    /**
+     * @brief Write signature to the destination. May throw an exception.
+     */
+    void write(pgp_dest_t &dst) const;
+
+    /**
+     * @brief Write the signature material's raw representation. May throw an exception.
+     *
+     * @param material populated signature material.
+     */
+    void write_material(const pgp_signature_material_t &material);
 } pgp_signature_t;
 
 typedef std::vector<pgp_signature_t> pgp_signature_list_t;

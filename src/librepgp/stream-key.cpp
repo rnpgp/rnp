@@ -876,17 +876,6 @@ finish:
     return ret;
 }
 
-static bool
-write_pgp_signatures(pgp_signature_list_t &signatures, pgp_dest_t *dst)
-{
-    for (auto &sig : signatures) {
-        if (!stream_write_signature(&sig, dst)) {
-            return false;
-        }
-    }
-    return true;
-}
-
 rnp_result_t
 write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
 {
@@ -905,40 +894,40 @@ write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
         dst = &armdst;
     }
 
-    for (auto &key : keys.keys) {
-        /* main key */
-        if (!stream_write_key(&key.key, dst)) {
-            ret = RNP_ERROR_WRITE;
-            goto finish;
-        }
-        /* revocation signatures */
-        if (!write_pgp_signatures(key.signatures, dst)) {
-            ret = RNP_ERROR_WRITE;
-            goto finish;
-        }
-        /* user ids/attrs and signatures */
-        for (auto &uid : key.userids) {
-            try {
+    try {
+        for (auto &key : keys.keys) {
+            /* main key */
+            if (!stream_write_key(&key.key, dst)) {
+                ret = RNP_ERROR_WRITE;
+                goto finish;
+            }
+            /* revocation and direct-key signatures */
+            for (auto &sig : key.signatures) {
+                sig.write(*dst);
+            }
+            /* user ids/attrs and signatures */
+            for (auto &uid : key.userids) {
                 uid.uid.write(*dst);
-            } catch (const std::exception &e) {
-                ret = RNP_ERROR_WRITE;
-                goto finish;
+                for (auto &sig : uid.signatures) {
+                    sig.write(*dst);
+                }
             }
-            if (!write_pgp_signatures(uid.signatures, dst)) {
-                ret = RNP_ERROR_WRITE;
-                goto finish;
-            }
-        }
-        /* subkeys with signatures */
-        for (auto &skey : key.subkeys) {
-            if (!stream_write_key(&skey.subkey, dst) ||
-                !write_pgp_signatures(skey.signatures, dst)) {
-                ret = RNP_ERROR_WRITE;
-                goto finish;
+            /* subkeys with signatures */
+            for (auto &skey : key.subkeys) {
+                if (!stream_write_key(&skey.subkey, dst)) {
+                    ret = RNP_ERROR_WRITE;
+                    goto finish;
+                }
+                for (auto &sig : skey.signatures) {
+                    sig.write(*dst);
+                }
             }
         }
+        ret = RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        ret = RNP_ERROR_WRITE;
     }
-    ret = RNP_SUCCESS;
 finish:
     if (armor) {
         dst_close(&armdst, ret);
