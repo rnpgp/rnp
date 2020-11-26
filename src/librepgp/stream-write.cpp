@@ -1109,8 +1109,6 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_dest_t *             writedst)
 {
     pgp_signature_t sig;
-    rnp_result_t    ret;
-
     sig.version = (pgp_version_t) 4;
     if (signer->onepass.version) {
         sig.halg = signer->onepass.halg;
@@ -1122,10 +1120,17 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
     }
 
-    if (!(ret = signed_fill_signature(param, &sig, signer))) {
-        ret = stream_write_signature(&sig, writedst) ? RNP_SUCCESS : RNP_ERROR_WRITE;
+    rnp_result_t ret = signed_fill_signature(param, &sig, signer);
+    if (ret) {
+        return ret;
     }
-    return ret;
+    try {
+        sig.write(*writedst);
+        return writedst->werr;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_WRITE;
+    }
 }
 
 static rnp_result_t

@@ -296,12 +296,6 @@ rnp_result_t stream_skip_packet(pgp_source_t *src);
 
 rnp_result_t stream_parse_marker(pgp_source_t &src);
 
-/* Signature */
-
-bool stream_write_signature(const pgp_signature_t *sig, pgp_dest_t *dst);
-
-bool write_signature_material(pgp_signature_t &sig, const pgp_signature_material_t &material);
-
 /* Public/Private key or Subkey */
 
 bool is_key_pkt(int tag);
