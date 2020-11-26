@@ -6877,7 +6877,14 @@ static rnp_result_t
 add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
 {
     pgp_signature_material_t material = {};
-    parse_signature_material(*sig, material);
+    try {
+        if (!sig->parse_material(material)) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:

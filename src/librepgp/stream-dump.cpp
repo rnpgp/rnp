@@ -725,8 +725,12 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     indent_dest_increase(dst);
 
     pgp_signature_material_t material = {};
-    parse_signature_material(*sig, material);
-
+    try {
+        sig->parse_material(material);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return;
+    }
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -760,15 +764,21 @@ static void
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
+    rnp_result_t    ret;
 
     dst_printf(dst, "Signature packet\n");
-    if (stream_parse_signature(src, &sig)) {
+    try {
+        ret = sig.parse(*src);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         indent_dest_increase(dst);
         dst_printf(dst, "failed to parse\n");
         indent_dest_decrease(dst);
         return;
     }
-
     stream_dump_signature_pkt(ctx, &sig, dst);
 }
 
@@ -1767,7 +1777,12 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         goto done;
     }
 
-    parse_signature_material(*sig, sigmaterial);
+    try {
+        sig->parse_material(sigmaterial);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     switch (sig->palg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
@@ -1810,7 +1825,14 @@ static rnp_result_t
 stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
     pgp_signature_t sig;
-    if (stream_parse_signature(src, &sig)) {
+    rnp_result_t    ret;
+    try {
+        ret = sig.parse(*src);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return RNP_SUCCESS;
     }
     return stream_dump_signature_pkt_json(ctx, &sig, pkt);
