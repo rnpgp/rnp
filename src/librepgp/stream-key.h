@@ -65,6 +65,10 @@ typedef struct pgp_key_pkt_t {
 
     void         write(pgp_dest_t &dst);
     rnp_result_t parse(pgp_source_t &src);
+    /** @brief Fills the hashed (signed) data part of the key packet. Must be called before
+     *         pgp_key_pkt_t::write() on the newly generated key */
+    void fill_hashed_data();
+    bool equals(const pgp_key_pkt_t &key, bool pubonly = false) const noexcept;
 } pgp_key_pkt_t;
 
 /* userid/userattr with all the corresponding signatures */
