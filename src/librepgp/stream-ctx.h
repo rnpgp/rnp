@@ -33,6 +33,7 @@
 #include "types.h"
 #include <string>
 #include <list>
+#include "pgp-key.h"
 
 typedef enum rnp_operation_t {
     RNP_OP_UNKNOWN = 0,
