@@ -310,8 +310,4 @@ bool is_secret_key_pkt(int tag);
 
 bool is_rsa_key_alg(pgp_pubkey_alg_t alg);
 
-bool key_fill_hashed_data(pgp_key_pkt_t *key);
-
-bool key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly);
-
 #endif
