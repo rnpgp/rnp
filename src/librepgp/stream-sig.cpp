@@ -182,7 +182,8 @@ signature_hash_key(const pgp_key_pkt_t *key, pgp_hash_t *hash)
     /* call self recursively if hashed data is not filled, to overcome const restriction */
     try {
         pgp_key_pkt_t keycp(*key, true);
-        return key_fill_hashed_data(&keycp) && signature_hash_key(&keycp, hash);
+        keycp.fill_hashed_data();
+        return signature_hash_key(&keycp, hash);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;

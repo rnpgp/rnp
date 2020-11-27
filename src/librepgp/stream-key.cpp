@@ -104,7 +104,7 @@ transferable_subkey_merge(pgp_transferable_subkey_t &dst, const pgp_transferable
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    if (!key_pkt_equal(&dst.subkey, &src.subkey, true)) {
+    if (!dst.subkey.equals(src.subkey, true)) {
         RNP_LOG("wrong subkey merge call");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -144,7 +144,7 @@ static pgp_transferable_subkey_t *
 transferable_key_has_subkey(pgp_transferable_key_t &src, const pgp_key_pkt_t &subkey)
 {
     for (auto &srcsub : src.subkeys) {
-        if (key_pkt_equal(&srcsub.subkey, &subkey, true)) {
+        if (srcsub.subkey.equals(subkey, true)) {
             return &srcsub;
         }
     }
@@ -156,7 +156,7 @@ transferable_key_merge(pgp_transferable_key_t &dst, const pgp_transferable_key_t
 {
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    if (!key_pkt_equal(&dst.key, &src.key, true)) {
+    if (!dst.key.equals(src.key, true)) {
         RNP_LOG("wrong key merge call");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1639,8 +1639,8 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
         RNP_LOG("wrong key tag");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (!hashed_data && !key_fill_hashed_data(this)) {
-        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    if (!hashed_data) {
+        fill_hashed_data();
     }
 
     pgp_packet_body_t pktbody(tag);
@@ -1855,6 +1855,89 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
     return RNP_SUCCESS;
+}
+
+void
+pgp_key_pkt_t::fill_hashed_data()
+{
+    /* we don't have a need to write v2-v3 signatures */
+    if (version != PGP_V4) {
+        RNP_LOG("unknown key version %d", (int) version);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    pgp_packet_body_t hbody(PGP_PKT_RESERVED);
+    hbody.add_byte(version);
+    hbody.add_uint32(creation_time);
+    hbody.add_byte(alg);
+    /* Algorithm specific fields */
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        hbody.add(material.rsa.n);
+        hbody.add(material.rsa.e);
+        break;
+    case PGP_PKA_DSA:
+        hbody.add(material.dsa.p);
+        hbody.add(material.dsa.q);
+        hbody.add(material.dsa.g);
+        hbody.add(material.dsa.y);
+        break;
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        hbody.add(material.eg.p);
+        hbody.add(material.eg.g);
+        hbody.add(material.eg.y);
+        break;
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        hbody.add(material.ec.curve);
+        hbody.add(material.ec.p);
+        break;
+    case PGP_PKA_ECDH:
+        hbody.add(material.ec.curve);
+        hbody.add(material.ec.p);
+        hbody.add_byte(3);
+        hbody.add_byte(1);
+        hbody.add_byte(material.ec.kdf_hash_alg);
+        hbody.add_byte(material.ec.key_wrap_alg);
+        break;
+    default:
+        RNP_LOG("unknown key algorithm: %d", (int) alg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    hashed_data = (uint8_t *) malloc(hbody.size());
+    if (!hashed_data) {
+        RNP_LOG("allocation failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    memcpy(hashed_data, hbody.data(), hbody.size());
+    hashed_len = hbody.size();
+}
+
+bool
+pgp_key_pkt_t::equals(const pgp_key_pkt_t &key, bool pubonly) const noexcept
+{
+    /* check tag. We allow public/secret key comparision here */
+    if (pubonly) {
+        if (is_subkey_pkt(tag) && !is_subkey_pkt(key.tag)) {
+            return false;
+        }
+        if (is_key_pkt(tag) && !is_key_pkt(key.tag)) {
+            return false;
+        }
+    } else if (tag != key.tag) {
+        return false;
+    }
+    /* check basic fields */
+    if ((version != key.version) || (alg != key.alg) || (creation_time != key.creation_time)) {
+        return false;
+    }
+    /* check key material */
+    return key_material_equal(&material, &key.material);
 }
 
 pgp_transferable_subkey_t::pgp_transferable_subkey_t(const pgp_transferable_subkey_t &src,
