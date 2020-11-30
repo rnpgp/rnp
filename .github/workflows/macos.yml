@@ -14,9 +14,14 @@ env:
 
 jobs:
   tests:
-    runs-on: macOS-latest
+    name: ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-10.15, macos-11.0]
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 50
+    timeout-minutes: 250
     steps:
       - uses: actions/checkout@v2
         with:
@@ -29,7 +34,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ github.workflow }}-${{ matrix.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
