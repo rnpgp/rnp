@@ -70,6 +70,7 @@ add_executable(rnp_tests
   ../fuzzing/keyring_kbx.c
   ../fuzzing/keyimport.c
   ../fuzzing/dump.c
+  ../fuzzing/verify_detached.c
   cipher.cpp
   cli.cpp
   exportkey.cpp
@@ -110,6 +111,7 @@ add_executable(rnp_tests
   fuzz_keyring_kbx.cpp
   fuzz_keyimport.cpp
   fuzz_dump.cpp
+  fuzz_verify_detached.cpp
 )
 if(MSVC)
   find_package(WindowsSDK)
