@@ -25,35 +25,16 @@
  */
 
 #include <rnp/rnp.h>
-#include "string.h"
+#include "rnp_tests.h"
+#include "support.h"
 
-#ifdef RNP_RUN_TESTS
-int verify_detached_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
-int
-verify_detached_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#else
-int
-LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#endif
+extern "C" int verify_detached_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+
+#define DATA_PATH "data/test_fuzz_verify_detached/"
+
+TEST_F(rnp_tests, test_fuzz_verify_detached)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_input_t  msg_input = NULL;
-    rnp_result_t ret;
-
-    ret = rnp_ffi_create(&ffi, "GPG", "GPG");
-    ret = rnp_input_from_memory(&input, data, size, false);
-    const char *msg = "message";
-    ret = rnp_input_from_memory(&msg_input, (const uint8_t *) msg, strlen(msg), true);
-
-    rnp_op_verify_t verify = NULL;
-    ret = rnp_op_verify_detached_create(&verify, ffi, msg_input, input);
-    ret = rnp_op_verify_execute(verify);
-    ret = rnp_op_verify_destroy(verify);
-
-    rnp_input_destroy(input);
-    rnp_input_destroy(msg_input);
-    rnp_ffi_destroy(ffi);
-
-    return 0;
+    auto data = file_to_vec(
+      DATA_PATH "clusterfuzz-testcase-minimized-fuzz_verify_detached-5092660526972928");
+    assert_int_equal(verify_detached_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
