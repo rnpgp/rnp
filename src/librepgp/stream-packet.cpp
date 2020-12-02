@@ -1272,7 +1272,9 @@ stream_parse_signature_body(pgp_packet_body_t &pkt, pgp_signature_t &sig)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     /* we cannot fail here */
-    pkt.get(sig.material_buf, sig.material_len);
+    if (!pkt.get(sig.material_buf, sig.material_len)) {
+        return RNP_ERROR_BAD_STATE;
+    }
     /* check whether it can be parsed */
     pgp_signature_material_t material = {};
     if (!parse_signature_material(sig, material)) {
