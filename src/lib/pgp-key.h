@@ -83,7 +83,7 @@ struct pgp_key_t {
     pgp_fingerprint_t      fingerprint{};
     pgp_key_grip_t         grip{};
     uint32_t               uid0{};       /* primary uid index in uids array */
-    unsigned               uid0_set : 1; /* flag for the above */
+    bool                   uid0_set{};   /* flag for the above */
     bool                   revoked{};    /* key has been revoked */
     pgp_revoke_t           revocation{}; /* revocation reason */
     pgp_key_store_format_t format{};     /* the format of the key in packets[0] */
