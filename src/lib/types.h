@@ -718,8 +718,8 @@ typedef struct pgp_sk_sesskey_t {
 typedef struct pgp_subsig_t pgp_subsig_t;
 
 typedef struct pgp_revoke_t {
-    uint32_t              uid;    /* index in uid array */
-    pgp_revocation_type_t code;   /* revocation code */
+    uint32_t              uid{};  /* index in uid array */
+    pgp_revocation_type_t code{}; /* revocation code */
     std::string           reason; /* revocation reason */
     pgp_sig_id_t          sigid;  /* id of the corresponding subsig */
 
