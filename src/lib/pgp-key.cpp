@@ -1403,7 +1403,7 @@ pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
     }
 
     /* write signatures on key */
-    size_t idx = pgp_key_write_signatures(dst, key, (uint32_t) -1, 0);
+    size_t idx = pgp_key_write_signatures(dst, key, PGP_UID_NONE, 0);
 
     /* write uids and their signatures */
     for (size_t i = 0; i < key->uid_count(); i++) {
@@ -1837,6 +1837,43 @@ pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
     }
 }
 
+size_t
+pgp_userid_t::sig_count() const
+{
+    return sigs_.size();
+}
+
+const pgp_sig_id_t &
+pgp_userid_t::get_sig(size_t idx) const
+{
+    if (idx >= sigs_.size()) {
+        throw std::out_of_range("idx");
+    }
+    return sigs_[idx];
+}
+
+bool
+pgp_userid_t::has_sig(const pgp_sig_id_t &id) const
+{
+    return std::find(sigs_.begin(), sigs_.end(), id) != sigs_.end();
+}
+
+void
+pgp_userid_t::add_sig(const pgp_sig_id_t &sig)
+{
+    sigs_.push_back(sig);
+}
+
+void
+pgp_userid_t::replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig)
+{
+    auto it = std::find(sigs_.begin(), sigs_.end(), id);
+    if (it == sigs_.end()) {
+        throw std::invalid_argument("id");
+    }
+    *it = newsig;
+}
+
 pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
 {
     uid = sig.uid;
@@ -1902,6 +1939,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     uids_ = src.uids_;
     sigs_ = src.sigs_;
     sigs_map_ = src.sigs_map_;
+    keysigs_ = src.keysigs_;
     subkey_fps = src.subkey_fps;
     primary_fp_set = src.primary_fp_set;
     primary_fp = src.primary_fp;
@@ -1944,36 +1982,6 @@ pgp_key_t::pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary)
     if (primary && !pgp_key_link_subkey_fp(primary, this)) {
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
-}
-
-pgp_key_t &
-pgp_key_t::operator=(pgp_key_t &&src)
-{
-    if (&src == this) {
-        return *this;
-    }
-    uids_ = std::move(src.uids_);
-    sigs_ = std::move(src.sigs_);
-    sigs_map_ = std::move(src.sigs_map_);
-    subkey_fps = std::move(src.subkey_fps);
-    primary_fp = std::move(src.primary_fp);
-    primary_fp_set = src.primary_fp_set;
-    expiration = src.expiration;
-    pkt = std::move(src.pkt);
-    rawpkt = std::move(src.rawpkt);
-    key_flags = src.key_flags;
-    keyid = src.keyid;
-    fingerprint = src.fingerprint;
-    grip = std::move(src.grip);
-    uid0 = src.uid0;
-    uid0_set = src.uid0_set;
-    revoked = src.revoked;
-    revocation = std::move(src.revocation);
-    format = src.format;
-    valid = src.valid;
-    validated = src.validated;
-
-    return *this;
 }
 
 size_t
@@ -2034,11 +2042,13 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
     sigs_map_.erase(oldid);
     auto &res = sigs_map_.emplace(std::make_pair(newsig.get_id(), newsig)).first->second;
     res.uid = uid;
-    for (size_t idx = 0; idx < sigs_.size(); idx++) {
-        if (sigs_[idx] == oldid) {
-            sigs_[idx] = res.sigid;
-            break;
-        }
+    auto it = std::find(sigs_.begin(), sigs_.end(), oldid);
+    *it = res.sigid;
+    if (uid == PGP_UID_NONE) {
+        auto it = std::find(keysigs_.begin(), keysigs_.end(), oldid);
+        *it = res.sigid;
+    } else {
+        uids_[uid].replace_sig(oldid, res.sigid);
     }
     return res;
 }
@@ -2048,10 +2058,30 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
 {
     const pgp_sig_id_t sigid = sig.get_id();
     sigs_map_.erase(sigid);
-    auto res = sigs_map_.emplace(std::make_pair(sigid, sig));
-    res.first->second.uid = uid;
+    pgp_subsig_t &res = sigs_map_.emplace(std::make_pair(sigid, sig)).first->second;
+    res.uid = uid;
     sigs_.push_back(sigid);
-    return res.first->second;
+    if (uid == PGP_UID_NONE) {
+        keysigs_.push_back(sigid);
+    } else {
+        uids_[uid].add_sig(sigid);
+    }
+    return res;
+}
+
+size_t
+pgp_key_t::keysig_count() const
+{
+    return keysigs_.size();
+}
+
+pgp_subsig_t &
+pgp_key_t::get_keysig(size_t idx)
+{
+    if (idx >= keysigs_.size()) {
+        throw std::out_of_range("idx");
+    }
+    return get_sig(keysigs_[idx]);
 }
 
 size_t
