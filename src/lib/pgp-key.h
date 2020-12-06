@@ -67,6 +67,9 @@ typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
 
 /* userid, built on top of userid packet structure */
 typedef struct pgp_userid_t {
+  private:
+    std::vector<pgp_sig_id_t> sigs_{}; /* all signatures related to this userid */
+  public:
     pgp_userid_pkt_t pkt{};    /* User ID or User Attribute packet as it was loaded */
     pgp_rawpacket_t  rawpkt{}; /* Raw packet contents */
     std::string      str{};    /* Human-readable representation of the userid */
@@ -75,13 +78,22 @@ typedef struct pgp_userid_t {
     pgp_revoke_t revocation{};
 
     pgp_userid_t(const pgp_userid_pkt_t &pkt);
+
+    size_t              sig_count() const;
+    const pgp_sig_id_t &get_sig(size_t idx) const;
+    bool                has_sig(const pgp_sig_id_t &id) const;
+    void                add_sig(const pgp_sig_id_t &sig);
+    void                replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig);
 } pgp_userid_t;
+
+#define PGP_UID_NONE ((uint32_t) -1)
 
 /* describes a user's key */
 struct pgp_key_t {
   private:
     pgp_sig_map_t             sigs_map_{}; /* map with subsigs stored by their id */
     std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
+    std::vector<pgp_sig_id_t> keysigs_{};  /* direct-key signature ids in the original order */
     std::vector<pgp_userid_t> uids_{};     /* array of user ids */
   public:
     std::vector<pgp_fingerprint_t>
@@ -108,10 +120,6 @@ struct pgp_key_t {
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
     pgp_key_t(const pgp_transferable_key_t &src);
     pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary);
-    pgp_key_t &operator=(pgp_key_t &&);
-    /* make sure we use only empty constructor/move operator */
-    pgp_key_t(pgp_key_t &&src) = delete;
-    pgp_key_t &operator=(const pgp_key_t &) = delete;
 
     size_t              sig_count() const;
     pgp_subsig_t &      get_sig(size_t idx);
@@ -120,7 +128,9 @@ struct pgp_key_t {
     pgp_subsig_t &      replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig);
     pgp_subsig_t &      get_sig(const pgp_sig_id_t &id);
     const pgp_subsig_t &get_sig(const pgp_sig_id_t &id) const;
-    pgp_subsig_t &      add_sig(const pgp_signature_t &sig, size_t uid = -1);
+    pgp_subsig_t &      add_sig(const pgp_signature_t &sig, size_t uid = PGP_UID_NONE);
+    size_t              keysig_count() const;
+    pgp_subsig_t &      get_keysig(size_t idx);
     size_t              uid_count() const;
     pgp_userid_t &      get_uid(size_t idx);
     const pgp_userid_t &get_uid(size_t idx) const;

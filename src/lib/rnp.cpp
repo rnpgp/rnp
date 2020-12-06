@@ -5667,18 +5667,6 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-rnp_key_get_signature_count_for_uid(pgp_key_t *key, size_t *count, uint32_t uid)
-{
-    *count = 0;
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        if (key->get_sig(i).uid == uid) {
-            (*count)++;
-        }
-    }
-    return RNP_SUCCESS;
-}
-
-static rnp_result_t
 rnp_key_return_signature(rnp_ffi_t               ffi,
                          pgp_key_t *             key,
                          pgp_subsig_t *          subsig,
@@ -5694,24 +5682,6 @@ rnp_key_return_signature(rnp_ffi_t               ffi,
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-rnp_key_get_signature_at_for_uid(
-  rnp_ffi_t ffi, pgp_key_t *key, size_t idx, uint32_t uid, rnp_signature_handle_t *sig)
-{
-    size_t skipped = 0;
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &subsig = key->get_sig(i);
-        if (subsig.uid != uid) {
-            continue;
-        }
-        if (skipped == idx) {
-            return rnp_key_return_signature(ffi, key, &subsig, sig);
-        }
-        skipped++;
-    }
-    return RNP_ERROR_BAD_PARAMETERS;
-}
-
 rnp_result_t
 rnp_key_get_signature_count(rnp_key_handle_t handle, size_t *count)
 try {
@@ -5722,7 +5692,8 @@ try {
     if (!key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return rnp_key_get_signature_count_for_uid(key, count, (uint32_t) -1);
+    *count = key->keysig_count();
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -5734,10 +5705,10 @@ try {
     }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (!key) {
+    if (!key || (idx >= key->keysig_count())) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return rnp_key_get_signature_at_for_uid(handle->ffi, key, idx, (uint32_t) -1, sig);
+    return rnp_key_return_signature(handle->ffi, key, &key->get_keysig(idx), sig);
 }
 FFI_GUARD
 
@@ -5772,7 +5743,8 @@ try {
     if (!handle->key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return rnp_key_get_signature_count_for_uid(handle->key, count, handle->idx);
+    *count = handle->key->get_uid(handle->idx).sig_count();
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -5785,7 +5757,16 @@ try {
     if (!handle->key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    return rnp_key_get_signature_at_for_uid(handle->ffi, handle->key, idx, handle->idx, sig);
+    pgp_userid_t &uid = handle->key->get_uid(handle->idx);
+    if (idx >= uid.sig_count()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const pgp_sig_id_t &sigid = uid.get_sig(idx);
+    if (!handle->key->has_sig(sigid)) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    return rnp_key_return_signature(
+      handle->ffi, handle->key, &handle->key->get_sig(sigid), sig);
 }
 FFI_GUARD
 
