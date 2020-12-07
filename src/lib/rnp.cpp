@@ -5772,6 +5772,21 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_type(rnp_signature_handle_t handle, char **type)
+try {
+    if (!handle || !type) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const char *sigtype = "unknown";
+    ARRAY_LOOKUP_BY_ID(sig_type_map, type, string, handle->sig->sig.type(), sigtype);
+    return ret_str_value(sigtype, type);
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_alg(rnp_signature_handle_t handle, char **alg)
 try {
     if (!handle || !alg) {
