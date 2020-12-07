@@ -1106,6 +1106,34 @@ RNP_API rnp_result_t rnp_uid_get_signature_at(rnp_uid_handle_t        uid,
                                               size_t                  idx,
                                               rnp_signature_handle_t *sig);
 
+/**
+ * @brief Get signature's type.
+ *
+ * @param sig signature handle.
+ * @param type on success string with signature type will be saved here. Cannot be NULL.
+ *             You must free it using the rnp_buffer_destroy().
+ *             Currently defined values are:
+ *             - 'binary' : signature of a binary document
+ *             - 'text' : signature of a canonical text document
+ *             - 'standalone' : standalone signature
+ *             - 'certification (generic)` : generic certification of a user id
+ *             - 'certification (persona)' : persona certification of a user id
+ *             - 'certification (casual)' : casual certification of a user id
+ *             - 'certification (positive)' : positive certification of a user id
+ *             - 'subkey binding' : subkey binding signature
+ *             - 'primary key binding' : primary key binding signature
+ *             - 'direct' : direct-key signature
+ *             - 'key revocation' : primary key revocation signature
+ *             - 'subkey revocation' : subkey revocation signature
+ *             - 'certification revocation' : certification revocation signature
+ *             - 'timestamp' : timestamp signature
+ *             - 'third-party' : third party confirmation signature
+ *             - 'uknown: 0..255' : unknown signature with it's type specified as number
+ *
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_type(rnp_signature_handle_t sig, char **type);
+
 /** Get signature's algorithm.
  *
  * @param sig signature handle.
