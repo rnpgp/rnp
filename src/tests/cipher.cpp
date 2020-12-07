@@ -699,7 +699,7 @@ read_key_pkt(pgp_key_pkt_t *key, const char *path)
     if (init_file_src(&src, path)) {
         return false;
     }
-    bool res = !stream_parse_key(&src, key);
+    bool res = !key->parse(src);
     src_close(&src);
     return res;
 }

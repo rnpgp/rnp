@@ -789,7 +789,13 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     rnp_result_t      ret;
     pgp_fingerprint_t keyfp = {};
 
-    if ((ret = stream_parse_key(src, &key))) {
+    try {
+        ret = key.parse(*src);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
@@ -1847,7 +1853,13 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     pgp_fingerprint_t keyfp = {};
     json_object *     material = NULL;
 
-    if ((ret = stream_parse_key(src, &key))) {
+    try {
+        ret = key.parse(*src);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        ret = RNP_ERROR_GENERIC;
+    }
+    if (ret) {
         return ret;
     }
 
