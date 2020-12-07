@@ -228,17 +228,20 @@ pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        const char *         password)
 {
     pgp_source_t   src = {0};
-    pgp_key_pkt_t *res = new pgp_key_pkt_t();
+    pgp_key_pkt_t *res = NULL;
 
     if (init_mem_src(&src, data, data_len, false)) {
-        delete res;
         return NULL;
     }
-
-    if (stream_parse_key(&src, res)) {
+    try {
+        res = new pgp_key_pkt_t();
+        if (res->parse(src)) {
+            goto error;
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         goto error;
     }
-
     if (decrypt_secret_key(res, password)) {
         goto error;
     }
@@ -919,7 +922,12 @@ pgp_write_seckey(pgp_dest_t *   dst,
     if (encrypt_secret_key(seckey, password, NULL)) {
         goto done;
     }
-    res = stream_write_key(seckey, dst);
+    try {
+        seckey->write(*dst);
+        res = !dst->werr;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+    }
 done:
     seckey->tag = oldtag;
     return res;
@@ -1467,28 +1475,23 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
     try {
         if (pgp_key_is_secret(&key)) {
             pgp_key_pkt_t pkt(key.pkt, true);
-            res = stream_write_key(&pkt, &memdst);
+            pkt.write(memdst);
         } else {
-            res = stream_write_key(&key.pkt, &memdst);
+            key.pkt.write(memdst);
         }
-        if (res) {
-            key.get_uid(uid).pkt.write(memdst);
-            cert->sig.write(memdst);
-        }
-        if (res && pgp_key_is_secret(&sub)) {
+        key.get_uid(uid).pkt.write(memdst);
+        cert->sig.write(memdst);
+        if (pgp_key_is_secret(&sub)) {
             pgp_key_pkt_t pkt(sub.pkt, true);
-            res = stream_write_key(&pkt, &memdst);
-        } else if (res) {
-            res = stream_write_key(&sub.pkt, &memdst);
+            pkt.write(memdst);
+        } else {
+            sub.pkt.write(memdst);
         }
-        if (res) {
-            binding->sig.write(memdst);
-            dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
-            res = !dst.werr;
-        }
+        binding->sig.write(memdst);
+        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
+        res = !dst.werr;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        res = false;
     }
     dst_close(&memdst, true);
     return res;
@@ -1772,12 +1775,12 @@ pgp_rawpacket_t::pgp_rawpacket_t(pgp_key_pkt_t &key)
     if (init_mem_dest(&dst, NULL, 0)) {
         throw std::bad_alloc();
     }
-
-    if (!stream_write_key(&key, &dst)) {
+    try {
+        key.write(dst);
+    } catch (const std::exception &e) {
         dst_close(&dst, true);
-        throw std::bad_alloc();
+        throw;
     }
-
     mem_dest_to_vector(&dst, raw);
     tag = key.tag;
 }

@@ -312,10 +312,6 @@ bool is_rsa_key_alg(pgp_pubkey_alg_t alg);
 
 bool key_fill_hashed_data(pgp_key_pkt_t *key);
 
-bool stream_write_key(pgp_key_pkt_t *key, pgp_dest_t *dst);
-
-rnp_result_t stream_parse_key(pgp_source_t *src, pgp_key_pkt_t *key);
-
 bool key_pkt_equal(const pgp_key_pkt_t *key1, const pgp_key_pkt_t *key2, bool pubonly);
 
 #endif
