@@ -61,6 +61,12 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_int_equal(sigs, 1);
     assert_rnp_failure(rnp_uid_get_signature_at(uid, 1, &sig));
     assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    char *type = NULL;
+    assert_rnp_failure(rnp_signature_get_type(NULL, &type));
+    assert_rnp_failure(rnp_signature_get_type(sig, NULL));
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "certification (positive)");
+    rnp_buffer_destroy(type);
     uint32_t creation = 0;
     assert_rnp_success(rnp_signature_get_creation(sig, &creation));
     assert_int_equal(creation, 1549119505);
@@ -93,6 +99,9 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_rnp_success(rnp_key_get_signature_count(subkey, &sigs));
     assert_int_equal(sigs, 1);
     assert_rnp_success(rnp_key_get_signature_at(subkey, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "subkey binding");
+    rnp_buffer_destroy(type);
     assert_rnp_success(rnp_signature_get_creation(sig, &creation));
     assert_int_equal(creation, 1549119513);
     assert_rnp_success(rnp_signature_get_alg(sig, &alg));
@@ -240,6 +249,14 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* check signature number - it now must be 1 */
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 1);
+    /* check signature type */
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_key_get_signature_at(key_handle, 0, &sig));
+    char *type = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "key revocation");
+    rnp_buffer_destroy(type);
+    rnp_signature_handle_destroy(sig);
     /* check import with NULL results param */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
@@ -314,6 +331,11 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_int_equal(sigcount, 2);
     assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
     assert_true(revoked);
+    assert_rnp_success(rnp_key_get_signature_at(key_handle, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "direct");
+    rnp_buffer_destroy(type);
+    rnp_signature_handle_destroy(sig);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
 
     /* load two binary signatures from the file */
