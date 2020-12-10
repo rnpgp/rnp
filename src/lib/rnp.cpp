@@ -5865,6 +5865,42 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->sig || sig->own_sig || flags) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!sig->sig->validity.validated) {
+        pgp_key_t *signer =
+          pgp_sig_get_signer(*sig->sig, sig->ffi->pubring, &sig->ffi->key_provider);
+        if (!signer) {
+            return RNP_ERROR_KEY_NOT_FOUND;
+        }
+        pgp_key_t *primary = NULL;
+        if (pgp_key_is_subkey(sig->key)) {
+            primary = rnp_key_store_get_primary_key(sig->ffi->pubring, sig->key);
+            if (!primary) {
+                return RNP_ERROR_KEY_NOT_FOUND;
+            }
+        }
+        pgp_key_validate_signature(*sig->key, *signer, primary, *sig->sig);
+    }
+
+    if (!sig->sig->validity.validated) {
+        return RNP_ERROR_VERIFICATION_FAILED;
+    }
+    if (sig->sig->validity.expired) {
+        return RNP_ERROR_SIGNATURE_EXPIRED;
+    }
+    return sig->sig->valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_packet_to_json(rnp_signature_handle_t sig, uint32_t flags, char **json)
 try {
     if (!sig || !json) {
