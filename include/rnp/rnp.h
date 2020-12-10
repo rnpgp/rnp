@@ -1176,10 +1176,30 @@ RNP_API rnp_result_t rnp_signature_get_keyid(rnp_signature_handle_t sig, char **
  * @param sig signature handle
  * @param key on success and key availability will contain signing key's handle. You must
  *            destroy it using the rnp_key_handle_destroy() function.
- * @return RNP_SUCCESS or error code if f4ailed.
+ * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
                                               rnp_key_handle_t *     key);
+
+/**
+ * @brief Get signature validity, revalidating it if didn't before.
+ *
+ * @param sig key/userid signature handle
+ * @param flags validation flags, currently must be zero.
+ * @return Following error codes represents the validation status:
+ *         RNP_SUCCESS : operation succeeds and signature is valid
+ *         RNP_ERROR_KEY_NOT_FOUND : signer's key not found
+ *         RNP_ERROR_VERIFICATION_FAILED: verification failed, so validity cannot be checked
+ *         RNP_ERROR_SIGNATURE_EXPIRED: signature is valid but expired
+ *         RNP_ERROR_SIGNATURE_INVALID: signature is invalid (corrupted, malformed, was issued
+ *             by invalid key, whatever else.)
+ *
+ *         Please also note that other error codes may be returned because of wrong
+ *         function call (included, but not limited to):
+ *         RNP_ERROR_NULL_POINTER: sig as well as some of it's fields are NULL
+ *         RNP_ERROR_BAD_PARAMETERS: invalid parameter value (unsupported flag, etc).
+ */
+RNP_API rnp_result_t rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags);
 
 /** Dump signature packet to JSON, obtaining the whole information about it.
  *
