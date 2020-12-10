@@ -491,7 +491,35 @@ pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
     return res;
 }
 
-static void
+pgp_key_t *
+pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
+{
+    pgp_key_request_ctx_t ctx = {};
+    /* if we have fingerprint let's check it */
+    if (sig.sig.has_keyfp()) {
+        ctx.search.by.fingerprint = sig.sig.keyfp();
+        ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    }
+    if ((ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) && sig.sig.has_keyid()) {
+        ctx.search.by.keyid = sig.sig.keyid();
+        ctx.search.type = PGP_KEY_SEARCH_KEYID;
+    }
+    if (ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) {
+        RNP_LOG("No way to search for the signer.");
+        return NULL;
+    }
+
+    pgp_key_t *key = rnp_key_store_search(keyring, &ctx.search, NULL);
+    if (key || !prov) {
+        return key;
+    }
+
+    ctx.op = PGP_OP_VERIFY;
+    ctx.secret = false;
+    return pgp_request_key(prov, &ctx);
+}
+
+void
 pgp_key_validate_signature(pgp_key_t &   key,
                            pgp_key_t &   signer,
                            pgp_key_t *   primary,
