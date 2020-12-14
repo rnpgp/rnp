@@ -341,8 +341,9 @@ pgp_key_mark_valid(pgp_key_t *key)
     key->validated = true;
     for (size_t i = 0; i < key->sig_count(); i++) {
         pgp_subsig_t &sub = key->get_sig(i);
-        sub.validated = true;
-        sub.valid = true;
+        sub.validity.validated = true;
+        sub.validity.sigvalid = true;
+        sub.validity.expired = false;
     }
 }
 
