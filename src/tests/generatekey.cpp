@@ -1033,14 +1033,14 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // modify a hashed portion of the sig packet, offset may change in future
         pgp_subsig_t &sig = primary_pub->get_sig(0);
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validated = false;
+        sig.validity.validated = false;
         // ensure validation fails
         pgp_key_validate(primary_pub, pubring);
         assert_false(primary_pub->valid);
         assert_true(primary_pub->validated);
         // restore the original data
         sig.sig.hashed_data[10] ^= 0xff;
-        sig.validated = false;
+        sig.validity.validated = false;
         pgp_key_validate(primary_pub, pubring);
         assert_true(primary_pub->valid);
         assert_true(primary_pub->validated);

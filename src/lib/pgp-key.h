@@ -63,21 +63,30 @@
 #include "crypto/symmetric.h"
 #include "types.h"
 
+/* validity information for the signature */
+typedef struct pgp_sig_validity_t {
+    bool validated{}; /* signature was validated */
+    bool sigvalid{};  /* signature is valid by signature/key checks and calculations.
+                         Still may be revoked or expired. */
+    bool expired{};   /* signature is expired */
+} pgp_sig_validity_t;
+
 /** information about the signature */
 typedef struct pgp_subsig_t {
-    uint32_t         uid{};         /* index in userid array in key for certification sig */
-    pgp_signature_t  sig{};         /* signature packet */
-    pgp_sig_id_t     sigid{};       /* signature identifier */
-    pgp_rawpacket_t  rawpkt{};      /* signature's rawpacket */
-    uint8_t          trustlevel{};  /* level of trust */
-    uint8_t          trustamount{}; /* amount of trust */
-    uint8_t          key_flags{};   /* key flags for certification/direct key sig */
-    pgp_user_prefs_t prefs{};       /* user preferences for certification sig */
-    bool             validated{};   /* signature was validated */
-    bool             valid{};       /* signature was validated and is valid */
+    uint32_t           uid{};         /* index in userid array in key for certification sig */
+    pgp_signature_t    sig{};         /* signature packet */
+    pgp_sig_id_t       sigid{};       /* signature identifier */
+    pgp_rawpacket_t    rawpkt{};      /* signature's rawpacket */
+    uint8_t            trustlevel{};  /* level of trust */
+    uint8_t            trustamount{}; /* amount of trust */
+    uint8_t            key_flags{};   /* key flags for certification/direct key sig */
+    pgp_user_prefs_t   prefs{};       /* user preferences for certification sig */
+    pgp_sig_validity_t validity{};    /* signature validity information */
 
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
+
+    bool valid() const;
 } pgp_subsig_t;
 
 typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
