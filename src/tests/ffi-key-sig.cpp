@@ -92,6 +92,9 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_string_equal(keyid, "242A3AA5EA85F44A");
     rnp_buffer_destroy(keyid);
     rnp_key_handle_destroy(signer);
+    assert_int_equal(rnp_signature_is_valid(NULL, 0), RNP_ERROR_NULL_POINTER);
+    assert_int_equal(rnp_signature_is_valid(sig, 17), RNP_ERROR_BAD_PARAMETERS);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
     assert_rnp_success(rnp_signature_handle_destroy(sig));
     // subkey must have one signature
     rnp_key_handle_t subkey = NULL;
@@ -256,6 +259,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_rnp_success(rnp_signature_get_type(sig, &type));
     assert_string_equal(type, "key revocation");
     rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
     rnp_signature_handle_destroy(sig);
     /* check import with NULL results param */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
@@ -335,6 +339,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_rnp_success(rnp_signature_get_type(sig, &type));
     assert_string_equal(type, "direct");
     rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
     rnp_signature_handle_destroy(sig);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
 
@@ -511,6 +516,382 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_int_equal(sig.revocation_code(), PGP_REVOCATION_SUPERSEDED);
     assert_string_equal(sig.revocation_reason().c_str(), "test key revocation");
     assert_int_equal(unlink("alice-revocation.pgp"), 0);
+
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+#define KEYSIG_PATH "data/test_key_validity/"
+
+TEST_F(rnp_tests, test_ffi_sig_validity)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Case1:
+     * Keys: Alice [pub]
+     * Alice is signed by Basil, but without the Basil's key.
+     * Result: Alice [valid]
+     */
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case1/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    bool valid = false;
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    rnp_signature_handle_t sig = NULL;
+    /* signature 0: valid self-signature */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: valid certification from Basil, but without Basil's key */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_KEY_NOT_FOUND);
+    /* let's load Basil's key and make sure signature is now validated and valid */
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    /* Case2:
+     * Keys: Alice [pub], Basil [pub]
+     * Alice is signed by Basil, Basil is signed by Alice, but Alice's self-signature is
+     * corrupted.
+     * Result: Alice [invalid], Basil [valid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case2/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* Alice key */
+    /* we cannot get key by uid since uid is invalid */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_null(key);
+    /* get it via the fingerprint */
+    assert_rnp_success(
+      rnp_locate_key(ffi, "fingerprint", "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    /* signature 0: corrupted self-signature */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: valid certification from Basil */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    /* Basil key */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Basil <basil@rnp>", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    /* signature 0: valid self-signature */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: valid certification from Alice */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    /* Case3:
+     * Keys: Alice [pub], Basil [pub]
+     * Alice is signed by Basil, but doesn't have self-signature
+     * Result: Alice [invalid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case3/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* Alice key */
+    /* cannot locate it via userid since it is invalid */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_null(key);
+    /* let's locate it via the fingerprint */
+    assert_rnp_success(
+      rnp_locate_key(ffi, "fingerprint", "73EDCC9119AFC8E2DBBDCDE50451409669FFDE3C", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    /* signature 0: valid certification from Basil */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    /* Case4:
+     * Keys Alice [pub, sub]
+     * Alice subkey has invalid binding signature
+     * Result: Alice [valid], Alice sub [invalid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case4/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_key_handle_t sub = NULL;
+    rnp_key_get_subkey_at(key, 0, &sub);
+    rnp_key_get_signature_at(sub, 0, &sig);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* Case5:
+     * Keys Alice [pub, sub], Basil [pub]
+     * Alice subkey has valid binding signature, but from the key Basil
+     * Result: Alice [valid], Alice sub [invalid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case5/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_key_get_subkey_at(key, 0, &sub);
+    rnp_key_get_signature_at(sub, 0, &sig);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey binding");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* Case6:
+     * Keys Alice [pub, sub]
+     * Key Alice has revocation signature by Alice, and subkey doesn't
+     * Result: Alice [invalid], Alice sub [invalid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case6/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* check revocation signature */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_key_get_signature_at(key, 0, &sig);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* check subkey binding */
+    rnp_key_get_subkey_at(key, 0, &sub);
+    rnp_key_get_signature_at(sub, 0, &sig);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey binding");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* Case7:
+     * Keys Alice [pub, sub]
+     * Alice subkey has revocation signature by Alice
+     * Result: Alice [valid], Alice sub [invalid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case7/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* check subkey revocation signature */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_key_get_subkey_at(key, 0, &sub);
+    rnp_key_get_signature_at(sub, 0, &sig);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* check subkey binding */
+    rnp_key_get_signature_at(sub, 1, &sig);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey binding");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* Case8:
+     * Keys Alice [pub, sub]
+     * Userid is stripped from the key, but it still has valid subkey binding
+     * Result: Alice [valid], Alice sub[valid]
+     */
+
+    /* not interesting for us at the moment */
+
+    /* Case9:
+     * Keys Alice [pub, sub]
+     * Alice key has two self-signatures, one which expires key and second without key
+     * expiration.
+     * Result: Alice [valid], Alice sub[valid]
+     */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case9/pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    /* Alice key */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    /* signature 0: valid certification */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: valid certification */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    /* another case: expired certification */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, KEYSIG_PATH "alice-expired-claus-cert.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "claus-pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    /* signature 0: valid certification */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: expired claus's certification */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_EXPIRED);
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+TEST_F(rnp_tests, test_ffi_get_signature_type)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    rnp_signature_handle_t sig = NULL;
+    /* signature 0: valid self-signature */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 1: valid signature by Basil */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (generic)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    rnp_signature_handle_destroy(sig);
+    /* signature 2..7: invalid signatures with misc types */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 2, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "standalone");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_VERIFICATION_FAILED);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 3, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (persona)");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 4, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (casual)");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 5, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "primary key binding");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_VERIFICATION_FAILED);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 6, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_signature_handle_destroy(sig);
+
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
 
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
