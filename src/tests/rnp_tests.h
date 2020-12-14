@@ -327,6 +327,10 @@ void test_ffi_decrypt_edge_cases(void **state);
 
 void test_ffi_key_get_protection_info(void **state);
 
+void test_ffi_sig_validity(void **state);
+
+void test_ffi_get_signature_type(void **state);
+
 void test_rnp_mkstemp(void **state);
 
 void test_dsa_roundtrip(void **state);
