@@ -2986,6 +2986,13 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     rnp_signature_handle_t sighandle = NULL;
     assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
     assert_non_null(sighandle);
+    /* check signature type */
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
+    assert_string_equal(sigtype, "binary");
+    rnp_buffer_destroy(sigtype);
+    /* attempt to validate it via wrong function */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
     /* cleanup, making sure that sighandle doesn't depend on verify */
     assert_rnp_success(rnp_op_verify_destroy(verify));
     assert_rnp_success(rnp_input_destroy(input));
@@ -3064,6 +3071,246 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_str(subpkt, "issuer keyid", "5873bd738e575398"));
     json_object_put(jso);
     rnp_signature_handle_destroy(sighandle);
+    /* check text-mode detached signature */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_signatures/source.txt"));
+    assert_rnp_success(
+      rnp_input_from_path(&signature, "data/test_stream_signatures/source.txt.text.sig"));
+    /* call verify detached to obtain signatures */
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* get signature and check it */
+    sig_count = 0;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    /* get signature handle  */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
+    assert_non_null(sighandle);
+    /* check signature type */
+    assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
+    assert_string_equal(sigtype, "text");
+    rnp_buffer_destroy(sigtype);
+    /* attempt to validate it via wrong function */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* cleanup, making sure that sighandle doesn't depend on verify */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_destroy(signature));
+    /* check whether getters work on sighandle: algorithm */
+    assert_rnp_success(rnp_signature_get_alg(sighandle, &alg));
+    assert_non_null(alg);
+    assert_string_equal(alg, "RSA");
+    rnp_buffer_destroy(alg);
+    /* keyid */
+    assert_rnp_success(rnp_signature_get_keyid(sighandle, &keyid));
+    assert_non_null(keyid);
+    assert_string_equal(keyid, "5873BD738E575398");
+    rnp_buffer_destroy(keyid);
+    /* creation time */
+    assert_rnp_success(rnp_signature_get_creation(sighandle, &create));
+    assert_int_equal(create, 1608118321);
+    /* hash algorithm */
+    assert_rnp_success(rnp_signature_get_hash_alg(sighandle, &alg));
+    assert_non_null(alg);
+    assert_string_equal(alg, "SHA256");
+    rnp_buffer_destroy(alg);
+    /* now dump signature packet to json */
+    assert_rnp_success(rnp_signature_packet_to_json(sighandle, 0, &json));
+    jso = json_tokener_parse(json);
+    rnp_buffer_destroy(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    assert_int_equal(json_object_array_length(jso), 1);
+    /* check the signature packet dump */
+    pkt = json_object_array_get_idx(jso, 0);
+    /* check helper functions */
+    assert_false(check_json_field_int(pkt, "unknown", 4));
+    assert_false(check_json_field_int(pkt, "version", 5));
+    assert_true(check_json_field_int(pkt, "version", 4));
+    assert_true(check_json_field_int(pkt, "type", 1));
+    assert_true(
+      check_json_field_str(pkt, "type.str", "Signature of a canonical text document"));
+    assert_true(check_json_field_int(pkt, "algorithm", 1));
+    assert_true(check_json_field_str(pkt, "algorithm.str", "RSA (Encrypt or Sign)"));
+    assert_true(check_json_field_int(pkt, "hash algorithm", 8));
+    assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA256"));
+    assert_true(check_json_field_str(pkt, "lbits", "1037"));
+    subpkts = NULL;
+    assert_true(json_object_object_get_ex(pkt, "subpackets", &subpkts));
+    assert_non_null(subpkts);
+    assert_true(json_object_is_type(subpkts, json_type_array));
+    assert_int_equal(json_object_array_length(subpkts), 3);
+    /* subpacket 0 */
+    subpkt = json_object_array_get_idx(subpkts, 0);
+    assert_true(check_json_field_int(subpkt, "type", 33));
+    assert_true(check_json_field_str(subpkt, "type.str", "issuer fingerprint"));
+    assert_true(check_json_field_int(subpkt, "length", 21));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(
+      check_json_field_str(subpkt, "fingerprint", "7a60e671179f9b920f6478a25873bd738e575398"));
+    /* subpacket 1 */
+    subpkt = json_object_array_get_idx(subpkts, 1);
+    assert_true(check_json_field_int(subpkt, "type", 2));
+    assert_true(check_json_field_str(subpkt, "type.str", "signature creation time"));
+    assert_true(check_json_field_int(subpkt, "length", 4));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(check_json_field_int(subpkt, "creation time", 1608118321));
+    /* subpacket 2 */
+    subpkt = json_object_array_get_idx(subpkts, 2);
+    assert_true(check_json_field_int(subpkt, "type", 16));
+    assert_true(check_json_field_str(subpkt, "type.str", "issuer key ID"));
+    assert_true(check_json_field_int(subpkt, "length", 8));
+    assert_true(check_json_field_bool(subpkt, "hashed", false));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(check_json_field_str(subpkt, "issuer keyid", "5873bd738e575398"));
+    json_object_put(jso);
+    rnp_signature_handle_destroy(sighandle);
+
+    /* attempt to validate a timestamp signature instead of detached */
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_signatures/source.txt"));
+    assert_rnp_success(
+      rnp_input_from_path(&signature, "data/test_stream_signatures/signature-timestamp.asc"));
+    /* call verify detached to obtain signatures */
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* get signature and check it */
+    sig_count = 0;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    /* get signature handle  */
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_KEY_NOT_FOUND);
+    assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
+    assert_non_null(sighandle);
+    /* check signature type */
+    assert_rnp_success(rnp_signature_get_type(sighandle, &sigtype));
+    assert_string_equal(sigtype, "timestamp");
+    rnp_buffer_destroy(sigtype);
+    /* attempt to validate it via wrong function */
+    assert_int_equal(rnp_signature_is_valid(sighandle, 0), RNP_ERROR_BAD_PARAMETERS);
+    /* cleanup, making sure that sighandle doesn't depend on verify */
+    assert_rnp_success(rnp_op_verify_destroy(verify));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_input_destroy(signature));
+    /* check whether getters work on sighandle: algorithm */
+    assert_rnp_success(rnp_signature_get_alg(sighandle, &alg));
+    assert_non_null(alg);
+    assert_string_equal(alg, "DSA");
+    rnp_buffer_destroy(alg);
+    /* keyid */
+    assert_rnp_success(rnp_signature_get_keyid(sighandle, &keyid));
+    assert_non_null(keyid);
+    assert_string_equal(keyid, "2D727CC768697734");
+    rnp_buffer_destroy(keyid);
+    /* creation time */
+    assert_rnp_success(rnp_signature_get_creation(sighandle, &create));
+    assert_int_equal(create, 1535389094);
+    /* hash algorithm */
+    assert_rnp_success(rnp_signature_get_hash_alg(sighandle, &alg));
+    assert_non_null(alg);
+    assert_string_equal(alg, "SHA512");
+    rnp_buffer_destroy(alg);
+    /* now dump signature packet to json */
+    assert_rnp_success(rnp_signature_packet_to_json(sighandle, 0, &json));
+    jso = json_tokener_parse(json);
+    rnp_buffer_destroy(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_array));
+    assert_int_equal(json_object_array_length(jso), 1);
+    /* check the signature packet dump */
+    pkt = json_object_array_get_idx(jso, 0);
+    /* check helper functions */
+    assert_false(check_json_field_int(pkt, "unknown", 4));
+    assert_false(check_json_field_int(pkt, "version", 5));
+    assert_true(check_json_field_int(pkt, "version", 4));
+    assert_true(check_json_field_int(pkt, "type", 0x40));
+    assert_true(check_json_field_str(pkt, "type.str", "Timestamp signature"));
+    assert_true(check_json_field_int(pkt, "algorithm", 17));
+    assert_true(check_json_field_str(pkt, "algorithm.str", "DSA"));
+    assert_true(check_json_field_int(pkt, "hash algorithm", 10));
+    assert_true(check_json_field_str(pkt, "hash algorithm.str", "SHA512"));
+    assert_true(check_json_field_str(pkt, "lbits", "2727"));
+    subpkts = NULL;
+    assert_true(json_object_object_get_ex(pkt, "subpackets", &subpkts));
+    assert_non_null(subpkts);
+    assert_true(json_object_is_type(subpkts, json_type_array));
+    assert_int_equal(json_object_array_length(subpkts), 7);
+    /* subpacket 0 */
+    subpkt = json_object_array_get_idx(subpkts, 0);
+    assert_true(check_json_field_int(subpkt, "type", 2));
+    assert_true(check_json_field_str(subpkt, "type.str", "signature creation time"));
+    assert_true(check_json_field_int(subpkt, "length", 4));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", true));
+    assert_true(check_json_field_int(subpkt, "creation time", 1535389094));
+    /* subpacket 1 */
+    subpkt = json_object_array_get_idx(subpkts, 1);
+    assert_true(check_json_field_int(subpkt, "type", 7));
+    assert_true(check_json_field_str(subpkt, "type.str", "revocable"));
+    assert_true(check_json_field_int(subpkt, "length", 1));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", true));
+    assert_true(check_json_field_bool(subpkt, "revocable", false));
+    /* subpacket 2 */
+    subpkt = json_object_array_get_idx(subpkts, 2);
+    assert_true(check_json_field_int(subpkt, "type", 16));
+    assert_true(check_json_field_str(subpkt, "type.str", "issuer key ID"));
+    assert_true(check_json_field_int(subpkt, "length", 8));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", true));
+    assert_true(check_json_field_str(subpkt, "issuer keyid", "2d727cc768697734"));
+    /* subpacket 3 */
+    subpkt = json_object_array_get_idx(subpkts, 3);
+    assert_true(check_json_field_int(subpkt, "type", 20));
+    assert_true(check_json_field_str(subpkt, "type.str", "notation data"));
+    assert_true(check_json_field_int(subpkt, "length", 51));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(check_json_field_str(subpkt,
+                                     "raw",
+                                     "800000000021000a73657269616c6e756d62657240646f74732e7465"
+                                     "7374646f6d61696e2e7465737454455354303030303031"));
+    /* subpacket 4 */
+    subpkt = json_object_array_get_idx(subpkts, 4);
+    assert_true(check_json_field_int(subpkt, "type", 26));
+    assert_true(check_json_field_str(subpkt, "type.str", "policy URI"));
+    assert_true(check_json_field_int(subpkt, "length", 44));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(
+      check_json_field_str(subpkt, "uri", "https://policy.testdomain.test/timestamping/"));
+    /* subpacket 5 */
+    subpkt = json_object_array_get_idx(subpkts, 5);
+    assert_true(check_json_field_int(subpkt, "type", 32));
+    assert_true(check_json_field_str(subpkt, "type.str", "embedded signature"));
+    assert_true(check_json_field_int(subpkt, "length", 105));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", true));
+    json_object *embsig = NULL;
+    assert_true(json_object_object_get_ex(subpkt, "signature", &embsig));
+    assert_true(check_json_field_int(embsig, "version", 4));
+    assert_true(check_json_field_int(embsig, "type", 0));
+    assert_true(check_json_field_str(embsig, "type.str", "Signature of a binary document"));
+    assert_true(check_json_field_int(embsig, "algorithm", 17));
+    assert_true(check_json_field_str(embsig, "algorithm.str", "DSA"));
+    assert_true(check_json_field_int(embsig, "hash algorithm", 10));
+    assert_true(check_json_field_str(embsig, "hash algorithm.str", "SHA512"));
+    assert_true(check_json_field_str(embsig, "lbits", "a386"));
+    /* subpacket 6 */
+    subpkt = json_object_array_get_idx(subpkts, 6);
+    assert_true(check_json_field_int(subpkt, "type", 33));
+    assert_true(check_json_field_str(subpkt, "type.str", "issuer fingerprint"));
+    assert_true(check_json_field_int(subpkt, "length", 21));
+    assert_true(check_json_field_bool(subpkt, "hashed", true));
+    assert_true(check_json_field_bool(subpkt, "critical", false));
+    assert_true(
+      check_json_field_str(subpkt, "fingerprint", "a0ff4590bb6122edef6e3c542d727cc768697734"));
+    json_object_put(jso);
+    rnp_signature_handle_destroy(sighandle);
+
     /* cleanup ffi */
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
