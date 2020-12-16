@@ -55,9 +55,9 @@ TEST_F(rnp_tests, test_key_store_search)
         for (size_t n = 0; n < testdata[i].count; n++) {
             pgp_key_t key;
 
-            key.pkt.tag = PGP_PKT_PUBLIC_KEY;
-            key.pkt.version = PGP_V4;
-            key.pkt.alg = PGP_PKA_RSA;
+            key.pkt().tag = PGP_PKT_PUBLIC_KEY;
+            key.pkt().version = PGP_V4;
+            key.pkt().alg = PGP_PKA_RSA;
 
             // set the keyid
             assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid.data(), key.keyid.size()));

@@ -287,9 +287,9 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
-        tmpkey.pkt.material = dst->pkt.material;
+        tmpkey.pkt().material = dst->pkt().material;
     } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
-        tmpkey.pkt.material = src->pkt.material;
+        tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */
     tmpkey.valid = dst->valid && src->valid;
@@ -355,9 +355,9 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
-        tmpkey.pkt.material = dst->pkt.material;
+        tmpkey.pkt().material = dst->pkt().material;
     } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
-        tmpkey.pkt.material = src->pkt.material;
+        tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */
     tmpkey.valid = dst->valid && src->valid;
@@ -603,7 +603,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     }
 
     try {
-        pgp_key_t tmpkey(key->pkt);
+        pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
         if (!pgp_subkey_refresh_data(&tmpkey, primary)) {
             RNP_LOG("Failed to add signature to the key.");
@@ -639,7 +639,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     }
 
     try {
-        pgp_key_t tmpkey(key->pkt);
+        pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
         if (!pgp_key_refresh_data(&tmpkey)) {
             RNP_LOG("Failed to add signature to the key.");

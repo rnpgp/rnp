@@ -121,13 +121,13 @@ struct pgp_key_t {
     std::vector<pgp_sig_id_t> sigs_{};     /* subsig ids to lookup actual sig in map */
     std::vector<pgp_sig_id_t> keysigs_{};  /* direct-key signature ids in the original order */
     std::vector<pgp_userid_t> uids_{};     /* array of user ids */
+    pgp_key_pkt_t             pkt_{};      /* pubkey/seckey data packet */
   public:
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
     pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
     bool                   primary_fp_set{};
     time_t                 expiration{}; /* key expiration time, if available */
-    pgp_key_pkt_t          pkt{};        /* pubkey/seckey data packet */
     pgp_rawpacket_t        rawpkt{};     /* key raw packet */
     uint8_t                key_flags{};  /* key flags */
     pgp_key_id_t           keyid{};
@@ -163,11 +163,13 @@ struct pgp_key_t {
     pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
     bool                has_uid(const std::string &uid) const;
     void                clear_revokes();
+
+    const pgp_key_pkt_t &pkt() const;
+    pgp_key_pkt_t &      pkt();
+    void                 set_pkt(const pgp_key_pkt_t &pkt);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
-
-const pgp_key_pkt_t *pgp_key_get_pkt(const pgp_key_t *);
 
 const pgp_key_material_t *pgp_key_get_material(const pgp_key_t *key);
 

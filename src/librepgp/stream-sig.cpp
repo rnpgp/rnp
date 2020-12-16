@@ -397,7 +397,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
     pgp_hash_t   hash = {};
     rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
 
-    if (!signature_hash_binding(sinfo->sig, key, pgp_key_get_pkt(subkey), &hash)) {
+    if (!signature_hash_binding(sinfo->sig, key, &subkey->pkt(), &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -428,7 +428,7 @@ signature_check_binding(pgp_signature_info_t *sinfo,
         return res;
     }
 
-    if (!signature_hash_binding(subpkt->fields.sig, key, pgp_key_get_pkt(subkey), &hash)) {
+    if (!signature_hash_binding(subpkt->fields.sig, key, &subkey->pkt(), &hash)) {
         return RNP_ERROR_BAD_FORMAT;
     }
     pgp_signature_info_t bindinfo = {};
