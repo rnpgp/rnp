@@ -765,7 +765,7 @@ rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
     }
 
     for (auto &key : key_store->keys) {
-        if (!pgp_key_is_primary_key(&key)) {
+        if (!key.is_primary()) {
             continue;
         }
         if (!rnp_key_store_kbx_write_pgp(key_store, &key, dst)) {

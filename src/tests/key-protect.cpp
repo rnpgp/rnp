@@ -76,7 +76,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     }
 
     // confirm that this key is indeed RSA
-    assert_int_equal(pgp_key_get_alg(key), PGP_PKA_RSA);
+    assert_int_equal(key->alg(), PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
     assert_true(mpi_empty(key->material().rsa.d));

@@ -54,11 +54,11 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(pgp_key_get_flags(key),
+    assert_int_equal(key->flags(),
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // confirm that key expiration is correct
-    assert_int_equal(pgp_key_get_expiration(key), 0);
+    assert_int_equal(key->expiration(), 0);
 
     // cleanup
     delete key_store;
@@ -77,11 +77,11 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(pgp_key_get_flags(key),
+    assert_int_equal(key->flags(),
                      PGP_KF_ENCRYPT | PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
     // check if the key is secret and is locked
-    assert_true(pgp_key_is_secret(key));
+    assert_true(key->is_secret());
     assert_true(pgp_key_is_locked(key));
 
     // decrypt the key
@@ -117,7 +117,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
     assert_non_null(key);
 
     // confirm the key flags are correct
-    assert_int_equal(pgp_key_get_flags(key), PGP_KF_ENCRYPT);
+    assert_int_equal(key->flags(), PGP_KF_ENCRYPT);
 
     // cleanup
     delete key_store;
@@ -140,7 +140,7 @@ check_pgp_keyring_counts(const char *   path,
     // count primary keys first
     unsigned total_primary_count = 0;
     for (auto &key : key_store->keys) {
-        if (pgp_key_is_primary_key(&key)) {
+        if (key.is_primary()) {
             total_primary_count++;
         }
     }
@@ -150,10 +150,10 @@ check_pgp_keyring_counts(const char *   path,
     unsigned total_subkey_count = 0;
     unsigned primary = 0;
     for (auto &key : key_store->keys) {
-        if (pgp_key_is_primary_key(&key)) {
+        if (key.is_primary()) {
             // check the subkey count for this primary key
             assert_int_equal(pgp_key_get_subkey_count(&key), subkey_counts[primary++]);
-        } else if (pgp_key_is_subkey(&key)) {
+        } else if (key.is_subkey()) {
             total_subkey_count++;
         }
     }
@@ -215,7 +215,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         assert_int_equal(sig->expiration(), 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 0);
+    assert_int_equal(key->expiration(), 0);
 
     // find
     key = NULL;
@@ -230,11 +230,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569820);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 0);
+    assert_int_equal(key->expiration(), 0);
 
     // find
     key = NULL;
@@ -249,11 +249,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569851);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 123 * 24 * 60 * 60 /* 123 days */);
+    assert_int_equal(key->expiration(), 123 * 24 * 60 * 60 /* 123 days */);
 
     // find
     key = NULL;
@@ -268,11 +268,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569896);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 0);
+    assert_int_equal(key->expiration(), 0);
 
     // find
     key = NULL;
@@ -295,7 +295,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
         assert_int_equal(sig->expiration(), 0);
     }
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 2076663808);
+    assert_int_equal(key->expiration(), 2076663808);
 
     // find
     key = NULL;
@@ -310,11 +310,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569946);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 2076663808);
+    assert_int_equal(key->expiration(), 2076663808);
 
     // find
     key = NULL;
@@ -329,11 +329,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500570165);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check SS_EXPIRATION_TIME [0]
     assert_int_equal(sig->expiration(), 0);
     // check SS_KEY_EXPIRY
-    assert_int_equal(pgp_key_get_expiration(key), 0);
+    assert_int_equal(key->expiration(), 0);
 
     // cleanup
     delete key_store;
@@ -359,7 +359,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check key version
-    assert_int_equal(pgp_key_get_version(key), PGP_V3);
+    assert_int_equal(key->version(), PGP_V3);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
@@ -370,11 +370,11 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     assert_true(keyid == sig->keyid());
     // check creation time
     assert_int_equal(sig->creation(), 1005209227);
-    assert_int_equal(sig->creation(), pgp_key_get_creation(key));
+    assert_int_equal(sig->creation(), key->creation());
     // check signature expiration time (V3 sigs have none)
     assert_int_equal(sig->expiration(), 0);
     // check key expiration
-    assert_int_equal(pgp_key_get_expiration(key), 0); // only for V4 keys
+    assert_int_equal(key->expiration(), 0); // only for V4 keys
     assert_int_equal(key->pkt().v3_days, 0);
 
     // cleanup
@@ -398,8 +398,8 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
-    assert_true(pgp_key_is_primary_key(key));
-    assert_true(pgp_key_is_secret(key));
+    assert_true(key->is_primary());
+    assert_true(key->is_secret());
     assert_int_equal(pgp_key_get_rawpacket_count(key), 5);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_KEY);
     assert_int_equal(key->get_uid(0).rawpkt.tag, PGP_PKT_USER_ID);
@@ -410,8 +410,8 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
-    assert_true(pgp_key_is_subkey(key));
-    assert_true(pgp_key_is_secret(key));
+    assert_true(key->is_subkey());
+    assert_true(key->is_secret());
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_SUBKEY);
     assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
@@ -419,8 +419,8 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_true(rnp_hex_decode("16CD16F267CCDD4F", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid);
-    assert_true(pgp_key_is_subkey(key));
-    assert_true(pgp_key_is_secret(key));
+    assert_true(key->is_subkey());
+    assert_true(key->is_secret());
     assert_int_equal(pgp_key_get_rawpacket_count(key), 2);
     assert_int_equal(pgp_key_get_rawpacket(key).tag, PGP_PKT_SECRET_SUBKEY);
     assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
@@ -708,7 +708,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
 
     /* copy the secret key */
     keycp = pgp_key_t(*key, false);
-    assert_true(pgp_key_is_secret(&keycp));
+    assert_true(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_true(pgp_key_get_subkey_fp(&keycp, 0) == pgp_key_get_fp(skey1));
     assert_true(pgp_key_get_subkey_fp(&keycp, 1) == pgp_key_get_fp(skey2));
@@ -717,7 +717,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
 
     /* copy the public part */
     keycp = pgp_key_t(*key, true);
-    assert_false(pgp_key_is_secret(&keycp));
+    assert_false(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_true(check_subkey_fp(&keycp, skey1, 0));
     assert_true(check_subkey_fp(&keycp, skey2, 1));
@@ -729,7 +729,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 1 */
     keycp = pgp_key_t(*skey1, true);
-    assert_false(pgp_key_is_secret(&keycp));
+    assert_false(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 0));
     assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey1));
@@ -741,7 +741,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 2 */
     keycp = pgp_key_t(*skey2, true);
-    assert_false(pgp_key_is_secret(&keycp));
+    assert_false(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 1));
     assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey2));

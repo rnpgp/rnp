@@ -77,8 +77,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     // make sure this userid has been marked as primary
     assert_int_equal(key->uid_count() - 1, key->uid0);
     // make sure key expiration and flags are set
-    assert_int_equal(123456789, pgp_key_get_expiration(key));
-    assert_int_equal(0xAB, pgp_key_get_flags(key));
+    assert_int_equal(123456789, key->expiration());
+    assert_int_equal(0xAB, key->flags());
 
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info_t dup_selfsig = {};
@@ -103,8 +103,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure key expiration and flags are now updated
-    assert_int_equal(0, pgp_key_get_expiration(key));
-    assert_int_equal(0xCD, pgp_key_get_flags(key));
+    assert_int_equal(0, key->expiration());
+    assert_int_equal(0xCD, key->flags());
     // check the userids array
     // added1
     assert_true(key->get_uid(uidc).str == "added1");
@@ -137,8 +137,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_int_equal(key->sig_count(), subsigc + 2);
 
     // make sure correct key expiration and flags are set
-    assert_int_equal(0, pgp_key_get_expiration(key));
-    assert_int_equal(0xCD, pgp_key_get_flags(key));
+    assert_int_equal(0, key->expiration());
+    assert_int_equal(0xCD, key->flags());
 
     // check the userids array
     // added1

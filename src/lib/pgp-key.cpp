@@ -72,130 +72,6 @@
 #include <stdexcept>
 #include "defaults.h"
 
-pgp_pubkey_alg_t
-pgp_key_get_alg(const pgp_key_t *key)
-{
-    return key->pkt().alg;
-}
-
-size_t
-pgp_key_get_dsa_qbits(const pgp_key_t *key)
-{
-    if (pgp_key_get_alg(key) != PGP_PKA_DSA) {
-        return 0;
-    }
-
-    return dsa_qbits(&key->material().dsa);
-}
-
-size_t
-pgp_key_get_bits(const pgp_key_t *key)
-{
-    return key_bitlength(&key->material());
-}
-
-pgp_curve_t
-pgp_key_get_curve(const pgp_key_t *key)
-{
-    switch (pgp_key_get_alg(key)) {
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        return key->material().ec.curve;
-    default:
-        return PGP_CURVE_UNKNOWN;
-    }
-}
-
-pgp_version_t
-pgp_key_get_version(const pgp_key_t *key)
-{
-    return key->pkt().version;
-}
-
-pgp_pkt_type_t
-pgp_key_get_type(const pgp_key_t *key)
-{
-    return key->pkt().tag;
-}
-
-bool
-pgp_key_is_public(const pgp_key_t *key)
-{
-    return is_public_key_pkt(key->pkt().tag);
-}
-
-bool
-pgp_key_is_secret(const pgp_key_t *key)
-{
-    return is_secret_key_pkt(key->pkt().tag);
-}
-
-bool
-pgp_key_is_encrypted(const pgp_key_t *key)
-{
-    if (!pgp_key_is_secret(key)) {
-        return false;
-    }
-    return !key->pkt().material.secret;
-}
-
-uint8_t
-pgp_key_get_flags(const pgp_key_t *key)
-{
-    return key->key_flags;
-}
-
-bool
-pgp_key_can_sign(const pgp_key_t *key)
-{
-    return pgp_key_get_flags(key) & PGP_KF_SIGN;
-}
-
-bool
-pgp_key_can_certify(const pgp_key_t *key)
-{
-    return pgp_key_get_flags(key) & PGP_KF_CERTIFY;
-}
-
-bool
-pgp_key_can_encrypt(const pgp_key_t *key)
-{
-    return pgp_key_get_flags(key) & PGP_KF_ENCRYPT;
-}
-
-bool
-pgp_key_is_primary_key(const pgp_key_t *key)
-{
-    return is_primary_key_pkt(key->pkt().tag);
-}
-
-bool
-pgp_key_is_subkey(const pgp_key_t *key)
-{
-    return is_subkey_pkt(key->pkt().tag);
-}
-
-uint32_t
-pgp_key_get_expiration(const pgp_key_t *key)
-{
-    if (key->pkt().version >= 4) {
-        return key->expiration;
-    }
-    /* too large value for pkt.v3_days may overflow uint32_t */
-    if (key->pkt().v3_days > (0xffffffffu / 86400)) {
-        return 0xffffffffu;
-    }
-    return (uint32_t) key->pkt().v3_days * 86400;
-}
-
-uint32_t
-pgp_key_get_creation(const pgp_key_t *key)
-{
-    return key->pkt().creation_time;
-}
-
 pgp_key_pkt_t *
 pgp_decrypt_seckey_pgp(const uint8_t *      data,
                        size_t               data_len,
@@ -245,7 +121,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     pgp_seckey_decrypt_t *decryptor = NULL;
 
     // sanity checks
-    if (!key || !pgp_key_is_secret(key) || !provider) {
+    if (!key || !key->is_secret() || !provider) {
         RNP_LOG("invalid args");
         return NULL;
     }
@@ -348,7 +224,7 @@ pgp_sig_self_signed(const pgp_key_t &key, const pgp_subsig_t &sig)
 static bool
 pgp_sig_is_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    if (!pgp_key_is_primary_key(&key) || !pgp_sig_is_certification(sig)) {
+    if (!key.is_primary() || !pgp_sig_is_certification(sig)) {
         return false;
     }
 
@@ -358,7 +234,7 @@ pgp_sig_is_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
 static bool
 pgp_sig_is_direct_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    if (!pgp_key_is_primary_key(&key) || (sig.sig.type() != PGP_SIG_DIRECT)) {
+    if (!key.is_primary() || (sig.sig.type() != PGP_SIG_DIRECT)) {
         return false;
     }
 
@@ -368,25 +244,25 @@ pgp_sig_is_direct_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
 static bool
 pgp_sig_is_key_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    return pgp_key_is_primary_key(&key) && (sig.sig.type() == PGP_SIG_REV_KEY);
+    return key.is_primary() && (sig.sig.type() == PGP_SIG_REV_KEY);
 }
 
 static bool
 pgp_sig_is_userid_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    return pgp_key_is_primary_key(&key) && (sig.sig.type() == PGP_SIG_REV_CERT);
+    return key.is_primary() && (sig.sig.type() == PGP_SIG_REV_CERT);
 }
 
 static bool
 pgp_sig_is_subkey_binding(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    return pgp_key_is_subkey(&key) && (sig.sig.type() == PGP_SIG_SUBKEY);
+    return key.is_subkey() && (sig.sig.type() == PGP_SIG_SUBKEY);
 }
 
 static bool
 pgp_sig_is_subkey_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    return pgp_key_is_subkey(&key) && (sig.sig.type() == PGP_SIG_REV_SUBKEY);
+    return key.is_subkey() && (sig.sig.type() == PGP_SIG_REV_SUBKEY);
 }
 
 pgp_subsig_t *
@@ -603,7 +479,7 @@ is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
     if (!expiration) {
         return false;
     }
-    return pgp_key_get_creation(&key) + expiration < time(NULL);
+    return key.creation() + expiration < time(NULL);
 }
 
 static pgp_map_t ss_rr_code_map[] = {
@@ -624,12 +500,12 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
     }
     pgp_subsig_t *sig = pgp_key_latest_binding(sub, key);
     /* subkey expiration */
-    sub->expiration = sig ? sig->sig.key_expiration() : 0;
+    sub->set_expiration(sig ? sig->sig.key_expiration() : 0);
     /* subkey flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        sub->key_flags = sig->key_flags;
+        sub->set_flags(sig->key_flags);
     } else {
-        sub->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(sub));
+        sub->set_flags(pgp_pk_alg_capabilities(sub->alg()));
     }
     /* revocation */
     sub->clear_revokes();
@@ -653,7 +529,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
 bool
 pgp_key_refresh_data(pgp_key_t *key)
 {
-    if (!pgp_key_is_primary_key(key)) {
+    if (!key->is_primary()) {
         RNP_LOG("key must be primary");
         return false;
     }
@@ -661,12 +537,12 @@ pgp_key_refresh_data(pgp_key_t *key)
     pgp_key_validate_self_signatures(*key);
     /* key expiration */
     pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
-    key->expiration = sig ? sig->sig.key_expiration() : 0;
+    key->set_expiration(sig ? sig->sig.key_expiration() : 0);
     /* key flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        key->key_flags = sig->key_flags;
+        key->set_flags(sig->key_flags);
     } else {
-        key->key_flags = pgp_pk_alg_capabilities(pgp_key_get_alg(key));
+        key->set_flags(pgp_pk_alg_capabilities(key->alg()));
     }
     /* revocation(s) */
     key->clear_revokes();
@@ -853,11 +729,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 bool
 pgp_key_is_locked(const pgp_key_t *key)
 {
-    if (!pgp_key_is_secret(key)) {
+    if (!key->is_secret()) {
         RNP_LOG("key is not a secret key");
         return false;
     }
-    return pgp_key_is_encrypted(key);
+    return key->encrypted();
 }
 
 bool
@@ -869,7 +745,7 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
     if (!key || !provider) {
         return false;
     }
-    if (!pgp_key_is_secret(key)) {
+    if (!key->is_secret()) {
         RNP_LOG("key is not a secret key");
         return false;
     }
@@ -898,7 +774,7 @@ bool
 pgp_key_lock(pgp_key_t *key)
 {
     // sanity checks
-    if (!key || !pgp_key_is_secret(key)) {
+    if (!key || !key->is_secret()) {
         RNP_LOG("invalid args");
         return false;
     }
@@ -1029,7 +905,7 @@ pgp_key_protect(pgp_key_t *                  key,
         RNP_LOG("NULL args");
         goto done;
     }
-    if (!pgp_key_is_secret(key)) {
+    if (!key->is_secret()) {
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
@@ -1067,11 +943,8 @@ pgp_key_protect(pgp_key_t *                  key,
     seckey->sec_protection.s2k.hash_alg = protection->hash_alg;
 
     // write the protected key to raw packet
-    if (!write_key_to_rawpacket(decrypted_seckey,
-                                pgp_key_get_rawpacket(key),
-                                pgp_key_get_type(key),
-                                format,
-                                new_password)) {
+    if (!write_key_to_rawpacket(
+          decrypted_seckey, pgp_key_get_rawpacket(key), key->type(), format, new_password)) {
         goto done;
     }
     key->format = format;
@@ -1089,7 +962,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     pgp_key_pkt_t *decrypted_seckey = NULL;
 
     // sanity check
-    if (!pgp_key_is_secret(key)) {
+    if (!key->is_secret()) {
         RNP_LOG("Warning: this is not a secret key");
         goto done;
     }
@@ -1101,7 +974,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
 
     seckey = &key->pkt();
 
-    if (pgp_key_is_encrypted(key)) {
+    if (key->encrypted()) {
         pgp_password_ctx_t ctx;
         memset(&ctx, 0, sizeof(ctx));
         ctx.op = PGP_OP_UNPROTECT;
@@ -1115,7 +988,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
     }
     seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
     if (!write_key_to_rawpacket(
-          seckey, pgp_key_get_rawpacket(key), pgp_key_get_type(key), key->format, NULL)) {
+          seckey, pgp_key_get_rawpacket(key), key->type(), key->format, NULL)) {
         goto done;
     }
     if (decrypted_seckey) {
@@ -1133,7 +1006,7 @@ bool
 pgp_key_is_protected(const pgp_key_t *key)
 {
     // sanity check
-    if (!pgp_key_is_secret(key)) {
+    if (!key->is_secret()) {
         RNP_LOG("Warning: this is not a secret key");
     }
     return key->pkt().sec_protection.s2k.usage != PGP_S2KU_NONE;
@@ -1151,7 +1024,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         return false;
     }
     // userids are only valid for primary keys, not subkeys
-    if (!pgp_key_is_primary_key(key)) {
+    if (!key->is_primary()) {
         RNP_LOG("cannot add a userid to a subkey");
         return false;
     }
@@ -1224,7 +1097,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                        uint32_t                       expiry,
                        const pgp_password_provider_t *prov)
 {
-    if (!pgp_key_is_primary_key(key)) {
+    if (!key->is_primary()) {
         RNP_LOG("Not a primary key");
         return false;
     }
@@ -1307,7 +1180,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
                           uint32_t                       expiry,
                           const pgp_password_provider_t *prov)
 {
-    if (!pgp_key_is_subkey(sub)) {
+    if (!sub->is_subkey()) {
         RNP_LOG("Not a subkey");
         return false;
     }
@@ -1323,7 +1196,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     }
 
     bool res = false;
-    bool subsign = pgp_key_get_flags(secsub) & PGP_KF_SIGN;
+    bool subsign = secsub->can_sign();
     bool locked = pgp_key_is_locked(primsec);
     if (locked && !pgp_key_unlock(primsec, prov)) {
         RNP_LOG("Failed to unlock primary key");
@@ -1472,7 +1345,7 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
 
     bool res = false;
     try {
-        if (pgp_key_is_secret(&key)) {
+        if (key.is_secret()) {
             pgp_key_pkt_t pkt(key.pkt(), true);
             pkt.write(memdst);
         } else {
@@ -1480,7 +1353,7 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
         }
         key.get_uid(uid).pkt.write(memdst);
         cert->sig.write(memdst);
-        if (pgp_key_is_secret(&sub)) {
+        if (sub.is_secret()) {
             pgp_key_pkt_t pkt(sub.pkt(), true);
             pkt.write(memdst);
         } else {
@@ -1506,20 +1379,20 @@ find_suitable_key(pgp_op_t            op,
     if (!key) {
         return NULL;
     }
-    if (pgp_key_get_flags(key) & desired_usage) {
+    if (key->flags() & desired_usage) {
         return key;
     }
-    pgp_key_request_ctx_t ctx{.op = op, .secret = pgp_key_is_secret(key)};
+    pgp_key_request_ctx_t ctx{.op = op, .secret = key->is_secret()};
     ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
 
     pgp_key_t *subkey = NULL;
     for (auto &fp : key->subkey_fps) {
         ctx.search.by.fingerprint = fp;
         pgp_key_t *cur = pgp_request_key(key_provider, &ctx);
-        if (!cur || !(pgp_key_get_flags(cur) & desired_usage) || !cur->valid) {
+        if (!cur || !(cur->flags() & desired_usage) || !cur->valid) {
             continue;
         }
-        if (!subkey || (pgp_key_get_creation(cur) > pgp_key_get_creation(subkey))) {
+        if (!subkey || (cur->creation() > subkey->creation())) {
             subkey = cur;
         }
     }
@@ -1575,7 +1448,7 @@ pgp_key_validate_primary(pgp_key_t &key, rnp_key_store_t *keyring)
         }
     }
     /* we have at least one non-expiring key self-signature or secret key */
-    if (has_cert || pgp_key_is_secret(&key)) {
+    if (has_cert || key.is_secret()) {
         key.valid = true;
         return;
     }
@@ -1634,7 +1507,7 @@ pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
             return;
         }
     }
-    subkey->valid = has_binding || (pgp_key_is_secret(subkey) && pgp_key_is_secret(key));
+    subkey->valid = has_binding || (subkey->is_secret() && key->is_secret());
     return;
 }
 
@@ -1643,7 +1516,7 @@ pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
 {
     key->valid = false;
     key->validated = false;
-    if (!pgp_key_is_subkey(key)) {
+    if (!key->is_subkey()) {
         pgp_key_validate_primary(*key, keyring);
     } else {
         pgp_key_validate_subkey(
@@ -1654,7 +1527,7 @@ pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
 void
 pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
 {
-    if (pgp_key_is_subkey(key)) {
+    if (key->is_subkey()) {
         pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
         if (primary) {
             pgp_key_revalidate_updated(primary, keyring);
@@ -1950,8 +1823,8 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     subkey_fps = src.subkey_fps;
     primary_fp_set = src.primary_fp_set;
     primary_fp = src.primary_fp;
-    expiration = src.expiration;
-    key_flags = src.key_flags;
+    expiration_ = src.expiration_;
+    flags_ = src.flags_;
     keyid = src.keyid;
     fingerprint = src.fingerprint;
     grip = src.grip;
@@ -2174,4 +2047,157 @@ const pgp_key_material_t &
 pgp_key_t::material() const
 {
     return pkt_.material;
+}
+
+pgp_pubkey_alg_t
+pgp_key_t::alg() const
+{
+    return pkt_.alg;
+}
+
+pgp_curve_t
+pgp_key_t::curve() const
+{
+    switch (alg()) {
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2:
+        return material().ec.curve;
+    default:
+        return PGP_CURVE_UNKNOWN;
+    }
+}
+
+pgp_version_t
+pgp_key_t::version() const
+{
+    return pkt().version;
+}
+
+pgp_pkt_type_t
+pgp_key_t::type() const
+{
+    return pkt().tag;
+}
+
+bool
+pgp_key_t::encrypted() const
+{
+    return is_secret() && !pkt().material.secret;
+}
+
+uint8_t
+pgp_key_t::flags() const
+{
+    return flags_;
+}
+
+void
+pgp_key_t::set_flags(uint8_t flags)
+{
+    flags_ = flags;
+}
+
+bool
+pgp_key_t::can_sign() const
+{
+    return flags_ & PGP_KF_SIGN;
+}
+
+bool
+pgp_key_t::can_certify() const
+{
+    return flags_ & PGP_KF_CERTIFY;
+}
+
+bool
+pgp_key_t::can_encrypt() const
+{
+    return flags_ & PGP_KF_ENCRYPT;
+}
+
+uint32_t
+pgp_key_t::expiration() const
+{
+    if (pkt_.version >= 4) {
+        return expiration_;
+    }
+    /* too large value for pkt.v3_days may overflow uint32_t */
+    if (pkt_.v3_days > (0xffffffffu / 86400)) {
+        return 0xffffffffu;
+    }
+    return (uint32_t) pkt_.v3_days * 86400;
+}
+
+void
+pgp_key_t::set_expiration(uint32_t expiry)
+{
+    expiration_ = expiry;
+}
+
+uint32_t
+pgp_key_t::creation() const
+{
+    return pkt_.creation_time;
+}
+
+bool
+pgp_key_t::is_public() const
+{
+    return is_public_key_pkt(pkt_.tag);
+}
+
+bool
+pgp_key_t::is_secret() const
+{
+    return is_secret_key_pkt(pkt_.tag);
+}
+
+bool
+pgp_key_t::is_primary() const
+{
+    return is_primary_key_pkt(pkt_.tag);
+}
+
+bool
+pgp_key_t::is_subkey() const
+{
+    return is_subkey_pkt(pkt_.tag);
+}
+
+size_t
+pgp_key_material_t::bits() const
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+    case PGP_PKA_RSA_SIGN_ONLY:
+        return 8 * mpi_bytes(&rsa.n);
+    case PGP_PKA_DSA:
+        return 8 * mpi_bytes(&dsa.p);
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+        return 8 * mpi_bytes(&eg.y);
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+    case PGP_PKA_SM2: {
+        // bn_num_bytes returns value <= curve order
+        const ec_curve_desc_t *curve = get_curve_desc(ec.curve);
+        return curve ? curve->bitlen : 0;
+    }
+    default:
+        RNP_LOG("Unknown public key alg: %d", (int) alg);
+        return 0;
+    }
+}
+
+size_t
+pgp_key_material_t::qbits() const
+{
+    if (alg != PGP_PKA_DSA) {
+        return 0;
+    }
+    return 8 * mpi_bytes(&dsa.q);
 }
