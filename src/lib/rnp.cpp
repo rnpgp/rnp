@@ -1481,7 +1481,7 @@ try {
         if (!pub && pgp_key_is_public(&key)) {
             continue;
         }
-        if (validate_pgp_key_material(pgp_key_get_material(&key), &ffi->rng)) {
+        if (validate_pgp_key_material(&key.material(), &ffi->rng)) {
             char                hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
             const pgp_key_id_t &keyid = pgp_key_get_keyid(&key);
             rnp_hex_encode(keyid.data(), keyid.size(), hex, sizeof(hex), RNP_HEX_LOWERCASE);
@@ -6861,23 +6861,23 @@ done:
 static rnp_result_t
 add_json_public_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_key_material_t *km = pgp_key_get_material(key);
-    switch (km->alg) {
+    const pgp_key_material_t &km = key->material();
+    switch (km.alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        return add_json_mpis(jso, "n", &km->rsa.n, "e", &km->rsa.e, NULL);
+        return add_json_mpis(jso, "n", &km.rsa.n, "e", &km.rsa.e, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "p", &km->eg.p, "g", &km->eg.g, "y", &km->eg.y, NULL);
+        return add_json_mpis(jso, "p", &km.eg.p, "g", &km.eg.g, "y", &km.eg.y, NULL);
     case PGP_PKA_DSA:
         return add_json_mpis(
-          jso, "p", &km->dsa.p, "q", &km->dsa.q, "g", &km->dsa.g, "y", &km->dsa.y, NULL);
+          jso, "p", &km.dsa.p, "q", &km.dsa.q, "g", &km.dsa.g, "y", &km.dsa.y, NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "point", &km->ec.p, NULL);
+        return add_json_mpis(jso, "point", &km.ec.p, NULL);
     default:
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -6887,23 +6887,23 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
 static rnp_result_t
 add_json_secret_mpis(json_object *jso, pgp_key_t *key)
 {
-    const pgp_key_material_t *km = pgp_key_get_material(key);
+    const pgp_key_material_t &km = key->material();
     switch (pgp_key_get_alg(key)) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         return add_json_mpis(
-          jso, "d", &km->rsa.d, "p", &km->rsa.p, "q", &km->rsa.q, "u", &km->rsa.u, NULL);
+          jso, "d", &km.rsa.d, "p", &km.rsa.p, "q", &km.rsa.q, "u", &km.rsa.u, NULL);
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return add_json_mpis(jso, "x", &km->eg.x, NULL);
+        return add_json_mpis(jso, "x", &km.eg.x, NULL);
     case PGP_PKA_DSA:
-        return add_json_mpis(jso, "x", &km->dsa.x, NULL);
+        return add_json_mpis(jso, "x", &km.dsa.x, NULL);
     case PGP_PKA_ECDH:
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return add_json_mpis(jso, "x", &km->ec.x, NULL);
+        return add_json_mpis(jso, "x", &km.ec.x, NULL);
     default:
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -7147,7 +7147,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     bool                      have_pub = handle->pub != NULL;
     pgp_key_t *               key = get_key_prefer_public(handle);
     const char *              str = NULL;
-    const pgp_key_material_t *material = pgp_key_get_material(key);
+    const pgp_key_material_t &material = key->material();
 
     // type
     ARRAY_LOOKUP_BY_ID(pubkey_alg_map, type, string, pgp_key_get_alg(key), str);
@@ -7165,12 +7165,12 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     switch (pgp_key_get_alg(key)) {
     case PGP_PKA_ECDH: {
         const char *hash_name = NULL;
-        ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, material->ec.kdf_hash_alg, hash_name);
+        ARRAY_LOOKUP_BY_ID(hash_alg_map, type, string, material.ec.kdf_hash_alg, hash_name);
         if (!hash_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         const char *cipher_name = NULL;
-        ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, material->ec.key_wrap_alg, cipher_name);
+        ARRAY_LOOKUP_BY_ID(symm_alg_map, type, string, material.ec.key_wrap_alg, cipher_name);
         if (!cipher_name) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -7189,7 +7189,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {
         const char *curve_name = NULL;
-        if (!curve_type_to_str(material->ec.curve, &curve_name)) {
+        if (!curve_type_to_str(material.ec.curve, &curve_name)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         json_object *jsocurve = json_object_new_string(curve_name);

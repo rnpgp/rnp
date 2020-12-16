@@ -497,6 +497,13 @@ test_value_equal(const char *what, const char *expected_value, const uint8_t v[]
     return 0;
 }
 
+bool
+mpi_empty(const pgp_mpi_t &val)
+{
+    pgp_mpi_t zero{};
+    return (val.len == 0) && !memcmp(val.mpi, zero.mpi, PGP_MPINT_SIZE);
+}
+
 char *
 uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
 {

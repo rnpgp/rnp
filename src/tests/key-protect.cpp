@@ -31,12 +31,6 @@
 #include "support.h"
 #include "crypto/hash.h"
 
-static bool
-mpi_empty(const pgp_mpi_t *val)
-{
-    return val->len == 0;
-}
-
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are
  * somewhat related.
@@ -85,10 +79,10 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_int_equal(pgp_key_get_alg(key), PGP_PKA_RSA);
 
     // confirm key material is currently all NULL (in other words, the key is locked)
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.d));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.p));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.q));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.u));
+    assert_true(mpi_empty(key->material().rsa.d));
+    assert_true(mpi_empty(key->material().rsa.p));
+    assert_true(mpi_empty(key->material().rsa.q));
+    assert_true(mpi_empty(key->material().rsa.u));
 
     // try to unprotect with a failing password provider
     pgp_password_provider_t pprov = {.callback = failing_password_callback, .userdata = NULL};
@@ -107,10 +101,10 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_true(pgp_key_is_locked(key));
 
     // confirm secret key material is still NULL
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.d));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.p));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.q));
-    assert_true(mpi_empty(&pgp_key_get_material(key)->rsa.u));
+    assert_true(mpi_empty(key->material().rsa.d));
+    assert_true(mpi_empty(key->material().rsa.p));
+    assert_true(mpi_empty(key->material().rsa.q));
+    assert_true(mpi_empty(key->material().rsa.u));
 
     // unlock (no password required since the key is not protected)
     pprov = {.callback = asserting_password_callback, .userdata = NULL};
@@ -118,16 +112,16 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(pgp_key_is_locked(key));
 
     // secret key material should be available
-    assert_false(mpi_empty(&pgp_key_get_material(key)->rsa.d));
-    assert_false(mpi_empty(&pgp_key_get_material(key)->rsa.p));
-    assert_false(mpi_empty(&pgp_key_get_material(key)->rsa.q));
-    assert_false(mpi_empty(&pgp_key_get_material(key)->rsa.u));
+    assert_false(mpi_empty(key->material().rsa.d));
+    assert_false(mpi_empty(key->material().rsa.p));
+    assert_false(mpi_empty(key->material().rsa.q));
+    assert_false(mpi_empty(key->material().rsa.u));
 
     // save the secret MPIs for some later comparisons
-    pgp_mpi_t d = pgp_key_get_material(key)->rsa.d;
-    pgp_mpi_t p = pgp_key_get_material(key)->rsa.p;
-    pgp_mpi_t q = pgp_key_get_material(key)->rsa.q;
-    pgp_mpi_t u = pgp_key_get_material(key)->rsa.u;
+    pgp_mpi_t d = key->material().rsa.d;
+    pgp_mpi_t p = key->material().rsa.p;
+    pgp_mpi_t q = key->material().rsa.q;
+    pgp_mpi_t u = key->material().rsa.u;
 
     // confirm that packets[0] is no longer encrypted
     {
@@ -148,46 +142,37 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         assert_false(pgp_key_is_locked(reloaded_key));
         assert_false(pgp_key_is_protected(reloaded_key));
         // secret key material should not be NULL
-        assert_false(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.d));
-        assert_false(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.p));
-        assert_false(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.q));
-        assert_false(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.u));
+        assert_false(mpi_empty(reloaded_key->material().rsa.d));
+        assert_false(mpi_empty(reloaded_key->material().rsa.p));
+        assert_false(mpi_empty(reloaded_key->material().rsa.q));
+        assert_false(mpi_empty(reloaded_key->material().rsa.u));
 
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.d,
-                              &pgp_key_get_material(reloaded_key)->rsa.d));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.p,
-                              &pgp_key_get_material(reloaded_key)->rsa.p));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.q,
-                              &pgp_key_get_material(reloaded_key)->rsa.q));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.u,
-                              &pgp_key_get_material(reloaded_key)->rsa.u));
+        assert_true(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.d));
+        assert_true(mpi_equal(&key->material().rsa.p, &reloaded_key->material().rsa.p));
+        assert_true(mpi_equal(&key->material().rsa.q, &reloaded_key->material().rsa.q));
+        assert_true(mpi_equal(&key->material().rsa.u, &reloaded_key->material().rsa.u));
         // negative test to try to ensure the above is a valid test
-        assert_false(mpi_equal(&pgp_key_get_material(key)->rsa.d,
-                               &pgp_key_get_material(reloaded_key)->rsa.p));
+        assert_false(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.p));
 
         // lock it
         assert_true(pgp_key_lock(reloaded_key));
         assert_true(pgp_key_is_locked(reloaded_key));
         // confirm that secret MPIs are NULL again
-        assert_true(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.d));
-        assert_true(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.p));
-        assert_true(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.q));
-        assert_true(mpi_empty(&pgp_key_get_material(reloaded_key)->rsa.u));
+        assert_true(mpi_empty(reloaded_key->material().rsa.d));
+        assert_true(mpi_empty(reloaded_key->material().rsa.p));
+        assert_true(mpi_empty(reloaded_key->material().rsa.q));
+        assert_true(mpi_empty(reloaded_key->material().rsa.u));
         // unlock it (no password, since it's not protected)
         pgp_password_provider_t pprov = {.callback = asserting_password_callback,
                                          .userdata = NULL};
         assert_true(pgp_key_unlock(reloaded_key, &pprov));
         assert_false(pgp_key_is_locked(reloaded_key));
         // compare MPIs of the reloaded key, with the unlocked key from earlier
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.d,
-                              &pgp_key_get_material(reloaded_key)->rsa.d));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.p,
-                              &pgp_key_get_material(reloaded_key)->rsa.p));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.q,
-                              &pgp_key_get_material(reloaded_key)->rsa.q));
-        assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.u,
-                              &pgp_key_get_material(reloaded_key)->rsa.u));
+        assert_true(mpi_equal(&key->material().rsa.d, &reloaded_key->material().rsa.d));
+        assert_true(mpi_equal(&key->material().rsa.p, &reloaded_key->material().rsa.p));
+        assert_true(mpi_equal(&key->material().rsa.q, &reloaded_key->material().rsa.q));
+        assert_true(mpi_equal(&key->material().rsa.u, &reloaded_key->material().rsa.u));
 
         delete ks;
     }
@@ -239,10 +224,10 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     assert_false(pgp_key_is_locked(key));
 
     // compare secret MPIs with those from earlier
-    assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.d, &d));
-    assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.p, &p));
-    assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.q, &q));
-    assert_true(mpi_equal(&pgp_key_get_material(key)->rsa.u, &u));
+    assert_true(mpi_equal(&key->material().rsa.d, &d));
+    assert_true(mpi_equal(&key->material().rsa.p, &p));
+    assert_true(mpi_equal(&key->material().rsa.q, &q));
+    assert_true(mpi_equal(&key->material().rsa.u, &u));
 
     // cleanup
     delete key;

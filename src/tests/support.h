@@ -152,6 +152,7 @@ int test_value_equal(const char *  what,
                      const uint8_t v[],
                      size_t        v_len);
 
+bool mpi_empty(const pgp_mpi_t &val);
 /*
  */
 char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
