@@ -1056,10 +1056,10 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
                       pgp_signature_t *        sig,
                       pgp_dest_signer_info_t * signer)
 {
-    pgp_key_pkt_t *    deckey = NULL;
-    pgp_hash_t         hash;
-    pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = signer->key};
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
+    const pgp_key_pkt_t *deckey = NULL;
+    pgp_hash_t           hash;
+    pgp_password_ctx_t   ctx = {.op = PGP_OP_SIGN, .key = signer->key};
+    rnp_result_t         ret = RNP_ERROR_GENERIC;
 
     /* fill signature fields */
     try {
@@ -1090,7 +1090,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
             return RNP_ERROR_BAD_PASSWORD;
         }
     } else {
-        deckey = &(signer->key->pkt);
+        deckey = &signer->key->pkt();
     }
 
     /* calculate the signature */
@@ -1115,7 +1115,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.palg = signer->onepass.palg;
         sig.set_type(signer->onepass.type);
     } else {
-        sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
+        sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
         sig.palg = pgp_key_get_alg(signer->key);
         sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
     }
@@ -1234,7 +1234,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.sigexpire = signer->sigexpire;
 
     /* Add hash to the list */
-    sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, pgp_key_get_pkt(signer->key));
+    sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
     if (!pgp_hash_list_add(param->hashes, sinfo.halg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }

@@ -83,22 +83,16 @@
   \note This is not a copy, do not free it after use.
 */
 
-const pgp_key_pkt_t *
-pgp_key_get_pkt(const pgp_key_t *key)
-{
-    return &key->pkt;
-}
-
 const pgp_key_material_t *
 pgp_key_get_material(const pgp_key_t *key)
 {
-    return &key->pkt.material;
+    return &key->pkt().material;
 }
 
 pgp_pubkey_alg_t
 pgp_key_get_alg(const pgp_key_t *key)
 {
-    return key->pkt.alg;
+    return key->pkt().alg;
 }
 
 size_t
@@ -134,25 +128,25 @@ pgp_key_get_curve(const pgp_key_t *key)
 pgp_version_t
 pgp_key_get_version(const pgp_key_t *key)
 {
-    return key->pkt.version;
+    return key->pkt().version;
 }
 
 pgp_pkt_type_t
 pgp_key_get_type(const pgp_key_t *key)
 {
-    return key->pkt.tag;
+    return key->pkt().tag;
 }
 
 bool
 pgp_key_is_public(const pgp_key_t *key)
 {
-    return is_public_key_pkt(key->pkt.tag);
+    return is_public_key_pkt(key->pkt().tag);
 }
 
 bool
 pgp_key_is_secret(const pgp_key_t *key)
 {
-    return is_secret_key_pkt(key->pkt.tag);
+    return is_secret_key_pkt(key->pkt().tag);
 }
 
 bool
@@ -161,9 +155,7 @@ pgp_key_is_encrypted(const pgp_key_t *key)
     if (!pgp_key_is_secret(key)) {
         return false;
     }
-
-    const pgp_key_pkt_t *pkt = pgp_key_get_pkt(key);
-    return !pkt->material.secret;
+    return !key->pkt().material.secret;
 }
 
 uint8_t
@@ -193,32 +185,32 @@ pgp_key_can_encrypt(const pgp_key_t *key)
 bool
 pgp_key_is_primary_key(const pgp_key_t *key)
 {
-    return is_primary_key_pkt(key->pkt.tag);
+    return is_primary_key_pkt(key->pkt().tag);
 }
 
 bool
 pgp_key_is_subkey(const pgp_key_t *key)
 {
-    return is_subkey_pkt(key->pkt.tag);
+    return is_subkey_pkt(key->pkt().tag);
 }
 
 uint32_t
 pgp_key_get_expiration(const pgp_key_t *key)
 {
-    if (key->pkt.version >= 4) {
+    if (key->pkt().version >= 4) {
         return key->expiration;
     }
     /* too large value for pkt.v3_days may overflow uint32_t */
-    if (key->pkt.v3_days > (0xffffffffu / 86400)) {
+    if (key->pkt().v3_days > (0xffffffffu / 86400)) {
         return 0xffffffffu;
     }
-    return (uint32_t) key->pkt.v3_days * 86400;
+    return (uint32_t) key->pkt().v3_days * 86400;
 }
 
 uint32_t
 pgp_key_get_creation(const pgp_key_t *key)
 {
-    return key->pkt.creation_time;
+    return key->pkt().creation_time;
 }
 
 pgp_key_pkt_t *
@@ -296,7 +288,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     // attempt to decrypt with the provided password
     const pgp_rawpacket_t &pkt = pgp_key_get_rawpacket(key);
     pgp_key_pkt_t *        decrypted_seckey =
-      decryptor(pkt.raw.data(), pkt.raw.size(), pgp_key_get_pkt(key), password);
+      decryptor(pkt.raw.data(), pkt.raw.size(), &key->pkt(), password);
     pgp_forget(password, sizeof(password));
     return decrypted_seckey;
 }
@@ -554,8 +546,7 @@ pgp_key_validate_signature(pgp_key_t &   key,
             RNP_LOG("Userid not found");
             return;
         }
-        signature_check_certification(
-          &sinfo, pgp_key_get_pkt(&key), &key.get_uid(sig.uid).pkt);
+        signature_check_certification(&sinfo, &key.pkt(), &key.get_uid(sig.uid).pkt);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -563,19 +554,18 @@ pgp_key_validate_signature(pgp_key_t &   key,
             RNP_LOG("No primary key specified");
             return;
         }
-        signature_check_binding(&sinfo, pgp_key_get_pkt(primary), &key);
+        signature_check_binding(&sinfo, &primary->pkt(), &key);
         break;
     case PGP_SIG_DIRECT:
     case PGP_SIG_REV_KEY:
-        signature_check_direct(&sinfo, pgp_key_get_pkt(&key));
+        signature_check_direct(&sinfo, &key.pkt());
         break;
     case PGP_SIG_REV_SUBKEY:
         if (!primary) {
             RNP_LOG("No primary key specified");
             return;
         }
-        signature_check_subkey_revocation(
-          &sinfo, pgp_key_get_pkt(primary), pgp_key_get_pkt(&key));
+        signature_check_subkey_revocation(&sinfo, &primary->pkt(), &key.pkt());
         break;
     default:
         RNP_LOG("Unsupported key signature type: %d", (int) stype);
@@ -911,10 +901,10 @@ pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
 
     if (decrypted_seckey) {
         // this shouldn't really be necessary, but just in case
-        forget_secret_key_fields(&key->pkt.material);
+        forget_secret_key_fields(&key->pkt().material);
         // copy the decrypted mpis into the pgp_key_t
-        key->pkt.material = decrypted_seckey->material;
-        key->pkt.material.secret = true;
+        key->pkt().material = decrypted_seckey->material;
+        key->pkt().material.secret = true;
         delete decrypted_seckey;
         return true;
     }
@@ -935,7 +925,7 @@ pgp_key_lock(pgp_key_t *key)
         return true;
     }
 
-    forget_secret_key_fields(&key->pkt.material);
+    forget_secret_key_fields(&key->pkt().material);
     return true;
 }
 
@@ -1032,7 +1022,7 @@ rnp_key_add_protection(pgp_key_t *                    key,
         return false;
     }
 
-    bool ret = pgp_key_protect(key, &key->pkt, format, protection, password);
+    bool ret = pgp_key_protect(key, &key->pkt(), format, protection, password);
     pgp_forget(password, sizeof(password));
     return ret;
 }
@@ -1065,7 +1055,7 @@ pgp_key_protect(pgp_key_t *                  key,
         goto done;
     }
 
-    seckey = &key->pkt;
+    seckey = &key->pkt();
     // force these, as it's the only method we support
     seckey->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     seckey->sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
@@ -1126,7 +1116,7 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         goto done;
     }
 
-    seckey = &key->pkt;
+    seckey = &key->pkt();
 
     if (pgp_key_is_encrypted(key)) {
         pgp_password_ctx_t ctx;
@@ -1146,9 +1136,9 @@ pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provid
         goto done;
     }
     if (decrypted_seckey) {
-        key->pkt = std::move(*decrypted_seckey);
+        key->set_pkt(std::move(*decrypted_seckey));
         /* current logic is that unprotected key should be additionally unlocked */
-        forget_secret_key_fields(&key->pkt.material);
+        forget_secret_key_fields(&key->pkt().material);
     }
     ret = true;
 done:
@@ -1163,7 +1153,7 @@ pgp_key_is_protected(const pgp_key_t *key)
     if (!pgp_key_is_secret(key)) {
         RNP_LOG("Warning: this is not a secret key");
     }
-    return key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE;
+    return key->pkt().sec_protection.s2k.usage != PGP_S2KU_NONE;
 }
 
 bool
@@ -1193,7 +1183,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         return false;
     }
     // We only support modifying v4 and newer keys
-    if (key->pkt.version < PGP_V4) {
+    if (key->pkt().version < PGP_V4) {
         RNP_LOG("adding a userid to V2/V3 key is not supported");
         return false;
     }
@@ -1284,17 +1274,14 @@ pgp_key_set_expiration(pgp_key_t *                    key,
             RNP_LOG("uid not found");
             goto done;
         }
-        if (!signature_calculate_certification(pgp_key_get_pkt(key),
-                                               &key->get_uid(subsig->uid).pkt,
-                                               &newsig,
-                                               pgp_key_get_pkt(seckey))) {
+        if (!signature_calculate_certification(
+              &key->pkt(), &key->get_uid(subsig->uid).pkt, &newsig, &seckey->pkt())) {
             RNP_LOG("failed to calculate signature");
             goto done;
         }
     } else {
         /* direct-key signature case */
-        if (!signature_calculate_direct(
-              pgp_key_get_pkt(key), &newsig, pgp_key_get_pkt(seckey))) {
+        if (!signature_calculate_direct(&key->pkt(), &newsig, &seckey->pkt())) {
             RNP_LOG("failed to calculate signature");
             goto done;
         }
@@ -1374,8 +1361,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
         goto done;
     }
-    if (!signature_calculate_binding(
-          pgp_key_get_pkt(primsec), pgp_key_get_pkt(secsub), &newsig, subsign)) {
+    if (!signature_calculate_binding(&primsec->pkt(), &secsub->pkt(), &newsig, subsign)) {
         RNP_LOG("failed to calculate signature");
         goto done;
     }
@@ -1504,18 +1490,18 @@ pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t 
     bool res = false;
     try {
         if (pgp_key_is_secret(&key)) {
-            pgp_key_pkt_t pkt(key.pkt, true);
+            pgp_key_pkt_t pkt(key.pkt(), true);
             pkt.write(memdst);
         } else {
-            key.pkt.write(memdst);
+            key.pkt().write(memdst);
         }
         key.get_uid(uid).pkt.write(memdst);
         cert->sig.write(memdst);
         if (pgp_key_is_secret(&sub)) {
-            pgp_key_pkt_t pkt(sub.pkt, true);
+            pgp_key_pkt_t pkt(sub.pkt(), true);
             pkt.write(memdst);
         } else {
-            sub.pkt.write(memdst);
+            sub.pkt().write(memdst);
         }
         binding->sig.write(memdst);
         dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
@@ -1929,27 +1915,26 @@ pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
     }
 }
 
-pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt)
+pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
 {
-    if (!is_key_pkt(keypkt.tag) || !keypkt.material.alg) {
+    if (!is_key_pkt(pkt_.tag) || !pkt_.material.alg) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    pkt = keypkt;
-    if (pgp_keyid(keyid, pkt) || pgp_fingerprint(fingerprint, pkt) ||
-        !rnp_key_store_get_key_grip(&pkt.material, grip)) {
+    if (pgp_keyid(keyid, pkt_) || pgp_fingerprint(fingerprint, pkt_) ||
+        !rnp_key_store_get_key_grip(&pkt_.material, grip)) {
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
 
     /* parse secret key if not encrypted */
-    if (is_secret_key_pkt(pkt.tag)) {
-        bool cleartext = keypkt.sec_protection.s2k.usage == PGP_S2KU_NONE;
-        if (cleartext && decrypt_secret_key(&pkt, NULL)) {
+    if (is_secret_key_pkt(pkt_.tag)) {
+        bool cleartext = pkt_.sec_protection.s2k.usage == PGP_S2KU_NONE;
+        if (cleartext && decrypt_secret_key(&pkt_, NULL)) {
             RNP_LOG("failed to setup key fields");
             throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
         }
     }
     /* add rawpacket */
-    rawpkt = pgp_rawpacket_t(pkt);
+    rawpkt = pgp_rawpacket_t(pkt_);
     format = PGP_KEY_STORE_GPG;
 }
 
@@ -1968,10 +1953,10 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     }
 
     if (pubonly) {
-        pkt = pgp_key_pkt_t(src.pkt, true);
-        rawpkt = pgp_rawpacket_t(pkt);
+        pkt_ = pgp_key_pkt_t(src.pkt_, true);
+        rawpkt = pgp_rawpacket_t(pkt_);
     } else {
-        pkt = src.pkt;
+        pkt_ = src.pkt_;
         rawpkt = src.rawpkt;
     }
 
@@ -2182,4 +2167,22 @@ pgp_key_t::clear_revokes()
         uid.revoked = false;
         uid.revocation = {};
     }
+}
+
+const pgp_key_pkt_t &
+pgp_key_t::pkt() const
+{
+    return pkt_;
+}
+
+pgp_key_pkt_t &
+pgp_key_t::pkt()
+{
+    return pkt_;
+}
+
+void
+pgp_key_t::set_pkt(const pgp_key_pkt_t &pkt)
+{
+    pkt_ = pkt;
 }
