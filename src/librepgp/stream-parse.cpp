@@ -1998,7 +1998,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                     continue;
                 }
             } else {
-                decrypted_seckey = &(seckey->pkt);
+                decrypted_seckey = &seckey->pkt();
             }
 
             /* Try to initialize the decryption */

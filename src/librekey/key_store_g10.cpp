@@ -1062,38 +1062,37 @@ g10_decrypt_seckey(const uint8_t *      data,
 }
 
 static bool
-copy_secret_fields(pgp_key_pkt_t *dst, const pgp_key_pkt_t *src)
+copy_secret_fields(pgp_key_pkt_t &dst, const pgp_key_pkt_t &src)
 {
-    switch (src->alg) {
+    switch (src.alg) {
     case PGP_PKA_DSA:
-        dst->material.dsa.x = src->material.dsa.x;
+        dst.material.dsa.x = src.material.dsa.x;
         break;
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst->material.rsa.d = src->material.rsa.d;
-        dst->material.rsa.p = src->material.rsa.p;
-        dst->material.rsa.q = src->material.rsa.q;
-        dst->material.rsa.u = src->material.rsa.u;
+        dst.material.rsa.d = src.material.rsa.d;
+        dst.material.rsa.p = src.material.rsa.p;
+        dst.material.rsa.q = src.material.rsa.q;
+        dst.material.rsa.u = src.material.rsa.u;
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst->material.eg.x = src->material.eg.x;
+        dst.material.eg.x = src.material.eg.x;
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-        dst->material.ec.x = src->material.ec.x;
+        dst.material.ec.x = src.material.ec.x;
         break;
     default:
-        RNP_LOG("Unsupported public key algorithm: %d", (int) src->alg);
+        RNP_LOG("Unsupported public key algorithm: %d", (int) src.alg);
         return false;
     }
 
-    dst->material.secret = src->material.secret;
-    dst->sec_protection = src->sec_protection;
-    dst->tag = is_subkey_pkt(dst->tag) ? PGP_PKT_SECRET_SUBKEY : PGP_PKT_SECRET_KEY;
-
+    dst.material.secret = src.material.secret;
+    dst.sec_protection = src.sec_protection;
+    dst.tag = is_subkey_pkt(dst.tag) ? PGP_PKT_SECRET_SUBKEY : PGP_PKT_SECRET_KEY;
     return true;
 }
 
@@ -1143,11 +1142,11 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
             goto done;
         }
 
-        if (!copy_secret_fields(&key.pkt, &seckey)) {
+        if (!copy_secret_fields(key.pkt(), seckey)) {
             goto done;
         }
     } else {
-        key.pkt = std::move(seckey);
+        key.set_pkt(std::move(seckey));
     }
 
     try {
