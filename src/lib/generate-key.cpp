@@ -83,11 +83,11 @@ load_generated_g10_key(pgp_key_t *    dst,
     pgp_key_provider_t prov = {};
 
     // this should generally be zeroed
-    assert(pgp_key_get_type(dst) == 0);
+    assert(dst->type() == 0);
     // if a primary is provided, make sure it's actually a primary key
-    assert(!primary_key || pgp_key_is_primary_key(primary_key));
+    assert(!primary_key || primary_key->is_primary());
     // if a pubkey is provided, make sure it's actually a public key
-    assert(!pubkey || pgp_key_is_public(pubkey));
+    assert(!pubkey || pubkey->is_public());
     // G10 always needs pubkey here
     assert(pubkey);
 
@@ -131,8 +131,7 @@ load_generated_g10_key(pgp_key_t *    dst,
         goto end;
     }
     // if a primary key is provided, it should match the sub with regards to type
-    assert(!primary_key ||
-           (pgp_key_is_secret(primary_key) == pgp_key_is_secret(&key_store->keys.front())));
+    assert(!primary_key || (primary_key->is_secret() == key_store->keys.front().is_secret()));
     try {
         *dst = pgp_key_t(key_store->keys.front());
         ok = true;
@@ -358,7 +357,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     if (!desc || !primary_pub || !primary_sec) {
         return false;
     }
-    if (pgp_key_get_type(primary_sec) || pgp_key_get_type(primary_pub)) {
+    if (primary_sec->type() || primary_pub->type()) {
         RNP_LOG("invalid parameters (should be zeroed)");
         return false;
     }
@@ -480,12 +479,12 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         RNP_LOG("NULL args");
         goto end;
     }
-    if (!pgp_key_is_primary_key(primary_sec) || !pgp_key_is_primary_key(primary_pub) ||
-        !pgp_key_is_secret(primary_sec) || !pgp_key_is_public(primary_pub)) {
+    if (!primary_sec->is_primary() || !primary_pub->is_primary() ||
+        !primary_sec->is_secret() || !primary_pub->is_public()) {
         RNP_LOG("invalid parameters");
         goto end;
     }
-    if (pgp_key_get_type(subkey_sec) || pgp_key_get_type(subkey_pub)) {
+    if (subkey_sec->type() || subkey_pub->type()) {
         RNP_LOG("invalid parameters (should be zeroed)");
         goto end;
     }
@@ -503,7 +502,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
     ctx = {.op = PGP_OP_ADD_SUBKEY, .key = primary_sec};
 
     // decrypt the primary seckey if needed (for signatures)
-    if (pgp_key_is_encrypted(primary_sec)) {
+    if (primary_sec->encrypted()) {
         decrypted_primary_seckey = pgp_decrypt_seckey(primary_sec, password_provider, &ctx);
         if (!decrypted_primary_seckey) {
             goto end;
