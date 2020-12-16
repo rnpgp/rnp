@@ -3825,8 +3825,7 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         FFI_LOG(ffi, "Failed to unlock secret key");
         return RNP_ERROR_BAD_PASSWORD;
     }
-    *sig =
-      transferable_key_revoke(*pgp_key_get_pkt(key), *pgp_key_get_pkt(revoker), halg, revinfo);
+    *sig = transferable_key_revoke(key->pkt(), revoker->pkt(), halg, revinfo);
     if (!*sig) {
         FFI_LOG(ffi, "Failed to generate revocation signature");
     }
@@ -5488,7 +5487,7 @@ try {
     if (!public_key && secret_key->format == PGP_KEY_STORE_G10) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &secret_key->pkt;
+    seckey = &secret_key->pkt();
     if (!seckey->material.secret) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
         decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
@@ -6368,8 +6367,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_s2k_t & s2k = key->sec->pkt.sec_protection.s2k;
-    const char *res = "Unknown";
+    const pgp_s2k_t &s2k = key->sec->pkt().sec_protection.s2k;
+    const char *     res = "Unknown";
     if (s2k.usage == PGP_S2KU_NONE) {
         res = "None";
     }
@@ -6403,16 +6402,16 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (key->sec->pkt.sec_protection.s2k.usage == PGP_S2KU_NONE) {
+    if (key->sec->pkt().sec_protection.s2k.usage == PGP_S2KU_NONE) {
         return ret_str_value("None", mode);
     }
-    if (key->sec->pkt.sec_protection.s2k.specifier == PGP_S2KS_EXPERIMENTAL) {
+    if (key->sec->pkt().sec_protection.s2k.specifier == PGP_S2KS_EXPERIMENTAL) {
         return ret_str_value("Unknown", mode);
     }
 
     return get_map_value(cipher_mode_map,
                          ARRAY_SIZE(cipher_mode_map),
-                         key->sec->pkt.sec_protection.cipher_mode,
+                         key->sec->pkt().sec_protection.cipher_mode,
                          mode);
 }
 FFI_GUARD
@@ -6420,8 +6419,8 @@ FFI_GUARD
 static bool
 pgp_key_has_encryption_info(const pgp_key_t *key)
 {
-    return (key->pkt.sec_protection.s2k.usage != PGP_S2KU_NONE) &&
-           (key->pkt.sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL);
+    return (key->pkt().sec_protection.s2k.usage != PGP_S2KU_NONE) &&
+           (key->pkt().sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL);
 }
 
 rnp_result_t
@@ -6438,7 +6437,7 @@ try {
     }
 
     return get_map_value(
-      symm_alg_map, ARRAY_SIZE(symm_alg_map), key->sec->pkt.sec_protection.symm_alg, cipher);
+      symm_alg_map, ARRAY_SIZE(symm_alg_map), key->sec->pkt().sec_protection.symm_alg, cipher);
 }
 FFI_GUARD
 
@@ -6455,8 +6454,10 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    return get_map_value(
-      hash_alg_map, ARRAY_SIZE(hash_alg_map), key->sec->pkt.sec_protection.s2k.hash_alg, hash);
+    return get_map_value(hash_alg_map,
+                         ARRAY_SIZE(hash_alg_map),
+                         key->sec->pkt().sec_protection.s2k.hash_alg,
+                         hash);
 }
 FFI_GUARD
 
@@ -6473,8 +6474,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (key->sec->pkt.sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        *iterations = pgp_s2k_decode_iterations(key->sec->pkt.sec_protection.s2k.iterations);
+    if (key->sec->pkt().sec_protection.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
+        *iterations = pgp_s2k_decode_iterations(key->sec->pkt().sec_protection.s2k.iterations);
     } else {
         *iterations = 1;
     }
@@ -6592,7 +6593,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &key->pkt;
+    seckey = &key->pkt();
     if (pgp_key_is_encrypted(key)) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
         decrypted_seckey = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);

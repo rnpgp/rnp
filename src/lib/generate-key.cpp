@@ -510,7 +510,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         }
         primary_seckey = decrypted_primary_seckey;
     } else {
-        primary_seckey = pgp_key_get_pkt(primary_sec);
+        primary_seckey = &primary_sec->pkt();
     }
 
     // generate the raw key pair

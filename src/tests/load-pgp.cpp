@@ -87,7 +87,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     // decrypt the key
     const pgp_rawpacket_t &pkt = pgp_key_get_rawpacket(key);
     pgp_key_pkt_t *        seckey =
-      pgp_decrypt_seckey_pgp(pkt.raw.data(), pkt.raw.size(), pgp_key_get_pkt(key), "password");
+      pgp_decrypt_seckey_pgp(pkt.raw.data(), pkt.raw.size(), &key->pkt(), "password");
     assert_non_null(seckey);
 
     // cleanup
@@ -375,7 +375,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     assert_int_equal(sig->expiration(), 0);
     // check key expiration
     assert_int_equal(pgp_key_get_expiration(key), 0); // only for V4 keys
-    assert_int_equal(pgp_key_get_pkt(key)->v3_days, 0);
+    assert_int_equal(key->pkt().v3_days, 0);
 
     // cleanup
     delete key_store;
@@ -723,9 +723,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(check_subkey_fp(&keycp, skey2, 1));
     assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(key));
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_KEY);
-    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
+    assert_null(keycp.pkt().sec_data);
+    assert_int_equal(keycp.pkt().sec_len, 0);
+    assert_false(keycp.pkt().material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 1 */
     keycp = pgp_key_t(*skey1, true);
@@ -735,9 +735,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey1));
     assert_true(pgp_key_get_keyid(&keycp) == sub1id);
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
+    assert_null(keycp.pkt().sec_data);
+    assert_int_equal(keycp.pkt().sec_len, 0);
+    assert_false(keycp.pkt().material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* subkey 2 */
     keycp = pgp_key_t(*skey2, true);
@@ -747,9 +747,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey2));
     assert_true(pgp_key_get_keyid(&keycp) == sub2id);
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_SUBKEY);
-    assert_null(pgp_key_get_pkt(&keycp)->sec_data);
-    assert_int_equal(pgp_key_get_pkt(&keycp)->sec_len, 0);
-    assert_false(pgp_key_get_pkt(&keycp)->material.secret);
+    assert_null(keycp.pkt().sec_data);
+    assert_int_equal(keycp.pkt().sec_len, 0);
+    assert_false(keycp.pkt().material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* save pubring */
     assert_true(rnp_key_store_write_to_path(pubstore));
