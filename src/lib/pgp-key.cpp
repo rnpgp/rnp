@@ -72,23 +72,6 @@
 #include <stdexcept>
 #include "defaults.h"
 
-/**
- \ingroup HighLevel_KeyGeneral
-
- \brief Returns the public key in the given key.
- \param key
-
-  \return Pointer to public key
-
-  \note This is not a copy, do not free it after use.
-*/
-
-const pgp_key_material_t *
-pgp_key_get_material(const pgp_key_t *key)
-{
-    return &key->pkt().material;
-}
-
 pgp_pubkey_alg_t
 pgp_key_get_alg(const pgp_key_t *key)
 {
@@ -102,13 +85,13 @@ pgp_key_get_dsa_qbits(const pgp_key_t *key)
         return 0;
     }
 
-    return dsa_qbits(&pgp_key_get_material(key)->dsa);
+    return dsa_qbits(&key->material().dsa);
 }
 
 size_t
 pgp_key_get_bits(const pgp_key_t *key)
 {
-    return key_bitlength(pgp_key_get_material(key));
+    return key_bitlength(&key->material());
 }
 
 pgp_curve_t
@@ -119,7 +102,7 @@ pgp_key_get_curve(const pgp_key_t *key)
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return pgp_key_get_material(key)->ec.curve;
+        return key->material().ec.curve;
     default:
         return PGP_CURVE_UNKNOWN;
     }
@@ -2185,4 +2168,10 @@ void
 pgp_key_t::set_pkt(const pgp_key_pkt_t &pkt)
 {
     pkt_ = pkt;
+}
+
+const pgp_key_material_t &
+pgp_key_t::material() const
+{
+    return pkt_.material;
 }
