@@ -167,11 +167,11 @@ struct pgp_key_t {
     const pgp_key_pkt_t &pkt() const;
     pgp_key_pkt_t &      pkt();
     void                 set_pkt(const pgp_key_pkt_t &pkt);
+
+    const pgp_key_material_t &material() const;
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
-
-const pgp_key_material_t *pgp_key_get_material(const pgp_key_t *key);
 
 pgp_pubkey_alg_t pgp_key_get_alg(const pgp_key_t *key);
 

@@ -88,10 +88,10 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     rnp_buffer_destroy(alg);
 
     // confirm the secret MPIs are NULL
-    assert_int_equal(pgp_key_get_material(key->sec)->rsa.d.len, 0);
-    assert_int_equal(pgp_key_get_material(key->sec)->rsa.p.len, 0);
-    assert_int_equal(pgp_key_get_material(key->sec)->rsa.q.len, 0);
-    assert_int_equal(pgp_key_get_material(key->sec)->rsa.u.len, 0);
+    assert_true(mpi_empty(key->sec->material().rsa.d));
+    assert_true(mpi_empty(key->sec->material().rsa.p));
+    assert_true(mpi_empty(key->sec->material().rsa.q));
+    assert_true(mpi_empty(key->sec->material().rsa.u));
 
     // try to unlock with a failing password provider
     provider.callback = failing_password_callback;
@@ -116,10 +116,10 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     assert_false(locked);
 
     // confirm the secret MPIs are now filled in
-    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.d.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.p.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.q.len, 0);
-    assert_int_not_equal(pgp_key_get_material(key->sec)->rsa.u.len, 0);
+    assert_false(mpi_empty(key->sec->material().rsa.d));
+    assert_false(mpi_empty(key->sec->material().rsa.p));
+    assert_false(mpi_empty(key->sec->material().rsa.q));
+    assert_false(mpi_empty(key->sec->material().rsa.u));
 
     // now the signing key is unlocked, confirm that no password is required for signing
     assert_rnp_success(
