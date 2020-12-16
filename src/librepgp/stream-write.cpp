@@ -540,7 +540,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                 &pkey.material.rsa,
                                 enckey,
                                 keylen + 3,
-                                &pgp_key_get_material(userkey)->rsa);
+                                &userkey->material().rsa);
         if (ret) {
             RNP_LOG("rsa_encrypt_pkcs1 failed");
             goto finish;
@@ -553,7 +553,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                           enckey,
                           keylen + 3,
                           PGP_HASH_SM3,
-                          &pgp_key_get_material(userkey)->ec);
+                          &userkey->material().ec);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("sm2_encrypt failed");
             goto finish;
@@ -565,7 +565,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                  &pkey.material.ecdh,
                                  enckey,
                                  keylen + 3,
-                                 &pgp_key_get_material(userkey)->ec,
+                                 &userkey->material().ec,
                                  pgp_key_get_fp(userkey));
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
@@ -578,7 +578,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                     &pkey.material.eg,
                                     enckey,
                                     keylen + 3,
-                                    &pgp_key_get_material(userkey)->eg);
+                                    &userkey->material().eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             goto finish;

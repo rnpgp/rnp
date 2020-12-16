@@ -369,10 +369,10 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* validate signature and fields */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     assert_int_equal(sig.creation(), 1522241943);
-    assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
+    assert_rnp_success(signature_validate(&sig, &key->material(), &hash));
     /* check forged file */
     assert_true(pgp_hash_copy(&hash, &hash_forged));
-    assert_rnp_failure(signature_validate(&sig, pgp_key_get_material(key), &hash));
+    assert_rnp_failure(signature_validate(&sig, &key->material(), &hash));
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -395,13 +395,13 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_true(signature_fill_hashed_data(&sig));
     /* try to sign without decrypting of the secret key */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
-    assert_rnp_failure(signature_calculate(&sig, pgp_key_get_material(key), &hash, &rng));
+    assert_rnp_failure(signature_calculate(&sig, &key->material(), &hash, &rng));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
                                          .userdata = (void *) "password"};
     assert_true(pgp_key_unlock(key, &pswd_prov));
     assert_true(pgp_hash_copy(&hash, &hash_orig));
-    assert_rnp_success(signature_calculate(&sig, pgp_key_get_material(key), &hash, &rng));
+    assert_rnp_success(signature_calculate(&sig, &key->material(), &hash, &rng));
     /* now verify signature */
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     /* validate signature and fields */
@@ -409,7 +409,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == pgp_key_get_fp(key));
-    assert_rnp_success(signature_validate(&sig, pgp_key_get_material(key), &hash));
+    assert_rnp_success(signature_validate(&sig, &key->material(), &hash));
     /* cleanup */
     delete pubring;
     delete secring;
@@ -1022,11 +1022,11 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, sig->keyid(), NULL));
     /* check certification signature */
     assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
-    assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
+    assert_rnp_success(signature_validate(sig, &pkey->material(), &hash));
     /* modify userid and check signature */
     uid->uid.uid[2] = '?';
     assert_true(signature_hash_certification(sig, &key->key, &uid->uid, &hash));
-    assert_rnp_failure(signature_validate(sig, pgp_key_get_material(pkey), &hash));
+    assert_rnp_failure(signature_validate(sig, &pkey->material(), &hash));
     delete pubring;
 
     /* keyring */
@@ -1051,14 +1051,12 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                 assert_rnp_success(signature_check_certification(&sinfo, &key->key, &uid.uid));
                 /* low level check */
                 assert_true(signature_hash_certification(&sig, &key->key, &uid.uid, &hash));
-                assert_rnp_success(
-                  signature_validate(&sig, pgp_key_get_material(pkey), &hash));
+                assert_rnp_success(signature_validate(&sig, &pkey->material(), &hash));
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
                 assert_rnp_failure(signature_check_certification(&sinfo, &key->key, &uid.uid));
                 assert_true(signature_hash_certification(&sig, &key->key, &uid.uid, &hash));
-                assert_rnp_failure(
-                  signature_validate(&sig, pgp_key_get_material(pkey), &hash));
+                assert_rnp_failure(signature_validate(&sig, &pkey->material(), &hash));
             }
         }
 
@@ -1077,7 +1075,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_rnp_success(signature_check_binding(&sinfo, &key->key, psub));
             /* low level check */
             assert_true(signature_hash_binding(sig, &key->key, &subkey.subkey, &hash));
-            assert_rnp_success(signature_validate(sig, pgp_key_get_material(pkey), &hash));
+            assert_rnp_success(signature_validate(sig, &pkey->material(), &hash));
         }
     }
 
