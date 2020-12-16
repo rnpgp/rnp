@@ -345,15 +345,15 @@ signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
     }
 
     /* check key creation time vs signature creation */
-    kcreate = pgp_key_get_creation(sinfo->signer);
+    kcreate = sinfo->signer->creation();
     if (kcreate > create) {
         RNP_LOG("key is newer than signature");
         sinfo->valid = false;
     }
 
     /* check whether key was not expired when sig created */
-    if (!sinfo->ignore_expiry && pgp_key_get_expiration(sinfo->signer) &&
-        (kcreate + pgp_key_get_expiration(sinfo->signer) < create)) {
+    if (!sinfo->ignore_expiry && sinfo->signer->expiration() &&
+        (kcreate + sinfo->signer->expiration() < create)) {
         RNP_LOG("signature made after key expiration");
         sinfo->valid = false;
     }

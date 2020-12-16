@@ -9838,7 +9838,7 @@ check_key_autocrypt(rnp_output_t       memout,
     if ((key->pub->sig_count() != 1) || (sub->pub->sig_count() != 1)) {
         return false;
     }
-    if (!pgp_key_can_sign(key->pub) || !pgp_key_can_encrypt(sub->pub)) {
+    if (!key->pub->can_sign() || !sub->pub->can_encrypt()) {
         return false;
     }
     if ((key->pub->uid_count() != 1) || (key->pub->get_uid(0).str != uid)) {

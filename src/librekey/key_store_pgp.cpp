@@ -206,11 +206,11 @@ static bool
 do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
     for (auto &key : key_store->keys) {
-        if (pgp_key_is_secret(&key) != secret) {
+        if (key.is_secret() != secret) {
             continue;
         }
         // skip subkeys, they are written below (orphans are ignored)
-        if (!pgp_key_is_primary_key(&key)) {
+        if (!key.is_primary()) {
             continue;
         }
 

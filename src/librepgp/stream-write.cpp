@@ -519,7 +519,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
-    pkey.alg = pgp_key_get_alg(userkey);
+    pkey.alg = userkey->alg();
     pkey.key_id = pgp_key_get_keyid(userkey);
 
     /* Encrypt the session key */
@@ -533,7 +533,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     enckey[keylen + 1] = (checksum >> 8) & 0xff;
     enckey[keylen + 2] = checksum & 0xff;
 
-    switch (pgp_key_get_alg(userkey)) {
+    switch (userkey->alg()) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
@@ -586,7 +586,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     default:
-        RNP_LOG("unsupported alg: %d", pgp_key_get_alg(userkey));
+        RNP_LOG("unsupported alg: %d", (int) userkey->alg());
         goto finish;
     }
 
@@ -1082,7 +1082,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
     }
 
     /* decrypt the secret key if needed */
-    if (pgp_key_is_encrypted(signer->key)) {
+    if (signer->key->encrypted()) {
         deckey = pgp_decrypt_seckey(signer->key, param->password_provider, &ctx);
         if (!deckey) {
             RNP_LOG("wrong secret key password");
@@ -1097,7 +1097,7 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
     ret = signature_calculate(sig, &deckey->material, &hash, rnp_ctx_rng_handle(param->ctx));
 
     /* destroy decrypted secret key */
-    if (pgp_key_is_encrypted(signer->key)) {
+    if (signer->key->encrypted()) {
         delete deckey;
     }
     return ret;
@@ -1116,7 +1116,7 @@ signed_write_signature(pgp_dest_signed_param_t *param,
         sig.set_type(signer->onepass.type);
     } else {
         sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
-        sig.palg = pgp_key_get_alg(signer->key);
+        sig.palg = signer->key->alg();
         sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
     }
 
@@ -1223,7 +1223,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
 {
     pgp_dest_signer_info_t sinfo = {};
 
-    if (!pgp_key_is_secret(signer->key)) {
+    if (!signer->key->is_secret()) {
         RNP_LOG("secret key required for signing");
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1255,7 +1255,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.version = 3;
     sinfo.onepass.type = PGP_SIG_BINARY;
     sinfo.onepass.halg = sinfo.halg;
-    sinfo.onepass.palg = pgp_key_get_alg(sinfo.key);
+    sinfo.onepass.palg = sinfo.key->alg();
     sinfo.onepass.keyid = pgp_key_get_keyid(sinfo.key);
     sinfo.onepass.nested = false;
     try {

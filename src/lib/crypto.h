@@ -138,6 +138,4 @@ bool key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t
 
 rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng);
 
-size_t key_bitlength(const pgp_key_material_t *key);
-
 #endif /* CRYPTO_H_ */

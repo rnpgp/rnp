@@ -163,6 +163,9 @@ typedef struct pgp_key_material_t {
         pgp_eg_key_t  eg;
         pgp_ec_key_t  ec;
     };
+
+    size_t bits() const;
+    size_t qbits() const;
 } pgp_key_material_t;
 
 /**

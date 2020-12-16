@@ -122,14 +122,14 @@ struct pgp_key_t {
     std::vector<pgp_sig_id_t> keysigs_{};  /* direct-key signature ids in the original order */
     std::vector<pgp_userid_t> uids_{};     /* array of user ids */
     pgp_key_pkt_t             pkt_{};      /* pubkey/seckey data packet */
+    uint8_t                   flags_{};    /* key flags */
+    time_t                    expiration_{}; /* key expiration time, if available */
   public:
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
     pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
     bool                   primary_fp_set{};
-    time_t                 expiration{}; /* key expiration time, if available */
-    pgp_rawpacket_t        rawpkt{};     /* key raw packet */
-    uint8_t                key_flags{};  /* key flags */
+    pgp_rawpacket_t        rawpkt{}; /* key raw packet */
     pgp_key_id_t           keyid{};
     pgp_fingerprint_t      fingerprint{};
     pgp_key_grip_t         grip{};
@@ -169,49 +169,29 @@ struct pgp_key_t {
     void                 set_pkt(const pgp_key_pkt_t &pkt);
 
     const pgp_key_material_t &material() const;
+
+    pgp_pubkey_alg_t alg() const;
+    pgp_curve_t      curve() const;
+    pgp_version_t    version() const;
+    pgp_pkt_type_t   type() const;
+    bool             encrypted() const;
+    uint8_t          flags() const;
+    void             set_flags(uint8_t flags);
+    bool             can_sign() const;
+    bool             can_certify() const;
+    bool             can_encrypt() const;
+    /** @brief Get key's expiration time in seconds. If 0 then it doesn't expire. */
+    uint32_t expiration() const;
+    void     set_expiration(uint32_t expiry);
+    /** @brief Get key's creation time in seconds since Jan, 1 1970. */
+    uint32_t creation() const;
+    bool     is_public() const;
+    bool     is_secret() const;
+    bool     is_primary() const;
+    bool     is_subkey() const;
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
-
-pgp_pubkey_alg_t pgp_key_get_alg(const pgp_key_t *key);
-
-size_t pgp_key_get_dsa_qbits(const pgp_key_t *key);
-
-size_t pgp_key_get_bits(const pgp_key_t *key);
-
-pgp_curve_t pgp_key_get_curve(const pgp_key_t *key);
-
-pgp_version_t pgp_key_get_version(const pgp_key_t *key);
-
-pgp_pkt_type_t pgp_key_get_type(const pgp_key_t *key);
-
-bool pgp_key_is_encrypted(const pgp_key_t *);
-
-uint8_t pgp_key_get_flags(const pgp_key_t *key);
-bool    pgp_key_can_sign(const pgp_key_t *key);
-bool    pgp_key_can_certify(const pgp_key_t *key);
-bool    pgp_key_can_encrypt(const pgp_key_t *key);
-
-/**
- * @brief Get key's expiration time in seconds. If 0 then it doesn't expire.
- *
- * @param key populated key, could not be NULL
- * @return key expiration time
- */
-uint32_t pgp_key_get_expiration(const pgp_key_t *key);
-
-/**
- * @brief Get key's creation time in seconds since Jan, 1 1980.
- *
- * @param key populated key, could not be NULL
- * @return key creation time
- */
-uint32_t pgp_key_get_creation(const pgp_key_t *key);
-
-bool pgp_key_is_public(const pgp_key_t *);
-bool pgp_key_is_secret(const pgp_key_t *);
-bool pgp_key_is_primary_key(const pgp_key_t *key);
-bool pgp_key_is_subkey(const pgp_key_t *key);
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                       size_t,
