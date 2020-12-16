@@ -248,7 +248,7 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     pgp_transferable_subkey_t dstkey;
     pgp_transferable_subkey_t srckey;
 
-    if (!pgp_key_is_subkey(dst) || !pgp_key_is_subkey(src)) {
+    if (!dst->is_subkey() || !src->is_subkey()) {
         RNP_LOG("wrong subkey merge call");
         return false;
     }
@@ -284,11 +284,11 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     }
 
     /* check whether key was unlocked and assign secret key data */
-    if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
+    if (dst->is_secret() && !pgp_key_is_locked(dst)) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
         tmpkey.pkt().material = dst->pkt().material;
-    } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
+    } else if (src->is_secret() && !pgp_key_is_locked(src)) {
         tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */
@@ -308,7 +308,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
     pgp_transferable_key_t dstkey;
     pgp_transferable_key_t srckey;
 
-    if (pgp_key_is_subkey(dst) || pgp_key_is_subkey(src)) {
+    if (dst->is_subkey() || src->is_subkey()) {
         RNP_LOG("wrong key merge call");
         return false;
     }
@@ -352,11 +352,11 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         }
     }
     /* check whether key was unlocked and assign secret key data */
-    if (pgp_key_is_secret(dst) && !pgp_key_is_locked(dst)) {
+    if (dst->is_secret() && !pgp_key_is_locked(dst)) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
         tmpkey.pkt().material = dst->pkt().material;
-    } else if (pgp_key_is_secret(src) && !pgp_key_is_locked(src)) {
+    } else if (src->is_secret() && !pgp_key_is_locked(src)) {
         tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */
@@ -373,7 +373,7 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
 static bool
 rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
 {
-    if (pgp_key_is_subkey(key)) {
+    if (key->is_subkey()) {
         RNP_LOG("wrong argument");
         return false;
     }
@@ -382,7 +382,7 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
         bool found = false;
 
         /* if we have primary_grip then we also added to subkey_grips */
-        if (!pgp_key_is_subkey(&skey) || pgp_key_has_primary_fp(&skey)) {
+        if (!skey.is_subkey() || pgp_key_has_primary_fp(&skey)) {
             continue;
         }
 
@@ -479,14 +479,14 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
 pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
-    assert(pgp_key_get_type(srckey) && pgp_key_get_version(srckey));
+    assert(srckey->type() && srckey->version());
     pgp_key_t *added_key = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
         return added_key;
     }
     /* different processing for subkeys */
-    if (pgp_key_is_subkey(srckey)) {
+    if (srckey->is_subkey()) {
         return rnp_key_store_add_subkey(keyring, srckey, added_key);
     }
 
@@ -630,7 +630,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
                                    pgp_key_t *            key,
                                    const pgp_signature_t *sig)
 {
-    if (pgp_key_is_subkey(key)) {
+    if (key->is_subkey()) {
         return rnp_key_store_import_subkey_signature(keyring, key, sig);
     }
     if ((sig->type() != PGP_SIG_DIRECT) && (sig->type() != PGP_SIG_REV_KEY)) {
@@ -678,7 +678,7 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
     }
 
     pgp_key_t *res_key = rnp_key_store_get_signer_key(keyring, sig);
-    if (!res_key || !pgp_key_is_primary_key(res_key)) {
+    if (!res_key || !res_key->is_primary()) {
         *status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
         return NULL;
     }
@@ -695,7 +695,7 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
     }
 
     /* cleanup primary_grip (or subkey)/subkey_grips */
-    if (pgp_key_is_primary_key(key) && pgp_key_get_subkey_count(key)) {
+    if (key->is_primary() && pgp_key_get_subkey_count(key)) {
         for (size_t i = 0; i < pgp_key_get_subkey_count(key); i++) {
             auto it = keyring->keybyfp.find(pgp_key_get_subkey_fp(key, i));
             if (it == keyring->keybyfp.end()) {
@@ -711,7 +711,7 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
             it->second->primary_fp_set = false;
         }
     }
-    if (pgp_key_is_subkey(key) && pgp_key_has_primary_fp(key)) {
+    if (key->is_subkey() && pgp_key_has_primary_fp(key)) {
         pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
         if (primary) {
             pgp_key_remove_subkey_fp(primary, pgp_key_get_fp(key));
@@ -809,7 +809,7 @@ rnp_key_store_get_key_by_fpr(rnp_key_store_t *keyring, const pgp_fingerprint_t &
 pgp_key_t *
 rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
 {
-    if (!pgp_key_is_subkey(subkey)) {
+    if (!subkey->is_subkey()) {
         return NULL;
     }
 

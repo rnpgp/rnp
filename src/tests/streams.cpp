@@ -379,14 +379,14 @@ TEST_F(rnp_tests, test_stream_signatures)
     secring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/test_stream_signatures/sec.asc");
     assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_id(secring, sig.keyid(), NULL));
-    assert_true(pgp_key_is_secret(key));
+    assert_true(key->is_secret());
     /* fill signature */
     uint32_t create = time(NULL);
     uint32_t expire = 123456;
     sig = {};
     sig.version = PGP_V4;
     sig.halg = halg;
-    sig.palg = pgp_key_get_alg(key);
+    sig.palg = key->alg();
     sig.set_type(PGP_SIG_BINARY);
     sig.set_keyfp(pgp_key_get_fp(key));
     sig.set_keyid(pgp_key_get_keyid(key));

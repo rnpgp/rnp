@@ -1989,7 +1989,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                 continue;
             }
             /* Decrypt key */
-            if (pgp_key_is_encrypted(seckey)) {
+            if (seckey->encrypted()) {
                 pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
                 decrypted_seckey =
                   pgp_decrypt_seckey(seckey, handler->password_provider, &pass_ctx);
@@ -2012,7 +2012,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
 
             /* Destroy decrypted key */
-            if (pgp_key_is_encrypted(seckey)) {
+            if (seckey->encrypted()) {
                 delete decrypted_seckey;
                 decrypted_seckey = NULL;
             }
