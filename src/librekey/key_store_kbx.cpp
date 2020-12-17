@@ -576,7 +576,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         goto finish;
     }
 
-    if (!pbuf(&memdst, pgp_key_get_fp(key).fingerprint, PGP_FINGERPRINT_SIZE) ||
+    if (!pbuf(&memdst, key->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
         !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
         !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
         !pu16(&memdst, 0)) {                 // RFU
@@ -586,7 +586,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     // same as above, for each subkey
     for (auto &sfp : key->subkey_fps) {
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
-        if (!pbuf(&memdst, pgp_key_get_fp(subkey).fingerprint, PGP_FINGERPRINT_SIZE) ||
+        if (!pbuf(&memdst, subkey->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
             !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
             !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
             !pu16(&memdst, 0)) {                 // RFU

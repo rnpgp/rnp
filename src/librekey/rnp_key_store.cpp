@@ -159,12 +159,11 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         }
 
         for (auto &key : key_store->keys) {
-            const pgp_key_grip_t &grip = pgp_key_get_grip(&key);
             snprintf(path,
                      sizeof(path),
                      "%s/%s.key",
                      key_store->path.c_str(),
-                     rnp_strhexdump_upper(grips, grip.data(), grip.size(), ""));
+                     rnp_strhexdump_upper(grips, key.grip().data(), key.grip().size(), ""));
 
             if (init_tmpfile_dest(&keydst, path, true)) {
                 RNP_LOG("failed to create file");
@@ -392,11 +391,11 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
             if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
             }
-            if (subsig.sig.has_keyfp() && (pgp_key_get_fp(key) == subsig.sig.keyfp())) {
+            if (subsig.sig.has_keyfp() && (key->fp() == subsig.sig.keyfp())) {
                 found = true;
                 break;
             }
-            if (subsig.sig.has_keyid() && (pgp_key_get_keyid(key) == subsig.sig.keyid())) {
+            if (subsig.sig.has_keyid() && (key->keyid() == subsig.sig.keyid())) {
                 found = true;
                 break;
             }
@@ -429,7 +428,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             pgp_key_t *srcprim =
               rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_primary_fp(srckey));
             if (srcprim && (srcprim != primary)) {
-                pgp_key_remove_subkey_fp(srcprim, pgp_key_get_fp(srckey));
+                pgp_key_remove_subkey_fp(srcprim, srckey->fp());
             }
         }
         /* in case we already have key let's merge it in */
@@ -442,7 +441,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         try {
             keyring->keys.emplace_back();
             oldkey = &keyring->keys.back();
-            keyring->keybyfp[pgp_key_get_fp(srckey)] = std::prev(keyring->keys.end());
+            keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return NULL;
@@ -454,7 +453,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG_KEY("primary key is %s", primary);
             RNP_LOG("%s", e.what());
             keyring->keys.pop_back();
-            keyring->keybyfp.erase(pgp_key_get_fp(srckey));
+            keyring->keybyfp.erase(srckey->fp());
             return NULL;
         }
         if (primary && !pgp_key_link_subkey_fp(primary, oldkey)) {
@@ -480,7 +479,7 @@ pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     assert(srckey->type() && srckey->version());
-    pgp_key_t *added_key = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
+    pgp_key_t *added_key = rnp_key_store_get_key_by_fpr(keyring, srckey->fp());
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
         return added_key;
@@ -499,7 +498,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         try {
             keyring->keys.emplace_back();
             added_key = &keyring->keys.back();
-            keyring->keybyfp[pgp_key_get_fp(srckey)] = std::prev(keyring->keys.end());
+            keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return NULL;
@@ -514,7 +513,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             RNP_LOG_KEY("key %s copying failed", srckey);
             RNP_LOG("%s", e.what());
             keyring->keys.pop_back();
-            keyring->keybyfp.erase(pgp_key_get_fp(srckey));
+            keyring->keybyfp.erase(srckey->fp());
             return NULL;
         }
     }
@@ -536,7 +535,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
                          pgp_key_import_status_t *status)
 {
     /* add public key */
-    pgp_key_t *exkey = rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_fp(srckey));
+    pgp_key_t *exkey = rnp_key_store_get_key_by_fpr(keyring, srckey->fp());
     size_t     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
     keyring->disable_validation = true;
     try {
@@ -597,7 +596,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
         RNP_LOG("No primary grip or primary key");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     }
-    if (pgp_key_get_fp(primary) != pgp_key_get_primary_fp(key)) {
+    if (primary->fp() != pgp_key_get_primary_fp(key)) {
         RNP_LOG("Wrong subkey signature's signer.");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
@@ -689,7 +688,7 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
 bool
 rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool subkeys)
 {
-    auto it = keyring->keybyfp.find(pgp_key_get_fp(key));
+    auto it = keyring->keybyfp.find(key->fp());
     if (it == keyring->keybyfp.end()) {
         return false;
     }
@@ -714,7 +713,7 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
     if (key->is_subkey() && pgp_key_has_primary_fp(key)) {
         pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
         if (primary) {
-            pgp_key_remove_subkey_fp(primary, pgp_key_get_fp(key));
+            pgp_key_remove_subkey_fp(primary, key->fp());
         }
     }
 
@@ -759,9 +758,9 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
         it = std::next(it);
     }
     it = std::find_if(it, keyring->keys.end(), [keyid](const pgp_key_t &key) {
-        const pgp_key_id_t &id = pgp_key_get_keyid(&key);
-        return (id == keyid) ||
-               !memcmp(id.data() + PGP_KEY_ID_SIZE / 2, keyid.data(), PGP_KEY_ID_SIZE / 2);
+        return (key.keyid() == keyid) || !memcmp(key.keyid().data() + PGP_KEY_ID_SIZE / 2,
+                                                 keyid.data(),
+                                                 PGP_KEY_ID_SIZE / 2);
     });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
@@ -769,20 +768,18 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
 const pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [grip](const pgp_key_t &key) {
-          return pgp_key_get_grip(&key) == grip;
-      });
+    auto it = std::find_if(keyring->keys.begin(),
+                           keyring->keys.end(),
+                           [grip](const pgp_key_t &key) { return key.grip() == grip; });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 
 pgp_key_t *
 rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [grip](const pgp_key_t &key) {
-          return pgp_key_get_grip(&key) == grip;
-      });
+    auto it = std::find_if(keyring->keys.begin(),
+                           keyring->keys.end(),
+                           [grip](const pgp_key_t &key) { return key.grip() == grip; });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 

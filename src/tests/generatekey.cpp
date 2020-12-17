@@ -934,8 +934,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(rnp_key_store_add_key(pubring, &pub));
         assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings (for later)
-        primary_pub = rnp_key_store_get_key_by_grip(pubring, pgp_key_get_grip(&pub));
-        primary_sec = rnp_key_store_get_key_by_grip(secring, pgp_key_get_grip(&pub));
+        primary_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip());
+        primary_sec = rnp_key_store_get_key_by_grip(secring, pub.grip());
         assert_non_null(primary_pub);
         assert_non_null(primary_sec);
         assert_true(primary_pub->valid);
@@ -963,7 +963,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psiginfo.signer = &pub;
         assert_rnp_success(
           signature_check_certification(&psiginfo, &pub.pkt(), &pub.get_uid(0).pkt));
-        assert_true(psig->keyfp() == pgp_key_get_fp(&pub));
+        assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -971,8 +971,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
-        assert_int_equal(
-          0, memcmp(subpkt->fields.issuer, pgp_key_get_keyid(&pub).data(), PGP_KEY_ID_SIZE));
+        assert_int_equal(0,
+                         memcmp(subpkt->fields.issuer, pub.keyid().data(), PGP_KEY_ID_SIZE));
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
@@ -982,7 +982,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssiginfo.signer = &sec;
         assert_rnp_success(
           signature_check_certification(&ssiginfo, &sec.pkt(), &sec.get_uid(0).pkt));
-        assert_true(ssig->keyfp() == pgp_key_get_fp(&sec));
+        assert_true(ssig->keyfp() == sec.fp());
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[32] ^= 0xff;
@@ -1085,7 +1085,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psiginfo.sig = psig;
         psiginfo.signer = primary_pub;
         assert_rnp_success(signature_check_binding(&psiginfo, &primary_pub->pkt(), &pub));
-        assert_true(psig->keyfp() == pgp_key_get_fp(primary_pub));
+        assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
         assert_non_null(subpkt);
@@ -1093,10 +1093,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
         assert_non_null(subpkt);
         assert_false(subpkt->hashed);
-        assert_int_equal(0,
-                         memcmp(subpkt->fields.issuer,
-                                pgp_key_get_keyid(primary_pub).data(),
-                                PGP_KEY_ID_SIZE));
+        assert_int_equal(
+          0, memcmp(subpkt->fields.issuer, primary_pub->keyid().data(), PGP_KEY_ID_SIZE));
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_CREATION_TIME);
         assert_non_null(subpkt);
         assert_true(subpkt->hashed);
@@ -1105,7 +1103,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssiginfo.sig = ssig;
         ssiginfo.signer = primary_pub;
         assert_rnp_success(signature_check_binding(&ssiginfo, &primary_pub->pkt(), &sec));
-        assert_true(ssig->keyfp() == pgp_key_get_fp(primary_sec));
+        assert_true(ssig->keyfp() == primary_sec->fp());
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[10] ^= 0xff;
@@ -1121,8 +1119,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(rnp_key_store_add_key(pubring, &pub));
         assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings
-        sub_pub = rnp_key_store_get_key_by_grip(pubring, pgp_key_get_grip(&pub));
-        sub_sec = rnp_key_store_get_key_by_grip(secring, pgp_key_get_grip(&pub));
+        sub_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip());
+        sub_sec = rnp_key_store_get_key_by_grip(secring, pub.grip());
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
         assert_true(sub_pub->valid);

@@ -152,24 +152,6 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     return decrypted_seckey;
 }
 
-const pgp_key_id_t &
-pgp_key_get_keyid(const pgp_key_t *key)
-{
-    return key->keyid;
-}
-
-const pgp_fingerprint_t &
-pgp_key_get_fp(const pgp_key_t *key)
-{
-    return key->fingerprint;
-}
-
-const pgp_key_grip_t &
-pgp_key_get_grip(const pgp_key_t *key)
-{
-    return key->grip;
-}
-
 const pgp_fingerprint_t &
 pgp_key_get_primary_fp(const pgp_key_t *key)
 {
@@ -192,8 +174,8 @@ pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp)
 bool
 pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey)
 {
-    pgp_key_set_primary_fp(subkey, pgp_key_get_fp(key));
-    if (!pgp_key_add_subkey_fp(key, pgp_key_get_fp(subkey))) {
+    pgp_key_set_primary_fp(subkey, key->fp());
+    if (!pgp_key_add_subkey_fp(key, subkey->fp())) {
         RNP_LOG("failed to add subkey grip");
         return false;
     }
@@ -213,12 +195,12 @@ pgp_sig_self_signed(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
     /* if we have fingerprint let's check it */
     if (sig.sig.has_keyfp()) {
-        return sig.sig.keyfp() == pgp_key_get_fp(&key);
+        return sig.sig.keyfp() == key.fp();
     }
     if (!sig.sig.has_keyid()) {
         return false;
     }
-    return pgp_key_get_keyid(&key) == sig.sig.keyid();
+    return key.keyid() == sig.sig.keyid();
 }
 
 static bool
@@ -1776,8 +1758,8 @@ pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
     if (!is_key_pkt(pkt_.tag) || !pkt_.material.alg) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    if (pgp_keyid(keyid, pkt_) || pgp_fingerprint(fingerprint, pkt_) ||
-        !rnp_key_store_get_key_grip(&pkt_.material, grip)) {
+    if (pgp_keyid(keyid_, pkt_) || pgp_fingerprint(fingerprint_, pkt_) ||
+        !rnp_key_store_get_key_grip(&pkt_.material, grip_)) {
         throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     }
 
@@ -1825,9 +1807,9 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     primary_fp = src.primary_fp;
     expiration_ = src.expiration_;
     flags_ = src.flags_;
-    keyid = src.keyid;
-    fingerprint = src.fingerprint;
-    grip = src.grip;
+    keyid_ = src.keyid_;
+    fingerprint_ = src.fingerprint_;
+    grip_ = src.grip_;
     uid0 = src.uid0;
     uid0_set = src.uid0_set;
     revoked = src.revoked;
@@ -2164,6 +2146,24 @@ bool
 pgp_key_t::is_subkey() const
 {
     return is_subkey_pkt(pkt_.tag);
+}
+
+const pgp_key_id_t &
+pgp_key_t::keyid() const
+{
+    return keyid_;
+}
+
+const pgp_fingerprint_t &
+pgp_key_t::fp() const
+{
+    return fingerprint_;
+}
+
+const pgp_key_grip_t &
+pgp_key_t::grip() const
+{
+    return grip_;
 }
 
 size_t

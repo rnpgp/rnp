@@ -60,15 +60,18 @@ TEST_F(rnp_tests, test_key_store_search)
             key.pkt().alg = PGP_PKA_RSA;
 
             // set the keyid
-            assert_true(rnp_hex_decode(testdata[i].keyid, key.keyid.data(), key.keyid.size()));
-            // keys should have different grips otherwise rnp_key_store_add_key will fail here
-            assert_true(rnp_hex_decode(testdata[i].keyid, key.grip.data(), key.grip.size()));
-            key.grip[0] = (uint8_t) n;
-            // and fingerprint
             assert_true(rnp_hex_decode(
-              testdata[i].keyid, key.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE));
-            key.fingerprint.fingerprint[0] = (uint8_t) n;
-            key.fingerprint.length = PGP_FINGERPRINT_SIZE;
+              testdata[i].keyid, (uint8_t *) key.keyid().data(), key.keyid().size()));
+            // keys should have different grips otherwise rnp_key_store_add_key will fail here
+            pgp_key_grip_t &grip = (pgp_key_grip_t &) key.grip();
+            assert_true(rnp_hex_decode(testdata[i].keyid, grip.data(), grip.size()));
+            grip[0] = (uint8_t) n;
+            // and fingerprint
+            pgp_fingerprint_t &fp = (pgp_fingerprint_t &) key.fp();
+            assert_true(
+              rnp_hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_SIZE));
+            fp.fingerprint[0] = (uint8_t) n;
+            fp.length = PGP_FINGERPRINT_SIZE;
             // set the userids
             pgp_transferable_key_t tkey;
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
@@ -90,7 +93,7 @@ TEST_F(rnp_tests, test_key_store_search)
         for (pgp_key_t *key = rnp_key_store_get_key_by_id(store, keyid, NULL); key;
              key = rnp_key_store_get_key_by_id(store, keyid, key)) {
             // check that the keyid actually matches
-            assert_true(pgp_key_get_keyid(key) == keyid);
+            assert_true(key->keyid() == keyid);
             // check that we have not already encountered this key pointer
             assert_int_equal(seen_keys.count(key), 0);
             // keep track of what key pointers we have seen
@@ -108,7 +111,7 @@ TEST_F(rnp_tests, test_key_store_search)
             pgp_key_id_t expected_keyid = {};
             assert_true(
               rnp_hex_decode(testdata[i].keyid, expected_keyid.data(), expected_keyid.size()));
-            assert_true(pgp_key_get_keyid(key) == expected_keyid);
+            assert_true(key->keyid() == expected_keyid);
             // check that we have not already encountered this key pointer
             assert_int_equal(seen_keys.count(key), 0);
             // keep track of what key pointers we have seen
