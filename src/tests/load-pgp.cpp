@@ -462,10 +462,10 @@ load_keystore(rnp_key_store_t *keystore, const char *fname)
 static bool
 check_subkey_fp(pgp_key_t *key, pgp_key_t *subkey, size_t index)
 {
-    if (pgp_key_get_subkey_fp(key, index) != pgp_key_get_fp(subkey)) {
+    if (pgp_key_get_subkey_fp(key, index) != subkey->fp()) {
         return false;
     }
-    return pgp_key_get_fp(key) == pgp_key_get_primary_fp(subkey);
+    return key->fp() == pgp_key_get_primary_fp(subkey);
 }
 
 TEST_F(rnp_tests, test_load_merge)
@@ -710,9 +710,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     keycp = pgp_key_t(*key, false);
     assert_true(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
-    assert_true(pgp_key_get_subkey_fp(&keycp, 0) == pgp_key_get_fp(skey1));
-    assert_true(pgp_key_get_subkey_fp(&keycp, 1) == pgp_key_get_fp(skey2));
-    assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(key));
+    assert_true(pgp_key_get_subkey_fp(&keycp, 0) == skey1->fp());
+    assert_true(pgp_key_get_subkey_fp(&keycp, 1) == skey2->fp());
+    assert_true(keycp.grip() == key->grip());
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_SECRET_KEY);
 
     /* copy the public part */
@@ -721,7 +721,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 2);
     assert_true(check_subkey_fp(&keycp, skey1, 0));
     assert_true(check_subkey_fp(&keycp, skey2, 1));
-    assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(key));
+    assert_true(keycp.grip() == key->grip());
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_KEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);
@@ -732,8 +732,8 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 0));
-    assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey1));
-    assert_true(pgp_key_get_keyid(&keycp) == sub1id);
+    assert_true(keycp.grip() == skey1->grip());
+    assert_true(keycp.keyid() == sub1id);
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);
@@ -744,8 +744,8 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(keycp.is_secret());
     assert_int_equal(pgp_key_get_subkey_count(&keycp), 0);
     assert_true(check_subkey_fp(key, &keycp, 1));
-    assert_true(pgp_key_get_grip(&keycp) == pgp_key_get_grip(skey2));
-    assert_true(pgp_key_get_keyid(&keycp) == sub2id);
+    assert_true(keycp.grip() == skey2->grip());
+    assert_true(keycp.keyid() == sub2id);
     assert_int_equal(pgp_key_get_rawpacket(&keycp).tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_null(keycp.pkt().sec_data);
     assert_int_equal(keycp.pkt().sec_len, 0);

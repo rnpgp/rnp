@@ -124,15 +124,16 @@ struct pgp_key_t {
     pgp_key_pkt_t             pkt_{};      /* pubkey/seckey data packet */
     uint8_t                   flags_{};    /* key flags */
     time_t                    expiration_{}; /* key expiration time, if available */
+    pgp_key_id_t              keyid_{};
+    pgp_fingerprint_t         fingerprint_{};
+    pgp_key_grip_t            grip_{};
+
   public:
     std::vector<pgp_fingerprint_t>
                            subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
     pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
     bool                   primary_fp_set{};
-    pgp_rawpacket_t        rawpkt{}; /* key raw packet */
-    pgp_key_id_t           keyid{};
-    pgp_fingerprint_t      fingerprint{};
-    pgp_key_grip_t         grip{};
+    pgp_rawpacket_t        rawpkt{};     /* key raw packet */
     uint32_t               uid0{};       /* primary uid index in uids array */
     bool                   uid0_set{};   /* flag for the above */
     bool                   revoked{};    /* key has been revoked */
@@ -189,6 +190,13 @@ struct pgp_key_t {
     bool     is_secret() const;
     bool     is_primary() const;
     bool     is_subkey() const;
+
+    /** @brief Get key's id */
+    const pgp_key_id_t &keyid() const;
+    /** @brief Get key's fingerprint */
+    const pgp_fingerprint_t &fp() const;
+    /** @brief Get key's grip */
+    const pgp_key_grip_t &grip() const;
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -201,30 +209,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
 pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
                                   const pgp_password_provider_t *,
                                   const pgp_password_ctx_t *);
-
-/**
- * @brief Get key's keyid
- *
- * @param key populated key, should not be NULL
- * @return reference to keyid object
- */
-const pgp_key_id_t &pgp_key_get_keyid(const pgp_key_t *key);
-
-/**
- * @brief Get key's fingerprint
- *
- * @param key populated key, should not be NULL
- * @return reference to the fingerprint structure
- */
-const pgp_fingerprint_t &pgp_key_get_fp(const pgp_key_t *key);
-
-/**
- * @brief Get key's grip
- *
- * @param key populated key, should not be NULL
- * @return key's grip
- */
-const pgp_key_grip_t &pgp_key_get_grip(const pgp_key_t *key);
 
 /**
  * @brief Get primary key's fingerprint for the subkey, if available.
