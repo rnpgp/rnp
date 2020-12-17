@@ -388,8 +388,8 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.halg = halg;
     sig.palg = key->alg();
     sig.set_type(PGP_SIG_BINARY);
-    sig.set_keyfp(pgp_key_get_fp(key));
-    sig.set_keyid(pgp_key_get_keyid(key));
+    sig.set_keyfp(key->fp());
+    sig.set_keyid(key->keyid());
     sig.set_creation(create);
     sig.set_expiration(expire);
     assert_true(signature_fill_hashed_data(&sig));
@@ -408,7 +408,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_int_equal(sig.creation(), create);
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
-    assert_true(sig.keyfp() == pgp_key_get_fp(key));
+    assert_true(sig.keyfp() == key->fp());
     assert_rnp_success(signature_validate(&sig, &key->material(), &hash));
     /* cleanup */
     delete pubring;
