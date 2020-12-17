@@ -520,7 +520,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     /* Fill pkey */
     pkey.version = PGP_PKSK_V3;
     pkey.alg = userkey->alg();
-    pkey.key_id = pgp_key_get_keyid(userkey);
+    pkey.key_id = userkey->keyid();
 
     /* Encrypt the session key */
     enckey[0] = param->ctx->ealg;
@@ -566,7 +566,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                  enckey,
                                  keylen + 3,
                                  &userkey->material().ec,
-                                 pgp_key_get_fp(userkey));
+                                 userkey->fp());
         if (ret != RNP_SUCCESS) {
             RNP_LOG("ECDH encryption failed %d", ret);
             goto finish;
@@ -1063,8 +1063,8 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
 
     /* fill signature fields */
     try {
-        sig->set_keyfp(pgp_key_get_fp(signer->key));
-        sig->set_keyid(pgp_key_get_keyid(signer->key));
+        sig->set_keyfp(signer->key->fp());
+        sig->set_keyid(signer->key->keyid());
         sig->set_creation(signer->sigcreate ? signer->sigcreate : time(NULL));
         sig->set_expiration(signer->sigexpire);
     } catch (const std::exception &e) {
@@ -1256,7 +1256,7 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     sinfo.onepass.type = PGP_SIG_BINARY;
     sinfo.onepass.halg = sinfo.halg;
     sinfo.onepass.palg = sinfo.key->alg();
-    sinfo.onepass.keyid = pgp_key_get_keyid(sinfo.key);
+    sinfo.onepass.keyid = sinfo.key->keyid();
     sinfo.onepass.nested = false;
     try {
         param->siginfos.push_back(sinfo);
