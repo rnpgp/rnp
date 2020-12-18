@@ -944,8 +944,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(primary_sec->validated);
 
         // check packet and subsig counts
-        assert_int_equal(3, pgp_key_get_rawpacket_count(&pub));
-        assert_int_equal(3, pgp_key_get_rawpacket_count(&sec));
+        assert_int_equal(3, pub.rawpkt_count());
+        assert_int_equal(3, sec.rawpkt_count());
         assert_int_equal(1, pub.sig_count());
         assert_int_equal(1, sec.sig_count());
         psig = &pub.get_sig(0).sig;
@@ -1069,8 +1069,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(sec.validated);
 
         // check packet and subsig counts
-        assert_int_equal(2, pgp_key_get_rawpacket_count(&pub));
-        assert_int_equal(2, pgp_key_get_rawpacket_count(&sec));
+        assert_int_equal(2, pub.rawpkt_count());
+        assert_int_equal(2, sec.rawpkt_count());
         assert_int_equal(1, pub.sig_count());
         assert_int_equal(1, sec.sig_count());
         psig = &pub.get_sig(0).sig;

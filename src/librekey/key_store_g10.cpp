@@ -1150,8 +1150,8 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
     }
 
     try {
-        key.rawpkt = pgp_rawpacket_t(
-          (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED);
+        key.set_rawpkt(pgp_rawpacket_t(
+          (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED));
     } catch (const std::exception &e) {
         RNP_LOG("failed to add packet: %s", e.what());
         goto done;
@@ -1558,14 +1558,11 @@ error:
 bool
 rnp_key_store_g10_key_to_dst(pgp_key_t *key, pgp_dest_t *dest)
 {
-    if (!pgp_key_get_rawpacket_count(key)) {
-        return false;
-    }
     if (key->format != PGP_KEY_STORE_G10) {
         RNP_LOG("incorrect format: %d", key->format);
         return false;
     }
-    pgp_rawpacket_t &packet = pgp_key_get_rawpacket(key);
+    pgp_rawpacket_t &packet = key->rawpkt();
     dst_write(dest, packet.raw.data(), packet.raw.size());
     return dest->werr == RNP_SUCCESS;
 }
