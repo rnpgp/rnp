@@ -130,10 +130,10 @@ struct pgp_key_t {
     pgp_fingerprint_t         primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
     bool                      primary_fp_set_{};
     std::vector<pgp_fingerprint_t>
-      subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
+                    subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
+    pgp_rawpacket_t rawpkt_{};     /* key raw packet */
 
   public:
-    pgp_rawpacket_t        rawpkt{};     /* key raw packet */
     uint32_t               uid0{};       /* primary uid index in uids array */
     bool                   uid0_set{};   /* flag for the above */
     bool                   revoked{};    /* key has been revoked */
@@ -222,6 +222,11 @@ struct pgp_key_t {
      */
     const pgp_fingerprint_t &             get_subkey_fp(size_t idx) const;
     const std::vector<pgp_fingerprint_t> &subkey_fps() const;
+
+    size_t                 rawpkt_count() const;
+    pgp_rawpacket_t &      rawpkt();
+    const pgp_rawpacket_t &rawpkt() const;
+    void                   set_rawpkt(const pgp_rawpacket_t &src);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -283,11 +288,6 @@ void pgp_key_validate_signature(pgp_key_t &   key,
 bool pgp_key_refresh_data(pgp_key_t *key);
 
 bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
-
-size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
-
-pgp_rawpacket_t &      pgp_key_get_rawpacket(pgp_key_t *);
-const pgp_rawpacket_t &pgp_key_get_rawpacket(const pgp_key_t *);
 
 /**
  * @brief Get the key's subkey by it's index
