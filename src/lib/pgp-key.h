@@ -127,12 +127,12 @@ struct pgp_key_t {
     pgp_key_id_t              keyid_{};
     pgp_fingerprint_t         fingerprint_{};
     pgp_key_grip_t            grip_{};
+    pgp_fingerprint_t         primary_fp_{}; /* fingerprint of the primary key (for subkeys) */
+    bool                      primary_fp_set_{};
+    std::vector<pgp_fingerprint_t>
+      subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
 
   public:
-    std::vector<pgp_fingerprint_t>
-                           subkey_fps{}; /* array of subkey fingerprints (for primary keys) */
-    pgp_fingerprint_t      primary_fp{}; /* fingerprint of primary key (for subkeys) */
-    bool                   primary_fp_set{};
     pgp_rawpacket_t        rawpkt{};     /* key raw packet */
     uint32_t               uid0{};       /* primary uid index in uids array */
     bool                   uid0_set{};   /* flag for the above */
@@ -197,6 +197,31 @@ struct pgp_key_t {
     const pgp_fingerprint_t &fp() const;
     /** @brief Get key's grip */
     const pgp_key_grip_t &grip() const;
+    /** @brief Get primary key's fingerprint for the subkey, if it is available.
+     *         Note: will throw if it is not available, use has_primary_fp() to check.
+     */
+    const pgp_fingerprint_t &primary_fp() const;
+    /** @brief Check whether key has primary key's fingerprint */
+    bool has_primary_fp() const;
+    /** @brief Clean primary_fp */
+    void unset_primary_fp();
+    /** @brief Link key with subkey via primary_fp and subkey_fps list */
+    void link_subkey_fp(pgp_key_t &subkey);
+    /**
+     * @brief Add subkey fp to key's list.
+     *        Note: this function will check for duplicates.
+     */
+    void add_subkey_fp(const pgp_fingerprint_t &fp);
+    /** @brief Get the number of pgp key's subkeys. */
+    size_t subkey_count() const;
+    /** @brief Remove subkey fingerprint from key's list. */
+    void remove_subkey_fp(const pgp_fingerprint_t &fp);
+    /**
+     *  @brief Get the pgp key's subkey fingerprint
+     *  @return fingerprint or throws std::out_of_range exception
+     */
+    const pgp_fingerprint_t &             get_subkey_fp(size_t idx) const;
+    const std::vector<pgp_fingerprint_t> &subkey_fps() const;
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -209,34 +234,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
 pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
                                   const pgp_password_provider_t *,
                                   const pgp_password_ctx_t *);
-
-/**
- * @brief Get primary key's fingerprint for the subkey, if available.
- *
- * @param key subkey, which primary key's fingerprint should be returned
- * @return reference to the fingerprint or NULL if it is not available
- */
-const pgp_fingerprint_t &pgp_key_get_primary_fp(const pgp_key_t *key);
-
-bool pgp_key_has_primary_fp(const pgp_key_t *key);
-
-/**
- * @brief Set primary key's fingerprint for the subkey
- *
- * @param key subkey
- * @param fp buffer with fingerprint
- * @return void
- */
-void pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
-
-/**
- * @brief Link key with subkey via primary_fp and subkey_fps list
- *
- * @param key primary key
- * @param subkey subkey of the primary key
- * @return true on success or false otherwise (allocation failed, wrong key types)
- */
-bool pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey);
 
 /**
  * @brief Get the latest valid self-signature with information about the primary key,
@@ -291,41 +288,6 @@ size_t pgp_key_get_rawpacket_count(const pgp_key_t *);
 
 pgp_rawpacket_t &      pgp_key_get_rawpacket(pgp_key_t *);
 const pgp_rawpacket_t &pgp_key_get_rawpacket(const pgp_key_t *);
-
-/**
- * @brief Get the number of pgp key's subkeys.
- *
- * @param key pointer to the primary key
- * @return number of the subkeys
- */
-size_t pgp_key_get_subkey_count(const pgp_key_t *key);
-
-/**
- * @brief Add subkey fp to key's list.
- *        Note: this function will check for duplicates.
- *
- * @param key key pointer to the primary key
- * @param fp subkey's fingerprint.
- * @return true if succeeded (fingerprint already exists in list or added), or false otherwise.
- */
-bool pgp_key_add_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
-
-/**
- * @brief Remove subkey fingerprint from key's list.
- *
- * @param key key pointer to the primary key
- * @param fp subkey's fingerprint.
- */
-void pgp_key_remove_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp);
-
-/**
- * @brief Get the pgp key's subkey fingerprint
- *
- * @param key key pointer to the primary key
- * @param idx index of the subkey
- * @return grip or throws std::out_of_range exception
- */
-const pgp_fingerprint_t &pgp_key_get_subkey_fp(const pgp_key_t *key, size_t idx);
 
 /**
  * @brief Get the key's subkey by it's index
