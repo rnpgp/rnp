@@ -78,6 +78,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
         /* add it to the storage */
         return rnp_key_store_add_key(keyring, &skey);
     } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         RNP_LOG_KEY_PKT("failed to create subkey %s", tskey->subkey);
         RNP_LOG_KEY("primary key is %s", pkey);
         return false;
@@ -221,7 +222,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
         if (!pgp_key_write_packets(&key, dst)) {
             return false;
         }
-        for (auto &sfp : key.subkey_fps) {
+        for (auto &sfp : key.subkey_fps()) {
             pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");

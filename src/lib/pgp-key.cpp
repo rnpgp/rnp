@@ -152,36 +152,6 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     return decrypted_seckey;
 }
 
-const pgp_fingerprint_t &
-pgp_key_get_primary_fp(const pgp_key_t *key)
-{
-    return key->primary_fp;
-}
-
-bool
-pgp_key_has_primary_fp(const pgp_key_t *key)
-{
-    return key->primary_fp_set;
-}
-
-void
-pgp_key_set_primary_fp(pgp_key_t *key, const pgp_fingerprint_t &fp)
-{
-    key->primary_fp = fp;
-    key->primary_fp_set = true;
-}
-
-bool
-pgp_key_link_subkey_fp(pgp_key_t *key, pgp_key_t *subkey)
-{
-    pgp_key_set_primary_fp(subkey, key->fp());
-    if (!pgp_key_add_subkey_fp(key, subkey->fp())) {
-        RNP_LOG("failed to add subkey grip");
-        return false;
-    }
-    return true;
-}
-
 static bool
 pgp_sig_is_certification(const pgp_subsig_t &sig)
 {
@@ -621,50 +591,11 @@ pgp_key_get_rawpacket(const pgp_key_t *key)
     return key->rawpkt;
 }
 
-size_t
-pgp_key_get_subkey_count(const pgp_key_t *key)
-{
-    return key->subkey_fps.size();
-}
-
-bool
-pgp_key_add_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp)
-{
-    if (std::find(key->subkey_fps.begin(), key->subkey_fps.end(), fp) !=
-        key->subkey_fps.end()) {
-        return true;
-    }
-
-    try {
-        key->subkey_fps.push_back(fp);
-        return true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
-void
-pgp_key_remove_subkey_fp(pgp_key_t *key, const pgp_fingerprint_t &fp)
-{
-    auto it = std::find(key->subkey_fps.begin(), key->subkey_fps.end(), fp);
-    if (it != key->subkey_fps.end()) {
-        key->subkey_fps.erase(it);
-    }
-}
-
-const pgp_fingerprint_t &
-pgp_key_get_subkey_fp(const pgp_key_t *key, size_t idx)
-{
-    return key->subkey_fps[idx];
-}
-
 pgp_key_t *
 pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
 {
     try {
-        const pgp_fingerprint_t &fp = pgp_key_get_subkey_fp(key, idx);
-        return rnp_key_store_get_key_by_fpr(store, fp);
+        return rnp_key_store_get_key_by_fpr(store, key->get_subkey_fp(idx));
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return NULL;
@@ -1289,7 +1220,7 @@ pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t 
     }
 
     // Export subkeys
-    for (auto &fp : key->subkey_fps) {
+    for (auto &fp : key->subkey_fps()) {
         const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
         if (!subkey) {
             char fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
@@ -1368,7 +1299,7 @@ find_suitable_key(pgp_op_t            op,
     ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
 
     pgp_key_t *subkey = NULL;
-    for (auto &fp : key->subkey_fps) {
+    for (auto &fp : key->subkey_fps()) {
         ctx.search.by.fingerprint = fp;
         pgp_key_t *cur = pgp_request_key(key_provider, &ctx);
         if (!cur || !(cur->flags() & desired_usage) || !cur->valid) {
@@ -1440,7 +1371,7 @@ pgp_key_validate_primary(pgp_key_t &key, rnp_key_store_t *keyring)
     }
 
     /* let's check whether key has at least one valid subkey binding */
-    for (size_t i = 0; i < pgp_key_get_subkey_count(&key); i++) {
+    for (size_t i = 0; i < key.subkey_count(); i++) {
         pgp_key_t *sub = pgp_key_get_subkey(&key, keyring, i);
         if (!sub) {
             continue;
@@ -1501,8 +1432,11 @@ pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
     if (!key->is_subkey()) {
         pgp_key_validate_primary(*key, keyring);
     } else {
-        pgp_key_validate_subkey(
-          key, rnp_key_store_get_key_by_fpr(keyring, pgp_key_get_primary_fp(key)));
+        pgp_key_t *primary = NULL;
+        if (key->has_primary_fp()) {
+            primary = rnp_key_store_get_key_by_fpr(keyring, key->primary_fp());
+        }
+        pgp_key_validate_subkey(key, primary);
     }
 }
 
@@ -1519,7 +1453,7 @@ pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
 
     pgp_key_validate(key, keyring);
     /* validate/re-validate all subkeys as well */
-    for (auto &fp : key->subkey_fps) {
+    for (auto &fp : key->subkey_fps()) {
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
         if (subkey) {
             pgp_key_validate_subkey(subkey, key);
@@ -1802,9 +1736,9 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     sigs_ = src.sigs_;
     sigs_map_ = src.sigs_map_;
     keysigs_ = src.keysigs_;
-    subkey_fps = src.subkey_fps;
-    primary_fp_set = src.primary_fp_set;
-    primary_fp = src.primary_fp;
+    subkey_fps_ = src.subkey_fps_;
+    primary_fp_set_ = src.primary_fp_set_;
+    primary_fp_ = src.primary_fp_;
     expiration_ = src.expiration_;
     flags_ = src.flags_;
     keyid_ = src.keyid_;
@@ -1841,8 +1775,8 @@ pgp_key_t::pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary)
     }
 
     /* setup key grips if primary is available */
-    if (primary && !pgp_key_link_subkey_fp(primary, this)) {
-        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
+    if (primary) {
+        primary->link_subkey_fp(*this);
     }
 }
 
@@ -2164,6 +2098,74 @@ const pgp_key_grip_t &
 pgp_key_t::grip() const
 {
     return grip_;
+}
+
+const pgp_fingerprint_t &
+pgp_key_t::primary_fp() const
+{
+    if (!primary_fp_set_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    return primary_fp_;
+}
+
+bool
+pgp_key_t::has_primary_fp() const
+{
+    return primary_fp_set_;
+}
+
+void
+pgp_key_t::unset_primary_fp()
+{
+    primary_fp_set_ = false;
+    primary_fp_ = {};
+}
+
+void
+pgp_key_t::link_subkey_fp(pgp_key_t &subkey)
+{
+    if (!is_primary() || !subkey.is_subkey()) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    subkey.primary_fp_ = fp();
+    subkey.primary_fp_set_ = true;
+    add_subkey_fp(subkey.fp());
+}
+
+void
+pgp_key_t::add_subkey_fp(const pgp_fingerprint_t &fp)
+{
+    if (std::find(subkey_fps_.begin(), subkey_fps_.end(), fp) == subkey_fps_.end()) {
+        subkey_fps_.push_back(fp);
+    }
+}
+
+size_t
+pgp_key_t::subkey_count() const
+{
+    return subkey_fps_.size();
+}
+
+void
+pgp_key_t::remove_subkey_fp(const pgp_fingerprint_t &fp)
+{
+    auto it = std::find(subkey_fps_.begin(), subkey_fps_.end(), fp);
+    if (it != subkey_fps_.end()) {
+        subkey_fps_.erase(it);
+    }
+}
+
+const pgp_fingerprint_t &
+pgp_key_t::get_subkey_fp(size_t idx) const
+{
+    return subkey_fps_[idx];
+}
+
+const std::vector<pgp_fingerprint_t> &
+pgp_key_t::subkey_fps() const
+{
+    return subkey_fps_;
 }
 
 size_t
