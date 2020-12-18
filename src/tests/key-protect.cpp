@@ -127,7 +127,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     {
         pgp_source_t     memsrc = {};
         rnp_key_store_t *ks = new rnp_key_store_t();
-        pgp_rawpacket_t &pkt = pgp_key_get_rawpacket(key);
+        pgp_rawpacket_t &pkt = key->rawpkt();
 
         assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
         assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &memsrc));
