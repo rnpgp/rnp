@@ -543,7 +543,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
 {
     /* add public key */
     pgp_key_t *exkey = rnp_key_store_get_key_by_fpr(keyring, srckey->fp());
-    size_t     expackets = exkey ? pgp_key_get_rawpacket_count(exkey) : 0;
+    size_t     expackets = exkey ? exkey->rawpkt_count() : 0;
     keyring->disable_validation = true;
     try {
         pgp_key_t keycp(*srckey, pubkey);
@@ -558,7 +558,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
         RNP_LOG("failed to add key to the keyring");
         return NULL;
     }
-    bool changed = pgp_key_get_rawpacket_count(exkey) > expackets;
+    bool changed = exkey->rawpkt_count() > expackets;
     if (changed || !exkey->validated) {
         /* this will revalidated primary key with all subkeys */
         pgp_key_revalidate_updated(exkey, keyring);
@@ -616,15 +616,14 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
 
-        size_t expackets = pgp_key_get_rawpacket_count(key);
+        size_t expackets = key->rawpkt_count();
         key = rnp_key_store_add_key(keyring, &tmpkey);
         if (!key) {
             RNP_LOG("Failed to add key with imported sig to the keyring");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
-        return (pgp_key_get_rawpacket_count(key) > expackets) ?
-                 PGP_SIG_IMPORT_STATUS_NEW :
-                 PGP_SIG_IMPORT_STATUS_UNCHANGED;
+        return (key->rawpkt_count() > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
+                                                   PGP_SIG_IMPORT_STATUS_UNCHANGED;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -652,15 +651,14 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
 
-        size_t expackets = pgp_key_get_rawpacket_count(key);
+        size_t expackets = key->rawpkt_count();
         key = rnp_key_store_add_key(keyring, &tmpkey);
         if (!key) {
             RNP_LOG("Failed to add key with imported sig to the keyring");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
-        return (pgp_key_get_rawpacket_count(key) > expackets) ?
-                 PGP_SIG_IMPORT_STATUS_NEW :
-                 PGP_SIG_IMPORT_STATUS_UNCHANGED;
+        return (key->rawpkt_count() > expackets) ? PGP_SIG_IMPORT_STATUS_NEW :
+                                                   PGP_SIG_IMPORT_STATUS_UNCHANGED;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
