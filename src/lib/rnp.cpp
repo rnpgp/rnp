@@ -3688,7 +3688,7 @@ find_encrypting_subkey(rnp_ffi_t ffi, const pgp_key_t &primary)
     pgp_key_search_t search = {};
     search.type = PGP_KEY_SEARCH_FINGERPRINT;
 
-    for (auto &fp : primary.subkey_fps) {
+    for (auto &fp : primary.subkey_fps()) {
         search.by.fingerprint = fp;
         pgp_key_t *subkey = find_key(ffi, &search, KEY_TYPE_PUBLIC, true);
         if (!subkey) {
@@ -5988,7 +5988,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     pgp_key_t *key = get_key_prefer_public(handle);
-    *count = pgp_key_get_subkey_count(key);
+    *count = key->subkey_count();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6000,10 +6000,10 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     pgp_key_t *key = get_key_prefer_public(handle);
-    if (idx >= pgp_key_get_subkey_count(key)) {
+    if (idx >= key->subkey_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    const pgp_fingerprint_t &fp = pgp_key_get_subkey_fp(key, idx);
+    const pgp_fingerprint_t &fp = key->get_subkey_fp(idx);
     char                     fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
     if (!rnp_hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex), RNP_HEX_UPPERCASE)) {
         return RNP_ERROR_BAD_STATE;
@@ -6140,11 +6140,11 @@ try {
     if (!key->is_subkey()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_key_has_primary_fp(key)) {
+    if (!key->has_primary_fp()) {
         *grip = NULL;
         return RNP_SUCCESS;
     }
-    const pgp_key_grip_t *pgrip = rnp_get_grip_by_fp(handle->ffi, pgp_key_get_primary_fp(key));
+    const pgp_key_grip_t *pgrip = rnp_get_grip_by_fp(handle->ffi, key->primary_fp());
     if (!pgrip) {
         *grip = NULL;
         return RNP_SUCCESS;
@@ -6164,11 +6164,11 @@ try {
     if (!key->is_subkey()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!pgp_key_has_primary_fp(key)) {
+    if (!key->has_primary_fp()) {
         *fprint = NULL;
         return RNP_SUCCESS;
     }
-    const pgp_fingerprint_t &fp = pgp_key_get_primary_fp(key);
+    const pgp_fingerprint_t &fp = key->primary_fp();
     return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
 }
 FFI_GUARD
@@ -6266,14 +6266,14 @@ try {
     }
 
     /* for subkey we need primary key */
-    if (!pgp_key_has_primary_fp(pkey)) {
+    if (!pkey->has_primary_fp()) {
         FFI_LOG(key->ffi, "Primary key fp not available.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     pgp_key_search_t search = {};
     search.type = PGP_KEY_SEARCH_FINGERPRINT;
-    search.by.fingerprint = pgp_key_get_primary_fp(pkey);
+    search.by.fingerprint = pkey->primary_fp();
     pgp_key_t *prim_sec = find_key(key->ffi, &search, KEY_TYPE_SECRET, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
@@ -7250,7 +7250,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         json_object_object_add(jso, "subkey grips", jsosubkeys_arr);
-        for (auto &subfp : key->subkey_fps) {
+        for (auto &subfp : key->subkey_fps()) {
             const pgp_key_grip_t *subgrip = rnp_get_grip_by_fp(handle->ffi, subfp);
             if (!subgrip) {
                 continue;
@@ -7265,9 +7265,8 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
-    } else if (pgp_key_has_primary_fp(key)) {
-        auto                  pfp = pgp_key_get_primary_fp(key);
-        const pgp_key_grip_t *pgrip = rnp_get_grip_by_fp(handle->ffi, pfp);
+    } else if (key->has_primary_fp()) {
+        auto pgrip = rnp_get_grip_by_fp(handle->ffi, key->primary_fp());
         if (pgrip) {
             if (!rnp_hex_encode(
                   pgrip->data(), pgrip->size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
