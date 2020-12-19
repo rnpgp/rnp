@@ -688,13 +688,15 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     p = (uint8_t *) mem_dest_get_memory(&memdst) + 8;
     STORE32BE(p, pt);
 
-    if (!pgp_key_write_packets(key, &memdst)) {
+    key->write(memdst);
+    if (memdst.werr) {
         goto finish;
     }
 
     for (auto &sfp : key->subkey_fps()) {
         const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
-        if (!pgp_key_write_packets(subkey, &memdst)) {
+        subkey->write(memdst);
+        if (memdst.werr) {
             goto finish;
         }
     }
