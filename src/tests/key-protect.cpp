@@ -62,7 +62,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
             assert_non_null(key);
             // all keys in this keyring are encrypted and thus should be both protected and
             // locked initially
-            assert_true(pgp_key_is_protected(key));
+            assert_true(key->is_protected());
             assert_true(key->is_locked());
         }
 
@@ -86,16 +86,16 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // try to unprotect with a failing password provider
     pgp_password_provider_t pprov = {.callback = failing_password_callback, .userdata = NULL};
-    assert_false(pgp_key_unprotect(key, &pprov));
+    assert_false(key->unprotect(pprov));
 
     // try to unprotect with an incorrect password
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "badpass"};
-    assert_false(pgp_key_unprotect(key, &pprov));
+    assert_false(key->unprotect(pprov));
 
     // unprotect with the correct password
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "password"};
-    assert_true(pgp_key_unprotect(key, &pprov));
-    assert_false(pgp_key_is_protected(key));
+    assert_true(key->unprotect(pprov));
+    assert_false(key->is_protected());
 
     // should still be locked
     assert_true(key->is_locked());
@@ -140,7 +140,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
         // should not be locked, nor protected
         assert_false(reloaded_key->is_locked());
-        assert_false(pgp_key_is_protected(reloaded_key));
+        assert_false(reloaded_key->is_protected());
         // secret key material should not be NULL
         assert_false(mpi_empty(reloaded_key->material().rsa.d));
         assert_false(mpi_empty(reloaded_key->material().rsa.p));
@@ -182,11 +182,8 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // try to protect (will fail when key is locked)
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "newpass"};
-    assert_false(rnp_key_add_protection(key,
-                                        key->format, // same format
-                                        NULL,        // default protection
-                                        &pprov));
-    assert_false(pgp_key_is_protected(key));
+    assert_false(key->add_protection(key->format, {}, pprov));
+    assert_false(key->is_protected());
 
     // unlock
     pprov = {.callback = asserting_password_callback, .userdata = NULL};
@@ -195,19 +192,13 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // try to protect with a failing password provider
     pprov = {.callback = failing_password_callback, .userdata = NULL};
-    assert_false(rnp_key_add_protection(key,
-                                        key->format, // same format
-                                        NULL,        // default protection
-                                        &pprov));
-    assert_false(pgp_key_is_protected(key));
+    assert_false(key->add_protection(key->format, {}, pprov));
+    assert_false(key->is_protected());
 
     // (re)protect with a new password
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "newpass"};
-    assert_true(rnp_key_add_protection(key,
-                                       key->format, // same format
-                                       NULL,        // default protection
-                                       &pprov));
-    assert_true(pgp_key_is_protected(key));
+    assert_true(key->add_protection(key->format, {}, pprov));
+    assert_true(key->is_protected());
 
     // lock
     assert_true(key->lock());

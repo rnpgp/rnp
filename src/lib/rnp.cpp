@@ -4466,19 +4466,15 @@ try {
         }
         /* add key/subkey protection */
         if (keygen_desc.primary.protection.symm_alg &&
-            !rnp_key_add_protection(&primary_sec,
-                                    ffi->secring->format,
-                                    &keygen_desc.primary.protection,
-                                    &ffi->pass_provider)) {
+            !primary_sec.add_protection(
+              ffi->secring->format, keygen_desc.primary.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
 
         if (keygen_desc.subkey.protection.symm_alg &&
-            !rnp_key_add_protection(&sub_sec,
-                                    ffi->secring->format,
-                                    &keygen_desc.subkey.protection,
-                                    &ffi->pass_provider)) {
+            !sub_sec.add_protection(
+              ffi->secring->format, keygen_desc.subkey.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4516,10 +4512,8 @@ try {
         }
         /* encrypt secret key if specified */
         if (keygen_desc.primary.protection.symm_alg &&
-            !rnp_key_add_protection(&primary_sec,
-                                    ffi->secring->format,
-                                    &keygen_desc.primary.protection,
-                                    &ffi->pass_provider)) {
+            !primary_sec.add_protection(
+              ffi->secring->format, keygen_desc.primary.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4595,10 +4589,8 @@ try {
         }
         /* encrypt subkey if specified */
         if (keygen_desc.subkey.protection.symm_alg &&
-            !rnp_key_add_protection(&sub_sec,
-                                    ffi->secring->format,
-                                    &keygen_desc.subkey.protection,
-                                    &ffi->pass_provider)) {
+            !sub_sec.add_protection(
+              ffi->secring->format, keygen_desc.subkey.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -5272,8 +5264,7 @@ try {
     } else if (op->request_password) {
         prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
     }
-    if (prov.callback &&
-        !rnp_key_add_protection(&sec, op->ffi->secring->format, &op->protection, &prov)) {
+    if (prov.callback && !sec.add_protection(op->ffi->secring->format, op->protection, prov)) {
         FFI_LOG(op->ffi, "failed to encrypt the key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
@@ -6540,7 +6531,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    *result = pgp_key_is_protected(key);
+    *result = key->is_protected();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6553,7 +6544,6 @@ rnp_key_protect(rnp_key_handle_t handle,
                 const char *     hash,
                 size_t           iterations)
 try {
-    rnp_result_t                ret = RNP_ERROR_GENERIC;
     pgp_key_pkt_t *             seckey = NULL;
     pgp_key_pkt_t *             decrypted_seckey = NULL;
     rnp_key_protection_params_t protection = {};
@@ -6583,20 +6573,17 @@ try {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     seckey = &key->pkt();
+    const std::string pass = password;
     if (key->encrypted()) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
         decrypted_seckey = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
         if (!decrypted_seckey) {
-            goto done;
+            return RNP_ERROR_GENERIC;
         }
         seckey = decrypted_seckey;
     }
-    if (!pgp_key_protect(key, seckey, key->format, &protection, password)) {
-        goto done;
-    }
-    ret = RNP_SUCCESS;
-
-done:
+    rnp_result_t ret =
+      key->protect(*seckey, key->format, protection, pass) ? RNP_SUCCESS : RNP_ERROR_GENERIC;
     delete decrypted_seckey;
     return ret;
 }
@@ -6619,9 +6606,9 @@ try {
     if (password) {
         pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
                                         .userdata = RNP_CONST_TO_VOID_PTR(password)};
-        ok = pgp_key_unprotect(key, &prov);
+        ok = key->unprotect(prov);
     } else {
-        ok = pgp_key_unprotect(key, &handle->ffi->pass_provider);
+        ok = key->unprotect(handle->ffi->pass_provider);
     }
     if (!ok) {
         // likely a bad password
@@ -7327,7 +7314,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         }
         json_object_object_add(jsosecret, "locked", jsolocked);
         json_object *jsoprotected =
-          json_object_new_boolean(pgp_key_is_protected(handle->sec) ? true : false);
+          json_object_new_boolean(handle->sec->is_protected() ? true : false);
         if (!jsoprotected) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
