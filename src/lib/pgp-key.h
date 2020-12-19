@@ -63,6 +63,22 @@
 #include "crypto/symmetric.h"
 #include "types.h"
 
+/** pgp_rawpacket_t */
+typedef struct pgp_rawpacket_t {
+    pgp_pkt_type_t       tag;
+    std::vector<uint8_t> raw;
+
+    pgp_rawpacket_t() = default;
+    pgp_rawpacket_t(const uint8_t *data, size_t len, pgp_pkt_type_t tag)
+        : tag(tag),
+          raw(data ? std::vector<uint8_t>(data, data + len) : std::vector<uint8_t>()){};
+    pgp_rawpacket_t(const pgp_signature_t &sig);
+    pgp_rawpacket_t(pgp_key_pkt_t &key);
+    pgp_rawpacket_t(const pgp_userid_pkt_t &uid);
+
+    void write(pgp_dest_t &dst) const;
+} pgp_rawpacket_t;
+
 /* validity information for the signature */
 typedef struct pgp_sig_validity_t {
     bool validated{}; /* signature was validated */
@@ -113,6 +129,8 @@ typedef struct pgp_userid_t {
 } pgp_userid_t;
 
 #define PGP_UID_NONE ((uint32_t) -1)
+
+typedef struct rnp_key_store_t rnp_key_store_t;
 
 /* describes a user's key */
 struct pgp_key_t {
@@ -261,9 +279,28 @@ struct pgp_key_t {
                  const std::string &                new_password);
     /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
     bool unprotect(const pgp_password_provider_t &password_provider);
-};
 
-typedef struct rnp_key_store_t rnp_key_store_t;
+    /** @brief Write key's packets to the output. */
+    void write(pgp_dest_t &dst) const;
+    /**
+     * @brief Write OpenPGP key packets (including subkeys) to the specified stream
+     *
+     * @param dst stream to write packets
+     * @param keyring keyring, which will be searched for subkeys. Pass NULL to skip subkeys.
+     * @return void, but error may be checked via dst.werr
+     */
+    void write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring = NULL) const;
+    /**
+     * @brief Export key with subkey as it is required by Autocrypt (5-packet sequence: key,
+     * uid, sig, subkey, sig).
+     *
+     * @param dst stream to write packets
+     * @param sub subkey
+     * @param uid index of uid to export
+     * @return true on success or false otherwise
+     */
+    bool write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid);
+};
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                       size_t,
@@ -358,30 +395,6 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    secsub,
                                uint32_t                       expiry,
                                const pgp_password_provider_t &prov);
-
-bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
-
-/**
- * @brief Write OpenPGP key packets (including subkeys) to the specified stream
- *
- * @param dst stream to write packets
- * @param key key
- * @param keyring keyring, which will be searched for subkeys
- * @return true on success or false otherwise
- */
-bool pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring);
-
-/**
- * @brief Export key with subkey as it is required by Autocrypt (5-packet sequence: key, uid,
- *        sig, subkey, sig).
- *
- * @param dst stream to write packets
- * @param key primary key
- * @param sub subkey
- * @param uid index of uid to export
- * @return true on success or false otherwise
- */
-bool pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t uid);
 
 /** find a key suitable for a particular operation
  *
