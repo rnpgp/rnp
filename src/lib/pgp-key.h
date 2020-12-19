@@ -151,6 +151,8 @@ struct pgp_key_t {
                     subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
     pgp_rawpacket_t rawpkt_{};     /* key raw packet */
 
+    pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
+
   public:
     uint32_t               uid0{};       /* primary uid index in uids array */
     bool                   uid0_set{};   /* flag for the above */
@@ -300,6 +302,25 @@ struct pgp_key_t {
      * @return true on success or false otherwise
      */
     bool write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid);
+
+    /**
+     * @brief Get the latest valid self-signature with information about the primary key,
+     * containing the specified subpacket. It could be userid certification or direct-key
+     * signature.
+     *
+     * @param subpkt subpacket type. Pass PGP_SIG_SUBPKT_UNKNOWN to return just latest
+     * signature.
+     * @return pointer to signature object or NULL if failed/not found.
+     */
+    pgp_subsig_t *latest_selfsig(pgp_sig_subpacket_type_t subpkt = PGP_SIG_SUBPKT_UNKNOWN);
+
+    /**
+     * @brief Get the latest valid subkey binding. Should be called on subkey.
+     *
+     * @param validated set to true whether binding signature must be validated
+     * @return pointer to signature object or NULL if failed/not found.
+     */
+    pgp_subsig_t *latest_binding(bool validated = true);
 };
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
@@ -310,26 +331,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
 pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
                                   const pgp_password_provider_t *,
                                   const pgp_password_ctx_t *);
-
-/**
- * @brief Get the latest valid self-signature with information about the primary key,
- * containing the specified subpacket. It could be userid certification or direct-key
- * signature.
- *
- * @param key key which should be searched for signature.
- * @param subpkt subpacket type. Pass 0 to return just latest signature.
- * @return pointer to signature object or NULL if failed/not found.
- */
-pgp_subsig_t *pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt);
-
-/**
- * @brief Get the latest valid subkey binding.
- *
- * @param subkey subkey which should be searched for signature.
- * @param validated set to true whether binding signature must be validated
- * @return pointer to signature object or NULL if failed/not found.
- */
-pgp_subsig_t *pgp_key_latest_binding(pgp_key_t *subkey, bool validated);
 
 /**
  * @brief Get the signer's key for signature

@@ -217,83 +217,6 @@ pgp_sig_is_subkey_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
     return key.is_subkey() && (sig.sig.type() == PGP_SIG_REV_SUBKEY);
 }
 
-pgp_subsig_t *
-pgp_key_latest_selfsig(pgp_key_t *key, pgp_sig_subpacket_type_t subpkt)
-{
-    uint32_t      latest = 0;
-    pgp_subsig_t *res = NULL;
-
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &sig = key->get_sig(i);
-        if (!sig.valid()) {
-            continue;
-        }
-        if (!pgp_sig_is_self_signature(*key, sig) &&
-            !pgp_sig_is_direct_self_signature(*key, sig)) {
-            continue;
-        }
-
-        if (subpkt && !sig.sig.get_subpkt(subpkt)) {
-            continue;
-        }
-
-        uint32_t creation = sig.sig.creation();
-        if (creation >= latest) {
-            latest = creation;
-            res = &sig;
-        }
-    }
-    return res;
-}
-
-static pgp_subsig_t *
-pgp_key_latest_uid_selfcert(pgp_key_t &key, uint32_t uid)
-{
-    uint32_t      latest = 0;
-    pgp_subsig_t *res = NULL;
-
-    for (size_t i = 0; i < key.sig_count(); i++) {
-        pgp_subsig_t &sig = key.get_sig(i);
-        if (!sig.valid() || (sig.uid != uid)) {
-            continue;
-        }
-        if (!pgp_sig_is_self_signature(key, sig)) {
-            continue;
-        }
-
-        uint32_t creation = sig.sig.creation();
-        if (creation >= latest) {
-            latest = creation;
-            res = &sig;
-        }
-    }
-    return res;
-}
-
-pgp_subsig_t *
-pgp_key_latest_binding(pgp_key_t *subkey, bool validated)
-{
-    uint32_t      latest = 0;
-    pgp_subsig_t *res = NULL;
-
-    for (size_t i = 0; i < subkey->sig_count(); i++) {
-        pgp_subsig_t &sig = subkey->get_sig(i);
-        if (validated && !sig.valid()) {
-            continue;
-        }
-        if (!pgp_sig_is_subkey_binding(*subkey, sig)) {
-            continue;
-        }
-
-        uint32_t creation = sig.sig.creation();
-        if (creation >= latest) {
-            latest = creation;
-            res = &sig;
-        }
-    }
-    return res;
-}
-
 pgp_key_t *
 pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
 {
@@ -450,7 +373,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
     if (key) {
         pgp_subkey_validate_self_signatures(*sub, *key);
     }
-    pgp_subsig_t *sig = pgp_key_latest_binding(sub, key);
+    pgp_subsig_t *sig = sub->latest_binding(key);
     /* subkey expiration */
     sub->set_expiration(sig ? sig->sig.key_expiration() : 0);
     /* subkey flags */
@@ -488,7 +411,7 @@ pgp_key_refresh_data(pgp_key_t *key)
     /* validate self-signatures if not done yet */
     pgp_key_validate_self_signatures(*key);
     /* key expiration */
-    pgp_subsig_t *sig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
+    pgp_subsig_t *sig = key->latest_selfsig();
     key->set_expiration(sig ? sig->sig.key_expiration() : 0);
     /* key flags */
     if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
@@ -781,7 +704,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     }
 
     /* locate the latest valid certification */
-    pgp_subsig_t *subsig = pgp_key_latest_selfsig(key, PGP_SIG_SUBPKT_UNKNOWN);
+    pgp_subsig_t *subsig = key->latest_selfsig();
     if (!subsig) {
         RNP_LOG("No valid self-signature");
         return false;
@@ -864,7 +787,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     }
 
     /* find the latest valid subkey binding */
-    pgp_subsig_t *subsig = pgp_key_latest_binding(sub, true);
+    pgp_subsig_t *subsig = sub->latest_binding();
     if (!subsig) {
         RNP_LOG("No valid subkey binding");
         return false;
@@ -1028,7 +951,7 @@ pgp_key_validate_primary(pgp_key_t &key, rnp_key_store_t *keyring)
             continue;
         }
         pgp_subkey_validate_self_signatures(*sub, key);
-        pgp_subsig_t *sig = pgp_key_latest_binding(sub, true);
+        pgp_subsig_t *sig = sub->latest_binding();
         if (!sig) {
             continue;
         }
@@ -2079,12 +2002,12 @@ pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
 bool
 pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
 {
-    pgp_subsig_t *cert = pgp_key_latest_uid_selfcert(*this, uid);
+    pgp_subsig_t *cert = latest_uid_selfcert(uid);
     if (!cert) {
         RNP_LOG("No valid uid certification");
         return false;
     }
-    pgp_subsig_t *binding = pgp_key_latest_binding(&sub, true);
+    pgp_subsig_t *binding = sub.latest_binding();
     if (!binding) {
         RNP_LOG("No valid binding for subkey");
         return false;
@@ -2119,6 +2042,87 @@ pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
         RNP_LOG("%s", e.what());
     }
     dst_close(&memdst, true);
+    return res;
+}
+
+pgp_subsig_t *
+pgp_key_t::latest_selfsig(pgp_sig_subpacket_type_t subpkt)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (auto &sigid : sigs_) {
+        auto &sig = get_sig(sigid);
+        if (!sig.valid()) {
+            continue;
+        }
+        if (!pgp_sig_is_self_signature(*this, sig) &&
+            !pgp_sig_is_direct_self_signature(*this, sig)) {
+            continue;
+        }
+
+        if (subpkt && !sig.sig.get_subpkt(subpkt)) {
+            continue;
+        }
+
+        uint32_t creation = sig.sig.creation();
+        if (creation >= latest) {
+            latest = creation;
+            res = &sig;
+        }
+    }
+    return res;
+}
+
+pgp_subsig_t *
+pgp_key_t::latest_binding(bool validated)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    for (auto &sigid : sigs_) {
+        auto &sig = get_sig(sigid);
+        if (validated && !sig.valid()) {
+            continue;
+        }
+        if (!pgp_sig_is_subkey_binding(*this, sig)) {
+            continue;
+        }
+
+        uint32_t creation = sig.sig.creation();
+        if (creation >= latest) {
+            latest = creation;
+            res = &sig;
+        }
+    }
+    return res;
+}
+
+pgp_subsig_t *
+pgp_key_t::latest_uid_selfcert(uint32_t uid)
+{
+    uint32_t      latest = 0;
+    pgp_subsig_t *res = NULL;
+
+    if (uid >= uids_.size()) {
+        return NULL;
+    }
+
+    for (size_t idx = 0; idx < uids_[uid].sig_count(); idx++) {
+        auto &sig = get_sig(uids_[uid].get_sig(idx));
+        if (!sig.valid() || (sig.uid != uid)) {
+            continue;
+        }
+        if (!pgp_sig_is_self_signature(*this, sig)) {
+            continue;
+        }
+
+        uint32_t creation = sig.sig.creation();
+        if (creation >= latest) {
+            latest = creation;
+            res = &sig;
+        }
+    }
     return res;
 }
 
