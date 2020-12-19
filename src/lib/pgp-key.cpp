@@ -933,120 +933,6 @@ done:
     return res;
 }
 
-static size_t
-pgp_key_write_signatures(pgp_dest_t *dst, const pgp_key_t *key, uint32_t uid, size_t start)
-{
-    for (size_t i = start; i < key->sig_count(); i++) {
-        const pgp_subsig_t *sig = &key->get_sig(i);
-        if (sig->uid != uid) {
-            return i;
-        }
-        dst_write(dst, sig->rawpkt.raw.data(), sig->rawpkt.raw.size());
-    }
-    return key->sig_count();
-}
-
-bool
-pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst)
-{
-    if (!key->rawpkt_count()) {
-        return false;
-    }
-    /* write key rawpacket */
-    const pgp_rawpacket_t &pkt = key->rawpkt();
-    dst_write(dst, pkt.raw.data(), pkt.raw.size());
-
-    if (key->format == PGP_KEY_STORE_G10) {
-        return !dst->werr;
-    }
-
-    /* write signatures on key */
-    size_t idx = pgp_key_write_signatures(dst, key, PGP_UID_NONE, 0);
-
-    /* write uids and their signatures */
-    for (size_t i = 0; i < key->uid_count(); i++) {
-        const pgp_userid_t &uid = key->get_uid(i);
-        dst_write(dst, uid.rawpkt.raw.data(), uid.rawpkt.raw.size());
-        idx = pgp_key_write_signatures(dst, key, i, idx);
-    }
-    return !dst->werr;
-}
-
-bool
-pgp_key_write_xfer(pgp_dest_t *dst, const pgp_key_t *key, const rnp_key_store_t *keyring)
-{
-    if (!pgp_key_write_packets(key, dst)) {
-        RNP_LOG("Failed to export primary key");
-        return false;
-    }
-
-    if (!keyring) {
-        return !dst->werr;
-    }
-
-    // Export subkeys
-    for (auto &fp : key->subkey_fps()) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
-        if (!subkey) {
-            char fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
-            rnp_hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex), RNP_HEX_LOWERCASE);
-            RNP_LOG("Warning! Subkey %s not found.", fphex);
-            continue;
-        }
-        if (!pgp_key_write_packets(subkey, dst)) {
-            RNP_LOG("Error occured when exporting a subkey");
-            return false;
-        }
-    }
-    return !dst->werr;
-}
-
-bool
-pgp_key_write_autocrypt(pgp_dest_t &dst, pgp_key_t &key, pgp_key_t &sub, size_t uid)
-{
-    pgp_subsig_t *cert = pgp_key_latest_uid_selfcert(key, uid);
-    if (!cert) {
-        RNP_LOG("No valid uid certification");
-        return false;
-    }
-    pgp_subsig_t *binding = pgp_key_latest_binding(&sub, true);
-    if (!binding) {
-        RNP_LOG("No valid binding for subkey");
-        return false;
-    }
-    /* write all or nothing */
-    pgp_dest_t memdst = {};
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        RNP_LOG("Allocation failed");
-        return false;
-    }
-
-    bool res = false;
-    try {
-        if (key.is_secret()) {
-            pgp_key_pkt_t pkt(key.pkt(), true);
-            pkt.write(memdst);
-        } else {
-            key.pkt().write(memdst);
-        }
-        key.get_uid(uid).pkt.write(memdst);
-        cert->sig.write(memdst);
-        if (sub.is_secret()) {
-            pgp_key_pkt_t pkt(sub.pkt(), true);
-            pkt.write(memdst);
-        } else {
-            sub.pkt().write(memdst);
-        }
-        binding->sig.write(memdst);
-        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
-        res = !dst.werr;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-    }
-    dst_close(&memdst, true);
-    return res;
-}
-
 pgp_key_t *
 find_suitable_key(pgp_op_t            op,
                   pgp_key_t *         key,
@@ -1353,6 +1239,12 @@ pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
     }
     mem_dest_to_vector(&dst, raw);
     tag = uid.tag;
+}
+
+void
+pgp_rawpacket_t::write(pgp_dest_t &dst) const
+{
+    dst_write(&dst, raw.data(), raw.size());
 }
 
 pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
@@ -2128,6 +2020,106 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider)
     forget_secret_key_fields(&pkt_.material);
     delete decrypted_seckey;
     return true;
+}
+
+void
+pgp_key_t::write(pgp_dest_t &dst) const
+{
+    /* write key rawpacket */
+    rawpkt_.write(dst);
+
+    if (format == PGP_KEY_STORE_G10) {
+        return;
+    }
+
+    /* write signatures on key */
+    for (auto &sigid : keysigs_) {
+        get_sig(sigid).rawpkt.write(dst);
+    }
+
+    /* write uids and their signatures */
+    for (const auto &uid : uids_) {
+        uid.rawpkt.write(dst);
+        for (size_t idx = 0; idx < uid.sig_count(); idx++) {
+            get_sig(uid.get_sig(idx)).rawpkt.write(dst);
+        }
+    }
+}
+
+void
+pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
+{
+    write(dst);
+    if (dst.werr) {
+        RNP_LOG("Failed to export primary key");
+        return;
+    }
+
+    if (!keyring) {
+        return;
+    }
+
+    // Export subkeys
+    for (auto &fp : subkey_fps_) {
+        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
+        if (!subkey) {
+            char fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
+            rnp_hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex), RNP_HEX_LOWERCASE);
+            RNP_LOG("Warning! Subkey %s not found.", fphex);
+            continue;
+        }
+        subkey->write(dst);
+        if (dst.werr) {
+            RNP_LOG("Error occured when exporting a subkey");
+            return;
+        }
+    }
+}
+
+bool
+pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
+{
+    pgp_subsig_t *cert = pgp_key_latest_uid_selfcert(*this, uid);
+    if (!cert) {
+        RNP_LOG("No valid uid certification");
+        return false;
+    }
+    pgp_subsig_t *binding = pgp_key_latest_binding(&sub, true);
+    if (!binding) {
+        RNP_LOG("No valid binding for subkey");
+        return false;
+    }
+    /* write all or nothing */
+    pgp_dest_t memdst = {};
+    if (init_mem_dest(&memdst, NULL, 0)) {
+        RNP_LOG("Allocation failed");
+        return false;
+    }
+
+    bool res = false;
+    try {
+        if (is_secret()) {
+            pgp_key_pkt_t pkt(pkt_, true);
+            pkt.write(memdst);
+        } else {
+            pkt().write(memdst);
+        }
+        get_uid(uid).pkt.write(memdst);
+        cert->sig.write(memdst);
+        if (sub.is_secret()) {
+            pgp_key_pkt_t pkt(sub.pkt(), true);
+            pkt.write(memdst);
+        } else {
+            sub.pkt().write(memdst);
+        }
+        binding->sig.write(memdst);
+        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
+        res = !dst.werr;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+    }
+    dst_close(&memdst, true);
+    return res;
 }
 
 size_t

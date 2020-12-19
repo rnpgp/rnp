@@ -3651,8 +3651,9 @@ try {
     // write
     if (key->is_primary()) {
         // primary key, write just the primary or primary and all subkeys
-        if (!pgp_key_write_xfer(dst, key, export_subs ? store : NULL)) {
-            return RNP_ERROR_GENERIC;
+        key->write_xfer(*dst, export_subs ? store : NULL);
+        if (dst->werr) {
+            return RNP_ERROR_WRITE;
         }
     } else {
         // subkeys flag is only valid for primary
@@ -3666,11 +3667,13 @@ try {
             // shouldn't happen
             return RNP_ERROR_GENERIC;
         }
-        if (!pgp_key_write_xfer(dst, primary, NULL)) {
-            return RNP_ERROR_GENERIC;
+        primary->write_xfer(*dst);
+        if (dst->werr) {
+            return RNP_ERROR_WRITE;
         }
-        if (!pgp_key_write_xfer(dst, key, NULL)) {
-            return RNP_ERROR_GENERIC;
+        key->write_xfer(*dst);
+        if (dst->werr) {
+            return RNP_ERROR_WRITE;
         }
     }
     if (armored) {
@@ -3756,7 +3759,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!pgp_key_write_autocrypt(output->dst, *primary, *sub, uididx)) {
+    if (!primary->write_autocrypt(output->dst, *sub, uididx)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;
@@ -6680,7 +6683,8 @@ key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (!pgp_key_write_packets(key, &memdst)) {
+    key->write(memdst);
+    if (memdst.werr) {
         dst_close(&memdst, true);
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -7458,7 +7462,8 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (!pgp_key_write_packets(key, &memdst)) {
+    key->write(memdst);
+    if (memdst.werr) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
     }
