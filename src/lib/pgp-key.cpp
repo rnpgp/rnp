@@ -140,7 +140,7 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
 
     // ask the provider for a password
     char password[MAX_PASSWORD_LENGTH] = {0};
-    if (pgp_key_is_protected(key) &&
+    if (key->is_protected() &&
         !pgp_request_password(provider, ctx, password, sizeof(password))) {
         return NULL;
     }
@@ -688,158 +688,6 @@ write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
 done:
     dst_close(&memdst, true);
     return ret;
-}
-
-bool
-rnp_key_add_protection(pgp_key_t *                    key,
-                       pgp_key_store_format_t         format,
-                       rnp_key_protection_params_t *  protection,
-                       const pgp_password_provider_t *password_provider)
-{
-    char password[MAX_PASSWORD_LENGTH] = {0};
-
-    if (!key || !password_provider) {
-        return false;
-    }
-
-    pgp_password_ctx_t ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.op = PGP_OP_PROTECT;
-    ctx.key = key;
-
-    // ask the provider for a password
-    if (!pgp_request_password(password_provider, &ctx, password, sizeof(password))) {
-        return false;
-    }
-
-    bool ret = pgp_key_protect(key, &key->pkt(), format, protection, password);
-    pgp_forget(password, sizeof(password));
-    return ret;
-}
-
-bool
-pgp_key_protect(pgp_key_t *                  key,
-                pgp_key_pkt_t *              decrypted_seckey,
-                pgp_key_store_format_t       format,
-                rnp_key_protection_params_t *protection,
-                const char *                 new_password)
-{
-    bool                        ret = false;
-    rnp_key_protection_params_t default_protection = {.symm_alg = DEFAULT_PGP_SYMM_ALG,
-                                                      .cipher_mode = DEFAULT_PGP_CIPHER_MODE,
-                                                      .iterations = 0,
-                                                      .hash_alg = DEFAULT_PGP_HASH_ALG};
-    pgp_key_pkt_t *             seckey = NULL;
-
-    // sanity check
-    if (!key || !decrypted_seckey || !new_password) {
-        RNP_LOG("NULL args");
-        goto done;
-    }
-    if (!key->is_secret()) {
-        RNP_LOG("Warning: this is not a secret key");
-        goto done;
-    }
-    if (!decrypted_seckey->material.secret) {
-        RNP_LOG("Decrypted seckey must be provided");
-        goto done;
-    }
-
-    seckey = &key->pkt();
-    // force these, as it's the only method we support
-    seckey->sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    seckey->sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
-
-    if (!protection) {
-        protection = &default_protection;
-    }
-
-    if (!protection->symm_alg) {
-        protection->symm_alg = default_protection.symm_alg;
-    }
-    if (!protection->cipher_mode) {
-        protection->cipher_mode = default_protection.cipher_mode;
-    }
-    if (!protection->hash_alg) {
-        protection->hash_alg = default_protection.hash_alg;
-    }
-    if (!protection->iterations) {
-        protection->iterations =
-          pgp_s2k_compute_iters(protection->hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
-    }
-
-    seckey->sec_protection.symm_alg = protection->symm_alg;
-    seckey->sec_protection.cipher_mode = protection->cipher_mode;
-    seckey->sec_protection.s2k.iterations = pgp_s2k_round_iterations(protection->iterations);
-    seckey->sec_protection.s2k.hash_alg = protection->hash_alg;
-
-    // write the protected key to raw packet
-    if (!write_key_to_rawpacket(
-          decrypted_seckey, key->rawpkt(), key->type(), format, new_password)) {
-        goto done;
-    }
-    key->format = format;
-    ret = true;
-
-done:
-    return ret;
-}
-
-bool
-pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provider)
-{
-    bool           ret = false;
-    pgp_key_pkt_t *seckey = NULL;
-    pgp_key_pkt_t *decrypted_seckey = NULL;
-
-    // sanity check
-    if (!key->is_secret()) {
-        RNP_LOG("Warning: this is not a secret key");
-        goto done;
-    }
-    // already unprotected
-    if (!pgp_key_is_protected(key)) {
-        ret = true;
-        goto done;
-    }
-
-    seckey = &key->pkt();
-
-    if (key->encrypted()) {
-        pgp_password_ctx_t ctx;
-        memset(&ctx, 0, sizeof(ctx));
-        ctx.op = PGP_OP_UNPROTECT;
-        ctx.key = key;
-
-        decrypted_seckey = pgp_decrypt_seckey(key, password_provider, &ctx);
-        if (!decrypted_seckey) {
-            goto done;
-        }
-        seckey = decrypted_seckey;
-    }
-    seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_key_to_rawpacket(seckey, key->rawpkt(), key->type(), key->format, NULL)) {
-        goto done;
-    }
-    if (decrypted_seckey) {
-        key->set_pkt(std::move(*decrypted_seckey));
-        /* current logic is that unprotected key should be additionally unlocked */
-        forget_secret_key_fields(&key->pkt().material);
-    }
-    ret = true;
-done:
-    delete decrypted_seckey;
-    return ret;
-}
-
-bool
-pgp_key_is_protected(const pgp_key_t *key)
-{
-    // sanity check
-    if (!key->is_secret()) {
-        RNP_LOG("Warning: this is not a secret key");
-    }
-    return key->pkt().sec_protection.s2k.usage != PGP_S2KU_NONE;
 }
 
 bool
@@ -2005,6 +1853,16 @@ pgp_key_t::is_locked() const
     return encrypted();
 }
 
+bool
+pgp_key_t::is_protected() const
+{
+    // sanity check
+    if (!is_secret()) {
+        RNP_LOG("Warning: this is not a secret key");
+    }
+    return pkt_.sec_protection.s2k.usage != PGP_S2KU_NONE;
+}
+
 const pgp_key_id_t &
 pgp_key_t::keyid() const
 {
@@ -2161,6 +2019,114 @@ pgp_key_t::lock()
     }
 
     forget_secret_key_fields(&pkt_.material);
+    return true;
+}
+
+bool
+pgp_key_t::add_protection(pgp_key_store_format_t             format,
+                          const rnp_key_protection_params_t &protection,
+                          const pgp_password_provider_t &    password_provider)
+{
+    pgp_password_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.op = PGP_OP_PROTECT;
+    ctx.key = this;
+
+    // ask the provider for a password
+    char password[MAX_PASSWORD_LENGTH] = {0};
+    if (!pgp_request_password(&password_provider, &ctx, password, sizeof(password))) {
+        return false;
+    }
+    bool ret = protect(pkt_, format, protection, password);
+    pgp_forget(password, sizeof(password));
+    return ret;
+}
+
+bool
+pgp_key_t::protect(pgp_key_pkt_t &                    decrypted_seckey,
+                   pgp_key_store_format_t             kformat,
+                   const rnp_key_protection_params_t &protection,
+                   const std::string &                new_password)
+{
+    if (!is_secret()) {
+        RNP_LOG("Warning: this is not a secret key");
+        return false;
+    }
+    if (!decrypted_seckey.material.secret) {
+        RNP_LOG("Decrypted seckey must be provided");
+        return false;
+    }
+
+    /* setup default values where needed */
+    rnp_key_protection_params_t usedprot = protection;
+    if (!usedprot.symm_alg) {
+        usedprot.symm_alg = DEFAULT_PGP_SYMM_ALG;
+    }
+    if (!usedprot.cipher_mode) {
+        usedprot.cipher_mode = DEFAULT_PGP_CIPHER_MODE;
+    }
+    if (!usedprot.hash_alg) {
+        usedprot.hash_alg = DEFAULT_PGP_HASH_ALG;
+    }
+    if (!usedprot.iterations) {
+        usedprot.iterations =
+          pgp_s2k_compute_iters(usedprot.hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+    }
+
+    /* force encrypted-and-hashed and iterated-and-salted, as it's the only method we support
+     */
+    pkt_.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    pkt_.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    pkt_.sec_protection.symm_alg = usedprot.symm_alg;
+    pkt_.sec_protection.cipher_mode = usedprot.cipher_mode;
+    pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(usedprot.iterations);
+    pkt_.sec_protection.s2k.hash_alg = usedprot.hash_alg;
+
+    /* write the protected key to raw packet */
+    if (!write_key_to_rawpacket(
+          &decrypted_seckey, rawpkt_, type(), kformat, new_password.c_str())) {
+        return false;
+    }
+    format = kformat;
+    return true;
+}
+
+bool
+pgp_key_t::unprotect(const pgp_password_provider_t &password_provider)
+{
+    /* sanity check */
+    if (!is_secret()) {
+        RNP_LOG("Warning: this is not a secret key");
+        return false;
+    }
+    /* already unprotected */
+    if (!is_protected()) {
+        return true;
+    }
+    /* simple case */
+    if (!encrypted()) {
+        pkt_.sec_protection.s2k.usage = PGP_S2KU_NONE;
+        return write_key_to_rawpacket(&pkt_, rawpkt_, type(), format, NULL);
+    }
+
+    pgp_password_ctx_t ctx;
+    memset(&ctx, 0, sizeof(ctx));
+    ctx.op = PGP_OP_UNPROTECT;
+    ctx.key = this;
+
+    pgp_key_pkt_t *decrypted_seckey = pgp_decrypt_seckey(this, &password_provider, &ctx);
+    if (!decrypted_seckey) {
+        return false;
+    }
+    decrypted_seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
+    if (!write_key_to_rawpacket(decrypted_seckey, rawpkt_, type(), format, NULL)) {
+        delete decrypted_seckey;
+        return false;
+    }
+    pkt_ = std::move(*decrypted_seckey);
+    /* current logic is that unprotected key should be additionally unlocked */
+    forget_secret_key_fields(&pkt_.material);
+    delete decrypted_seckey;
     return true;
 }
 
