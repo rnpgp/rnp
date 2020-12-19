@@ -194,6 +194,8 @@ struct pgp_key_t {
      *  Note: Key locking does not apply to unprotected keys.
      */
     bool is_locked() const;
+    /** @brief check if a key is currently protected, i.e. it's secret data is encrypted */
+    bool is_protected() const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
@@ -247,6 +249,18 @@ struct pgp_key_t {
      *  @return true if the key was locked, false otherwise
      **/
     bool lock();
+    /** @brief Add protection to an unlocked key, i.e. encrypt it's secret data with specified
+     * parameters. */
+    bool add_protection(pgp_key_store_format_t             format,
+                        const rnp_key_protection_params_t &protection,
+                        const pgp_password_provider_t &    password_provider);
+    /** @brief Add protection to a key */
+    bool protect(pgp_key_pkt_t &                    decrypted_seckey,
+                 pgp_key_store_format_t             format,
+                 const rnp_key_protection_params_t &protection,
+                 const std::string &                new_password);
+    /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
+    bool unprotect(const pgp_password_provider_t &password_provider);
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -320,50 +334,6 @@ bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
 pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
-
-/** add protection to an unlocked key
- *
- *  @param key the key, which must be unlocked
- *  @param format
- *  @param protection
- *  @param password_provider the password provider, which is used to retrieve
- *         the new password for the key.
- *  @return true if key was successfully protected, false otherwise
- **/
-bool rnp_key_add_protection(pgp_key_t *                    key,
-                            pgp_key_store_format_t         format,
-                            rnp_key_protection_params_t *  protection,
-                            const pgp_password_provider_t *password_provider);
-
-/** add protection to a key
- *
- *  @param key
- *  @param decrypted_seckey
- *  @param format
- *  @param protection
- *  @param new_password
- *  @return true if key was successfully protected, false otherwise
- **/
-bool pgp_key_protect(pgp_key_t *                  key,
-                     pgp_key_pkt_t *              decrypted_seckey,
-                     pgp_key_store_format_t       format,
-                     rnp_key_protection_params_t *protection,
-                     const char *                 new_password);
-
-/** remove protection from a key
- *
- *  @param key
- *  @param password_provider
- *  @return true if protection was successfully removed, false otherwise
- **/
-bool pgp_key_unprotect(pgp_key_t *key, const pgp_password_provider_t *password_provider);
-
-/** check if a key is currently protected
- *
- *  @param key
- *  @return true if the key is protected, false otherwise
- **/
-bool pgp_key_is_protected(const pgp_key_t *key);
 
 /** add a new certified userid to a key
  *
