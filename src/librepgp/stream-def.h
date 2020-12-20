@@ -35,6 +35,7 @@
 #define CH_SPACE (' ')
 #define CH_TAB ('\t')
 #define CH_COMMA (',')
+#define ST_CR ("\r")
 #define ST_LF ("\n")
 #define ST_CRLF ("\r\n")
 #define ST_CRLFCRLF ("\r\n\r\n")
