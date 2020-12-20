@@ -116,6 +116,8 @@ typedef struct pgp_source_signed_param_t {
     uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t               outlen;          /* total bytes in out */
     size_t               outpos;          /* offset of first available byte in out */
+    bool                 max_line_warn;   /* warning about too long line is already issued */
+    size_t               text_line_len;   /* length of a current line in a text document */
     long stripped_crs; /* number of trailing CR characters stripped from the end of the last
                           processed chunk */
 
@@ -819,17 +821,26 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         /* continue if not reached LF */
         if (*ch != CH_LF) {
             if (*ch != CH_CR && param->stripped_crs > 0) {
-                while (param->stripped_crs--)
+                while (param->stripped_crs--) {
                     pgp_hash_list_update(param->txt_hashes, ST_CR, 1);
-
+                }
                 param->stripped_crs = 0;
             }
 
+            if (!param->max_line_warn && param->text_line_len >= MAXIMUM_GNUPG_LINELEN) {
+                RNP_LOG("Canonical text document signature: line is too long, may cause "
+                        "incompatibility with other implementations. Consider using binary "
+                        "signature instead.");
+                param->max_line_warn = true;
+            }
+
             ch++;
+            param->text_line_len++;
             continue;
         }
         /* reached eol: dump line contents */
         param->stripped_crs = 0;
+        param->text_line_len = 0;
         if (ch > linebeg) {
             long stripped_len = stripped_line_len(linebeg, ch);
             if (stripped_len > 0) {
