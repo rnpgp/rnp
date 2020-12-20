@@ -116,6 +116,8 @@ typedef struct pgp_source_signed_param_t {
     uint8_t              out[CT_BUF_LEN]; /* cleartext output cache for easier parsing */
     size_t               outlen;          /* total bytes in out */
     size_t               outpos;          /* offset of first available byte in out */
+    long stripped_crs; /* number of trailing CR characters stripped from the end of the last
+                          processed chunk */
 
     std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
     std::list<pgp_signature_t>        sigs;       /* list of signatures */
@@ -778,7 +780,7 @@ signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t
     signature_check(sinfo, &shash);
 }
 
-static size_t
+static long
 stripped_line_len(uint8_t *begin, uint8_t *end)
 {
     uint8_t *stripped_end = end;
@@ -816,12 +818,20 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     while (ch < end) {
         /* continue if not reached LF */
         if (*ch != CH_LF) {
+            if (*ch != CH_CR && param->stripped_crs > 0) {
+                while (param->stripped_crs--)
+                    pgp_hash_list_update(param->txt_hashes, ST_CR, 1);
+
+                param->stripped_crs = 0;
+            }
+
             ch++;
             continue;
         }
         /* reached eol: dump line contents */
+        param->stripped_crs = 0;
         if (ch > linebeg) {
-            size_t stripped_len = stripped_line_len(linebeg, ch);
+            long stripped_len = stripped_line_len(linebeg, ch);
             if (stripped_len > 0) {
                 pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
             }
@@ -834,7 +844,10 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
     }
     /* check if we have undumped line contents */
     if (linebeg < end) {
-        size_t stripped_len = stripped_line_len(linebeg, end - 1);
+        long stripped_len = stripped_line_len(linebeg, end - 1);
+        if (stripped_len < end - linebeg) {
+            param->stripped_crs = end - linebeg - stripped_len;
+        }
         if (stripped_len > 0) {
             pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
         }
@@ -2143,6 +2156,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     param->readsrc = readsrc;
     param->handler = handler;
     param->cleartext = cleartext;
+    param->stripped_crs = 0;
     src->read = cleartext ? cleartext_src_read : signed_src_read;
     src->close = signed_src_close;
     src->finish = signed_src_finish;
