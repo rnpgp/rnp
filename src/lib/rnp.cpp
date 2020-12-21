@@ -6252,9 +6252,9 @@ try {
         if (!pgp_key_set_expiration(pkey, skey, expiry, key->ffi->pass_provider)) {
             return RNP_ERROR_GENERIC;
         }
-        pgp_key_revalidate_updated(pkey, key->ffi->pubring);
+        pkey->revalidate(*key->ffi->pubring);
         if (pkey != skey) {
-            pgp_key_revalidate_updated(skey, key->ffi->secring);
+            skey->revalidate(*key->ffi->secring);
         }
         return RNP_SUCCESS;
     }
@@ -6276,10 +6276,10 @@ try {
     if (!pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, key->ffi->pass_provider)) {
         return RNP_ERROR_GENERIC;
     }
-    pgp_key_revalidate_updated(prim_sec, key->ffi->secring);
+    prim_sec->revalidate(*key->ffi->secring);
     pgp_key_t *prim_pub = find_key(key->ffi, &search, KEY_TYPE_PUBLIC, true);
     if (prim_pub) {
-        pgp_key_revalidate_updated(prim_pub, key->ffi->pubring);
+        prim_pub->revalidate(*key->ffi->pubring);
     }
     return RNP_SUCCESS;
 }
