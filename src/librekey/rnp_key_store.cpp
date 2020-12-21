@@ -469,7 +469,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
     RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !oldkey->validated) {
-        pgp_key_validate_subkey(oldkey, primary);
+        oldkey->validate_subkey(primary);
     }
     if (!pgp_subkey_refresh_data(oldkey, primary)) {
         RNP_LOG_KEY("Failed to refresh subkey %s data", srckey);
@@ -522,7 +522,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
     /* validate all added keys if not disabled or already validated */
     if (!keyring->disable_validation && !added_key->validated) {
-        pgp_key_revalidate_updated(added_key, keyring);
+        added_key->revalidate(*keyring);
     } else if (!pgp_key_refresh_data(added_key)) {
         RNP_LOG_KEY("Failed to refresh key %s data", srckey);
     }
@@ -555,7 +555,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     bool changed = exkey->rawpkt_count() > expackets;
     if (changed || !exkey->validated) {
         /* this will revalidated primary key with all subkeys */
-        pgp_key_revalidate_updated(exkey, keyring);
+        exkey->revalidate(*keyring);
     }
     if (status) {
         *status = changed ?

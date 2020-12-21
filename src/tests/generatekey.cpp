@@ -1009,23 +1009,23 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // primary_pub + pubring
         primary_pub->valid = false;
         primary_pub->validated = false;
-        pgp_key_validate(primary_pub, pubring);
+        primary_pub->validate(*pubring);
         assert_true(primary_pub->valid);
         assert_true(primary_pub->validated);
         // primary_sec + pubring
         primary_sec->valid = false;
         primary_sec->validated = false;
-        pgp_key_validate(primary_sec, pubring);
+        primary_sec->validate(*pubring);
         assert_true(primary_sec->valid);
         assert_true(primary_sec->validated);
         // primary_pub + secring
         primary_pub->valid = primary_pub->validated = false;
-        pgp_key_validate(primary_pub, secring);
+        primary_pub->validate(*secring);
         assert_true(primary_pub->valid);
         assert_true(primary_pub->validated);
         // primary_sec + secring
         primary_sec->valid = primary_sec->validated = false;
-        pgp_key_validate(primary_sec, secring);
+        primary_sec->validate(*secring);
         assert_true(primary_sec->valid);
         assert_true(primary_sec->validated);
         // modify a hashed portion of the sig packet, offset may change in future
@@ -1033,13 +1033,13 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         sig.sig.hashed_data[10] ^= 0xff;
         sig.validity.validated = false;
         // ensure validation fails
-        pgp_key_validate(primary_pub, pubring);
+        primary_pub->validate(*pubring);
         assert_false(primary_pub->valid);
         assert_true(primary_pub->validated);
         // restore the original data
         sig.sig.hashed_data[10] ^= 0xff;
         sig.validity.validated = false;
-        pgp_key_validate(primary_pub, pubring);
+        primary_pub->validate(*pubring);
         assert_true(primary_pub->valid);
         assert_true(primary_pub->validated);
     }
@@ -1131,12 +1131,12 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // validate via an alternative method
         sub_pub->valid = false;
         sub_pub->validated = false;
-        pgp_key_validate(sub_pub, pubring);
+        sub_pub->validate(*pubring);
         assert_true(sub_pub->valid);
         assert_true(sub_pub->validated);
         sub_sec->valid = false;
         sub_sec->validated = false;
-        pgp_key_validate(sub_sec, pubring);
+        sub_sec->validate(*pubring);
         assert_true(sub_sec->valid);
         assert_true(sub_sec->validated);
     }
