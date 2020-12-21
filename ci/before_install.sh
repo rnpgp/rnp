@@ -7,6 +7,8 @@ macos_install() {
   brew update-reset
   # homebrew fails because `openssl` is a symlink while it tries to remove a directory.
   rm /usr/local/Cellar/openssl || true
+  # homebrew fails to update python 3.9.1 to 3.9.1.1 due to unlinking failure
+  rm /usr/local/bin/2to3 || true
   brew bundle
 }
 
