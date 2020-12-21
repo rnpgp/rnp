@@ -1089,7 +1089,7 @@ validate_key_sigs(const char *path)
     rnp_key_store_t *pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, path);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     for (auto &key : pubring->keys) {
-        pgp_key_validate(&key, pubring);
+        key.validate(*pubring);
         assert_true(key.valid);
     }
     delete pubring;
@@ -1105,7 +1105,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
     pkey = &pubring->keys.front();
-    pgp_key_validate(pkey, pubring);
+    pkey->validate(*pubring);
     assert_true(pkey->valid);
     delete pubring;
 
@@ -1115,7 +1115,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(rnp_key_store_get_key_count(pubring) > 0);
     int i = 0;
     for (auto &key : pubring->keys) {
-        pgp_key_validate(&key, pubring);
+        key.validate(*pubring);
         // subkey #2 is expired
         if (i == 2) {
             assert_false(key.valid);

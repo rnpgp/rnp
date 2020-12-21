@@ -152,6 +152,7 @@ struct pgp_key_t {
     pgp_rawpacket_t rawpkt_{};     /* key raw packet */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
+    void          validate_primary(rnp_key_store_t &keyring);
 
   public:
     uint32_t               uid0{};       /* primary uid index in uids array */
@@ -321,6 +322,12 @@ struct pgp_key_t {
      * @return pointer to signature object or NULL if failed/not found.
      */
     pgp_subsig_t *latest_binding(bool validated = true);
+
+    void validate_self_signatures();
+    void validate_self_signatures(pgp_key_t &primary);
+    void validate(rnp_key_store_t &keyring);
+    void validate_subkey(pgp_key_t *primary = NULL);
+    void revalidate(rnp_key_store_t &keyring);
 };
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
@@ -430,11 +437,5 @@ pgp_key_t *find_suitable_key(pgp_op_t            op,
              signing with secure key which corresponds to 'pubkey')
  */
 pgp_hash_alg_t pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey);
-
-void pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key);
-
-void pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring);
-
-void pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring);
 
 #endif // RNP_PACKET_KEY_H
