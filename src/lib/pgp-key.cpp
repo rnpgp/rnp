@@ -315,37 +315,6 @@ pgp_key_validate_signature(pgp_key_t &   key,
     }
 }
 
-static void
-pgp_key_validate_self_signatures(pgp_key_t &key)
-{
-    for (size_t i = 0; i < key.sig_count(); i++) {
-        pgp_subsig_t &sig = key.get_sig(i);
-        if (sig.validity.validated) {
-            continue;
-        }
-
-        if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_userid_revocation(key, sig) ||
-            pgp_sig_is_key_revocation(key, sig)) {
-            pgp_key_validate_signature(key, key, NULL, sig);
-        }
-    }
-}
-
-static void
-pgp_subkey_validate_self_signatures(pgp_key_t &sub, pgp_key_t &key)
-{
-    for (size_t i = 0; i < sub.sig_count(); i++) {
-        pgp_subsig_t &sig = sub.get_sig(i);
-        if (sig.validity.validated) {
-            continue;
-        }
-
-        if (pgp_sig_is_subkey_binding(sub, sig) || pgp_sig_is_subkey_revocation(sub, sig)) {
-            pgp_key_validate_signature(sub, key, &key, sig);
-        }
-    }
-}
-
 static bool
 is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
@@ -371,7 +340,7 @@ pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
 {
     /* validate self-signatures if not done yet */
     if (key) {
-        pgp_subkey_validate_self_signatures(*sub, *key);
+        sub->validate_self_signatures(*key);
     }
     pgp_subsig_t *sig = sub->latest_binding(key);
     /* subkey expiration */
@@ -409,7 +378,7 @@ pgp_key_refresh_data(pgp_key_t *key)
         return false;
     }
     /* validate self-signatures if not done yet */
-    pgp_key_validate_self_signatures(*key);
+    key->validate_self_signatures();
     /* key expiration */
     pgp_subsig_t *sig = key->latest_selfsig();
     key->set_expiration(sig ? sig->sig.key_expiration() : 0);
@@ -904,142 +873,6 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         return hash_min;
     }
     return hash;
-}
-
-static void
-pgp_key_validate_primary(pgp_key_t &key, rnp_key_store_t *keyring)
-{
-    /* validate signatures if needed */
-    pgp_key_validate_self_signatures(key);
-
-    /* consider public key as valid on this level if it has at least one non-expired
-     * self-signature (or it is secret), and is not revoked */
-    key.valid = false;
-    key.validated = true;
-    bool has_cert = false;
-    bool has_expired = false;
-    for (size_t i = 0; i < key.sig_count(); i++) {
-        pgp_subsig_t &sig = key.get_sig(i);
-        if (!sig.valid()) {
-            continue;
-        }
-
-        if (pgp_sig_is_self_signature(key, sig) && !has_cert) {
-            if (!is_key_expired(key, sig)) {
-                has_cert = true;
-                continue;
-            }
-            has_expired = true;
-        } else if (pgp_sig_is_key_revocation(key, sig)) {
-            return;
-        }
-    }
-    /* we have at least one non-expiring key self-signature or secret key */
-    if (has_cert || key.is_secret()) {
-        key.valid = true;
-        return;
-    }
-    /* we have valid self-signature which expires key */
-    if (has_expired) {
-        return;
-    }
-
-    /* let's check whether key has at least one valid subkey binding */
-    for (size_t i = 0; i < key.subkey_count(); i++) {
-        pgp_key_t *sub = pgp_key_get_subkey(&key, keyring, i);
-        if (!sub) {
-            continue;
-        }
-        pgp_subkey_validate_self_signatures(*sub, key);
-        pgp_subsig_t *sig = sub->latest_binding();
-        if (!sig) {
-            continue;
-        }
-        /* check whether subkey is expired - then do not mark key as valid */
-        if (is_key_expired(*sub, *sig)) {
-            continue;
-        }
-        key.valid = true;
-        return;
-    }
-}
-
-void
-pgp_key_validate_subkey(pgp_key_t *subkey, pgp_key_t *key)
-{
-    /* consider subkey as valid on this level if it has valid primary key, has at least one
-     * non-expired binding signature (or is secret), and is not revoked. */
-    subkey->valid = false;
-    subkey->validated = true;
-    if (!key || !key->valid) {
-        return;
-    }
-    /* validate signatures if needed */
-    pgp_subkey_validate_self_signatures(*subkey, *key);
-
-    bool has_binding = false;
-    for (size_t i = 0; i < subkey->sig_count(); i++) {
-        pgp_subsig_t &sig = subkey->get_sig(i);
-        if (!sig.valid()) {
-            continue;
-        }
-
-        if (pgp_sig_is_subkey_binding(*subkey, sig) && !has_binding) {
-            /* check whether subkey is expired */
-            if (is_key_expired(*subkey, sig)) {
-                continue;
-            }
-            has_binding = true;
-        } else if (pgp_sig_is_subkey_revocation(*subkey, sig)) {
-            return;
-        }
-    }
-    subkey->valid = has_binding || (subkey->is_secret() && key->is_secret());
-    return;
-}
-
-void
-pgp_key_validate(pgp_key_t *key, rnp_key_store_t *keyring)
-{
-    key->valid = false;
-    key->validated = false;
-    if (!key->is_subkey()) {
-        pgp_key_validate_primary(*key, keyring);
-    } else {
-        pgp_key_t *primary = NULL;
-        if (key->has_primary_fp()) {
-            primary = rnp_key_store_get_key_by_fpr(keyring, key->primary_fp());
-        }
-        pgp_key_validate_subkey(key, primary);
-    }
-}
-
-void
-pgp_key_revalidate_updated(pgp_key_t *key, rnp_key_store_t *keyring)
-{
-    if (key->is_subkey()) {
-        pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
-        if (primary) {
-            pgp_key_revalidate_updated(primary, keyring);
-        }
-        return;
-    }
-
-    pgp_key_validate(key, keyring);
-    /* validate/re-validate all subkeys as well */
-    for (auto &fp : key->subkey_fps()) {
-        pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
-        if (subkey) {
-            pgp_key_validate_subkey(subkey, key);
-            if (!pgp_subkey_refresh_data(subkey, key)) {
-                RNP_LOG("Failed to refresh subkey data");
-            }
-        }
-    }
-
-    if (!pgp_key_refresh_data(key)) {
-        RNP_LOG("Failed to refresh key data");
-    }
 }
 
 static void
@@ -2124,6 +1957,174 @@ pgp_key_t::latest_uid_selfcert(uint32_t uid)
         }
     }
     return res;
+}
+
+void
+pgp_key_t::validate_self_signatures()
+{
+    for (auto &sigid : sigs_) {
+        pgp_subsig_t &sig = get_sig(sigid);
+        if (sig.validity.validated) {
+            continue;
+        }
+
+        if (pgp_sig_is_self_signature(*this, sig) ||
+            pgp_sig_is_userid_revocation(*this, sig) ||
+            pgp_sig_is_key_revocation(*this, sig)) {
+            pgp_key_validate_signature(*this, *this, NULL, sig);
+        }
+    }
+}
+
+void
+pgp_key_t::validate_self_signatures(pgp_key_t &primary)
+{
+    for (auto &sigid : sigs_) {
+        pgp_subsig_t &sig = get_sig(sigid);
+        if (sig.validity.validated) {
+            continue;
+        }
+
+        if (pgp_sig_is_subkey_binding(*this, sig) ||
+            pgp_sig_is_subkey_revocation(*this, sig)) {
+            pgp_key_validate_signature(*this, primary, &primary, sig);
+        }
+    }
+}
+
+void
+pgp_key_t::validate_primary(rnp_key_store_t &keyring)
+{
+    /* validate signatures if needed */
+    validate_self_signatures();
+
+    /* consider public key as valid on this level if it has at least one non-expired
+     * self-signature (or it is secret), and is not revoked */
+    valid = false;
+    validated = true;
+    bool has_cert = false;
+    bool has_expired = false;
+    for (auto &sigid : sigs_) {
+        pgp_subsig_t &sig = get_sig(sigid);
+        if (!sig.valid()) {
+            continue;
+        }
+
+        if (pgp_sig_is_self_signature(*this, sig) && !has_cert) {
+            if (!is_key_expired(*this, sig)) {
+                has_cert = true;
+                continue;
+            }
+            has_expired = true;
+        } else if (pgp_sig_is_key_revocation(*this, sig)) {
+            return;
+        }
+    }
+    /* we have at least one non-expiring key self-signature or secret key */
+    if (has_cert || is_secret()) {
+        valid = true;
+        return;
+    }
+    /* we have valid self-signature which expires key */
+    if (has_expired) {
+        return;
+    }
+
+    /* let's check whether key has at least one valid subkey binding */
+    for (size_t i = 0; i < subkey_count(); i++) {
+        pgp_key_t *sub = pgp_key_get_subkey(this, &keyring, i);
+        if (!sub) {
+            continue;
+        }
+        sub->validate_self_signatures(*this);
+        pgp_subsig_t *sig = sub->latest_binding();
+        if (!sig) {
+            continue;
+        }
+        /* check whether subkey is expired - then do not mark key as valid */
+        if (is_key_expired(*sub, *sig)) {
+            continue;
+        }
+        valid = true;
+        return;
+    }
+}
+
+void
+pgp_key_t::validate_subkey(pgp_key_t *primary)
+{
+    /* consider subkey as valid on this level if it has valid primary key, has at least one
+     * non-expired binding signature (or is secret), and is not revoked. */
+    valid = false;
+    validated = true;
+    if (!primary || !primary->valid) {
+        return;
+    }
+    /* validate signatures if needed */
+    validate_self_signatures(*primary);
+
+    bool has_binding = false;
+    for (auto &sigid : sigs_) {
+        pgp_subsig_t &sig = get_sig(sigid);
+        if (!sig.valid()) {
+            continue;
+        }
+
+        if (pgp_sig_is_subkey_binding(*this, sig) && !has_binding) {
+            /* check whether subkey is expired */
+            if (is_key_expired(*this, sig)) {
+                continue;
+            }
+            has_binding = true;
+        } else if (pgp_sig_is_subkey_revocation(*this, sig)) {
+            return;
+        }
+    }
+    valid = has_binding || (is_secret() && primary->is_secret());
+}
+
+void
+pgp_key_t::validate(rnp_key_store_t &keyring)
+{
+    valid = false;
+    validated = false;
+    if (!is_subkey()) {
+        validate_primary(keyring);
+    } else {
+        pgp_key_t *primary = NULL;
+        if (has_primary_fp()) {
+            primary = rnp_key_store_get_key_by_fpr(&keyring, primary_fp());
+        }
+        validate_subkey(primary);
+    }
+}
+
+void
+pgp_key_t::revalidate(rnp_key_store_t &keyring)
+{
+    if (is_subkey()) {
+        pgp_key_t *primary = rnp_key_store_get_primary_key(&keyring, this);
+        if (primary) {
+            primary->revalidate(keyring);
+        }
+        return;
+    }
+
+    validate(keyring);
+    /* validate/re-validate all subkeys as well */
+    for (auto &fp : subkey_fps_) {
+        pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(&keyring, fp);
+        if (subkey) {
+            subkey->validate_subkey(this);
+            if (!pgp_subkey_refresh_data(subkey, this)) {
+                RNP_LOG("Failed to refresh subkey data");
+            }
+        }
+    }
+
+    if (!pgp_key_refresh_data(this)) {
+        RNP_LOG("Failed to refresh key data");
+    }
 }
 
 size_t

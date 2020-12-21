@@ -120,7 +120,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 
     /* now validate/refresh the whole key with subkeys */
     keyring->disable_validation = false;
-    pgp_key_revalidate_updated(addkey, keyring);
+    addkey->revalidate(*keyring);
     return true;
 error:
     /* during key addition all fields are copied so will be cleaned below */
