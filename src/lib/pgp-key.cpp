@@ -2114,6 +2114,130 @@ pgp_key_t::refresh_data(pgp_key_t *primary)
     return true;
 }
 
+bool
+pgp_key_t::merge(const pgp_key_t &src)
+{
+    if (is_subkey() || src.is_subkey()) {
+        RNP_LOG("wrong key merge call");
+        return false;
+    }
+
+    pgp_transferable_key_t dstkey;
+    if (transferable_key_from_key(dstkey, *this)) {
+        RNP_LOG("failed to get transferable key from dstkey");
+        return false;
+    }
+
+    pgp_transferable_key_t srckey;
+    if (transferable_key_from_key(srckey, src)) {
+        RNP_LOG("failed to get transferable key from srckey");
+        return false;
+    }
+
+    /* if src is secret key then merged key will become secret as well. */
+    if (is_secret_key_pkt(srckey.key.tag) && !is_secret_key_pkt(dstkey.key.tag)) {
+        pgp_key_pkt_t tmp = dstkey.key;
+        dstkey.key = srckey.key;
+        srckey.key = tmp;
+        /* no subkey processing here - they are separated from the main key */
+    }
+
+    if (transferable_key_merge(dstkey, srckey)) {
+        RNP_LOG("failed to merge transferable keys");
+        return false;
+    }
+
+    pgp_key_t tmpkey;
+    try {
+        tmpkey = std::move(dstkey);
+        for (auto &fp : subkey_fps()) {
+            tmpkey.add_subkey_fp(fp);
+        }
+        for (auto &fp : src.subkey_fps()) {
+            tmpkey.add_subkey_fp(fp);
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to process key/add subkey fps: %s", e.what());
+        return false;
+    }
+    /* check whether key was unlocked and assign secret key data */
+    if (is_secret() && !is_locked()) {
+        /* we may do thing below only because key material is opaque structure without
+         * pointers! */
+        tmpkey.pkt().material = pkt().material;
+    } else if (src.is_secret() && !src.is_locked()) {
+        tmpkey.pkt().material = src.pkt().material;
+    }
+    /* copy validity status */
+    tmpkey.valid = valid && src.valid;
+    /* We may safely leave validated status only if both merged keys are valid && validated.
+     * Otherwise we'll need to revalidate. For instance, one validated but invalid key may add
+     * revocation signature, or valid key may add certification to the invalid one. */
+    tmpkey.validated = validated && src.validated && tmpkey.valid;
+
+    *this = std::move(tmpkey);
+    return true;
+}
+
+bool
+pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
+{
+    if (!is_subkey() || !src.is_subkey()) {
+        RNP_LOG("wrong subkey merge call");
+        return false;
+    }
+
+    pgp_transferable_subkey_t dstkey;
+    if (transferable_subkey_from_key(dstkey, *this)) {
+        RNP_LOG("failed to get transferable key from dstkey");
+        return false;
+    }
+
+    pgp_transferable_subkey_t srckey;
+    if (transferable_subkey_from_key(srckey, src)) {
+        RNP_LOG("failed to get transferable key from srckey");
+        return false;
+    }
+
+    /* if src is secret key then merged key will become secret as well. */
+    if (is_secret_key_pkt(srckey.subkey.tag) && !is_secret_key_pkt(dstkey.subkey.tag)) {
+        pgp_key_pkt_t tmp = dstkey.subkey;
+        dstkey.subkey = srckey.subkey;
+        srckey.subkey = tmp;
+    }
+
+    if (transferable_subkey_merge(dstkey, srckey)) {
+        RNP_LOG("failed to merge transferable subkeys");
+        return false;
+    }
+
+    pgp_key_t tmpkey;
+    try {
+        tmpkey = pgp_key_t(dstkey, primary);
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to process subkey: %s", e.what());
+        return false;
+    }
+
+    /* check whether key was unlocked and assign secret key data */
+    if (is_secret() && !is_locked()) {
+        /* we may do thing below only because key material is opaque structure without
+         * pointers! */
+        tmpkey.pkt().material = pkt().material;
+    } else if (src.is_secret() && !src.is_locked()) {
+        tmpkey.pkt().material = src.pkt().material;
+    }
+    /* copy validity status */
+    tmpkey.valid = valid && src.valid;
+    /* we may safely leave validated status only if both merged subkeys are valid && validated.
+     * Otherwise we'll need to revalidate. For instance, one validated but invalid subkey may
+     * add revocation signature, or valid subkey may add binding to the invalid one. */
+    tmpkey.validated = validated && src.validated && tmpkey.valid;
+
+    *this = std::move(tmpkey);
+    return true;
+}
+
 size_t
 pgp_key_material_t::bits() const
 {
