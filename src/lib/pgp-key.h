@@ -331,6 +331,10 @@ struct pgp_key_t {
     bool refresh_data();
     /** @brief Refresh internal fields after subkey is updated */
     bool refresh_data(pgp_key_t *primary);
+    /** @brief Merge primary key with the src, i.e. add all new userids/signatures/subkeys */
+    bool merge(const pgp_key_t &src);
+    /** @brief Merge subkey with the source, i.e. add all new signatures */
+    bool merge(const pgp_key_t &src, pgp_key_t *primary);
 };
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
