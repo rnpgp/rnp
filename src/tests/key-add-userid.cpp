@@ -75,7 +75,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_true(pgp_key_add_userid_certified(key, &key->pkt(), PGP_HASH_SHA1, &selfsig));
 
     // make sure this userid has been marked as primary
-    assert_int_equal(key->uid_count() - 1, key->uid0);
+    assert_int_equal(key->uid_count() - 1, key->get_primary_uid());
     // make sure key expiration and flags are set
     assert_int_equal(123456789, key->expiration());
     assert_int_equal(0xAB, key->flags());

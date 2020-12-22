@@ -333,19 +333,6 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
     }
 }
 
-static void
-pgp_key_mark_valid(pgp_key_t *key)
-{
-    key->valid = true;
-    key->validated = true;
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &sub = key->get_sig(i);
-        sub.validity.validated = true;
-        sub.validity.sigvalid = true;
-        sub.validity.expired = false;
-    }
-}
-
 bool
 pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
                          bool                       merge_defaults,
@@ -427,8 +414,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     }
 
     /* mark it as valid */
-    pgp_key_mark_valid(primary_pub);
-    pgp_key_mark_valid(primary_sec);
+    primary_pub->mark_valid();
+    primary_sec->mark_valid();
     /* refresh key's data */
     return primary_pub->refresh_data() && primary_sec->refresh_data();
 }
@@ -552,8 +539,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
         break;
     }
 
-    pgp_key_mark_valid(subkey_pub);
-    pgp_key_mark_valid(subkey_sec);
+    subkey_pub->mark_valid();
+    subkey_sec->mark_valid();
     ok = subkey_pub->refresh_data(primary_pub) && subkey_sec->refresh_data(primary_sec);
 end:
     if (decrypted_primary_seckey) {
