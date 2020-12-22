@@ -335,134 +335,6 @@ static pgp_map_t ss_rr_code_map[] = {
   {0x00, NULL}, /* this is the end-of-array marker */
 };
 
-bool
-pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key)
-{
-    /* validate self-signatures if not done yet */
-    if (key) {
-        sub->validate_self_signatures(*key);
-    }
-    pgp_subsig_t *sig = sub->latest_binding(key);
-    /* subkey expiration */
-    sub->set_expiration(sig ? sig->sig.key_expiration() : 0);
-    /* subkey flags */
-    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        sub->set_flags(sig->key_flags);
-    } else {
-        sub->set_flags(pgp_pk_alg_capabilities(sub->alg()));
-    }
-    /* revocation */
-    sub->clear_revokes();
-    for (size_t i = 0; i < sub->sig_count(); i++) {
-        pgp_subsig_t &sig = sub->get_sig(i);
-        if (!sig.valid() || !pgp_sig_is_subkey_revocation(*sub, sig)) {
-            continue;
-        }
-        sub->revoked = true;
-        try {
-            sub->revocation = pgp_revoke_t(sig);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
-        break;
-    }
-    return true;
-}
-
-bool
-pgp_key_refresh_data(pgp_key_t *key)
-{
-    if (!key->is_primary()) {
-        RNP_LOG("key must be primary");
-        return false;
-    }
-    /* validate self-signatures if not done yet */
-    key->validate_self_signatures();
-    /* key expiration */
-    pgp_subsig_t *sig = key->latest_selfsig();
-    key->set_expiration(sig ? sig->sig.key_expiration() : 0);
-    /* key flags */
-    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        key->set_flags(sig->key_flags);
-    } else {
-        key->set_flags(pgp_pk_alg_capabilities(key->alg()));
-    }
-    /* revocation(s) */
-    key->clear_revokes();
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &sig = key->get_sig(i);
-        if (!sig.valid()) {
-            continue;
-        }
-        try {
-            if (pgp_sig_is_key_revocation(*key, sig)) {
-                if (key->revoked) {
-                    continue;
-                }
-                key->revoked = true;
-                key->revocation = pgp_revoke_t(sig);
-            } else if (pgp_sig_is_userid_revocation(*key, sig)) {
-                if (sig.uid >= key->uid_count()) {
-                    RNP_LOG("Invalid uid index");
-                    continue;
-                }
-                pgp_userid_t &uid = key->get_uid(sig.uid);
-                if (uid.revoked) {
-                    continue;
-                }
-                uid.revoked = true;
-                uid.revocation = pgp_revoke_t(sig);
-            }
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
-    }
-    /* userid validities */
-    for (size_t i = 0; i < key->uid_count(); i++) {
-        key->get_uid(i).valid = false;
-    }
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &sig = key->get_sig(i);
-        /* if certification expires key then consider userid as expired too */
-        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
-            !pgp_sig_self_signed(*key, sig) || is_key_expired(*key, sig)) {
-            continue;
-        }
-        if (sig.uid >= key->uid_count()) {
-            continue;
-        }
-        key->get_uid(sig.uid).valid = true;
-    }
-    /* check whether uid is revoked */
-    for (size_t i = 0; i < key->uid_count(); i++) {
-        pgp_userid_t &uid = key->get_uid(i);
-        if (uid.revoked) {
-            uid.valid = false;
-        }
-    }
-    /* primary userid: pick it only from valid ones */
-    key->uid0_set = false;
-    for (size_t i = 0; i < key->sig_count(); i++) {
-        pgp_subsig_t &sig = key->get_sig(i);
-        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
-            !pgp_sig_self_signed(*key, sig)) {
-            continue;
-        }
-        if ((sig.uid >= key->uid_count()) || !key->get_uid(sig.uid).valid) {
-            continue;
-        }
-        if (sig.sig.primary_uid()) {
-            key->uid0 = sig.uid;
-            key->uid0_set = true;
-            break;
-        }
-    }
-
-    return true;
-}
-
 pgp_key_t *
 pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
 {
@@ -640,7 +512,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         return false;
     }
 
-    return pgp_key_refresh_data(key);
+    return key->refresh_data();
 }
 
 static bool
@@ -721,7 +593,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
             RNP_LOG("%s", e.what());
             goto done;
         }
-        if (!pgp_key_refresh_data(seckey)) {
+        if (!seckey->refresh_data()) {
             goto done;
         }
     }
@@ -735,7 +607,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         RNP_LOG("%s", e.what());
         goto done;
     }
-    res = pgp_key_refresh_data(key);
+    res = key->refresh_data();
 done:
     if (locked) {
         seckey->lock();
@@ -800,7 +672,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
             RNP_LOG("%s", e.what());
             goto done;
         }
-        if (!pgp_subkey_refresh_data(secsub, primsec)) {
+        if (!secsub->refresh_data(primsec)) {
             goto done;
         }
     }
@@ -814,7 +686,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         RNP_LOG("%s", e.what());
         goto done;
     }
-    res = pgp_subkey_refresh_data(sub, primsec);
+    res = sub->refresh_data(primsec);
 done:
     if (locked) {
         primsec->lock();
@@ -1418,12 +1290,6 @@ pgp_key_t::flags() const
     return flags_;
 }
 
-void
-pgp_key_t::set_flags(uint8_t flags)
-{
-    flags_ = flags;
-}
-
 bool
 pgp_key_t::can_sign() const
 {
@@ -1453,12 +1319,6 @@ pgp_key_t::expiration() const
         return 0xffffffffu;
     }
     return (uint32_t) pkt_.v3_days * 86400;
-}
-
-void
-pgp_key_t::set_expiration(uint32_t expiry)
-{
-    expiration_ = expiry;
 }
 
 uint32_t
@@ -2116,15 +1976,142 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(&keyring, fp);
         if (subkey) {
             subkey->validate_subkey(this);
-            if (!pgp_subkey_refresh_data(subkey, this)) {
+            if (!subkey->refresh_data(this)) {
                 RNP_LOG("Failed to refresh subkey data");
             }
         }
     }
 
-    if (!pgp_key_refresh_data(this)) {
+    if (!refresh_data()) {
         RNP_LOG("Failed to refresh key data");
     }
+}
+
+bool
+pgp_key_t::refresh_data()
+{
+    if (!is_primary()) {
+        RNP_LOG("key must be primary");
+        return false;
+    }
+    /* validate self-signatures if not done yet */
+    validate_self_signatures();
+    /* key expiration */
+    pgp_subsig_t *sig = latest_selfsig();
+    expiration_ = sig ? sig->sig.key_expiration() : 0;
+    /* key flags */
+    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        flags_ = sig->key_flags;
+    } else {
+        flags_ = pgp_pk_alg_capabilities(alg());
+    }
+    /* revocation(s) */
+    clear_revokes();
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        if (!sig.valid()) {
+            continue;
+        }
+        try {
+            if (pgp_sig_is_key_revocation(*this, sig)) {
+                if (revoked) {
+                    continue;
+                }
+                revoked = true;
+                revocation = pgp_revoke_t(sig);
+            } else if (pgp_sig_is_userid_revocation(*this, sig)) {
+                if (sig.uid >= uid_count()) {
+                    RNP_LOG("Invalid uid index");
+                    continue;
+                }
+                pgp_userid_t &uid = get_uid(sig.uid);
+                if (uid.revoked) {
+                    continue;
+                }
+                uid.revoked = true;
+                uid.revocation = pgp_revoke_t(sig);
+            }
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
+        }
+    }
+    /* userid validities */
+    for (size_t i = 0; i < uid_count(); i++) {
+        get_uid(i).valid = false;
+    }
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        /* if certification expires key then consider userid as expired too */
+        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
+            !pgp_sig_self_signed(*this, sig) || is_key_expired(*this, sig)) {
+            continue;
+        }
+        if (sig.uid >= uid_count()) {
+            continue;
+        }
+        get_uid(sig.uid).valid = true;
+    }
+    /* check whether uid is revoked */
+    for (size_t i = 0; i < uid_count(); i++) {
+        pgp_userid_t &uid = get_uid(i);
+        if (uid.revoked) {
+            uid.valid = false;
+        }
+    }
+    /* primary userid: pick it only from valid ones */
+    uid0_set = false;
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
+            !pgp_sig_self_signed(*this, sig)) {
+            continue;
+        }
+        if ((sig.uid >= uid_count()) || !get_uid(sig.uid).valid) {
+            continue;
+        }
+        if (sig.sig.primary_uid()) {
+            uid0 = sig.uid;
+            uid0_set = true;
+            break;
+        }
+    }
+    return true;
+}
+
+bool
+pgp_key_t::refresh_data(pgp_key_t *primary)
+{
+    /* validate self-signatures if not done yet */
+    if (primary) {
+        validate_self_signatures(*primary);
+    }
+    pgp_subsig_t *sig = latest_binding(primary);
+    /* subkey expiration */
+    expiration_ = sig ? sig->sig.key_expiration() : 0;
+    /* subkey flags */
+    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        flags_ = sig->key_flags;
+    } else {
+        flags_ = pgp_pk_alg_capabilities(alg());
+    }
+    /* revocation */
+    clear_revokes();
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        if (!sig.valid() || !pgp_sig_is_subkey_revocation(*this, sig)) {
+            continue;
+        }
+        revoked = true;
+        try {
+            revocation = pgp_revoke_t(sig);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
+        }
+        break;
+    }
+    return true;
 }
 
 size_t
