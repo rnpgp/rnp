@@ -430,7 +430,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
     pgp_key_mark_valid(primary_pub);
     pgp_key_mark_valid(primary_sec);
     /* refresh key's data */
-    return pgp_key_refresh_data(primary_pub) && pgp_key_refresh_data(primary_sec);
+    return primary_pub->refresh_data() && primary_sec->refresh_data();
 }
 
 static bool
@@ -554,8 +554,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
 
     pgp_key_mark_valid(subkey_pub);
     pgp_key_mark_valid(subkey_sec);
-    ok = pgp_subkey_refresh_data(subkey_pub, primary_pub) &&
-         pgp_subkey_refresh_data(subkey_sec, primary_sec);
+    ok = subkey_pub->refresh_data(primary_pub) && subkey_sec->refresh_data(primary_sec);
 end:
     if (decrypted_primary_seckey) {
         delete decrypted_primary_seckey;
