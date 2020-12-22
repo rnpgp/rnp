@@ -1090,7 +1090,7 @@ validate_key_sigs(const char *path)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     for (auto &key : pubring->keys) {
         key.validate(*pubring);
-        assert_true(key.valid);
+        assert_true(key.valid());
     }
     delete pubring;
 }
@@ -1106,7 +1106,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
     pkey = &pubring->keys.front();
     pkey->validate(*pubring);
-    assert_true(pkey->valid);
+    assert_true(pkey->valid());
     delete pubring;
 
     /* keyring */
@@ -1118,9 +1118,9 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
         key.validate(*pubring);
         // subkey #2 is expired
         if (i == 2) {
-            assert_false(key.valid);
+            assert_false(key.valid());
         } else {
-            assert_true(key.valid);
+            assert_true(key.valid());
         }
         i++;
     }

@@ -150,18 +150,18 @@ struct pgp_key_t {
     std::vector<pgp_fingerprint_t>
                     subkey_fps_{}; /* array of subkey fingerprints (for primary keys) */
     pgp_rawpacket_t rawpkt_{};     /* key raw packet */
+    uint32_t        uid0_{};       /* primary uid index in uids array */
+    bool            uid0_set_{};   /* flag for the above */
+    bool            revoked_{};    /* key has been revoked */
+    pgp_revoke_t    revocation_{}; /* revocation reason */
+    bool            valid_{};      /* this key is valid and usable */
+    bool            validated_{};  /* this key was validated */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
     void          validate_primary(rnp_key_store_t &keyring);
 
   public:
-    uint32_t               uid0{};       /* primary uid index in uids array */
-    bool                   uid0_set{};   /* flag for the above */
-    bool                   revoked{};    /* key has been revoked */
-    pgp_revoke_t           revocation{}; /* revocation reason */
-    pgp_key_store_format_t format{};     /* the format of the key in packets[0] */
-    bool                   valid{};      /* this key is valid and usable */
-    bool                   validated{};  /* this key was validated */
+    pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
 
     pgp_key_t() = default;
     pgp_key_t(const pgp_key_pkt_t &pkt);
@@ -184,6 +184,10 @@ struct pgp_key_t {
     const pgp_userid_t &get_uid(size_t idx) const;
     pgp_userid_t &      add_uid(const pgp_transferable_userid_t &uid);
     bool                has_uid(const std::string &uid) const;
+    bool                has_primary_uid() const;
+    uint32_t            get_primary_uid() const;
+    bool                revoked() const;
+    const pgp_revoke_t &revocation() const;
     void                clear_revokes();
 
     const pgp_key_pkt_t &pkt() const;
@@ -215,6 +219,9 @@ struct pgp_key_t {
     bool is_locked() const;
     /** @brief check if a key is currently protected, i.e. it's secret data is encrypted */
     bool is_protected() const;
+
+    bool valid() const;
+    bool validated() const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
@@ -326,6 +333,7 @@ struct pgp_key_t {
     void validate(rnp_key_store_t &keyring);
     void validate_subkey(pgp_key_t *primary = NULL);
     void revalidate(rnp_key_store_t &keyring);
+    void mark_valid();
 
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data();

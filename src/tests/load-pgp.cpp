@@ -397,7 +397,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
 
     assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_true(key->is_primary());
     assert_true(key->is_secret());
     assert_int_equal(key->rawpkt_count(), 5);
@@ -409,7 +409,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
 
     assert_true(rnp_hex_decode("AF1114A47F5F5B28", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_true(key->is_subkey());
     assert_true(key->is_secret());
     assert_int_equal(key->rawpkt_count(), 2);
@@ -418,7 +418,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
 
     assert_true(rnp_hex_decode("16CD16F267CCDD4F", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_true(key->is_subkey());
     assert_true(key->is_secret());
     assert_int_equal(key->rawpkt_count(), 2);
@@ -494,7 +494,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_false(key->valid);
+    assert_false(key->valid());
     assert_int_equal(key->rawpkt_count(), 1);
     assert_int_equal(key->rawpkt().tag, PGP_PKT_PUBLIC_KEY);
 
@@ -503,7 +503,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_false(key->valid);
+    assert_false(key->valid());
     assert_int_equal(key->uid_count(), 1);
     assert_int_equal(key->rawpkt_count(), 2);
     assert_int_equal(key->rawpkt().tag, PGP_PKT_PUBLIC_KEY);
@@ -516,7 +516,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_int_equal(key->uid_count(), 1);
     assert_int_equal(key->rawpkt_count(), 3);
     assert_int_equal(key->rawpkt().tag, PGP_PKT_PUBLIC_KEY);
@@ -531,7 +531,7 @@ TEST_F(rnp_tests, test_load_merge)
     assert_true(rnp_key_store_add_transferable_key(key_store, &tkey));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->rawpkt_count(), 5);
     assert_int_equal(key->rawpkt().tag, PGP_PKT_PUBLIC_KEY);
@@ -548,8 +548,8 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
-    assert_true(key->valid);
-    assert_false(skey1->valid);
+    assert_true(key->valid());
+    assert_false(skey1->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->subkey_count(), 1);
     assert_true(check_subkey_fp(key, skey1, 0));
@@ -571,8 +571,8 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
-    assert_true(key->valid);
-    assert_true(skey1->valid);
+    assert_true(key->valid());
+    assert_true(skey1->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->subkey_count(), 1);
     assert_true(check_subkey_fp(key, skey1, 0));
@@ -596,9 +596,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
-    assert_true(key->valid);
-    assert_true(skey1->valid);
-    assert_true(skey2->valid);
+    assert_true(key->valid());
+    assert_true(skey1->valid());
+    assert_true(skey2->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->subkey_count(), 2);
     assert_true(check_subkey_fp(key, skey1, 0));
@@ -627,9 +627,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
-    assert_true(key->valid);
-    assert_true(skey1->valid);
-    assert_true(skey2->valid);
+    assert_true(key->valid());
+    assert_true(skey1->valid());
+    assert_true(skey2->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->subkey_count(), 2);
     assert_true(check_subkey_fp(key, skey1, 0));
@@ -662,9 +662,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
-    assert_true(key->valid);
-    assert_true(skey1->valid);
-    assert_true(skey2->valid);
+    assert_true(key->valid());
+    assert_true(skey1->valid());
+    assert_true(skey2->valid());
     assert_int_equal(key->uid_count(), 2);
     assert_int_equal(key->subkey_count(), 2);
     assert_true(check_subkey_fp(key, skey1, 0));
@@ -964,7 +964,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-1.pgp"));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 1);
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(key_store, sub1id, NULL));
-    assert_false(skey1->valid);
+    assert_false(skey1->valid());
     assert_int_equal(skey1->rawpkt_count(), 2);
     assert_int_equal(skey1->rawpkt().tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_int_equal(skey1->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
@@ -974,7 +974,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-2-no-sigs.pgp"));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 2);
     assert_non_null(skey2 = rnp_key_store_get_key_by_id(key_store, sub2id, NULL));
-    assert_false(skey2->valid);
+    assert_false(skey2->valid());
     assert_int_equal(skey2->rawpkt_count(), 1);
     assert_int_equal(skey2->rawpkt().tag, PGP_PKT_PUBLIC_SUBKEY);
     assert_false(skey2->has_primary_fp());
@@ -984,7 +984,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-uid-1.pgp"));
     assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
-    assert_true(key->valid);
+    assert_true(key->valid());
     assert_int_equal(key->rawpkt_count(), 3);
     assert_int_equal(key->rawpkt().tag, PGP_PKT_PUBLIC_KEY);
     assert_int_equal(key->get_uid(0).rawpkt.tag, PGP_PKT_USER_ID);
@@ -994,8 +994,8 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_true(skey1->has_primary_fp());
     assert_true(check_subkey_fp(key, skey1, 0));
     assert_int_equal(key->subkey_count(), 1);
-    assert_true(skey1->valid);
-    assert_false(skey2->valid);
+    assert_true(skey1->valid());
+    assert_false(skey2->valid());
 
     /* load second subkey with signature */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-2.pgp"));
@@ -1006,7 +1006,7 @@ TEST_F(rnp_tests, test_load_subkey)
     assert_true(skey2->has_primary_fp());
     assert_true(check_subkey_fp(key, skey2, 1));
     assert_int_equal(key->subkey_count(), 2);
-    assert_true(skey2->valid);
+    assert_true(skey2->valid());
 
     delete key_store;
 }
