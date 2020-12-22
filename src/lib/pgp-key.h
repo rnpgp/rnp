@@ -198,13 +198,11 @@ struct pgp_key_t {
     pgp_pkt_type_t   type() const;
     bool             encrypted() const;
     uint8_t          flags() const;
-    void             set_flags(uint8_t flags);
     bool             can_sign() const;
     bool             can_certify() const;
     bool             can_encrypt() const;
     /** @brief Get key's expiration time in seconds. If 0 then it doesn't expire. */
     uint32_t expiration() const;
-    void     set_expiration(uint32_t expiry);
     /** @brief Get key's creation time in seconds since Jan, 1 1970. */
     uint32_t creation() const;
     bool     is_public() const;
@@ -328,6 +326,11 @@ struct pgp_key_t {
     void validate(rnp_key_store_t &keyring);
     void validate_subkey(pgp_key_t *primary = NULL);
     void revalidate(rnp_key_store_t &keyring);
+
+    /** @brief Refresh internal fields after primary key is updated */
+    bool refresh_data();
+    /** @brief Refresh internal fields after subkey is updated */
+    bool refresh_data(pgp_key_t *primary);
 };
 
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
@@ -363,10 +366,6 @@ void pgp_key_validate_signature(pgp_key_t &   key,
                                 pgp_key_t &   signer,
                                 pgp_key_t *   primary,
                                 pgp_subsig_t &sig);
-
-bool pgp_key_refresh_data(pgp_key_t *key);
-
-bool pgp_subkey_refresh_data(pgp_key_t *sub, pgp_key_t *key);
 
 /**
  * @brief Get the key's subkey by it's index

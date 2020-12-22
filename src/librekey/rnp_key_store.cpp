@@ -469,7 +469,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
     if (!keyring->disable_validation && !oldkey->validated) {
         oldkey->validate_subkey(primary);
     }
-    if (!pgp_subkey_refresh_data(oldkey, primary)) {
+    if (!oldkey->refresh_data(primary)) {
         RNP_LOG_KEY("Failed to refresh subkey %s data", srckey);
         RNP_LOG_KEY("primary key is %s", primary);
     }
@@ -521,7 +521,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     /* validate all added keys if not disabled or already validated */
     if (!keyring->disable_validation && !added_key->validated) {
         added_key->revalidate(*keyring);
-    } else if (!pgp_key_refresh_data(added_key)) {
+    } else if (!added_key->refresh_data()) {
         RNP_LOG_KEY("Failed to refresh key %s data", srckey);
     }
     return added_key;
@@ -603,7 +603,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     try {
         pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
-        if (!pgp_subkey_refresh_data(&tmpkey, primary)) {
+        if (!tmpkey.refresh_data(primary)) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
@@ -638,7 +638,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     try {
         pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
-        if (!pgp_key_refresh_data(&tmpkey)) {
+        if (!tmpkey.refresh_data()) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
