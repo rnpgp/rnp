@@ -486,7 +486,7 @@ pgp_key_add_userid_certified(pgp_key_t *              key,
         return false;
     }
     // TODO: changing the primary userid is not currently supported
-    if (key->uid0_set && cert->primary) {
+    if (key->has_primary_uid() && cert->primary) {
         RNP_LOG("changing the primary userid is not supported");
         return false;
     }
@@ -717,7 +717,7 @@ find_suitable_key(pgp_op_t            op,
     for (auto &fp : key->subkey_fps()) {
         ctx.search.by.fingerprint = fp;
         pgp_key_t *cur = pgp_request_key(key_provider, &ctx);
-        if (!cur || !(cur->flags() & desired_usage) || !cur->valid) {
+        if (!cur || !(cur->flags() & desired_usage) || !cur->valid()) {
             continue;
         }
         if (!subkey || (cur->creation() > subkey->creation())) {
@@ -1025,13 +1025,13 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     keyid_ = src.keyid_;
     fingerprint_ = src.fingerprint_;
     grip_ = src.grip_;
-    uid0 = src.uid0;
-    uid0_set = src.uid0_set;
-    revoked = src.revoked;
-    revocation = src.revocation;
+    uid0_ = src.uid0_;
+    uid0_set_ = src.uid0_set_;
+    revoked_ = src.revoked_;
+    revocation_ = src.revocation_;
     format = src.format;
-    valid = src.valid;
-    validated = src.validated;
+    valid_ = src.valid_;
+    validated_ = src.validated_;
 }
 
 pgp_key_t::pgp_key_t(const pgp_transferable_key_t &src) : pgp_key_t(src.key)
@@ -1199,6 +1199,21 @@ pgp_key_t::has_uid(const std::string &uidstr) const
     return false;
 }
 
+bool
+pgp_key_t::has_primary_uid() const
+{
+    return uid0_set_;
+}
+
+uint32_t
+pgp_key_t::get_primary_uid() const
+{
+    if (!uid0_set_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    return uid0_;
+}
+
 pgp_userid_t &
 pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
 {
@@ -1211,11 +1226,26 @@ pgp_key_t::add_uid(const pgp_transferable_userid_t &uid)
     return uids_.back();
 }
 
+bool
+pgp_key_t::revoked() const
+{
+    return revoked_;
+}
+
+const pgp_revoke_t &
+pgp_key_t::revocation() const
+{
+    if (!revoked_) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    return revocation_;
+}
+
 void
 pgp_key_t::clear_revokes()
 {
-    revoked = false;
-    revocation = {};
+    revoked_ = false;
+    revocation_ = {};
     for (auto &uid : uids_) {
         uid.revoked = false;
         uid.revocation = {};
@@ -1369,6 +1399,18 @@ pgp_key_t::is_protected() const
         RNP_LOG("Warning: this is not a secret key");
     }
     return pkt_.sec_protection.s2k.usage != PGP_S2KU_NONE;
+}
+
+bool
+pgp_key_t::valid() const
+{
+    return validated_ && valid_;
+}
+
+bool
+pgp_key_t::validated() const
+{
+    return validated_;
 }
 
 const pgp_key_id_t &
@@ -1860,8 +1902,8 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
 
     /* consider public key as valid on this level if it has at least one non-expired
      * self-signature (or it is secret), and is not revoked */
-    valid = false;
-    validated = true;
+    valid_ = false;
+    validated_ = true;
     bool has_cert = false;
     bool has_expired = false;
     for (auto &sigid : sigs_) {
@@ -1882,7 +1924,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
     }
     /* we have at least one non-expiring key self-signature or secret key */
     if (has_cert || is_secret()) {
-        valid = true;
+        valid_ = true;
         return;
     }
     /* we have valid self-signature which expires key */
@@ -1905,7 +1947,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
         if (is_key_expired(*sub, *sig)) {
             continue;
         }
-        valid = true;
+        valid_ = true;
         return;
     }
 }
@@ -1915,9 +1957,9 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
      * non-expired binding signature (or is secret), and is not revoked. */
-    valid = false;
-    validated = true;
-    if (!primary || !primary->valid) {
+    valid_ = false;
+    validated_ = true;
+    if (!primary || !primary->valid()) {
         return;
     }
     /* validate signatures if needed */
@@ -1940,14 +1982,14 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
             return;
         }
     }
-    valid = has_binding || (is_secret() && primary->is_secret());
+    valid_ = has_binding || (is_secret() && primary->is_secret());
 }
 
 void
 pgp_key_t::validate(rnp_key_store_t &keyring)
 {
-    valid = false;
-    validated = false;
+    valid_ = false;
+    validated_ = false;
     if (!is_subkey()) {
         validate_primary(keyring);
     } else {
@@ -1987,6 +2029,19 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
     }
 }
 
+void
+pgp_key_t::mark_valid()
+{
+    valid_ = true;
+    validated_ = true;
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sub = get_sig(i);
+        sub.validity.validated = true;
+        sub.validity.sigvalid = true;
+        sub.validity.expired = false;
+    }
+}
+
 bool
 pgp_key_t::refresh_data()
 {
@@ -2014,11 +2069,11 @@ pgp_key_t::refresh_data()
         }
         try {
             if (pgp_sig_is_key_revocation(*this, sig)) {
-                if (revoked) {
+                if (revoked_) {
                     continue;
                 }
-                revoked = true;
-                revocation = pgp_revoke_t(sig);
+                revoked_ = true;
+                revocation_ = pgp_revoke_t(sig);
             } else if (pgp_sig_is_userid_revocation(*this, sig)) {
                 if (sig.uid >= uid_count()) {
                     RNP_LOG("Invalid uid index");
@@ -2060,7 +2115,7 @@ pgp_key_t::refresh_data()
         }
     }
     /* primary userid: pick it only from valid ones */
-    uid0_set = false;
+    uid0_set_ = false;
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
         if (!sig.valid() || !pgp_sig_is_certification(sig) ||
@@ -2071,8 +2126,8 @@ pgp_key_t::refresh_data()
             continue;
         }
         if (sig.sig.primary_uid()) {
-            uid0 = sig.uid;
-            uid0_set = true;
+            uid0_ = sig.uid;
+            uid0_set_ = true;
             break;
         }
     }
@@ -2102,9 +2157,9 @@ pgp_key_t::refresh_data(pgp_key_t *primary)
         if (!sig.valid() || !pgp_sig_is_subkey_revocation(*this, sig)) {
             continue;
         }
-        revoked = true;
+        revoked_ = true;
         try {
-            revocation = pgp_revoke_t(sig);
+            revocation_ = pgp_revoke_t(sig);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return false;
@@ -2169,11 +2224,11 @@ pgp_key_t::merge(const pgp_key_t &src)
         tmpkey.pkt().material = src.pkt().material;
     }
     /* copy validity status */
-    tmpkey.valid = valid && src.valid;
+    tmpkey.valid_ = valid_ && src.valid_;
     /* We may safely leave validated status only if both merged keys are valid && validated.
      * Otherwise we'll need to revalidate. For instance, one validated but invalid key may add
      * revocation signature, or valid key may add certification to the invalid one. */
-    tmpkey.validated = validated && src.validated && tmpkey.valid;
+    tmpkey.validated_ = validated_ && src.validated_ && tmpkey.valid_;
 
     *this = std::move(tmpkey);
     return true;
@@ -2228,11 +2283,11 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
         tmpkey.pkt().material = src.pkt().material;
     }
     /* copy validity status */
-    tmpkey.valid = valid && src.valid;
+    tmpkey.valid_ = valid_ && src.valid_;
     /* we may safely leave validated status only if both merged subkeys are valid && validated.
      * Otherwise we'll need to revalidate. For instance, one validated but invalid subkey may
      * add revocation signature, or valid subkey may add binding to the invalid one. */
-    tmpkey.validated = validated && src.validated && tmpkey.valid;
+    tmpkey.validated_ = validated_ && src.validated_ && tmpkey.valid_;
 
     *this = std::move(tmpkey);
     return true;
