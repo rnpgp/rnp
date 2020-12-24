@@ -1420,6 +1420,29 @@ RNP_API rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *resu
 RNP_API rnp_result_t rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry);
 
 /**
+ * @brief Check whether public key is valid. This includes checks of the self-signatures,
+ *        expiration times, revocations and so on.
+ *        Note: it doesn't take in account secret key, if it is available.
+ *
+ * @param key key's handle.
+ * @param result on success true or false will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+RNP_API rnp_result_t rnp_key_is_valid(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Get the timestamp till which key can be considered as valid.
+ *        Note: this will take into account not only key's expiration, but revocations as well.
+ *        For the subkey primary key's validity time will be also checked.
+ * @param key key's handle.
+ * @param result on success timestamp will be stored here. If key doesn't expire then maximum
+ *               value will be stored here. If key was never valid then zero value will be
+ * stored here.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+RNP_API rnp_result_t rnp_key_valid_till(rnp_key_handle_t key, uint32_t *result);
+
+/**
  * @brief Check whether key is revoked.
  *
  * @param key key handle, should not be NULL
