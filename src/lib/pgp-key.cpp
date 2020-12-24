@@ -251,9 +251,7 @@ pgp_key_validate_signature(pgp_key_t &   key,
                            pgp_key_t *   primary,
                            pgp_subsig_t &sig)
 {
-    sig.validity.validated = false;
-    sig.validity.sigvalid = false;
-    sig.validity.expired = false;
+    sig.validity.reset();
 
     pgp_signature_info_t sinfo = {};
     sinfo.sig = &sig.sig;
@@ -307,7 +305,7 @@ pgp_key_validate_signature(pgp_key_t &   key,
     }
 
     sig.validity.validated = true;
-    sig.validity.sigvalid = sinfo.valid;
+    sig.validity.valid = sinfo.valid;
     /* revocation signature cannot expire */
     if ((stype != PGP_SIG_REV_KEY) && (stype != PGP_SIG_REV_SUBKEY) &&
         (stype != PGP_SIG_REV_CERT)) {
@@ -875,6 +873,22 @@ pgp_rawpacket_t::write(pgp_dest_t &dst) const
     dst_write(&dst, raw.data(), raw.size());
 }
 
+void
+pgp_validity_t::mark_valid()
+{
+    validated = true;
+    valid = true;
+    expired = false;
+}
+
+void
+pgp_validity_t::reset()
+{
+    validated = false;
+    valid = false;
+    expired = false;
+}
+
 pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
 {
     sig = pkt;
@@ -903,7 +917,7 @@ pgp_subsig_t::pgp_subsig_t(const pgp_signature_t &pkt)
 bool
 pgp_subsig_t::valid() const
 {
-    return validity.validated && validity.sigvalid && !validity.expired;
+    return validity.validated && validity.valid && !validity.expired;
 }
 
 pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
@@ -2035,10 +2049,7 @@ pgp_key_t::mark_valid()
     valid_ = true;
     validated_ = true;
     for (size_t i = 0; i < sig_count(); i++) {
-        pgp_subsig_t &sub = get_sig(i);
-        sub.validity.validated = true;
-        sub.validity.sigvalid = true;
-        sub.validity.expired = false;
+        get_sig(i).validity.mark_valid();
     }
 }
 
