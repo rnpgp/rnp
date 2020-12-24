@@ -79,25 +79,28 @@ typedef struct pgp_rawpacket_t {
     void write(pgp_dest_t &dst) const;
 } pgp_rawpacket_t;
 
-/* validity information for the signature */
-typedef struct pgp_sig_validity_t {
-    bool validated{}; /* signature was validated */
-    bool sigvalid{};  /* signature is valid by signature/key checks and calculations.
+/* validity information for the signature/key/userid */
+typedef struct pgp_validity_t {
+    bool validated{}; /* item was validated */
+    bool valid{};     /* item is valid by signature/key checks and calculations.
                          Still may be revoked or expired. */
-    bool expired{};   /* signature is expired */
-} pgp_sig_validity_t;
+    bool expired{};   /* item is expired */
+
+    void mark_valid();
+    void reset();
+} pgp_validity_t;
 
 /** information about the signature */
 typedef struct pgp_subsig_t {
-    uint32_t           uid{};         /* index in userid array in key for certification sig */
-    pgp_signature_t    sig{};         /* signature packet */
-    pgp_sig_id_t       sigid{};       /* signature identifier */
-    pgp_rawpacket_t    rawpkt{};      /* signature's rawpacket */
-    uint8_t            trustlevel{};  /* level of trust */
-    uint8_t            trustamount{}; /* amount of trust */
-    uint8_t            key_flags{};   /* key flags for certification/direct key sig */
-    pgp_user_prefs_t   prefs{};       /* user preferences for certification sig */
-    pgp_sig_validity_t validity{};    /* signature validity information */
+    uint32_t         uid{};         /* index in userid array in key for certification sig */
+    pgp_signature_t  sig{};         /* signature packet */
+    pgp_sig_id_t     sigid{};       /* signature identifier */
+    pgp_rawpacket_t  rawpkt{};      /* signature's rawpacket */
+    uint8_t          trustlevel{};  /* level of trust */
+    uint8_t          trustamount{}; /* amount of trust */
+    uint8_t          key_flags{};   /* key flags for certification/direct key sig */
+    pgp_user_prefs_t prefs{};       /* user preferences for certification sig */
+    pgp_validity_t   validity{};    /* signature validity information */
 
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
