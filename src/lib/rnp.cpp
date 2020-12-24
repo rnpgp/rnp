@@ -6217,6 +6217,67 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_is_valid(rnp_key_handle_t handle, bool *result)
+try {
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_require_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!key->validated()) {
+        key->validate(*handle->ffi->pubring);
+    }
+    if (!key->validated()) {
+        return RNP_ERROR_VERIFICATION_FAILED;
+    }
+    *result = key->valid();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_valid_till(rnp_key_handle_t handle, uint32_t *result)
+try {
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_require_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!key->validated()) {
+        key->validate(*handle->ffi->pubring);
+    }
+    if (!key->validated()) {
+        return RNP_ERROR_VERIFICATION_FAILED;
+    }
+
+    if (key->is_subkey()) {
+        /* check validity time of the primary key as well */
+        pgp_key_t *primary = rnp_key_store_get_primary_key(handle->ffi->pubring, key);
+        if (!primary) {
+            /* no primary key - subkey considered as never valid */
+            *result = 0;
+            return RNP_SUCCESS;
+        }
+        if (!primary->validated()) {
+            primary->validate(*handle->ffi->pubring);
+        }
+        if (!primary->validated()) {
+            return RNP_ERROR_VERIFICATION_FAILED;
+        }
+        *result = key->valid_till(*primary);
+    } else {
+        *result = key->valid_till();
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_get_expiration(rnp_key_handle_t handle, uint32_t *result)
 try {
     if (!handle || !result) {
