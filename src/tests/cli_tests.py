@@ -1007,7 +1007,39 @@ class Keystore(unittest.TestCase):
         match = re.match(RE_RNP_ENCRYPTED_KEY, out)
         if not match:
             raise_err('wrong encrypted secret key listing', err)
+
+    def test_generate_protection_password(self):
+        '''
+        Generate key with RNP, using the --password parameter, and make sure key is encrypted
+        '''
+        clear_keyrings()
+        params = ['--homedir', RNPDIR, '--password', 'password', '--userid', 'enc@rnp', '--generate-key']
+        ret, _, err = run_proc(RNPK, params)
+        if ret != 0:
+            raise_err('key generation failed', err)
+        # Check packets using the gpg
+        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        ret, out, err = run_proc(RNP, params)
+        match = re.match(RE_RNP_ENCRYPTED_KEY, out)
+        if not match:
+            raise_err('wrong encrypted secret key listing', err)
     
+    def test_generate_unprotected_key(self):
+        '''
+        Generate key with RNP, using the --password parameter, and make sure key is encrypted
+        '''
+        clear_keyrings()
+        params = ['--homedir', RNPDIR, '--password=', '--userid', 'enc@rnp', '--generate-key']
+        ret, _, err = run_proc(RNPK, params)
+        if ret != 0:
+            raise_err('key generation failed', err)
+        # Check packets using the gpg
+        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        ret, out, err = run_proc(RNP, params)
+        match = re.match(RE_RNP_ENCRYPTED_KEY, out)
+        if match:
+            raise_err('wrong unprotected secret key listing', err)
+
     def test_import_signatures(self):
         clear_keyrings()
         # Import command without the path parameter

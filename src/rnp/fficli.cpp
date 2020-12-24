@@ -977,17 +977,21 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
             ERR_MSG("Failed to obtain protection password.");
             goto done;
         }
-        rnp_result_t ret = rnp_key_protect(key,
-                                           password,
-                                           rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG),
-                                           NULL,
-                                           rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
-                                           rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS));
-        rnp_buffer_clear(password, strlen(password) + 1);
-        rnp_buffer_destroy(password);
-        if (ret) {
-            ERR_MSG("Failed to protect key.");
-            goto done;
+        if (*password) {
+            rnp_result_t ret = rnp_key_protect(key,
+                                               password,
+                                               rnp_cfg_getstr(cfg, CFG_KG_PROT_ALG),
+                                               NULL,
+                                               rnp_cfg_getstr(cfg, CFG_KG_PROT_HASH),
+                                               rnp_cfg_getint(cfg, CFG_KG_PROT_ITERATIONS));
+            rnp_buffer_clear(password, strlen(password) + 1);
+            rnp_buffer_destroy(password);
+            if (ret) {
+                ERR_MSG("Failed to protect key.");
+                goto done;
+            }
+        } else {
+            rnp_buffer_destroy(password);
         }
     }
     res = cli_rnp_save_keyrings(rnp);
