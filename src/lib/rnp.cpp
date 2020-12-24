@@ -1078,16 +1078,15 @@ rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, c
     Botan::secure_vector<char> pass(MAX_PASSWORD_LENGTH, '\0');
     bool                       req_res =
       ffi->getpasscb(ffi, ffi->getpasscb_ctx, key, context, pass.data(), pass.size());
-    size_t pass_len = strlen(pass.data());
-    if (!req_res || !pass_len) {
+    if (!req_res) {
         return RNP_ERROR_GENERIC;
     }
-
-    *password = (char *) malloc(pass_len + 1);
+    size_t pass_len = strlen(pass.data()) + 1;
+    *password = (char *) malloc(pass_len);
     if (!*password) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    memcpy(*password, pass.data(), pass_len + 1);
+    memcpy(*password, pass.data(), pass_len);
     return RNP_SUCCESS;
 }
 

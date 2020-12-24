@@ -68,6 +68,8 @@ const char *usage = "--help OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
                     "\t[--keyring=<keyring>] AND/OR\n"
+                    "\t[--pass-fd=<fd>] OR\n"
+                    "\t[--password=<password>] AND/OR\n"
                     "\t[--permissive] AND/OR\n"
                     "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
@@ -111,6 +113,7 @@ struct option options[] = {
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
+  {"password", required_argument, NULL, OPT_PASSWD},
   {"results", required_argument, NULL, OPT_RESULTS},
   {"cipher", required_argument, NULL, OPT_CIPHER},
   {"expert", no_argument, NULL, OPT_EXPERT},
@@ -541,6 +544,13 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
             break;
         }
         ret = rnp_cfg_setstr(cfg, CFG_PASSFD, arg);
+        break;
+    case OPT_PASSWD:
+        if (arg == NULL) {
+            ERR_MSG("No password argument provided");
+            return false;
+        }
+        ret = rnp_cfg_setstr(cfg, CFG_PASSWD, arg);
         break;
     case OPT_RESULTS:
         if (arg == NULL) {
