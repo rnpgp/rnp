@@ -107,6 +107,11 @@ rnpkeys_main(int argc, char **argv)
         goto end;
     }
 
+    if (!cli_rnp_setup(&rnp)) {
+        ret = EXIT_FAILURE;
+        goto end;
+    }
+
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
     if (optind == argc) {
