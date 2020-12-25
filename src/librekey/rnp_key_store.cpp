@@ -450,11 +450,6 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             keyring->keys.emplace_back();
             oldkey = &keyring->keys.back();
             keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return NULL;
-        }
-        try {
             *oldkey = pgp_key_t(*srckey);
             if (primary) {
                 primary->link_subkey_fp(*oldkey);
@@ -463,8 +458,10 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
             RNP_LOG_KEY("key %s copying failed", srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             RNP_LOG("%s", e.what());
-            keyring->keys.pop_back();
-            keyring->keybyfp.erase(srckey->fp());
+            if (oldkey) {
+                keyring->keys.pop_back();
+                keyring->keybyfp.erase(srckey->fp());
+            }
             return NULL;
         }
     }
@@ -506,11 +503,6 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
             keyring->keys.emplace_back();
             added_key = &keyring->keys.back();
             keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return NULL;
-        }
-        try {
             *added_key = pgp_key_t(*srckey);
             /* primary key may be added after subkeys, so let's handle this case correctly */
             if (!rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
@@ -519,8 +511,10 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         } catch (const std::exception &e) {
             RNP_LOG_KEY("key %s copying failed", srckey);
             RNP_LOG("%s", e.what());
-            keyring->keys.pop_back();
-            keyring->keybyfp.erase(srckey->fp());
+            if (added_key) {
+                keyring->keys.pop_back();
+                keyring->keybyfp.erase(srckey->fp());
+            }
             return NULL;
         }
     }
