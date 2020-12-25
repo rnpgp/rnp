@@ -1044,8 +1044,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     revoked_ = src.revoked_;
     revocation_ = src.revocation_;
     format = src.format;
-    valid_ = src.valid_;
-    validated_ = src.validated_;
+    validity_ = src.validity_;
 }
 
 pgp_key_t::pgp_key_t(const pgp_transferable_key_t &src) : pgp_key_t(src.key)
@@ -1365,6 +1364,12 @@ pgp_key_t::expiration() const
     return (uint32_t) pkt_.v3_days * 86400;
 }
 
+bool
+pgp_key_t::expired() const
+{
+    return validity_.expired;
+}
+
 uint32_t
 pgp_key_t::creation() const
 {
@@ -1418,13 +1423,13 @@ pgp_key_t::is_protected() const
 bool
 pgp_key_t::valid() const
 {
-    return validated_ && valid_;
+    return validity_.validated && validity_.valid && !validity_.expired;
 }
 
 bool
 pgp_key_t::validated() const
 {
-    return validated_;
+    return validity_.validated;
 }
 
 const pgp_key_id_t &
@@ -1916,8 +1921,8 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
 
     /* consider public key as valid on this level if it has at least one non-expired
      * self-signature (or it is secret), and is not revoked */
-    valid_ = false;
-    validated_ = true;
+    validity_.reset();
+    validity_.validated = true;
     bool has_cert = false;
     bool has_expired = false;
     for (auto &sigid : sigs_) {
@@ -1938,11 +1943,12 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
     }
     /* we have at least one non-expiring key self-signature or secret key */
     if (has_cert || is_secret()) {
-        valid_ = true;
+        validity_.valid = true;
         return;
     }
     /* we have valid self-signature which expires key */
     if (has_expired) {
+        validity_.expired = true;
         return;
     }
 
@@ -1961,7 +1967,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
         if (is_key_expired(*sub, *sig)) {
             continue;
         }
-        valid_ = true;
+        validity_.valid = true;
         return;
     }
 }
@@ -1971,8 +1977,8 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
      * non-expired binding signature (or is secret), and is not revoked. */
-    valid_ = false;
-    validated_ = true;
+    validity_.reset();
+    validity_.validated = true;
     if (!primary || !primary->valid()) {
         return;
     }
@@ -1980,6 +1986,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
     validate_self_signatures(*primary);
 
     bool has_binding = false;
+    bool has_expired = false;
     for (auto &sigid : sigs_) {
         pgp_subsig_t &sig = get_sig(sigid);
         if (!sig.valid()) {
@@ -1989,6 +1996,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
         if (pgp_sig_is_subkey_binding(*this, sig) && !has_binding) {
             /* check whether subkey is expired */
             if (is_key_expired(*this, sig)) {
+                has_expired = true;
                 continue;
             }
             has_binding = true;
@@ -1996,14 +2004,16 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
             return;
         }
     }
-    valid_ = has_binding || (is_secret() && primary->is_secret());
+    validity_.valid = has_binding || (is_secret() && primary->is_secret());
+    if (!validity_.valid) {
+        validity_.expired = has_expired;
+    }
 }
 
 void
 pgp_key_t::validate(rnp_key_store_t &keyring)
 {
-    valid_ = false;
-    validated_ = false;
+    validity_.reset();
     if (!is_subkey()) {
         validate_primary(keyring);
     } else {
@@ -2046,8 +2056,7 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
 void
 pgp_key_t::mark_valid()
 {
-    valid_ = true;
-    validated_ = true;
+    validity_.mark_valid();
     for (size_t i = 0; i < sig_count(); i++) {
         get_sig(i).validity.mark_valid();
     }
@@ -2180,6 +2189,18 @@ pgp_key_t::refresh_data(pgp_key_t *primary)
     return true;
 }
 
+void
+pgp_key_t::merge_validity(const pgp_validity_t &src)
+{
+    validity_.valid = validity_.valid && src.valid;
+    /* We may safely leave validated status only if both merged keys are valid && validated.
+     * Otherwise we'll need to revalidate. For instance, one validated but invalid key may add
+     * revocation signature, or valid key may add certification to the invalid one. */
+    validity_.validated = validity_.valid && validity_.validated && src.validated;
+    /* if expired is true at least in one case then valid and validated are false */
+    validity_.expired = false;
+}
+
 bool
 pgp_key_t::merge(const pgp_key_t &src)
 {
@@ -2235,11 +2256,8 @@ pgp_key_t::merge(const pgp_key_t &src)
         tmpkey.pkt().material = src.pkt().material;
     }
     /* copy validity status */
-    tmpkey.valid_ = valid_ && src.valid_;
-    /* We may safely leave validated status only if both merged keys are valid && validated.
-     * Otherwise we'll need to revalidate. For instance, one validated but invalid key may add
-     * revocation signature, or valid key may add certification to the invalid one. */
-    tmpkey.validated_ = validated_ && src.validated_ && tmpkey.valid_;
+    tmpkey.validity_ = validity_;
+    tmpkey.merge_validity(src.validity_);
 
     *this = std::move(tmpkey);
     return true;
@@ -2294,11 +2312,8 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
         tmpkey.pkt().material = src.pkt().material;
     }
     /* copy validity status */
-    tmpkey.valid_ = valid_ && src.valid_;
-    /* we may safely leave validated status only if both merged subkeys are valid && validated.
-     * Otherwise we'll need to revalidate. For instance, one validated but invalid subkey may
-     * add revocation signature, or valid subkey may add binding to the invalid one. */
-    tmpkey.validated_ = validated_ && src.validated_ && tmpkey.valid_;
+    tmpkey.validity_ = validity_;
+    tmpkey.merge_validity(src.validity_);
 
     *this = std::move(tmpkey);
     return true;
