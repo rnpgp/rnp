@@ -157,11 +157,11 @@ struct pgp_key_t {
     bool            uid0_set_{};   /* flag for the above */
     bool            revoked_{};    /* key has been revoked */
     pgp_revoke_t    revocation_{}; /* revocation reason */
-    bool            valid_{};      /* this key is valid and usable */
-    bool            validated_{};  /* this key was validated */
+    pgp_validity_t  validity_{};   /* key's validity */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
     void          validate_primary(rnp_key_store_t &keyring);
+    void          merge_validity(const pgp_validity_t &src);
 
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
@@ -210,6 +210,8 @@ struct pgp_key_t {
     bool             can_encrypt() const;
     /** @brief Get key's expiration time in seconds. If 0 then it doesn't expire. */
     uint32_t expiration() const;
+    /** @brief Check whether key is expired. Must be validated before that. */
+    bool expired() const;
     /** @brief Get key's creation time in seconds since Jan, 1 1970. */
     uint32_t creation() const;
     bool     is_public() const;
