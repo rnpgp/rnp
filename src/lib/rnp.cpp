@@ -3813,8 +3813,8 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         }
     }
     /* unlock the secret key if needed */
-    bool locked = pgp_key_is_locked(revoker);
-    if (locked && !pgp_key_unlock(revoker, &ffi->pass_provider)) {
+    bool locked = revoker->is_locked();
+    if (locked && !revoker->unlock(ffi->pass_provider)) {
         FFI_LOG(ffi, "Failed to unlock secret key");
         return RNP_ERROR_BAD_PASSWORD;
     }
@@ -3823,7 +3823,7 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         FFI_LOG(ffi, "Failed to generate revocation signature");
     }
     if (locked) {
-        pgp_key_lock(revoker);
+        revoker->lock();
     }
     return *sig ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
 }
@@ -6255,7 +6255,7 @@ try {
     }
 
     if (pkey->is_primary()) {
-        if (!pgp_key_set_expiration(pkey, skey, expiry, &key->ffi->pass_provider)) {
+        if (!pgp_key_set_expiration(pkey, skey, expiry, key->ffi->pass_provider)) {
             return RNP_ERROR_GENERIC;
         }
         pgp_key_revalidate_updated(pkey, key->ffi->pubring);
@@ -6279,7 +6279,7 @@ try {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
-    if (!pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, &key->ffi->pass_provider)) {
+    if (!pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, key->ffi->pass_provider)) {
         return RNP_ERROR_GENERIC;
     }
     pgp_key_revalidate_updated(prim_sec, key->ffi->secring);
@@ -6482,7 +6482,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    *result = pgp_key_is_locked(key);
+    *result = key->is_locked();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6497,7 +6497,7 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    if (!pgp_key_lock(key)) {
+    if (!key->lock()) {
         return RNP_ERROR_GENERIC;
     }
     return RNP_SUCCESS;
@@ -6518,9 +6518,9 @@ try {
     if (password) {
         pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
                                         .userdata = RNP_CONST_TO_VOID_PTR(password)};
-        ok = pgp_key_unlock(key, &prov);
+        ok = key->unlock(prov);
     } else {
-        ok = pgp_key_unlock(key, &handle->ffi->pass_provider);
+        ok = key->unlock(handle->ffi->pass_provider);
     }
     if (!ok) {
         // likely a bad password
@@ -7305,7 +7305,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     json_object_object_add(
       jsosecret, "present", json_object_new_boolean(have_sec ? true : false));
     if (have_sec) {
-        bool locked = pgp_key_is_locked(handle->sec);
+        bool locked = handle->sec->is_locked();
         if (flags & RNP_JSON_SECRET_MPIS) {
             if (locked) {
                 json_object_object_add(jsosecret, "mpis", NULL);

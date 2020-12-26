@@ -399,7 +399,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
                                          .userdata = (void *) "password"};
-    assert_true(pgp_key_unlock(key, &pswd_prov));
+    assert_true(key->unlock(pswd_prov));
     assert_true(pgp_hash_copy(&hash, &hash_orig));
     assert_rnp_success(signature_calculate(&sig, &key->material(), &hash, &rng));
     /* now verify signature */
