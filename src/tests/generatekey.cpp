@@ -940,8 +940,10 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_non_null(primary_sec);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
+        assert_false(primary_pub->expired());
         assert_true(primary_sec->valid());
         assert_true(primary_sec->validated());
+        assert_false(primary_sec->expired());
 
         // check packet and subsig counts
         assert_int_equal(3, pub.rawpkt_count());
@@ -1010,18 +1012,22 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         primary_pub->validate(*pubring);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
+        assert_false(primary_pub->expired());
         // primary_sec + pubring
         primary_sec->validate(*pubring);
         assert_true(primary_sec->valid());
         assert_true(primary_sec->validated());
+        assert_false(primary_sec->expired());
         // primary_pub + secring
         primary_pub->validate(*secring);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
+        assert_false(primary_pub->expired());
         // primary_sec + secring
         primary_sec->validate(*secring);
         assert_true(primary_sec->valid());
         assert_true(primary_sec->validated());
+        assert_false(primary_sec->expired());
         // modify a hashed portion of the sig packet, offset may change in future
         pgp_subsig_t &sig = primary_pub->get_sig(0);
         sig.sig.hashed_data[10] ^= 0xff;
@@ -1030,12 +1036,14 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         primary_pub->validate(*pubring);
         assert_false(primary_pub->valid());
         assert_true(primary_pub->validated());
+        assert_false(primary_pub->expired());
         // restore the original data
         sig.sig.hashed_data[10] ^= 0xff;
         sig.validity.validated = false;
         primary_pub->validate(*pubring);
         assert_true(primary_pub->valid());
         assert_true(primary_pub->validated());
+        assert_false(primary_pub->expired());
     }
 
     // sub
@@ -1059,8 +1067,10 @@ TEST_F(rnp_tests, test_generated_key_sigs)
           &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, PGP_KEY_STORE_GPG));
         assert_true(pub.valid());
         assert_true(pub.validated());
+        assert_false(pub.expired());
         assert_true(sec.valid());
         assert_true(sec.validated());
+        assert_false(sec.expired());
 
         // check packet and subsig counts
         assert_int_equal(2, pub.rawpkt_count());
@@ -1119,16 +1129,20 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_non_null(sub_sec);
         assert_true(sub_pub->valid());
         assert_true(sub_pub->validated());
+        assert_false(sub_pub->expired());
         assert_true(sub_sec->valid());
         assert_true(sub_sec->validated());
+        assert_false(sub_sec->expired());
 
         // validate via an alternative method
         sub_pub->validate(*pubring);
         assert_true(sub_pub->valid());
         assert_true(sub_pub->validated());
+        assert_false(sub_pub->expired());
         sub_sec->validate(*pubring);
         assert_true(sub_sec->valid());
         assert_true(sub_sec->validated());
+        assert_false(sub_sec->expired());
     }
 
     delete pubring;
