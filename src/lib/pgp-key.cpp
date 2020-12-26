@@ -619,68 +619,6 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     }
 }
 
-bool
-pgp_key_is_locked(const pgp_key_t *key)
-{
-    if (!key->is_secret()) {
-        RNP_LOG("key is not a secret key");
-        return false;
-    }
-    return key->encrypted();
-}
-
-bool
-pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider)
-{
-    pgp_key_pkt_t *decrypted_seckey = NULL;
-
-    // sanity checks
-    if (!key || !provider) {
-        return false;
-    }
-    if (!key->is_secret()) {
-        RNP_LOG("key is not a secret key");
-        return false;
-    }
-
-    // see if it's already unlocked
-    if (!pgp_key_is_locked(key)) {
-        return true;
-    }
-
-    pgp_password_ctx_t ctx = {.op = PGP_OP_UNLOCK, .key = key};
-    decrypted_seckey = pgp_decrypt_seckey(key, provider, &ctx);
-
-    if (decrypted_seckey) {
-        // this shouldn't really be necessary, but just in case
-        forget_secret_key_fields(&key->pkt().material);
-        // copy the decrypted mpis into the pgp_key_t
-        key->pkt().material = decrypted_seckey->material;
-        key->pkt().material.secret = true;
-        delete decrypted_seckey;
-        return true;
-    }
-    return false;
-}
-
-bool
-pgp_key_lock(pgp_key_t *key)
-{
-    // sanity checks
-    if (!key || !key->is_secret()) {
-        RNP_LOG("invalid args");
-        return false;
-    }
-
-    // see if it's already locked
-    if (pgp_key_is_locked(key)) {
-        return true;
-    }
-
-    forget_secret_key_fields(&key->pkt().material);
-    return true;
-}
-
 static bool
 pgp_write_seckey(pgp_dest_t *   dst,
                  pgp_pkt_type_t tag,
@@ -987,7 +925,7 @@ bool
 pgp_key_set_expiration(pgp_key_t *                    key,
                        pgp_key_t *                    seckey,
                        uint32_t                       expiry,
-                       const pgp_password_provider_t *prov)
+                       const pgp_password_provider_t &prov)
 {
     if (!key->is_primary()) {
         RNP_LOG("Not a primary key");
@@ -1006,8 +944,8 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         return true;
     }
 
-    bool locked = pgp_key_is_locked(seckey);
-    if (locked && !pgp_key_unlock(seckey, prov)) {
+    bool locked = seckey->is_locked();
+    if (locked && !seckey->unlock(prov)) {
         RNP_LOG("Failed to unlock secret key");
         return false;
     }
@@ -1060,7 +998,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     res = pgp_key_refresh_data(key);
 done:
     if (locked) {
-        pgp_key_lock(seckey);
+        seckey->lock();
     }
     return res;
 }
@@ -1070,7 +1008,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
                           pgp_key_t *                    primsec,
                           pgp_key_t *                    secsub,
                           uint32_t                       expiry,
-                          const pgp_password_provider_t *prov)
+                          const pgp_password_provider_t &prov)
 {
     if (!sub->is_subkey()) {
         RNP_LOG("Not a subkey");
@@ -1089,16 +1027,16 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
 
     bool res = false;
     bool subsign = secsub->can_sign();
-    bool locked = pgp_key_is_locked(primsec);
-    if (locked && !pgp_key_unlock(primsec, prov)) {
+    bool locked = primsec->is_locked();
+    if (locked && !primsec->unlock(prov)) {
         RNP_LOG("Failed to unlock primary key");
         return false;
     }
     pgp_signature_t newsig;
     pgp_sig_id_t    oldsigid = subsig->sigid;
     bool            sublocked = false;
-    if (subsign && pgp_key_is_locked(secsub)) {
-        if (!pgp_key_unlock(secsub, prov)) {
+    if (subsign && secsub->is_locked()) {
+        if (!secsub->unlock(prov)) {
             RNP_LOG("Failed to unlock subkey");
             goto done;
         }
@@ -1139,10 +1077,10 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     res = pgp_subkey_refresh_data(sub, primsec);
 done:
     if (locked) {
-        pgp_key_lock(primsec);
+        primsec->lock();
     }
     if (sublocked) {
-        pgp_key_lock(secsub);
+        secsub->lock();
     }
     return res;
 }
@@ -2057,6 +1995,16 @@ pgp_key_t::is_subkey() const
     return is_subkey_pkt(pkt_.tag);
 }
 
+bool
+pgp_key_t::is_locked() const
+{
+    if (!is_secret()) {
+        RNP_LOG("key is not a secret key");
+        return false;
+    }
+    return encrypted();
+}
+
 const pgp_key_id_t &
 pgp_key_t::keyid() const
 {
@@ -2168,6 +2116,52 @@ void
 pgp_key_t::set_rawpkt(const pgp_rawpacket_t &src)
 {
     rawpkt_ = src;
+}
+
+bool
+pgp_key_t::unlock(const pgp_password_provider_t &provider)
+{
+    // sanity checks
+    if (!is_secret()) {
+        RNP_LOG("key is not a secret key");
+        return false;
+    }
+    // see if it's already unlocked
+    if (!is_locked()) {
+        return true;
+    }
+
+    pgp_password_ctx_t ctx = {.op = PGP_OP_UNLOCK, .key = this};
+    pgp_key_pkt_t *    decrypted_seckey = pgp_decrypt_seckey(this, &provider, &ctx);
+    if (!decrypted_seckey) {
+        return false;
+    }
+
+    // this shouldn't really be necessary, but just in case
+    forget_secret_key_fields(&pkt_.material);
+    // copy the decrypted mpis into the pgp_key_t
+    pkt_.material = decrypted_seckey->material;
+    pkt_.material.secret = true;
+    delete decrypted_seckey;
+    return true;
+}
+
+bool
+pgp_key_t::lock()
+{
+    // sanity checks
+    if (!is_secret()) {
+        RNP_LOG("invalid args");
+        return false;
+    }
+
+    // see if it's already locked
+    if (is_locked()) {
+        return true;
+    }
+
+    forget_secret_key_fields(&pkt_.material);
+    return true;
 }
 
 size_t
