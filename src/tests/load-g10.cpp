@@ -47,7 +47,7 @@ test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
     if (!(key = rnp_key_store_get_key_by_id(sec, keyid, NULL))) {
         return false;
     }
-    return pgp_key_is_protected(key) && pgp_key_unlock(key, &pswd_prov) && pgp_key_lock(key);
+    return pgp_key_is_protected(key) && key->unlock(pswd_prov) && key->lock();
 }
 
 /* This test loads G10 keyrings and verifies certain properties

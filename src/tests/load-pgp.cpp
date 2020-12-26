@@ -82,7 +82,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 
     // check if the key is secret and is locked
     assert_true(key->is_secret());
-    assert_true(pgp_key_is_locked(key));
+    assert_true(key->is_locked());
 
     // decrypt the key
     const pgp_rawpacket_t &pkt = key->rawpkt();
@@ -649,9 +649,9 @@ TEST_F(rnp_tests, test_load_merge)
     assert_int_equal(skey2->rawpkt().tag, PGP_PKT_SECRET_SUBKEY);
     assert_int_equal(skey2->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
-    assert_true(pgp_key_unlock(key, &provider));
-    assert_true(pgp_key_unlock(skey1, &provider));
-    assert_true(pgp_key_unlock(skey2, &provider));
+    assert_true(key->unlock(provider));
+    assert_true(skey1->unlock(provider));
+    assert_true(skey2->unlock(provider));
 
     /* load the whole public + secret key */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub.asc"));

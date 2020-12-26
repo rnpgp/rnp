@@ -59,7 +59,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     // unlock the key
     pgp_password_provider_t pprov = {.callback = string_copy_password_callback,
                                      .userdata = (void *) "password"};
-    assert_true(pgp_key_unlock(key, &pprov));
+    assert_true(key->unlock(pprov));
 
     // save the counts for a few items
     unsigned uidc = key->uid_count();
