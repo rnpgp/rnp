@@ -283,11 +283,11 @@ rnp_key_store_merge_subkey(pgp_key_t *dst, const pgp_key_t *src, pgp_key_t *prim
     }
 
     /* check whether key was unlocked and assign secret key data */
-    if (dst->is_secret() && !pgp_key_is_locked(dst)) {
+    if (dst->is_secret() && !src->is_locked()) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
         tmpkey.pkt().material = dst->pkt().material;
-    } else if (src->is_secret() && !pgp_key_is_locked(src)) {
+    } else if (src->is_secret() && !src->is_locked()) {
         tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */
@@ -355,11 +355,11 @@ rnp_key_store_merge_key(pgp_key_t *dst, const pgp_key_t *src)
         return false;
     }
     /* check whether key was unlocked and assign secret key data */
-    if (dst->is_secret() && !pgp_key_is_locked(dst)) {
+    if (dst->is_secret() && !dst->is_locked()) {
         /* we may do thing below only because key material is opaque structure without
          * pointers! */
         tmpkey.pkt().material = dst->pkt().material;
-    } else if (src->is_secret() && !pgp_key_is_locked(src)) {
+    } else if (src->is_secret() && !src->is_locked()) {
         tmpkey.pkt().material = src->pkt().material;
     }
     /* copy validity status */

@@ -96,7 +96,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // try to unlock with a failing password provider
     provider.callback = failing_password_callback;
     provider.userdata = NULL;
-    assert_false(pgp_key_unlock(key->sec, &provider));
+    assert_false(key->sec->unlock(provider));
     bool locked = false;
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
@@ -104,14 +104,14 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // try to unlock with an incorrect password
     provider.callback = string_copy_password_callback;
     provider.userdata = (void *) "badpass";
-    assert_false(pgp_key_unlock(key->sec, &provider));
+    assert_false(key->sec->unlock(provider));
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
 
     // unlock the signing key
     provider.callback = string_copy_password_callback;
     provider.userdata = (void *) "password";
-    assert_true(pgp_key_unlock(key->sec, &provider));
+    assert_true(key->sec->unlock(provider));
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_false(locked);
 

@@ -190,6 +190,10 @@ struct pgp_key_t {
     bool     is_secret() const;
     bool     is_primary() const;
     bool     is_subkey() const;
+    /** @brief check if a key is currently locked, i.e. secret fields are not decrypted.
+     *  Note: Key locking does not apply to unprotected keys.
+     */
+    bool is_locked() const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
@@ -227,6 +231,22 @@ struct pgp_key_t {
     pgp_rawpacket_t &      rawpkt();
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
+
+    /** @brief Unlock a key, i.e. decrypt it's secret data so it can be used for
+     *signing/decryption. Note: Key locking does not apply to unprotected keys.
+     *
+     *  @param pass_provider the password provider that may be used
+     *         to unlock the key, if necessary
+     *  @return true if the key was unlocked, false otherwise
+     **/
+    bool unlock(const pgp_password_provider_t &provider);
+    /** @brief Lock a key, i.e. cleanup decrypted secret data.
+     *  Note: Key locking does not apply to unprotected keys.
+     *
+     *  @param key the key
+     *  @return true if the key was locked, false otherwise
+     **/
+    bool lock();
 };
 
 typedef struct rnp_key_store_t rnp_key_store_t;
@@ -301,35 +321,6 @@ pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
-/** check if a key is currently locked
- *
- *  Note: Key locking does not apply to unprotected keys.
- *
- *  @param key the key
- *  @return true if the key is locked, false otherwise
- **/
-bool pgp_key_is_locked(const pgp_key_t *key);
-
-/** unlock a key
- *
- *  Note: Key locking does not apply to unprotected keys.
- *
- *  @param key the key
- *  @param pass_provider the password provider that may be used
- *         to unlock the key, if necessary
- *  @return true if the key was unlocked, false otherwise
- **/
-bool pgp_key_unlock(pgp_key_t *key, const pgp_password_provider_t *provider);
-
-/** lock a key
- *
- *  Note: Key locking does not apply to unprotected keys.
- *
- *  @param key the key
- *  @return true if the key was unlocked, false otherwise
- **/
-bool pgp_key_lock(pgp_key_t *key);
-
 /** add protection to an unlocked key
  *
  *  @param key the key, which must be unlocked
@@ -390,13 +381,13 @@ bool pgp_key_add_userid_certified(pgp_key_t *              key,
 bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
                             uint32_t                       expiry,
-                            const pgp_password_provider_t *prov);
+                            const pgp_password_provider_t &prov);
 
 bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    primsec,
                                pgp_key_t *                    secsub,
                                uint32_t                       expiry,
-                               const pgp_password_provider_t *prov);
+                               const pgp_password_provider_t &prov);
 
 bool pgp_key_write_packets(const pgp_key_t *key, pgp_dest_t *dst);
 
