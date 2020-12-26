@@ -37,7 +37,7 @@ all_keys_valid(const rnp_key_store_t *keyring, pgp_key_t *except = NULL)
     char keyid[PGP_KEY_ID_SIZE * 2 + 3] = {0};
 
     for (auto &key : keyring->keys) {
-        if (!key.valid() && (&key != except)) {
+        if ((!key.valid() || key.expired()) && (&key != except)) {
             assert_true(rnp_hex_encode(key.keyid().data(),
                                        key.keyid().size(),
                                        keyid,
@@ -61,6 +61,7 @@ TEST_F(rnp_tests, test_key_validate)
     /* this keyring has one expired subkey */
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "1d7e8a5393c997a8", NULL));
     assert_false(key->valid());
+    assert_true(key->expired());
     assert_true(all_keys_valid(pubring, key));
     delete pubring;
 
@@ -69,6 +70,7 @@ TEST_F(rnp_tests, test_key_validate)
     assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_non_null(key = rnp_tests_get_key_by_id(secring, "1d7e8a5393c997a8", NULL));
     assert_true(key->valid());
+    assert_false(key->expired());
     assert_true(all_keys_valid(secring));
     delete secring;
 
@@ -130,10 +132,10 @@ key_store_add(rnp_key_store_t *keyring, const char *keypath)
 }
 
 static bool
-key_check(rnp_key_store_t *keyring, const std::string &keyid, bool valid)
+key_check(rnp_key_store_t *keyring, const std::string &keyid, bool valid, bool expired = false)
 {
     pgp_key_t *key = rnp_tests_get_key_by_id(keyring, keyid, NULL);
-    return key && (key->validated()) && (key->valid() == valid);
+    return key && (key->validated()) && (key->valid() == valid) && (key->expired() == expired);
 }
 
 TEST_F(rnp_tests, test_forged_key_validate)
@@ -163,6 +165,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key = rnp_tests_get_key_by_id(pubring, "C258AB3B54097B9B", NULL);
     assert_non_null(key);
     assert_false(key->valid());
+    assert_false(key->expired());
     rnp_key_store_clear(pubring);
 
     /* load dsa-eg keypair with forged subkey binding signature */
@@ -186,6 +189,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key = rnp_tests_get_key_by_id(pubring, "1BEF78DF765B79A2", NULL);
     assert_non_null(key);
     assert_false(key->valid());
+    assert_false(key->expired());
     rnp_key_store_clear(pubring);
 
     /* load valid ecdsa/ecdh p-256 keypair */
@@ -208,6 +212,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key = rnp_tests_get_key_by_id(pubring, "41DEA786D18E5184", NULL);
     assert_non_null(key);
     assert_false(key->valid());
+    assert_false(key->expired());
     assert_true(key_check(pubring, "37E285E9E9851491", false));
     rnp_key_store_clear(pubring);
 
@@ -254,6 +259,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
     key = rnp_tests_get_key_by_id(pubring, "791B14952D8F906C", NULL);
     assert_non_null(key);
     assert_false(key->valid());
+    assert_false(key->expired());
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", false));
     rnp_key_store_clear(pubring);
 
@@ -286,12 +292,12 @@ TEST_F(rnp_tests, test_forged_key_validate)
     /* load ecdsa/rsa keypair with expired subkey */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-subkey.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
-    assert_true(key_check(pubring, "37E285E9E9851491", false));
+    assert_true(key_check(pubring, "37E285E9E9851491", false, true));
     rnp_key_store_clear(pubring);
 
     /* load ecdsa/ecdh keypair with expired key */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-key.pgp");
-    assert_true(key_check(pubring, "23674F21B2441527", false));
+    assert_true(key_check(pubring, "23674F21B2441527", false, true));
     assert_true(key_check(pubring, "37E285E9E9851491", false));
     rnp_key_store_clear(pubring);
 
@@ -314,6 +320,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
     delete pubring;
 
     /* Case2:
@@ -326,8 +333,10 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
     assert_false(key->valid());
+    assert_false(key->expired());
     assert_non_null(key = rnp_tests_key_search(pubring, "Basil <basil@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
     delete pubring;
 
     /* Case3:
@@ -339,8 +348,10 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
     assert_false(key->valid());
+    assert_false(key->expired());
     assert_non_null(key = rnp_tests_key_search(pubring, "Basil <basil@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
     delete pubring;
 
     /* Case4:
@@ -352,10 +363,12 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
     pgp_key_t *subkey = NULL;
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid());
+    assert_false(subkey->expired());
     delete pubring;
 
     /* Case5:
@@ -370,9 +383,11 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid());
+    assert_false(subkey->expired());
     delete pubring;
 
     /* Case6:
@@ -384,9 +399,13 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_false(key->valid());
+    assert_false(key->expired());
+    assert_true(key->revoked());
     assert_int_equal(key->subkey_count(), 1);
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid());
+    assert_false(subkey->expired());
+    assert_false(subkey->revoked());
     delete pubring;
 
     /* Case7:
@@ -398,9 +417,13 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
+    assert_false(key->expired());
+    assert_false(key->revoked());
     assert_int_equal(key->subkey_count(), 1);
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_false(subkey->valid());
+    assert_false(subkey->expired());
+    assert_true(subkey->revoked());
     delete pubring;
 
     /* Case8:
@@ -428,8 +451,10 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C", NULL));
     assert_true(key->valid());
+    assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
     assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
     assert_true(subkey->valid());
+    assert_false(subkey->expired());
     delete pubring;
 }
