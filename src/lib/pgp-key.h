@@ -162,6 +162,7 @@ struct pgp_key_t {
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
     void          validate_primary(rnp_key_store_t &keyring);
     void          merge_validity(const pgp_validity_t &src);
+    uint32_t      valid_till_common(bool expiry) const;
 
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
@@ -227,6 +228,10 @@ struct pgp_key_t {
 
     bool valid() const;
     bool validated() const;
+    /** @brief return time till which primary key is considered to be valid */
+    uint32_t valid_till() const;
+    /** @brief return time till which subkey is considered to be valid */
+    uint32_t valid_till(const pgp_key_t &primary) const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
