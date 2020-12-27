@@ -234,7 +234,7 @@ function(add_cli_test suite)
     "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
   )
   set_tests_properties(${_test_name} PROPERTIES
-    TIMEOUT 3000
+    TIMEOUT 10000
     FIXTURES_REQUIRED testdata
     ENVIRONMENT "${_env}"
   )
