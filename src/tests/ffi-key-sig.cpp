@@ -260,7 +260,17 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_string_equal(type, "key revocation");
     rnp_buffer_destroy(type);
     assert_rnp_success(rnp_signature_is_valid(sig, 0));
+    uint32_t screate = 0;
+    assert_rnp_success(rnp_signature_get_creation(sig, &screate));
+    assert_int_equal(screate, 1578663151);
     rnp_signature_handle_destroy(sig);
+    /* check key validity */
+    bool valid = true;
+    assert_rnp_success(rnp_key_is_valid(key_handle, &valid));
+    assert_false(valid);
+    uint32_t till = 0;
+    assert_rnp_success(rnp_key_valid_till(key_handle, &till));
+    assert_int_equal(till, 1578663151);
     /* check import with NULL results param */
     assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-rev.pgp"));
     assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
@@ -295,6 +305,10 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_int_equal(sigcount, 1);
     assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
     assert_true(revoked);
+    assert_rnp_success(rnp_key_is_valid(key_handle, &valid));
+    assert_false(valid);
+    assert_rnp_success(rnp_key_valid_till(key_handle, &till));
+    assert_int_equal(till, 1578663151);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     assert_int_equal(unlink("pubring.gpg"), 0);
 
