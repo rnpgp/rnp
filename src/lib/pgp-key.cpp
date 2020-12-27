@@ -1432,6 +1432,58 @@ pgp_key_t::validated() const
     return validity_.validated;
 }
 
+uint32_t
+pgp_key_t::valid_till_common(bool expiry) const
+{
+    if (!validated()) {
+        return 0;
+    }
+    uint32_t till = expiration() ? creation() + expiration() : 0xffffffff;
+    if (valid()) {
+        return till;
+    }
+    if (revoked()) {
+        /* we should not believe to the compromised key at all */
+        if (revocation_.code == PGP_REVOCATION_COMPROMISED) {
+            return 0;
+        }
+        const pgp_subsig_t &revsig = get_sig(revocation_.sigid);
+        if (revsig.sig.creation() > creation()) {
+            /* pick less time from revocation time and expiration time */
+            return std::min(revsig.sig.creation(), till);
+        }
+        return 0;
+    }
+    /* if key is not marked as expired then it wasn't valid at all */
+    return expiry ? till : 0;
+}
+
+uint32_t
+pgp_key_t::valid_till() const
+{
+    if (!is_primary()) {
+        RNP_LOG("must be called for primary key only");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    return valid_till_common(expired());
+}
+
+uint32_t
+pgp_key_t::valid_till(const pgp_key_t &primary) const
+{
+    if (!is_subkey()) {
+        RNP_LOG("must be called for subkey only");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    uint32_t till = primary.valid_till();
+    /* if primary key was never valid then subkey was not either */
+    if (!till) {
+        return till;
+    }
+    /* subkey cannot be valid longer then the primary key */
+    return std::min(till, valid_till_common(expired() || primary.expired()));
+}
+
 const pgp_key_id_t &
 pgp_key_t::keyid() const
 {
