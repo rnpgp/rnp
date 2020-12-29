@@ -45,4 +45,7 @@ TEST_F(rnp_tests, test_fuzz_keyimport)
 
     data = file_to_vec(DATA_PATH "leak_11307b70cc609c93fc3a49d37f3a31166df50f44");
     assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "timeout_9c10372fe9ebdcdb0b6e275d05f8af4f4e3d6051");
+    assert_int_equal(keyimport_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
