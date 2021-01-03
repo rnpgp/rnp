@@ -120,6 +120,7 @@ bool        cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
 bool        cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter);
 bool        cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key);
+bool        cli_rnp_remove_key(cli_rnp_t *rnp, const char *key);
 bool        cli_rnp_add_key(cli_rnp_t *rnp);
 bool        cli_rnp_dump_file(cli_rnp_t *rnp);
 bool        cli_rnp_armor_file(cli_rnp_t *rnp);

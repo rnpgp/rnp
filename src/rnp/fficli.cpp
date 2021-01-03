@@ -1839,6 +1839,69 @@ done:
 }
 
 bool
+cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
+{
+    std::vector<rnp_key_handle_t> keys;
+    if (!cli_rnp_keys_matching_string(rnp, keys, key, CLI_SEARCH_SUBKEYS)) {
+        ERR_MSG("Key matching '%s' not found.", key);
+        return false;
+    }
+    rnp_cfg_t *  cfg = cli_rnp_cfg(rnp);
+    bool         res = false;
+    bool         secret = false;
+    bool         primary = false;
+    uint32_t     flags = RNP_KEY_REMOVE_PUBLIC;
+    rnp_result_t ret = 0;
+
+    if (keys.size() > 1) {
+        ERR_MSG("Ambiguous input: too many keys found for '%s'.", key);
+        goto done;
+    }
+    if (rnp_key_have_secret(keys[0], &secret)) {
+        ERR_MSG("Error getting secret key presence.");
+        goto done;
+    }
+    if (rnp_key_is_primary(keys[0], &primary)) {
+        ERR_MSG("Key error.");
+        goto done;
+    }
+
+    if (secret) {
+        flags |= RNP_KEY_REMOVE_SECRET;
+    }
+    if (primary) {
+        flags |= RNP_KEY_REMOVE_SUBKEYS;
+    }
+
+    if (secret && !rnp_cfg_getbool(cfg, CFG_FORCE)) {
+        char reply[10];
+
+        fprintf(rnp->userio_out,
+                "Key %s has coresponding secret key. Do you really want to delete it  (y/N)? ",
+                key);
+        fflush(rnp->userio_out);
+
+        if (fgets(reply, sizeof(reply), rnp->userio_in) == NULL) {
+            goto done;
+        }
+        if (strlen(reply) > 0 && toupper(reply[0]) != 'Y') {
+            goto done;
+        }
+    }
+
+    ret = rnp_key_remove(keys[0], flags);
+
+    if (ret) {
+        ERR_MSG("Failed to remove the key: error %d", (int) ret);
+        goto done;
+    }
+    res = cli_rnp_save_keyrings(rnp);
+done:
+    clear_key_handles(keys);
+    return res;
+}
+
+bool
 cli_rnp_add_key(cli_rnp_t *rnp)
 {
     std::string path = rnp_cfg_getstring(cli_rnp_cfg(rnp), CFG_KEYFILE);
