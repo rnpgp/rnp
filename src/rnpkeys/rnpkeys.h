@@ -21,6 +21,7 @@ typedef enum {
     CMD_GENERATE_KEY,
     CMD_EXPORT_REV,
     CMD_REVOKE_KEY,
+    CMD_REMOVE_KEY,
     CMD_VERSION,
     CMD_HELP,
 
