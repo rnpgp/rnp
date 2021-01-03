@@ -58,6 +58,7 @@ const char *usage = "--help OR\n"
                     "\t--generate-key [options] OR\n"
                     "\t--import, --import-keys, --import-sigs [options] OR\n"
                     "\t--list-keys [options] OR\n"
+                    "\t--remove-key [options] OR\n"
                     "\t--version\n"
                     "where options are:\n"
                     "\t[--cipher=<cipher name>] AND/OR\n"
@@ -93,6 +94,7 @@ struct option options[] = {
   {"export-rev", no_argument, NULL, CMD_EXPORT_REV},
   {"export-revocation", no_argument, NULL, CMD_EXPORT_REV},
   {"revoke-key", no_argument, NULL, CMD_REVOKE_KEY},
+  {"remove-key", no_argument, NULL, CMD_REMOVE_KEY},
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
@@ -422,6 +424,13 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_revoke_key(rnp, f);
     }
+    case CMD_REMOVE_KEY: {
+        if (!f) {
+            ERR_MSG("You need to specify key or subkey to remove.");
+            return false;
+        }
+        return cli_rnp_remove_key(rnp, f);
+    }
     case CMD_VERSION:
         print_praise();
         return true;
@@ -453,6 +462,7 @@ setoption(rnp_cfg_t *cfg, optdefs_t *cmd, int val, const char *arg)
     case CMD_EXPORT_KEY:
     case CMD_EXPORT_REV:
     case CMD_REVOKE_KEY:
+    case CMD_REMOVE_KEY:
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
