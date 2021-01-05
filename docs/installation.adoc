@@ -28,14 +28,14 @@ yum install -y rnp
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
 sudo apt install git
-git clone https://github.com/rnpgp/rnp.git -b v0.13.1
+git clone https://github.com/rnpgp/rnp.git -b v0.14.0
 
 # Install required packages
 sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential python-minimal
 
 # Download, build and install Botan2
-wget -qO- https://botan.randombit.net/releases/Botan-2.12.1.tar.xz | tar xvJ
-cd Botan-2.12.1
+wget -qO- https://botan.randombit.net/releases/Botan-2.14.0.tar.xz | tar xvJ
+cd Botan-2.14.0
 ./configure.py --prefix=/usr
 make
 sudo make install
@@ -57,7 +57,7 @@ sudo make install
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
 sudo apt install git
-git clone https://github.com/rnpgp/rnp.git -b v0.13.1
+git clone https://github.com/rnpgp/rnp.git -b v0.14.0
 
 # Enable access to `testing` packages by editing /etc/apt/sources.list
 # deb http://deb.debian.org/debian testing main
