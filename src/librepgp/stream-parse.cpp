@@ -2149,6 +2149,8 @@ pgp_source_signed_param_t::~pgp_source_signed_param_t()
     }
 }
 
+#define MAX_SIG_ERRORS 65536
+
 static rnp_result_t
 init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
@@ -2158,6 +2160,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     int                        ptype;
     pgp_signature_t *          sig = NULL;
     bool                       cleartext;
+    size_t                     sigerrors = 0;
 
     if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -2194,6 +2197,13 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
 
     /* Reading one-pass and signature packets */
     while (true) {
+        /* stop early if we are in zip-bomb with erroneous packets */
+        if (sigerrors >= MAX_SIG_ERRORS) {
+            RNP_LOG("Too many one-pass/signature errors. Stopping.");
+            errcode = RNP_ERROR_BAD_FORMAT;
+            goto finish;
+        }
+
         size_t readb = readsrc->readb;
         if (!src_peek_eq(readsrc, &ptag, 1)) {
             RNP_LOG("failed to read packet header");
@@ -2218,6 +2228,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
                     errcode = RNP_ERROR_BAD_FORMAT;
                     goto finish;
                 }
+                sigerrors++;
                 continue;
             }
 
@@ -2244,7 +2255,9 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             }
         } else if (ptype == PGP_PKT_SIGNATURE) {
             /* no need to check the error here - we already know tag */
-            signed_read_single_signature(param, readsrc, &sig);
+            if (signed_read_single_signature(param, readsrc, &sig)) {
+                sigerrors++;
+            }
             /* adding hash context */
             if (sig && !add_hash_for_sig(param, sig->type(), sig->halg)) {
                 RNP_LOG(
@@ -2261,7 +2274,6 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             errcode = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-
         /* for detached signature we'll get eof */
         if (src_eof(readsrc)) {
             param->detached = true;
