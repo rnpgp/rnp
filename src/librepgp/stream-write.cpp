@@ -533,11 +533,13 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     enckey[keylen + 1] = (checksum >> 8) & 0xff;
     enckey[keylen + 2] = checksum & 0xff;
 
+    pgp_encrypted_material_t material;
+
     switch (userkey->alg()) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                &pkey.material.rsa,
+                                &material.rsa,
                                 enckey,
                                 keylen + 3,
                                 &userkey->material().rsa);
@@ -549,7 +551,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
     case PGP_PKA_SM2: {
         ret = sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
-                          &pkey.material.sm2,
+                          &material.sm2,
                           enckey,
                           keylen + 3,
                           PGP_HASH_SM3,
@@ -562,7 +564,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
     case PGP_PKA_ECDH: {
         ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
-                                 &pkey.material.ecdh,
+                                 &material.ecdh,
                                  enckey,
                                  keylen + 3,
                                  &userkey->material().ec,
@@ -575,7 +577,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
     case PGP_PKA_ELGAMAL: {
         ret = elgamal_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                    &pkey.material.eg,
+                                    &material.eg,
                                     enckey,
                                     keylen + 3,
                                     &userkey->material().eg);
@@ -592,6 +594,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
     /* Writing symmetric key encrypted session key packet */
     try {
+        pkey.write_material(material);
         pkey.write(*param->pkt.origdst);
         ret = param->pkt.origdst->werr;
     } catch (const std::exception &e) {

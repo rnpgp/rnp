@@ -1082,28 +1082,7 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
     pktbody.add_byte(version);
     pktbody.add(key_id);
     pktbody.add_byte(alg);
-
-    switch (alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        pktbody.add(material.rsa.m);
-        break;
-    case PGP_PKA_SM2:
-        pktbody.add(material.sm2.m);
-        break;
-    case PGP_PKA_ECDH:
-        pktbody.add(material.ecdh.p);
-        pktbody.add_byte(material.ecdh.mlen);
-        pktbody.add(material.ecdh.m, material.ecdh.mlen);
-        break;
-    case PGP_PKA_ELGAMAL:
-        pktbody.add(material.eg.g);
-        pktbody.add(material.eg.m);
-        break;
-    default:
-        RNP_LOG("Unknown pk alg: %d", (int) alg);
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
+    pktbody.add(material_buf.data(), material_buf.size());
     pktbody.write(dst);
 }
 
@@ -1134,13 +1113,38 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
     }
     alg = (pgp_pubkey_alg_t) bt;
 
+    /* raw signature material */
+    if (!pkt.left()) {
+        RNP_LOG("No encrypted material");
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    try {
+        material_buf.resize(pkt.left());
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    /* we cannot fail here */
+    pkt.get(material_buf.data(), material_buf.size());
+    /* check whether it can be parsed */
+    pgp_encrypted_material_t material = {};
+    if (!parse_material(material)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
+}
+
+bool
+pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
+{
+    pgp_packet_body_t pkt(material_buf.data(), material_buf.size());
     switch (alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
         /* RSA m */
         if (!pkt.get(material.rsa.m)) {
             RNP_LOG("failed to get rsa m");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         break;
     case PGP_PKA_ELGAMAL:
@@ -1148,47 +1152,78 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
         /* ElGamal g, m */
         if (!pkt.get(material.eg.g) || !pkt.get(material.eg.m)) {
             RNP_LOG("failed to get elgamal mpis");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         break;
     case PGP_PKA_SM2:
         /* SM2 m */
         if (!pkt.get(material.sm2.m)) {
             RNP_LOG("failed to get sm2 m");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         break;
-    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDH: {
         /* ECDH ephemeral point */
         if (!pkt.get(material.ecdh.p)) {
             RNP_LOG("failed to get ecdh p");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         /* ECDH m */
+        uint8_t bt = 0;
         if (!pkt.get(bt)) {
             RNP_LOG("failed to get ecdh m len");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         if (bt > ECDH_WRAPPED_KEY_SIZE) {
             RNP_LOG("wrong ecdh m len");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         material.ecdh.mlen = bt;
         if (!pkt.get(material.ecdh.m, bt)) {
             RNP_LOG("failed to get ecdh m len");
-            return RNP_ERROR_BAD_FORMAT;
+            return false;
         }
         break;
+    }
     default:
         RNP_LOG("unknown pk alg %d", (int) alg);
-        return RNP_ERROR_BAD_FORMAT;
+        return false;
     }
 
     if (pkt.left()) {
         RNP_LOG("extra %d bytes in pk packet", (int) pkt.left());
-        return RNP_ERROR_BAD_FORMAT;
+        return false;
     }
-    return RNP_SUCCESS;
+    return true;
+}
+
+void
+pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
+{
+    pgp_packet_body_t pktbody(PGP_PKT_PK_SESSION_KEY);
+
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_RSA_ENCRYPT_ONLY:
+        pktbody.add(material.rsa.m);
+        break;
+    case PGP_PKA_SM2:
+        pktbody.add(material.sm2.m);
+        break;
+    case PGP_PKA_ECDH:
+        pktbody.add(material.ecdh.p);
+        pktbody.add_byte(material.ecdh.mlen);
+        pktbody.add(material.ecdh.m, material.ecdh.mlen);
+        break;
+    case PGP_PKA_ELGAMAL:
+        pktbody.add(material.eg.g);
+        pktbody.add(material.eg.m);
+        break;
+    default:
+        RNP_LOG("Unknown pk alg: %d", (int) alg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    material_buf = {pktbody.data(), pktbody.data() + pktbody.size()};
 }
 
 void
