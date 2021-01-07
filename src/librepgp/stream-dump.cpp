@@ -954,11 +954,15 @@ stream_dump_userid(pgp_source_t *src, pgp_dest_t *dst)
 static rnp_result_t
 stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_pk_sesskey_t pkey;
-    rnp_result_t     ret;
+    pgp_pk_sesskey_t         pkey;
+    pgp_encrypted_material_t material;
+    rnp_result_t             ret;
 
     try {
         ret = pkey.parse(*src);
+        if (!pkey.parse_material(material)) {
+            ret = RNP_ERROR_BAD_FORMAT;
+        }
     } catch (const std::exception &e) {
         ret = RNP_ERROR_GENERIC;
     }
@@ -979,22 +983,22 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        dst_print_mpi(dst, "rsa m", &pkey.material.rsa.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "rsa m", &material.rsa.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        dst_print_mpi(dst, "eg g", &pkey.material.eg.g, ctx->dump_mpi);
-        dst_print_mpi(dst, "eg m", &pkey.material.eg.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg g", &material.eg.g, ctx->dump_mpi);
+        dst_print_mpi(dst, "eg m", &material.eg.m, ctx->dump_mpi);
         break;
     case PGP_PKA_SM2:
-        dst_print_mpi(dst, "sm2 m", &pkey.material.sm2.m, ctx->dump_mpi);
+        dst_print_mpi(dst, "sm2 m", &material.sm2.m, ctx->dump_mpi);
         break;
     case PGP_PKA_ECDH:
-        dst_print_mpi(dst, "ecdh p", &pkey.material.ecdh.p, ctx->dump_mpi);
+        dst_print_mpi(dst, "ecdh p", &material.ecdh.p, ctx->dump_mpi);
         if (ctx->dump_mpi) {
-            dst_print_hex(dst, "ecdh m", pkey.material.ecdh.m, pkey.material.ecdh.mlen, true);
+            dst_print_hex(dst, "ecdh m", material.ecdh.m, material.ecdh.mlen, true);
         } else {
-            dst_printf(dst, "ecdh m: %d bytes\n", (int) pkey.material.ecdh.mlen);
+            dst_printf(dst, "ecdh m: %d bytes\n", (int) material.ecdh.mlen);
         }
         break;
     default:
@@ -2018,11 +2022,15 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
 static rnp_result_t
 stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    pgp_pk_sesskey_t pkey;
-    rnp_result_t     ret;
+    pgp_pk_sesskey_t         pkey;
+    pgp_encrypted_material_t pkmaterial;
+    rnp_result_t             ret;
 
     try {
         ret = pkey.parse(*src);
+        if (!pkey.parse_material(pkmaterial)) {
+            ret = RNP_ERROR_BAD_FORMAT;
+        }
     } catch (const std::exception &e) {
         ret = RNP_ERROR_GENERIC;
     }
@@ -2045,30 +2053,30 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!obj_add_mpi_json(material, "m", &pkey.material.rsa.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "m", &pkmaterial.rsa.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!obj_add_mpi_json(material, "g", &pkey.material.eg.g, ctx->dump_mpi) ||
-            !obj_add_mpi_json(material, "m", &pkey.material.eg.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "g", &pkmaterial.eg.g, ctx->dump_mpi) ||
+            !obj_add_mpi_json(material, "m", &pkmaterial.eg.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_SM2:
-        if (!obj_add_mpi_json(material, "m", &pkey.material.sm2.m, ctx->dump_mpi)) {
+        if (!obj_add_mpi_json(material, "m", &pkmaterial.sm2.m, ctx->dump_mpi)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_ECDH:
-        if (!obj_add_mpi_json(material, "p", &pkey.material.ecdh.p, ctx->dump_mpi) ||
+        if (!obj_add_mpi_json(material, "p", &pkmaterial.ecdh.p, ctx->dump_mpi) ||
             !obj_add_field_json(
-              material, "m.bytes", json_object_new_int(pkey.material.ecdh.mlen))) {
+              material, "m.bytes", json_object_new_int(pkmaterial.ecdh.mlen))) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (ctx->dump_mpi &&
-            !obj_add_hex_json(material, "m", pkey.material.ecdh.m, pkey.material.ecdh.mlen)) {
+            !obj_add_hex_json(material, "m", pkmaterial.ecdh.m, pkmaterial.ecdh.mlen)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;

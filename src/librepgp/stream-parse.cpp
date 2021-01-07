@@ -1362,20 +1362,25 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 {
     uint8_t             decbuf[PGP_MPINT_SIZE];
     rnp_result_t        err;
-    size_t              declen;
-    size_t              keylen;
-    pgp_fingerprint_t   fingerprint;
-    pgp_symm_alg_t      salg;
-    unsigned            checksum = 0;
     bool                res = false;
     pgp_key_material_t *keymaterial = &seckey->material;
 
+    pgp_encrypted_material_t encmaterial;
+    try {
+        if (!sesskey->parse_material(encmaterial)) {
+            return false;
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
+
     /* Decrypting session key value */
+    size_t declen = 0;
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        err =
-          rsa_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.rsa, &keymaterial->rsa);
+        err = rsa_decrypt_pkcs1(rng, decbuf, &declen, &encmaterial.rsa, &keymaterial->rsa);
         if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
@@ -1383,7 +1388,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     case PGP_PKA_SM2:
         declen = sizeof(decbuf);
-        err = sm2_decrypt(decbuf, &declen, &sesskey->material.sm2, &keymaterial->ec);
+        err = sm2_decrypt(decbuf, &declen, &encmaterial.sm2, &keymaterial->ec);
         if (err != RNP_SUCCESS) {
             RNP_LOG("SM2 decryption failure, error %x", (int) err);
             return false;
@@ -1392,7 +1397,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         const rnp_result_t ret =
-          elgamal_decrypt_pkcs1(rng, decbuf, &declen, &sesskey->material.eg, &keymaterial->eg);
+          elgamal_decrypt_pkcs1(rng, decbuf, &declen, &encmaterial.eg, &keymaterial->eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
@@ -1400,13 +1405,14 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
+        pgp_fingerprint_t fingerprint;
         if (pgp_fingerprint(fingerprint, *seckey)) {
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
         declen = sizeof(decbuf);
         err = ecdh_decrypt_pkcs5(
-          decbuf, &declen, &sesskey->material.ecdh, &keymaterial->ec, fingerprint);
+          decbuf, &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
@@ -1419,19 +1425,20 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 
     /* Check algorithm and key length */
-    salg = (pgp_symm_alg_t) decbuf[0];
+    pgp_symm_alg_t salg = (pgp_symm_alg_t) decbuf[0];
     if (!pgp_is_sa_supported(salg)) {
         RNP_LOG("unsupported symmetric algorithm %d", (int) salg);
         return false;
     }
 
-    keylen = pgp_key_size(salg);
+    size_t keylen = pgp_key_size(salg);
     if (declen != keylen + 3) {
         RNP_LOG("invalid symmetric key length");
         return false;
     }
 
     /* Validate checksum */
+    unsigned checksum = 0;
     for (unsigned i = 1; i <= keylen; i++) {
         checksum += decbuf[i];
     }

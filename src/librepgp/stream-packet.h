@@ -155,14 +155,24 @@ typedef struct pgp_packet_body_t {
 
 /** public-key encrypted session key packet */
 typedef struct pgp_pk_sesskey_t {
-    unsigned         version{};
-    pgp_key_id_t     key_id{};
-    pgp_pubkey_alg_t alg{};
-
-    pgp_encrypted_material_t material{};
+    unsigned             version{};
+    pgp_key_id_t         key_id{};
+    pgp_pubkey_alg_t     alg{};
+    std::vector<uint8_t> material_buf{};
 
     void         write(pgp_dest_t &dst) const;
     rnp_result_t parse(pgp_source_t &src);
+    /**
+     * @brief Parse encrypted material which is stored in packet in raw.
+     * @param material on success parsed material will be stored here.
+     * @return true on success or false otherwise. May also throw an exception.
+     */
+    bool parse_material(pgp_encrypted_material_t &material) const;
+    /**
+     * @brief Write encrypted material to the material_buf.
+     * @param material populated encrypted material.
+     */
+    void write_material(const pgp_encrypted_material_t &material);
 } pgp_pk_sesskey_t;
 
 /** pkp_sk_sesskey_t */

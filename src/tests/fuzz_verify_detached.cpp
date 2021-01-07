@@ -27,6 +27,7 @@
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
 #include "support.h"
+#include <librepgp/stream-write.h>
 
 extern "C" int verify_detached_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
 
@@ -36,5 +37,8 @@ TEST_F(rnp_tests, test_fuzz_verify_detached)
 {
     auto data = file_to_vec(
       DATA_PATH "clusterfuzz-testcase-minimized-fuzz_verify_detached-5092660526972928");
+    assert_int_equal(verify_detached_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "outofmemory-23094cb781b2cf6d1749ebac8bd0576e51440498-z");
     assert_int_equal(verify_detached_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
