@@ -1360,6 +1360,74 @@ class Keystore(unittest.TestCase):
         if (ret != 0) or not re.match(r'(?s)^.*sub.*dd23ceb7febeff17.*\[REVOKED\].*a4bbb77370217bca2307ad0ddd23ceb7febeff17.*', out):
             raise_err('Wrong revoked subkey listing', out)
 
+    def test_key_remove(self):
+        clear_keyrings()
+        # Import public keyring
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/pubring.gpg')])
+        if ret != 0:
+            raise_err('Public keyring import failed')
+        # Remove all imported public keys with subkeys
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
+        if (ret != 0):
+            raise_err('Failed to remove keys', err)
+        # Check that keyring is empty
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if not re.match(r'Key\(s\) not found\.', out):
+            raise_err('Failed to remove public keys');
+        # Import secret keyring
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/secring.gpg')])
+        if ret != 0:
+            raise_err('Secret keyring import failed')
+        # Remove all secret keys with subkeys
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb', '--force'])
+        if (ret != 0):
+            raise_err('Failed to remove keys', err)
+        # Check that keyring is empty
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if not re.match(r'Key\(s\) not found\.', out):
+            raise_err('Failed to remove secret keys');
+        # Import public keyring
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/pubring.gpg')])
+        if ret != 0:
+            raise_err('Public keyring import failed')
+        # Remove all subkeys
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key',
+                                        '326ef111425d14a5', '54505a936a4a970e', '8a05b89fad5aded1', '1d7e8a5393c997a8', '1ed63ee56fadc34d'])
+        if (ret != 0):
+            raise_err('Failed to remove keys', err)
+        # Check that subkeys are removed
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if (ret != 0) or not re.match(r'2 keys found', out) or re.search('326ef111425d14a5|54505a936a4a970e|8a05b89fad5aded1|1d7e8a5393c997a8|1ed63ee56fadc34d', out):
+            raise_err('Failed to remove subkeys');
+        # Remove remaining public keys
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
+        if (ret != 0):
+            raise_err('Failed to remove keys', err)
+        # Try to remove again
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a'])
+        if (ret == 0) or not re.search(r'Key matching \'7bc6709b15c23a4a\' not found\.', err):
+            raise_err('Unexpected result', err)
+        # Check that keyring is empty
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if not re.match(r'Key\(s\) not found\.', out):
+            raise_err('Failed to remove keys');
+        # Import public keyring
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/pubring.gpg')])
+        if ret != 0:
+            raise_err('Public keyring import failed')
+        # Try to remove by uid substring, should match multiple keys and refuse to remove
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'uid0'])
+        if (ret == 0) or not re.search(r'Ambiguous input: too many keys found for \'uid0\'\.', err):
+            raise_err('Unexpected result', err)
+        # Remove keys by uids
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'key0-uid0', 'key1-uid1'])
+        if (ret != 0):
+            raise_err('Failed to remove keys', err)
+        # Check that keyring is empty
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if not re.match(r'Key\(s\) not found\.', out):
+            raise_err('Failed to remove keys');
+
 class Misc(unittest.TestCase):
 
     @classmethod
