@@ -60,6 +60,4 @@ jobs:
         run: cmake --build ./build
       - name: Testing
         shell: bash
-        run: |
-          cd build
-          ctest -C Debug
+        run: ci/test.msvc.sh
