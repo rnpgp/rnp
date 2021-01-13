@@ -91,7 +91,10 @@ msys_install() {
     mingw64/mingw-w64-x86_64-python3
   "
   pacman --noconfirm -S --needed ${packages}
-  botan_pkg="mingw-w64-x86_64-libbotan-2.16.0-1-any.pkg.tar.zst"
+  # any version starting with 2.14 up to 2.17.3 caused the application to hang
+  # as described in https://github.com/randombit/botan/issues/2582
+  # fixed with https://github.com/msys2/MINGW-packages/pull/7640/files
+  botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
   pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
   pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
 
