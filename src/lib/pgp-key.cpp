@@ -970,6 +970,17 @@ pgp_userid_t::replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig)
     *it = newsig;
 }
 
+bool
+pgp_userid_t::del_sig(const pgp_sig_id_t &id)
+{
+    auto it = std::find(sigs_.begin(), sigs_.end(), id);
+    if (it == sigs_.end()) {
+        return false;
+    }
+    sigs_.erase(it);
+    return true;
+}
+
 pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
 {
     uid = sig.uid;
@@ -1157,6 +1168,30 @@ pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
         uids_[uid].add_sig(sigid);
     }
     return res;
+}
+
+bool
+pgp_key_t::del_sig(const pgp_sig_id_t &sigid)
+{
+    if (!has_sig(sigid)) {
+        return false;
+    }
+    uint32_t uid = get_sig(sigid).uid;
+    if (uid == PGP_UID_NONE) {
+        /* signature over the key itself */
+        auto it = std::find(keysigs_.begin(), keysigs_.end(), sigid);
+        if (it != keysigs_.end()) {
+            keysigs_.erase(it);
+        }
+    } else if (uid < uids_.size()) {
+        /* userid-related signature */
+        uids_[uid].del_sig(sigid);
+    }
+    auto it = std::find(sigs_.begin(), sigs_.end(), sigid);
+    if (it != sigs_.end()) {
+        sigs_.erase(it);
+    }
+    return sigs_map_.erase(sigid);
 }
 
 size_t
@@ -2084,6 +2119,8 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
         pgp_key_t *primary = rnp_key_store_get_primary_key(&keyring, this);
         if (primary) {
             primary->revalidate(keyring);
+        } else {
+            validate_subkey(NULL);
         }
         return;
     }
