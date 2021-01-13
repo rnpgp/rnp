@@ -1214,6 +1214,18 @@ RNP_API rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
                                                   uint32_t               flags,
                                                   char **                json);
 
+/**
+ * @brief Remove a signature.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param sig signature handle, cannot be NULL. Must be obtained via the key handle or one of
+ *            it's userids. You still need to call rnp_signature_handle_destroy afterwards to
+ *            destroy handle itself. All other handles of the same signature, if any, should
+ *            not be used after the call is made.
+ * @return RNP_SUCCESS if signature was successfully deleted, or any other value on error.
+ */
+RNP_API rnp_result_t rnp_signature_remove(rnp_key_handle_t key, rnp_signature_handle_t sig);
+
 /** Free signature handle.
  *
  * @param sig signature handle.
