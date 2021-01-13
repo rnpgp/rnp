@@ -5916,6 +5916,36 @@ done:
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_remove(rnp_key_handle_t key, rnp_signature_handle_t sig)
+try {
+    if (!key || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (sig->own_sig || !sig->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *pkey = get_key_require_public(key);
+    pgp_key_t *skey = get_key_require_secret(key);
+    if (!pkey && !skey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    const pgp_sig_id_t sigid = sig->sig->sigid;
+    bool               ok = false;
+    if (pkey) {
+        ok = pkey->del_sig(sigid);
+        pkey->revalidate(*key->ffi->pubring);
+    }
+    if (skey) {
+        /* secret key may not have signature, but we still need to delete it at least once to
+         * succeed */
+        ok = skey->del_sig(sigid) || ok;
+        skey->revalidate(*key->ffi->secring);
+    }
+    return ok ? RNP_SUCCESS : RNP_ERROR_NO_SIGNATURES_FOUND;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_handle_destroy(rnp_signature_handle_t sig)
 try {
     if (sig && sig->own_sig) {
