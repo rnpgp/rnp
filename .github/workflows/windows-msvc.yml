@@ -18,10 +18,12 @@ jobs:
           - arch: x64
             os: windows-latest
             triplet: x64-windows
+            vcpkg_tag: 2020.11-1
             vcpkg_dir: 'C:\\vcpkg'
           - arch: Win32
             os: windows-latest
             triplet: x86-windows
+            vcpkg_tag: 2020.11-1
             vcpkg_dir: 'C:\\vcpkg'
 
     steps:
@@ -36,15 +38,13 @@ jobs:
         run: |
           cd ${{ matrix.vcpkg_dir }}
           git fetch origin --tags
-          git reset --hard 2020.06
+          git reset --hard ${{ matrix.vcpkg_tag }}
           ./bootstrap-vcpkg.bat
       - name: Cache vcpkg
         uses: actions/cache@v2
         with:
           path: '${{ matrix.vcpkg_dir }}/installed'
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}
-          restore-keys: |
-            vcpkg-${{ matrix.triplet }}-
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.vcpkg_tag }}
       - name: Install vcpkg packages
         shell: bash
         run: vcpkg install --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
