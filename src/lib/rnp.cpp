@@ -5998,6 +5998,36 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_uid_remove(rnp_key_handle_t key, rnp_uid_handle_t uid)
+try {
+    if (!key || !uid) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *pkey = get_key_require_public(key);
+    pgp_key_t *skey = get_key_require_secret(key);
+    if (!pkey && !skey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if ((uid->key != pkey) && (uid->key != skey)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    bool ok = false;
+    if (pkey && (pkey->uid_count() > uid->idx)) {
+        pkey->del_uid(uid->idx);
+        pkey->revalidate(*key->ffi->pubring);
+        ok = true;
+    }
+    if (skey && (skey->uid_count() > uid->idx)) {
+        skey->del_uid(uid->idx);
+        skey->revalidate(*key->ffi->secring);
+        ok = true;
+    }
+    return ok ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_uid_handle_destroy(rnp_uid_handle_t uid)
 try {
     free(uid);
