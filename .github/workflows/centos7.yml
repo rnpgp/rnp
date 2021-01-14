@@ -20,7 +20,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
       image: centos:7
-    timeout-minutes: 50
+    timeout-minutes: 70
     strategy:
       matrix:
         env:
@@ -163,7 +163,7 @@ jobs:
             find_package(BZip2 REQUIRED)
             find_package(ZLIB REQUIRED)
             find_package(JSON-C 0.11 REQUIRED)
-            find_package(Botan2 2.8.0 REQUIRED)
+            find_package(Botan2 2.14.0 REQUIRED)
             find_package(rnp REQUIRED)
 
             cmake_minimum_required(VERSION 3.12)
