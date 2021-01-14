@@ -211,6 +211,47 @@ check_sig_status(json_object *sig, const char *pub, const char *sec, const char 
     return true;
 }
 
+static void
+reload_pubring(rnp_ffi_t *ffi)
+{
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(*ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_int_equal(unlink("pubring.gpg"), 0);
+}
+
+static void
+reload_keyrings(rnp_ffi_t *ffi)
+{
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
+    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_ffi_destroy(*ffi));
+    /* re-init ffi and load keys */
+    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_int_equal(unlink("pubring.gpg"), 0);
+    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_int_equal(unlink("secring.gpg"), 0);
+}
+
 TEST_F(rnp_tests, test_ffi_import_signatures)
 {
     rnp_ffi_t   ffi = NULL;
@@ -287,18 +328,8 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
     assert_int_equal(sigcount, 1);
     rnp_key_handle_destroy(key_handle);
-
     /* save and reload keyring, making sure signature is saved */
-    rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
-    assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_ffi_destroy(ffi));
-    /* re-init ffi and load keys */
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    reload_pubring(&ffi);
     /* find key and check sig count and revocation status */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_key_get_signature_count(key_handle, &sigcount));
@@ -310,7 +341,6 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     assert_rnp_success(rnp_key_valid_till(key_handle, &till));
     assert_int_equal(till, 1578663151);
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
-    assert_int_equal(unlink("pubring.gpg"), 0);
 
     /* try to import wrong signature (certification) */
     assert_true(
@@ -906,6 +936,244 @@ TEST_F(rnp_tests, test_ffi_get_signature_type)
 
     rnp_uid_handle_destroy(uid);
     rnp_key_handle_destroy(key);
+
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+TEST_F(rnp_tests, test_ffi_remove_signature)
+{
+    rnp_ffi_t   ffi = NULL;
+    rnp_input_t input = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
+    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    size_t count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(key, &count));
+    assert_int_equal(count, 0);
+    rnp_key_handle_t bkey = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Basil <basil@rnp>", &bkey));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(bkey, &count));
+    assert_int_equal(count, 0);
+
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 8);
+    /* signature 1: valid signature by Basil */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    assert_rnp_failure(rnp_signature_remove(NULL, sig));
+    assert_rnp_failure(rnp_signature_remove(key, NULL));
+    /* attempt to delete signature from the wrong key */
+    assert_int_equal(rnp_signature_remove(bkey, sig), RNP_ERROR_NO_SIGNATURES_FOUND);
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 7);
+    /* signature 2: must be moved to position 1 */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 1, &sig));
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "standalone");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 6);
+    /* signature 7: must be moved to position 5 */
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 5, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "third-party");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 5);
+    /* check that key and userid are still valid */
+    bool valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    valid = false;
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(bkey);
+
+    /* Export key and reload */
+    reload_pubring(&ffi);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(key, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Basil <basil@rnp>", &bkey));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(bkey, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 5);
+    /* delete self-certification and make sure that key/uid become invalid */
+    valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    valid = false;
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "certification (positive)");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    valid = true;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_false(valid);
+    valid = true;
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(bkey);
+
+    /* Remove subkey's signature */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/case7/pubring.gpg"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    count = 0;
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 1);
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(sub, &count));
+    assert_int_equal(count, 2);
+    /* check whether key and sub valid: [true, false] since sub is revoked */
+    valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_false(valid);
+    assert_rnp_success(rnp_key_get_signature_at(sub, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_remove(sub, sig));
+    rnp_signature_handle_destroy(sig);
+    /* now subkey must become valid with 1 signature */
+    assert_rnp_success(rnp_key_get_signature_count(sub, &count));
+    assert_int_equal(count, 1);
+    valid = false;
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_true(valid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+    /* reload keys */
+    reload_pubring(&ffi);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    valid = false;
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_true(valid);
+    assert_rnp_success(rnp_key_get_signature_at(sub, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "subkey binding");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_failure(rnp_signature_remove(key, sig));
+    assert_rnp_success(rnp_signature_remove(sub, sig));
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_false(valid);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_failure(rnp_signature_remove(sub, sig));
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+    /* save and reload keys without sigs */
+    reload_pubring(&ffi);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(key, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    count = 255;
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(sub, &count));
+    assert_int_equal(count, 0);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+
+    /* Remove signature from the secret key/subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    rnp_input_destroy(input);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
+    /* make sure they are actually secret */
+    bool secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    /* remove both signatures and reload */
+    assert_rnp_success(rnp_key_get_signature_at(sub, 0, &sig));
+    assert_rnp_success(rnp_signature_remove(sub, sig));
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_remove(key, sig));
+    rnp_signature_handle_destroy(sig);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+    reload_keyrings(&ffi);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(key, &secret));
+    assert_true(secret);
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(key, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    count = 255;
+    assert_rnp_success(rnp_uid_get_signature_count(uid, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    secret = false;
+    assert_rnp_success(rnp_key_have_secret(sub, &secret));
+    assert_true(secret);
+    count = 255;
+    assert_rnp_success(rnp_key_get_signature_count(sub, &count));
+    assert_int_equal(count, 0);
+    rnp_uid_handle_destroy(uid);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
 
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
