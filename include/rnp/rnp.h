@@ -1251,6 +1251,17 @@ RNP_API rnp_result_t rnp_uid_is_revoked(rnp_uid_handle_t uid, bool *result);
 RNP_API rnp_result_t rnp_uid_get_revocation_signature(rnp_uid_handle_t        uid,
                                                       rnp_signature_handle_t *sig);
 
+/**
+ * @brief Remove userid with all of it's signatures from the key
+ *
+ * @param key key handle, cannot be NULL and must own the uid.
+ * @param uid uid handle, cannot be NULL. Still must be destroyed afterwards via the
+ * rnp_uid_handle_destroy(). All other handles pointing to the same uid will become invalid and
+ * should not be used.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_uid_remove(rnp_key_handle_t key, rnp_uid_handle_t uid);
+
 /** Destroy previously allocated user id handle.
  *
  * @param uid user id handle.

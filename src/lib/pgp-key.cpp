@@ -1247,6 +1247,27 @@ pgp_key_t::has_uid(const std::string &uidstr) const
     return false;
 }
 
+void
+pgp_key_t::del_uid(size_t idx)
+{
+    if (idx >= uids_.size()) {
+        throw std::out_of_range("idx");
+    }
+
+    std::vector<pgp_sig_id_t> newsigs;
+    /* copy sigs which do not belong to uid */
+    newsigs.reserve(sigs_.size());
+    for (auto &id : sigs_) {
+        if (get_sig(id).uid == idx) {
+            sigs_map_.erase(id);
+            continue;
+        }
+        newsigs.push_back(id);
+    }
+    sigs_ = newsigs;
+    uids_.erase(uids_.begin() + idx);
+}
+
 bool
 pgp_key_t::has_primary_uid() const
 {
