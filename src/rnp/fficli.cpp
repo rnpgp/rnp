@@ -198,6 +198,41 @@ ptimestr(char *dest, size_t size, time_t t)
     return dest;
 }
 
+static bool
+cli_rnp_get_confirmation(const cli_rnp_t *rnp, const char *msg, ...)
+{
+    char    reply[10];
+    va_list ap;
+
+    while (true) {
+        va_start(ap, msg);
+        vfprintf(rnp->userio_out, msg, ap);
+        va_end(ap);
+        fprintf(rnp->userio_out, " (y/N) ");
+        fflush(rnp->userio_out);
+
+        if (fgets(reply, sizeof(reply), rnp->userio_in) == NULL) {
+            return false;
+        }
+
+        rnp_strip_eol(reply);
+
+        if (strlen(reply) > 0) {
+            if (toupper(reply[0]) == 'Y') {
+                return true;
+            } else if (toupper(reply[0]) == 'N') {
+                return false;
+            }
+
+            fprintf(rnp->userio_out, "Sorry, response '%s' not understood.\n", reply);
+        } else {
+            return false;
+        }
+    }
+
+    return false;
+}
+
 /** @brief checks whether file exists already and asks user for the new filename
  *  @param path output file name with path. May be NULL, then user is asked for it.
  *  @param newpath preallocated pointer which will store the result on success
@@ -210,8 +245,6 @@ static bool
 rnp_get_output_filename(
   const char *path, char *newpath, size_t maxlen, bool overwrite, cli_rnp_t *rnp)
 {
-    char reply[10];
-
     if (!path || !path[0]) {
         fprintf(rnp->userio_out, "Please enter the output filename: ");
         fflush(rnp->userio_out);
@@ -231,15 +264,8 @@ rnp_get_output_filename(
                 return true;
             }
 
-            fprintf(rnp->userio_out,
-                    "File '%s' already exists. Would you like to overwrite it (y/N)? ",
-                    newpath);
-            fflush(rnp->userio_out);
-
-            if (fgets(reply, sizeof(reply), rnp->userio_in) == NULL) {
-                return false;
-            }
-            if (strlen(reply) > 0 && toupper(reply[0]) == 'Y') {
+            if (cli_rnp_get_confirmation(
+                  rnp, "File '%s' already exists. Would you like to overwrite it?", newpath)) {
                 rnp_unlink(newpath);
                 return true;
             }
@@ -1874,17 +1900,10 @@ cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
     }
 
     if (secret && !rnp_cfg_getbool(cfg, CFG_FORCE)) {
-        char reply[10];
-
-        fprintf(rnp->userio_out,
-                "Key %s has coresponding secret key. Do you really want to delete it  (y/N)? ",
-                key);
-        fflush(rnp->userio_out);
-
-        if (fgets(reply, sizeof(reply), rnp->userio_in) == NULL) {
-            goto done;
-        }
-        if (strlen(reply) > 0 && toupper(reply[0]) != 'Y') {
+        if (!cli_rnp_get_confirmation(
+              rnp,
+              "Key '%s' has coresponding secret key. Do you really want to delete it?",
+              key)) {
             goto done;
         }
     }
