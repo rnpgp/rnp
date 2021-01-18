@@ -144,14 +144,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     // load our keyrings
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
 
     // write out some data
     FILE *fp = fopen("plaintext", "wb");
@@ -342,14 +336,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     // load our keyrings
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
 
     // write out some data
     FILE *fp = fopen("plaintext", "wb");
@@ -455,14 +443,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_non_null(ffi);
     // load our keyrings
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
     // write out some data
     FILE *fp = fopen("plaintext", "wb");
     assert_non_null(fp);
@@ -584,14 +566,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     // load our keyrings
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-    input = NULL;
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
 
     // write out some data
     FILE *fp = fopen("plaintext", "wb");
@@ -765,10 +741,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
     /* case 1: three encryption subkeys, second expired, third has later creation time */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_load/key0-sub02.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_stream_key_load/key0-sub02.pgp"));
 
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) plaintext, strlen(plaintext), false));
@@ -789,10 +762,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
     rnp_output_destroy(output);
     rnp_op_encrypt_destroy(op);
     /* decrypt */
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-
+    assert_true(load_keys_gpg(ffi, "", "data/keyrings/1/secring.gpg"));
     assert_rnp_success(rnp_input_from_memory(&input, buf, len, true));
     rnp_buffer_destroy(buf);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -820,11 +790,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
 
     /* case 2: only subkeys 1-2, make sure that latest but expired subkey is not selected */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_load/key0-sub01.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-
+    assert_true(load_keys_gpg(ffi, "data/test_stream_key_load/key0-sub01.pgp"));
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) plaintext, strlen(plaintext), false));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -844,10 +810,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
     rnp_output_destroy(output);
     rnp_op_encrypt_destroy(op);
     /* decrypt */
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
-
+    assert_true(load_keys_gpg(ffi, "", "data/keyrings/1/secring.gpg"));
     assert_rnp_success(rnp_input_from_memory(&input, buf, len, true));
     rnp_buffer_destroy(buf);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -875,9 +838,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
 
     /* case 3: only expired subkey, make sure encryption operation fails */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_load/key0-sub1.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_stream_key_load/key0-sub1.pgp"));
 
     assert_rnp_success(
       rnp_input_from_memory(&input, (uint8_t *) plaintext, strlen(plaintext), false));

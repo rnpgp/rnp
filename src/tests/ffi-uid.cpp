@@ -32,10 +32,7 @@ TEST_F(rnp_tests, test_ffi_uid_properties)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-uids-pub.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_uid_validity/key-uids-pub.pgp"));
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "F6E741D1DF582D90", &key));
@@ -111,11 +108,9 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    assert_true(load_keys_gpg(ffi, "data/test_uid_validity/key-uids-with-invalid.pgp"));
     rnp_input_t input = NULL;
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_uid_validity/key-uids-with-invalid.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "F6E741D1DF582D90", &key));
@@ -250,10 +245,7 @@ TEST_F(rnp_tests, test_ffi_remove_uid)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-uids-pub.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_uid_validity/key-uids-pub.pgp"));
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "userid-valid", &key));
@@ -314,12 +306,9 @@ TEST_F(rnp_tests, test_ffi_remove_uid)
 
     /* delete userids of the secret key and reload */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-uids-pub.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-uids-sec.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi,
+                              "data/test_uid_validity/key-uids-pub.pgp",
+                              "data/test_uid_validity/key-uids-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "userid-valid", &key));
     assert_rnp_success(rnp_key_get_uid_count(key, &count));
     assert_int_equal(count, 4);
