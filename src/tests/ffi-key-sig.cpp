@@ -211,47 +211,6 @@ check_sig_status(json_object *sig, const char *pub, const char *sec, const char 
     return true;
 }
 
-static void
-reload_pubring(rnp_ffi_t *ffi)
-{
-    rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
-    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_ffi_destroy(*ffi));
-    /* re-init ffi and load keys */
-    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("pubring.gpg"), 0);
-}
-
-static void
-reload_keyrings(rnp_ffi_t *ffi)
-{
-    rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
-    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
-    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_ffi_destroy(*ffi));
-    /* re-init ffi and load keys */
-    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
-    assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("secring.gpg"), 0);
-}
-
 TEST_F(rnp_tests, test_ffi_import_signatures)
 {
     rnp_ffi_t   ffi = NULL;
