@@ -30,15 +30,11 @@
 
 TEST_F(rnp_tests, test_ffi_key_signatures)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
+    rnp_ffi_t ffi = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     // load key
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p384-pub.asc"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_stream_key_load/ecc-p384-pub.asc"));
     // check primary key
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "242A3AA5EA85F44A", &key));
@@ -833,10 +829,7 @@ TEST_F(rnp_tests, test_ffi_get_signature_type)
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
     assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
@@ -905,10 +898,7 @@ TEST_F(rnp_tests, test_ffi_remove_signature)
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
     assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
     assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
@@ -1007,10 +997,7 @@ TEST_F(rnp_tests, test_ffi_remove_signature)
 
     /* Remove subkey's signature */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case7/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi, "data/test_key_validity/case7/pubring.gpg"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     count = 0;
     assert_rnp_success(rnp_key_get_subkey_count(key, &count));
@@ -1084,14 +1071,9 @@ TEST_F(rnp_tests, test_ffi_remove_signature)
 
     /* Remove signature from the secret key/subkey */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    rnp_input_destroy(input);
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
-    rnp_input_destroy(input);
+    assert_true(load_keys_gpg(ffi,
+                              "data/test_key_validity/alice-sub-pub.pgp",
+                              "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     /* make sure they are actually secret */
     bool secret = false;

@@ -24,6 +24,9 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef SUPPORT_H_
+#define SUPPORT_H_
+
 #include "config.h"
 #include <string>
 #include <stdarg.h>
@@ -223,3 +226,8 @@ pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string 
 pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &keyid);
 void       reload_pubring(rnp_ffi_t *ffi);
 void       reload_keyrings(rnp_ffi_t *ffi);
+
+bool load_keys_gpg(rnp_ffi_t ffi, const std::string &pub, const std::string &sec = "");
+bool load_keys_kbx_g10(rnp_ffi_t ffi, const std::string &pub, const std::string &sec = "");
+
+#endif /* SUPPORT_H_ */

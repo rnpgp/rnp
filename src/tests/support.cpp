@@ -933,3 +933,38 @@ reload_keyrings(rnp_ffi_t *ffi)
     assert_rnp_success(rnp_input_destroy(input));
     assert_int_equal(unlink("secring.gpg"), 0);
 }
+
+static bool
+load_keys_internal(rnp_ffi_t          ffi,
+                   const std::string &format,
+                   const std::string &path,
+                   bool               secret)
+{
+    if (path.empty()) {
+        return true;
+    }
+    rnp_input_t input = NULL;
+    if (rnp_input_from_path(&input, path.c_str())) {
+        return false;
+    }
+    bool res = !rnp_load_keys(ffi,
+                              format.c_str(),
+                              input,
+                              secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS);
+    rnp_input_destroy(input);
+    return res;
+}
+
+bool
+load_keys_gpg(rnp_ffi_t ffi, const std::string &pub, const std::string &sec)
+{
+    return load_keys_internal(ffi, "GPG", pub, false) &&
+           load_keys_internal(ffi, "GPG", sec, true);
+}
+
+bool
+load_keys_kbx_g10(rnp_ffi_t ffi, const std::string &pub, const std::string &sec)
+{
+    return load_keys_internal(ffi, "KBX", pub, false) &&
+           load_keys_internal(ffi, "G10", sec, true);
+}
