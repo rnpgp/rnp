@@ -1602,8 +1602,6 @@ RNP_API rnp_result_t rnp_key_lock(rnp_key_handle_t key);
  *  @param key
  *  @param password the password to unlock the key. If NULL, the password
  *         provider will be used.
- *  @param result pointer to hold the result. This will be set to true if
- *         the key is currently locked, or false otherwise. Must not be NULL.
  *  @return RNP_SUCCESS on success, or any other value on error
  **/
 RNP_API rnp_result_t rnp_key_unlock(rnp_key_handle_t key, const char *password);
@@ -1659,9 +1657,40 @@ RNP_API rnp_result_t rnp_key_protect(rnp_key_handle_t handle,
  **/
 RNP_API rnp_result_t rnp_key_unprotect(rnp_key_handle_t key, const char *password);
 
+/**
+ * @brief Check whether key is primary key.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param result true or false will be stored here on success.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
 RNP_API rnp_result_t rnp_key_is_primary(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Check whether key is subkey.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param result true or false will be stored here on success.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
 RNP_API rnp_result_t rnp_key_is_sub(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Check whether key has secret part.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param result true will be stored here on success, or false otherwise.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
 RNP_API rnp_result_t rnp_key_have_secret(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Check whether key has public part. Generally all keys would have public part.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param result true will be stored here on success, or false otherwise.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
 RNP_API rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
 
 /** Get the information about key packets in JSON string.
