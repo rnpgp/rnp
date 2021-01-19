@@ -44,10 +44,10 @@ struct rnp_uid_handle_st {
 };
 
 struct rnp_signature_handle_st {
-    rnp_ffi_t     ffi;
-    pgp_key_t *   key;
-    pgp_subsig_t *sig;
-    bool          own_sig;
+    rnp_ffi_t        ffi;
+    const pgp_key_t *key;
+    pgp_subsig_t *   sig;
+    bool             own_sig;
 };
 
 struct rnp_recipient_handle_st {
