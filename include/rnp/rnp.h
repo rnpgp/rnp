@@ -80,6 +80,17 @@ typedef uint32_t rnp_result_t;
 #define RNP_LOAD_SAVE_SINGLE (1U << 9)
 
 /**
+ * Flags for the rnp_key_remove_signatures
+ */
+
+#define RNP_KEY_SIGNATURE_INVALID (1U << 0)
+#define RNP_KEY_SIGNATURE_UNKNOWN_KEY (1U << 1)
+#define RNP_KEY_SIGNATURE_NON_SELF_SIG (1U << 2)
+
+#define RNP_KEY_SIGNATURE_KEEP (0U)
+#define RNP_KEY_SIGNATURE_REMOVE (1U)
+
+/**
  * Flags for output structure creation.
  */
 #define RNP_OUTPUT_FILE_OVERWRITE (1U << 0)
@@ -279,6 +290,24 @@ typedef void (*rnp_get_key_cb)(rnp_ffi_t   ffi,
                                const char *identifier_type,
                                const char *identifier,
                                bool        secret);
+
+/**
+ * @brief callback used to report back signatures from the function
+ *        rnp_key_remove_signatures(). This may be used to implement custom signature filtering
+ *        code or record information about the signatures which are removed.
+ * @param ffi
+ * @param app_ctx custom context, provided by application.
+ * @param sig signature handle to retrieve information about the signature. Callback must not
+ *            call rnp_signature_handle_destroy() on it.
+ * @param action action which will be performed on the signature. Currently defined are
+ *               RNP_KEY_SIGNATURE_KEEP an RNP_KEY_SIGNATURE_REMOVE.
+ *               Callback may overwrite this value.
+ *
+ */
+typedef void (*rnp_key_signatures_cb)(rnp_ffi_t              ffi,
+                                      void *                 app_ctx,
+                                      rnp_signature_handle_t sig,
+                                      uint32_t *             action);
 
 /** create the top-level object used for interacting with the library
  *
@@ -933,11 +962,44 @@ RNP_API rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
  *  Note: you need to call rnp_save_keys() to write updated keyring(s) out.
  *        Other handles of the same key should not be used after this call.
  * @param key pointer to the key handle.
- * @param flags see RNP_KEY_REMOVE_* constants. Flag RNP_REMOVE_SUBKEYS will work only for
+ * @param flags see RNP_KEY_REMOVE_* constants. Flag RNP_KEY_REMOVE_SUBKEYS will work only for
  *              primary key, and remove all of its subkeys as well.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
+
+/**
+ * @brief Remove unneeded signatures from the key, it's userids and subkeys if any.
+ *        May be called on subkey handle as well.
+ *        Note: you'll need to call rnp_save_keys() to write updated keyring(s) out.
+ *        Any signature handles related to this key, it's uids or subkeys should not be used
+ *        after this call.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param flags flags, controlling which signatures to remove. Signature will be removed if it
+ *              matches at least one of these flags.
+ *              Currently following signature matching flags are defined:
+ *              - RNP_KEY_SIGNATURE_INVALID : signature is invalid and was never valid. Note,
+ *                  that this will not remove invalid signature if there is no signer's public
+ *                  key in the keyring.
+ *              - RNP_KEY_SIGNATURE_UNKNOWN_KEY : signature is made by the key which is not
+ *                  known/available.
+ *              - RNP_KEY_SIGNATURE_NON_SELF_SIG : signature is not a self-signature (i.e. made
+ *                  by the key itself or corresponding primary key).
+ *
+ *             Note: if RNP_KEY_SIGNATURE_NON_SELF_SIG is not specified then function will
+ *             attempt to validate all the signatures, and look up for the signer's public key
+ *             via keyring/key provider.
+ *
+ * @param sigcb callback, used to record information about the removed signatures, or further
+ *              filter out the signatures. May be NULL.
+ * @param app_ctx context information, passed to sigcb. May be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_remove_signatures(rnp_key_handle_t      key,
+                                               uint32_t              flags,
+                                               rnp_key_signatures_cb sigcb,
+                                               void *                app_ctx);
 
 /** guess contents of the OpenPGP data stream.
  *
