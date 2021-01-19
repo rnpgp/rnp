@@ -3971,6 +3971,158 @@ try {
 }
 FFI_GUARD
 
+static void
+report_signature_removal(rnp_ffi_t             ffi,
+                         const pgp_key_t &     key,
+                         rnp_key_signatures_cb sigcb,
+                         void *                app_ctx,
+                         pgp_subsig_t &        keysig,
+                         bool &                remove)
+{
+    if (!sigcb) {
+        return;
+    }
+    rnp_signature_handle_t sig = (rnp_signature_handle_t) calloc(1, sizeof(*sig));
+    if (!sig) {
+        FFI_LOG(ffi, "Signature handle allocation failed.");
+        return;
+    }
+    sig->ffi = ffi;
+    sig->key = &key;
+    sig->sig = &keysig;
+    uint32_t action = remove ? RNP_KEY_SIGNATURE_REMOVE : RNP_KEY_SIGNATURE_KEEP;
+    sigcb(ffi, app_ctx, sig, &action);
+    switch (action) {
+    case RNP_KEY_SIGNATURE_REMOVE:
+        remove = true;
+        break;
+    case RNP_KEY_SIGNATURE_KEEP:
+        remove = false;
+        break;
+    default:
+        FFI_LOG(ffi, "Invalid signature removal action: %" PRIu32, action);
+        break;
+    }
+    rnp_signature_handle_destroy(sig);
+}
+
+static bool
+signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, uint32_t flags)
+{
+    /* quick check for non-self signatures */
+    bool nonself = flags & RNP_KEY_SIGNATURE_NON_SELF_SIG;
+    if (nonself && key.is_primary() && !key.is_signer(sig)) {
+        return true;
+    }
+    if (nonself && key.is_subkey()) {
+        pgp_key_t *primary = rnp_key_store_get_primary_key(ffi->pubring, &key);
+        if (primary && !primary->is_signer(sig)) {
+            return true;
+        }
+    }
+    /* unknown signer */
+    pgp_key_t *signer = pgp_sig_get_signer(sig, ffi->pubring, &ffi->key_provider);
+    if (!signer && (flags & RNP_KEY_SIGNATURE_UNKNOWN_KEY)) {
+        return true;
+    }
+    /* validate signature if didn't */
+    if (signer && !sig.validated()) {
+        signer->validate_sig(key, sig);
+    }
+    /* we cannot check for invalid/expired if sig was not validated */
+    if (!sig.validated()) {
+        return false;
+    }
+    if ((flags & RNP_KEY_SIGNATURE_INVALID) && !sig.validity.valid) {
+        return true;
+    }
+    return false;
+}
+
+static void
+remove_key_signatures(rnp_ffi_t             ffi,
+                      pgp_key_t &           pub,
+                      pgp_key_t *           sec,
+                      uint32_t              flags,
+                      rnp_key_signatures_cb sigcb,
+                      void *                app_ctx)
+{
+    std::vector<pgp_sig_id_t> sigs;
+
+    for (size_t idx = 0; idx < pub.sig_count(); idx++) {
+        pgp_subsig_t &sig = pub.get_sig(idx);
+        bool          remove = signature_needs_removal(ffi, pub, sig, flags);
+        report_signature_removal(ffi, pub, sigcb, app_ctx, sig, remove);
+        if (remove) {
+            sigs.push_back(sig.sigid);
+        }
+    }
+    size_t deleted = pub.del_sigs(sigs);
+    if (deleted != sigs.size()) {
+        FFI_LOG(ffi, "Invalid deleted sigs count: %zu instead of %zu.", deleted, sigs.size());
+    }
+    /* delete from the secret key if any */
+    if (sec && (sec != &pub)) {
+        sec->del_sigs(sigs);
+    }
+}
+
+rnp_result_t
+rnp_key_remove_signatures(rnp_key_handle_t      handle,
+                          uint32_t              flags,
+                          rnp_key_signatures_cb sigcb,
+                          void *                app_ctx)
+try {
+    if (!handle) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!flags && !sigcb) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    uint32_t origflags = flags;
+    if (flags & RNP_KEY_SIGNATURE_INVALID) {
+        flags &= ~RNP_KEY_SIGNATURE_INVALID;
+    }
+    if (flags & RNP_KEY_SIGNATURE_NON_SELF_SIG) {
+        flags &= ~RNP_KEY_SIGNATURE_NON_SELF_SIG;
+    }
+    if (flags & RNP_KEY_SIGNATURE_UNKNOWN_KEY) {
+        flags &= ~RNP_KEY_SIGNATURE_UNKNOWN_KEY;
+    }
+    if (flags) {
+        FFI_LOG(handle->ffi, "Invalid flags: %" PRIu32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    flags = origflags;
+
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* process key itself */
+    pgp_key_t *sec = get_key_require_secret(handle);
+    remove_key_signatures(handle->ffi, *key, sec, flags, sigcb, app_ctx);
+
+    /* process subkeys */
+    for (size_t idx = 0; key->is_primary() && (idx < key->subkey_count()); idx++) {
+        pgp_key_t *sub = pgp_key_get_subkey(key, handle->ffi->pubring, idx);
+        if (!sub) {
+            FFI_LOG(handle->ffi, "Failed to get subkey at idx %zu.", idx);
+            continue;
+        }
+        pgp_key_t *subsec = rnp_key_store_get_key_by_fpr(handle->ffi->secring, sub->fp());
+        remove_key_signatures(handle->ffi, *sub, subsec, flags, sigcb, app_ctx);
+    }
+    /* revalidate key/subkey */
+    key->revalidate(*handle->ffi->pubring);
+    if (sec) {
+        sec->revalidate(*handle->ffi->secring);
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
 static bool
 pk_alg_allows_custom_curve(pgp_pubkey_alg_t pkalg)
 {
@@ -4686,7 +4838,8 @@ try {
         goto done;
     }
 done:
-    /* only now will protect the primary key - to not spend time on unlocking to sign subkey */
+    /* only now will protect the primary key - to not spend time on unlocking to sign
+     * subkey */
     if (!ret && password) {
         ret = rnp_key_protect(primary, password, NULL, NULL, NULL, 0);
     }
