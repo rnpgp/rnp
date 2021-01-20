@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include "list.h"
 #include "rnp/rnp.h"
 
@@ -109,6 +110,63 @@
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */
+class rnp_cfg_val;
+
+class rnp_cfg {
+  private:
+    std::unordered_map<std::string, rnp_cfg_val *> vals_;
+    std::string                                    empty_str_;
+
+  public:
+    /** @brief load default settings */
+    void load_defaults();
+    /** @brief set string value for the key in config */
+    void set_str(const std::string &key, const std::string &val);
+    void set_str(const std::string &key, const char *val);
+    /** @brief set int value for the key in config */
+    void set_int(const std::string &key, int val);
+    /** @brief set bool value for the key in config */
+    void set_bool(const std::string &key, bool val);
+    /** @brief remove key and corresponding value from the config */
+    void unset(const std::string &key);
+    /** @brief add string item to the list value */
+    void add_str(const std::string &key, const std::string &val);
+    /** @brief check whether config has value for the key */
+    bool has(const std::string &key) const;
+    /** @brief get string value from the config. If it is absent then empty string will be
+     *         returned */
+    const std::string &get_str(const std::string &key) const;
+    /** @brief get C string value from the config. Will return 0 instead of empty string if
+     * value is absent. */
+    const char *get_cstr(const std::string &key) const;
+    /** @brief get int value from the config. If it is absent then def will be returned */
+    int get_int(const std::string &key, int def = 0) const;
+    /** @brief get bool value from the config. If it is absent then false will be returned */
+    bool get_bool(const std::string &key) const;
+    /** @brief get number of items in the string list value. If it is absent then 0 will be
+     *         returned. */
+    size_t get_count(const std::string &key) const;
+    /** @brief get string from the list value at the corresponding position. If there is no
+     *         corresponding value or index too large then empty string will be returned. */
+    const std::string &get_str(const std::string &key, size_t idx) const;
+    /** @brief get all strings from the list value */
+    std::vector<std::string> get_list(const std::string &key) const;
+    /** @brief get number of the password tries */
+    int get_pswdtries() const;
+    /** @brief get hash algorithm */
+    const std::string get_hashalg() const;
+    /** @brief copy or override a configuration.
+     *  @param src vals will be overriden (if key exist) or copied (if not) from this object
+     */
+    void copy(const rnp_cfg &src);
+    void clear();
+    /* delete unneeded operators */
+    rnp_cfg &operator=(const rnp_cfg &src) = delete;
+    rnp_cfg &operator=(const rnp_cfg &&src) = delete;
+    /** @brief destructor */
+    ~rnp_cfg();
+};
+
 typedef struct rnp_cfg_t {
     list vals;
 } rnp_cfg_t;
@@ -270,7 +328,7 @@ int rnp_cfg_getint_default(const rnp_cfg_t *cfg, const char *key, int def);
 
 /** @brief Copies or overrides configuration
  *  @param dst resulting configuration object
- *  @param src vals in dst will be overriden (if key exist) or coppied (if not)
+ *  @param src vals in dst will be overriden (if key exist) or copied (if not)
  *         from this object
  *
  *  @pre   dst is correctly initialized and not NULL
