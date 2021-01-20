@@ -83,7 +83,9 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=o
 make install
 ----
 
-== On Windows using MSYS/MinGW
+== On Windows
+
+=== Using MSYS/MinGW
 
 Having the clean MSYS2 installation, you'll first need to update pacman and install needed packages via msys console:
 
@@ -109,5 +111,28 @@ cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" ../rnp
 make && make install
 ----
 
-Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that librnp-0.dll is on path or in the same folder as well as all dependencies.
+=== Using Microsoft Visual Studio 2019
+
+Install `vcpkg` using these instructions https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows
+
+Set VCPKG_ROOT environment variable to `vcpkg` root folder.
+
+`vcpkg install bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]`
+
+When opening in MSVC IDE, it will pick up `CMakeSettings.json` to find `vcpkg` path using `VCPKG_ROOT` environment variable
+
+For console build:
+[source, console]
+----
+# CMake encourages out-of source builds.
+mkdir rnp-build
+cd rnp-build
+cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release ../rnp
+cmake --build . --config Release
+cmake --install .
+----
+
+Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that
+librnp-0.dll, botan.dll, bz2.dll, getopt.dll, json-c.dll and zlib1.dll are on path
+or in the same folder as well as all dependencies.
 You may check dependenices and their pathes via ntldd.exe in MSYS command prompt. 
