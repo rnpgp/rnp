@@ -11,7 +11,7 @@
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
       "variables": [],
-      "cmakeToolchain": "${env.VCPKG_DIR}\\scripts\\buildsystems\\vcpkg.cmake",
+      "cmakeToolchain": "${env.VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake",
       "intelliSenseMode": "windows-msvc-x64"
     },
     {
@@ -23,7 +23,35 @@
       "cmakeCommandArgs": "-DCMAKE_FIND_DEBUG_MODE=ON",
       "buildCommandArgs": "",
       "ctestCommandArgs": "",
-      "cmakeToolchain": "${env.VCPKG_DIR}\\scripts\\buildsystems\\vcpkg.cmake",
+      "cmakeToolchain": "${env.VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake",
+      "inheritEnvironments": [ "msvc_x86" ],
+      "variables": [],
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Visual Studio 16 2019 Win64",
+      "configurationType": "Release",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\..\\${name}",
+      "installRoot": "${projectDir}\\..\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [],
+      "cmakeToolchain": "${env.VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake",
+      "intelliSenseMode": "windows-msvc-x64"
+    },
+    {
+      "name": "x32-Release",
+      "generator": "Visual Studio 16 2019",
+      "configurationType": "Release",
+      "buildRoot": "${projectDir}\\..\\${name}",
+      "installRoot": "${projectDir}\\..\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "cmakeToolchain": "${env.VCPKG_ROOT}\\scripts\\buildsystems\\vcpkg.cmake",
       "inheritEnvironments": [ "msvc_x86" ],
       "variables": [],
       "intelliSenseMode": "windows-msvc-x64"
