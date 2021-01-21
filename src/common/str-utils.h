@@ -28,6 +28,7 @@
 #define RNP_STR_UTILS_H_
 
 char *rnp_strip_eol(char *s);
+bool  rnp_is_blank_line(const char *line, size_t len);
 #ifdef _WIN32
 #include <string>
 std::wstring wstr_from_utf8(const char *s);
