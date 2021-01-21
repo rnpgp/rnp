@@ -26,103 +26,88 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "list.h"
 #include <rnp/rnpcfg.h>
 
 TEST_F(rnp_tests, test_rnpcfg)
 {
-    rnp_cfg_t  cfg1 = {0}, cfg2 = {0};
-    rnp_cfg_t *cfgs[2] = {&cfg1, &cfg2};
-    rnp_cfg_t *cfg = NULL;
-    list *     lst;
-    char       buf[32];
+    rnp_cfg  cfg1, cfg2;
+    rnp_cfg *cfgs[2] = {&cfg1, &cfg2};
+    rnp_cfg *cfg = NULL;
+    char     buf[32];
 
-    assert_null(rnp_cfg_getstr(&cfg1, "key"));
+    assert_null(cfg1.get_cstr("key"));
 
     /* set the values */
-    assert_true(rnp_cfg_setstr(&cfg1, "key_str", "val"));
-    assert_true(rnp_cfg_setstr(&cfg1, "key_true", "true"));
-    assert_true(rnp_cfg_setstr(&cfg1, "key_True", "True"));
-    assert_true(rnp_cfg_setint(&cfg1, "key_int", 999));
-    assert_true(rnp_cfg_setstr(&cfg1, "key_100", "100"));
-    assert_true(rnp_cfg_setbool(&cfg1, "key_bool", true));
+    cfg1.set_str("key_str", "val");
+    cfg1.set_str("key_true", "true");
+    cfg1.set_str("key_True", "True");
+    cfg1.set_int("key_int", 999);
+    cfg1.set_str("key_100", "100");
+    cfg1.set_bool("key_bool", true);
 
     for (int i = 0; i < 10; i++) {
         snprintf(buf, sizeof(buf), "val%d", i);
-        assert_true(rnp_cfg_addstr(&cfg1, "key_list", buf));
+        cfg1.add_str("key_list", buf);
     }
 
     /* copy empty cfg2 to cfg1 to make sure values are not deleted */
-    assert_true(rnp_cfg_copy(&cfg1, &cfg2));
+    cfg1.copy(cfg2);
 
     /* copy to the cfg2 */
-    assert_true(rnp_cfg_copy(&cfg2, &cfg1));
+    cfg2.copy(cfg1);
 
     /* copy second time to make sure there are no leaks */
-    assert_true(rnp_cfg_copy(&cfg2, &cfg1));
+    cfg2.copy(cfg1);
 
     /* get values back, including transformations */
     for (int i = 0; i < 2; i++) {
         cfg = cfgs[i];
 
-        assert_int_equal(rnp_cfg_getint(cfg, "key_int"), 999);
-        assert_int_equal(rnp_cfg_getint(cfg, "key_100"), 100);
-        assert_true(rnp_cfg_getbool(cfg, "key_int"));
-        assert_true(rnp_cfg_getbool(cfg, "key_bool"));
-        assert_true(rnp_cfg_getbool(cfg, "key_true"));
-        assert_true(rnp_cfg_getbool(cfg, "key_True"));
-        assert_false(rnp_cfg_getbool(cfg, "key_notfound"));
+        assert_int_equal(cfg->get_int("key_int"), 999);
+        assert_int_equal(cfg->get_int("key_100"), 100);
+        assert_true(cfg->get_bool("key_int"));
+        assert_true(cfg->get_bool("key_bool"));
+        assert_true(cfg->get_bool("key_true"));
+        assert_true(cfg->get_bool("key_True"));
+        assert_false(cfg->get_bool("key_notfound"));
 
-        assert_string_equal(rnp_cfg_getstr(cfg, "key_str"), "val");
-        assert_null(rnp_cfg_getstr(cfg, "key_str1"));
-        assert_null(rnp_cfg_getstr(cfg, "key_st"));
+        assert_string_equal(cfg->get_cstr("key_str"), "val");
+        assert_null(cfg->get_cstr("key_str1"));
+        assert_null(cfg->get_cstr("key_st"));
 
-        assert_non_null(lst = rnp_cfg_getlist(cfg, "key_list"));
-        assert_int_equal(list_length(*lst), 10);
-
-        list_item *li = list_front(*lst);
+        const auto &lst = cfg->get_list("key_list");
+        assert_int_equal(lst.size(), 10);
 
         for (int j = 0; j < 10; j++) {
-            assert_non_null(li);
-            const char *val = rnp_cfg_val_getstr((rnp_cfg_val_t *) li);
-            assert_non_null(val);
+            const auto &li = lst[j];
             snprintf(buf, sizeof(buf), "val%d", j);
-            assert_string_equal(buf, val);
-            li = list_next(li);
+            assert_string_equal(buf, li.c_str());
         }
     }
 
     /* get values back as C++ strings */
-    assert_true(rnp_cfg_getstring(&cfg1, "key_str") == "val");
-    assert_true(rnp_cfg_getstring(&cfg1, "key_unknown") == "");
-    assert_true(rnp_cfg_getstring(&cfg1, "") == "");
-    assert_true(rnp_cfg_getstring(&cfg1, "key_true") == "true");
-    assert_true(rnp_cfg_getstring(&cfg1, "key_True") == "True");
+    assert_true(cfg1.get_str("key_str") == "val");
+    assert_true(cfg1.get_str("key_unknown") == "");
+    assert_true(cfg1.get_str("") == "");
+    assert_true(cfg1.get_str("key_true") == "true");
+    assert_true(cfg1.get_str("key_True") == "True");
 
     /* get C++ string list */
-    std::vector<std::string> keylist;
-    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list"));
-    assert_int_equal(keylist.size(), 10);
-    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list11"));
+    auto keylist = cfg1.get_list("key_list11");
     assert_int_equal(keylist.size(), 0);
-    keylist = {"1", "2", "3"};
-    assert_true(rnp_cfg_copylist_string(&cfg1, keylist, "key_list"));
+    keylist = cfg1.get_list("key_list");
     assert_int_equal(keylist.size(), 10);
-    for (size_t i = 0; i < keylist.size(); i++) {
-        assert_true(keylist[i] == "val" + std::to_string(i));
-    }
+    keylist = {"1", "2", "3"};
+    keylist = cfg1.get_list("key_list");
+    assert_int_equal(keylist.size(), 10);
 
     /* override value */
-    assert_true(rnp_cfg_setint(&cfg1, "key_int", 222));
-    assert_int_equal(rnp_cfg_getint(&cfg1, "key_int"), 222);
-    assert_int_equal(rnp_cfg_getint(&cfg2, "key_int"), 999);
-    assert_true(rnp_cfg_setstr(&cfg1, "key_int", "333"));
-    assert_int_equal(rnp_cfg_getint(&cfg1, "key_int"), 333);
+    cfg1.set_int("key_int", 222);
+    assert_int_equal(cfg1.get_int("key_int"), 222);
+    assert_int_equal(cfg2.get_int("key_int"), 999);
+    cfg1.set_str("key_int", "333");
+    assert_int_equal(cfg1.get_int("key_int"), 333);
 
     /* unset value */
-    assert_true(rnp_cfg_unset(&cfg1, "key_int"));
-    assert_false(rnp_cfg_unset(&cfg1, "key_int"));
-
-    rnp_cfg_free(&cfg1);
-    rnp_cfg_free(&cfg2);
+    cfg1.unset("key_int");
 }

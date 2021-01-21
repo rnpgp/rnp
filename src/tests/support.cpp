@@ -545,21 +545,19 @@ end:
 }
 
 static bool
-setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *pipefd)
+setup_rnp_cfg(rnp_cfg &cfg, const char *ks_format, const char *homedir, int *pipefd)
 {
     bool res;
     char pubpath[MAXPATHLEN];
     char secpath[MAXPATHLEN];
     char homepath[MAXPATHLEN];
 
-    rnp_cfg_init(cfg);
-
     /* set password fd if any */
     if (pipefd) {
         if (!(res = setupPasswordfd(pipefd))) {
             return res;
         }
-        rnp_cfg_setint(cfg, CFG_PASSFD, pipefd[0]);
+        cfg.set_int(CFG_PASSFD, pipefd[0]);
         // pipefd[0] will be closed via passfp
         pipefd[0] = -1;
     }
@@ -578,8 +576,8 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
         return false;
     }
 
-    rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, ks_format);
-    rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, ks_format);
+    cfg.set_str(CFG_KR_PUB_FORMAT, ks_format);
+    cfg.set_str(CFG_KR_SEC_FORMAT, ks_format);
 
     if (strcmp(ks_format, RNP_KEYSTORE_GPG) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_GPG, NULL);
@@ -593,38 +591,35 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
     } else if (strcmp(ks_format, RNP_KEYSTORE_GPG21) == 0) {
         paths_concat(pubpath, MAXPATHLEN, homedir, PUBRING_KBX, NULL);
         paths_concat(secpath, MAXPATHLEN, homedir, SECRING_G10, NULL);
-        rnp_cfg_setstr(cfg, CFG_KR_PUB_FORMAT, RNP_KEYSTORE_KBX);
-        rnp_cfg_setstr(cfg, CFG_KR_SEC_FORMAT, RNP_KEYSTORE_G10);
+        cfg.set_str(CFG_KR_PUB_FORMAT, RNP_KEYSTORE_KBX);
+        cfg.set_str(CFG_KR_SEC_FORMAT, RNP_KEYSTORE_G10);
     } else {
         return false;
     }
 
-    rnp_cfg_setstr(cfg, CFG_KR_PUB_PATH, pubpath);
-    rnp_cfg_setstr(cfg, CFG_KR_SEC_PATH, secpath);
+    cfg.set_str(CFG_KR_PUB_PATH, (char *) pubpath);
+    cfg.set_str(CFG_KR_SEC_PATH, (char *) secpath);
     return true;
 }
 
 bool
 setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir, int *pipefd)
 {
-    rnp_cfg_t cfg = {};
-
-    if (!setup_rnp_cfg(&cfg, ks_format, homedir, pipefd)) {
+    rnp_cfg cfg;
+    if (!setup_rnp_cfg(cfg, ks_format, homedir, pipefd)) {
         return false;
     }
 
     /*initialize the basic RNP structure. */
-    bool res = cli_rnp_init(rnp, &cfg);
-    rnp_cfg_free(&cfg);
-    return res;
+    return cli_rnp_init(rnp, cfg);
 }
 
 void
-cli_set_default_rsa_key_desc(rnp_cfg_t *cfg, const char *hashalg)
+cli_set_default_rsa_key_desc(rnp_cfg &cfg, const char *hashalg)
 {
-    rnp_cfg_setint(cfg, CFG_NUMBITS, 1024);
-    rnp_cfg_setstr(cfg, CFG_HASH, hashalg);
-    rnp_cfg_setint(cfg, CFG_S2K_ITER, 1);
+    cfg.set_int(CFG_NUMBITS, 1024);
+    cfg.set_str(CFG_HASH, hashalg);
+    cfg.set_int(CFG_S2K_ITER, 1);
     cli_rnp_set_generate_params(cfg);
 }
 

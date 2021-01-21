@@ -67,14 +67,14 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // try signing with a failing password provider (should fail)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
-    rnp_cfg_t *cfg = cli_rnp_cfg(&rnp);
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
-    rnp_cfg_setstr(cfg, CFG_HASH, "SHA1");
-    rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-    rnp_cfg_addstr(cfg, CFG_SIGNERS, keyids[0]);
+    rnp_cfg &cfg = cli_rnp_cfg(rnp);
+    cfg.load_defaults();
+    cfg.set_bool(CFG_SIGN_NEEDED, true);
+    cfg.set_str(CFG_HASH, "SHA1");
+    cfg.set_int(CFG_ZLEVEL, 0);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+    cfg.add_str(CFG_SIGNERS, keyids[0]);
     assert_false(cli_rnp_protect_file(&rnp));
 
     // grab the signing key to unlock
@@ -124,22 +124,22 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // now the signing key is unlocked, confirm that no password is required for signing
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_asserting_password_provider, NULL));
-    rnp_cfg_free(cfg);
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
-    rnp_cfg_setstr(cfg, CFG_HASH, "SHA1");
-    rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-    rnp_cfg_addstr(cfg, CFG_SIGNERS, keyids[0]);
+    cfg.clear();
+    cfg.load_defaults();
+    cfg.set_bool(CFG_SIGN_NEEDED, true);
+    cfg.set_str(CFG_HASH, "SHA1");
+    cfg.set_int(CFG_ZLEVEL, 0);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+    cfg.add_str(CFG_SIGNERS, keyids[0]);
     assert_true(cli_rnp_protect_file(&rnp));
-    rnp_cfg_free(cfg);
+    cfg.clear();
 
     // verify
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.verify");
+    cfg.load_defaults();
+    cfg.set_bool(CFG_OVERWRITE, true);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.verify");
     assert_true(cli_rnp_process_file(&rnp));
 
     // verify (negative)
@@ -160,35 +160,35 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // sign, with no password (should now fail)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
-    rnp_cfg_free(cfg);
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
-    rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-    rnp_cfg_setstr(cfg, CFG_HASH, "SHA1");
-    rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-    rnp_cfg_addstr(cfg, CFG_SIGNERS, keyids[0]);
+    cfg.clear();
+    cfg.load_defaults();
+    cfg.set_bool(CFG_SIGN_NEEDED, true);
+    cfg.set_bool(CFG_OVERWRITE, true);
+    cfg.set_str(CFG_HASH, "SHA1");
+    cfg.set_int(CFG_ZLEVEL, 0);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+    cfg.add_str(CFG_SIGNERS, keyids[0]);
     assert_false(cli_rnp_protect_file(&rnp));
-    rnp_cfg_free(cfg);
+    cfg.clear();
 
     // encrypt
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
-    rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-    rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-    rnp_cfg_setstr(cfg, CFG_CIPHER, "AES256");
-    rnp_cfg_addstr(cfg, CFG_RECIPIENTS, keyids[1]);
+    cfg.load_defaults();
+    cfg.set_bool(CFG_ENCRYPT_PK, true);
+    cfg.set_int(CFG_ZLEVEL, 0);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+    cfg.set_bool(CFG_OVERWRITE, true);
+    cfg.set_str(CFG_CIPHER, "AES256");
+    cfg.add_str(CFG_RECIPIENTS, keyids[1]);
     assert_true(cli_rnp_protect_file(&rnp));
-    rnp_cfg_free(cfg);
+    cfg.clear();
 
     // try decrypting with a failing password provider (should fail)
-    rnp_cfg_load_defaults(cfg);
-    rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-    rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
-    rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.decrypt");
+    cfg.load_defaults();
+    cfg.set_bool(CFG_OVERWRITE, true);
+    cfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
+    cfg.set_str(CFG_OUTFILE, "dummyfile.decrypt");
     assert_false(cli_rnp_process_file(&rnp));
 
     // grab the encrypting key to unlock

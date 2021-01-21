@@ -36,13 +36,13 @@
 #include "json.h"
 
 typedef struct cli_rnp_t {
-    rnp_ffi_t ffi;
-    rnp_cfg_t cfg;
-    FILE *    resfp;      /* where to put result messages, defaults to stdout */
-    FILE *    passfp;     /* file pointer for password input */
-    FILE *    userio_in;  /* file pointer for user's inputs */
-    FILE *    userio_out; /* file pointer for user's outputs */
-    int       pswdtries;  /* number of password tries, -1 for unlimited */
+    rnp_ffi_t ffi{};
+    rnp_cfg   cfg{};
+    FILE *    resfp{};      /* where to put result messages, defaults to stdout */
+    FILE *    passfp{};     /* file pointer for password input */
+    FILE *    userio_in{};  /* file pointer for user's inputs */
+    FILE *    userio_out{}; /* file pointer for user's outputs */
+    int       pswdtries{};  /* number of password tries, -1 for unlimited */
 } cli_rnp_t;
 
 typedef enum cli_search_flags_t {
@@ -62,16 +62,16 @@ typedef enum cli_search_flags_t {
  * @return true on success or false otherwise.
  * @return false
  */
-bool cli_cfg_set_keystore_info(rnp_cfg_t *cfg);
+bool cli_cfg_set_keystore_info(rnp_cfg &cfg);
 
-rnp_cfg_t *       cli_rnp_cfg(cli_rnp_t *rnp);
+rnp_cfg &         cli_rnp_cfg(cli_rnp_t &rnp);
 const std::string cli_rnp_defkey(cli_rnp_t *rnp);
 const std::string cli_rnp_pubpath(cli_rnp_t *rnp);
 const std::string cli_rnp_secpath(cli_rnp_t *rnp);
 const std::string cli_rnp_pubformat(cli_rnp_t *rnp);
 const std::string cli_rnp_secformat(cli_rnp_t *rnp);
 
-bool cli_rnp_init(cli_rnp_t *, rnp_cfg_t *);
+bool cli_rnp_init(cli_rnp_t *, const rnp_cfg &);
 bool cli_rnp_baseinit(cli_rnp_t *);
 void cli_rnp_end(cli_rnp_t *);
 bool cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret);
@@ -79,7 +79,7 @@ bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_set_default_key(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
-bool cli_rnp_set_generate_params(rnp_cfg_t *cfg);
+bool cli_rnp_set_generate_params(rnp_cfg &cfg);
 bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
 /**
  * @brief Find key(s) matching set of flags and search string.

@@ -39,7 +39,7 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     /* Initialize the rnp structure. */
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
     /* Generate the key */
-    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), "SHA256");
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(rnp), "SHA256");
     assert_true(cli_rnp_generate_key(&rnp, NULL));
 
     /* Loading keyrings and checking whether they have correct key */

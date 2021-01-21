@@ -161,7 +161,7 @@ bool setup_cli_rnp_common(cli_rnp_t * rnp,
                           int *       pipefd);
 
 /* Initialize key generation params with default values and specified hash algorithm */
-void cli_set_default_rsa_key_desc(rnp_cfg_t *cfg, const char *hash);
+void cli_set_default_rsa_key_desc(rnp_cfg &cfg, const char *hash);
 
 // this is a password callback that will always fail
 bool failing_password_callback(const pgp_password_ctx_t *ctx,
