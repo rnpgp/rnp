@@ -55,7 +55,7 @@ rnpkeys_main(int argc, char **argv)
 #endif
 {
     cli_rnp_t rnp = {};
-    rnp_cfg_t cfg = {};
+    rnp_cfg   cfg;
     optdefs_t cmd = (optdefs_t) 0;
     int       optindex = 0;
     int       ret = EXIT_FAILURE;
@@ -78,12 +78,10 @@ rnpkeys_main(int argc, char **argv)
     }
 #endif
 
-    rnp_cfg_init(&cfg);
-
     while ((ch = getopt_long(argc, argv, "Vglo:", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(&cfg, &cmd, options[optindex].val, optarg)) {
+            if (!setoption(cfg, &cmd, options[optindex].val, optarg)) {
                 ERR_MSG("Bad setoption result %d", ch);
                 goto end;
             }
@@ -100,7 +98,7 @@ rnpkeys_main(int argc, char **argv)
                 cmd = CMD_LIST_KEYS;
                 break;
             case 'o':
-                if (!parse_option(&cfg, &cmd, optarg)) {
+                if (!parse_option(cfg, &cmd, optarg)) {
                     ERR_MSG("Bad parse_option");
                     goto end;
                 }
@@ -112,7 +110,7 @@ rnpkeys_main(int argc, char **argv)
         }
     }
 
-    if (!rnpkeys_init(&rnp, &cfg)) {
+    if (!rnpkeys_init(&rnp, cfg)) {
         ret = EXIT_FAILURE;
         goto end;
     }
@@ -137,7 +135,6 @@ rnpkeys_main(int argc, char **argv)
     }
 
 end:
-    rnp_cfg_free(&cfg);
     cli_rnp_end(&rnp);
 #if !defined(RNP_RUN_TESTS) && defined(_WIN32)
     if (args_are_substituted) {
