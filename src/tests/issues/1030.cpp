@@ -37,7 +37,7 @@ test_issue_1030(const char *keystore)
 
     char *home = make_temp_dir();
     assert_true(setup_cli_rnp_common(&rnp, keystore, home, pipefd));
-    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), "SHA256");
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(rnp), "SHA256");
     assert_true(cli_rnp_generate_key(&rnp, userid));
 
     assert_true(cli_rnp_load_keyrings(&rnp, true));

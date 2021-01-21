@@ -45,7 +45,7 @@ extern rng_t global_rng;
 static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)
 {
-    cli_rnp_t rnp = {};
+    cli_rnp_t rnp;
     int       pipefd[2] = {-1, -1};
     bool      res = false;
     size_t    keycount = 0;
@@ -57,7 +57,7 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
 
     std::vector<rnp_key_handle_t> keys;
     /* Generate the key */
-    cli_set_default_rsa_key_desc(cli_rnp_cfg(&rnp), hash);
+    cli_set_default_rsa_key_desc(cli_rnp_cfg(rnp), hash);
     if (!cli_rnp_generate_key(&rnp, userid)) {
         goto done;
     }
@@ -138,16 +138,16 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 assert_true(seccount > 0);
 
                 /* Setup signing context */
-                rnp_cfg_t *cfg = cli_rnp_cfg(&rnp);
-                rnp_cfg_load_defaults(cfg);
-                rnp_cfg_setbool(cfg, CFG_ARMOR, armored);
-                rnp_cfg_setbool(cfg, CFG_SIGN_NEEDED, true);
-                rnp_cfg_setstr(cfg, CFG_HASH, hashAlg[i]);
-                rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-                rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-                rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-                rnp_cfg_setbool(cfg, CFG_CLEARTEXT, cleartext);
-                rnp_cfg_addstr(cfg, CFG_SIGNERS, userId.c_str());
+                rnp_cfg &cfg = cli_rnp_cfg(rnp);
+                cfg.load_defaults();
+                cfg.set_bool(CFG_ARMOR, armored);
+                cfg.set_bool(CFG_SIGN_NEEDED, true);
+                cfg.set_str(CFG_HASH, hashAlg[i]);
+                cfg.set_int(CFG_ZLEVEL, 0);
+                cfg.set_str(CFG_INFILE, "dummyfile.dat");
+                cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+                cfg.set_bool(CFG_CLEARTEXT, cleartext);
+                cfg.add_str(CFG_SIGNERS, userId);
 
                 /* Sign the file */
                 assert_true(cli_rnp_protect_file(&rnp));
@@ -157,11 +157,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 }
 
                 /* Verify the file */
-                rnp_cfg_free(cfg);
-                rnp_cfg_load_defaults(cfg);
-                rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-                rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
-                rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.verify");
+                cfg.clear();
+                cfg.load_defaults();
+                cfg.set_bool(CFG_OVERWRITE, true);
+                cfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
+                cfg.set_str(CFG_OUTFILE, "dummyfile.verify");
                 assert_true(cli_rnp_process_file(&rnp));
 
                 /* Ensure signature verification passed */
@@ -224,15 +224,15 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount == 0);
             /* Set the cipher and armored flags */
-            rnp_cfg_t *cfg = cli_rnp_cfg(&rnp);
-            rnp_cfg_load_defaults(cfg);
-            rnp_cfg_setbool(cfg, CFG_ARMOR, armored);
-            rnp_cfg_setbool(cfg, CFG_ENCRYPT_PK, true);
-            rnp_cfg_setint(cfg, CFG_ZLEVEL, 0);
-            rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat");
-            rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.dat.pgp");
-            rnp_cfg_setstr(cfg, CFG_CIPHER, cipherAlg[i]);
-            rnp_cfg_addstr(cfg, CFG_RECIPIENTS, userid);
+            rnp_cfg &cfg = cli_rnp_cfg(rnp);
+            cfg.load_defaults();
+            cfg.set_bool(CFG_ARMOR, armored);
+            cfg.set_bool(CFG_ENCRYPT_PK, true);
+            cfg.set_int(CFG_ZLEVEL, 0);
+            cfg.set_str(CFG_INFILE, "dummyfile.dat");
+            cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
+            cfg.set_str(CFG_CIPHER, cipherAlg[i]);
+            cfg.add_str(CFG_RECIPIENTS, userid);
             /* Encrypt the file */
             assert_true(cli_rnp_protect_file(&rnp));
             cli_rnp_end(&rnp);
@@ -244,11 +244,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount > 0);
             /* Setup the decryption context and decrypt */
-            cfg = cli_rnp_cfg(&rnp);
-            rnp_cfg_load_defaults(cfg);
-            rnp_cfg_setbool(cfg, CFG_OVERWRITE, true);
-            rnp_cfg_setstr(cfg, CFG_INFILE, "dummyfile.dat.pgp");
-            rnp_cfg_setstr(cfg, CFG_OUTFILE, "dummyfile.decrypt");
+            rnp_cfg &newcfg = cli_rnp_cfg(rnp);
+            newcfg.load_defaults();
+            newcfg.set_bool(CFG_OVERWRITE, true);
+            newcfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
+            newcfg.set_str(CFG_OUTFILE, "dummyfile.decrypt");
             assert_true(cli_rnp_process_file(&rnp));
             cli_rnp_end(&rnp);
             if (pipefd[0] != -1) {
@@ -514,7 +514,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirNoPermission)
 }
 
 static bool
-ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
+ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
 {
     /* Run tests*/
     bool   ret = false;
@@ -525,7 +525,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     if (pipe(pipefd) == -1) {
         return false;
     }
-    rnp_cfg_setint(ops, CFG_PASSFD, pipefd[0]);
+    ops.set_int(CFG_PASSFD, pipefd[0]);
     write_pass_to_pipe(pipefd[1], 2);
     close(pipefd[1]);
     if (!rnpkeys_init(ctx, ops)) {
@@ -544,13 +544,14 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg_t *ops, const char *rsp)
     close(user_input_pipefd[1]);
 
     /* Mock user-input*/
-    rnp_cfg_setint(cli_rnp_cfg(ctx), CFG_USERINPUTFD, user_input_pipefd[0]);
+    cli_rnp_cfg(*ctx).set_int(CFG_USERINPUTFD, user_input_pipefd[0]);
 
     if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }
-    ret = rnp_cfg_copy(ops, cli_rnp_cfg(ctx));
+    ops.copy(cli_rnp_cfg(*ctx));
+    ret = true;
 end:
     /* Close & clean fd*/
     if (user_input_pipefd[0]) {
@@ -638,30 +639,30 @@ done:
 }
 
 static bool
-check_cfg_props(rnp_cfg_t * cfg,
-                const char *primary_alg,
-                const char *sub_alg,
-                const char *primary_curve,
-                const char *sub_curve,
-                int         bits,
-                int         sub_bits)
+check_cfg_props(const rnp_cfg &cfg,
+                const char *   primary_alg,
+                const char *   sub_alg,
+                const char *   primary_curve,
+                const char *   sub_curve,
+                int            bits,
+                int            sub_bits)
 {
-    if (strcmp(rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_ALG), primary_alg)) {
+    if (cfg.get_str(CFG_KG_PRIMARY_ALG) != primary_alg) {
         return false;
     }
-    if (strcmp(rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_ALG), sub_alg)) {
+    if (cfg.get_str(CFG_KG_SUBKEY_ALG) != sub_alg) {
         return false;
     }
-    if (primary_curve && strcmp(rnp_cfg_getstr(cfg, CFG_KG_PRIMARY_CURVE), primary_curve)) {
+    if (primary_curve && (cfg.get_str(CFG_KG_PRIMARY_CURVE) != primary_curve)) {
         return false;
     }
-    if (sub_curve && strcmp(rnp_cfg_getstr(cfg, CFG_KG_SUBKEY_CURVE), sub_curve)) {
+    if (sub_curve && (cfg.get_str(CFG_KG_SUBKEY_CURVE) != sub_curve)) {
         return false;
     }
-    if (bits && (rnp_cfg_getint(cfg, CFG_KG_PRIMARY_BITS) != bits)) {
+    if (bits && (cfg.get_int(CFG_KG_PRIMARY_BITS) != bits)) {
         return false;
     }
-    if (sub_bits && (rnp_cfg_getint(cfg, CFG_KG_SUBKEY_BITS) != sub_bits)) {
+    if (sub_bits && (cfg.get_int(CFG_KG_SUBKEY_BITS) != sub_bits)) {
         return false;
     }
     return true;
@@ -670,31 +671,31 @@ check_cfg_props(rnp_cfg_t * cfg,
 TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
 {
     cli_rnp_t rnp;
-    rnp_cfg_t ops = {0};
+    rnp_cfg   ops;
 
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_int(CFG_S2K_ITER, 1);
 
     /* ecdsa/ecdh p256 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p256"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n1\n"));
-    assert_false(check_cfg_props(&ops, "ECDH", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
-    assert_false(check_cfg_props(&ops, "ECDSA", "ECDSA", "NIST P-256", "NIST P-256", 0, 0));
-    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-256", 0, 0));
-    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-384", 0, 0));
-    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 1024, 0));
-    assert_false(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 1024));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_p256");
+    assert_true(ask_expert_details(&rnp, ops, "19\n1\n"));
+    assert_false(check_cfg_props(ops, "ECDH", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(ops, "ECDSA", "ECDSA", "NIST P-256", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-256", 0, 0));
+    assert_false(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-384", 0, 0));
+    assert_false(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 1024, 0));
+    assert_false(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 1024));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0, "SHA256"));
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p384 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p384"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_p384");
+    assert_true(ask_expert_details(&rnp, ops, "19\n2\n"));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_false(check_key_props(
       &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0, "SHA384"));
     assert_true(check_key_props(
@@ -702,20 +703,20 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh p521 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p521"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n3\n"));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_p521");
+    assert_true(ask_expert_details(&rnp, ops, "19\n3\n"));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p521", "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0, "SHA512"));
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool256 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp256"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n4\n"));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_bp256");
+    assert_true(ask_expert_details(&rnp, ops, "19\n4\n"));
     assert_true(
-      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
+      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
     assert_true(check_key_props(&rnp,
                                 "expert_ecdsa_bp256",
                                 "ECDSA",
@@ -728,11 +729,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool384 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp384"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n5\n"));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_bp384");
+    assert_true(ask_expert_details(&rnp, ops, "19\n5\n"));
     assert_true(
-      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
+      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
     assert_true(check_key_props(&rnp,
                                 "expert_ecdsa_bp384",
                                 "ECDSA",
@@ -745,11 +746,11 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool512 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_bp512"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n6\n"));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_bp512");
+    assert_true(ask_expert_details(&rnp, ops, "19\n6\n"));
     assert_true(
-      check_cfg_props(&ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
+      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
     assert_true(check_key_props(&rnp,
                                 "expert_ecdsa_bp512",
                                 "ECDSA",
@@ -762,74 +763,71 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh secp256k1 keypair */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_ecdsa_p256k1"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n7\n"));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_ecdsa_p256k1");
+    assert_true(ask_expert_details(&rnp, ops, "19\n7\n"));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p256k1", "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0, "SHA256"));
     cli_rnp_end(&rnp);
 
     /* eddsa/x25519 keypair */
-    rnp_cfg_free(&ops);
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_eddsa_ecdh"));
-    assert_true(ask_expert_details(&rnp, &ops, "22\n"));
-    assert_true(check_cfg_props(&ops, "EDDSA", "ECDH", NULL, "Curve25519", 0, 0));
+    ops.clear();
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_eddsa_ecdh");
+    assert_true(ask_expert_details(&rnp, ops, "22\n"));
+    assert_true(check_cfg_props(ops, "EDDSA", "ECDH", NULL, "Curve25519", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_eddsa_ecdh", "EDDSA", "ECDH", "Ed25519", "Curve25519", 0, 0, "SHA256"));
     cli_rnp_end(&rnp);
 
     /* rsa/rsa 1024 key */
-    rnp_cfg_free(&ops);
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_rsa_1024"));
-    assert_true(ask_expert_details(&rnp, &ops, "1\n1024\n"));
-    assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 1024, 1024));
+    ops.clear();
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_rsa_1024");
+    assert_true(ask_expert_details(&rnp, ops, "1\n1024\n"));
+    assert_true(check_cfg_props(ops, "RSA", "RSA", NULL, NULL, 1024, 1024));
     assert_true(check_key_props(
       &rnp, "expert_rsa_1024", "RSA", "RSA", NULL, NULL, 1024, 1024, "SHA256"));
     cli_rnp_end(&rnp);
 
     /* rsa 4096 key, asked twice */
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_rsa_4096"));
-    assert_true(ask_expert_details(&rnp, &ops, "1\n1023\n4096\n"));
-    assert_true(check_cfg_props(&ops, "RSA", "RSA", NULL, NULL, 4096, 4096));
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_rsa_4096");
+    assert_true(ask_expert_details(&rnp, ops, "1\n1023\n4096\n"));
+    assert_true(check_cfg_props(ops, "RSA", "RSA", NULL, NULL, 4096, 4096));
     assert_true(check_key_props(
       &rnp, "expert_rsa_4096", "RSA", "RSA", NULL, NULL, 4096, 4096, "SHA256"));
     cli_rnp_end(&rnp);
 
     /* sm2 key */
-    rnp_cfg_free(&ops);
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-    rnp_cfg_unset(&ops, CFG_USERID);
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_sm2"));
-    assert_true(ask_expert_details(&rnp, &ops, "99\n"));
-    assert_true(check_cfg_props(&ops, "SM2", "SM2", NULL, NULL, 0, 0));
+    ops.clear();
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.unset(CFG_USERID);
+    ops.add_str(CFG_USERID, "expert_sm2");
+    assert_true(ask_expert_details(&rnp, ops, "99\n"));
+    assert_true(check_cfg_props(ops, "SM2", "SM2", NULL, NULL, 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_sm2", "SM2", "SM2", "SM2 P-256", "SM2 P-256", 0, 0, "SM3"));
     cli_rnp_end(&rnp);
-
-    rnp_cfg_free(&ops);
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted)
 {
     cli_rnp_t rnp;
-    rnp_cfg_t ops = {0};
+    rnp_cfg   ops;
 
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA1"));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_small_digest"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_str(CFG_HASH, "SHA1");
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.add_str(CFG_USERID, "expert_small_digest");
+    assert_true(ask_expert_details(&rnp, ops, "19\n2\n"));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_true(check_key_props(&rnp,
                                 "expert_small_digest",
                                 "ECDSA",
@@ -840,38 +838,32 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
                                 0,
                                 "SHA384"));
     cli_rnp_end(&rnp);
-
-    rnp_cfg_free(&ops);
 }
 
 TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
 {
     cli_rnp_t rnp;
-    rnp_cfg_t ops = {0};
+    rnp_cfg   ops;
 
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "multi_userid_1"));
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "multi_userid_2"));
-    assert_false(ask_expert_details(&rnp, &ops, "1\n1024\n"));
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.add_str(CFG_USERID, "multi_userid_1");
+    ops.add_str(CFG_USERID, "multi_userid_2");
+    assert_false(ask_expert_details(&rnp, ops, "1\n1024\n"));
     cli_rnp_end(&rnp);
-
-    rnp_cfg_free(&ops);
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed)
 {
     cli_rnp_t rnp;
-    rnp_cfg_t ops = {0};
+    rnp_cfg   ops;
 
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "SHA512"));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
-
-    assert_true(rnp_cfg_addstr(&ops, CFG_USERID, "expert_large_digest"));
-    assert_true(ask_expert_details(&rnp, &ops, "19\n2\n"));
-    assert_true(check_cfg_props(&ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_str(CFG_HASH, "SHA512");
+    ops.set_int(CFG_S2K_ITER, 1);
+    ops.add_str(CFG_USERID, "expert_large_digest");
+    assert_true(ask_expert_details(&rnp, ops, "19\n2\n"));
+    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0));
     assert_true(check_key_props(&rnp,
                                 "expert_large_digest",
                                 "ECDSA",
@@ -882,22 +874,19 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuc
                                 0,
                                 "SHA512"));
     cli_rnp_end(&rnp);
-
-    rnp_cfg_free(&ops);
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
 {
     cli_rnp_t rnp;
-    rnp_cfg_t ops = {0};
+    rnp_cfg   ops;
 
-    assert_true(rnp_cfg_setbool(&ops, CFG_EXPERT, true));
-    assert_true(rnp_cfg_setstr(&ops, CFG_HASH, "WRONG_DIGEST_ALGORITHM"));
-    assert_true(rnp_cfg_setint(&ops, CFG_S2K_ITER, 1));
+    ops.set_bool(CFG_EXPERT, true);
+    ops.set_str(CFG_HASH, "WRONG_DIGEST_ALGORITHM");
+    ops.set_int(CFG_S2K_ITER, 1);
 
     // Finds out that hash doesn't exist and returns an error
-    assert_false(ask_expert_details(&rnp, &ops, "19\n2\n"));
-    rnp_cfg_free(&ops);
+    assert_false(ask_expert_details(&rnp, ops, "19\n2\n"));
     cli_rnp_end(&rnp);
 }
 
