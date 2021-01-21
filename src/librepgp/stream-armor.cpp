@@ -38,6 +38,7 @@
 #include "stream-def.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
+#include "str-utils.h"
 #include "crypto/hash.h"
 #include "types.h"
 #include "utils.h"
@@ -657,6 +658,9 @@ armor_parse_headers(pgp_source_t *src)
             header[hdrlen] = '\0';
         } else if (hdrlen) {
             src_skip(param->readsrc, hdrlen);
+            if (rnp_is_blank_line(header, hdrlen)) {
+                return src_skip_eol(param->readsrc);
+            }
         } else {
             /* empty line - end of the headers */
             return src_skip_eol(param->readsrc);

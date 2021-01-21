@@ -27,9 +27,9 @@
  *  @file
  */
 
-#include "str-utils.h"
 #include <cstddef>
 #include <cstring>
+#include "str-utils.h"
 #ifdef _WIN32
 #include <locale>
 #include <codecvt>
@@ -48,6 +48,17 @@ rnp_strip_eol(char *s)
     }
 
     return s;
+}
+
+bool
+rnp_is_blank_line(const char *line, size_t len)
+{
+    for (size_t i = 0; i < len && line[i]; i++) {
+        if (line[i] != ' ' && line[i] != '\t' && line[i] != '\r') {
+            return false;
+        }
+    }
+    return true;
 }
 
 #ifdef _WIN32
