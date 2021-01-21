@@ -39,6 +39,7 @@
 #include "stream-armor.h"
 #include "stream-packet.h"
 #include "stream-sig.h"
+#include "str-utils.h"
 #include "types.h"
 #include "crypto/s2k.h"
 #include "crypto.h"
@@ -1094,6 +1095,11 @@ cleartext_parse_headers(pgp_source_t *src)
         }
 
         if (!hdrlen) {
+            break;
+        }
+
+        if (rnp_is_blank_line(hdr, hdrlen)) {
+            src_skip(param->readsrc, hdrlen);
             break;
         }
 

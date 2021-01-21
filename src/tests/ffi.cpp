@@ -4113,6 +4113,17 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     rnp_output_destroy(output);
 
     assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/blank_line_with_whitespace.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
       rnp_input_from_path(&input, "data/test_stream_armor/duplicate_header_line.asc"));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_dearmor(input, output));
