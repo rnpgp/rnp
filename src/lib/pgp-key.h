@@ -173,6 +173,8 @@ struct pgp_key_t {
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
     pgp_key_t(const pgp_transferable_key_t &src);
     pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary);
+    pgp_key_t &operator=(const pgp_key_t &) = default;
+    pgp_key_t &operator=(pgp_key_t &&) = default;
 
     size_t              sig_count() const;
     pgp_subsig_t &      get_sig(size_t idx);

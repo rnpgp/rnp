@@ -1586,7 +1586,7 @@ pgp_signature_t::parse_v4(pgp_packet_body_t &pkt)
     /* hashed subpackets length */
     uint16_t splen = read_uint16(&buf[3]);
     /* hashed subpackets length + 2 bytes of length of unhashed subpackets */
-    if (pkt.left() < splen + 2) {
+    if (pkt.left() < (size_t)(splen + 2)) {
         RNP_LOG("wrong packet or hashed subpackets length");
         return RNP_ERROR_BAD_FORMAT;
     }
