@@ -135,12 +135,6 @@ void         set_rnp_log_switch(int8_t);
 /* Formating helpers */
 #define PRItime "ll"
 
-#ifdef _WIN32
-#define PRIsize "I"
-#else
-#define PRIsize "z"
-#endif
-
 /* TODO: Review usage of this variable */
 #define RNP_BUFSIZ 8192
 
