@@ -1608,7 +1608,7 @@ conffile(const char *homedir, char *userid, size_t length)
         std::smatch result;
         std::string input = buf;
         if (std::regex_search(input, result, keyre)) {
-            (void) strncpy(userid, result[1].str().c_str(), length);
+            (void) strncpy(userid, result[1].str().c_str(), length - 1);
             userid[length - 1] = '\0';
 
             ERR_MSG("rnp: default key set to \"%s\"", userid);
