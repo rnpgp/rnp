@@ -503,7 +503,7 @@ dst_hexdump(pgp_dest_t *dst, const uint8_t *src, size_t length)
 
     for (i = 0; i < length; i++) {
         if (i % LINELEN == 0) {
-            dst_printf(dst, "%.5" PRIsize "u | ", i);
+            dst_printf(dst, "%.5zu | ", i);
         }
         dst_printf(dst, "%.02x ", (uint8_t) src[i]);
         line[i % LINELEN] = (isprint(src[i])) ? src[i] : '.';
