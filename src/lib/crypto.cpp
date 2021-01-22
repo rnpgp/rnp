@@ -135,7 +135,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
             seckey->material.ec.curve = crypto->ecc.curve;
             break;
         }
-    /* FALLTHROUGH for non-x25519 curves */
+    /* FALLS THROUGH for non-x25519 curves */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
         if (ec_generate(crypto->rng, &seckey->material.ec, seckey->alg, crypto->ecc.curve)) {

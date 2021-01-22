@@ -941,20 +941,14 @@ write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
 rnp_result_t
 write_pgp_key(pgp_transferable_key_t &key, pgp_dest_t *dst, bool armor)
 {
-    pgp_key_sequence_t keys;
-
     try {
-        keys.keys.emplace_back();
+        pgp_key_sequence_t keys;
+        keys.keys.push_back(key);
+        return write_pgp_keys(keys, dst, armor);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    /* temporary solution to not implement copy constructor */
-    pgp_transferable_key_t &front = keys.keys.front();
-    memcpy(&front, &key, sizeof(key));
-    rnp_result_t res = write_pgp_keys(keys, dst, armor);
-    memset(&front, 0, sizeof(front));
-    return res;
 }
 
 static rnp_result_t
