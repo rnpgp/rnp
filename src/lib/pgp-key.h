@@ -105,7 +105,10 @@ typedef struct pgp_subsig_t {
     pgp_subsig_t() = delete;
     pgp_subsig_t(const pgp_signature_t &sig);
 
+    bool validated() const;
     bool valid() const;
+    /** @brief Returns true if signature is certification */
+    bool is_cert() const;
 } pgp_subsig_t;
 
 typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
@@ -342,6 +345,27 @@ struct pgp_key_t {
      * @return pointer to signature object or NULL if failed/not found.
      */
     pgp_subsig_t *latest_binding(bool validated = true);
+
+    /** @brief Returns true if signature is produced by the key itself. */
+    bool is_signer(const pgp_subsig_t &sig) const;
+
+    /** @brief Returns true if key is expired according to sig. */
+    bool is_expired(const pgp_subsig_t &sig) const;
+
+    /** @brief Check whether signature is key's self certification. */
+    bool is_self_cert(const pgp_subsig_t &sig) const;
+
+    /** @brief Check whether signature is key's direct-key self-signature */
+    bool is_direct_self(const pgp_subsig_t &sig) const;
+
+    /** @brief Check whether signature is key's/subkey's revocation */
+    bool is_revocation(const pgp_subsig_t &sig) const;
+
+    /** @brief Check whether signature is userid revocation */
+    bool is_uid_revocation(const pgp_subsig_t &sig) const;
+
+    /** @brief Check whether signature is subkey binding */
+    bool is_binding(const pgp_subsig_t &sig) const;
 
     /**
      * @brief Validate key's signature, assuming that 'this' is a signing key.
