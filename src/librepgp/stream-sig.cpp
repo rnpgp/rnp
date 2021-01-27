@@ -391,7 +391,7 @@ signature_check_certification(pgp_signature_info_t *  sinfo,
 rnp_result_t
 signature_check_binding(pgp_signature_info_t *sinfo,
                         const pgp_key_pkt_t * key,
-                        pgp_key_t *           subkey)
+                        const pgp_key_t *     subkey)
 {
     pgp_hash_t   hash = {};
     rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;

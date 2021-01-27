@@ -5862,14 +5862,7 @@ try {
         if (!signer) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
-        pgp_key_t *primary = NULL;
-        if (sig->key->is_subkey()) {
-            primary = rnp_key_store_get_primary_key(sig->ffi->pubring, sig->key);
-            if (!primary) {
-                return RNP_ERROR_KEY_NOT_FOUND;
-            }
-        }
-        pgp_key_validate_signature(*sig->key, *signer, primary, *sig->sig);
+        signer->validate_sig(*sig->key, *sig->sig);
     }
 
     if (!sig->sig->validity.validated) {

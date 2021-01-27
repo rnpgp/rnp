@@ -361,7 +361,7 @@ typedef std::vector<pgp_signature_t> pgp_signature_list_t;
 /* information about the validated signature */
 typedef struct pgp_signature_info_t {
     pgp_signature_t *sig{};     /* signature, or NULL if there were parsing error */
-    pgp_key_t *      signer{};  /* signer's public key if found */
+    const pgp_key_t *signer{};  /* signer's public key if found */
     bool             valid{};   /* signature is cryptographically valid (but may be expired) */
     bool             unknown{}; /* signature is unknown - parsing error, wrong version, etc */
     bool             no_signer{};     /* no signer's public key available */
@@ -431,7 +431,7 @@ rnp_result_t signature_check_certification(pgp_signature_info_t *  sinfo,
 
 rnp_result_t signature_check_binding(pgp_signature_info_t *sinfo,
                                      const pgp_key_pkt_t * key,
-                                     pgp_key_t *           subkey);
+                                     const pgp_key_t *     subkey);
 
 rnp_result_t signature_check_direct(pgp_signature_info_t *sinfo, const pgp_key_pkt_t *key);
 
