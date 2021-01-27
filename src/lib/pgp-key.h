@@ -343,6 +343,13 @@ struct pgp_key_t {
      */
     pgp_subsig_t *latest_binding(bool validated = true);
 
+    /**
+     * @brief Validate key's signature, assuming that 'this' is a signing key.
+     *
+     * @param key key or subkey to which signature belongs.
+     * @param sig signature to validate.
+     */
+    void validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const;
     void validate_self_signatures();
     void validate_self_signatures(pgp_key_t &primary);
     void validate(rnp_key_store_t &keyring);
@@ -380,19 +387,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
 pgp_key_t *pgp_sig_get_signer(const pgp_subsig_t &sig,
                               rnp_key_store_t *   keyring,
                               pgp_key_provider_t *prov);
-
-/**
- * @brief Validate key's signature.
- *
- * @param key key (primary or subkey) which signature belongs to.
- * @param signer signing key/subkey.
- * @param primary primary key when it is applicable (for the subkey binding signature, or NULL.
- * @param sig signature to validate.
- */
-void pgp_key_validate_signature(pgp_key_t &   key,
-                                pgp_key_t &   signer,
-                                pgp_key_t *   primary,
-                                pgp_subsig_t &sig);
 
 /**
  * @brief Get the key's subkey by its index
