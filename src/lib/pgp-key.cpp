@@ -152,71 +152,6 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     return decrypted_seckey;
 }
 
-static bool
-pgp_sig_is_certification(const pgp_subsig_t &sig)
-{
-    pgp_sig_type_t type = sig.sig.type();
-    return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
-           (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
-}
-
-static bool
-pgp_sig_self_signed(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    /* if we have fingerprint let's check it */
-    if (sig.sig.has_keyfp()) {
-        return sig.sig.keyfp() == key.fp();
-    }
-    if (!sig.sig.has_keyid()) {
-        return false;
-    }
-    return key.keyid() == sig.sig.keyid();
-}
-
-static bool
-pgp_sig_is_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    if (!key.is_primary() || !pgp_sig_is_certification(sig)) {
-        return false;
-    }
-
-    return pgp_sig_self_signed(key, sig);
-}
-
-static bool
-pgp_sig_is_direct_self_signature(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    if (!key.is_primary() || (sig.sig.type() != PGP_SIG_DIRECT)) {
-        return false;
-    }
-
-    return pgp_sig_self_signed(key, sig);
-}
-
-static bool
-pgp_sig_is_key_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    return key.is_primary() && (sig.sig.type() == PGP_SIG_REV_KEY);
-}
-
-static bool
-pgp_sig_is_userid_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    return key.is_primary() && (sig.sig.type() == PGP_SIG_REV_CERT);
-}
-
-static bool
-pgp_sig_is_subkey_binding(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    return key.is_subkey() && (sig.sig.type() == PGP_SIG_SUBKEY);
-}
-
-static bool
-pgp_sig_is_subkey_revocation(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    return key.is_subkey() && (sig.sig.type() == PGP_SIG_REV_SUBKEY);
-}
-
 pgp_key_t *
 pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
 {
@@ -243,17 +178,6 @@ pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_pr
     ctx.op = PGP_OP_VERIFY;
     ctx.secret = false;
     return pgp_request_key(prov, &ctx);
-}
-
-static bool
-is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
-{
-    /* key expiration: absence of subpkt or 0 means it never expires */
-    uint32_t expiration = sig.sig.key_expiration();
-    if (!expiration) {
-        return false;
-    }
-    return key.creation() + expiration < time(NULL);
 }
 
 static pgp_map_t ss_rr_code_map[] = {
@@ -497,7 +421,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
     if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
         goto done;
     }
-    if (pgp_sig_is_certification(*subsig)) {
+    if (subsig->is_cert()) {
         if (subsig->uid >= key->uid_count()) {
             RNP_LOG("uid not found");
             goto done;
@@ -850,6 +774,20 @@ bool
 pgp_subsig_t::valid() const
 {
     return validity.validated && validity.valid && !validity.expired;
+}
+
+bool
+pgp_subsig_t::validated() const
+{
+    return validity.validated;
+}
+
+bool
+pgp_subsig_t::is_cert() const
+{
+    pgp_sig_type_t type = sig.type();
+    return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
+           (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
 }
 
 pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
@@ -1850,8 +1788,7 @@ pgp_key_t::latest_selfsig(pgp_sig_subpacket_type_t subpkt)
         if (!sig.valid()) {
             continue;
         }
-        if (!pgp_sig_is_self_signature(*this, sig) &&
-            !pgp_sig_is_direct_self_signature(*this, sig)) {
+        if (!is_self_cert(sig) && !is_direct_self(sig)) {
             continue;
         }
 
@@ -1879,7 +1816,7 @@ pgp_key_t::latest_binding(bool validated)
         if (validated && !sig.valid()) {
             continue;
         }
-        if (!pgp_sig_is_subkey_binding(*this, sig)) {
+        if (!is_binding(sig)) {
             continue;
         }
 
@@ -1907,7 +1844,7 @@ pgp_key_t::latest_uid_selfcert(uint32_t uid)
         if (!sig.valid() || (sig.uid != uid)) {
             continue;
         }
-        if (!pgp_sig_is_self_signature(*this, sig)) {
+        if (!is_self_cert(sig)) {
             continue;
         }
 
@@ -1920,6 +1857,61 @@ pgp_key_t::latest_uid_selfcert(uint32_t uid)
     return res;
 }
 
+bool
+pgp_key_t::is_signer(const pgp_subsig_t &sig) const
+{
+    /* if we have fingerprint let's check it */
+    if (sig.sig.has_keyfp()) {
+        return sig.sig.keyfp() == fp();
+    }
+    if (!sig.sig.has_keyid()) {
+        return false;
+    }
+    return keyid() == sig.sig.keyid();
+}
+
+bool
+pgp_key_t::is_expired(const pgp_subsig_t &sig) const
+{
+    /* key expiration: absense of subpkt or 0 means it never expires */
+    uint32_t expiration = sig.sig.key_expiration();
+    if (!expiration) {
+        return false;
+    }
+    return creation() + expiration < time(NULL);
+}
+
+bool
+pgp_key_t::is_self_cert(const pgp_subsig_t &sig) const
+{
+    return is_primary() && sig.is_cert() && is_signer(sig);
+}
+
+bool
+pgp_key_t::is_direct_self(const pgp_subsig_t &sig) const
+{
+    return is_primary() && (sig.sig.type() == PGP_SIG_DIRECT) && is_signer(sig);
+}
+
+bool
+pgp_key_t::is_revocation(const pgp_subsig_t &sig) const
+{
+    return is_primary() ? (sig.sig.type() == PGP_SIG_REV_KEY) :
+                          (sig.sig.type() == PGP_SIG_REV_SUBKEY);
+}
+
+bool
+pgp_key_t::is_uid_revocation(const pgp_subsig_t &sig) const
+{
+    return is_primary() && (sig.sig.type() == PGP_SIG_REV_CERT);
+}
+
+bool
+pgp_key_t::is_binding(const pgp_subsig_t &sig) const
+{
+    return is_subkey() && (sig.sig.type() == PGP_SIG_SUBKEY);
+}
+
 void
 pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
 {
@@ -1929,7 +1921,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
     sinfo.sig = &sig.sig;
     sinfo.signer = this;
     sinfo.signer_valid = true;
-    if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_subkey_binding(key, sig)) {
+    if (key.is_self_cert(sig) || key.is_binding(sig)) {
         sinfo.ignore_expiry = true;
     }
 
@@ -1954,7 +1946,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
         break;
     }
     case PGP_SIG_SUBKEY:
-        if (!pgp_sig_self_signed(*this, sig)) {
+        if (!is_signer(sig)) {
             RNP_LOG("Invalid subkey binding's signer.");
             return;
         }
@@ -1965,7 +1957,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
         signature_check_direct(&sinfo, &key.pkt());
         break;
     case PGP_SIG_REV_SUBKEY:
-        if (!pgp_sig_self_signed(*this, sig)) {
+        if (!is_signer(sig)) {
             RNP_LOG("Invalid subkey revocation's signer.");
             return;
         }
@@ -1994,9 +1986,7 @@ pgp_key_t::validate_self_signatures()
             continue;
         }
 
-        if (pgp_sig_is_self_signature(*this, sig) ||
-            pgp_sig_is_userid_revocation(*this, sig) ||
-            pgp_sig_is_key_revocation(*this, sig)) {
+        if (is_self_cert(sig) || is_uid_revocation(sig) || is_revocation(sig)) {
             validate_sig(*this, sig);
         }
     }
@@ -2011,8 +2001,7 @@ pgp_key_t::validate_self_signatures(pgp_key_t &primary)
             continue;
         }
 
-        if (pgp_sig_is_subkey_binding(*this, sig) ||
-            pgp_sig_is_subkey_revocation(*this, sig)) {
+        if (is_binding(sig) || is_revocation(sig)) {
             primary.validate_sig(*this, sig);
         }
     }
@@ -2036,13 +2025,13 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
             continue;
         }
 
-        if (pgp_sig_is_self_signature(*this, sig) && !has_cert) {
-            if (!is_key_expired(*this, sig)) {
+        if (is_self_cert(sig) && !has_cert) {
+            if (!is_expired(sig)) {
                 has_cert = true;
                 continue;
             }
             has_expired = true;
-        } else if (pgp_sig_is_key_revocation(*this, sig)) {
+        } else if (is_revocation(sig)) {
             return;
         }
     }
@@ -2069,7 +2058,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
             continue;
         }
         /* check whether subkey is expired - then do not mark key as valid */
-        if (is_key_expired(*sub, *sig)) {
+        if (sub->is_expired(*sig)) {
             continue;
         }
         validity_.valid = true;
@@ -2098,14 +2087,14 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
             continue;
         }
 
-        if (pgp_sig_is_subkey_binding(*this, sig) && !has_binding) {
+        if (is_binding(sig) && !has_binding) {
             /* check whether subkey is expired */
-            if (is_key_expired(*this, sig)) {
+            if (is_expired(sig)) {
                 has_expired = true;
                 continue;
             }
             has_binding = true;
-        } else if (pgp_sig_is_subkey_revocation(*this, sig)) {
+        } else if (is_revocation(sig)) {
             return;
         }
     }
@@ -2195,13 +2184,13 @@ pgp_key_t::refresh_data()
             continue;
         }
         try {
-            if (pgp_sig_is_key_revocation(*this, sig)) {
+            if (is_revocation(sig)) {
                 if (revoked_) {
                     continue;
                 }
                 revoked_ = true;
                 revocation_ = pgp_revoke_t(sig);
-            } else if (pgp_sig_is_userid_revocation(*this, sig)) {
+            } else if (is_uid_revocation(sig)) {
                 if (sig.uid >= uid_count()) {
                     RNP_LOG("Invalid uid index");
                     continue;
@@ -2225,8 +2214,7 @@ pgp_key_t::refresh_data()
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
         /* if certification expires key then consider userid as expired too */
-        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
-            !pgp_sig_self_signed(*this, sig) || is_key_expired(*this, sig)) {
+        if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || is_expired(sig)) {
             continue;
         }
         if (sig.uid >= uid_count()) {
@@ -2245,8 +2233,7 @@ pgp_key_t::refresh_data()
     uid0_set_ = false;
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
-        if (!sig.valid() || !pgp_sig_is_certification(sig) ||
-            !pgp_sig_self_signed(*this, sig)) {
+        if (!sig.valid() || !sig.is_cert() || !is_signer(sig)) {
             continue;
         }
         if ((sig.uid >= uid_count()) || !get_uid(sig.uid).valid) {
@@ -2281,7 +2268,7 @@ pgp_key_t::refresh_data(pgp_key_t *primary)
     clear_revokes();
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
-        if (!sig.valid() || !pgp_sig_is_subkey_revocation(*this, sig)) {
+        if (!sig.valid() || !is_revocation(sig)) {
             continue;
         }
         revoked_ = true;
