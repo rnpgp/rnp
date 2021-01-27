@@ -245,74 +245,6 @@ pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_pr
     return pgp_request_key(prov, &ctx);
 }
 
-void
-pgp_key_validate_signature(pgp_key_t &   key,
-                           pgp_key_t &   signer,
-                           pgp_key_t *   primary,
-                           pgp_subsig_t &sig)
-{
-    sig.validity.reset();
-
-    pgp_signature_info_t sinfo = {};
-    sinfo.sig = &sig.sig;
-    sinfo.signer = &signer;
-    sinfo.signer_valid = true;
-    if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_subkey_binding(key, sig)) {
-        sinfo.ignore_expiry = true;
-    }
-
-    pgp_sig_type_t stype = sig.sig.type();
-    switch (stype) {
-    case PGP_SIG_BINARY:
-    case PGP_SIG_TEXT:
-    case PGP_SIG_STANDALONE:
-    case PGP_SIG_PRIMARY:
-        RNP_LOG("Invalid key signature type: %d", (int) stype);
-        return;
-    case PGP_CERT_GENERIC:
-    case PGP_CERT_PERSONA:
-    case PGP_CERT_CASUAL:
-    case PGP_CERT_POSITIVE:
-    case PGP_SIG_REV_CERT: {
-        if (sig.uid >= key.uid_count()) {
-            RNP_LOG("Userid not found");
-            return;
-        }
-        signature_check_certification(&sinfo, &key.pkt(), &key.get_uid(sig.uid).pkt);
-        break;
-    }
-    case PGP_SIG_SUBKEY:
-        if (!primary) {
-            RNP_LOG("No primary key specified");
-            return;
-        }
-        signature_check_binding(&sinfo, &primary->pkt(), &key);
-        break;
-    case PGP_SIG_DIRECT:
-    case PGP_SIG_REV_KEY:
-        signature_check_direct(&sinfo, &key.pkt());
-        break;
-    case PGP_SIG_REV_SUBKEY:
-        if (!primary) {
-            RNP_LOG("No primary key specified");
-            return;
-        }
-        signature_check_subkey_revocation(&sinfo, &primary->pkt(), &key.pkt());
-        break;
-    default:
-        RNP_LOG("Unsupported key signature type: %d", (int) stype);
-        return;
-    }
-
-    sig.validity.validated = true;
-    sig.validity.valid = sinfo.valid;
-    /* revocation signature cannot expire */
-    if ((stype != PGP_SIG_REV_KEY) && (stype != PGP_SIG_REV_SUBKEY) &&
-        (stype != PGP_SIG_REV_CERT)) {
-        sig.validity.expired = sinfo.expired;
-    }
-}
-
 static bool
 is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
@@ -1989,6 +1921,71 @@ pgp_key_t::latest_uid_selfcert(uint32_t uid)
 }
 
 void
+pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
+{
+    sig.validity.reset();
+
+    pgp_signature_info_t sinfo = {};
+    sinfo.sig = &sig.sig;
+    sinfo.signer = this;
+    sinfo.signer_valid = true;
+    if (pgp_sig_is_self_signature(key, sig) || pgp_sig_is_subkey_binding(key, sig)) {
+        sinfo.ignore_expiry = true;
+    }
+
+    pgp_sig_type_t stype = sig.sig.type();
+    switch (stype) {
+    case PGP_SIG_BINARY:
+    case PGP_SIG_TEXT:
+    case PGP_SIG_STANDALONE:
+    case PGP_SIG_PRIMARY:
+        RNP_LOG("Invalid key signature type: %d", (int) stype);
+        return;
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_POSITIVE:
+    case PGP_SIG_REV_CERT: {
+        if (sig.uid >= key.uid_count()) {
+            RNP_LOG("Userid not found");
+            return;
+        }
+        signature_check_certification(&sinfo, &key.pkt(), &key.get_uid(sig.uid).pkt);
+        break;
+    }
+    case PGP_SIG_SUBKEY:
+        if (!pgp_sig_self_signed(*this, sig)) {
+            RNP_LOG("Invalid subkey binding's signer.");
+            return;
+        }
+        signature_check_binding(&sinfo, &this->pkt(), &key);
+        break;
+    case PGP_SIG_DIRECT:
+    case PGP_SIG_REV_KEY:
+        signature_check_direct(&sinfo, &key.pkt());
+        break;
+    case PGP_SIG_REV_SUBKEY:
+        if (!pgp_sig_self_signed(*this, sig)) {
+            RNP_LOG("Invalid subkey revocation's signer.");
+            return;
+        }
+        signature_check_subkey_revocation(&sinfo, &this->pkt(), &key.pkt());
+        break;
+    default:
+        RNP_LOG("Unsupported key signature type: %d", (int) stype);
+        return;
+    }
+
+    sig.validity.validated = true;
+    sig.validity.valid = sinfo.valid;
+    /* revocation signature cannot expire */
+    if ((stype != PGP_SIG_REV_KEY) && (stype != PGP_SIG_REV_SUBKEY) &&
+        (stype != PGP_SIG_REV_CERT)) {
+        sig.validity.expired = sinfo.expired;
+    }
+}
+
+void
 pgp_key_t::validate_self_signatures()
 {
     for (auto &sigid : sigs_) {
@@ -2000,7 +1997,7 @@ pgp_key_t::validate_self_signatures()
         if (pgp_sig_is_self_signature(*this, sig) ||
             pgp_sig_is_userid_revocation(*this, sig) ||
             pgp_sig_is_key_revocation(*this, sig)) {
-            pgp_key_validate_signature(*this, *this, NULL, sig);
+            validate_sig(*this, sig);
         }
     }
 }
@@ -2016,7 +2013,7 @@ pgp_key_t::validate_self_signatures(pgp_key_t &primary)
 
         if (pgp_sig_is_subkey_binding(*this, sig) ||
             pgp_sig_is_subkey_revocation(*this, sig)) {
-            pgp_key_validate_signature(*this, primary, &primary, sig);
+            primary.validate_sig(*this, sig);
         }
     }
 }
