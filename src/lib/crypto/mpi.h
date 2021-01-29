@@ -46,7 +46,7 @@ typedef struct pgp_mpi_t {
 
 /*
  * Data structure for storing pointer to the buffer together with
- * it's length. Value of 'len' depends on context in which it is used.
+ * its length. Value of 'len' depends on context in which it is used.
  */
 typedef struct buf_t {
     uint8_t *pbuf;

@@ -209,7 +209,7 @@ void pgp_cipher_aead_reset(pgp_crypt_t *crypt);
  */
 void pgp_cipher_aead_destroy(pgp_crypt_t *crypt);
 
-/** @brief Helper function to set AEAD nonce for the chunk by it's index.
+/** @brief Helper function to set AEAD nonce for the chunk by its index.
  *         iv and nonce should be large enough to hold max nonce bytes
  *  @param aalg AEAD algorithm used
  *  @param iv Initial vector for the message, must have 16 bytes of data

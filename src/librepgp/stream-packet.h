@@ -294,7 +294,7 @@ rnp_result_t stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr);
 
 /* Packet handling functions */
 
-/** @brief read OpenPGP packet from the stream, and write it's contents to another stream.
+/** @brief read OpenPGP packet from the stream, and write its contents to another stream.
  *  @param src source with packet data
  *  @param dst destination to write packet contents. All write failures on dst
  *             will be ignored. Can be NULL if you need just to skip packet.
