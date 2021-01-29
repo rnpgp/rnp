@@ -92,7 +92,7 @@ bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
  *              CLI_SEARCH_SUBKEYS : include subkeys to the results (see
  *                CLI_SEARCH_SUBKEYS_AFTER description).
  *              CLI_SEARCH_FIRST_ONLY : include only first key found
- *              CLI_SEARCH_SUBKEYS_AFTER : for each primary key add it's subkeys after the main
+ *              CLI_SEARCH_SUBKEYS_AFTER : for each primary key add its subkeys after the main
  *                key. This changes behaviour of subkey search, since those will be added only
  *                if subkey is orphaned or primary key matches search.
  * @return true if operation succeeds and at least one key is found, or false otherwise.

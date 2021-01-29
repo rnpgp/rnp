@@ -103,7 +103,7 @@ template <> struct hash<pgp_fingerprint_t> {
     std::size_t
     operator()(pgp_fingerprint_t const &fp) const noexcept
     {
-        /* since fingerprint value is hash itself, we may use it's low bytes */
+        /* since fingerprint value is hash itself, we may use its low bytes */
         size_t res = 0;
         static_assert(sizeof(fp.fingerprint) == PGP_FINGERPRINT_SIZE,
                       "pgp_fingerprint_t size mismatch");
@@ -117,7 +117,7 @@ template <> struct hash<pgp_sig_id_t> {
     std::size_t
     operator()(pgp_sig_id_t const &sigid) const noexcept
     {
-        /* since signature id value is hash itself, we may use it's low bytes */
+        /* since signature id value is hash itself, we may use its low bytes */
         size_t res = 0;
         static_assert(std::tuple_size<pgp_sig_id_t>::value >= sizeof(res),
                       "pgp_sig_id_t size mismatch");
