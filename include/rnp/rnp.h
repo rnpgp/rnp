@@ -236,7 +236,7 @@ typedef void rnp_output_closer_t(void *app_ctx, bool discard);
  *         - "add userid": add userid to the encrypted secret key
  *         - "sign": sign data
  *         - "decrypt": decrypt data using the encrypted secret key
- *         - "unlock": temporary unlock secret key (decrypting it's fields), so it may be used
+ *         - "unlock": temporary unlock secret key (decrypting its fields), so it may be used
  *           later without need to decrypt
  *         - "protect": encrypt secret key fields
  *         - "unprotect": decrypt secret key fields, leaving those in a raw format
@@ -436,7 +436,7 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *              then import process will skip unrecognized or bad keys/signatures instead of
  *              failing the whole operation.
  *              If flag RNP_LOAD_SAVE_SINGLE is set, then only first key will be loaded (subkey
- *              or primary key with it's subkeys). In case RNP_LOAD_SAVE_PERMISSIVE and
+ *              or primary key with its subkeys). In case RNP_LOAD_SAVE_PERMISSIVE and
  *              erroneous first key on the stream RNP_SUCCESS will be returned, but results
  *              will include an empty array. Also RNP_ERROR_EOF will be returned if the last
  *              key was read.
@@ -934,7 +934,7 @@ RNP_API rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
  *        Other handles of the same key should not be used after this call.
  * @param key pointer to the key handle.
  * @param flags see RNP_KEY_REMOVE_* constants. Flag RNP_REMOVE_SUBKEYS will work only for
- *              primary key, and remove all of it's subkeys as well.
+ *              primary key, and remove all of its subkeys as well.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_remove(rnp_key_handle_t key, uint32_t flags);
@@ -989,7 +989,7 @@ RNP_API rnp_result_t rnp_key_get_primary_uid(rnp_key_handle_t key, char **uid);
  */
 RNP_API rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
 
-/** Get key's user id by it's index.
+/** Get key's user id by its index.
  *
  * @param key key handle.
  * @param idx zero-based index of the userid.
@@ -999,7 +999,7 @@ RNP_API rnp_result_t rnp_key_get_uid_count(rnp_key_handle_t key, size_t *count);
  */
 RNP_API rnp_result_t rnp_key_get_uid_at(rnp_key_handle_t key, size_t idx, char **uid);
 
-/** Get key's user id handle by it's index.
+/** Get key's user id handle by its index.
  *  Note: user id handle may become invalid once corresponding user id or key is removed.
  *
  * @param key key handle
@@ -1062,7 +1062,7 @@ RNP_API rnp_result_t rnp_uid_is_valid(rnp_uid_handle_t uid, bool *valid);
  */
 RNP_API rnp_result_t rnp_key_get_signature_count(rnp_key_handle_t key, size_t *count);
 
-/** Get key's signature, based on it's index.
+/** Get key's signature, based on its index.
  *  Note: see the rnp_key_get_signature_count() description for the details.
  *
  * @param key key handle
@@ -1094,7 +1094,7 @@ RNP_API rnp_result_t rnp_key_get_revocation_signature(rnp_key_handle_t        ke
  */
 RNP_API rnp_result_t rnp_uid_get_signature_count(rnp_uid_handle_t uid, size_t *count);
 
-/** Get user id's signature, based on it's index.
+/** Get user id's signature, based on its index.
  *
  * @param uid uid handle.
  * @param idx zero-based signature index.
@@ -1128,7 +1128,7 @@ RNP_API rnp_result_t rnp_uid_get_signature_at(rnp_uid_handle_t        uid,
  *             - 'certification revocation' : certification revocation signature
  *             - 'timestamp' : timestamp signature
  *             - 'third-party' : third party confirmation signature
- *             - 'uknown: 0..255' : unknown signature with it's type specified as number
+ *             - 'uknown: 0..255' : unknown signature with its type specified as number
  *
  * @return RNP_SUCCESS or error code if failed.
  */
@@ -1196,7 +1196,7 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
  *
  *         Please also note that other error codes may be returned because of wrong
  *         function call (included, but not limited to):
- *         RNP_ERROR_NULL_POINTER: sig as well as some of it's fields are NULL
+ *         RNP_ERROR_NULL_POINTER: sig as well as some of its fields are NULL
  *         RNP_ERROR_BAD_PARAMETERS: invalid parameter value (unsupported flag, etc).
  */
 RNP_API rnp_result_t rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags);
@@ -1219,7 +1219,7 @@ RNP_API rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
  *
  * @param key key handle, cannot be NULL.
  * @param sig signature handle, cannot be NULL. Must be obtained via the key handle or one of
- *            it's userids. You still need to call rnp_signature_handle_destroy afterwards to
+ *            its userids. You still need to call rnp_signature_handle_destroy afterwards to
  *            destroy handle itself. All other handles of the same signature, if any, should
  *            not be used after the call is made.
  * @return RNP_SUCCESS if signature was successfully deleted, or any other value on error.
@@ -1252,12 +1252,12 @@ RNP_API rnp_result_t rnp_uid_get_revocation_signature(rnp_uid_handle_t        ui
                                                       rnp_signature_handle_t *sig);
 
 /**
- * @brief Remove userid with all of it's signatures from the key
+ * @brief Remove userid with all of its signatures from the key
  *
  * @param key key handle, cannot be NULL and must own the uid.
  * @param uid uid handle, cannot be NULL. Still must be destroyed afterwards via the
- * rnp_uid_handle_destroy(). All other handles pointing to the same uid will become invalid and
- * should not be used.
+ *            rnp_uid_handle_destroy(). All other handles pointing to the same uid will
+ *            become invalid and should not be used.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_uid_remove(rnp_key_handle_t key, rnp_uid_handle_t uid);
@@ -1277,7 +1277,7 @@ RNP_API rnp_result_t rnp_uid_handle_destroy(rnp_uid_handle_t uid);
  */
 RNP_API rnp_result_t rnp_key_get_subkey_count(rnp_key_handle_t key, size_t *count);
 
-/** Get the handle of one of the key's subkeys, using it's index in the list.
+/** Get the handle of one of the key's subkeys, using its index in the list.
  *
  * @param key handle of the primary key.
  * @param idx zero-based index of the subkey.
@@ -1958,7 +1958,7 @@ RNP_API rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
  */
 RNP_API rnp_result_t rnp_op_verify_get_signature_count(rnp_op_verify_t op, size_t *count);
 
-/** @brief Get single signature information based on it's index.
+/** @brief Get single signature information based on its index.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
  *  @param sig opaque signature context data will be stored here on success.
  *  @return RNP_SUCCESS if call succeeded.

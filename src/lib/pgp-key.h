@@ -226,7 +226,7 @@ struct pgp_key_t {
      *  Note: Key locking does not apply to unprotected keys.
      */
     bool is_locked() const;
-    /** @brief check if a key is currently protected, i.e. it's secret data is encrypted */
+    /** @brief check if a key is currently protected, i.e. its secret data is encrypted */
     bool is_protected() const;
 
     bool valid() const;
@@ -273,7 +273,7 @@ struct pgp_key_t {
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
 
-    /** @brief Unlock a key, i.e. decrypt it's secret data so it can be used for
+    /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
      *signing/decryption. Note: Key locking does not apply to unprotected keys.
      *
      *  @param pass_provider the password provider that may be used
@@ -288,7 +288,7 @@ struct pgp_key_t {
      *  @return true if the key was locked, false otherwise
      **/
     bool lock();
-    /** @brief Add protection to an unlocked key, i.e. encrypt it's secret data with specified
+    /** @brief Add protection to an unlocked key, i.e. encrypt its secret data with specified
      * parameters. */
     bool add_protection(pgp_key_store_format_t             format,
                         const rnp_key_protection_params_t &protection,
@@ -393,7 +393,7 @@ void pgp_key_validate_signature(pgp_key_t &   key,
                                 pgp_subsig_t &sig);
 
 /**
- * @brief Get the key's subkey by it's index
+ * @brief Get the key's subkey by its index
  *
  * @param key primary key
  * @param store key store wich will be searched for subkeys

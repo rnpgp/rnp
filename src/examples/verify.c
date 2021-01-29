@@ -29,7 +29,7 @@
 
 #define RNP_SUCCESS 0
 
-/* example key provider which loads key from file based on it's keyid */
+/* example key provider which loads key from file based on its keyid */
 static void
 example_key_provider(rnp_ffi_t   ffi,
                      void *      app_ctx,
