@@ -29,17 +29,6 @@
 #include "mpi.h"
 #include "hash.h"
 
-bool
-to_buf(buf_t *b, const uint8_t *in, size_t len)
-{
-    if (b->len < len) {
-        return false;
-    }
-    memcpy(b->pbuf, in, len);
-    b->len = len;
-    return true;
-}
-
 bignum_t *
 mpi2bn(const pgp_mpi_t *val)
 {
