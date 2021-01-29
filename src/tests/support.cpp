@@ -897,41 +897,51 @@ void
 reload_pubring(rnp_ffi_t *ffi)
 {
     rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_ffi_destroy(*ffi));
+
+    /* get output */
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
+
     /* re-init ffi and load keys */
     assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
     assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_rnp_success(rnp_output_destroy(output));
     assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("pubring.gpg"), 0);
 }
 
 void
 reload_keyrings(rnp_ffi_t *ffi)
 {
-    rnp_output_t output = NULL;
-    assert_rnp_success(rnp_output_to_path(&output, "pubring.gpg"));
-    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_output_to_path(&output, "secring.gpg"));
-    assert_rnp_success(rnp_save_keys(*ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
-    assert_rnp_success(rnp_output_destroy(output));
+    rnp_output_t outpub = NULL;
+    assert_rnp_success(rnp_output_to_memory(&outpub, 0));
+    assert_rnp_success(rnp_save_keys(*ffi, "GPG", outpub, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_output_t outsec = NULL;
+    assert_rnp_success(rnp_output_to_memory(&outsec, 0));
+    assert_rnp_success(rnp_save_keys(*ffi, "GPG", outsec, RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_ffi_destroy(*ffi));
     /* re-init ffi and load keys */
     assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(outpub, &buf, &len, false));
     rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "pubring.gpg"));
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
     assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("pubring.gpg"), 0);
-    assert_rnp_success(rnp_input_from_path(&input, "secring.gpg"));
+    assert_rnp_success(rnp_output_destroy(outpub));
+
+    assert_rnp_success(rnp_output_memory_get_buf(outsec, &buf, &len, false));
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
     assert_rnp_success(rnp_import_keys(*ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
     assert_rnp_success(rnp_input_destroy(input));
-    assert_int_equal(unlink("secring.gpg"), 0);
+    assert_rnp_success(rnp_output_destroy(outsec));
 }
 
 static bool
