@@ -851,6 +851,12 @@ pgp_userid_t::del_sig(const pgp_sig_id_t &id)
     return true;
 }
 
+void
+pgp_userid_t::clear_sigs()
+{
+    sigs_.clear();
+}
+
 pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
 {
     uid = sig.uid;
@@ -1062,6 +1068,37 @@ pgp_key_t::del_sig(const pgp_sig_id_t &sigid)
         sigs_.erase(it);
     }
     return sigs_map_.erase(sigid);
+}
+
+size_t
+pgp_key_t::del_sigs(const std::vector<pgp_sig_id_t> &sigs)
+{
+    /* delete actual signatures */
+    size_t res = 0;
+    for (auto &sig : sigs) {
+        res += sigs_map_.erase(sig);
+    }
+    /* rebuild vectors with signatures order */
+    keysigs_.clear();
+    for (auto &uid : uids_) {
+        uid.clear_sigs();
+    }
+    std::vector<pgp_sig_id_t> newsigs;
+    newsigs.reserve(sigs_map_.size());
+    for (auto &sigid : sigs_) {
+        if (!sigs_map_.count(sigid)) {
+            continue;
+        }
+        newsigs.push_back(sigid);
+        uint32_t uid = get_sig(sigid).uid;
+        if (uid == PGP_UID_NONE) {
+            keysigs_.push_back(sigid);
+        } else {
+            uids_[uid].add_sig(sigid);
+        }
+    }
+    sigs_ = std::move(newsigs);
+    return res;
 }
 
 size_t

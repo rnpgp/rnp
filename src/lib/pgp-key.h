@@ -133,6 +133,7 @@ typedef struct pgp_userid_t {
     void                add_sig(const pgp_sig_id_t &sig);
     void                replace_sig(const pgp_sig_id_t &id, const pgp_sig_id_t &newsig);
     bool                del_sig(const pgp_sig_id_t &id);
+    void                clear_sigs();
 } pgp_userid_t;
 
 #define PGP_UID_NONE ((uint32_t) -1)
@@ -188,6 +189,7 @@ struct pgp_key_t {
     const pgp_subsig_t &get_sig(const pgp_sig_id_t &id) const;
     pgp_subsig_t &      add_sig(const pgp_signature_t &sig, size_t uid = PGP_UID_NONE);
     bool                del_sig(const pgp_sig_id_t &sigid);
+    size_t              del_sigs(const std::vector<pgp_sig_id_t> &sigs);
     size_t              keysig_count() const;
     pgp_subsig_t &      get_keysig(size_t idx);
     size_t              uid_count() const;
