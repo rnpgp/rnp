@@ -973,3 +973,63 @@ load_keys_kbx_g10(rnp_ffi_t ffi, const std::string &pub, const std::string &sec)
     return load_keys_internal(ffi, "KBX", pub, false) &&
            load_keys_internal(ffi, "G10", sec, true);
 }
+
+static bool
+import_keys(rnp_ffi_t ffi, const std::string &path, uint32_t flags)
+{
+    rnp_input_t input = NULL;
+    if (rnp_input_from_path(&input, path.c_str())) {
+        return false;
+    }
+    bool res = !rnp_import_keys(ffi, input, flags, NULL);
+    rnp_input_destroy(input);
+    return res;
+}
+
+bool
+import_all_keys(rnp_ffi_t ffi, const std::string &path)
+{
+    return import_keys(ffi, path, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
+}
+
+bool
+import_pub_keys(rnp_ffi_t ffi, const std::string &path)
+{
+    return import_keys(ffi, path, RNP_LOAD_SAVE_PUBLIC_KEYS);
+}
+
+bool
+import_sec_keys(rnp_ffi_t ffi, const std::string &path)
+{
+    return import_keys(ffi, path, RNP_LOAD_SAVE_SECRET_KEYS);
+}
+
+static bool
+import_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len, uint32_t flags)
+{
+    rnp_input_t input = NULL;
+    if (rnp_input_from_memory(&input, data, len, false)) {
+        return false;
+    }
+    bool res = !rnp_import_keys(ffi, input, flags, NULL);
+    rnp_input_destroy(input);
+    return res;
+}
+
+bool
+import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
+{
+    return import_keys(ffi, data, len, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
+}
+
+bool
+import_pub_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
+{
+    return import_keys(ffi, data, len, RNP_LOAD_SAVE_PUBLIC_KEYS);
+}
+
+bool
+import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
+{
+    return import_keys(ffi, data, len, RNP_LOAD_SAVE_SECRET_KEYS);
+}

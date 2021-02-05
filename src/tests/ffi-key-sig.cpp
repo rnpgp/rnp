@@ -214,10 +214,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     char *      results = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, &results));
-    assert_rnp_success(rnp_input_destroy(input));
-    rnp_buffer_destroy(results);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
     /* find key and check signature count */
     rnp_key_handle_t key_handle = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
@@ -307,12 +304,8 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
     /* try to import signature for both public and secret key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-rev.pgp"));
     assert_int_equal(json_object_array_length(jsosigs), 1);
@@ -344,9 +337,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
     /* load two binary signatures from the file */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
 
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-sigs.pgp"));
@@ -367,9 +358,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
     /* load two armored signatures from the single file */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
 
     assert_true(
       check_import_sigs(ffi, &jso, &jsosigs, "data/test_key_validity/alice-sigs.asc"));
@@ -397,9 +386,7 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
     /* try to import signatures from stream where second is malformed. Nothing should be
      * imported. */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_key_validity/alice-sigs-malf.pgp"));
     results = NULL;
@@ -417,13 +404,9 @@ TEST_F(rnp_tests, test_ffi_import_signatures)
 
 TEST_F(rnp_tests, test_ffi_export_revocation)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
-
+    rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
 
     rnp_key_handle_t key_handle = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
@@ -441,10 +424,7 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
       rnp_key_export_revocation(key_handle, output, 0, "SHA256", "Wrong reason code", NULL));
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     /* check for failure with subkey */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &key_handle));
     assert_rnp_success(rnp_key_unlock(key_handle, "password"));
     assert_rnp_failure(rnp_key_export_revocation(
@@ -457,9 +437,7 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
       key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
     assert_rnp_success(rnp_key_handle_destroy(key_handle));
     /* load secret key and export revocation - should succeed with correct password */
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     /* wrong password - must fail */
     assert_rnp_success(
@@ -531,10 +509,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Alice is signed by Basil, but without the Basil's key.
      * Result: Alice [valid]
      */
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case1/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case1/pubring.gpg"));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     rnp_uid_handle_t uid = NULL;
@@ -558,9 +533,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
     rnp_buffer_destroy(sigtype);
     assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_KEY_NOT_FOUND);
     /* let's load Basil's key and make sure signature is now validated and valid */
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
     assert_rnp_success(rnp_signature_is_valid(sig, 0));
     rnp_signature_handle_destroy(sig);
     rnp_uid_handle_destroy(uid);
@@ -573,9 +546,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [invalid], Basil [valid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case2/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case2/pubring.gpg"));
     /* Alice key */
     /* we cannot get key by uid since uid is invalid */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
@@ -630,9 +601,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [invalid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case3/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case3/pubring.gpg"));
     /* Alice key */
     /* cannot locate it via userid since it is invalid */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
@@ -659,10 +628,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [valid], Alice sub [invalid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case4/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case4/pubring.gpg"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     rnp_key_handle_t sub = NULL;
     rnp_key_get_subkey_at(key, 0, &sub);
@@ -678,10 +644,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [valid], Alice sub [invalid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case5/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case5/pubring.gpg"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     rnp_key_get_subkey_at(key, 0, &sub);
     rnp_key_get_signature_at(sub, 0, &sig);
@@ -699,9 +662,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [invalid], Alice sub [invalid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case6/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case6/pubring.gpg"));
     /* check revocation signature */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     rnp_key_get_signature_at(key, 0, &sig);
@@ -727,9 +688,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [valid], Alice sub [invalid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case7/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case7/pubring.gpg"));
     /* check subkey revocation signature */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     rnp_key_get_subkey_at(key, 0, &sub);
@@ -764,9 +723,7 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
      * Result: Alice [valid], Alice sub[valid]
      */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "case9/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "case9/pubring.gpg"));
     /* Alice key */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
@@ -791,14 +748,8 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
 
     /* another case: expired certification */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, KEYSIG_PATH "alice-expired-claus-cert.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "claus-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "alice-expired-claus-cert.asc"));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "claus-pub.asc"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
     assert_rnp_success(rnp_uid_is_valid(uid, &valid));
@@ -825,14 +776,10 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
 
 TEST_F(rnp_tests, test_ffi_get_signature_type)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
-
+    rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_true(load_keys_gpg(ffi, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
@@ -894,14 +841,10 @@ TEST_F(rnp_tests, test_ffi_get_signature_type)
 
 TEST_F(rnp_tests, test_ffi_remove_signature)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
-
+    rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_true(load_keys_gpg(ffi, "data/test_key_edge_cases/alice-sig-misc-values.pgp"));
-    assert_rnp_success(rnp_input_from_path(&input, KEYSIG_PATH "basil-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, KEYSIG_PATH "basil-pub.asc"));
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
