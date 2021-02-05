@@ -1173,10 +1173,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     uint8_t *buf = NULL;
     size_t   len = 0;
     rnp_output_memory_get_buf(output, &buf, &len, false);
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    assert_true(import_pub_keys(ffi, buf, len));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", keyid, &primary));
     assert_non_null(primary);
     assert_true(primary->pub->valid());
@@ -1203,7 +1201,6 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     rnp_key_handle_destroy(subkey);
     rnp_buffer_destroy(keyid);
     rnp_buffer_destroy(subid);
-    rnp_input_destroy(input);
     rnp_output_destroy(output);
 
     /* cleanup */
@@ -5402,17 +5399,13 @@ TEST_F(rnp_tests, test_ffi_keys_import)
     assert_int_equal(keycount, 0);
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     // load just secret keys from pubkey file
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_merge/key-pub.asc"));
     assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
     assert_int_equal(keycount, 0);
     assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
     assert_int_equal(keycount, 0);
     // load both public and secret keys by specifying just secret (it will create pub part)
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_stream_key_merge/key-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_merge/key-sec.asc"));
     assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
     assert_int_equal(keycount, 3);
     assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
@@ -5760,13 +5753,8 @@ TEST_F(rnp_tests, test_ffi_stripped_keys_import)
 
     /* load stripped key by parts via import */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/case8/subkey.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/primary.pgp"));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/subkey.pgp"));
     /* validate signatures - must be valid */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
@@ -5785,13 +5773,8 @@ TEST_F(rnp_tests, test_ffi_stripped_keys_import)
 
     /* load stripped key with subkey first */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/case8/subkey.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/subkey.pgp"));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/primary.pgp"));
     /* validate signatures - must be valid */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
@@ -5810,14 +5793,8 @@ TEST_F(rnp_tests, test_ffi_stripped_keys_import)
 
     /* load stripped key without subkey binding */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case8/primary.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case8/subkey-no-sig.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/primary.pgp"));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case8/subkey-no-sig.pgp"));
     /* validate signatures - must be invalid */
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_key_validity/case8/message.txt.asc"));
@@ -5923,17 +5900,14 @@ extend_len_2_to_4(const std::vector<uint8_t> &src)
     return dst;
 }
 
-static rnp_result_t
+static bool
 import_public_keys_from_vector(std::vector<uint8_t> keyring)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
+    rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_memory(&input, &keyring[0], keyring.size(), true));
-    rnp_result_t result = rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL);
-    rnp_input_destroy(input);
+    bool res = import_pub_keys(ffi, &keyring[0], keyring.size());
     rnp_ffi_destroy(ffi);
-    return result;
+    return res;
 }
 
 TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
@@ -5949,34 +5923,34 @@ TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
     assert_int_equal(expected_tag, 0x99);
     assert_int_equal(keyring[0], expected_tag);
     // original file can be loaded correctly
-    assert_rnp_success(import_public_keys_from_vector(keyring));
+    assert_true(import_public_keys_from_vector(keyring));
     {
         // Shrink the packet length to 1 octet
         std::vector<uint8_t> keyring_valid_1 = shrink_len_2_to_1(keyring);
         assert_int_equal(keyring_valid_1.size(), keyring.size() - 1);
-        assert_rnp_success(import_public_keys_from_vector(keyring_valid_1));
+        assert_true(import_public_keys_from_vector(keyring_valid_1));
     }
     {
         // get invalid key with length 0
         std::vector<uint8_t> keyring_invalid_0 = fake_len_0(keyring);
-        assert_rnp_failure(import_public_keys_from_vector(keyring_invalid_0));
+        assert_false(import_public_keys_from_vector(keyring_invalid_0));
     }
     {
         // get invalid key with length 0xEEEE
         std::vector<uint8_t> keyring_invalid_EEEE = fake_len_EEEE(keyring);
         assert_int_equal(keyring_invalid_EEEE.size(), keyring.size());
-        assert_rnp_failure(import_public_keys_from_vector(keyring_invalid_EEEE));
+        assert_false(import_public_keys_from_vector(keyring_invalid_EEEE));
     }
     {
         std::vector<uint8_t> keyring_len_4 = extend_len_2_to_4(keyring);
         assert_int_equal(keyring_len_4.size(), keyring.size() + 2);
-        assert_rnp_success(import_public_keys_from_vector(keyring_len_4));
+        assert_true(import_public_keys_from_vector(keyring_len_4));
         // get invalid key with length 0xEEEEEEEE
         keyring_len_4[1] = 0xEE;
         keyring_len_4[2] = 0xEE;
         keyring_len_4[3] = 0xEE;
         keyring_len_4[4] = 0xEE;
-        assert_rnp_failure(import_public_keys_from_vector(keyring_len_4));
+        assert_false(import_public_keys_from_vector(keyring_len_4));
     }
 }
 
@@ -7630,9 +7604,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     /* message encrypted to 3 recipients and 2 passwords: password1, password2 */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrongpassword"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_sec_keys(ffi, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-3key-2p"));
     assert_rnp_success(rnp_output_to_null(&output));
@@ -7712,10 +7684,7 @@ TEST_F(rnp_tests, test_ffi_secret_sig_import)
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
     rnp_key_handle_t key_handle = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     bool locked = false;
@@ -7733,10 +7702,7 @@ TEST_F(rnp_tests, test_ffi_secret_sig_import)
     assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
     assert_false(locked);
     /* import subkey */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     /* make sure that primary key is still unlocked */
     assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
     assert_false(locked);
@@ -7822,10 +7788,7 @@ TEST_F(rnp_tests, test_ffi_rnp_request_password)
     assert_string_equal(password, "custom context");
     rnp_buffer_destroy(password);
     /* let's check whether key is correctly passed to handler */
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_non_null(key);
@@ -7839,15 +7802,10 @@ TEST_F(rnp_tests, test_ffi_rnp_request_password)
 
 TEST_F(rnp_tests, test_ffi_key_revoke)
 {
-    rnp_ffi_t   ffi = NULL;
-    rnp_input_t input = NULL;
+    rnp_ffi_t ffi = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
     rnp_key_handle_t key_handle = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     /* check for failure with wrong parameters */
@@ -7865,11 +7823,7 @@ TEST_F(rnp_tests, test_ffi_key_revoke)
     assert_rnp_failure(rnp_key_revoke(sub_handle, 0, "SHA256", "retired", "Custom reason"));
     assert_rnp_success(rnp_key_handle_destroy(sub_handle));
     /* load secret key */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub_handle));
     /* wrong password - must fail */
@@ -7899,10 +7853,7 @@ TEST_F(rnp_tests, test_ffi_key_revoke)
     assert_rnp_success(rnp_key_handle_destroy(sub_handle));
     /* correct password provider - must succeed */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET | RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
@@ -7933,10 +7884,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     rnp_input_t input = NULL;
 
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
 
     /* check edge cases */
     assert_rnp_failure(rnp_key_set_expiration(NULL, 0));
@@ -7951,11 +7899,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_handle_destroy(sub));
 
     /* load secret key */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     uint32_t       expiry = 0;
     const uint32_t new_expiry = 10 * 365 * 24 * 60 * 60;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
@@ -7990,10 +7934,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     uint8_t *keybuf = NULL;
     size_t   keylen = 0;
     assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
-    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
     /* load public key */
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, keybuf, keylen));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, new_expiry);
@@ -8005,9 +7947,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     /* now load exported secret key */
     assert_rnp_success(rnp_output_memory_get_buf(seckeymem, &keybuf, &keylen, false));
-    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_sec_keys(ffi, keybuf, keylen));
     assert_rnp_success(rnp_output_destroy(seckeymem));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
@@ -8019,9 +7959,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_handle_destroy(sub));
     /* now unset expiration time back, first loading the public key back */
     assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
-    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, keybuf, keylen));
     assert_rnp_success(rnp_output_destroy(keymem));
     /* set primary key expiration */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
@@ -8041,9 +7979,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_handle_destroy(sub));
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
-    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, keybuf, keylen));
     assert_rnp_success(rnp_output_destroy(keymem));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
@@ -8056,14 +7992,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* now try the sign-able subkey */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sign-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
@@ -8084,9 +8014,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_handle_destroy(sub));
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_rnp_success(rnp_output_memory_get_buf(keymem, &keybuf, &keylen, false));
-    assert_rnp_success(rnp_input_from_memory(&input, keybuf, keylen, false));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, keybuf, keylen));
     assert_rnp_success(rnp_output_destroy(keymem));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
@@ -8095,14 +8023,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* check whether we can change expiration for already expired key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sign-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
     assert_rnp_success(rnp_key_unlock(key, "password"));
@@ -8151,14 +8073,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* check whether we can change expiration with password provider/locked key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sign-sub-pub.pgp"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sign-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
 
@@ -8218,14 +8134,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
 
     /* now try to update already expired key and subkey */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-exp-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-exp-sec.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    assert_rnp_success(rnp_input_destroy(input));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sign-sub-exp-pub.asc"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sign-sub-exp-sec.asc"));
     /* Alice key is not searchable by userid since it is expired */
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_null(key);
@@ -8802,10 +8712,7 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     rnp_key_handle_destroy(key);
 
     /* two keys with subkeys with same material but different creation time */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-2-keys-same-grip.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/alice-2-keys-same-grip.pgp"));
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(count, 4);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
@@ -8836,10 +8743,7 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
 
     /* key with signing subkey, where primary binding has different from subkey binding hash
      * algorithm */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/key-binding-hash-alg.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-binding-hash-alg.asc"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "F81A30AA5DCBD01E", &key));
     bool valid = false;
     assert_rnp_success(rnp_key_is_valid(key, &valid));
@@ -8853,10 +8757,7 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     rnp_key_handle_destroy(sub);
 
     /* key and subkey both has 0 key expiration with corresponding subpacket */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/key-sub-0-expiry.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-sub-0-expiry.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "6EFF45F2201AC5F8", &key));
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_true(valid);
@@ -8876,10 +8777,7 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
 
     /* key/subkey with expiration times in unhashed subpackets */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/key-unhashed-subpkts.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-unhashed-subpkts.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "7BC6709B15C23A4A", &key));
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_true(valid);
@@ -9188,11 +9086,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
     /* Edge cases - public key, NULL parameters, etc. */
-    rnp_input_t input = NULL;
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     char *type = NULL;
@@ -9219,11 +9113,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 
     /* Encrypted secret key with subkeys */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "Encrypted-Hashed");
@@ -9281,12 +9171,8 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 
     /* v3 secret key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/4/pubring.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/4/secring.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/keyrings/4/pubring.pgp"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/4/secring.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "7D0BC10E933404C9", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "Encrypted");
@@ -9379,11 +9265,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     rnp_ffi_destroy(ffi);
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-1-subs.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-1-subs.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "GPG-None");
@@ -9425,11 +9307,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 
     /* secret subkey is available, but primary key is stored on the smartcard by gpg */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-2-card.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-2-card.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "GPG-Smartcard");
@@ -9471,11 +9349,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 
     /* primary key is stored with unknown gpg s2k */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-3.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "Unknown");
@@ -9490,11 +9364,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
 
     /* primary key is stored with unknown s2k */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-unknown.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &key));
     assert_rnp_success(rnp_key_get_protection_type(key, &type));
     assert_string_equal(type, "Unknown");
@@ -9619,13 +9489,8 @@ TEST_F(rnp_tests, test_ffi_key_remove)
     rnp_key_handle_destroy(key0_sub2);
 
     /* let's import keys back */
-    rnp_input_t input = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/keyrings/1/pubring.gpg"));
+    assert_true(import_sec_keys(ffi, "data/keyrings/1/secring.gpg"));
 
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(count, 7);
@@ -9745,9 +9610,7 @@ check_key_autocrypt(rnp_output_t       memout,
         return false;
     }
     rnp_input_t input = NULL;
-    rnp_input_from_memory(&input, buf, len, false);
-    if (rnp_import_keys(
-          ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL)) {
+    if (!import_all_keys(ffi, buf, len)) {
         return false;
     }
     rnp_input_destroy(input);
@@ -9842,11 +9705,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* export key with single uid and subkey */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    rnp_input_t input = NULL;
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, NULL, output, 0));
@@ -9857,10 +9716,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* export key with sign-only subkey: fail */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sign-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sign-sub-pub.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22f3a217c0e439cb", &sub));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -9874,9 +9730,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* export key without subkey: fail */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_key_validity/alice-pub.asc"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-pub.asc"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_failure(rnp_key_export_autocrypt(key, NULL, NULL, output, 0));
@@ -9886,11 +9740,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     /* export secret key: make sure public is exported */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_import_keys(
-      ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_all_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -9903,15 +9753,9 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     /* make sure that only self-certification is exported */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     /* load key alice with 2 self-sigs, one of those is expired */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case9/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case9/pubring.gpg"));
     /* add one corrupted alice's signature and one valid from Basil */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/case2/pubring.gpg"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/case2/pubring.gpg"));
 
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_int_equal(key->pub->sig_count(), 4);
