@@ -34,12 +34,7 @@ TEST_F(rnp_tests, test_issue_1171_key_import_and_remove)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-
-    rnp_input_t input = NULL;
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(
@@ -64,10 +59,7 @@ TEST_F(rnp_tests, test_issue_1171_key_import_and_remove)
     assert_int_equal(subkey->material().bits(), 256);
     assert_rnp_success(rnp_key_handle_destroy(key));
 
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_key_validity/alice-sub-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/alice-sub-pub.pgp"));
 
     rnp_ffi_destroy(ffi);
 }

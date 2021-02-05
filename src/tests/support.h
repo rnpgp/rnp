@@ -224,10 +224,19 @@ pgp_key_t *rnp_tests_get_key_by_id(rnp_key_store_t *  keyring,
                                    pgp_key_t *        after);
 pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid);
 pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &keyid);
-void       reload_pubring(rnp_ffi_t *ffi);
-void       reload_keyrings(rnp_ffi_t *ffi);
 
+/* key load/reload  shortcuts */
+void reload_pubring(rnp_ffi_t *ffi);
+void reload_keyrings(rnp_ffi_t *ffi);
 bool load_keys_gpg(rnp_ffi_t ffi, const std::string &pub, const std::string &sec = "");
 bool load_keys_kbx_g10(rnp_ffi_t ffi, const std::string &pub, const std::string &sec = "");
+
+/* key import shortcuts */
+bool import_all_keys(rnp_ffi_t ffi, const std::string &path);
+bool import_pub_keys(rnp_ffi_t ffi, const std::string &path);
+bool import_sec_keys(rnp_ffi_t ffi, const std::string &path);
+bool import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
+bool import_pub_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
+bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 
 #endif /* SUPPORT_H_ */

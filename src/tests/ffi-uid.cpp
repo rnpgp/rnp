@@ -108,9 +108,7 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-
     assert_true(load_keys_gpg(ffi, "data/test_uid_validity/key-uids-with-invalid.pgp"));
-    rnp_input_t input = NULL;
 
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "F6E741D1DF582D90", &key));
@@ -158,10 +156,7 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
     assert_null(newkey);
 
     /* Now import key with valid signature for the userid 2 */
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-uids-pub.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-
+    assert_true(import_pub_keys(ffi, "data/test_uid_validity/key-uids-pub.pgp"));
     uids = 0;
     assert_rnp_success(rnp_key_get_uid_count(key, &uids));
     assert_int_equal(uids, 4);
@@ -193,11 +188,7 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
     rnp_key_handle_destroy(newkey);
 
     /* Now import key with revoked primary userid */
-    assert_rnp_success(
-      rnp_input_from_path(&input, "data/test_uid_validity/key-uids-revoked-valid.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-
+    assert_true(import_pub_keys(ffi, "data/test_uid_validity/key-uids-revoked-valid.pgp"));
     uids = 0;
     assert_rnp_success(rnp_key_get_uid_count(key, &uids));
     assert_int_equal(uids, 4);
@@ -226,10 +217,7 @@ TEST_F(rnp_tests, test_ffi_uid_validity)
 
     /* Load expired key with single uid: now should be no primary */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_uid_validity/key-expired.pgp"));
-    assert_rnp_success(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
-    rnp_input_destroy(input);
-
+    assert_true(import_pub_keys(ffi, "data/test_uid_validity/key-expired.pgp"));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "4BE147BB22DF1E60", &key));
     assert_non_null(key);
 
