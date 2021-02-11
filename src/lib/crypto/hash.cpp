@@ -211,24 +211,6 @@ pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src)
     return true;
 }
 
-/**
-\ingroup Core_Hashes
-\brief Add to the hash
-\param hash Hash to add to
-\param n Int to add
-\param length Length of int in bytes
-*/
-void
-pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t length)
-{
-    uint8_t c;
-
-    while (length--) {
-        c = n >> (length * 8);
-        pgp_hash_add(hash, &c, 1);
-    }
-}
-
 int
 pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len)
 {
@@ -278,18 +260,6 @@ pgp_hash_alg_t
 pgp_hash_alg_type(const pgp_hash_t *hash)
 {
     return hash->_alg;
-}
-
-/**
-\ingroup HighLevel_Supported
-\brief Is this Hash Algorithm supported?
-\param hash_alg Hash Algorithm to check
-\return 1 if supported; else 0
-*/
-unsigned
-pgp_is_hash_alg_supported(const pgp_hash_alg_t *hash_alg)
-{
-    return pgp_hash_name_botan(*hash_alg) != NULL;
 }
 
 size_t
