@@ -316,7 +316,7 @@ pgp_key_validate_signature(pgp_key_t &   key,
 static bool
 is_key_expired(const pgp_key_t &key, const pgp_subsig_t &sig)
 {
-    /* key expiration: absense of subpkt or 0 means it never expires */
+    /* key expiration: absence of subpkt or 0 means it never expires */
     uint32_t expiration = sig.sig.key_expiration();
     if (!expiration) {
         return false;
@@ -1799,7 +1799,7 @@ pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
         }
         subkey->write(dst);
         if (dst.werr) {
-            RNP_LOG("Error occured when exporting a subkey");
+            RNP_LOG("Error occurred when exporting a subkey");
             return;
         }
     }

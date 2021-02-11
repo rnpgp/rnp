@@ -563,7 +563,7 @@ setup_rnp_cfg(rnp_cfg_t *cfg, const char *ks_format, const char *homedir, int *p
         // pipefd[0] will be closed via passfp
         pipefd[0] = -1;
     }
-    /* setup keyring pathes */
+    /* setup keyring paths */
     if (homedir == NULL) {
         /* if we use default homedir then we append '.rnp' and create directory as well */
         homedir = getenv("HOME");

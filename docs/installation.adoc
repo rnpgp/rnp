@@ -90,7 +90,7 @@ Having the clean MSYS2 installation, you'll first need to update pacman and inst
 [source, console]
 ----
 pacman -Syu --noconfirm --needed
-# Then most likely you'll need to close msys console and run it agian:
+# Then most likely you'll need to close msys console and run it again:
 pacman -Syu --noconfirm --needed
 # Install packages
 pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
@@ -110,4 +110,4 @@ make && make install
 ----
 
 Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that librnp-0.dll is on path or in the same folder as well as all dependencies.
-You may check dependenices and their pathes via ntldd.exe in MSYS command prompt. 
+You may check dependenices and their paths via ntldd.exe in MSYS command prompt. 

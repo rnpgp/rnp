@@ -502,7 +502,7 @@ rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg)
  * @brief Grabs date from the string in %Y-%m-%d format
  *
  * @param s [in] NULL-terminated string with the date
- * @param t [out] On successfull return result will be placed here
+ * @param t [out] On successful return result will be placed here
  * @return true on success or false otherwise
  */
 

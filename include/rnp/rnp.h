@@ -187,10 +187,10 @@ typedef struct rnp_symenc_handle_st *      rnp_symenc_handle_t;
  * @brief Callback, used to read data from the source.
  *
  * @param app_ctx custom parameter, passed back to the function.
- * @param buf on successfull call data should be put here. Cannot be NULL,
+ * @param buf on successful call data should be put here. Cannot be NULL,
  *            and must be capable to store at least len bytes.
  * @param len number of bytes to read.
- * @param read on successfull call number of read bytes must be put here.
+ * @param read on successful call number of read bytes must be put here.
  * @return true on success (including EOF condition), or false on read error.
  *         EOF case is indicated by zero bytes read on non-zero read call.
  */
@@ -208,7 +208,7 @@ typedef void rnp_input_closer_t(void *app_ctx);
  * @param app_ctx custom parameter, passed back to the function.
  * @param buf buffer with data, cannot be NULL.
  * @param len number of bytes to write.
- * @return true if call was successfull and all data is written, or false otherwise.
+ * @return true if call was successful and all data is written, or false otherwise.
  */
 typedef bool rnp_output_writer_t(void *app_ctx, const void *buf, size_t len);
 
@@ -380,7 +380,7 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
 /** Get the JSON with array of supported rnp feature values (algorithms, curves, etc) by type.
  *
  * @param type type of the feature. See rnp_supports_feature() function for possible values.
- * @param result after successfull execution will contain the JSON with supported feature
+ * @param result after successful execution will contain the JSON with supported feature
  * values. You must destroy it using the rnp_buffer_destroy() function.
  * @return RNP_SUCCESS on success or any other value on error.
  */
@@ -440,7 +440,7 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *              erroneous first key on the stream RNP_SUCCESS will be returned, but results
  *              will include an empty array. Also RNP_ERROR_EOF will be returned if the last
  *              key was read.
- * @param results if not NULL then after the successfull execution will contain JSON with
+ * @param results if not NULL then after the successful execution will contain JSON with
  *                information about new and updated keys. You must free it using the
  *                rnp_buffer_destroy() function.
  * @return RNP_SUCCESS on success
@@ -457,7 +457,7 @@ RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
  *  @param ffi
  *  @param input source to read from. Cannot be NULL.
  *  @param flags additional import flags, currently must be 0.
- *  @param results if not NULL then after the successfull execution will contain JSON with
+ *  @param results if not NULL then after the successful execution will contain JSON with
  *                 information about the updated keys. You must free it using the
  *                 rnp_buffer_destroy() function.
  *  @return RNP_SUCCESS on success, or any other value on error.
@@ -840,7 +840,7 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
  */
 RNP_API rnp_result_t rnp_op_generate_execute(rnp_op_generate_t op);
 
-/** Get the generated key's handle. Should be called only after successfull execution of
+/** Get the generated key's handle. Should be called only after successful execution of
  *  rnp_op_generate_execute().
  *
  * @param op pointer to opaque key generation context.
@@ -2623,7 +2623,7 @@ RNP_API rnp_result_t rnp_output_armor_set_line_length(rnp_output_t output, size_
 
 /* SHA1 is not considered secured anymore and SHOULD NOT be used to create messages (as per
  * Appendix C of RFC 4880-bis-02). SHA2 MUST be implemented.
- * Let's pre-empt this by specifying SHA256 - gpg interoperates just fine with SHA256 - agc,
+ * Let's preempt this by specifying SHA256 - gpg interoperates just fine with SHA256 - agc,
  * 20090522
  */
 #define DEFAULT_HASH_ALG RNP_ALGNAME_SHA256

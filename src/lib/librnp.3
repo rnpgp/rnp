@@ -112,12 +112,12 @@ The following functions are used for memory signing and encryption:
 .Ft rnp_result_t
 .Fo rnp_protect_mem
 .Fa "rnp_ctx_t *ctx" "const void *in" "size_t len" "void *out" 
-.Fa "size_t outsize" "size_t *ressize"
+.Fa "size_t outsize" "size_t *resize"
 .Fc
 .Ft int
 .Fo rnp_process_mem
 .Fa "rnp_ctx_t *ctx" "const void *in" "const size_t insize"
-.Fa "void *out" "size_t outsize" "size_t *ressize"
+.Fa "void *out" "size_t outsize" "size_t *resize"
 .Fc
 .Sh DESCRIPTION
 .Nm

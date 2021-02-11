@@ -393,7 +393,7 @@ void pgp_key_validate_signature(pgp_key_t &   key,
  * @brief Get the key's subkey by it's index
  *
  * @param key primary key
- * @param store key store wich will be searched for subkeys
+ * @param store key store which will be searched for subkeys
  * @param idx index of the subkey
  * @return pointer to the subkey or NULL if subkey not found
  */

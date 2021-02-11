@@ -132,7 +132,7 @@ void         set_rnp_log_switch(int8_t);
         }                                                                       \
     } while (0)
 
-/* Formating helpers */
+/* Formatting helpers */
 #define PRItime "ll"
 
 #ifdef _WIN32

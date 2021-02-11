@@ -1635,9 +1635,9 @@ rnp_cfg_set_defkey(rnp_cfg_t *cfg)
 bool
 cli_cfg_set_keystore_info(rnp_cfg_t *cfg)
 {
-    /* detecting keystore pathes and format */
+    /* detecting keystore paths and format */
     if (!rnp_cfg_set_ks_info(cfg)) {
-        ERR_MSG("cannot obtain keystore path(es)");
+        ERR_MSG("cannot obtain keystore path(s)");
         return false;
     }
 
@@ -2374,7 +2374,7 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
             unknownc++;
             break;
         default:
-            title = "UKNOWN signature";
+            title = "UNKNOWN signature";
             break;
         }
 

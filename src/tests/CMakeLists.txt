@@ -36,7 +36,7 @@ set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
 
 # rnp_tests
 include(GoogleTest)
-# download and buld googletest
+# download and build googletest
 configure_file(gtest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
 execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
   RESULT_VARIABLE result

@@ -185,7 +185,7 @@
 
 * Remove some old SSH key support.
 * Add support for dynamically calculating the S2K iterations.
-* Add support for extracing the public key from the secret key.
+* Add support for extracting the public key from the secret key.
 * Add support for merging information between keys.
 
 #### CLI
@@ -216,7 +216,7 @@
 
 * Support for generation and verification of embedded signature subpacket for signing subkeys
 * Verification of public key signatures and key material
-* Improved performance of assymetric operations (key material is now validated on load)
+* Improved performance of asymmetric operations (key material is now validated on load)
 
 #### FFI
 

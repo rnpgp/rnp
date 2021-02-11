@@ -86,7 +86,7 @@ main(int argc, char *const argv[])
 
     /* Parse command line options:
         -i input_file [mandatory]: specifies name of the file with PGP packets
-        -d : indicates wether to dump whole packet content
+        -d : indicates whether to dump whole packet content
         -m : dump mpi contents
         -g : dump key grips and fingerprints
         -j : JSON output
@@ -153,7 +153,7 @@ main(int argc, char *const argv[])
     }
     rnp_input_destroy(input);
 
-    /* Inform in case of error occured during parsing */
+    /* Inform in case of error occurred during parsing */
     if (ret) {
         fprintf(stderr, "Operation failed [error code: 0x%X]\n", (int) ret);
         return 1;

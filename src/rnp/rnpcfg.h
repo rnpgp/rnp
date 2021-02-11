@@ -76,7 +76,7 @@
 #define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore"              /* indicates wether keystore must be initialized */
+    "disable_keystore"              /* indicates whether keystore must be initialized */
 #define CFG_FORCE "force"           /* force command to succeed operation */
 #define CFG_SECRET "secret"         /* indicates operation on secret key */
 #define CFG_WITH_SIGS "with-sigs"   /* list keys with signatures */
@@ -270,7 +270,7 @@ int rnp_cfg_getint_default(const rnp_cfg_t *cfg, const char *key, int def);
 
 /** @brief Copies or overrides configuration
  *  @param dst resulting configuration object
- *  @param src vals in dst will be overriden (if key exist) or coppied (if not)
+ *  @param src vals in dst will be overridden (if key exist) or copied (if not)
  *         from this object
  *
  *  @pre   dst is correctly initialized and not NULL
@@ -286,7 +286,7 @@ bool rnp_cfg_copy(rnp_cfg_t *dst, const rnp_cfg_t *src);
 const char *rnp_cfg_gethashalg(const rnp_cfg_t *cfg);
 
 /** @brief Get number of password tries according to defaults and value, stored in cfg
- *  @param cfg allocated and initalized config
+ *  @param cfg allocated and initialized config
  *  @return number of password tries or INFINITE_ATTEMPTS
  */
 int rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg);
@@ -301,7 +301,7 @@ int rnp_cfg_get_pswdtries(const rnp_cfg_t *cfg);
  *  - 60000 : number of seconds
  *
  *  @param s [in] NULL-terminated string with the date
- *  @param t [out] On successfull return result will be placed here
+ *  @param t [out] On successful return result will be placed here
  *  @return expiration time in seconds
  */
 uint64_t get_expiration(const char *s);

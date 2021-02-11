@@ -248,7 +248,7 @@ def rnp_params_insert_aead(params, pos, aead):
 def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None,
                         z=None, armor=False):
     params = ['--homedir', RNPDIR, src, '--output', dst]
-    # Recipients. None disables PK encryption, [] to use default key. Otheriwse list of ids.
+    # Recipients. None disables PK encryption, [] to use default key. Otherwise list of ids.
     if recipients != None:
         params[2:2] = ['--encrypt']
         for userid in reversed(recipients):
@@ -1844,7 +1844,7 @@ class Encryption(unittest.TestCase):
         - different hash algorithms where applicable
 
         TODO:
-        Tests in this test case should be splitted into many algorithm-specific tests
+        Tests in this test case should be split into many algorithm-specific tests
         (potentially auto generated)
         Reason being - if you have a problem with BLOWFISH size 1000000, you don't want
         to wait until everything else gets
