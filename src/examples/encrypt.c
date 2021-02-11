@@ -114,7 +114,7 @@ ffi_encrypt()
         goto finish;
     }
 
-    fprintf(stdout, "Encryption succeded. Encrypted message written to file encrypted.asc\n");
+    fprintf(stdout, "Encryption succeeded. Encrypted message written to file encrypted.asc\n");
     result = 0;
 finish:
     rnp_op_encrypt_destroy(encrypt);

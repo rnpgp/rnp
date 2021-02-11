@@ -1648,9 +1648,9 @@ rnp_cfg_set_defkey(rnp_cfg &cfg)
 bool
 cli_cfg_set_keystore_info(rnp_cfg &cfg)
 {
-    /* detecting keystore pathes and format */
+    /* detecting keystore paths and format */
     if (!rnp_cfg_set_ks_info(cfg)) {
-        ERR_MSG("cannot obtain keystore path(es)");
+        ERR_MSG("cannot obtain keystore path(s)");
         return false;
     }
 
@@ -1887,7 +1887,7 @@ cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
     if (secret && !cfg.get_bool(CFG_FORCE)) {
         if (!cli_rnp_get_confirmation(
               rnp,
-              "Key '%s' has coresponding secret key. Do you really want to delete it?",
+              "Key '%s' has corresponding secret key. Do you really want to delete it?",
               key)) {
             goto done;
         }
@@ -2429,7 +2429,7 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
             unknownc++;
             break;
         default:
-            title = "UKNOWN signature";
+            title = "UNKNOWN signature";
             break;
         }
 

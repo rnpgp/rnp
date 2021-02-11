@@ -41,7 +41,7 @@ suffices.
  - RTTI. This has a significant runtime cost and usually there are
    better alternatives.
 
- - Multiple inheritence. This leads to many confusing and problematic
+ - Multiple inheritance. This leads to many confusing and problematic
    scenarios.
 
  - Template metaprogramming. If you have a problem, and you think

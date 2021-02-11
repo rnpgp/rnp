@@ -940,7 +940,7 @@ init_tmpfile_dest(pgp_dest_t *dst, const char *path, bool overwrite)
     int fd = rnp_mkstemp(tmp);
 #endif
     if (fd < 0) {
-        RNP_LOG("failed to create temporary file with tempate '%s'. Error %d.", tmp, errno);
+        RNP_LOG("failed to create temporary file with template '%s'. Error %d.", tmp, errno);
         return RNP_ERROR_WRITE;
     }
     if ((res = init_fd_dest(dst, fd, tmp))) {

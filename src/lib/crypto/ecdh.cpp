@@ -77,7 +77,7 @@ kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER
     uint8_t *buf_ptr = &other_info[0];
 
     /* KDF-OtherInfo: AlgorithmID
-     *   Current implementation will alwyas use SHA-512 and AES-256 for KEK wrapping
+     *   Current implementation will always use SHA-512 and AES-256 for KEK wrapping
      */
     *(buf_ptr++) = ec_curve->OIDhex_len;
     memcpy(buf_ptr, ec_curve->OIDhex, ec_curve->OIDhex_len);
