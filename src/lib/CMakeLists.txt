@@ -103,7 +103,8 @@ if(OPENSSL_BACKEND)
     crypto/ecdsa.cpp
     crypto/eddsa.cpp
     crypto/elgamal.cpp
-    crypto/hash.cpp
+    crypto/hash_ossl.cpp
+    crypto/hash_crc24.cpp
     crypto/mpi.cpp
     crypto/rng.cpp
     crypto/rsa.cpp
