@@ -88,7 +88,7 @@ typedef struct rnp_symmetric_pass_info_t {
  *  - filename, filemtime, zalg, zlevel : only for attached signatures, see previous
  *
  *  For data decryption and/or verification there is not much of fields:
- *  - discard: dicard the output data (i.e. just decrypt and/or verify signatures)
+ *  - discard: discard the output data (i.e. just decrypt and/or verify signatures)
  *
  */
 

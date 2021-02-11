@@ -1085,7 +1085,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             }
             break;
         default:
-            RNP_LOG("uknown pk alg : %d", (int) key.alg);
+            RNP_LOG("unknown pk alg : %d", (int) key.alg);
             return RNP_ERROR_BAD_PARAMETERS;
         }
 
@@ -1216,7 +1216,7 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
         body.add(key.material.eg.x);
         break;
     default:
-        RNP_LOG("uknown pk alg : %d", (int) key.alg);
+        RNP_LOG("unknown pk alg : %d", (int) key.alg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
@@ -1916,7 +1916,7 @@ pgp_key_pkt_t::fill_hashed_data()
 bool
 pgp_key_pkt_t::equals(const pgp_key_pkt_t &key, bool pubonly) const noexcept
 {
-    /* check tag. We allow public/secret key comparision here */
+    /* check tag. We allow public/secret key comparison here */
     if (pubonly) {
         if (is_subkey_pkt(tag) && !is_subkey_pkt(key.tag)) {
             return false;

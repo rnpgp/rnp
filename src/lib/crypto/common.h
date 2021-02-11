@@ -30,7 +30,7 @@
 /* base */
 #include "mpi.h"
 #include "rng.h"
-/* assymmetric crypto */
+/* asymmetric crypto */
 #include "rsa.h"
 #include "dsa.h"
 #include "elgamal.h"

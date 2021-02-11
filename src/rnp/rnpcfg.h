@@ -76,7 +76,7 @@
 #define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
 #define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
-    "disable_keystore"              /* indicates wether keystore must be initialized */
+    "disable_keystore"              /* indicates whether keystore must be initialized */
 #define CFG_FORCE "force"           /* force command to succeed operation */
 #define CFG_SECRET "secret"         /* indicates operation on secret key */
 #define CFG_WITH_SIGS "with-sigs"   /* list keys with signatures */
@@ -155,7 +155,7 @@ class rnp_cfg {
     /** @brief get hash algorithm */
     const std::string get_hashalg() const;
     /** @brief copy or override a configuration.
-     *  @param src vals will be overriden (if key exist) or copied (if not) from this object
+     *  @param src vals will be overridden (if key exist) or copied (if not) from this object
      */
     void copy(const rnp_cfg &src);
     void clear();
@@ -176,7 +176,7 @@ class rnp_cfg {
  *  - 60000 : number of seconds
  *
  *  @param s [in] NULL-terminated string with the date
- *  @param t [out] On successfull return result will be placed here
+ *  @param t [out] On successful return result will be placed here
  *  @return expiration time in seconds
  */
 uint64_t get_expiration(const char *s);

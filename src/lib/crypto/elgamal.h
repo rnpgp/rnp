@@ -114,7 +114,7 @@ rnp_result_t elgamal_decrypt_pkcs1(rng_t *                   rng,
  *
  * @returns RNP_ERROR_BAD_PARAMETERS wrong parameters provided
  *          RNP_ERROR_GENERIC internal error
- *          RNP_SUCCESS key generated and coppied to `seckey'
+ *          RNP_SUCCESS key generated and copied to `seckey'
  */
 rnp_result_t elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits);
 #endif
