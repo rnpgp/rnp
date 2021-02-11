@@ -32,6 +32,9 @@ find_package(ZLIB REQUIRED)
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
 find_package(Botan2 2.14.0 REQUIRED)
+if (OPENSSL_BACKEND)
+  find_package(OpenSSL 1.1.1 REQUIRED)
+endif()
 
 # generate a config.h
 include(CheckIncludeFileCXX)
@@ -91,6 +94,46 @@ foreach(feature ${_botan_required_features})
 endforeach()
 set(CMAKE_REQUIRED_INCLUDES)
 
+if(OPENSSL_BACKEND)
+  set(CRYPTO_SOURCES
+    crypto/bn.cpp
+    crypto/dsa.cpp
+    crypto/ec.cpp
+    crypto/ecdh.cpp
+    crypto/ecdsa.cpp
+    crypto/eddsa.cpp
+    crypto/elgamal.cpp
+    crypto/hash.cpp
+    crypto/mpi.cpp
+    crypto/rng.cpp
+    crypto/rsa.cpp
+    crypto/s2k.cpp
+    crypto/sm2.cpp
+    crypto/symmetric.cpp
+    crypto/signatures.cpp
+    crypto/mem.cpp
+  )
+else()
+  set(CRYPTO_SOURCES
+    crypto/bn.cpp
+    crypto/dsa.cpp
+    crypto/ec.cpp
+    crypto/ecdh.cpp
+    crypto/ecdsa.cpp
+    crypto/eddsa.cpp
+    crypto/elgamal.cpp
+    crypto/hash.cpp
+    crypto/mpi.cpp
+    crypto/rng.cpp
+    crypto/rsa.cpp
+    crypto/s2k.cpp
+    crypto/sm2.cpp
+    crypto/symmetric.cpp
+    crypto/signatures.cpp
+    crypto/mem.cpp
+  )
+endif()
+
 add_library(librnp-obj OBJECT
   # librepgp
   ../librepgp/stream-armor.cpp
@@ -109,22 +152,10 @@ add_library(librnp-obj OBJECT
   ../librekey/key_store_pgp.cpp
   ../librekey/rnp_key_store.cpp
 
-  crypto/bn.cpp
-  crypto/dsa.cpp
-  crypto/ec.cpp
-  crypto/ecdh.cpp
-  crypto/ecdsa.cpp
-  crypto/eddsa.cpp
-  crypto/elgamal.cpp
-  crypto/hash.cpp
-  crypto/mpi.cpp
-  crypto/rng.cpp
-  crypto/rsa.cpp
-  crypto/s2k.cpp
-  crypto/sm2.cpp
-  crypto/symmetric.cpp
-  crypto/signatures.cpp
-  crypto/mem.cpp
+  # cryptography
+  ${CRYPTO_SOURCES}
+
+  # other sources
   crypto.cpp
   fingerprint.cpp
   generate-key.cpp
@@ -153,6 +184,10 @@ target_link_libraries(librnp-obj
     Botan2::Botan2
     JSON-C::JSON-C
 )
+if (OPENSSL_BACKEND)
+  target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
+endif()
+
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
   target_link_libraries(librnp-obj PRIVATE BZip2::BZip2)
