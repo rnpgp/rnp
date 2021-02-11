@@ -52,7 +52,6 @@ const char *pgp_hash_name_botan(const pgp_hash_alg_t alg);
 
 bool   pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg);
 bool   pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src);
-void   pgp_hash_add_int(pgp_hash_t *hash, unsigned n, size_t bytes);
 int    pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len);
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
 
@@ -61,8 +60,6 @@ const char *pgp_hash_name(const pgp_hash_t *hash);
 pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t *hash);
 
 pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
-
-unsigned pgp_is_hash_alg_supported(const pgp_hash_alg_t *);
 
 const char *pgp_show_hash_alg(uint8_t);
 
