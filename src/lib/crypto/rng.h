@@ -66,7 +66,7 @@ bool rng_init(rng_t *ctx, rng_type_t rng_type);
 void rng_destroy(rng_t *ctx);
 
 /*
- *  @brief  Used to retrieve random data. First successfull completition
+ *  @brief  Used to retrieve random data. First successful completion
  *          of this function initializes memory in `ctx' which
  *          needs to be released with `rng_destroy'.
  *
@@ -99,7 +99,7 @@ struct botan_rng_struct *rng_handle(rng_t *);
  * @param   data[out] Output buffer storing random data
  * @param   data_len length of data to be generated
  *
- * @returs  true one success, otherwise false
+ * @return  true one success, otherwise false
  */
 bool rng_generate(uint8_t *data, size_t data_len);
 

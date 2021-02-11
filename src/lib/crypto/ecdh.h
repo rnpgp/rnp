@@ -97,7 +97,7 @@ rnp_result_t ecdh_encrypt_pkcs5(rng_t *                  rng,
  * @param wrapped_key session key wrapped with some AES as specified
  *        in RFC 3394
  * @param wrapped_key_len length of the `wrapped_key' buffer
- * @param ephemeral_key public ephemeral ECDH key comming from
+ * @param ephemeral_key public ephemeral ECDH key coming from
  *        encrypted packet.
  * @param seckey secret key to be used for decryption
  * @param fingerprint fingerprint of the key

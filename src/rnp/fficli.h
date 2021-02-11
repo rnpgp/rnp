@@ -55,7 +55,7 @@ typedef enum cli_search_flags_t {
 } cli_search_flags_t;
 
 /**
- * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring pathes, types and
+ * @brief Set keystore parameters to the rnp_cfg_t. This includes keyring paths, types and
  *        default key.
  *
  * @param cfg pointer to the allocated rnp_cfg_t structure

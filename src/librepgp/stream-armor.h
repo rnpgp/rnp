@@ -55,14 +55,14 @@ rnp_result_t init_armored_dst(pgp_dest_t *      dst,
                               pgp_dest_t *      writedst,
                               pgp_armored_msg_t msgtype);
 
-/* @brief Dearmor the source, outputing binary data
+/* @brief Dearmor the source, outputting binary data
  * @param src initialized source with armored data
  * @param dst initialized dest to write binary data to
  * @return RNP_SUCCESS on success or error code otherwise
  **/
 rnp_result_t rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst);
 
-/* @brief Armor the source, outputing base64-encoded data with headers
+/* @brief Armor the source, outputting base64-encoded data with headers
  * @param src initialized source with binary data
  * @param dst destination to write armored data
  * @msgtype type of the message, to write correct armor headers

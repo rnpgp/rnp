@@ -39,7 +39,7 @@
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
- *          Partially based on ERR34-C from SEI CERT C Coding Standarad
+ *          Partially based on ERR34-C from SEI CERT C Coding Standard
  *
  * @param   fp          pointer to opened pipe
  * @param   result[out] result read from file pointer and converted to int

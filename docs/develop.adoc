@@ -68,7 +68,7 @@ history of `master`, depending on how they are merged.
 * Each commit should be buildable and should pass all tests. This helps
   to ensure that git bisect remains a useful method of pinpointing issues.
 * Commit messages should follow 50/72 rule.
-* When integrating pull requests, merge function should be prefered over
+* When integrating pull requests, merge function should be preferred over
   squashing. From the other hand, developers should squash commits and
   create meaningful commit stack before PR is merged into mainstream branch.
   Merging commits like "Fix build" or "Implement comments from code review"
@@ -277,7 +277,7 @@ cd rnp
 docker run --rm -v $PWD:/rnp -w /rnp clang-format clang-format -style=file -i src/lib/crypto/bn.cpp
 --
 
-Also you may wish to reformat all modified uncommited files:
+Also you may wish to reformat all modified uncommitted files:
 
 [source,console]
 --
@@ -388,7 +388,7 @@ Comments should use doxygen markdown style, like the following example:
  *  @file
  */
 
-/** brief description of the sample function which does something, keyword 'brief' is ommitted
+/** brief description of the sample function which does something, keyword 'brief' is omitted
  *  Which may be continued here
  *
  *  After an empty line you may add detailed description in case it is needed. You may put
@@ -414,7 +414,7 @@ During development you'll need to reference OpenPGP protocol and related documen
 Here is the list of RFCs and Internet Drafts available at the moment:
 
 * https://www.ietf.org/rfc/rfc1991.txt[RFC 1991]: PGP Message Exchange Formats. Now obsolete, but may have some historical interest.
-* https://www.ietf.org/rfc/rfc2440.txt[RFC 2440]: OpenPGP Message Format. Superceded by RFC 4880.
+* https://www.ietf.org/rfc/rfc2440.txt[RFC 2440]: OpenPGP Message Format. Superseded by RFC 4880.
 * https://www.ietf.org/rfc/rfc4880.txt[RFC 4880]: OpenPGP Message Format. Latest RFC available at the moment, however has a lot of suggested changes via RFC 4880bis
 * https://tools.ietf.org/rfc/rfc5581.txt[RFC 5581]: The Camellia cipher in OpenPGP.
 * https://www.ietf.org/id/draft-ietf-openpgp-rfc4880bis-09.txt[RFC 4880bis-09]: OpenPGP Message Format. Latest suggested update to the RFC 4880.
