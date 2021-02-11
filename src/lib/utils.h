@@ -126,7 +126,7 @@ void rnp_clear_debug();
 /* Load little-endian 32-bit from y to x in portable fashion */
 
 inline void
-LOAD32LE(uint32_t &x, uint8_t y[4])
+LOAD32LE(uint32_t &x, const uint8_t y[4])
 {
     x = (static_cast<uint32_t>(y[3]) << 24) | (static_cast<uint32_t>(y[2]) << 16) |
         (static_cast<uint32_t>(y[1]) << 8) | (static_cast<uint32_t>(y[0]) << 0);
