@@ -55,6 +55,7 @@ option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
+option(OPENSSL_BACKEND "Use OpenSSL backend instead of Botan.")
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
