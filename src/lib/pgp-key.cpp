@@ -1909,7 +1909,7 @@ pgp_key_t::is_signer(const pgp_subsig_t &sig) const
 bool
 pgp_key_t::is_expired(const pgp_subsig_t &sig) const
 {
-    /* key expiration: absense of subpkt or 0 means it never expires */
+    /* key expiration: absence of subpkt or 0 means it never expires */
     uint32_t expiration = sig.sig.key_expiration();
     if (!expiration) {
         return false;
