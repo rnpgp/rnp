@@ -31,6 +31,10 @@
 #include <limits.h>
 #include <rnp/rnp_export.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define RNP_MSG(msg) (void) fprintf(stdout, msg);
 
 // TODO: It is currently necessary to mark this with RNP_API, but this should
@@ -221,5 +225,9 @@ getenv_logname(void)
     }
     return name;
 }
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif
