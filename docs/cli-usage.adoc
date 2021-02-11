@@ -89,7 +89,7 @@ This type of file can be verified by:
 * `rnp --verify --homedir=${keyringdir} ${filename}.gpg`
 
 
-=== Signing in binary detatched format
+=== Signing in binary detached format
 
 [source,console]
 ----

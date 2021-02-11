@@ -32,7 +32,7 @@
 
 /**
  * @brief Add signature fields to the hash context and finish it.
- * @param hash initialized hash context feeded with signed data (document, key, etc).
+ * @param hash initialized hash context fed with signed data (document, key, etc).
  *             It is finalized in this function.
  * @param sig populated or loaded signature
  * @param hbuf buffer to store the resulting hash. Must be large enough for hash output.

@@ -282,7 +282,7 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
       {PGP_CURVE_NIST_P_256, 32}, {PGP_CURVE_NIST_P_384, 48}, {PGP_CURVE_NIST_P_521, 64}};
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
-        // Generate test data. Mainly to make valgrind not to complain about unitialized data
+        // Generate test data. Mainly to make valgrind not to complain about uninitialized data
         assert_true(rng_get_data(&global_rng, message, sizeof(message)));
 
         pgp_ec_signature_t         sig = {{{0}}};

@@ -45,7 +45,7 @@ rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
                           const pgp_ec_key_t *      key);
 
 /*
- * @brief   Returns hash wich should be used with the curve
+ * @brief   Returns hash which should be used with the curve
  *
  * @param   curve Curve ID
  *

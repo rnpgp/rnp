@@ -366,7 +366,7 @@ rnp_key_store_kbx_parse_blob(uint8_t *image, uint32_t image_len)
         // current we doesn't parse X509 blob, so, keep it as is
         bloblen = sizeof(kbx_blob_t);
         break;
-    // unsuported blob type
+    // unsupported blob type
     default:
         RNP_LOG("Unsupported blob type: %d", (int) type);
         return NULL;

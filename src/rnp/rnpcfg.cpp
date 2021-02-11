@@ -267,7 +267,7 @@ const std::string &
 rnp_cfg::get_str(const std::string &key, size_t idx) const
 {
     if (get_count(key) <= idx) {
-        RNP_LOG("idx is out fo bounds for \"%s\"", key.c_str());
+        RNP_LOG("idx is out of bounds for \"%s\"", key.c_str());
         throw std::invalid_argument("idx");
     }
     const rnp_cfg_list_val *val = dynamic_cast<const rnp_cfg_list_val *>(vals_.at(key));
@@ -358,7 +358,7 @@ rnp_cfg::~rnp_cfg()
  * @brief Grabs date from the string in %Y-%m-%d format
  *
  * @param s [in] NULL-terminated string with the date
- * @param t [out] On successfull return result will be placed here
+ * @param t [out] On successful return result will be placed here
  * @return true on success or false otherwise
  */
 

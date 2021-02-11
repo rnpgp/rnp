@@ -335,7 +335,7 @@ rnp_result_t init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len);
 void mem_dest_discard_overflow(pgp_dest_t *dst, bool discard);
 
 /** @brief get the pointer to the memory where data is written.
- *  Do not retain the result, it may change betweeen calls due to realloc
+ *  Do not retain the result, it may change between calls due to realloc
  *  @param dst pre-allocated and initialized memory dest
  *  @return pointer to the memory area or NULL if memory was not allocated
  **/

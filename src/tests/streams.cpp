@@ -1482,7 +1482,7 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n11111%s\n", HDR, b64, CRC, FTR);
     assert_false(try_dearmor(msg, len));
 
-    /* cuted out or extended b64 padding */
+    /* cut out or extended b64 padding */
     len = snprintf(msg, sizeof(msg), "%s\n\n%.*s\n%s\n%s\n", HDR, b64len - 1, b64, CRC, FTR);
     assert_false(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%.*s\n%s\n%s\n", HDR, b64len - 2, b64, CRC, FTR);
