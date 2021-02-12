@@ -54,6 +54,7 @@ add_executable(rnp
   rnp.cpp
   fficli.cpp
   ../rnpkeys/tui.cpp
+  ../lib/log-switch.cpp
   rnpcfg.cpp
   $<TARGET_OBJECTS:rnp-common>
 )

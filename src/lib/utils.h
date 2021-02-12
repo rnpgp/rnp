@@ -33,9 +33,7 @@
 
 #define RNP_MSG(msg) (void) fprintf(stdout, msg);
 
-// TODO: It is currently necessary to mark this with RNP_API, but this should
-// be removed at some point since it is not part of the public API.
-RNP_API bool rnp_log_switch();
+bool rnp_log_switch();
 void         set_rnp_log_switch(int8_t);
 
 #define RNP_LOG_FD(fd, ...)                                                  \
