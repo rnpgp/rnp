@@ -43,10 +43,9 @@ def setup(workdir):
     RNP = rnp_file_path('src/rnp/rnp')
     RNPK = rnp_file_path('src/rnpkeys/rnpkeys')
     GPG = find_utility('gpg')
-    WORKDIR = os.getcwd()
     if workdir:
         WORKDIR = workdir
-    elif not '/tmp/' in WORKDIR:
+    else:
         WORKDIR = tempfile.mkdtemp(prefix = 'rnpptmp')
         RMWORKDIR = True
 
