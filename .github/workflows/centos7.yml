@@ -134,7 +134,7 @@ jobs:
             fi
           fi
           # build an example using pkg-config
-          gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp-0) $gccflags
+          gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
           ./generate
           readelf -d generate
           if [ $BUILD_SHARED_LIBS == "yes" ]; then
