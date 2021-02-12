@@ -62,7 +62,7 @@
 
 static const char *rnp_prog_name = NULL;
 
-static const char *usage = "--help OR\n"
+static const char *usage = "-h, --help OR\n"
                            "\t--encrypt [--output=file] [options] files... OR\n"
                            "\t-c, --symmetric [--output=file] [options] files...OR\n"
                            "\t--decrypt [--output=file] [options] files... OR\n"
