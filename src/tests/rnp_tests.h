@@ -444,6 +444,7 @@ void test_fuzz_verify_detached(void **state);
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
 #define assert_int_equal(a, b) EXPECT_EQ((a), (b))
 #define assert_int_not_equal(a, b) EXPECT_NE((a), (b))
+#define assert_greater_than(a, b) EXPECT_GT((a), (b))
 #define assert_non_null(a) EXPECT_NE((a), nullptr)
 #define assert_null(a) EXPECT_EQ((a), nullptr)
 #define assert_rnp_success(a) EXPECT_EQ((a), RNP_SUCCESS)
