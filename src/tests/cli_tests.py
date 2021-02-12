@@ -747,10 +747,8 @@ def setup(loglvl):
     global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR, GPGHOME, GPGCONF
     logging.basicConfig(stream=sys.stderr, format="%(message)s")
     logging.getLogger().setLevel(loglvl)
-    WORKDIR = os.getcwd()
-    if not '/tmp/' in WORKDIR:
-        WORKDIR = tempfile.mkdtemp(prefix='rnpctmp')
-        RMWORKDIR = True
+    WORKDIR = tempfile.mkdtemp(prefix='rnpctmp')
+    RMWORKDIR = True
 
     logging.info('Running in ' + WORKDIR)
 
