@@ -133,6 +133,6 @@ cmake --install .
 ----
 
 Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that
-librnp-0.dll, botan.dll, bz2.dll, getopt.dll, json-c.dll and zlib1.dll are on path
+librnp.dll, botan.dll, bz2.dll, getopt.dll, json-c.dll and zlib1.dll are on path
 or in the same folder as well as all dependencies.
-You may check dependenices and their paths via ntldd.exe in MSYS command prompt. 
+You may check dependenices and their paths via ntldd.exe in MSYS command prompt.
