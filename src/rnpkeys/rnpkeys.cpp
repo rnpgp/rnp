@@ -51,7 +51,7 @@
 
 extern const char *rnp_keys_progname;
 
-const char *usage = "--help OR\n"
+const char *usage = "-h, --help OR\n"
                     "\t--export-key [options] OR\n"
                     "\t--export-rev [options] OR\n"
                     "\t--revoke-key [options] OR\n"
