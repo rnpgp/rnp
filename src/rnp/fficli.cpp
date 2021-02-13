@@ -1081,6 +1081,14 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         ERR_MSG("Failed to set key curve.");
         goto done;
     }
+    if (cfg.has(CFG_KG_PRIMARY_EXPIRATION)) {
+        uint32_t expiration = 0;
+        if (get_expiration(cfg.get_cstr(CFG_KG_PRIMARY_EXPIRATION), &expiration) ||
+            rnp_op_generate_set_expiration(genkey, expiration)) {
+            ERR_MSG("Failed to set primary key expiration.");
+            goto done;
+        }
+    }
     // TODO : set DSA qbits
     if (rnp_op_generate_set_hash(genkey, cfg.get_cstr(CFG_KG_HASH))) {
         ERR_MSG("Failed to set hash algorithm.");
@@ -1114,6 +1122,14 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         rnp_op_generate_set_curve(genkey, cfg.get_cstr(CFG_KG_SUBKEY_CURVE))) {
         ERR_MSG("Failed to set subkey curve.");
         goto done;
+    }
+    if (cfg.has(CFG_KG_SUBKEY_EXPIRATION)) {
+        uint32_t expiration = 0;
+        if (get_expiration(cfg.get_cstr(CFG_KG_SUBKEY_EXPIRATION), &expiration) ||
+            rnp_op_generate_set_expiration(genkey, expiration)) {
+            ERR_MSG("Failed to set subkey expiration.");
+            goto done;
+        }
     }
     // TODO : set DSA qbits
     if (rnp_op_generate_set_hash(genkey, cfg.get_cstr(CFG_KG_HASH))) {
@@ -2242,7 +2258,12 @@ cli_rnp_sign(const rnp_cfg &cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t
         goto done;
     }
     rnp_op_sign_set_creation_time(op, get_creation(cfg.get_cstr(CFG_CREATION)));
-    rnp_op_sign_set_expiration_time(op, get_expiration(cfg.get_cstr(CFG_EXPIRATION)));
+    {
+        uint32_t expiration = 0;
+        if (!get_expiration(cfg.get_cstr(CFG_EXPIRATION), &expiration)) {
+            rnp_op_sign_set_expiration_time(op, expiration);
+        }
+    }
 
     /* signing keys */
     signers = cfg.get_list(CFG_SIGNERS);
@@ -2351,7 +2372,10 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     /* adding signatures if encrypt-and-sign is used */
     if (cfg.get_bool(CFG_SIGN_NEEDED)) {
         rnp_op_encrypt_set_creation_time(op, get_creation(cfg.get_cstr(CFG_CREATION)));
-        rnp_op_encrypt_set_expiration_time(op, get_expiration(cfg.get_cstr(CFG_EXPIRATION)));
+        uint32_t expiration;
+        if (!get_expiration(cfg.get_cstr(CFG_EXPIRATION), &expiration)) {
+            rnp_op_encrypt_set_expiration_time(op, expiration);
+        }
 
         /* signing keys */
         std::vector<std::string> keynames = cfg.get_list(CFG_SIGNERS);

@@ -72,6 +72,7 @@ const char *usage = "-h, --help OR\n"
                     "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
+                    "\t[--expiration=<expiration>] AND/OR\n"
                     "\t[--rev-type, --rev-reason] AND/OR\n"
                     "\t[--verbose]\n";
 
@@ -110,6 +111,7 @@ struct option options[] = {
   {"numbits", required_argument, NULL, OPT_NUMBITS},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
+  {"expiration", required_argument, NULL, OPT_EXPIRATION},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"password", required_argument, NULL, OPT_PASSWD},
@@ -519,6 +521,10 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_int(CFG_S2K_ITER, iterations);
         return true;
     }
+    case OPT_EXPIRATION:
+        cfg.set_str(CFG_KG_PRIMARY_EXPIRATION, arg);
+        cfg.set_str(CFG_KG_SUBKEY_EXPIRATION, arg);
+        return true;
     case OPT_S2K_MSEC: {
         if (!arg) {
             ERR_MSG("No s2k msec argument provided");
