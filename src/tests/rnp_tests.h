@@ -393,6 +393,8 @@ void test_stream_dearmor_edge_cases(void **state);
 
 void test_cli_rnpkeys(void **state);
 
+void test_cli_rnpkeys_genkey(void **state);
+
 void test_cli_rnpkeys_unicode(void **state);
 
 void test_cli_rnp(void **state);
