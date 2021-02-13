@@ -25,6 +25,7 @@ env:
   GPG_VERSION: stable
   SUDO: ""
   USE_STATIC_DEPENDENCIES: yes
+  RNP_LOG_CONSOLE: 1
 
 jobs:
   tests:

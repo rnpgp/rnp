@@ -98,9 +98,11 @@
 #define CFG_KG_PRIMARY_ALG "kg-primary-alg"
 #define CFG_KG_PRIMARY_BITS "kg-primary-bits"
 #define CFG_KG_PRIMARY_CURVE "kg-primary-curve"
+#define CFG_KG_PRIMARY_EXPIRATION "kg-primary-expiration"
 #define CFG_KG_SUBKEY_ALG "kg-subkey-alg"
 #define CFG_KG_SUBKEY_BITS "kg-subkey-bits"
 #define CFG_KG_SUBKEY_CURVE "kg-subkey-curve"
+#define CFG_KG_SUBKEY_EXPIRATION "kg-subkey-expiration"
 #define CFG_KG_HASH "kg-hash"
 #define CFG_KG_PROT_HASH "kg-prot-hash"
 #define CFG_KG_PROT_ALG "kg-prot-alg"
@@ -175,10 +177,13 @@ class rnp_cfg {
  *  - 60000 : number of seconds
  *
  *  @param s [in] NULL-terminated string with the date
- *  @param t [out] On successful return result will be placed here
- *  @return expiration time in seconds
+ *  @param t [out] On successfull return result will be placed here
+ *  @return 0 on success
+ *          -1 on parse error
+ *          -2 if a date in the past was specified
+ *          -3 overflow
  */
-uint64_t get_expiration(const char *s);
+int get_expiration(const char *s, uint32_t *t);
 
 /** @brief Get signature validity start time from the user input
  *
