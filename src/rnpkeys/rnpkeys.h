@@ -45,6 +45,7 @@ typedef enum {
     OPT_SECRET,
     OPT_S2K_ITER,
     OPT_S2K_MSEC,
+    OPT_EXPIRATION,
     OPT_WITH_SIGS,
     OPT_REV_TYPE,
     OPT_REV_REASON,

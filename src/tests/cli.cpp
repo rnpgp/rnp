@@ -26,6 +26,7 @@
 
 #include "rnp_tests.h"
 #include "support.h"
+#include "time-utils.h"
 
 #ifdef HAVE_SYS_WAIT_H
 #include <sys/wait.h>
@@ -77,6 +78,7 @@ call_rnp(const char *cmd, ...)
 }
 
 #define KEYS "data/keyrings"
+#define GENKEYS "data/keyrings_genkey_tmp"
 #define MKEYS "data/test_stream_key_merge/"
 #define FILES "data/test_cli"
 #define G10KEYS "data/test_stream_key_load/g10"
@@ -599,6 +601,181 @@ TEST_F(rnp_tests, test_cli_rnpkeys)
 
     ret = call_rnp("rnpkeys", "--homedir", KEYS "/1", "--list-keys", "zzzzzzzz", NULL);
     assert_int_not_equal(ret, 0);
+}
+
+// check both primary key and subkey for the given userid
+static int
+key_expiration_check(rnp_key_store_t *keystore,
+                     const char *     userid,
+                     uint32_t         expectedExpiration)
+{
+    int res = -1; // not found
+    for (auto &key : keystore->keys) {
+        pgp_key_t *pk;
+        if (key.is_primary()) {
+            pk = &key;
+        } else {
+            assert_true(key.has_primary_fp());
+            pk = rnp_key_store_get_key_by_fpr(keystore, key.primary_fp());
+        }
+        assert_int_equal(pk->uid_count(), 1);
+        auto uid = pk->get_uid(0).str;
+        if (uid != userid) {
+            continue;
+        }
+        auto expiration = key.expiration();
+        if (uid == "expiration_absolute@rnp" || uid == "expiration_beyond2038_absolute@rnp") {
+            auto diff = expectedExpiration < expiration ? expiration - expectedExpiration :
+                                                          expectedExpiration - expiration;
+            // allow 10 minutes diff
+            if (diff < 600) {
+                res = 1;
+            } else {
+                return 0;
+            }
+        } else {
+            if (expectedExpiration == expiration) {
+                res = 1;
+            } else {
+                RNP_LOG(
+                  "key_expiration_check error: userid=%s expectedExpiration=%u expiration=%u",
+                  userid,
+                  expectedExpiration,
+                  expiration);
+                return 0;
+            }
+        }
+    }
+    return res;
+}
+
+static int
+key_generate(const char *homedir, const char *userid, const char *expiration)
+{
+    int ret = call_rnp("rnpkeys",
+                       "--password",
+                       "1234",
+                       "--homedir",
+                       homedir,
+                       "--generate-key",
+                       "--expiration",
+                       expiration,
+                       "--userid",
+                       userid,
+                       "--numbits",
+                       "1024",
+                       NULL);
+    return ret;
+}
+
+TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
+{
+    assert_false(RNP_MKDIR(GENKEYS, S_IRWXU));
+    time_t   basetime = time(NULL);
+    time_t   rawtime = basetime + 604800;
+    time_t   y2k38time = INT32_MAX;
+    uint32_t expected_diff_beyond2038_absolute;
+    if (rnp_y2k38_warning(y2k38time)) {
+        // we're on the system that doesn't support dates beyond y2k38
+        auto diff_to_y2k38 = y2k38time - basetime;
+        expected_diff_beyond2038_absolute = diff_to_y2k38;
+    } else {
+        struct tm tm2100 {
+            0
+        };
+        tm2100.tm_mday = 1;
+        tm2100.tm_year = 200;
+        expected_diff_beyond2038_absolute = mktime(&tm2100) - basetime;
+    }
+    struct tm *timeinfo = localtime(&rawtime);
+    // clear hours, minutes and seconds
+    timeinfo->tm_hour = 0;
+    timeinfo->tm_min = 0;
+    timeinfo->tm_sec = 0;
+    rawtime = mktime(timeinfo);
+    auto exp =
+      fmt("%d-%02d-%02d", timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+
+    // these should fail and not go to the keystore
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_negative@rnp", "-1"), 0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_unrecognized_1@rnp", "1z"), 0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_unrecognized_2@rnp", "now"), 0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_unrecognized_3@rnp", "00000-01-01"),
+                         0);
+    assert_int_not_equal(
+      key_generate(GENKEYS, "expiration_integer_overflow@rnp", "1234567890123456789"), 0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_32bit_overflow@rnp", "4294967296"),
+                         0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_overflow_day@rnp", "2037-02-29"),
+                         0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_overflow_month@rnp", "2037-13-01"),
+                         0);
+    if (!rnp_y2k38_warning(y2k38time)) {
+        assert_int_not_equal(
+          key_generate(GENKEYS, "expiration_overflow_year@rnp", "2337-01-01"), 0);
+    }
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_underflow_day@rnp", "2037-02-00"),
+                         0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_underflow_month@rnp", "2037-00-01"),
+                         0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_underflow_year@rnp", "1800-01-01"),
+                         0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_overflow@rnp", "200y"), 0);
+    assert_int_not_equal(key_generate(GENKEYS, "expiration_past@rnp", "2021-01-01"), 0);
+
+    // these should pass and go to the keystore -- 15 primary keys and 15 subkeys
+    assert_int_equal(key_generate(GENKEYS, "expiration_beyond2038_relative@rnp", "20y"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_beyond2038_absolute@rnp", "2100-01-01"),
+                     0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_absolute@rnp", exp.c_str()), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_max_32bit@rnp", "4294967295"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_max_32bit_h@rnp", "1193046h"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1sec@rnp", "1"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1hour@rnp", "1h"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1day@rnp", "1d"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1week@rnp", "1w"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1month@rnp", "1m"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_1year@rnp", "1y"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2sec@rnp", "2"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2hours@rnp", "2h"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2days@rnp", "2d"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2weeks@rnp", "2w"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2months@rnp", "2m"), 0);
+    assert_int_equal(key_generate(GENKEYS, "expiration_2years@rnp", "2y"), 0);
+
+    auto         keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    pgp_source_t src = {};
+    assert_rnp_success(init_file_src(&src, GENKEYS "/pubring.gpg"));
+    assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));
+    assert_int_equal(rnp_key_store_get_key_count(keystore), 34);
+    src_close(&src);
+    assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit@rnp", 4294967295),
+                     1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit_h@rnp", 4294965600),
+                     1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1sec@rnp", 1), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1hour@rnp", 3600), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1day@rnp", 86400), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1week@rnp", 604800), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1month@rnp", 2678400), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_1year@rnp", 31536000), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2sec@rnp", 2), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2hours@rnp", 7200), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2days@rnp", 172800), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2weeks@rnp", 1209600), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2months@rnp", 5356800), 1);
+    assert_int_equal(key_expiration_check(keystore, "expiration_2years@rnp", 63072000), 1);
+    assert_int_equal(
+      key_expiration_check(keystore, "expiration_absolute@rnp", rawtime - basetime), 1);
+    assert_int_equal(key_expiration_check(keystore,
+                                          "expiration_beyond2038_absolute@rnp",
+                                          expected_diff_beyond2038_absolute),
+                     1);
+    assert_int_equal(
+      key_expiration_check(keystore, "expiration_beyond2038_relative@rnp", 630720000), 1);
+
+    delete keystore;
+    delete_recursively(GENKEYS);
 }
 
 TEST_F(rnp_tests, test_cli_dump)
