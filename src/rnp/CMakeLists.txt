@@ -97,3 +97,5 @@ install(TARGETS rnp
     COMPONENT cli
 )
 
+# Build and install man page
+add_pandoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnp.1.md")

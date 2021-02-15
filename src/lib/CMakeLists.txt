@@ -347,3 +347,6 @@ if (PKG_CONFIG_FOUND)
     COMPONENT development
   )
 endif()
+
+# Build and install man page
+add_pandoc_man("${CMAKE_CURRENT_SOURCE_DIR}/librnp.3.md")
