@@ -97,3 +97,6 @@ install(TARGETS rnpkeys
     DESTINATION "${CMAKE_INSTALL_BINDIR}"
     COMPONENT cli
 )
+
+# Build and install man page
+add_pandoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnpkeys.1.md")
