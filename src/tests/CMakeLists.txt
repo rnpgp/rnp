@@ -180,7 +180,7 @@ gtest_discover_tests(rnp_tests
 
 # ruby-rnp
 # cruby does not currently play nice with ASaN et al.
-if (NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN32)
+if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN32)
   include(ExternalProject)
   set(_sourcedir "${CMAKE_BINARY_DIR}/ruby-rnp")
   if (DEFINED ENV{RUBY_RNP_INSTALL})
