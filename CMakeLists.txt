@@ -53,6 +53,7 @@ project(RNP
 option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
+option(DOWNLOAD_GTEST "Download Googletest" On)
 
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
