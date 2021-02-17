@@ -24,6 +24,7 @@ cmakeopts=(
 )
 [ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
 [ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
+[ -v "DOWNLOAD_GTEST" ] && cmakeopts+=("-DDOWNLOAD_GTEST=$DOWNLOAD_GTEST")
 
 if [[ "$(get_os)" = "msys" ]]; then
   cmakeopts+=("-G" "MSYS Makefiles")
