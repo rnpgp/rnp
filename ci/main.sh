@@ -25,6 +25,7 @@ cmakeopts=(
 [ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
 [ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
 [ -v "DOWNLOAD_GTEST" ] && cmakeopts+=("-DDOWNLOAD_GTEST=$DOWNLOAD_GTEST")
+[ -v "DOWNLOAD_RUBYRNP" ] && cmakeopts+=("-DDOWNLOAD_RUBYRNP=$DOWNLOAD_RUBYRNP")
 
 if [[ "$(get_os)" = "msys" ]]; then
   cmakeopts+=("-G" "MSYS Makefiles")
@@ -48,9 +49,10 @@ make -j${MAKE_PARALLEL} VERBOSE=1 install
 
 # workaround macOS SIP
 if [ "$(get_os)" != "msys" ] && \
-   [ "$BUILD_MODE" != "sanitize" ]; then
+   [ "$BUILD_MODE" != "sanitize" ] && \
+   [ "$(get_os)" = "macos" ]; then
   pushd "$RUBY_RNP_INSTALL"
-  [[ "$(get_os)" = "macos" ]] && cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
+  cp "${RNP_INSTALL}/lib"/librnp* /usr/local/lib
   popd
 fi
 
