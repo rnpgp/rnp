@@ -74,3 +74,31 @@ jobs:
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
+  cmake-disable-rubyrnp:
+    env:
+      DOWNLOAD_RUBYRNP: Off
+      RNP_TESTS: rnp_tests.hash_test_success
+      BUILD_SHARED_LIBS: yes
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Setup environment
+        run: |
+          . ci/gha/setup-env.inc.sh
+      - name: Build
+        run: |
+          set -x
+          ci/before_install.sh
+          . ci/env.inc.sh
+          ./ci/install.sh
+      - name: tests
+        run: |
+          set -x
+          ./ci/run.sh
+          ls -la "${RNP_INSTALL}/lib/"librnp*.so
+          ! ctest -N | grep 'ruby' > /dev/null
+          ! ls -la src/tests/ | grep 'ruby' > /dev/null
