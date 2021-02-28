@@ -1497,15 +1497,18 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
     assert_false(try_dearmor(msg, len));
     b64[30] = old;
 
-    /* modified/malformed crc */
+    /* modified/malformed crc (should be accepted now, see #1401) */
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n=miZq\n%s\n", HDR, b64, FTR);
-    assert_false(try_dearmor(msg, len));
+    assert_true(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\nmiZp\n%s\n", HDR, b64, FTR);
     assert_false(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n==miZp\n%s\n", HDR, b64, FTR);
     assert_false(try_dearmor(msg, len));
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n=miZpp\n%s\n", HDR, b64, FTR);
     assert_false(try_dearmor(msg, len));
+    /* missing crc */
+    len = snprintf(msg, sizeof(msg), "%s\n\n%s\n\n%s\n", HDR, b64, FTR);
+    assert_true(try_dearmor(msg, len));
 }
 
 static void
