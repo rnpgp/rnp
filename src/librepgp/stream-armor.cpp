@@ -330,7 +330,6 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             /* reading crc */
             if (!armor_read_crc(src)) {
                 RNP_LOG("wrong crc line");
-                return false;
             }
             /* reading armor trailing line */
             if (!armor_read_trailer(src)) {
@@ -386,7 +385,6 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 
         if (memcmp(param->readcrc, crc_fin, 3)) {
             RNP_LOG("CRC mismatch");
-            return false;
         }
     } else {
         /* few bytes which do not fit to 4 boundary */
