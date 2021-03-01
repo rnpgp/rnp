@@ -62,6 +62,7 @@ typedef struct pgp_source_armored_param_t {
     unsigned brestlen;   /* number of bytes in brest */
     bool     eofb64;     /* end of base64 stream reached */
     uint8_t  readcrc[3]; /* crc-24 from the armored data */
+    bool     has_crc;    /* message contains CRC line */
     pgp_hash_t crc_ctx;  /* CTX used to calculate CRC */
 } pgp_source_armored_param_t;
 
@@ -154,6 +155,8 @@ armor_read_crc(pgp_source_t *src)
     param->readcrc[0] = (dec[0] << 2) | ((dec[1] >> 4) & 0x0F);
     param->readcrc[1] = (dec[1] << 4) | ((dec[2] >> 2) & 0x0F);
     param->readcrc[2] = (dec[2] << 6) | dec[3];
+
+    param->has_crc = true;
 
     src_skip(param->readsrc, 5);
     return src_skip_eol(param->readsrc);
@@ -329,7 +332,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 
             /* reading crc */
             if (!armor_read_crc(src)) {
-                RNP_LOG("wrong crc line");
+                RNP_LOG("Warning: missing or malformed CRC line");
             }
             /* reading armor trailing line */
             if (!armor_read_trailer(src)) {
@@ -383,8 +386,8 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             return false;
         }
 
-        if (memcmp(param->readcrc, crc_fin, 3)) {
-            RNP_LOG("CRC mismatch");
+        if (param->has_crc && memcmp(param->readcrc, crc_fin, 3)) {
+            RNP_LOG("Warning: CRC mismatch");
         }
     } else {
         /* few bytes which do not fit to 4 boundary */
