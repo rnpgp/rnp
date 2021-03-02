@@ -54,6 +54,7 @@
 #include "rnp.h"
 #include "rekey/rnp_key_store.h"
 #include "../rnp/fficli.h"
+#include "file-utils.h"
 
 #ifdef _WIN32
 #define pipe(fds) _pipe(fds, 256, O_BINARY)
