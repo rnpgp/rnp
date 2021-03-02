@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <rnp/rnp.h>
 #include "../lib/pgp-key.h"
 #include "../librekey/key_store_g10.h"
 #include "../librepgp/stream-common.h"

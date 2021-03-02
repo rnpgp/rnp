@@ -56,6 +56,7 @@ add_executable(rnpkeys
   main.cpp
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
+  ../lib/logging.cpp
   $<TARGET_OBJECTS:rnp-common>
 )
 
