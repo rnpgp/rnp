@@ -75,7 +75,6 @@
 
 #include <stdio.h>
 #include <memory>
-#include <rnp/rnp_sdk.h>
 #include <botan/hash.h>
 #include "hash.h"
 #include "types.h"

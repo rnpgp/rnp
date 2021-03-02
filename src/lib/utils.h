@@ -93,6 +93,22 @@
 #define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
 #endif
 
+typedef enum { RNP_HEX_LOWERCASE, RNP_HEX_UPPERCASE } rnp_hex_format_t;
+
+int rnp_strcasecmp(const char *, const char *);
+
+char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
+
+bool rnp_hex_encode(
+  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
+size_t rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+
+char *rnp_strlwr(char *s);
+
+bool hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out);
+
+void pgp_forget(void *, size_t);
+
 /* debugging helpers*/
 void hexdump(FILE *, const char *, const uint8_t *, size_t);
 

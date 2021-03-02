@@ -57,7 +57,6 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <stdlib.h>
 #include <string.h>
 
-#include <rnp/rnp_sdk.h>
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
