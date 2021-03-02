@@ -32,7 +32,6 @@
 #ifndef CRYPTO_HASH_H_
 #define CRYPTO_HASH_H_
 
-#include <rnp/rnp_sdk.h>
 #include <repgp/repgp_def.h>
 #include "types.h"
 #include "list.h"

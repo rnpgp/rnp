@@ -29,7 +29,6 @@
 #include <limits.h>
 #include <time.h>
 
-#include <rnp/rnp_sdk.h>
 #include <botan/ffi.h>
 
 #include <librepgp/stream-packet.h>

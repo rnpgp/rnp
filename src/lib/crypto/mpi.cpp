@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include "mpi.h"
 #include "hash.h"
+#include "utils.h"
 
 bignum_t *
 mpi2bn(const pgp_mpi_t *val)

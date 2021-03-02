@@ -25,7 +25,6 @@
  */
 
 #include "rnp_tests.h"
-#include <rnp/rnp_sdk.h>
 
 TEST_F(rnp_tests, test_utils_hex2bin)
 {

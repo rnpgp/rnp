@@ -57,7 +57,6 @@
 #include "crypto/s2k.h"
 #include "fingerprint.h"
 
-#include <rnp/rnp_sdk.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>

@@ -40,7 +40,6 @@
 
 #include "rnpcfg.h"
 #include "defaults.h"
-#include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 
 // must be placed after include "utils.h"
