@@ -29,24 +29,6 @@
 #include <stdint.h>
 #include "rnp_err.h"
 
-/* The dot directory relative to the user's home directory where keys
- * are stored.
- *
- * TODO: Consider making this an overridable config setting.
- *
- * TODO: For now the dot dot directory is .rnp to prevent competition with
- *       developers' .gnupg installations.
- */
-
-#define SUBDIRECTORY_GNUPG ".gnupg"
-#define SUBDIRECTORY_RNP ".rnp"
-#define PUBRING_KBX "pubring.kbx"
-#define SECRING_KBX "secring.kbx"
-#define PUBRING_GPG "pubring.gpg"
-#define SECRING_GPG "secring.gpg"
-#define PUBRING_G10 "public-keys-v1.d"
-#define SECRING_G10 "private-keys-v1.d"
-
 #define MAX_PASSWORD_ATTEMPTS 3
 #define INFINITE_ATTEMPTS -1
 

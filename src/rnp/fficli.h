@@ -159,4 +159,13 @@ void rnp_win_clear_args(int argc, char **argv);
 #define EXT_PGP (".pgp")
 #define EXT_GPG (".gpg")
 
+#define SUBDIRECTORY_GNUPG ".gnupg"
+#define SUBDIRECTORY_RNP ".rnp"
+#define PUBRING_KBX "pubring.kbx"
+#define SECRING_KBX "secring.kbx"
+#define PUBRING_GPG "pubring.gpg"
+#define SECRING_GPG "secring.gpg"
+#define PUBRING_G10 "public-keys-v1.d"
+#define SECRING_G10 "private-keys-v1.d"
+
 #endif
