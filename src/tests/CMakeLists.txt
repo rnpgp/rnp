@@ -64,6 +64,10 @@ endif()
 find_package(JSON-C 0.11 REQUIRED)
 # We do not link against Botan, but need headers.
 find_package(Botan2 2.14.0 REQUIRED)
+if (OPENSSL_BACKEND)
+  find_package(OpenSSL 1.1.1 REQUIRED)
+endif()
+
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
@@ -162,6 +166,9 @@ target_link_libraries(rnp_tests
     JSON-C::JSON-C
     ${GTestMain}
 )
+if (OPENSSL_BACKEND)
+  target_link_libraries(rnp_tests PRIVATE OpenSSL::Crypto)
+endif()
 if (WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
   target_link_libraries(rnp_tests PRIVATE regex)
 elseif(MSVC)

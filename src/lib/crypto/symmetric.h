@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017, 2021 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -53,6 +53,10 @@
 #define SYMMETRIC_CRYPTO_H_
 
 #include "crypto/rng.h"
+#include "config.h"
+#ifdef OPENSSL_BACKEND
+#include <openssl/evp.h>
+#endif
 
 /* Nonce len for AEAD/EAX */
 #define PGP_AEAD_EAX_NONCE_LEN 16
@@ -76,13 +80,19 @@
 #define PGP_AEAD_MAX_AD_LEN 32
 
 struct pgp_crypt_cfb_param_t {
+#ifndef OPENSSL_BACKEND
     struct botan_block_cipher_struct *obj;
+#else
+    EVP_CIPHER_CTX *obj;
+#endif
     size_t                            remaining;
     uint8_t                           iv[PGP_MAX_BLOCK_SIZE];
 };
 
 struct pgp_crypt_aead_param_t {
+#ifndef OPENSSL_BACKEND
     struct botan_cipher_struct *obj;
+#endif
     pgp_aead_alg_t              alg;
     bool                        decrypt;
     size_t                      granularity;
