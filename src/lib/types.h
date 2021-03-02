@@ -68,6 +68,12 @@
 /* Maximum length of the packet header */
 #define PGP_MAX_HEADER_SIZE 6
 
+/* Maximum supported userid length */
+#define MAX_ID_LENGTH 128
+
+/* Maximum supported password length */
+#define MAX_PASSWORD_LENGTH 256
+
 /** pgp_map_t
  */
 typedef struct {
