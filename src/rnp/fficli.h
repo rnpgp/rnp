@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2021, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -145,8 +145,6 @@ void rnp_win_clear_args(int argc, char **argv);
 #define RNP_KEYID_SIZE 8
 #define RNP_FP_SIZE 20
 #define RNP_GRIP_SIZE 20
-
-#define MAX_PASSWORD_ATTEMPTS 3
 
 #define ERR_MSG(...)                           \
     do {                                       \
