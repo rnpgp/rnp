@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2021, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -59,7 +59,6 @@
 #include <type_traits>
 
 #include <rnp/rnp_def.h>
-#include "list.h"
 #include "crypto/common.h"
 
 /* SHA1 Hash Size */
@@ -85,14 +84,6 @@ typedef struct {
     uint8_t     mask;
     const char *string;
 } pgp_bit_map_t;
-
-typedef struct pgp_crypt_t pgp_crypt_t;
-
-/** pgp_hash_t */
-typedef struct pgp_hash_t pgp_hash_t;
-
-/** Revocation Reason type */
-typedef uint8_t pgp_ss_rr_code_t;
 
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
