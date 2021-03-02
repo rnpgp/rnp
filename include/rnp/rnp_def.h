@@ -35,6 +35,4 @@
 /* rnp_result_t is the type used for return codes from the APIs. */
 typedef uint32_t rnp_result_t;
 
-enum { MAX_ID_LENGTH = 128, MAX_PASSWORD_LENGTH = 256 };
-
 #endif
