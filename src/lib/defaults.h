@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2021, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -60,5 +60,11 @@
 
 /* Default RSA key length */
 #define DEFAULT_RSA_NUMBITS 2048
+
+/* Default maximum password request attempts */
+#define MAX_PASSWORD_ATTEMPTS 3
+
+/* Infinite password request attempts */
+#define INFINITE_ATTEMPTS -1
 
 #endif
