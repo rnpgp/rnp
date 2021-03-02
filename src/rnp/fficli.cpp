@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2021, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -53,6 +53,7 @@
 #include "fficli.h"
 #include "str-utils.h"
 #include "file-utils.h"
+#include "defaults.h"
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX

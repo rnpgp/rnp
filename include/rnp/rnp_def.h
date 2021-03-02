@@ -29,9 +29,6 @@
 #include <stdint.h>
 #include "rnp_err.h"
 
-#define MAX_PASSWORD_ATTEMPTS 3
-#define INFINITE_ATTEMPTS -1
-
 /* rnp_result_t is the type used for return codes from the APIs. */
 typedef uint32_t rnp_result_t;
 
