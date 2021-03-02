@@ -128,6 +128,7 @@ add_library(librnp-obj OBJECT
   fingerprint.cpp
   generate-key.cpp
   key-provider.cpp
+  logging.cpp
   misc.cpp
   pass-provider.cpp
   pgp-key.cpp
