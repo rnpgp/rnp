@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2021 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,6 @@
 #include "types.h"
 #include <limits.h>
 #include "logging.h"
-
-#define RNP_MSG(msg) (void) fprintf(stdout, msg);
 
 #define RNP_DLOG(...)                    \
     if (rnp_get_debug(__FILE__)) {       \
@@ -90,15 +88,6 @@
             }                                                                   \
         }                                                                       \
     } while (0)
-
-/* Formatting helpers */
-#define PRItime "ll"
-
-/* TODO: Review usage of this variable */
-#define RNP_BUFSIZ 8192
-
-/* for silencing unused parameter warnings */
-#define RNP_USED(x) /*LINTED*/ (void) &(x)
 
 #ifndef RNP_CONST_TO_VOID_PTR
 #define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
