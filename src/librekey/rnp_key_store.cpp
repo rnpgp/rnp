@@ -47,7 +47,6 @@
 #include <algorithm>
 #include <stdexcept>
 
-#include <rnp/rnp_sdk.h>
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-packet.h>
 
