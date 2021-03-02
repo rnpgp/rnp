@@ -51,7 +51,6 @@
 #include <time.h>
 #include "config.h"
 #include "fficli.h"
-#include "utils.h"
 #include "str-utils.h"
 #include "file-utils.h"
 
@@ -359,7 +358,7 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
     char *     keyid = NULL;
     char       target[64] = {0};
     char       prompt[128] = {0};
-    char       buffer[MAX_PASSWORD_LENGTH];
+    char *     buffer = NULL;
     bool       ok = false;
     cli_rnp_t *rnp = static_cast<cli_rnp_t *>(app_ctx);
 
@@ -372,6 +371,10 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
         rnp_key_get_keyid(key, &keyid);
         snprintf(target, sizeof(target), "key 0x%s", keyid);
         rnp_buffer_destroy(keyid);
+    }
+    buffer = (char *) calloc(1, buf_len);
+    if (!buffer) {
+        return false;
     }
 start:
     if (!strcmp(pgp_context, "decrypt (symmetric)")) {
@@ -392,7 +395,7 @@ start:
             snprintf(prompt, sizeof(prompt), "Repeat password: ");
         }
 
-        if (!stdin_getpass(prompt, buffer, sizeof(buffer), rnp)) {
+        if (!stdin_getpass(prompt, buffer, buf_len, rnp)) {
             goto done;
         }
         if (strcmp(buf, buffer) != 0) {
@@ -404,7 +407,8 @@ start:
     ok = true;
 done:
     fputs("", rnp->userio_out);
-    rnp_buffer_clear(buffer, sizeof(buffer));
+    rnp_buffer_clear(buffer, buf_len);
+    free(buffer);
     return ok;
 }
 
@@ -1562,7 +1566,7 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
 
 /* read any gpg config file */
 static bool
-conffile(const char *homedir, char *userid, size_t length)
+conffile(const std::string &homedir, std::string &userid)
 {
     char  buf[BUFSIZ];
     FILE *fp;
@@ -1574,7 +1578,7 @@ conffile(const char *homedir, char *userid, size_t length)
     static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
                             std::regex_constants::extended);
 #endif
-    (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir);
+    (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir.c_str());
     if ((fp = rnp_fopen(buf, "r")) == NULL) {
         return false;
     }
@@ -1589,22 +1593,16 @@ conffile(const char *homedir, char *userid, size_t length)
     while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
 #ifndef RNP_USE_STD_REGEX
         if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
-            (void) memcpy(userid,
-                          &buf[(int) matchv[1].rm_so],
-                          MIN((unsigned) (matchv[1].rm_eo - matchv[1].rm_so), length));
-
-            ERR_MSG("rnp: default key set to \"%.*s\"",
-                    (int) (matchv[1].rm_eo - matchv[1].rm_so),
-                    &buf[(int) matchv[1].rm_so]);
+            userid =
+              std::string(&buf[(int) matchv[1].rm_so], matchv[1].rm_eo - matchv[1].rm_so);
+            ERR_MSG("rnp: default key set to \"%s\"", userid.c_str());
         }
 #else
         std::smatch result;
         std::string input = buf;
         if (std::regex_search(input, result, keyre)) {
-            (void) strncpy(userid, result[1].str().c_str(), length - 1);
-            userid[length - 1] = '\0';
-
-            ERR_MSG("rnp: default key set to \"%s\"", userid);
+            userid = result[1].str();
+            ERR_MSG("rnp: default key set to \"%s\"", userid.c_str());
         }
 #endif
     }
@@ -1634,13 +1632,11 @@ rnp_cfg_set_defkey(rnp_cfg &cfg)
     }
     /* also search in config file for default id */
     if (defhomedir) {
-        char id[MAX_ID_LENGTH];
-        memset(id, 0, sizeof(id));
-        conffile(homedir.c_str(), id, sizeof(id));
-        if (id[0]) {
+        std::string id;
+        if (conffile(homedir, id) && !id.empty()) {
             cfg.unset(CFG_USERID);
             cfg.add_str(CFG_USERID, id);
-            cfg.set_str(CFG_KR_DEF_KEY, std::string(id));
+            cfg.set_str(CFG_KR_DEF_KEY, id);
         }
     }
 }
