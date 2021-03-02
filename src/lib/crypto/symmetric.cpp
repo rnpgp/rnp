@@ -52,7 +52,6 @@
 #include "crypto.h"
 #include "config.h"
 #include "defaults.h"
-#include <rnp/rnp_sdk.h>
 
 #include <string.h>
 #include <stdlib.h>

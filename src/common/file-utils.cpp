@@ -54,7 +54,6 @@
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
 #endif
-#include <rnp/rnp_sdk.h>
 #include <stdarg.h>
 
 int
