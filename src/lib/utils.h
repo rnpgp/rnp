@@ -104,13 +104,6 @@
 #define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
 #endif
 
-int rnp_mkdir(const char *path);
-#ifdef _WIN32
-#define RNP_MKDIR(pathname, mode) rnp_mkdir(pathname)
-#else
-#define RNP_MKDIR(pathname, mode) mkdir(pathname, mode)
-#endif
-
 /* debugging helpers*/
 void hexdump(FILE *, const char *, const uint8_t *, size_t);
 

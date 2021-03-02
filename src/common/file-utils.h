@@ -32,11 +32,15 @@
 #include <dirent.h>
 #include <string>
 
+bool    rnp_file_exists(const char *path);
+bool    rnp_dir_exists(const char *path);
 int64_t rnp_filemtime(const char *path);
 int     rnp_open(const char *filename, int oflag, int pmode);
 FILE *  rnp_fopen(const char *filename, const char *mode);
 int     rnp_stat(const char *filename, struct stat *statbuf);
 int     rnp_rename(const char *oldpath, const char *newpath);
+int     rnp_unlink(const char *path);
+
 #ifdef _WIN32
 #define rnp_closedir _wclosedir
 int         rnp_mkdir(const char *path);
@@ -47,6 +51,14 @@ std::string rnp_readdir_name(_WDIR *dir);
 DIR *       rnp_opendir(const char *path);
 std::string rnp_readdir_name(DIR *dir);
 #endif
+#ifdef _WIN32
+#define RNP_MKDIR(pathname, mode) rnp_mkdir(pathname)
+#else
+#define RNP_MKDIR(pathname, mode) mkdir(pathname, mode)
+#endif
+
+char *rnp_compose_path(const char *first, ...);
+char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 
 /** @private
  *  generate a temporary file name based on TMPL.  TMPL must match the
