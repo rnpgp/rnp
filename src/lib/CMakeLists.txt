@@ -110,7 +110,7 @@ if(OPENSSL_BACKEND)
     crypto/rsa.cpp
     crypto/s2k.cpp
     crypto/sm2.cpp
-    crypto/symmetric.cpp
+    crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
   )
