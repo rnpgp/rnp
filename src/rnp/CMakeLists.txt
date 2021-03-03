@@ -98,4 +98,4 @@ install(TARGETS rnp
 )
 
 # Build and install man page
-add_pandoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnp.1.md")
+add_adoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnp.1.md")

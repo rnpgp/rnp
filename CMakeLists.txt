@@ -136,8 +136,8 @@ if (ENABLE_SANITIZERS)
   link_libraries(-fsanitize=leak,address,undefined)
 endif()
 
-# pandoc for man generation
-include(PandocMan)
+# adoc for man generation
+include(AdocMan)
 
 # everything else is in subdirs
 add_subdirectory(src/examples)

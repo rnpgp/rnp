@@ -22,35 +22,35 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-#.rst:
-# add_pandoc_man
+#.adoc:
+# add_adoc_man
 # -----------
 #
-# Convert markdown manual page to troff, using the pandoc, and install it via the custom target.
+# Convert adoc manual page to troff, using asciidoctor, and install it via the custom target.
 #
 # Parameters
 # ^^^^^^^^^^
-# Required parameter is source with markdown file. Must have md extension with man category prepended, i.e. something like ${CMAKE_SOURCE_DIR}/src/utility.1.md
+# Required parameter is source with markdown file. Must have md extension with man category prepended, i.e. something like ${CMAKE_SOURCE_DIR}/src/utility.1.adoc
 # DST - optional parameter, which overrides where generated man will be stored.
 # If not specified then will be automatically set to ${CMAKE_BINARY_DIR}/src/utility.1
-# 
+#
 # Generated man page will be installed via the target, named man_utility
 #
 
-set(PANDOC_FOUND 0)
-find_program(PANDOC_PATH
-  NAMES pandoc
-  DOC "Path to the pandoc application. Used to generate man pages from the markdown."
+set(ADOCCOMMAND_FOUND 0)
+find_program(ADOCCOMMAND_PATH
+  NAMES asciidoctor
+  DOC "Path to asciidoctor. Used to generate man pages from AsciiDoc."
 )
 
-if(NOT EXISTS ${PANDOC_PATH})
-  message(WARNING "Pandoc not found, man pages will not be generated. Install pandoc or use CMAKE_PROGRAM_PATH variable.")
+if(NOT EXISTS ${ADOCCOMMAND_PATH})
+  message(WARNING "asciidoctor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
 else()
-  set(PANDOC_FOUND 1)
+  set(ADOCCOMMAND_FOUND 1)
 endif()
 
-function(add_pandoc_man SRC)
-  if (NOT ${PANDOC_FOUND})
+function(add_adoc_man SRC)
+  if (NOT ${ADOCCOMMAND_FOUND})
     return()
   endif()
 
@@ -70,9 +70,9 @@ function(add_pandoc_man SRC)
   get_filename_component(FULL_EXT ${SRC} EXT)
   string(SUBSTRING ${FULL_EXT} 1 -1 FULL_EXT)
   get_filename_component(MD_EXT ${FULL_EXT} EXT)
-  string(COMPARE EQUAL ${MD_EXT} ".md" _equal)
+  string(COMPARE EQUAL ${MD_EXT} ".adoc" _equal)
   if (NOT _equal)
-    message(FATAL_ERROR "SRC must have .md extension.")
+    message(FATAL_ERROR "SRC must have .adoc extension.")
   endif()
   # man number
   get_filename_component(MAN_NUM ${FULL_EXT} NAME_WE)
@@ -91,10 +91,10 @@ function(add_pandoc_man SRC)
     string(SUBSTRING ${SRC} 0 ${CMAKE_SRC_LEN} SRC_PREFIX)
     string(COMPARE EQUAL ${CMAKE_SOURCE_DIR} ${SRC_PREFIX} _equal)
     if (NOT _equal)
-      message(FATAL_ERROR "Cannot build DST path as SRC is out of CMake sources dir.")
+      message(FATAL_ERROR "Cannot build DST path as SRC is outside of the CMake sources dir.")
     endif()
-    
-    # Strip '.md' from the output subpath
+
+    # Strip '.adoc' from the output subpath
     string(LENGTH ${SRC} SRC_LEN)
     math(EXPR SUFFIX_LEN "${SRC_LEN} - ${CMAKE_SRC_LEN} - 3")
     string(SUBSTRING ${SRC} ${CMAKE_SRC_LEN} ${SUFFIX_LEN} SRC_SUFFIX)
@@ -103,7 +103,7 @@ function(add_pandoc_man SRC)
 
   add_custom_command(
     OUTPUT ${DST}
-    COMMAND ${PANDOC_PATH} -s -t man ${SRC} -o ${DST}
+    COMMAND ${ADOCCOMMAND_PATH} -s -t man ${SRC} -o ${DST}
     DEPENDS ${SRC}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating man page ${FILE_NAME}.${MAN_NUM}"
@@ -114,4 +114,4 @@ function(add_pandoc_man SRC)
     DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man${MAN_NUM}"
     COMPONENT doc
   )
-endfunction(add_pandoc_man)
+endfunction(add_adoc_man)
