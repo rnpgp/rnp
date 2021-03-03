@@ -140,10 +140,16 @@ install_bundler() {
   # ruby-rnp
   SUDO=
   [ "$(get_os)" = "freebsd" ] && SUDO=sudo
-  which bundle || ${SUDO} gem install bundler -v 1.16.4
+  which bundle || ${SUDO} gem install bundler
 }
 
-default=(botan jsonc gpg bundler)
+install_asciidoc() {
+  SUDO=
+  [ "$(get_os)" = "freebsd" ] && SUDO=sudo
+  which bundle || ${SUDO} gem install asciidoctor
+}
+
+default=(botan jsonc gpg bundler asciidoc)
 items=("${@:-${default[@]}}")
 for item in "${items[@]}"; do
   install_"$item"
