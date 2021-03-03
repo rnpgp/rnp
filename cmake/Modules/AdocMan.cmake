@@ -103,7 +103,7 @@ function(add_adoc_man SRC)
 
   add_custom_command(
     OUTPUT ${DST}
-    COMMAND ${ADOCCOMMAND_PATH} -s -t man ${SRC} -o ${DST}
+    COMMAND ${ADOCCOMMAND_PATH} -b manpage ${SRC} -o ${DST}
     DEPENDS ${SRC}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating man page ${FILE_NAME}.${MAN_NUM}"
