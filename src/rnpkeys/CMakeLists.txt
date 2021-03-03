@@ -99,4 +99,4 @@ install(TARGETS rnpkeys
 )
 
 # Build and install man page
-add_adoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnpkeys.1.md")
+add_adoc_man("${CMAKE_CURRENT_SOURCE_DIR}/rnpkeys.1.adoc")
