@@ -26,7 +26,7 @@
 # add_adoc_man
 # -----------
 #
-# Convert adoc manual page to troff, using asciidoctor, and install it via the custom target.
+# Convert adoc manual page to troff and install it via the custom target.
 #
 # Parameters
 # ^^^^^^^^^^
@@ -40,11 +40,11 @@
 set(ADOCCOMMAND_FOUND 0)
 find_program(ADOCCOMMAND_PATH
   NAMES asciidoctor
-  DOC "Path to asciidoctor. Used to generate man pages from AsciiDoc."
+  DOC "Path to AsciiDoc processor. Used to generate man pages from AsciiDoc."
 )
 
 if(NOT EXISTS ${ADOCCOMMAND_PATH})
-  message(WARNING "asciidoctor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
+  message(WARNING "AsciiDoc processor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
 else()
   set(ADOCCOMMAND_FOUND 1)
 endif()
@@ -62,43 +62,53 @@ function(add_adoc_man SRC)
     ${ARGN}
   )
 
-  if(ARGS_DST)
-    set(DST ${ARGS_DST})
+  set(ADOC_EXT ".adoc")
+  get_filename_component(FILE_NAME ${SRC} NAME)
+
+  # The following procedures check against the expected file name
+  # pattern: "{name}.{man-number}.adoc", and builds to a
+  # destination file "{name}.{man-number}".
+
+  # Check SRC extension
+  get_filename_component(END_EXT ${SRC} LAST_EXT)
+  string(COMPARE EQUAL ${END_EXT} ${ADOC_EXT} _equal)
+  if (NOT _equal)
+    message(FATAL_ERROR "SRC must have ${ADOC_EXT} extension.")
   endif()
 
-  # Extract man number and check SRC extension
-  get_filename_component(FULL_EXT ${SRC} EXT)
-  string(SUBSTRING ${FULL_EXT} 1 -1 FULL_EXT)
-  get_filename_component(MD_EXT ${FULL_EXT} EXT)
-  string(COMPARE EQUAL ${MD_EXT} ".adoc" _equal)
-  if (NOT _equal)
-    message(FATAL_ERROR "SRC must have .adoc extension.")
-  endif()
-  # man number
-  get_filename_component(MAN_NUM ${FULL_EXT} NAME_WE)
-  string(REGEX MATCH "^[1-9]$" _matches ${MAN_NUM})
+  # Check man number
+  get_filename_component(EXTS ${SRC} EXT)
+  string(REGEX MATCH "^\.([1-9])\.+$" _matches ${EXTS})
+  set(MAN_NUM ${CMAKE_MATCH_1})
   if (NOT _matches)
-    message(FATAL_ERROR "Wrong man category: \"${MAN_NUM}\".")
+    message(FATAL_ERROR "Man file with wrong name pattern: ${FILE_NAME} must be in format {name}.[0-9]${ADOC_EXT}.")
   endif()
-  # man name
-  get_filename_component(FILE_NAME ${SRC} NAME_WE)
+
+  # Set target name
   get_filename_component(TARGET_NAME ${SRC} NAME_WE)
   string(PREPEND TARGET_NAME "man_")
 
   # Build output path if not specified.
   if(NOT DST)
-    string(LENGTH ${CMAKE_SOURCE_DIR} CMAKE_SRC_LEN)
-    string(SUBSTRING ${SRC} 0 ${CMAKE_SRC_LEN} SRC_PREFIX)
-    string(COMPARE EQUAL ${CMAKE_SOURCE_DIR} ${SRC_PREFIX} _equal)
-    if (NOT _equal)
+    get_filename_component(SRC_PREFIX ${SRC} DIRECTORY)
+
+    # Ensure that SRC_PREFIX is within CMAKE_SOURCE_DIR
+    if(NOT(SRC_PREFIX MATCHES "^${CMAKE_SOURCE_DIR}"))
       message(FATAL_ERROR "Cannot build DST path as SRC is outside of the CMake sources dir.")
     endif()
+    STRING(REGEX REPLACE "^${CMAKE_SOURCE_DIR}/" "" SUBDIR_PATH ${SRC})
 
     # Strip '.adoc' from the output subpath
-    string(LENGTH ${SRC} SRC_LEN)
-    math(EXPR SUFFIX_LEN "${SRC_LEN} - ${CMAKE_SRC_LEN} - 3")
-    string(SUBSTRING ${SRC} ${CMAKE_SRC_LEN} ${SUFFIX_LEN} SRC_SUFFIX)
-    set(DST "${CMAKE_BINARY_DIR}${SRC_SUFFIX}")
+    get_filename_component(SUBDIR_PATH_NAME_WLE ${SUBDIR_PATH} NAME_WLE)
+    get_filename_component(SUBDIR_PATH_DIRECTORY ${SUBDIR_PATH} DIRECTORY)
+    set(DST "${CMAKE_BINARY_DIR}/${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}")
+  endif()
+
+  # Check conformance of destination file name to pattern
+  get_filename_component(FILE_NAME_WE ${SRC} NAME_WE)
+  get_filename_component(MAN_FILE_NAME ${DST} NAME)
+  if(NOT(MAN_FILE_NAME MATCHES "^${FILE_NAME_WE}.${MAN_NUM}$"))
+    message(FATAL_ERROR "File name of a man page must be in the format {name}.{man-number}${ADOC_EXT}.")
   endif()
 
   add_custom_command(
@@ -106,9 +116,10 @@ function(add_adoc_man SRC)
     COMMAND ${ADOCCOMMAND_PATH} -b manpage ${SRC} -o ${DST}
     DEPENDS ${SRC}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generating man page ${FILE_NAME}.${MAN_NUM}"
+    COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
     VERBATIM
   )
+
   add_custom_target("${TARGET_NAME}" ALL DEPENDS ${DST})
   install(FILES ${DST}
     DESTINATION "${CMAKE_INSTALL_FULL_MANDIR}/man${MAN_NUM}"
