@@ -26,16 +26,6 @@ You will also need to link to _librnp_.
 
 Please see its headers for the full function list and detailed documentation.
 
-
-== OPTIONS
-
-*-o, --out-file*=_OUT_FILE_::
-  Write result to file _OUT_FILE_.
-
-*-c, --capture*::
-  Capture specimen if it's a picture of a life form.
-
-
 == EXAMPLES
 
 A number of examples are provided in *src/examples* folder of the *RNP* suite source tree.
@@ -68,7 +58,7 @@ in order to generate a signed OpenPGP message.
 
 Please report issues via the *RNP* public issue tracker at: https://github.com/rnpgp/rnp/issues.
 
-Security-sensitive issues should be reported according is a public repository, so security issues must be reported in other way.
+The RNP GitHub issue tracker is publicly viewable; security issues should be reported via other channels.
 
 
 == AUTHORS

@@ -341,7 +341,7 @@ _Non-zero_::
 
 Please report issues via the _RNP_ public issue tracker at: https://github.com/rnpgp/rnp/issues.
 
-Security-sensitive issues should be reported according is a public repository, so security issues must be reported in other way.
+The RNP GitHub issue tracker is publicly viewable; security issues should be reported via other channels.
 
 
 == AUTHORS
