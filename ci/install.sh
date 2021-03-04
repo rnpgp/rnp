@@ -139,13 +139,17 @@ install_gpg() {
 install_bundler() {
   # ruby-rnp
   SUDO=
-  [ "$(get_os)" = "freebsd" ] && SUDO=sudo
+  ([ "$(get_os)" = "freebsd" ] || \
+    ([ "$(get_os)" = "linux" ] && [ "$(get_linux_dist)" = "ubuntu" ])) \
+    && SUDO=sudo
   which bundle || ${SUDO} gem install bundler
 }
 
 install_asciidoc() {
   SUDO=
-  [ "$(get_os)" = "freebsd" ] && SUDO=sudo
+  ([ "$(get_os)" = "freebsd" ] || \
+    ([ "$(get_os)" = "linux" ] && [ "$(get_linux_dist)" = "ubuntu" ])) \
+    && SUDO=sudo
   which asciidoctor || ${SUDO} gem install asciidoctor
 }
 
