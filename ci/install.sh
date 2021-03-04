@@ -146,7 +146,7 @@ install_bundler() {
 install_asciidoc() {
   SUDO=
   [ "$(get_os)" = "freebsd" ] && SUDO=sudo
-  which bundle || ${SUDO} gem install asciidoctor
+  which asciidoctor || ${SUDO} gem install asciidoctor
 }
 
 default=(botan jsonc gpg bundler asciidoc)
