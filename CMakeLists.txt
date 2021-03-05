@@ -152,6 +152,17 @@ add_subdirectory(src/rnpkeys)
 
 # build tests, if desired
 if (BUILD_TESTING)
+  # Googletest source path
+  if (NOT GTEST_SOURCES)
+    set(GTEST_SOURCES "" CACHE STRING
+    "Path to the Googletest sources in case of download or linking to the precompiled library is disabled."
+    FORCE
+    )
+  else()
+    # Canonicalize path to the Googletest sources.
+    get_filename_component(GTEST_SOURCES_FULL ${GTEST_SOURCES} REALPATH)
+    set(GTEST_SOURCES ${GTEST_SOURCES_FULL})
+  endif()
   add_subdirectory(src/tests)
 endif()
 
