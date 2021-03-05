@@ -24,6 +24,7 @@ cmakeopts=(
 )
 [ "$BUILD_MODE" = "coverage" ] && cmakeopts+=("-DENABLE_COVERAGE=yes")
 [ "$BUILD_MODE" = "sanitize" ] && cmakeopts+=("-DENABLE_SANITIZERS=yes")
+[ -v "GTEST_SOURCES" ] && cmakeopts+=("-DGTEST_SOURCES=$GTEST_SOURCES")
 [ -v "DOWNLOAD_GTEST" ] && cmakeopts+=("-DDOWNLOAD_GTEST=$DOWNLOAD_GTEST")
 [ -v "DOWNLOAD_RUBYRNP" ] && cmakeopts+=("-DDOWNLOAD_RUBYRNP=$DOWNLOAD_RUBYRNP")
 
