@@ -36,10 +36,6 @@
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
 
-#define DSA_MIN_P_BITLEN 1024
-#define DSA_MAX_P_BITLEN 3072
-#define DSA_DEFAULT_P_BITLEN 2048
-
 typedef struct pgp_dsa_key_t {
     pgp_mpi_t p;
     pgp_mpi_t q;
