@@ -61,6 +61,14 @@
 /* Default RSA key length */
 #define DEFAULT_RSA_NUMBITS 2048
 
+/* Default, min and max DSA key length */
+#define DSA_MIN_P_BITLEN 1024
+#define DSA_MAX_P_BITLEN 3072
+#define DSA_DEFAULT_P_BITLEN 2048
+
+/* Default EC curve */
+#define DEFAULT_CURVE "NIST P-256"
+
 /* Default maximum password request attempts */
 #define MAX_PASSWORD_ATTEMPTS 3
 
