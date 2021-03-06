@@ -55,7 +55,6 @@
 #include "file-utils.h"
 #include "defaults.h"
 
-// must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else
