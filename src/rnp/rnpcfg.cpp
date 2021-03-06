@@ -40,7 +40,8 @@
 
 #include "rnpcfg.h"
 #include "defaults.h"
-#include <rekey/rnp_key_store.h>
+#include "logging.h"
+#include <rnp/rnp.h>
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX

@@ -8,6 +8,7 @@
 #include "uniwin.h"
 #endif
 #include "../rnp/fficli.h"
+#include "logging.h"
 
 #define DEFAULT_RSA_NUMBITS 2048
 

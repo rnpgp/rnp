@@ -31,7 +31,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-#include "rnp/rnp.h"
 
 /* cfg variables known by rnp */
 #define CFG_OVERWRITE "overwrite" /* overwrite output file if it is already exist or fail */
