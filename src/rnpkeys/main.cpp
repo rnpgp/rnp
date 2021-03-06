@@ -36,8 +36,6 @@
 #endif
 #include <stdio.h>
 #include <string.h>
-#include "utils.h"
-#include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 
 extern struct option options[];

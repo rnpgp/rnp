@@ -32,6 +32,7 @@
 #include <time.h>
 #include "rnp/rnp.h"
 #include "rnp/rnp_err.h"
+#include "config.h"
 #include "rnpcfg.h"
 #include "json.h"
 
