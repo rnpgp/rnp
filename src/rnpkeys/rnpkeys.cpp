@@ -37,10 +37,7 @@
 #endif
 #include <string.h>
 #include <stdarg.h>
-#include "../rnp/rnpcfg.h"
-#include "../rnp/fficli.h"
 #include "rnpkeys.h"
-#include "config.h"
 
 // must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX

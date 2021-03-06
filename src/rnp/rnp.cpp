@@ -48,12 +48,9 @@
 #include <time.h>
 #include <errno.h>
 
-#include "config.h"
 #include "fficli.h"
-#include "rnpcfg.h"
-#include "utils.h"
+#include "logging.h"
 
-// must be placed after include "utils.h"
 #ifndef RNP_USE_STD_REGEX
 #include <regex.h>
 #else

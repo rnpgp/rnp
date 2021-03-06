@@ -35,7 +35,7 @@
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "defaults.h"
-#include "utils.h"
+#include "logging.h"
 
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
@@ -108,10 +108,11 @@ ask_curve_name(FILE *input_fp)
       "brainpoolP512r1",
       "secp256k1",
     };
+    const size_t curvenum = sizeof(known_curves) / sizeof(*known_curves);
 
     try {
         std::copy_if(known_curves,
-                     known_curves + ARRAY_SIZE(known_curves),
+                     known_curves + curvenum,
                      std::back_inserter(curves),
                      [](const char *curve) {
                          bool supported = false;
