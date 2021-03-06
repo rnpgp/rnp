@@ -36,7 +36,7 @@ include(cmake/info.cmake)
 
 # determine version
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
-  file(DOWNLOAD https://raw.githubusercontent.com/riboseinc/cmake-versioning/c78a0be/version.cmake
+  file(DOWNLOAD https://raw.githubusercontent.com/riboseinc/cmake-versioning/202c923/version.cmake
     "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
 endif()
 include(cmake/version.cmake)
