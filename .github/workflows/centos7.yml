@@ -138,15 +138,15 @@ jobs:
           ./generate
           readelf -d generate
           if [ $BUILD_SHARED_LIBS == "yes" ]; then
-            readelf -d generate | grep -q librnp-
+            readelf -d generate | grep -q librnp
           else
-            readelf -d generate | grep -qv librnp-
+            readelf -d generate | grep -qv librnp
           fi
           # remove the pkgconfig for the next test
-          pkg-config --list-all | grep -q ^librnp-
-          rm /usr/lib64/pkgconfig/librnp-*
+          pkg-config --list-all | grep -q ^librnp
+          rm /usr/lib64/pkgconfig/librnp*
           # should not be found
-          pkg-config --list-all | grep -qv ^librnp-
+          pkg-config --list-all | grep -qv ^librnp
           # build an example using cmake targets
           mkdir rnp-project
           cd rnp-project
