@@ -433,7 +433,7 @@ def gpg_import_pubring(kpath=None):
     if not kpath:
         kpath = path.join(RNPDIR, 'pubring.gpg')
     ret, _, err = run_proc(
-        GPG, ['--batch', '--homedir', GPGHOME, '--import', kpath])
+        GPG, ['--display-charset', CONSOLE_ENCODING, '--batch', '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
         raise_err('gpg key import failed', err)
 
@@ -442,7 +442,7 @@ def gpg_import_secring(kpath=None, password = PASSWORD):
     if not kpath:
         kpath = path.join(RNPDIR, 'secring.gpg')
     ret, _, err = run_proc(
-        GPG, ['--batch', '--passphrase', password, '--homedir', GPGHOME, '--import', kpath])
+        GPG, ['--display-charset', CONSOLE_ENCODING, '--batch', '--passphrase', password, '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
         raise_err('gpg secret key import failed', err)
 
@@ -499,7 +499,7 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
 def gpg_decrypt_file(src, dst, keypass):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch',
+    ret, out, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch',
                                    '--yes', '--passphrase', keypass, '--trust-model',
                                    'always', '-o', dst, '-d', src])
     if ret != 0:
@@ -509,7 +509,7 @@ def gpg_decrypt_file(src, dst, keypass):
 def gpg_verify_file(src, dst, signer=None):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
-    ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch',
+    ret, out, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch',
                                    '--yes', '--trust-model', 'always', '-o', dst, '--verify', src])
     if ret != 0:
         raise_err('gpg verification failed', err)
@@ -524,7 +524,7 @@ def gpg_verify_file(src, dst, signer=None):
 def gpg_verify_detached(src, sig, signer=None):
     src = path_for_gpg(src)
     sig = path_for_gpg(sig)
-    ret, _, err = run_proc(GPG, ['--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 
+    ret, _, err = run_proc(GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 
                                  'always', '--verify', sig, src])
     if ret != 0:
         raise_err('gpg detached verification failed', err)
@@ -539,7 +539,7 @@ def gpg_verify_detached(src, sig, signer=None):
 def gpg_verify_cleartext(src, signer=None):
     src = path_for_gpg(src)
     ret, _, err = run_proc(
-        GPG, ['--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
+        GPG, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--batch', '--yes', '--trust-model', 'always', '--verify', src])
     if ret != 0:
         raise_err('gpg cleartext verification failed', err)
     # Check GPG output
@@ -586,7 +586,7 @@ def gpg_sign_cleartext(src, dst, signer):
 
 
 def gpg_agent_clear_cache():
-    run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
+    run_proc(GPGCONF, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--kill', 'gpg-agent'])
 
 '''
     Things to try here later on:
