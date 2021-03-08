@@ -61,7 +61,7 @@ make package
 
 === 5. Check and Install the RPM
 
-It may be helpful to run rpmlint on the RPM and note new warnings or errors.
+It may be helpful to run `rpmlint` on the RPM and note new warnings or errors.
 
 [source,console]
 --

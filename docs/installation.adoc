@@ -7,6 +7,8 @@ Binaries that will be installed:
 
 == On macOS using Homebrew
 
+We provide a Homebrew tap for easy installation of RNP on macOS.
+
 [source,console]
 ----
 brew tap rnpgp/rnp
@@ -15,6 +17,9 @@ brew install rnp
 
 == On RHEL and CentOS via YUM
 
+We provide pre-built packages for RHEL and CentOS at our YUM repository hosted
+at GitHub.
+
 [source,console]
 ----
 rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
@@ -22,16 +27,18 @@ curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos
 yum install -y rnp
 ----
 
-== On Ubuntu 18
+== On Ubuntu
+
+Prerequisite: please ensure `git` is installed on the system.
 
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-sudo apt install git
 git clone https://github.com/rnpgp/rnp.git -b v0.14.0
 
 # Install required packages
-sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential python-minimal
+sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev \
+  build-essential python-minimal
 
 # Download, build and install Botan2
 wget -qO- https://botan.randombit.net/releases/Botan-2.14.0.tar.xz | tar xvJ
@@ -41,45 +48,60 @@ make
 sudo make install
 cd ..
 
-# Cmake recommend out-of-source builds
+# CMake encourages building outside of the source directory.
 mkdir rnp-build
 cd rnp-build
 
-# Cmake it
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off ../rnp/
+# Run CMake
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on \
+  -DBUILD_TESTING=off ../rnp/
+
+# Compile
 make
+
+# Install
 sudo make install
 ----
 
 == On Debian
 
+Prerequisite: please ensure `git` is installed on the system.
+
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-sudo apt install git
 git clone https://github.com/rnpgp/rnp.git -b v0.14.0
 
 # Enable access to `testing` packages by editing /etc/apt/sources.list
 # deb http://deb.debian.org/debian testing main
+
 # Install required packages
-sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev libbotan-2-dev build-essential
+sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev \
+  libbotan-2-dev build-essential
 
 # Cmake recommend out-of-source builds
 mkdir rnp-build
 cd rnp-build
 
 # Cmake it
-cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off ../rnp/
-make install
+cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on \
+  -DBUILD_TESTING=off ../rnp/
+
+# Compile and install
+sudo make install
 ----
 
-== Compiling from source
+== Compile from source
 
-Clone this repo, or download a release and expand it. Then:
+Clone this repo, or download a release and expand it.
+
+Enter the source folder and run the following commands:
 
 [source,console]
 ----
-cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on -DBUILD_TESTING=off .
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on \
+  -DBUILD_TESTING=off .
+
 make install
 ----
 
@@ -87,42 +109,59 @@ make install
 
 === Using MSYS/MinGW
 
-Having the clean MSYS2 installation, you'll first need to update pacman and install needed packages via msys console:
+From a clean MSYS2 install, please first update `pacman` and install required
+packages via the `msys` console.
 
-[source, console]
+[source,console]
 ----
 pacman -Syu --noconfirm --needed
-# Then most likely you'll need to close msys console and run it again:
+
+# Most likely you'll need to close msys console and run it again:
 pacman -Syu --noconfirm --needed
+
 # Install packages
 pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
 ----
 
-Then clone the repository, say to rnp folder, and:
-[source, console]
+Then clone the RNP repository and build it.
+
+[source,console]
 ----
-# CMake encourages out-of source builds.
+# CMake encourages building outside of the source directory.
 mkdir rnp-build
 cd rnp-build
-# Add MinGW's lib and bin to PATH so dependency dll/lib can be found
+
+# Add MinGW's lib and bin to PATH so dependency dll/lib files can be found
 export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PATH"
-# Run cmake
+
+# Run CMake
 cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" ../rnp
+
+# Compile and install
 make && make install
 ----
 
 === Using Microsoft Visual Studio 2019
 
-Install `vcpkg` using these instructions https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows
+Install `vcpkg` according to
+https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows[these instructions]:
 
-Set VCPKG_ROOT environment variable to `vcpkg` root folder.
+Set the `VCPKG_ROOT` environment variable to the `vcpkg` root folder.
 
-`vcpkg install bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]`
+[source,console]
+----
+vcpkg install bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
+----
 
-When opening in MSVC IDE, it will pick up `CMakeSettings.json` to find `vcpkg` path using `VCPKG_ROOT` environment variable
+There are two ways to compile and install:
 
-For console build:
-[source, console]
+* If you open the MSVC IDE at this folder, it will pick up `CMakeSettings.json`
+  to find the `vcpkg` path using the `VCPKG_ROOT` environment variable.
+
+* Otherwise, the following steps will perform a console build for CMake: +
++
+--
+[source,console]
 ----
 # CMake encourages out-of source builds.
 mkdir rnp-build
@@ -131,8 +170,19 @@ cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%
 cmake --build . --config Release
 cmake --install .
 ----
+--
 
-Depending on how do you run rnp.exe and rnpkeys.exe you'll need to make sure that
-librnp.dll, botan.dll, bz2.dll, getopt.dll, json-c.dll and zlib1.dll are on path
-or in the same folder as well as all dependencies.
-You may check dependenices and their paths via ntldd.exe in MSYS command prompt.
+When running `rnp.exe` and `rnpkeys.exe`, please ensure that the following
+dependencies are available on path (or inside the same folder as the
+executables):
+
+* `librnp.dll`
+* `botan.dll`
+* `bz2.dll`
+* `getopt.dll`
+* `json-c.dll`
+* `zlib1.dll`
+
+You may check dependencies and their paths via `ntldd.exe` in the MSYS command
+prompt.
+

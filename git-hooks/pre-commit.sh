@@ -3,11 +3,11 @@ set -eEu
 
 # Path to clang-format. If it's in your PATH, "clang-format" is fine.
 # If you do not have it (or the version is too old), see USE_DOCKER.
-CLANG_FORMAT="/usr/bin/clang-format"
+CLANG_FORMAT="/usr/local/bin/clang-format"
 
 # Set to "yes" if you want to create and use a docker container
 # for clang-format.
-USE_DOCKER="yes"
+USE_DOCKER="no"
 
 # Set this to "yes" if you typically commit from the command line
 # and wish to be prompted on whether to apply any patches
@@ -17,7 +17,7 @@ INTERACTIVE="yes"
 # Leave this stuff
 STASH_NAME="pre-commit-$(date +%s)"
 CONTAINER_NAME="clang-format-$(date +%s)"
-CLANG_FORMAT_VERSION="9.0.0"
+CLANG_FORMAT_VERSION="11.1.0"
 
 apply_patch() {
   local patchfile=$1
