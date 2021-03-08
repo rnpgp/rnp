@@ -35,7 +35,7 @@ Upcoming supported platforms:
 
 == link:docs/cli-usage.adoc[Using CLI tool]
 
-== link:docs/c-usage.adoc[Using RNP’s C API in your projects]
+== link:docs/c-usage.adoc[Using the RNP C API in your projects]
 
 == Versioning
 
