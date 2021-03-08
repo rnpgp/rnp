@@ -55,7 +55,7 @@ A good example of using a branch would be:
 
 Branch names may vary but should be somewhat descriptive, with words
 separated by hyphens. It is also helpful to start the branch name with
-your github username, to make it clear who created the branch and
+your GitHub username, to make it clear who created the branch and
 prevent naming conflicts.
 
 Remember that branch names may be preserved permanently in the commit
@@ -459,6 +459,6 @@ Platforms:
 
 * RHEL/CentOS: @dewyatt
 * BSD:
-* Windows:
-* macOS / iOS / homebrew: @ni4
+* Windows: @rrrooommmaaa
+* macOS / iOS / Homebrew: @ni4
 * Debian: @zgyarmati

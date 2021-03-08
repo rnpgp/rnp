@@ -34,7 +34,7 @@ A set of OpenPGP tools for encrypting, decrypting, signing, and \
 verifying files.
 ]=]
 )
-set(PACKAGE_DESCRIPTION_SHORT "Freely licensed PGP implementation")
+set(PACKAGE_DESCRIPTION_SHORT "Freely-licensed OpenPGP PGP implementation")
 set(PACKAGE_LICENSE "BSD")
 
 set(RPM_RELEASE_NUM 1)
