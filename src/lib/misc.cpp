@@ -86,6 +86,9 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "json_utils.h"
 
 #ifdef _WIN32
+#include <windows.h>
+#include <locale>
+#include <codecvt>
 #define vsnprintf _vsnprintf
 #endif
 

@@ -69,9 +69,9 @@ def random_text(path, size):
     with open(path, 'w+') as f:
         f.write(st)
 
-def file_text(path):
+def file_text(path, encoding = CONSOLE_ENCODING):
     with open(path, 'rb') as f:
-        return f.read().decode().replace('\r\r', '\r')
+        return f.read().decode(encoding).replace('\r\r', '\r')
 
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
@@ -95,12 +95,13 @@ def rnp_file_path(relpath, check = True):
     return fpath
 
 def run_proc_windows(proc, params, stdin=None):
-    logging.debug((proc + ' ' + ' '.join(params)).strip())
-    logging.debug('Working directory: ' + os.getcwd())
-
     exe = os.path.basename(proc)
+    # test special quote cases 
+    params = list(map(lambda st: st.replace('"', '\\"'), params))
     # We need to escape empty parameters/ones with spaces with quotes
     params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
+    logging.debug((proc + ' ' + ' '.join(params)).strip())
+    logging.debug('Working directory: ' + os.getcwd())
     sys.stdout.flush()
 
     stdin_path = os.path.join(WORKDIR, 'stdin.txt')
@@ -171,14 +172,46 @@ def run_proc_windows(proc, params, stdin=None):
     logging.debug(out.strip())
     return (retcode, out, err)
 
+if sys.version_info >= (3,):
+    def decode_string_escape(s):
+        bts = bytes(s, 'utf-8')
+        result = u''
+        candidate = bytearray()
+        utf = bytearray()
+        for b in bts:
+            if b > 0x7F:
+                if len(candidate) > 0:
+                    result += candidate.decode('unicode-escape')
+                    candidate.clear()
+                utf.append(b)
+            else:
+                if len(utf) > 0:
+                    result += utf.decode('utf-8')
+                    utf.clear()
+                candidate.append(b)
+        if len(candidate) > 0:
+            result += candidate.decode('unicode-escape')
+        if len(utf) > 0:
+            result += utf.decode('utf-8')
+        return result
+    def _decode(s):
+        return s
+else: # Python 2
+    def decode_string_escape(s):
+        return s.encode(CONSOLE_ENCODING).decode('decode_string_escape')
+    def _decode(x):
+        return x.decode(CONSOLE_ENCODING)
+
 def run_proc(proc, params, stdin=None):
     # On Windows we need to use spawnv() for handle inheritance in pswd_pipe()
     if is_windows():
         return run_proc_windows(proc, params, stdin)
-
-    logging.debug((proc + ' ' + ' '.join(params)).strip())
-    process = Popen([proc] + params, stdout=PIPE, stderr=PIPE,
-                    stdin=PIPE if stdin else None, close_fds=False, universal_newlines=True)
+    paramline = u' '.join(map(_decode, params))
+    logging.debug((proc + ' ' + paramline).strip())
+    param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
+    process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
+                    stdin=PIPE if stdin else None, close_fds=False,
+                    universal_newlines=True, encoding=CONSOLE_ENCODING)
     output, errout = process.communicate(stdin)
     retcode = process.poll()
     logging.debug(errout.strip())

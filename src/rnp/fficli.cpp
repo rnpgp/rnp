@@ -146,9 +146,7 @@ rnp_win_substitute_cmdline_args(int *argc, char ***argv)
     try {
         auto argv_utf8_strings = get_utf8_args();
         argc_utf8 = argv_utf8_strings.size();
-        if (argc_utf8 != *argc) {
-            throw std::range_error("Unexpected number of arguments from unicode command line");
-        }
+        *argc = argc_utf8;
         argv_utf8_cstrs = new (std::nothrow) char *[argc_utf8]();
         if (!argv_utf8_cstrs) {
             throw std::bad_alloc();
@@ -778,23 +776,76 @@ std::string
 cli_rnp_escape_string(const std::string &src)
 {
     static const int   SPECIAL_CHARS_COUNT = 0x20;
-    static const char *escape_map[SPECIAL_CHARS_COUNT] = {
+    static const char *escape_map[SPECIAL_CHARS_COUNT + 1] = {
       "\\x00", "\\x01", "\\x02", "\\x03", "\\x04", "\\x05", "\\x06", "\\x07",
       "\\b",   "\\x09", "\\n",   "\\v",   "\\f",   "\\r",   "\\x0e", "\\x0f",
       "\\x10", "\\x11", "\\x12", "\\x13", "\\x14", "\\x15", "\\x16", "\\x17",
-      "\\x18", "\\x19", "\\x1a", "\\x1b", "\\x1c", "\\x1d", "\\x1e", "\\x1f"};
+      "\\x18", "\\x19", "\\x1a", "\\x1b", "\\x1c", "\\x1d", "\\x1e", "\\x1f",
+      "\\x20" // space should not be auto-replaced
+    };
     std::string result;
-    result.reserve(src.length());
-    for (char const &c : src) {
-        if (c >= 0 && c < SPECIAL_CHARS_COUNT) {
-            const char *replacement = escape_map[(int) c];
-            result.append(replacement);
+    // we want to replace leading and trailing spaces with escape codes to make them visible
+    auto        original_len = src.length();
+    std::string rtrimmed = src;
+    bool        leading_space = true;
+    rtrimmed.erase(rtrimmed.find_last_not_of(0x20) + 1);
+    result.reserve(original_len);
+    for (char const &c : rtrimmed) {
+        leading_space &= c == 0x20;
+        if (leading_space || (c >= 0 && c < SPECIAL_CHARS_COUNT)) {
+            result.append(escape_map[(int) c]);
         } else {
             result.push_back(c);
         }
     }
+    // printing trailing spaces
+    for (auto pos = rtrimmed.length(); pos < original_len; pos++) {
+        result.append(escape_map[0x20]);
+    }
     return result;
 }
+
+#ifndef RNP_USE_STD_REGEX
+static std::string
+cli_rnp_unescape_for_regcomp(const std::string &src)
+{
+    std::string result;
+    result.reserve(src.length());
+    regex_t    r = {};
+    regmatch_t matches[1];
+    if (regcomp(&r, "\\\\x[0-9a-f]([0-9a-f])?", REG_EXTENDED | REG_ICASE) != 0)
+        return src;
+
+    int offset = 0;
+    while (regexec(&r, src.c_str() + offset, 1, matches, 0) == 0) {
+        result.append(src, offset, matches[0].rm_so);
+        int         hexoff = matches[0].rm_so + 2;
+        std::string hex;
+        hex.push_back(src[offset + hexoff]);
+        if (hexoff + 1 < matches[0].rm_eo) {
+            hex.push_back(src[offset + hexoff + 1]);
+        }
+        char decoded = stoi(hex, 0, 16);
+        if ((decoded >= 0x7B && decoded <= 0x7D) || (decoded >= 0x24 && decoded <= 0x2E) ||
+            decoded == 0x5C || decoded == 0x5E) {
+            result.push_back('\\');
+            result.push_back(decoded);
+        } else if ((decoded == '[' || decoded == ']') &&
+                   /* not enclosed in [] */ (result.empty() || result.back() != '[')) {
+            result.push_back('[');
+            result.push_back(decoded);
+            result.push_back(']');
+        } else {
+            result.push_back(decoded);
+        }
+        offset += matches[0].rm_eo;
+    }
+
+    result.append(src.begin() + offset, src.end());
+
+    return result;
+}
+#endif
 
 void
 cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs)
@@ -1233,12 +1284,13 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
 
 #ifndef RNP_USE_STD_REGEX
     /* match on full name or email address as a NOSUB, ICASE regexp */
-    if (regcomp(&r, str.c_str(), REG_EXTENDED | REG_ICASE) != 0) {
+    if (regcomp(&r, cli_rnp_unescape_for_regcomp(str).c_str(), REG_EXTENDED | REG_ICASE) !=
+        0) {
         goto done;
     }
 #else
     try {
-        re.assign(str, std::regex_constants::extended | std::regex_constants::icase);
+        re.assign(str, std::regex_constants::ECMAScript | std::regex_constants::icase);
     } catch (const std::exception &e) {
         ERR_MSG("Invalid regular expression : %s, error %s.", str.c_str(), e.what());
         goto done;
