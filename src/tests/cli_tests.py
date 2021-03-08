@@ -331,10 +331,10 @@ def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
         params[2:2] = ['--passwords', str(len(encrpswd))]
     # Adding recipients. If list is empty then default will be used.
     for userid in reversed(recipients):
-        params[2:2] = ['-r', userid]
+        params[2:2] = ['-r', escape_regex(userid)]
     # Adding signers. If list is empty then default will be used.
     for signer in reversed(signers):
-        params[2:2] = ['-u', signer]
+        params[2:2] = ['-u', escape_regex(signer)]
     # Cipher or None for default
     if cipher: params[2:2] = ['--cipher', cipher]
     # Armor
@@ -367,7 +367,7 @@ def rnp_sign_file_ex(src, dst, signers, passwords, options = None):
         if 'detached' in options: params += ['--detach']
 
     for signer in reversed(signers):
-        params[4:4] = ['--userid', signer]
+        params[4:4] = ['--userid', escape_regex(signer)]
 
     ret, _, err = run_proc(RNP, params)
     os.close(pipe)
@@ -2300,6 +2300,46 @@ class SignDefault(unittest.TestCase):
         KEYPASS = ['sign1pass', 'sign2pass', 'sign3pass']
 
         # Generate multiple keys and import to GnuPG
+        for uid, pswd in zip(USERIDS, KEYPASS):
+            rnp_genkey_rsa(uid, 1024, pswd)
+
+        gpg_import_pubring()
+        gpg_import_secring()
+
+        src, dst, sig, ver = reg_workfiles('cleartext', '.txt', '.rnp', '.txt.sig', '.ver')
+        # Generate random file of required size
+        random_text(src, 128000)
+
+        for keynum in range(1, len(USERIDS) + 1):
+            # Normal signing
+            rnp_sign_file(src, dst, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_file(dst, ver)
+            remove_files(ver)
+            rnp_verify_file(dst, ver)
+            remove_files(dst, ver)
+
+            # Detached signing
+            rnp_sign_detached(src, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_detached(src, sig)
+            rnp_verify_detached(sig)
+            remove_files(sig)
+
+            # Cleartext signing
+            rnp_sign_cleartext(src, dst, USERIDS[:keynum], KEYPASS[:keynum])
+            gpg_verify_cleartext(dst)
+            rnp_verify_cleartext(dst)
+            remove_files(dst)
+
+        clear_workfiles()
+
+    def test_sign_weird_userids(self):
+        USERIDS = [WEIRD_USERID_SPECIAL_CHARS, WEIRD_USERID_SPACE, WEIRD_USERID_QUOTE,
+            WEIRD_USERID_SPACE_AND_QUOTE, WEIRD_USERID_QUOTE_AND_SPACE,
+            WEIRD_USERID_UNICODE_1, WEIRD_USERID_UNICODE_2]
+        KEYPASS = ['signUnicodePass1', 'signUnicodePass2', 'signUnicodePass3', 'signUnicodePass4',
+            'signUnicodePass5', 'signUnicodePass6', 'signUnicodePass7']
+
+        # Generate multiple keys
         for uid, pswd in zip(USERIDS, KEYPASS):
             rnp_genkey_rsa(uid, 1024, pswd)
 
