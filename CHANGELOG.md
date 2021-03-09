@@ -1,5 +1,28 @@
 ## Changelog
 
+### 0.15.0 [2021-04-04]
+
+#### General
+
+* Added CMake options to allow offline builds, i.e. without Googletest/ruby-rnp downloads.
+* Removed major library version from the library name (librnp-0.so/dll -> librnp.so/dll).
+* Improved handling of cleartext signatures, when empty line between headers and contents contains some whitespace characters.
+* Relaxed requirements for the armored messages CRC (allow absence of the CRC, and issue warning instead of complete failure).
+* Updated build instructions for MSVC.
+* Improved support of 32-bit platforms (year 2038 problem).
+
+#### CLI
+
+* Added up-to-date manual pages for `rnp` and `rnpkeys`.
+* rnpkeys: added `--remove-key` command.
+
+#### FFI
+
+* Added up-to-date manual page for `librnp`.
+* Added function `rnp_signature_remove`
+* Added function `rnp_uid_remove`
+* Added function `rnp_key_remove_signatures` for batch signature removal and filtering.
+
 ### 0.14.0 [2021-01-15]
 
 #### General
@@ -185,7 +208,7 @@
 
 * Remove some old SSH key support.
 * Add support for dynamically calculating the S2K iterations.
-* Add support for extracing the public key from the secret key.
+* Add support for extracting the public key from the secret key.
 * Add support for merging information between keys.
 
 #### CLI
@@ -216,7 +239,7 @@
 
 * Support for generation and verification of embedded signature subpacket for signing subkeys
 * Verification of public key signatures and key material
-* Improved performance of assymetric operations (key material is now validated on load)
+* Improved performance of asymmetric operations (key material is now validated on load)
 
 #### FFI
 
