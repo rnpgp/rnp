@@ -52,3 +52,6 @@ CTestTestfile.cmake
 build/
 
 version.txt
+_CPack_Packages/
+src/tests/googletest-*
+src/tests/rnp_tests*
