@@ -3,6 +3,7 @@
 image:https://github.com/rnpgp/rnp/workflows/macos/badge.svg["macOS Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=macos"]
 image:https://github.com/rnpgp/rnp/workflows/ubuntu/badge.svg["Ubuntu Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=ubuntu"]
 image:https://github.com/rnpgp/rnp/workflows/centos7/badge.svg["CentOS 7 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=centos7"]
+image:https://github.com/rnpgp/rnp/workflows/centos8/badge.svg["CentOS 8 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=centos8"]
 image:https://github.com/rnpgp/rnp/workflows/windows/badge.svg["Windows Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows"]
 image:https://img.shields.io/cirrus/github/rnpgp/rnp?label=freebsd&logo=cirrus%20ci["FreeBSD Build Status", link="https://cirrus-ci.com/github/rnpgp/rnp"]
 
@@ -23,7 +24,7 @@ for developers to build against, different from GPGME.
 Currently supported platforms:
 
 * Fedora 25
-* RHEL/CentOS 7
+* RHEL/CentOS 7, 8
 * Ubuntu 14.04 LTS, 16.04 LTS, 18.04
 
 Upcoming supported platforms:

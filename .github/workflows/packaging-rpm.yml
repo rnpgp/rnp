@@ -1,0 +1,98 @@
+name: Packaging - RPM
+
+on: []
+# on:
+#   pull_request:
+#   push:
+#     branches:
+#       - master
+#       - 'release/**'
+
+env:
+  CORES: 2
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  GPG_VERSION: stable
+  BUILD_MODE: normal
+  BUILD_SHARED_LIBS: on
+
+jobs:
+  build-rpm:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container: ${{ matrix.env }}
+    timeout-minutes: 10
+    continue-on-error: true
+    strategy:
+      matrix:
+        env:
+          - image: centos:7
+          - image: centos:8
+          - image: fedora:20
+          - image: fedora:21
+          - image: fedora:22
+          - image: fedora:23
+          - image: fedora:24
+          - image: fedora:25
+          - image: fedora:33
+    steps:
+      - run: |
+          # NOTE: Installing tar to tackle the following GHA error?
+          # Error: Unable to locate executable file: tar. Please verify either
+          # the file path exists or the file can be found within a directory
+          # specified by the PATH environment variable. Also check the file mode
+          # to verify the file is executable.
+          yum -y install git tar
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Add rnpuser
+        run: |
+          useradd rnpuser
+          yum -y -q install sudo
+          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+      - name: Setup environment
+        run: |
+          . ci/gha/setup-env.inc.sh
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.image }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ci/before_install.sh
+      - name: Build packages
+        if: ${{ success() }}
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+
+          # # Re-initialize git repo so version.cmake can use 'git' commands for
+          # # introspection.
+          # cd "${GITHUB_WORKSPACE}"
+          # git init
+          # git remote add origin "${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}"
+          # git fetch origin "${GITHUB_SHA}"
+          # git reset --hard FETCH_HEAD
+
+          # Replicate cmake/version.cmake as best as we can...
+          #
+          if [[ ! -e version.txt ]]; then
+            if [[ -n "${GITHUB_REF:-}" && "${GITHUB_REF}" = refs/tags/* ]]; then
+              echo "${GITHUB_REF#refs/tags/}"
+            else
+              echo "v0.0.0-0-g${GITHUB_SHA:0:7}"
+            fi > version.txt
+
+            cat version.txt
+          fi
+
+          su rnpuser -c ./ci/build_package_rpm.sh

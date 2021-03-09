@@ -1,11 +1,12 @@
 name: windows-msys2
 
-on:
-  pull_request:
-  push:
-    branches:
-      - master
-      - 'release/**'
+on: []
+# on:
+#   pull_request:
+#   push:
+#     branches:
+#       - master
+#       - 'release/**'
 
 env:
   BUILD_MODE: normal
@@ -29,7 +30,7 @@ jobs:
         run: bash ci/before_install.sh
       - name: tests
         shell: msys2 {0}
-        run: bash -c ". ci/env.inc.sh && ci/main.sh"
+        run: bash ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
@@ -38,4 +39,3 @@ jobs:
           ./Dependencies -exports $HOME/local-installs/rnp-install/bin/librnp*.dll > exports
           grep -qv dst_close exports
           grep -qw rnp_version_string exports
-

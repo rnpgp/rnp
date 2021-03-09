@@ -128,4 +128,3 @@ if (BOTAN2_FOUND AND NOT TARGET Botan2::Botan2)
 endif()
 
 mark_as_advanced(BOTAN2_INCLUDE_DIR BOTAN2_LIBRARY)
-

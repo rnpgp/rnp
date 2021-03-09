@@ -15,14 +15,15 @@ task:
     # workaround 'pkg: repository meta has wrong version 2'
     env ASSUME_ALWAYS_YES=yes pkg bootstrap -f
     pkg install -y sudo
+    # Use bash for the CI scripts
+    pkg install -y bash
     # add rnpuser
     pw useradd -n rnpuser -m
     printf "\nrnpuser ALL=(ALL) NOPASSWD: ALL\n" > /usr/local/etc/sudoers.d/rnpuser
     # change ownership for the cloned repo
     chown -R rnpuser:rnpuser "$PWD"
   before_install_script: |
-    . ci/env.inc.sh
-    su rnpuser -c ci/before_install.sh
+    su rnpuser -c 'bash ci/before_install.sh'
   dependencies_cache:
     folder: $LOCAL_INSTALLS
     fingerprint_script: sha256 ci/install.sh && git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
@@ -31,9 +32,6 @@ task:
     mkdir -p "$LOCAL_INSTALLS"
     chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"
     # install
-    . ci/env.inc.sh
-    su rnpuser -c ci/install.sh
+    su rnpuser -c 'bash ci/install.sh'
   script: |
-    . ci/env.inc.sh
-    su rnpuser -c ci/main.sh
-
+    su rnpuser -c 'bash ci/main.sh'

@@ -1,0 +1,80 @@
+# This is for testing only
+name: GnuPG Build Sanity
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+env:
+  CORES: 2
+  # LANG: C.UTF-8
+  # LC_ALL: C.UTF-8
+  # LC_LANG: C.UTF-8
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container: ${{ matrix.container }}
+    strategy:
+      matrix:
+        container:
+          - image: centos:7
+          - image: centos:8
+          - image: fedora:33
+        env:
+          - suite_version: latest
+          - suite_version: master
+          - suite_version: 2.2
+
+        exclude:
+          - container:
+              image: centos:7
+            env:
+              suite_version: master
+    env: ${{ matrix.env }}
+    timeout-minutes: 70
+    continue-on-error: true
+    steps:
+      # - name: Cache
+      #   id: cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ${{ env.CACHE_DIR }}
+      #     key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.container }}-${{ matrix.env.suite_version }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        # if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          yum -y -q update
+          yum -y -q install --skip-broken sudo git clang gcc gcc-c++ make autoconf automake libtool bzip2 gzip ncurses-devel bzip2-devel zlib-devel byacc gettext-devel bison
+      # - uses: actions/checkout@v2
+      #   with:
+      #     fetch-depth: 0
+      - name: Add rnpuser
+        run: |
+          useradd rnpuser
+          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+      - name: Build GPG
+        run: |
+          mkdir -p /src
+
+          # git clone https://github.com/rnpgp/gpg-build-scripts
+          # /src/gpg-build-scripts
+          # cd /src/gpg-build-scripts/
+          # ./install_gpg_all.sh --suite-version "${suite_version}" \
+          #   --sudo \
+          #   --ldconfig \
+          #   --configure-opts "--disable-doc --disable-pinentry-qt"
+
+          chown -R rnpuser /src
+          su - rnpuser -c 'git clone https://github.com/rnpgp/gpg-build-scripts /src/gpg-build-scripts'
+          su - rnpuser -c 'git config --global pull.rebase false'
+          su - rnpuser -c 'cd /src/gpg-build-scripts
+          ./install_gpg_all.sh --suite-version '"${suite_version}"' \
+            --sudo \
+            --ldconfig \
+            --configure-opts "--disable-doc --disable-pinentry-qt"'

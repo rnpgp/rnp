@@ -1,10 +1,11 @@
 name: windows-msvc
-on:
-  pull_request:
-  push:
-    branches:
-      - master
-      - 'release/**'
+on: []
+# on:
+#   pull_request:
+#   push:
+#     branches:
+#       - master
+#       - 'release/**'
 
 jobs:
   build_and_test:

@@ -96,7 +96,7 @@ def rnp_file_path(relpath, check = True):
 
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
-    # test special quote cases 
+    # test special quote cases
     params = list(map(lambda st: st.replace('"', '\\"'), params))
     # We need to escape empty parameters/ones with spaces with quotes
     params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
@@ -164,9 +164,9 @@ def run_proc_windows(proc, params, stdin=None):
     err = file_text(stderr_path).replace('\r\n', '\n')
     os.unlink(stdout_path)
     os.unlink(stderr_path)
-    if stdin: 
+    if stdin:
         os.unlink(stdin_path)
-    if passfo: 
+    if passfo:
         os.unlink(pass_path)
     logging.debug(err.strip())
     logging.debug(out.strip())
