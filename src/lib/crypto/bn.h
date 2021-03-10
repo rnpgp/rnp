@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Ribose Inc.
+ * Copyright (c) 2017-2021 Ribose Inc.
  * Copyright (c) 2012 Alistair Crooks <agc@NetBSD.org>
  * All rights reserved.
  *
@@ -29,15 +29,20 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include "config.h"
 
+#ifdef OPENSSL_BACKEND
+#include <openssl/bn.h>
+
+typedef struct bignum_t_st {
+    BIGNUM *mp;
+} bignum_t;
+#else
 typedef struct botan_mp_struct *botan_mp_t;
-
-/*
- * bignum_t struct
- */
 typedef struct bignum_t_st {
     botan_mp_t mp;
 } bignum_t;
+#endif
 
 #define BN_HANDLE(x) ((x).mp)
 #define BN_HANDLE_PTR(x) ((x)->mp)
@@ -64,5 +69,16 @@ bool bn_num_bits(const bignum_t *a, size_t *bits);
  * @returns true on success, otherwise false
  */
 bool bn_num_bytes(const bignum_t *a, size_t *bytes);
+
+#ifdef OPENSSL_BACKEND
+/**
+ * @brief Cancel ownership on the OpenSSL's BIGNUM from the bignum_t.
+ *
+ * @param a bingum_t structure, may be NULL.
+ */
+void bn_transfer(bignum_t *a);
+
+bignum_t *bn_new(const BIGNUM *a);
+#endif
 
 #endif
