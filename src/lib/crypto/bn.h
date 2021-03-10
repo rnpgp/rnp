@@ -49,7 +49,6 @@ void      bn_free(bignum_t * /*a*/);
 
 bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
 int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
-int       bn_print_fp(FILE * /*fp*/, const bignum_t * /*a*/);
 
 /*
  * @param a Initialized bignum_t structure
