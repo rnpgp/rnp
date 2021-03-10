@@ -136,27 +136,6 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
     key_rsa = &seckey.material.rsa;
 
-#if defined(DEBUG_PRINT)
-    char *tmp = hex_encode(ptext, sizeof(ptext));
-    printf("PT = 0x%s\n", tmp);
-    free(tmp);
-    printf("N = ");
-    bn_print_fp(stdout, pub_rsa->n);
-    printf("\n");
-    printf("E = ");
-    bn_print_fp(stdout, pub_rsa->e);
-    printf("\n");
-    printf("P = ");
-    bn_print_fp(stdout, sec_rsa->p);
-    printf("\n");
-    printf("Q = ");
-    bn_print_fp(stdout, sec_rsa->q);
-    printf("\n");
-    printf("D = ");
-    bn_print_fp(stdout, sec_rsa->d);
-    printf("\n");
-#endif
-
     assert_rnp_success(rsa_encrypt_pkcs1(&global_rng, &enc, ptext, 3, key_rsa));
     assert_int_equal(enc.m.len, 1024 / 8);
 
