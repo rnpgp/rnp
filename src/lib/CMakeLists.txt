@@ -97,6 +97,7 @@ set(CMAKE_REQUIRED_INCLUDES)
 if(OPENSSL_BACKEND)
   set(CRYPTO_SOURCES
     crypto/bn.cpp
+    crypto/bn_ossl.cpp
     crypto/dsa.cpp
     crypto/ec.cpp
     crypto/ecdh.cpp
