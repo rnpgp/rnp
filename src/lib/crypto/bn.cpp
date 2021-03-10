@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018 Ribose Inc.
+ * Copyright (c) 2017-2021 Ribose Inc.
  * Copyright (c) 2012 Alistair Crooks <agc@NetBSD.org>
  * All rights reserved.
  *
@@ -27,9 +27,8 @@
 #include "bn.h"
 #include <botan/ffi.h>
 #include <stdlib.h>
+#include <assert.h>
 #include "utils.h"
-
-/**************************************************************************/
 
 /* essentiually, these are just wrappers around the botan functions */
 /* usually the order of args changes */
@@ -39,38 +38,35 @@
 bignum_t *
 bn_bin2bn(const uint8_t *data, int len, bignum_t *ret)
 {
-    if (data == NULL) {
-        return bn_new();
-    }
-    if (ret == NULL) {
-        ret = bn_new();
-    }
-
-    if (ret == NULL) {
+    assert(data);
+    if (!data) {
+        RNP_LOG("NULL data.");
         return NULL;
     }
-
-    return (botan_mp_from_bin(ret->mp, data, len) == 0) ? ret : NULL;
+    if (!ret) {
+        ret = bn_new();
+    }
+    if (!ret) {
+        return NULL;
+    }
+    return !botan_mp_from_bin(ret->mp, data, len) ? ret : NULL;
 }
 
 /* store in unsigned [big endian] format */
 int
 bn_bn2bin(const bignum_t *a, unsigned char *b)
 {
-    if (a == NULL || b == NULL) {
+    if (!a || !b) {
         return -1;
     }
-
     return botan_mp_to_bin(a->mp, b);
 }
 
 bignum_t *
 bn_new(void)
 {
-    bignum_t *a;
-
-    a = (bignum_t *) calloc(1, sizeof(*a));
-    if (a == NULL) {
+    bignum_t *a = (bignum_t *) calloc(1, sizeof(*a));
+    if (!a) {
         return NULL;
     }
     botan_mp_init(&a->mp);
@@ -80,7 +76,7 @@ bn_new(void)
 void
 bn_free(bignum_t *a)
 {
-    if (a != NULL) {
+    if (a) {
         botan_mp_destroy(a->mp);
         free(a);
     }
@@ -89,10 +85,7 @@ bn_free(bignum_t *a)
 bool
 bn_num_bits(const bignum_t *a, size_t *bits)
 {
-    if (!a || botan_mp_num_bits(a->mp, bits)) {
-        return false;
-    }
-    return true;
+    return a && !botan_mp_num_bits(a->mp, bits);
 }
 
 bool
