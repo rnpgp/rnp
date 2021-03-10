@@ -104,28 +104,3 @@ bn_num_bytes(const bignum_t *a, size_t *bits)
     }
     return false;
 }
-
-int
-bn_print_fp(FILE *fp, const bignum_t *a)
-{
-    int    ret;
-    size_t num_bytes;
-    char * buf;
-
-    if (fp == NULL || a == NULL) {
-        return 0;
-    }
-    if (botan_mp_num_bytes(a->mp, &num_bytes)) {
-        return 0;
-    }
-
-    if (botan_mp_is_negative(a->mp)) {
-        fprintf(fp, "-");
-    }
-
-    buf = (char *) calloc(num_bytes * 2 + 2, 1);
-    botan_mp_to_hex(a->mp, buf);
-    ret = fprintf(fp, "%s", buf);
-    free(buf);
-    return ret;
-}
