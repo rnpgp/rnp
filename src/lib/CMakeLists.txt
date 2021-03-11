@@ -96,21 +96,20 @@ set(CMAKE_REQUIRED_INCLUDES)
 
 if(OPENSSL_BACKEND)
   set(CRYPTO_SOURCES
-    crypto/bn.cpp
     crypto/bn_ossl.cpp
-    crypto/dsa.cpp
-    crypto/ec.cpp
-    crypto/ecdh.cpp
-    crypto/ecdsa.cpp
-    crypto/eddsa.cpp
-    crypto/elgamal.cpp
+    crypto/dsa_ossl.cpp
+    crypto/ec_ossl.cpp
+    crypto/ecdh_ossl.cpp
+    crypto/ecdsa_ossl.cpp
+    crypto/eddsa_ossl.cpp
+    crypto/elgamal_ossl.cpp
     crypto/hash_ossl.cpp
     crypto/hash_crc24.cpp
     crypto/mpi.cpp
     crypto/rng.cpp
-    crypto/rsa.cpp
+    crypto/rsa_ossl.cpp
     crypto/s2k.cpp
-    crypto/sm2.cpp
+    crypto/sm2_ossl.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
