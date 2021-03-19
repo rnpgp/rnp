@@ -106,7 +106,7 @@ if(OPENSSL_BACKEND)
     crypto/hash_ossl.cpp
     crypto/hash_crc24.cpp
     crypto/mpi.cpp
-    crypto/rng.cpp
+    crypto/rng_ossl.cpp
     crypto/rsa_ossl.cpp
     crypto/s2k.cpp
     crypto/sm2_ossl.cpp
