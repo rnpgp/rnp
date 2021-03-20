@@ -21,6 +21,10 @@ case "$(get_linux_dist)" in
     if rpm --quiet -q llvm-toolset-7.0; then
       . /opt/rh/llvm-toolset-7.0/enable
     fi
+    export SUDO=sudo
+    ;;
+  ubuntu)
+    export SUDO=sudo
     ;;
 esac
 

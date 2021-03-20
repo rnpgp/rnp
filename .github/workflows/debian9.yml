@@ -1,0 +1,70 @@
+name: debian9
+
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
+
+env:
+  CORES: 2
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  DOWNLOAD_RUBYRNP: Off
+  BUILD_MODE: normal
+  GPG_VERSION: stable
+  SUDO: ""
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container:
+      image: ${{ matrix.env.IMAGE }}
+    timeout-minutes: 120
+    strategy:
+      matrix:
+        env:
+          - CPU: i386
+            IMAGE: "i386/debian:9"
+    env: ${{ matrix.env }}
+    continue-on-error: false
+    steps:
+      - name: Installing prerequisites
+        run: |
+          ${SUDO} apt update
+          ${SUDO} apt -y install git python3 g++ wget autoconf libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
+          ${SUDO} ln -s /usr/bin/python3 /usr/bin/python
+          cd $GITHUB_WORKSPACE
+          git init
+          git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+          git fetch origin $GITHUB_SHA
+          git reset --hard FETCH_HEAD
+      - name: Setup environment
+        run: |
+          . ci/gha/setup-env.inc.sh
+        shell: bash
+      - name: Building dependencies
+        run: |
+          set -euxo pipefail
+          ci/before_install.sh
+          . ci/env.inc.sh
+          ./ci/install.sh
+        shell: bash
+      - name: Add rnpuser
+        # it's only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
+        run: |
+           useradd rnpuser
+           printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+           echo "rnpuser now contains:"
+           cat /etc/sudoers.d/rnpuser
+           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+           echo "SUDO=sudo" >> $GITHUB_ENV
+      - name: Building and Testing
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ./ci/run.sh
+        shell: bash
