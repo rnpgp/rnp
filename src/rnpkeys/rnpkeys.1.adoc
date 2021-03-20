@@ -339,31 +339,34 @@ _Non-zero_::
 
 == BUGS
 
-Please report issues via the _RNP_ public issue tracker at: https://github.com/rnpgp/rnp/issues.
+Please report _issues_ via the RNP public issue tracker at:
+https://github.com/rnpgp/rnp/issues.
 
-The RNP GitHub issue tracker is publicly viewable; security issues should be reported via other channels.
+_Security reports_ or _security-sensitive feedback_ should be reported
+according to the instructions at:
+https://www.rnpgp.org/feedback.
 
 
 == AUTHORS
 
-_RNP_ is a project led by Ribose and has received contributions from
-numerous individuals and organizations.
+*RNP* is an open source project led by Ribose and has
+received contributions from numerous individuals and
+organizations.
 
 
 == RESOURCES
 
-_Web site:_ https://www.rnpgp.com
+*Web site*: https://www.rnpgp.org
 
-_Git source repository on GitHub:_ https://github.com/rnpgp/rnp
-
-_GitHub organization:_ https://github.com/rnpgp
+*Source repository*: https://github.com/rnpgp/rnp
 
 
 == COPYING
 
-Copyright \(C) 2021 Ribose.
-The RNP software suite is freely licensed:
-please refer to the LICENSE file for details.
+Copyright \(C) 2017-2021 Ribose.
+The RNP software suite is _freely licensed_:
+please refer to the *LICENSE* file for details.
+
 
 
 == SEE ALSO
