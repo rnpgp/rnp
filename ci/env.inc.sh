@@ -2,6 +2,8 @@
 . ci/env-common.inc.sh
 . "ci/env-$(get_os).inc.sh"
 
+export SUDO
+
 : "${MAKE_PARALLEL:=$CORES}"
 export MAKE_PARALLEL
 

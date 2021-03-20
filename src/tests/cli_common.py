@@ -211,7 +211,7 @@ def run_proc(proc, params, stdin=None):
     param_bytes = list(map(lambda x: x.encode(CONSOLE_ENCODING), params))
     process = Popen([proc] + param_bytes, stdout=PIPE, stderr=PIPE,
                     stdin=PIPE if stdin else None, close_fds=False,
-                    universal_newlines=True, encoding=CONSOLE_ENCODING)
+                    universal_newlines=True)
     output, errout = process.communicate(stdin)
     retcode = process.poll()
     logging.debug(errout.strip())
