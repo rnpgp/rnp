@@ -109,6 +109,7 @@ if(OPENSSL_BACKEND)
     crypto/rng_ossl.cpp
     crypto/rsa_ossl.cpp
     crypto/s2k.cpp
+    crypto/s2k_ossl.cpp
     crypto/sm2_ossl.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
