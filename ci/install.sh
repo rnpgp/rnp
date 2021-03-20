@@ -24,8 +24,11 @@ function install_botan() {
       osparam="--os=mingw"
     fi
 
+    cpuparam=
+    [ -z "$CPU" ] || cpuparam="--cpu=$CPU --disable-cc-tests"
+
     ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" \
-      $osparam --without-documentation --without-openssl --build-targets=shared \
+      $osparam $cpuparam --without-documentation --without-openssl --build-targets=shared \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j${MAKE_PARALLEL} install
     popd
@@ -49,7 +52,9 @@ install_jsonc() {
     tar xzf json-c.tar.gz --strip 1
 
     autoreconf -ivf
-    env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure --prefix="${JSONC_INSTALL}"
+    cpuparam=
+    [ -z "$CPU" ] || cpuparam="--build=$CPU"
+    env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure $cpuparam --prefix="${JSONC_INSTALL}"
     ${MAKE} -j${MAKE_PARALLEL} install
     popd
   fi
@@ -70,6 +75,8 @@ _install_gpg() {
   mkdir -p "$gpg_build" "${gpg_install}"
   git clone --depth 1 https://github.com/rnpgp/gpg-build-scripts
   pushd gpg-build-scripts
+  cpuparam=
+  [ -z "$CPU" ] || cpuparam="--build=$CPU"
   configure_opts="\
       --prefix=${gpg_install} \
       --with-libgpg-error-prefix=${gpg_install} \
@@ -87,7 +94,8 @@ _install_gpg() {
       --disable-pinentry-qt5 \
       --disable-pinentry-tqt \
       --disable-pinentry-fltk \
-      --enable-maintainer-mode"
+      --enable-maintainer-mode \
+      $cpuparam"
   common_args=(
       --build-dir "$gpg_build" \
       --configure-opts "$configure_opts"
@@ -138,24 +146,20 @@ install_gpg() {
 
 install_bundler() {
   # ruby-rnp
-  SUDO=
-  ([ "$(get_os)" = "freebsd" ] || \
-    ([ "$(get_os)" = "linux" ] && [ "$(get_linux_dist)" = "ubuntu" ])) \
-    && SUDO=sudo
-  which bundle || ${SUDO} gem install bundler
+  which bundle || ${SUDO_GEM} install bundler
 }
 
 install_asciidoc() {
-  SUDO=
-  ([ "$(get_os)" = "freebsd" ] || \
-    ([ "$(get_os)" = "linux" ] && [ "$(get_linux_dist)" = "ubuntu" ])) \
-    && SUDO=sudo
-  which asciidoctor || ${SUDO} gem install asciidoctor
+  which asciidoctor || ${SUDO_GEM} install asciidoctor
 }
 
+if ([ "$(get_os)" = "linux" ] && [ "$(get_linux_dist)" = "centos" ]); then
+  SUDO_GEM="gem"
+else
+  SUDO_GEM="${SUDO} gem"
+fi
 default=(botan jsonc gpg bundler asciidoc)
 items=("${@:-${default[@]}}")
 for item in "${items[@]}"; do
   install_"$item"
 done
-
