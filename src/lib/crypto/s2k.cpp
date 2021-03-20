@@ -76,22 +76,6 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysi
 }
 
 int
-pgp_s2k_simple(pgp_hash_alg_t alg, uint8_t *out, size_t output_len, const char *password)
-{
-    return pgp_s2k_salted(alg, out, output_len, password, NULL);
-}
-
-int
-pgp_s2k_salted(pgp_hash_alg_t alg,
-               uint8_t *      out,
-               size_t         output_len,
-               const char *   password,
-               const uint8_t *salt)
-{
-    return pgp_s2k_iterated(alg, out, output_len, password, salt, 1);
-}
-
-int
 pgp_s2k_iterated(pgp_hash_alg_t alg,
                  uint8_t *      out,
                  size_t         output_len,
