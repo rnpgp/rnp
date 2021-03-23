@@ -31,8 +31,10 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
-find_package(Botan2 2.14.0 REQUIRED)
-if (OPENSSL_BACKEND)
+if (CRYPTO_BACKEND_BOTAN)
+  find_package(Botan2 2.14.0 REQUIRED)
+endif()
+if (CRYPTO_BACKEND_OPENSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
 endif()
 
@@ -64,37 +66,39 @@ configure_file(config.h.in config.h)
 # generate a version.h
 configure_file(version.h.in version.h)
 
-# check botan's enabled features
-set(CMAKE_REQUIRED_INCLUDES "${BOTAN2_INCLUDE_DIRS}")
-set(_botan_required_features
-    # base
-    BIGINT FFI HEX_CODEC PGP_S2K
-    # AEAD
-    BLOCK_CIPHER AEAD_EAX AEAD_OCB
-    # symmetric ciphers
-    AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 SM4 TWOFISH
-    # cipher modes
-    MODE_CBC MODE_CFB
-    # RNG
-    AUTO_RNG AUTO_SEEDING_RNG HMAC HMAC_DRBG
-    # hash
-    CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3 SM3
-    # public-key core
-    DL_GROUP DL_PUBLIC_KEY_FAMILY ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO
-    # public-key algs
-    CURVE_25519 DSA ECDH ECDSA ED25519 ELGAMAL RSA SM2
-    # public-key operations etc
-    EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
-)
-foreach(feature ${_botan_required_features})
-  check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
-  if (NOT _botan_has_${feature})
-    message(FATAL_ERROR "A required botan feature is missing: ${feature}")
-  endif()
-endforeach()
-set(CMAKE_REQUIRED_INCLUDES)
+if(CRYPTO_BACKEND_BOTAN)
+  # check botan's enabled features
+  set(CMAKE_REQUIRED_INCLUDES "${BOTAN2_INCLUDE_DIRS}")
+  set(_botan_required_features
+      # base
+      BIGINT FFI HEX_CODEC PGP_S2K
+      # AEAD
+      BLOCK_CIPHER AEAD_EAX AEAD_OCB
+      # symmetric ciphers
+      AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 SM4 TWOFISH
+      # cipher modes
+      MODE_CBC MODE_CFB
+      # RNG
+      AUTO_RNG AUTO_SEEDING_RNG HMAC HMAC_DRBG
+      # hash
+      CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3 SM3
+      # public-key core
+      DL_GROUP DL_PUBLIC_KEY_FAMILY ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO
+      # public-key algs
+      CURVE_25519 DSA ECDH ECDSA ED25519 ELGAMAL RSA SM2
+      # public-key operations etc
+      EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
+  )
+  foreach(feature ${_botan_required_features})
+    check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
+    if (NOT _botan_has_${feature})
+      message(FATAL_ERROR "A required botan feature is missing: ${feature}")
+    endif()
+  endforeach()
+  set(CMAKE_REQUIRED_INCLUDES)
+endif()
 
-if(OPENSSL_BACKEND)
+if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES
     crypto/bn_ossl.cpp
     crypto/dsa_ossl.cpp
@@ -113,9 +117,9 @@ if(OPENSSL_BACKEND)
     crypto/sm2_ossl.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
-    crypto/mem.cpp
+    crypto/mem_ossl.cpp
   )
-else()
+elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
     crypto/bn.cpp
     crypto/dsa.cpp
@@ -134,6 +138,8 @@ else()
     crypto/signatures.cpp
     crypto/mem.cpp
   )
+else()
+  message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()
 
 add_library(librnp-obj OBJECT
@@ -181,12 +187,10 @@ target_include_directories(librnp-obj
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
 )
-target_link_libraries(librnp-obj
-  PRIVATE
-    Botan2::Botan2
-    JSON-C::JSON-C
-)
-if (OPENSSL_BACKEND)
+target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
+if (CRYPTO_BACKEND_BOTAN)
+  target_link_libraries(librnp-obj PRIVATE Botan2::Botan2)
+elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
 
