@@ -55,7 +55,6 @@ option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
-option(OPENSSL_BACKEND "Use OpenSSL backend instead of Botan.")
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
@@ -75,6 +74,26 @@ if (NOT CMAKE_BUILD_TYPE)
     "Build type. Options are: None Debug Release RelWithDebInfo MinSizeRel."
     FORCE
   )
+endif()
+
+# crypto backend
+if (NOT CRYPTO_BACKEND)
+  set(CRYPTO_BACKEND "botan" CACHE STRING
+    "Crypto backend. Possible values are botan and openssl (under development, only for debug builds). Default is botan."
+    FORCE
+  )
+endif()
+if(CRYPTO_BACKEND STREQUAL "botan")
+  # Default value;
+  set(CRYPTO_BACKEND_BOTAN 1)
+elseif(CRYPTO_BACKEND STREQUAL "openssl")
+  # Do not allow OpenSSL backend in release builds yet.
+  if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
+    message(FATAL_ERROR "OpenSSL backend is supported only at debug mode and not ready for release yet.")
+  endif()
+  set(CRYPTO_BACKEND_OPENSSL 1)
+else()
+  message(FATAL_ERROR "Invalid crypto backend: ${CRYPTO_BACKEND}")
 endif()
 
 # set warning flags at the top level

@@ -41,7 +41,7 @@
 #include "rnp.h"
 #include "types.h"
 #include "utils.h"
-#ifndef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_BOTAN
 #include <botan/ffi.h>
 #endif
 
@@ -77,7 +77,7 @@ pgp_s2k_derive_key(pgp_s2k_t *s2k, const char *password, uint8_t *key, int keysi
     return true;
 }
 
-#ifndef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_BOTAN
 int
 pgp_s2k_iterated(pgp_hash_alg_t alg,
                  uint8_t *      out,

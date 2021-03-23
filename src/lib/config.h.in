@@ -50,7 +50,8 @@
 #cmakedefine HAVE__O_BINARY
 #cmakedefine HAVE__TEMPNAM
 
-#cmakedefine OPENSSL_BACKEND
+#cmakedefine CRYPTO_BACKEND_BOTAN
+#cmakedefine CRYPTO_BACKEND_OPENSSL
 
 /* Macro _GLIBCXX_USE_CXX11_ABI was first introduced with GCC 5.0, which
  * we assume to be bundled with a sane implementation of std::regex. */

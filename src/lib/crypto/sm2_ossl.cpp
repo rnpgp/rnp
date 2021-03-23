@@ -25,7 +25,6 @@
  */
 
 #include <string.h>
-#include <botan/ffi.h>
 #include "sm2.h"
 #include "hash.h"
 #include "utils.h"

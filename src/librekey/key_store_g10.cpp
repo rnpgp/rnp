@@ -28,8 +28,11 @@
 #include <stdlib.h>
 #include <limits.h>
 #include <time.h>
+#include "config.h"
 
+#ifdef CRYPTO_BACKEND_BOTAN
 #include <botan/ffi.h>
+#endif
 
 #include <librepgp/stream-packet.h>
 #include "key_store_pgp.h"
@@ -664,6 +667,7 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
                           const char *         password,
                           s_exp_t *            r_s_exp)
 {
+#ifdef CRYPTO_BACKEND_BOTAN
     const format_info *info = NULL;
     unsigned           keysize = 0;
     uint8_t            derived_key[PGP_MAX_KEY_SIZE];
@@ -757,6 +761,9 @@ done:
     free(decrypted_data);
     botan_cipher_destroy(decrypt);
     return ret;
+#else
+    return false;
+#endif
 }
 
 static bool
@@ -1310,6 +1317,7 @@ write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
 static bool
 write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *password)
 {
+#ifdef CRYPTO_BACKEND_BOTAN
     bool                  ret = false;
     const format_info *   format;
     s_exp_t               raw_s_exp = {0};
@@ -1443,6 +1451,9 @@ done:
     dst_close(&raw, true);
     botan_cipher_destroy(encrypt);
     return ret;
+#else
+    return false;
+#endif
 }
 
 bool
