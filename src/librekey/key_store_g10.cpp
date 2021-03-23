@@ -1355,6 +1355,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     time_t now;
     time(&now);
     char protected_at[G10_PROTECTED_AT_SIZE + 1];
+    // TODO: how critical is it if we have a skewed timestamp here due to y2k38 problem?
     strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
 
     if (!g10_calculated_hash(seckey, protected_at, checksum) ||
