@@ -31,17 +31,19 @@
 #include <stdint.h>
 #include "config.h"
 
-#ifdef OPENSSL_BACKEND
+#if defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/bn.h>
 
 typedef struct bignum_t_st {
     BIGNUM *mp;
 } bignum_t;
-#else
+#elif defined(CRYPTO_BACKEND_BOTAN)
 typedef struct botan_mp_struct *botan_mp_t;
 typedef struct bignum_t_st {
     botan_mp_t mp;
 } bignum_t;
+#else
+#error "Unknown crypto backend."
 #endif
 
 #define BN_HANDLE(x) ((x).mp)
@@ -70,7 +72,7 @@ bool bn_num_bits(const bignum_t *a, size_t *bits);
  */
 bool bn_num_bytes(const bignum_t *a, size_t *bytes);
 
-#ifdef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_OPENSSL
 /**
  * @brief Cancel ownership on the OpenSSL's BIGNUM from the bignum_t.
  *

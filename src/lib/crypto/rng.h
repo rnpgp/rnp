@@ -39,13 +39,13 @@
 
 enum { RNG_DRBG, RNG_SYSTEM };
 typedef uint8_t rng_type_t;
-#ifndef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_BOTAN
 typedef struct botan_rng_struct *botan_rng_t;
 #endif
 
 typedef struct rng_st_t {
     rng_type_t rng_type;
-#ifndef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_BOTAN
     bool        initialized;
     botan_rng_t botan_rng;
 #endif
@@ -86,7 +86,7 @@ void rng_destroy(rng_t *ctx);
  **/
 bool rng_get_data(rng_t *ctx, uint8_t *data, size_t len);
 
-#ifndef OPENSSL_BACKEND
+#ifdef CRYPTO_BACKEND_BOTAN
 /*
  * @brief   Returns internal handle to botan rng. Returned
  *          handle is always initialized. In case of
