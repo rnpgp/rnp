@@ -48,11 +48,11 @@
 #include <sys/resource.h>
 #endif
 
-#include <time.h>
 #include "config.h"
 #include "fficli.h"
 #include "str-utils.h"
 #include "file-utils.h"
+#include "time-utils.h"
 #include "defaults.h"
 
 #ifndef RNP_USE_STD_REGEX
@@ -189,9 +189,14 @@ ptimestr(char *dest, size_t size, time_t t)
 {
     struct tm *tm;
 
-    tm = gmtime(&t);
-    (void) snprintf(
-      dest, size, "%04d-%02d-%02d", tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday);
+    tm = rnp_gmtime(t);
+    (void) snprintf(dest,
+                    size,
+                    "%s%04d-%02d-%02d",
+                    rnp_y2k38_warning(t) ? ">=" : "",
+                    tm->tm_year + 1900,
+                    tm->tm_mon + 1,
+                    tm->tm_mday);
     return dest;
 }
 
@@ -903,8 +908,8 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     /* key expiration */
     (void) rnp_key_get_expiration(key, &expiry);
     if (expiry > 0) {
-        time_t now = time(NULL);
-        time_t expire_time = create + expiry;
+        uint32_t now = time(NULL);
+        auto     expire_time = create + expiry;
         ptimestr(buf, sizeof(buf), expire_time);
         fprintf(fp, " [%s %s]", expire_time <= now ? "EXPIRED" : "EXPIRES", buf);
     }
@@ -2487,10 +2492,17 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
 
         if (create > 0) {
             time_t crtime = create;
-            fprintf(resfp, "%s made %s", title.c_str(), ctime(&crtime));
+            fprintf(resfp,
+                    "%s made %s%s",
+                    title.c_str(),
+                    rnp_y2k38_warning(crtime) ? ">=" : "",
+                    rnp_ctime(crtime));
             if (expiry > 0) {
-                crtime += expiry;
-                fprintf(resfp, "Valid until %s\n", ctime(&crtime));
+                crtime = rnp_timeadd(crtime, expiry);
+                fprintf(resfp,
+                        "Valid until %s%s\n",
+                        rnp_y2k38_warning(crtime) ? ">=" : "",
+                        rnp_ctime(crtime));
             }
         } else {
             fprintf(resfp, "%s\n", title.c_str());

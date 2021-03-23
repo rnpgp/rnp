@@ -39,6 +39,8 @@
 #include <librepgp/stream-dump.h>
 #include <librepgp/stream-armor.h>
 #include <librepgp/stream-write.h>
+#include <algorithm>
+#include "time-utils.h"
 
 static bool
 stream_hash_file(pgp_hash_t *hash, const char *path)
@@ -1253,6 +1255,78 @@ static bool
 check_dump_file(const char *file, bool mpi, bool grip)
 {
     return check_dump_file_dst(file, mpi, grip) && check_dump_file_json(file, mpi, grip);
+}
+
+TEST_F(rnp_tests, test_y2k38)
+{
+    cli_rnp_t rnp;
+    rnp_cfg   cfg;
+
+    /* setup rnp structure and params */
+    cfg.set_str(CFG_KR_PUB_PATH, "data/keyrings/6");
+    cfg.set_str(CFG_KR_SEC_PATH, "data/keyrings/6");
+    cfg.set_str(CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
+    cfg.set_str(CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
+    cfg.set_str(CFG_IO_RESS, "stderr.dat");
+    assert_true(cli_rnp_init(&rnp, cfg));
+
+    rnp_cfg &rnpcfg = cli_rnp_cfg(rnp);
+    /* verify */
+    rnpcfg.set_str(CFG_INFILE, "data/test_messages/future.pgp");
+    rnpcfg.set_bool(CFG_OVERWRITE, true);
+    assert_true(cli_rnp_process_file(&rnp));
+
+    /* clean up and flush the file */
+    cli_rnp_end(&rnp);
+
+    /* check the file for presense of correct dates */
+    auto        output = file_to_str("stderr.dat");
+    time_t      crtime = 0xC0000000;
+    std::string correctMade = "signature made ";
+    if (rnp_y2k38_warning(crtime)) {
+        correctMade += ">=";
+    }
+    correctMade += rnp_ctime(crtime);
+    assert_true(
+      std::search(output.begin(), output.end(), correctMade.begin(), correctMade.end()) !=
+      output.end());
+    time_t      validtime = rnp_timeadd(crtime, 0xD0000000);
+    std::string correctValid = "Valid until ";
+    if (rnp_y2k38_warning(validtime)) {
+        correctValid += ">=";
+    }
+    correctValid += rnp_ctime(validtime);
+    assert_true(
+      std::search(output.begin(), output.end(), correctValid.begin(), correctValid.end()) !=
+      output.end());
+    unlink("stderr.dat");
+}
+
+TEST_F(rnp_tests, test_stream_dumper_y2k38)
+{
+    pgp_source_t   src;
+    pgp_dest_t     dst;
+    rnp_dump_ctx_t ctx = {0};
+
+    assert_rnp_success(init_file_src(&src, "data/keyrings/6/pubring.gpg"));
+    assert_rnp_success(init_mem_dest(&dst, NULL, 0));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
+    src_close(&src);
+    auto   written = (const uint8_t *) mem_dest_get_memory(&dst);
+    auto   last = written + dst.writeb;
+    time_t timestamp = 2958774690;
+    // regenerate time for the current timezone
+    char buf[26] = {0};
+    strncpy(buf, rnp_ctime(timestamp), sizeof(buf));
+    buf[24] = '\0';
+    std::string correct = "creation time: 2958774690 (";
+    if (rnp_y2k38_warning(timestamp)) {
+        correct += ">=";
+    }
+    correct += buf;
+    correct += ')';
+    assert_true(std::search(written, last, correct.begin(), correct.end()) != last);
+    dst_close(&dst, false);
 }
 
 TEST_F(rnp_tests, test_stream_dumper)

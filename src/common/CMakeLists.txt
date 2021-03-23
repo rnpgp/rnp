@@ -26,6 +26,7 @@ add_library(rnp-common OBJECT
   list.cpp
   str-utils.cpp
   file-utils.cpp
+  time-utils.cpp
 )
 
 if(MSVC)

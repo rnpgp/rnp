@@ -35,7 +35,7 @@ jobs:
       - name: Installing prerequisites
         run: |
           ${SUDO} apt update
-          ${SUDO} apt -y install git python3 g++ wget autoconf libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
+          ${SUDO} apt -y install git python3 g++ wget autoconf automake libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
           ${SUDO} ln -s /usr/bin/python3 /usr/bin/python
           cd $GITHUB_WORKSPACE
           git init
@@ -58,8 +58,6 @@ jobs:
         run: |
            useradd rnpuser
            printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
-           echo "rnpuser now contains:"
-           cat /etc/sudoers.d/rnpuser
            printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
            echo "SUDO=sudo" >> $GITHUB_ENV
       - name: Building and Testing
