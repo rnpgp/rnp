@@ -303,7 +303,7 @@ signature_hash_direct(const pgp_signature_t *sig, const pgp_key_pkt_t *key, pgp_
 rnp_result_t
 signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash)
 {
-    time_t       now;
+    uint32_t     now;
     uint32_t     create, expiry, kcreate;
     rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
 

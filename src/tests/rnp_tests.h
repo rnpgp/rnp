@@ -367,6 +367,10 @@ void test_stream_key_signatures(void **state);
 
 void test_stream_dumper(void **state);
 
+void test_y2k38(void **state);
+
+void test_stream_dumper_y2k38(void **state);
+
 void test_stream_z(void **state);
 
 void test_stream_verify_no_key(void **state);

@@ -10,11 +10,12 @@ import tempfile
 import time
 import unittest
 from os import path
+from platform import architecture
 
 import cli_common
 from cli_common import (file_text, find_utility, is_windows, list_upto,
                         path_for_gpg, pswd_pipe, raise_err, random_text,
-                        rnp_file_path, run_proc, decode_string_escape, CONSOLE_ENCODING)
+                        run_proc, decode_string_escape, CONSOLE_ENCODING)
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
 
@@ -225,6 +226,12 @@ def clear_keyrings():
             time.sleep(0.1)
     os.mkdir(GPGDIR, 0o700)
 
+def allow_y2k38_on_32bit(filename):
+    if architecture()[0] == '32bit':
+        return [filename, filename + '_y2k38']
+    else:
+        return [filename]
+
 def compare_files(src, dst, message):
     if file_text(src) != file_text(dst):
         raise_err(message)
@@ -232,6 +239,12 @@ def compare_files(src, dst, message):
 def compare_file(src, string, message):
     if file_text(src) != string:
         raise_err(message)
+
+def compare_file_any(srcs, string, message):
+    for src in srcs:
+        if file_text(src) == string:
+            return
+    raise_err(message)
 
 def compare_file_ex(src, string, message, symbol='?'):
     ftext = file_text(src)
@@ -1602,14 +1615,14 @@ class Misc(unittest.TestCase):
         path = data_path('test_cli_rnpkeys') + '/'
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '--list-keys'])
-        compare_file(path + 'keyring_1_list_keys', out, 'keyring 1 key listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys'), out, 'keyring 1 key listing failed')
         _, out, _ = run_proc(RNPK, ['--hom', data_path('keyrings/1'), '-l', '--with-sigs'])
-        compare_file(path + 'keyring_1_list_sigs', out, 'keyring 1 sig listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs'), out, 'keyring 1 sig listing failed')
         _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys', '--secret'])
-        compare_file(path + 'keyring_1_list_keys_sec', out, 'keyring 1 sec key listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys_sec'), out, 'keyring 1 sec key listing failed')
         _, out, _ = run_proc(RNPK, ['--home', data_path('keyrings/1'), '--list-keys',
                                     '--secret', '--with-sigs'])
-        compare_file(path + 'keyring_1_list_sigs_sec', out, 'keyring 1 sec sig listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs_sec'), out, 'keyring 1 sec sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys'])
         compare_file(path + 'keyring_2_list_keys', out, 'keyring 2 key listing failed')
@@ -1617,9 +1630,9 @@ class Misc(unittest.TestCase):
         compare_file(path + 'keyring_2_list_sigs', out, 'keyring 2 sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--list-keys'])
-        compare_file(path + 'keyring_3_list_keys', out, 'keyring 3 key listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_3_list_keys'), out, 'keyring 3 key listing failed')
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '-l', '--with-sigs'])
-        compare_file(path + 'keyring_3_list_sigs', out, 'keyring 3 sig listing failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_3_list_sigs'), out, 'keyring 3 sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/5'), '--list-keys'])
         compare_file(path + 'keyring_5_list_keys', out, 'keyring 5 key listing failed')
@@ -1644,17 +1657,17 @@ class Misc(unittest.TestCase):
         #             'g10 sec keyring sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '2fcadf05ffa501bb'])
-        compare_file(path + 'getkey_2fcadf05ffa501bb', out, 'list key 2fcadf05ffa501bb failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l',
                                     '--with-sigs', '2fcadf05ffa501bb'])
-        compare_file(path + 'getkey_2fcadf05ffa501bb_sig', out, 'list sig 2fcadf05ffa501bb failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sig'), out, 'list sig 2fcadf05ffa501bb failed')
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l',
                                     '--secret', '2fcadf05ffa501bb'])
-        compare_file(path + 'getkey_2fcadf05ffa501bb_sec', out, 'list sec 2fcadf05ffa501bb failed')
+        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sec'), out, 'list sec 2fcadf05ffa501bb failed')
 
-        _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '00000000'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', '00000000'])
         compare_file(path + 'getkey_00000000', out, 'list key 00000000 failed')
-        _, out, err = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', 'zzzzzzzz'])
+        _, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/1'), '-l', 'zzzzzzzz'])
         compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
     def test_rnpkeys_g10_list_order(self):
@@ -1779,8 +1792,8 @@ class Misc(unittest.TestCase):
         ret, out, err = run_proc(RNPK, params)
         if ret != 0:
             raise_err('packet listing failed', err)
-        compare_file_ex(data_path('test_cli_rnpkeys/pubring-malf-cert-permissive-import.txt'), out,
-                        'listing mismatch')
+        compare_file_any(allow_y2k38_on_32bit(data_path('test_cli_rnpkeys/pubring-malf-cert-permissive-import.txt')),
+            out, 'listing mismatch')
         return
 
     def test_rnp_list_packets(self):
