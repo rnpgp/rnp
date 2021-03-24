@@ -57,7 +57,6 @@
 #include "utils.h"
 #include "json_utils.h"
 #include "version.h"
-#include <botan/secmem.h>
 #include "ffi-priv-types.h"
 #include "file-utils.h"
 
@@ -1075,8 +1074,8 @@ rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, c
         return RNP_ERROR_NULL_POINTER;
     }
 
-    Botan::secure_vector<char> pass(MAX_PASSWORD_LENGTH, '\0');
-    bool                       req_res =
+    rnp::secure_vector<char> pass(MAX_PASSWORD_LENGTH, '\0');
+    bool                     req_res =
       ffi->getpasscb(ffi, ffi->getpasscb_ctx, key, context, pass.data(), pass.size());
     if (!req_res) {
         return RNP_ERROR_GENERIC;
@@ -2399,11 +2398,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     try {
-        Botan::secure_vector<char> ask_pass(MAX_PASSWORD_LENGTH, '\0');
+        rnp::secure_vector<char> ask_pass(MAX_PASSWORD_LENGTH, '\0');
         if (!password) {
             pgp_password_ctx_t pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
             if (!pgp_request_password(
-                  &op->ffi->pass_provider, &pswdctx, &ask_pass[0], ask_pass.size())) {
+                  &op->ffi->pass_provider, &pswdctx, ask_pass.data(), ask_pass.size())) {
                 return RNP_ERROR_BAD_PASSWORD;
             }
             password = ask_pass.data();
@@ -5120,11 +5119,7 @@ try {
     if (!op || !password) {
         return RNP_ERROR_NULL_POINTER;
     }
-    free(op->password);
-    op->password = strdup(password);
-    if (!op->password) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    op->password.assign(password, password + strlen(password) + 1);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5415,8 +5410,9 @@ try {
     }
 
     /* encrypt secret key if requested */
-    if (op->password) {
-        prov = {.callback = rnp_password_provider_string, .userdata = (void *) op->password};
+    if (!op->password.empty()) {
+        prov = {.callback = rnp_password_provider_string,
+                .userdata = (void *) op->password.data()};
     } else if (op->request_password) {
         prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
     }
@@ -5433,11 +5429,7 @@ try {
     }
     ret = RNP_SUCCESS;
 done:
-    if (op->password) {
-        pgp_forget(op->password, strlen(op->password) + 1);
-        free(op->password);
-        op->password = NULL;
-    }
+    op->password.clear();
     if (ret && op->gen_pub) {
         rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub, false);
         op->gen_pub = NULL;
@@ -5479,15 +5471,6 @@ try {
 }
 FFI_GUARD
 
-rnp_op_generate_st::~rnp_op_generate_st()
-{
-    if (password) {
-        pgp_forget(password, strlen(password) + 1);
-        free(password);
-        password = NULL;
-    }
-}
-
 rnp_result_t
 rnp_key_handle_destroy(rnp_key_handle_t key)
 try {
@@ -5507,7 +5490,7 @@ void
 rnp_buffer_clear(void *ptr, size_t size)
 {
     if (ptr) {
-        pgp_forget(ptr, size);
+        secure_clear(ptr, size);
     }
 }
 

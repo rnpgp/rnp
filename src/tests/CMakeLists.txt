@@ -71,6 +71,8 @@ else()
 endif()
 
 find_package(JSON-C 0.11 REQUIRED)
+# We do not link against Botan, but need headers.
+find_package(Botan2 2.14.0 REQUIRED)
 add_executable(rnp_tests
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
@@ -160,6 +162,7 @@ target_include_directories(rnp_tests
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
+    "${BOTAN2_INCLUDE_DIRS}"
 )
 target_link_libraries(rnp_tests
   PRIVATE
