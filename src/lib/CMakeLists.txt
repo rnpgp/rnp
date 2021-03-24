@@ -124,6 +124,7 @@ add_library(librnp-obj OBJECT
   crypto/sm2.cpp
   crypto/symmetric.cpp
   crypto/signatures.cpp
+  crypto/mem.cpp
   crypto.cpp
   fingerprint.cpp
   generate-key.cpp
