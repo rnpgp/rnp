@@ -29,6 +29,7 @@
 #include <json.h>
 #include "utils.h"
 #include <list>
+#include <crypto/mem.h>
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -105,7 +106,7 @@ struct rnp_op_generate_st {
     pgp_key_t *gen_sec{};
     pgp_key_t *gen_pub{};
     /* password used to encrypt the key, if specified */
-    char *password{};
+    rnp::secure_vector<char> password;
     /* request password for key encryption via ffi's password provider */
     bool request_password{};
     /* we don't use top-level keygen action here for easier fields access */
@@ -113,8 +114,6 @@ struct rnp_op_generate_st {
     rnp_key_protection_params_t protection{};
     rnp_selfsig_cert_info_t     cert{};
     rnp_selfsig_binding_info_t  binding{};
-
-    ~rnp_op_generate_st();
 };
 
 struct rnp_op_sign_signature_st {
