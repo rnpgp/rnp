@@ -55,6 +55,7 @@
 #include <librekey/key_store_g10.h>
 #include "crypto.h"
 #include "crypto/s2k.h"
+#include "crypto/mem.h"
 #include "fingerprint.h"
 
 #include <librepgp/stream-packet.h>
@@ -138,17 +139,14 @@ pgp_decrypt_seckey(const pgp_key_t *              key,
     }
 
     // ask the provider for a password
-    char password[MAX_PASSWORD_LENGTH] = {0};
+    rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
     if (key->is_protected() &&
-        !pgp_request_password(provider, ctx, password, sizeof(password))) {
+        !pgp_request_password(provider, ctx, password.data(), password.size())) {
         return NULL;
     }
     // attempt to decrypt with the provided password
     const pgp_rawpacket_t &pkt = key->rawpkt();
-    pgp_key_pkt_t *        decrypted_seckey =
-      decryptor(pkt.raw.data(), pkt.raw.size(), &key->pkt(), password);
-    pgp_forget(password, sizeof(password));
-    return decrypted_seckey;
+    return decryptor(pkt.raw.data(), pkt.raw.size(), &key->pkt(), password.data());
 }
 
 pgp_key_t *
@@ -1616,13 +1614,11 @@ pgp_key_t::add_protection(pgp_key_store_format_t             format,
     ctx.key = this;
 
     // ask the provider for a password
-    char password[MAX_PASSWORD_LENGTH] = {0};
-    if (!pgp_request_password(&password_provider, &ctx, password, sizeof(password))) {
+    rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
+    if (!pgp_request_password(&password_provider, &ctx, password.data(), password.size())) {
         return false;
     }
-    bool ret = protect(pkt_, format, protection, password);
-    pgp_forget(password, sizeof(password));
-    return ret;
+    return protect(pkt_, format, protection, password.data());
 }
 
 bool

@@ -72,7 +72,7 @@ rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
      * An alternative would be to keep a list of actual passwords and s2k params,
      * and save the key derivation for later.
      */
-    if (!pgp_s2k_derive_key(&info.s2k, password, info.key, sizeof(info.key))) {
+    if (!pgp_s2k_derive_key(&info.s2k, password, info.key.data(), info.key.size())) {
         return RNP_ERROR_GENERIC;
     }
     try {
@@ -82,9 +82,4 @@ rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
-}
-
-rnp_symmetric_pass_info_t::~rnp_symmetric_pass_info_t()
-{
-    pgp_forget(key, sizeof(key));
 }

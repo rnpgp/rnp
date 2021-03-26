@@ -1366,11 +1366,6 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_key_pkt_t *               seckey,
                   rng_t *                       rng)
 {
-    uint8_t             decbuf[PGP_MPINT_SIZE];
-    rnp_result_t        err;
-    bool                res = false;
-    pgp_key_material_t *keymaterial = &seckey->material;
-
     pgp_encrypted_material_t encmaterial;
     try {
         if (!sesskey->parse_material(encmaterial)) {
@@ -1381,20 +1376,25 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         return false;
     }
 
+    rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
     /* Decrypting session key value */
-    size_t declen = 0;
+    rnp_result_t        err;
+    bool                res = false;
+    pgp_key_material_t *keymaterial = &seckey->material;
+    size_t              declen = 0;
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        err = rsa_decrypt_pkcs1(rng, decbuf, &declen, &encmaterial.rsa, &keymaterial->rsa);
+        err =
+          rsa_decrypt_pkcs1(rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial->rsa);
         if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
         }
         break;
     case PGP_PKA_SM2:
-        declen = sizeof(decbuf);
-        err = sm2_decrypt(decbuf, &declen, &encmaterial.sm2, &keymaterial->ec);
+        declen = decbuf.size();
+        err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial->ec);
         if (err != RNP_SUCCESS) {
             RNP_LOG("SM2 decryption failure, error %x", (int) err);
             return false;
@@ -1402,8 +1402,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
-        const rnp_result_t ret =
-          elgamal_decrypt_pkcs1(rng, decbuf, &declen, &encmaterial.eg, &keymaterial->eg);
+        const rnp_result_t ret = elgamal_decrypt_pkcs1(
+          rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial->eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
@@ -1416,9 +1416,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        declen = sizeof(decbuf);
+        declen = decbuf.size();
         err = ecdh_decrypt_pkcs5(
-          decbuf, &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
+          decbuf.data(), &declen, &encmaterial.ecdh, &keymaterial->ec, fingerprint);
         if (err != RNP_SUCCESS) {
             RNP_LOG("ECDH decryption error %u", err);
             return false;
@@ -1444,14 +1444,15 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 
     /* Validate checksum */
-    unsigned checksum = 0;
+    rnp::secure_array<unsigned, 1> checksum;
     for (unsigned i = 1; i <= keylen; i++) {
-        checksum += decbuf[i];
+        checksum[0] += decbuf[i];
     }
 
-    if ((checksum & 0xffff) != (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
+    if ((checksum[0] & 0xffff) !=
+        (decbuf[keylen + 2] | ((unsigned) decbuf[keylen + 1] << 8))) {
         RNP_LOG("wrong checksum\n");
-        goto finish;
+        return false;
     }
 
     if (!param->aead) {
@@ -1464,10 +1465,6 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     if (res) {
         param->salg = salg;
     }
-finish:
-    pgp_forget(&checksum, sizeof(checksum));
-    pgp_forget(decbuf, sizeof(decbuf));
-
     return res;
 }
 
@@ -1489,32 +1486,28 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 static int
 encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password)
 {
-    pgp_crypt_t    crypt;
-    pgp_symm_alg_t alg;
-    uint8_t        keybuf[PGP_MAX_KEY_SIZE + 1];
-    uint8_t        nonce[PGP_AEAD_MAX_NONCE_LEN];
-    size_t         keysize;
-    bool           keyavail = false; /* tried password at least once */
-    bool           decres;
-    int            res;
+    bool keyavail = false; /* tried password at least once */
 
     for (auto &skey : param->symencs) {
+        rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE + 1> keybuf;
         /* deriving symmetric key from password */
-        keysize = pgp_key_size(skey.alg);
-        if (!keysize || !pgp_s2k_derive_key(&skey.s2k, password, keybuf, keysize)) {
+        size_t keysize = pgp_key_size(skey.alg);
+        if (!keysize || !pgp_s2k_derive_key(&skey.s2k, password, keybuf.data(), keysize)) {
             continue;
         }
-        RNP_DHEX("derived key: ", keybuf, keysize);
+        RNP_DHEX("derived key: ", keybuf.data(), keysize);
+        pgp_crypt_t    crypt;
+        pgp_symm_alg_t alg;
 
         if (skey.version == PGP_SKSK_V4) {
             /* v4 symmetrically-encrypted session key */
             if (skey.enckeylen > 0) {
                 /* decrypting session key */
-                if (!pgp_cipher_cfb_start(&crypt, skey.alg, keybuf, NULL)) {
+                if (!pgp_cipher_cfb_start(&crypt, skey.alg, keybuf.data(), NULL)) {
                     continue;
                 }
 
-                pgp_cipher_cfb_decrypt(&crypt, keybuf, skey.enckey, skey.enckeylen);
+                pgp_cipher_cfb_decrypt(&crypt, keybuf.data(), skey.enckey, skey.enckeylen);
                 pgp_cipher_cfb_finish(&crypt);
 
                 alg = (pgp_symm_alg_t) keybuf[0];
@@ -1522,7 +1515,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
                 if (!keysize || (keysize + 1 != skey.enckeylen)) {
                     continue;
                 }
-                memmove(keybuf, keybuf + 1, keysize);
+                memmove(keybuf.data(), keybuf.data() + 1, keysize);
             } else {
                 alg = (pgp_symm_alg_t) skey.alg;
             }
@@ -1530,12 +1523,12 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             if (!pgp_block_size(alg)) {
                 continue;
             }
-
             keyavail = true;
         } else if (skey.version == PGP_SKSK_V5) {
             /* v5 AEAD-encrypted session key */
-            size_t taglen = pgp_cipher_aead_tag_len(skey.aalg);
-            size_t noncelen;
+            size_t  taglen = pgp_cipher_aead_tag_len(skey.aalg);
+            uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
+            size_t  noncelen;
 
             if (!taglen || (keysize != skey.enckeylen - taglen)) {
                 continue;
@@ -1543,7 +1536,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             alg = skey.alg;
 
             /* initialize cipher */
-            if (!pgp_cipher_aead_init(&crypt, skey.alg, skey.aalg, keybuf, true)) {
+            if (!pgp_cipher_aead_init(&crypt, skey.alg, skey.aalg, keybuf.data(), true)) {
                 continue;
             }
 
@@ -1561,11 +1554,11 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
 
             /* start cipher, decrypt key and verify tag */
             keyavail = pgp_cipher_aead_start(&crypt, nonce, noncelen);
-            decres =
-              keyavail && pgp_cipher_aead_finish(&crypt, keybuf, skey.enckey, skey.enckeylen);
+            bool decres = keyavail && pgp_cipher_aead_finish(
+                                        &crypt, keybuf.data(), skey.enckey, skey.enckeylen);
 
             if (decres) {
-                RNP_DHEX("decrypted key: ", keybuf, pgp_key_size(param->aead_hdr.ealg));
+                RNP_DHEX("decrypted key: ", keybuf.data(), pgp_key_size(param->aead_hdr.ealg));
             }
 
             pgp_cipher_aead_destroy(&crypt);
@@ -1579,32 +1572,26 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         }
 
         /* Decrypt header for CFB */
-        if (!param->aead && !encrypted_decrypt_cfb_header(param, alg, keybuf)) {
+        if (!param->aead && !encrypted_decrypt_cfb_header(param, alg, keybuf.data())) {
             continue;
         }
-        if (param->aead && !encrypted_start_aead(param, param->aead_hdr.ealg, keybuf)) {
+        if (param->aead && !encrypted_start_aead(param, param->aead_hdr.ealg, keybuf.data())) {
             continue;
         }
 
         param->salg = param->aead ? param->aead_hdr.ealg : alg;
-        res = 1;
         /* inform handler that we used this symenc */
         if (param->handler->on_decryption_start) {
             param->handler->on_decryption_start(NULL, &skey, param->handler->param);
         }
-        goto finish;
+        return 1;
     }
 
     if (!keyavail) {
         RNP_LOG("no supported sk available");
-        res = -1;
-        goto finish;
+        return -1;
     }
-    res = 0;
-
-finish:
-    pgp_forget(keybuf, sizeof(keybuf));
-    return res;
+    return 0;
 }
 
 /** @brief Initialize common to stream packets params, including partial data source */
@@ -1972,7 +1959,6 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     pgp_source_encrypted_param_t *param;
     pgp_key_t *                   seckey = NULL;
     pgp_key_pkt_t *               decrypted_seckey = NULL;
-    char                          password[MAX_PASSWORD_LENGTH] = {0};
     int                           intres;
     bool                          have_key = false;
 
@@ -2072,14 +2058,15 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
     /* Trying password-based decryption */
     if (!have_key && !param->symencs.empty()) {
+        rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
         pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT_SYM, .key = NULL};
         if (!pgp_request_password(
-              handler->password_provider, &pass_ctx, password, sizeof(password))) {
+              handler->password_provider, &pass_ctx, password.data(), password.size())) {
             errcode = RNP_ERROR_BAD_PASSWORD;
             goto finish;
         }
 
-        intres = encrypted_try_password(param, password);
+        intres = encrypted_try_password(param, password.data());
         if (intres > 0) {
             have_key = true;
         } else if (intres < 0) {
@@ -2107,7 +2094,6 @@ finish:
     if (errcode != RNP_SUCCESS) {
         src_close(src);
     }
-    pgp_forget(password, sizeof(password));
     return errcode;
 }
 

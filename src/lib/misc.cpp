@@ -92,13 +92,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #define vsnprintf _vsnprintf
 #endif
 
-/* utility function to zero out memory */
-void
-pgp_forget(void *vp, size_t size)
-{
-    botan_scrub_mem(vp, size);
-}
-
 /**
  * Searches the given map for the given type.
  * Returns a human-readable descriptive string if found,
