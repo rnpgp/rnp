@@ -30,6 +30,7 @@
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
+#include "bn.h"
 
 /**
  * EC Curves definition used by implementation
