@@ -107,8 +107,6 @@ char *rnp_strlwr(char *s);
 
 bool hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out);
 
-void pgp_forget(void *, size_t);
-
 /* debugging helpers*/
 void hexdump(FILE *, const char *, const uint8_t *, size_t);
 

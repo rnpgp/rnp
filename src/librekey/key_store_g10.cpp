@@ -36,6 +36,7 @@
 #include "key_store_g10.h"
 
 #include "crypto/common.h"
+#include "crypto/mem.h"
 #include "pgp-key.h"
 
 #define G10_CBC_IV_SIZE 16
@@ -752,7 +753,7 @@ done:
     if (!ret) {
         destroy_s_exp(r_s_exp);
     }
-    pgp_forget(decrypted_data, decrypted_data_len);
+    secure_clear(decrypted_data, decrypted_data_len);
     free(decrypted_data);
     botan_cipher_destroy(decrypt);
     return ret;
@@ -1436,7 +1437,7 @@ write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *passwo
     ret = true;
 
 done:
-    pgp_forget(derived_key, sizeof(derived_key));
+    secure_clear(derived_key, sizeof(derived_key));
     free(encrypted_data);
     destroy_s_exp(&raw_s_exp);
     dst_close(&raw, true);

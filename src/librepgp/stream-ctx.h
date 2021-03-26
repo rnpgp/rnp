@@ -34,6 +34,7 @@
 #include <string>
 #include <list>
 #include "pgp-key.h"
+#include "crypto/mem.h"
 
 typedef enum rnp_operation_t {
     RNP_OP_UNKNOWN = 0,
@@ -53,9 +54,8 @@ typedef struct rnp_signer_info_t {
 typedef struct rnp_symmetric_pass_info_t {
     pgp_s2k_t      s2k{};
     pgp_symm_alg_t s2k_cipher{};
-    uint8_t        key[PGP_MAX_KEY_SIZE]{};
 
-    ~rnp_symmetric_pass_info_t();
+    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> key;
 } rnp_symmetric_pass_info_t;
 
 /** rnp operation context : contains configuration data about the currently ongoing operation.

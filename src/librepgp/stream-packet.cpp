@@ -38,6 +38,7 @@
 #include <rnp/rnp_def.h>
 #include "types.h"
 #include "crypto.h"
+#include "crypto/mem.h"
 #include "stream-packet.h"
 #include "stream-key.h"
 #include <algorithm>
@@ -487,7 +488,7 @@ pgp_packet_body_t::pgp_packet_body_t(const uint8_t *data, size_t len)
 pgp_packet_body_t::~pgp_packet_body_t()
 {
     if (secure_) {
-        pgp_forget(data_.data(), data_.size());
+        secure_clear(data_.data(), data_.size());
     }
 }
 
