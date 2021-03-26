@@ -500,8 +500,6 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         const uint8_t *      key,
                         const unsigned       keylen)
 {
-    uint8_t                     enckey[PGP_MAX_KEY_SIZE + 3];
-    unsigned                    checksum = 0;
     pgp_pk_sesskey_t            pkey;
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
@@ -523,15 +521,18 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     pkey.key_id = userkey->keyid();
 
     /* Encrypt the session key */
+    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE + 3> enckey;
     enckey[0] = param->ctx->ealg;
     memcpy(&enckey[1], key, keylen);
 
     /* Calculate checksum */
+    rnp::secure_array<unsigned, 1> checksum;
+
     for (unsigned i = 1; i <= keylen; i++) {
-        checksum += enckey[i];
+        checksum[0] += enckey[i];
     }
-    enckey[keylen + 1] = (checksum >> 8) & 0xff;
-    enckey[keylen + 2] = checksum & 0xff;
+    enckey[keylen + 1] = (checksum[0] >> 8) & 0xff;
+    enckey[keylen + 2] = checksum[0] & 0xff;
 
     pgp_encrypted_material_t material;
 
@@ -540,70 +541,66 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
         ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
                                 &material.rsa,
-                                enckey,
+                                enckey.data(),
                                 keylen + 3,
                                 &userkey->material().rsa);
         if (ret) {
             RNP_LOG("rsa_encrypt_pkcs1 failed");
-            goto finish;
+            return ret;
         }
         break;
     }
     case PGP_PKA_SM2: {
         ret = sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
                           &material.sm2,
-                          enckey,
+                          enckey.data(),
                           keylen + 3,
                           PGP_HASH_SM3,
                           &userkey->material().ec);
-        if (ret != RNP_SUCCESS) {
+        if (ret) {
             RNP_LOG("sm2_encrypt failed");
-            goto finish;
+            return ret;
         }
         break;
     }
     case PGP_PKA_ECDH: {
         ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
                                  &material.ecdh,
-                                 enckey,
+                                 enckey.data(),
                                  keylen + 3,
                                  &userkey->material().ec,
                                  userkey->fp());
-        if (ret != RNP_SUCCESS) {
+        if (ret) {
             RNP_LOG("ECDH encryption failed %d", ret);
-            goto finish;
+            return ret;
         }
         break;
     }
     case PGP_PKA_ELGAMAL: {
         ret = elgamal_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
                                     &material.eg,
-                                    enckey,
+                                    enckey.data(),
                                     keylen + 3,
                                     &userkey->material().eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
-            goto finish;
+            return ret;
         }
         break;
     }
     default:
         RNP_LOG("unsupported alg: %d", (int) userkey->alg());
-        goto finish;
+        return ret;
     }
 
     /* Writing symmetric key encrypted session key packet */
     try {
         pkey.write_material(material);
         pkey.write(*param->pkt.origdst);
-        ret = param->pkt.origdst->werr;
+        return param->pkt.origdst->werr;
     } catch (const std::exception &e) {
-        ret = RNP_ERROR_WRITE;
+        return RNP_ERROR_WRITE;
     }
-finish:
-    pgp_forget(enckey, sizeof(enckey));
-    pgp_forget(&checksum, sizeof(checksum));
-    return ret;
 }
 
 static bool
@@ -647,14 +644,14 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         if (singlepass) {
             /* if there are no public keys then we do not encrypt session key in the packet */
             skey.enckeylen = 0;
-            memcpy(key, pass->key, s2keylen);
+            memcpy(key, pass->key.data(), s2keylen);
         } else {
             /* Currently we are using the same sym algo for key and stream encryption */
             skey.enckeylen = keylen + 1;
             skey.enckey[0] = param->ctx->ealg;
             memcpy(&skey.enckey[1], key, keylen);
             skey.alg = pass->s2k_cipher;
-            if (!pgp_cipher_cfb_start(&kcrypt, skey.alg, pass->key, NULL)) {
+            if (!pgp_cipher_cfb_start(&kcrypt, skey.alg, pass->key.data(), NULL)) {
                 RNP_LOG("key encryption failed");
                 return RNP_ERROR_BAD_PARAMETERS;
             }
@@ -678,7 +675,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         }
 
         /* initialize cipher */
-        if (!pgp_cipher_aead_init(&kcrypt, skey.alg, skey.aalg, pass->key, false)) {
+        if (!pgp_cipher_aead_init(&kcrypt, skey.alg, skey.aalg, pass->key.data(), false)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
 
@@ -810,7 +807,6 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     bool                        singlepass = true;
     unsigned                    pkeycount = 0;
     unsigned                    skeycount = 0;
-    uint8_t                     enckey[PGP_MAX_KEY_SIZE] = {0}; /* content encryption key */
     unsigned                    keylen;
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
@@ -855,6 +851,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     pkeycount = handler->ctx->recipients.size();
     skeycount = handler->ctx->passwords.size();
 
+    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> enckey; /* content encryption key */
     if (!pkeycount && !skeycount) {
         RNP_LOG("no recipients");
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -862,7 +859,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
 
     if ((pkeycount > 0) || (skeycount > 1) || param->aead) {
-        if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enckey, keylen)) {
+        if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enckey.data(), keylen)) {
             ret = RNP_ERROR_RNG;
             goto finish;
         }
@@ -871,7 +868,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing pk-encrypted session keys */
     for (auto recipient : handler->ctx->recipients) {
-        ret = encrypted_add_recipient(handler, dst, recipient, enckey, keylen);
+        ret = encrypted_add_recipient(handler, dst, recipient, enckey.data(), keylen);
         if (ret) {
             goto finish;
         }
@@ -879,7 +876,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing sk-encrypted session key(s) */
     for (auto &passinfo : handler->ctx->passwords) {
-        ret = encrypted_add_password(&passinfo, param, enckey, keylen, singlepass);
+        ret = encrypted_add_password(&passinfo, param, enckey.data(), keylen, singlepass);
         if (ret != RNP_SUCCESS) {
             goto finish;
         }
@@ -904,14 +901,13 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     if (param->aead) {
         /* initialize AEAD encryption */
-        ret = encrypted_start_aead(param, enckey);
+        ret = encrypted_start_aead(param, enckey.data());
     } else {
         /* initialize old CFB or CFB with MDC */
-        ret = encrypted_start_cfb(param, enckey);
+        ret = encrypted_start_cfb(param, enckey.data());
     }
 finish:
     handler->ctx->passwords.clear();
-    pgp_forget(enckey, sizeof(enckey));
     if (ret) {
         encrypted_dst_close(dst, true);
     }

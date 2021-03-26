@@ -149,7 +149,7 @@ typedef struct pgp_packet_body_t {
      *  @param hdr write packet's header or not
      **/
     void write(pgp_dest_t &dst, bool hdr = true) noexcept;
-    /** @brief mark contents as secure, so pgp_forget() must be called in the destructor */
+    /** @brief mark contents as secure, so secure_clear() must be called in the destructor */
     void mark_secure(bool secure = true) noexcept;
 } pgp_packet_body_t;
 

@@ -29,6 +29,7 @@
 #include "ec.h"
 #include "types.h"
 #include "utils.h"
+#include "mem.h"
 
 /**
  * EC Curves definition used by implementation
@@ -242,7 +243,8 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
     rnp_result_t    ret = RNP_ERROR_KEY_GENERATION;
-    uint8_t         keyle[32] = {0};
+
+    rnp::secure_array<uint8_t, 32> keyle;
 
     if (botan_privkey_create(&pr_key, "Curve25519", "", rng_handle(rng))) {
         goto end;
@@ -253,7 +255,7 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
     }
 
     /* botan returns key in little-endian, while mpi is big-endian */
-    if (botan_privkey_x25519_get_privkey(pr_key, keyle)) {
+    if (botan_privkey_x25519_get_privkey(pr_key, keyle.data())) {
         goto end;
     }
     for (int i = 0; i < 32; i++) {
@@ -269,7 +271,6 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
 
     ret = RNP_SUCCESS;
 end:
-    pgp_forget(&keyle, sizeof(keyle));
     botan_privkey_destroy(pr_key);
     botan_pubkey_destroy(pu_key);
     return ret;
