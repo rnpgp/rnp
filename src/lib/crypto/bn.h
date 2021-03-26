@@ -61,20 +61,7 @@ bignum_t *mpi2bn(const pgp_mpi_t *val);
 
 bool bn2mpi(bignum_t *bn, pgp_mpi_t *val);
 
-/*
- * @param a Initialized bignum_t structure
- * @param bits [out] bitlength of a
- *
- * @returns true on success, otherwise false
- */
-bool bn_num_bits(const bignum_t *a, size_t *bits);
-/*
- * @param a Initialized bignum_t structure
- * @param bytes [out] byte length of a
- *
- * @returns true on success, otherwise false
- */
-bool bn_num_bytes(const bignum_t *a, size_t *bytes);
+size_t bn_num_bytes(const bignum_t &a);
 
 #ifdef CRYPTO_BACKEND_OPENSSL
 /**

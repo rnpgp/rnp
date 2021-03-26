@@ -364,8 +364,8 @@ ec_generate(rng_t *                rng,
 
     size_t x_bytes;
     size_t y_bytes;
-    (void) bn_num_bytes(px, &x_bytes); // Can't fail
-    (void) bn_num_bytes(py, &y_bytes);
+    x_bytes = bn_num_bytes(*px);
+    y_bytes = bn_num_bytes(*py);
 
     // Safety check
     if ((x_bytes > filed_byte_size) || (y_bytes > filed_byte_size)) {
