@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "config.h"
+#include "mpi.h"
 
 #if defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/bn.h>
@@ -54,8 +55,11 @@ typedef struct bignum_t_st {
 bignum_t *bn_new(void);
 void      bn_free(bignum_t * /*a*/);
 
-bignum_t *bn_bin2bn(const uint8_t * /*buf*/, int /*size*/, bignum_t * /*bn*/);
-int       bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
+int bn_bn2bin(const bignum_t * /*a*/, unsigned char * /*b*/);
+
+bignum_t *mpi2bn(const pgp_mpi_t *val);
+
+bool bn2mpi(bignum_t *bn, pgp_mpi_t *val);
 
 /*
  * @param a Initialized bignum_t structure
