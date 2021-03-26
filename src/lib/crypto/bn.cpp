@@ -67,7 +67,8 @@ mpi2bn(const pgp_mpi_t *val)
 bool
 bn2mpi(bignum_t *bn, pgp_mpi_t *val)
 {
-    return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
+    val->len = bn_num_bytes(*bn);
+    return bn_bn2bin(bn, val->mpi) == 0;
 }
 
 bignum_t *
@@ -90,18 +91,12 @@ bn_free(bignum_t *a)
     }
 }
 
-bool
-bn_num_bits(const bignum_t *a, size_t *bits)
+size_t
+bn_num_bytes(const bignum_t &a)
 {
-    return a && !botan_mp_num_bits(a->mp, bits);
-}
-
-bool
-bn_num_bytes(const bignum_t *a, size_t *bits)
-{
-    if (bn_num_bits(a, bits)) {
-        *bits = BITS_TO_BYTES(*bits);
-        return true;
+    size_t bytes = 0;
+    if (botan_mp_num_bits(a.mp, &bytes)) {
+        RNP_LOG("botan_mp_num_bits failed.");
     }
-    return false;
+    return BITS_TO_BYTES(bytes);
 }
