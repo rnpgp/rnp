@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include "mpi.h"
 #include "hash.h"
+#include "mem.h"
 #include "utils.h"
 
 bignum_t *
@@ -174,6 +175,6 @@ mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash)
 void
 mpi_forget(pgp_mpi_t *val)
 {
-    pgp_forget(val, sizeof(*val));
+    secure_clear(val, sizeof(*val));
     val->len = 0;
 }

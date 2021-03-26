@@ -46,6 +46,7 @@
 #include "pgp-key.h"
 #include "crypto.h"
 #include "crypto/signatures.h"
+#include "crypto/mem.h"
 #include "../librekey/key_store_pgp.h"
 #include <set>
 #include <algorithm>
@@ -1104,12 +1105,6 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
 rnp_result_t
 decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
 {
-    size_t       keysize;
-    uint8_t      keybuf[PGP_MAX_KEY_SIZE];
-    uint8_t *    decdata = NULL;
-    pgp_crypt_t  crypt;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     if (!key) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1138,55 +1133,51 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    keysize = pgp_key_size(key->sec_protection.symm_alg);
-    if (!keysize || !pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
+    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
+    size_t keysize = pgp_key_size(key->sec_protection.symm_alg);
+    if (!keysize ||
+        !pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf.data(), keysize)) {
         RNP_LOG("failed to derive key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!(decdata = (uint8_t *) malloc(key->sec_len))) {
-        RNP_LOG("allocation failed");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto finish;
-    }
-
-    if (!pgp_cipher_cfb_start(
-          &crypt, key->sec_protection.symm_alg, keybuf, key->sec_protection.iv)) {
-        RNP_LOG("failed to start cfb decryption");
-        ret = RNP_ERROR_DECRYPT_FAILED;
-        goto finish;
-    }
-
-    switch (key->version) {
-    case PGP_V3:
-        if (!is_rsa_key_alg(key->alg)) {
-            RNP_LOG("non-RSA v3 key");
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            break;
+    try {
+        rnp::secure_vector<uint8_t> decdata(key->sec_len);
+        pgp_crypt_t                 crypt;
+        if (!pgp_cipher_cfb_start(
+              &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
+            RNP_LOG("failed to start cfb decryption");
+            return RNP_ERROR_DECRYPT_FAILED;
         }
-        ret = decrypt_secret_key_v3(&crypt, decdata, key->sec_data, key->sec_len);
-        break;
-    case PGP_V4:
-        pgp_cipher_cfb_decrypt(&crypt, decdata, key->sec_data, key->sec_len);
-        ret = RNP_SUCCESS;
-        break;
-    default:
-        ret = RNP_ERROR_BAD_PARAMETERS;
-    }
 
-    pgp_cipher_cfb_finish(&crypt);
-    if (ret) {
-        goto finish;
-    }
+        rnp_result_t ret = RNP_ERROR_GENERIC;
+        switch (key->version) {
+        case PGP_V3:
+            if (!is_rsa_key_alg(key->alg)) {
+                RNP_LOG("non-RSA v3 key");
+                ret = RNP_ERROR_BAD_PARAMETERS;
+                break;
+            }
+            ret = decrypt_secret_key_v3(&crypt, decdata.data(), key->sec_data, key->sec_len);
+            break;
+        case PGP_V4:
+            pgp_cipher_cfb_decrypt(&crypt, decdata.data(), key->sec_data, key->sec_len);
+            ret = RNP_SUCCESS;
+            break;
+        default:
+            ret = RNP_ERROR_BAD_PARAMETERS;
+        }
 
-    ret = parse_secret_key_mpis(*key, decdata, key->sec_len);
-finish:
-    pgp_forget(keybuf, sizeof(keybuf));
-    if (decdata) {
-        pgp_forget(decdata, key->sec_len);
-        free(decdata);
+        pgp_cipher_cfb_finish(&crypt);
+        if (ret) {
+            return ret;
+        }
+
+        return parse_secret_key_mpis(*key, decdata.data(), key->sec_len);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-    return ret;
 }
 
 static void
@@ -1307,20 +1298,18 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
             }
         }
         /* derive key */
-        uint8_t keybuf[PGP_MAX_KEY_SIZE];
-        if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf, keysize)) {
+        rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
+        if (!pgp_s2k_derive_key(&key->sec_protection.s2k, password, keybuf.data(), keysize)) {
             RNP_LOG("failed to derive key");
             return RNP_ERROR_BAD_PARAMETERS;
         }
         /* encrypt sec data */
         pgp_crypt_t crypt;
         if (!pgp_cipher_cfb_start(
-              &crypt, key->sec_protection.symm_alg, keybuf, key->sec_protection.iv)) {
+              &crypt, key->sec_protection.symm_alg, keybuf.data(), key->sec_protection.iv)) {
             RNP_LOG("failed to start cfb encryption");
-            pgp_forget(keybuf, sizeof(keybuf));
             return RNP_ERROR_DECRYPT_FAILED;
         }
-        pgp_forget(keybuf, sizeof(keybuf));
         pgp_cipher_cfb_encrypt(&crypt, body.data(), body.data(), body.size());
         pgp_cipher_cfb_finish(&crypt);
         free(key->sec_data);
