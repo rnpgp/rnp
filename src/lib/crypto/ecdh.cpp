@@ -32,6 +32,7 @@
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
+#include "bn.h"
 
 #define MAX_SP800_56A_OTHER_INFO 56
 // Keys up to 312 bits (+1 bytes of PKCS5 padding)

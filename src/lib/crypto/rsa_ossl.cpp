@@ -30,6 +30,7 @@
 #include "hash.h"
 #include "config.h"
 #include "utils.h"
+#include "bn.h"
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>

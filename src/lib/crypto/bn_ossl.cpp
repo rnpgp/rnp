@@ -29,23 +29,6 @@
 #include "bn.h"
 #include "logging.h"
 
-bignum_t *
-bn_bin2bn(const uint8_t *data, int len, bignum_t *ret)
-{
-    assert(data);
-    if (!data) {
-        RNP_LOG("NULL data.");
-        return NULL;
-    }
-    if (!ret) {
-        ret = bn_new();
-    }
-    if (!ret) {
-        return NULL;
-    }
-    return BN_bin2bn(data, len, ret->mp) ? ret : NULL;
-}
-
 /* store in unsigned [big endian] format */
 int
 bn_bn2bin(const bignum_t *a, unsigned char *b)
@@ -54,6 +37,31 @@ bn_bn2bin(const bignum_t *a, unsigned char *b)
         return -1;
     }
     return BN_bn2bin(a->mp, b) >= 0 ? 0 : -1;
+}
+
+bignum_t *
+mpi2bn(const pgp_mpi_t *val)
+{
+    assert(val);
+    if (!val) {
+        RNP_LOG("NULL val.");
+        return NULL;
+    }
+    bignum_t *res = bn_new();
+    if (!res) {
+        return NULL;
+    }
+    if (!BN_bin2bn(val->mpi, val->len, res->mp)) {
+        bn_free(res);
+        res = NULL;
+    }
+    return res;
+}
+
+bool
+bn2mpi(bignum_t *bn, pgp_mpi_t *val)
+{
+    return bn_num_bytes(bn, &val->len) && (bn_bn2bin(bn, val->mpi) == 0);
 }
 
 bignum_t *
