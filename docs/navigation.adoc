@@ -7,7 +7,6 @@ items:
   path: develop/
   items:
   - { title: "C++ usage", path: develop/cpp-usage/ }
-  - { title: "Development guide", path: develop/guide/ }
   - { title: "Packaging", path: develop/packaging/ }
   - { title: "Release workflow", path: develop/release-workflow/ }
   # - title: "Acceptance tests"
