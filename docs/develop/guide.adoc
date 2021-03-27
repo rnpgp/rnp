@@ -7,7 +7,7 @@ contributors.
 
 === Pull Requests
 
-See also: https://github.com/rnpgp/guides/tree/master/code-review[Guides - Code Review]
+See also: https://github.com/thoughtbot/guides/tree/master/code-review[Thoughtbot’s Code Review guide]
 
 Pull Requests should be used for any non-trivial changes. This presents
 an opportunity for feedback and allows the CI tests to complete prior to
