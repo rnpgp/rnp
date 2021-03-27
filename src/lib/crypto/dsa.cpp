@@ -362,21 +362,21 @@ dsa_get_min_hash(size_t qsize)
      * with other hashes. If you're sure we don't have to support
      * such implementations, please be my guest and remove it.
      */
-    return (qsize < 160) ? PGP_HASH_UNKNOWN :
-                           (qsize == 160) ?
-                           PGP_HASH_SHA1 :
-                           (qsize <= 224) ?
-                           PGP_HASH_SHA224 :
-                           (qsize <= 256) ? PGP_HASH_SHA256 :
-                                            (qsize <= 384) ? PGP_HASH_SHA384 :
-                                                             (qsize <= 512) ? PGP_HASH_SHA512
-                                                                              /*(qsize>512)*/ :
-                                                                              PGP_HASH_UNKNOWN;
+    return (qsize < 160)  ? PGP_HASH_UNKNOWN :
+           (qsize == 160) ? PGP_HASH_SHA1 :
+           (qsize <= 224) ? PGP_HASH_SHA224 :
+           (qsize <= 256) ? PGP_HASH_SHA256 :
+           (qsize <= 384) ? PGP_HASH_SHA384 :
+           (qsize <= 512) ? PGP_HASH_SHA512
+                            /*(qsize>512)*/ :
+                            PGP_HASH_UNKNOWN;
 }
 
 size_t
 dsa_choose_qsize_by_psize(size_t psize)
 {
     return (psize == 1024) ? 160 :
-                             (psize <= 2047) ? 224 : (psize <= 3072) ? DSA_MAX_Q_BITLEN : 0;
+           (psize <= 2047) ? 224 :
+           (psize <= 3072) ? DSA_MAX_Q_BITLEN :
+                             0;
 }
