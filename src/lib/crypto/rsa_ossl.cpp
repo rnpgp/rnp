@@ -51,17 +51,18 @@ rsa_load_public_key(const pgp_rsa_key_t *key)
         RNP_LOG("Out of memory");
         goto done;
     }
-    if (RSA_set0_key(rsa, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e), NULL) != 1) {
+    if (RSA_set0_key(rsa, n, e, NULL) != 1) {
         RNP_LOG("Public key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         rsa = NULL;
         goto done;
     }
-    bn_transfer(n);
-    bn_transfer(e);
 done:
-    bn_free(n);
-    bn_free(e);
+    /* OpenSSL set0 function transfers ownership of bignums */
+    if (!rsa) {
+        bn_free(n);
+        bn_free(e);
+    }
     return rsa;
 }
 
@@ -85,30 +86,28 @@ rsa_load_secret_key(const pgp_rsa_key_t *key)
         RNP_LOG("Out of memory");
         goto done;
     }
-    if (RSA_set0_key(rsa, BN_HANDLE_PTR(n), BN_HANDLE_PTR(e), BN_HANDLE_PTR(d)) != 1) {
+    if (RSA_set0_key(rsa, n, e, d) != 1) {
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         rsa = NULL;
         goto done;
     }
-    bn_transfer(n);
-    bn_transfer(e);
-    bn_transfer(d);
     /* OpenSSL has p < q, as we do */
-    if (RSA_set0_factors(rsa, BN_HANDLE_PTR(p), BN_HANDLE_PTR(q)) != 1) {
+    if (RSA_set0_factors(rsa, p, q) != 1) {
         RNP_LOG("Factors load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
         rsa = NULL;
         goto done;
     }
-    bn_transfer(p);
-    bn_transfer(q);
 done:
-    bn_free(n);
-    bn_free(p);
-    bn_free(q);
-    bn_free(e);
-    bn_free(d);
+    /* OpenSSL set0 function transfers ownership of bignums */
+    if (!rsa) {
+        bn_free(n);
+        bn_free(p);
+        bn_free(q);
+        bn_free(e);
+        bn_free(d);
+    }
     return rsa;
 }
 
@@ -341,11 +340,6 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
     RSA *         rsa = NULL;
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
-    bignum_t *    n = NULL;
-    bignum_t *    e = NULL;
-    bignum_t *    p = NULL;
-    bignum_t *    q = NULL;
-    bignum_t *    d = NULL;
     bignum_t *    u = NULL;
 
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
@@ -375,11 +369,16 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
         goto done;
     }
 
-    n = bn_new(RSA_get0_n(rsa));
-    e = bn_new(RSA_get0_e(rsa));
-    d = bn_new(RSA_get0_d(rsa));
-    p = bn_new(RSA_get0_p(rsa));
-    q = bn_new(RSA_get0_q(rsa));
+    const bignum_t *n;
+    const bignum_t *e;
+    const bignum_t *p;
+    const bignum_t *q;
+    const bignum_t *d;
+    n = RSA_get0_n(rsa);
+    e = RSA_get0_e(rsa);
+    d = RSA_get0_d(rsa);
+    p = RSA_get0_p(rsa);
+    q = RSA_get0_q(rsa);
     if (!n || !e || !d || !p || !q) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
@@ -388,22 +387,20 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
      * mod p */
     {
         BIGNUM *nq = BN_new();
-        BIGNUM *uc = BN_new();
+        u = BN_new();
         if (!nq) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
         BN_with_flags(nq, RSA_get0_q(rsa), BN_FLG_CONSTTIME);
         /* calculate inverse of p mod q */
-        if (!BN_mod_inverse(uc, RSA_get0_p(rsa), nq, NULL)) {
+        if (!BN_mod_inverse(u, RSA_get0_p(rsa), nq, NULL)) {
             BN_free(nq);
             RNP_LOG("Failed to calculate u");
             ret = RNP_ERROR_BAD_STATE;
             goto done;
         }
-        u = bn_new(uc);
         BN_free(nq);
-        BN_free(uc);
     }
     if (!u) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
@@ -419,11 +416,6 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    bn_free(n);
-    bn_free(e);
-    bn_free(d);
-    bn_free(p);
-    bn_free(q);
     bn_free(u);
     return ret;
 }
