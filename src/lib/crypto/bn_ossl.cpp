@@ -36,7 +36,7 @@ bn_bn2bin(const bignum_t *a, unsigned char *b)
     if (!a || !b) {
         return -1;
     }
-    return BN_bn2bin(a->mp, b) >= 0 ? 0 : -1;
+    return BN_bn2bin(a, b) >= 0 ? 0 : -1;
 }
 
 bignum_t *
@@ -51,7 +51,7 @@ mpi2bn(const pgp_mpi_t *val)
     if (!res) {
         return NULL;
     }
-    if (!BN_bin2bn(val->mpi, val->len, res->mp)) {
+    if (!BN_bin2bn(val->mpi, val->len, res)) {
         bn_free(res);
         res = NULL;
     }
@@ -59,7 +59,7 @@ mpi2bn(const pgp_mpi_t *val)
 }
 
 bool
-bn2mpi(bignum_t *bn, pgp_mpi_t *val)
+bn2mpi(const bignum_t *bn, pgp_mpi_t *val)
 {
     val->len = bn_num_bytes(*bn);
     return bn_bn2bin(bn, val->mpi) == 0;
@@ -68,55 +68,17 @@ bn2mpi(bignum_t *bn, pgp_mpi_t *val)
 bignum_t *
 bn_new(void)
 {
-    bignum_t *a = (bignum_t *) calloc(1, sizeof(*a));
-    if (!a) {
-        return NULL;
-    }
-    a->mp = BN_new();
-    if (!a->mp) {
-        free(a);
-        return NULL;
-    }
-    return a;
+    return BN_new();
 }
 
 void
 bn_free(bignum_t *a)
 {
-    if (a) {
-        BN_clear_free(a->mp);
-        free(a);
-    }
+    BN_clear_free(a);
 }
 
 size_t
 bn_num_bytes(const bignum_t &a)
 {
-    return (BN_num_bits(a.mp) + 7) / 8;
-}
-
-void
-bn_transfer(bignum_t *a)
-{
-    if (a) {
-        a->mp = NULL;
-    }
-}
-
-bignum_t *
-bn_new(const BIGNUM *a)
-{
-    if (!a) {
-        return NULL;
-    }
-    bignum_t *res = bn_new();
-    if (!res) {
-        return NULL;
-    }
-    res->mp = BN_dup(a);
-    if (!res->mp) {
-        free(res);
-        return NULL;
-    }
-    return res;
+    return (BN_num_bits(&a) + 7) / 8;
 }

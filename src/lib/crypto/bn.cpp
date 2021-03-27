@@ -65,7 +65,7 @@ mpi2bn(const pgp_mpi_t *val)
 }
 
 bool
-bn2mpi(bignum_t *bn, pgp_mpi_t *val)
+bn2mpi(const bignum_t *bn, pgp_mpi_t *val)
 {
     val->len = bn_num_bytes(*bn);
     return bn_bn2bin(bn, val->mpi) == 0;
