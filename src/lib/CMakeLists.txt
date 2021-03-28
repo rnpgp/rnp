@@ -119,6 +119,8 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem_ossl.cpp
+    crypto/cipher.cpp
+    crypto/cipher_ossl.cpp
   )
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
@@ -139,6 +141,8 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/symmetric.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
+    crypto/cipher.cpp
+    crypto/cipher_botan.cpp
   )
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")

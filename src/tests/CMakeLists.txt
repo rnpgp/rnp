@@ -82,6 +82,7 @@ add_executable(rnp_tests
   ../fuzzing/dump.c
   ../fuzzing/verify_detached.c
   cipher.cpp
+  cipher_cxx.cpp
   cli.cpp
   exportkey.cpp
   ffi.cpp
