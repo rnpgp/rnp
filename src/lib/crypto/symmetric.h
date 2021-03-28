@@ -52,6 +52,7 @@
 #ifndef SYMMETRIC_CRYPTO_H_
 #define SYMMETRIC_CRYPTO_H_
 
+#include <repgp/repgp_def.h>
 #include "crypto/rng.h"
 #include "config.h"
 #ifdef CRYPTO_BACKEND_OPENSSL
