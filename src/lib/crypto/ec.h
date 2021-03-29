@@ -30,6 +30,7 @@
 #ifndef EC_H_
 #define EC_H_
 
+#include "config.h"
 #include <rnp/rnp_def.h>
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
@@ -54,8 +55,13 @@ typedef struct ec_curve_desc_t {
     const size_t      bitlen;
     const uint8_t     OIDhex[MAX_CURVE_OID_HEX_LEN];
     const size_t      OIDhex_len;
-    const char *      botan_name;
-    const char *      pgp_name;
+#if defined(CRYPTO_BACKEND_BOTAN)
+    const char *botan_name;
+#endif
+#if defined(CRYPTO_BACKEND_OPENSSL)
+    const char *openssl_name;
+#endif
+    const char *pgp_name;
     /* Curve parameters below. Needed for grip calculation */
     const char *p;
     const char *a;
@@ -105,6 +111,8 @@ pgp_curve_t find_curve_by_name(const char *name);
  *
  */
 const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
+
+bool alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve);
 
 /*
  * @brief   Generates EC key in uncompressed format

@@ -102,6 +102,7 @@ if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES
     crypto/bn_ossl.cpp
     crypto/dsa_ossl.cpp
+    crypto/ec_curves.cpp
     crypto/ec_ossl.cpp
     crypto/ecdh_ossl.cpp
     crypto/ecdsa_ossl.cpp
@@ -123,6 +124,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
     crypto/bn.cpp
     crypto/dsa.cpp
+    crypto/ec_curves.cpp
     crypto/ec.cpp
     crypto/ecdh.cpp
     crypto/ecdsa.cpp
