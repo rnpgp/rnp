@@ -562,23 +562,29 @@ _install_gpg() {
     )
 
   local common_args=(
+      --force-autogen
+      --verbose
+      --trace
       --build-dir "${gpg_build}"
       --configure-opts "${configure_opts[*]}"
   )
 
-  case "${DIST}" in
+  case "${OS}" in
     linux)
-      common_args+=(--ldconfig)
+      if [[ "${DIST}" != "ubuntu" ]]; then
+        common_args+=(--ldconfig)
+      fi
       ;;
   esac
+
+  # For "tee"-ing to /etc/ld.so.conf.d/gpg-from_build_scripts.conf from option `--ldconfig`
+  if [[ "${SUDO}" = "sudo" && "${DIST}" != "ubuntu" ]]; then
+    common_args+=(--sudo)
+  fi
 
   # Workaround to correctly build pinentry on the latest GHA on macOS. Most likely there is a better solution.
   export CFLAGS="-D_XOPEN_SOURCE_EXTENDED"
   export CXXFLAGS="-D_XOPEN_SOURCE_EXTENDED"
-
-  # XXX: debug. patch ./install_gpg_component.sh to output verbosely
-  #
-  sed -i'' -e 's/ make / make VERBOSE=1 /g' ./install_gpg_component.sh
 
   for component in libgpg-error:$LIBGPG_ERROR_VERSION \
                    libgcrypt:$LIBGCRYPT_VERSION \
@@ -590,7 +596,7 @@ _install_gpg() {
     local name="${component%:*}"
     local version="${component#*:}"
 
-    bash -x ./install_gpg_component.sh \
+    ./install_gpg_component.sh \
       --component-name "$name" \
       --"$VERSION_SWITCH" "$version" \
       "${common_args[@]}"
