@@ -497,7 +497,7 @@ _install_gpg() {
   local gpg_build="$PWD"
   local gpg_install="${GPG_INSTALL}"
   mkdir -p "${gpg_build}" "${gpg_install}"
-  git clone --depth 1 https://github.com/rnpgp/gpg-build-scripts
+  git clone -b v0.1.1 --depth 1 https://github.com/rnpgp/gpg-build-scripts
   pushd gpg-build-scripts
 
   local cpuparam=()
@@ -546,11 +546,17 @@ _install_gpg() {
     )
 
   local common_args=(
+      --force-autogen
+      --verbose
       --build-dir "${gpg_build}"
       --configure-opts "${configure_opts[*]}"
   )
 
-  case "${DIST}" in
+  if [[ "${SUDO}" = "sudo" ]]; then
+    common_args+=(--sudo)
+  fi
+
+  case "${OS}" in
     linux)
       common_args+=(--ldconfig)
       ;;
@@ -559,10 +565,6 @@ _install_gpg() {
   # Workaround to correctly build pinentry on the latest GHA on macOS. Most likely there is a better solution.
   export CFLAGS="-D_XOPEN_SOURCE_EXTENDED"
   export CXXFLAGS="-D_XOPEN_SOURCE_EXTENDED"
-
-  # XXX: debug. patch ./install_gpg_component.sh to output verbosely
-  #
-  sed -i'' -e 's/ make / make VERBOSE=1 /g' ./install_gpg_component.sh
 
   for component in libgpg-error:$LIBGPG_ERROR_VERSION \
                    libgcrypt:$LIBGCRYPT_VERSION \
