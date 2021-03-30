@@ -1,12 +1,12 @@
 name: ubuntu
 
-on: []
-# on:
-#   pull_request:
-#   push:
-#     branches:
-#       - master
-#       - 'release/**'
+# on: []
+on:
+  pull_request:
+  push:
+    branches:
+      - master
+      - 'release/**'
 
 env:
   CORES: 2
