@@ -15,16 +15,17 @@ set -eux
 prepare_build_prerequisites() {
   CMAKE=cmake
 
-  if [[ "${OS}" = "linux" ]]; then
-    if [[ "${CPU}" = "i386" ]]; then
+  case "${OS}-${CPU}" in
+    linux-i386)
       build_and_install_cmake
       build_and_install_python
-    else
+      ;;
+    linux-*)
       PREFIX=/usr
       ensure_cmake
       CMAKE="$PREFIX"/bin/cmake
-    fi
-  fi
+      ;;
+  esac
 
   export CMAKE
 }

@@ -593,16 +593,21 @@ install_gpg() {
     mkdir -p "${gpg_build}"
     pushd "${gpg_build}"
 
-    if [[ "${GPG_VERSION}" = "stable" ]]; then
-      #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-      _install_gpg component-version 1.6  1.42         1.9.2     2.5.5     1.5.0   1.1.1    2.2.27
-    elif [ "${GPG_VERSION}" = "beta" ]; then
-      #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
-      _install_gpg component-git-ref 7e45b50 c66594d      cf88dca   57cf9d6   4243085 6e8ad31  d4e5979
-    else
-      echo "\$GPG_VERSION is set to invalid value: ${GPG_VERSION}"
-      exit 1
-    fi
+    case "${GPG_VERSION}" in
+      stable)
+        #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+        _install_gpg component-version 1.6  1.39         1.8.7     2.5.4     1.5.0   1.1.0    2.2.24
+        # _install_gpg component-version 1.6  1.42         1.9.2     2.5.5     1.5.0   1.1.1    2.2.27
+        ;;
+      beta)
+        #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
+        _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
+        # _install_gpg component-git-ref 7e45b50 c66594d      cf88dca   57cf9d6   4243085 6e8ad31  d4e5979
+        ;;
+      *)
+        >&2 echo "\$GPG_VERSION is set to invalid value: ${GPG_VERSION}"
+        exit 1
+    esac
     popd
   fi
 }
