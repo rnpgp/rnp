@@ -552,15 +552,16 @@ _install_gpg() {
       --configure-opts "${configure_opts[*]}"
   )
 
-  if [[ "${SUDO}" = "sudo" ]]; then
-    common_args+=(--sudo)
-  fi
-
   case "${OS}" in
     linux)
       common_args+=(--ldconfig)
       ;;
   esac
+
+  # For "tee"-ing to /etc/ld.so.conf.d/gpg-from_build_scripts.conf from option `--ldconfig`
+  if [[ "${SUDO}" = "sudo" ]]; then
+    common_args+=(--sudo)
+  fi
 
   # Workaround to correctly build pinentry on the latest GHA on macOS. Most likely there is a better solution.
   export CFLAGS="-D_XOPEN_SOURCE_EXTENDED"
