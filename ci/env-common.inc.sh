@@ -16,11 +16,6 @@ done
 
 : "${BUILD_MODE:=normal}"
 
-if [ "$BUILD_MODE" = "sanitize" ]; then
-  export CXX=clang++
-  export CC=clang
-fi
-
 BOTAN_MODULES=$(<ci/botan-modules tr '\n' ',')
 
 export BOTAN_MODULES

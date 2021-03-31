@@ -764,7 +764,14 @@ build_and_install() {
 }
 
 build_rnp() {
-  "${CMAKE:-cmake}" "${cmakeopts[@]}" "${1:-.}"
+  (
+    if [[ "${BUILD_MODE}" = "sanitize" ]]; then
+      export CXX=clang++
+      export CC=clang
+    fi
+
+    "${CMAKE:-cmake}" "${cmakeopts[@]}" "${1:-.}"
+  )
 }
 
 make_install() {
