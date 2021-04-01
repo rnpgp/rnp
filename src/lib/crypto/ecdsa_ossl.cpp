@@ -27,11 +27,146 @@
 #include "ecdsa.h"
 #include "utils.h"
 #include <string.h>
+#include "bn.h"
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/ec.h>
+
+static bool
+ecdsa_decode_sig(const uint8_t *data, size_t len, pgp_ec_signature_t &sig)
+{
+    ECDSA_SIG *esig = d2i_ECDSA_SIG(NULL, &data, len);
+    if (!esig) {
+        RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
+        return false;
+    }
+    const BIGNUM *r, *s;
+    ECDSA_SIG_get0(esig, &r, &s);
+    bn2mpi(r, &sig.r);
+    bn2mpi(s, &sig.s);
+    ECDSA_SIG_free(esig);
+    return true;
+}
+
+static EVP_PKEY *
+ec_load_key(const pgp_ec_key_t &key, bool secret = false)
+{
+    const ec_curve_desc_t *curve = get_curve_desc(key.curve);
+    if (!curve) {
+        RNP_LOG("unknown curve");
+        return NULL;
+    }
+    int nid = OBJ_sn2nid(curve->openssl_name);
+    if (nid == NID_undef) {
+        RNP_LOG("Unknown SN: %s", curve->openssl_name);
+        return NULL;
+    }
+    EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
+    if (!ec) {
+        RNP_LOG("Failed to create EC key with group %d: %lu", nid, ERR_peek_last_error());
+        return NULL;
+    }
+
+    bool      res = false;
+    bignum_t *x = NULL;
+    EVP_PKEY *pkey = NULL;
+    EC_POINT *p = EC_POINT_new(EC_KEY_get0_group(ec));
+    if (!p) {
+        RNP_LOG("Failed to allocate point: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (EC_POINT_oct2point(EC_KEY_get0_group(ec), p, key.p.mpi, key.p.len, NULL) <= 0) {
+        RNP_LOG("Failed to decode point: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (EC_KEY_set_public_key(ec, p) <= 0) {
+        RNP_LOG("Failed to set public key: %lu", ERR_peek_last_error());
+        goto done;
+    }
+
+    pkey = EVP_PKEY_new();
+    if (!pkey) {
+        RNP_LOG("EVP_PKEY allocation failed: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (!secret) {
+        res = true;
+        goto done;
+    }
+
+    x = mpi2bn(&key.x);
+    if (!x) {
+        RNP_LOG("allocation failed");
+        goto done;
+    }
+    if (EC_KEY_set_private_key(ec, x) <= 0) {
+        RNP_LOG("Failed to set secret key: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    res = true;
+done:
+    if (res) {
+        res = EVP_PKEY_set1_EC_KEY(pkey, ec) > 0;
+    }
+    EC_POINT_free(p);
+    BN_free(x);
+    EC_KEY_free(ec);
+    if (!res) {
+        EVP_PKEY_free(pkey);
+        pkey = NULL;
+    }
+    return pkey;
+}
+
+static bool
+ecdsa_encode_sig(uint8_t *data, size_t *len, const pgp_ec_signature_t &sig)
+{
+    bool       res = false;
+    ECDSA_SIG *dsig = ECDSA_SIG_new();
+    BIGNUM *   r = mpi2bn(&sig.r);
+    BIGNUM *   s = mpi2bn(&sig.s);
+    if (!dsig || !r || !s) {
+        RNP_LOG("Allocation failed.");
+        goto done;
+    }
+    ECDSA_SIG_set0(dsig, r, s);
+    r = NULL;
+    s = NULL;
+    int outlen;
+    outlen = i2d_ECDSA_SIG(dsig, &data);
+    if (outlen < 0) {
+        RNP_LOG("Failed to encode signature.");
+        goto done;
+    }
+    *len = outlen;
+    res = true;
+done:
+    ECDSA_SIG_free(dsig);
+    BN_free(r);
+    BN_free(s);
+    return res;
+}
 
 rnp_result_t
 ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    EVP_PKEY *evpkey = ec_load_key(*key, secret);
+    if (!evpkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (EVP_PKEY_check(ctx) > 0) {
+        ret = RNP_SUCCESS;
+    }
+done:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(evpkey);
+    return ret;
 }
 
 rnp_result_t
@@ -42,7 +177,44 @@ ecdsa_sign(rng_t *             rng,
            size_t              hash_len,
            const pgp_ec_key_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    if (mpi_bytes(&key->x) == 0) {
+        RNP_LOG("private key not set");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    /* Load secret key to DSA structure*/
+    EVP_PKEY *evpkey = ec_load_key(*key, true);
+    if (!evpkey) {
+        RNP_LOG("Failed to load key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    /* init context and sign */
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (EVP_PKEY_sign_init(ctx) <= 0) {
+        RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    sig->s.len = PGP_MPINT_SIZE;
+    if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
+        RNP_LOG("Signing failed: %lu", ERR_peek_last_error());
+        sig->s.len = 0;
+        goto done;
+    }
+    if (!ecdsa_decode_sig(&sig->s.mpi[0], sig->s.len, *sig)) {
+        RNP_LOG("Failed to parse ECDSA sig: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    ret = RNP_SUCCESS;
+done:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(evpkey);
+    return ret;
 }
 
 rnp_result_t
@@ -52,7 +224,35 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
              size_t                    hash_len,
              const pgp_ec_key_t *      key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    /* Load secret key to DSA structure*/
+    EVP_PKEY *evpkey = ec_load_key(*key, false);
+    if (!evpkey) {
+        RNP_LOG("Failed to load key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    rnp_result_t ret = RNP_ERROR_SIGNATURE_INVALID;
+    /* init context and sign */
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    if (EVP_PKEY_verify_init(ctx) <= 0) {
+        RNP_LOG("Failed to initialize verify: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    pgp_mpi_t sigbuf;
+    if (!ecdsa_encode_sig(sigbuf.mpi, &sigbuf.len, *sig)) {
+        goto done;
+    }
+    if (EVP_PKEY_verify(ctx, sigbuf.mpi, sigbuf.len, hash, hash_len) > 0) {
+        ret = RNP_SUCCESS;
+    }
+done:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(evpkey);
+    return ret;
 }
 
 pgp_hash_alg_t
