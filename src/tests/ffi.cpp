@@ -4109,6 +4109,26 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_stream_armor/64k_whitespace_before_armored_message.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* Armor header starts and fits in the first 1024 bytes of the input. Prepended by
+     * whitespaces. */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/1024_peek_buf.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
     assert_rnp_success(
       rnp_input_from_path(&input, "data/test_stream_armor/blank_line_with_whitespace.asc"));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
@@ -4139,6 +4159,40 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     len = 0;
     assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
     assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/long_header_line_64k.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/long_header_nameline_64k.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 2226);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* Armored message encoded in a single >64k text line */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/message_64k_oneline.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_dearmor(input, output));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 68647);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
