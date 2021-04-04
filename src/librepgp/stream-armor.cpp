@@ -1080,29 +1080,10 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
     uint8_t      readbuf[sizeof(ST_CLEAR_BEGIN)];
     size_t       read;
 
-    if (!src_peek(src, readbuf, strlen(ST_CLEAR_BEGIN), &read) ||
-        (read < strlen(ST_ARMOR_BEGIN))) {
-        RNP_LOG("can't read enough data from source");
-        return RNP_ERROR_READ;
-    }
-
-    /* Trying armored or cleartext data */
-    readbuf[read] = 0;
-    if (strstr((char *) readbuf, ST_ARMOR_BEGIN)) {
-        /* checking whether it is cleartext */
-        if (strstr((char *) readbuf, ST_CLEAR_BEGIN)) {
-            RNP_LOG("source is cleartext, not armored");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-
-        /* initializing armored message */
-        res = init_armored_src(&armorsrc, src);
-        if (res) {
-            return res;
-        }
-    } else {
-        RNP_LOG("source is not armored data");
-        return RNP_ERROR_BAD_FORMAT;
+    /* initializing armored message */
+    res = init_armored_src(&armorsrc, src);
+    if (res) {
+        return res;
     }
     /* Reading data from armored source and writing it to the output */
     res = dst_write_src(&armorsrc, dst);
