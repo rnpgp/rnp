@@ -44,6 +44,7 @@
 #include "utils.h"
 
 #define ARMORED_BLOCK_SIZE (4096)
+#define ARMORED_PEEK_BUF_SIZE 1024
 #define ARMORED_MIN_LINE_LENGTH (16)
 #define ARMORED_MAX_LINE_LENGTH (76)
 
@@ -565,7 +566,7 @@ rnp_armored_get_type(pgp_source_t *src)
         return guessed;
     }
 
-    char        hdr[128];
+    char        hdr[ARMORED_PEEK_BUF_SIZE];
     const char *armhdr;
     size_t      armhdrlen;
     size_t      read;
@@ -583,7 +584,7 @@ rnp_armored_get_type(pgp_source_t *src)
 static bool
 armor_parse_header(pgp_source_t *src)
 {
-    char                        hdr[128];
+    char                        hdr[ARMORED_PEEK_BUF_SIZE];
     const char *                armhdr;
     size_t                      armhdrlen;
     size_t                      read;
@@ -627,7 +628,7 @@ armor_parse_header(pgp_source_t *src)
 static bool
 armor_skip_line(pgp_source_t *src)
 {
-    char header[1024] = {0};
+    char header[ARMORED_PEEK_BUF_SIZE] = {0};
     do {
         size_t hdrlen = 0;
         bool   res = src_peek_line(src, header, sizeof(header), &hdrlen);
@@ -644,7 +645,7 @@ static bool
 armor_parse_headers(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
-    char                        header[1024] = {0};
+    char                        header[ARMORED_PEEK_BUF_SIZE] = {0};
 
     do {
         size_t hdrlen = 0;
@@ -1048,7 +1049,7 @@ armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
 bool
 is_armored_source(pgp_source_t *src)
 {
-    uint8_t buf[128];
+    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
     size_t  read = 0;
 
     if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
@@ -1061,7 +1062,7 @@ is_armored_source(pgp_source_t *src)
 bool
 is_cleartext_source(pgp_source_t *src)
 {
-    uint8_t buf[128];
+    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
     size_t  read = 0;
 
     if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
