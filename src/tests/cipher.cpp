@@ -142,16 +142,6 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     memset(dec, 0, sizeof(dec));
     dec_size = 0;
     assert_rnp_success(rsa_decrypt_pkcs1(&global_rng, dec, &dec_size, &enc, key_rsa));
-
-#if defined(DEBUG_PRINT)
-    tmp = hex_encode(ctext, ctext_size);
-    printf("C = 0x%s\n", tmp);
-    free(tmp);
-    tmp = hex_encode(decrypted, decrypted_size);
-    printf("PD = 0x%s\n", tmp);
-    free(tmp);
-#endif
-
     test_value_equal("RSA 1024 decrypt", "616263", dec, 3);
     assert_int_equal(dec_size, 3);
 }
