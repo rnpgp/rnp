@@ -409,32 +409,6 @@ directory_from_file_path(const char *file_path, const char *reldir)
     return directory_from_relative_file_path(file_path, reldir);
 }
 
-// returns new string containing hex value
-char *
-hex_encode(const uint8_t v[], size_t len)
-{
-    char * s;
-    size_t i;
-
-    s = (char *) malloc(2 * len + 1);
-    if (s == NULL)
-        return NULL;
-
-    char hex_chars[] = "0123456789ABCDEF";
-
-    for (i = 0; i < len; ++i) {
-        uint8_t    b0 = 0x0F & (v[i] >> 4);
-        uint8_t    b1 = 0x0F & (v[i]);
-        const char c1 = hex_chars[b0];
-        const char c2 = hex_chars[b1];
-        s[2 * i] = c1;
-        s[2 * i + 1] = c2;
-    }
-    s[2 * len] = 0;
-
-    return s;
-}
-
 bool
 bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 {
@@ -449,6 +423,28 @@ bin_eq_hex(const uint8_t *data, size_t len, const char *val)
     bool res = !memcmp(data, dec, len);
     free(dec);
     return res;
+}
+
+bool
+hex2mpi(pgp_mpi_t *val, const char *hex)
+{
+    const size_t hex_len = strlen(hex);
+    size_t       buf_len = hex_len / 2;
+    bool         ok;
+
+    uint8_t *buf = NULL;
+
+    buf = (uint8_t *) malloc(buf_len);
+
+    if (buf == NULL) {
+        return false;
+    }
+
+    rnp::hex_decode(hex, buf, buf_len);
+
+    ok = mem2mpi(val, buf, buf_len);
+    free(buf);
+    return ok;
 }
 
 bool
@@ -467,15 +463,12 @@ int
 test_value_equal(const char *what, const char *expected_value, const uint8_t v[], size_t v_len)
 {
     assert_int_equal(strlen(expected_value), v_len * 2);
-
-    char *produced = hex_encode(v, v_len);
-    if (produced == NULL) {
+    char *produced = (char *) calloc(1, v_len * 2 + 1);
+    if (!produced) {
         return -1;
     }
-
-    // fixme - expects expected_value is also uppercase
+    rnp::hex_encode(v, v_len, produced, v_len * 2 + 1);
     assert_string_equal(produced, expected_value);
-
     free(produced);
     return 0;
 }
