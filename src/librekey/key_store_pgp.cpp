@@ -61,6 +61,7 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>
 #include <librepgp/stream-key.h>
+#include "crypto/mem.h"
 
 #include "types.h"
 #include "key_store_pgp.h"

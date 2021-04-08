@@ -24,10 +24,43 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <cstdio>
 #include "mem.h"
+#include "logging.h"
+#include <botan/ffi.h>
 
 void
 secure_clear(void *vp, size_t size)
 {
     botan_scrub_mem(vp, size);
+}
+
+bool
+rnp_hex_encode(
+  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
+{
+    uint32_t flags = format == RNP_HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
+
+    if (hex_len < (buf_len * 2 + 1)) {
+        return false;
+    }
+    hex[buf_len * 2] = '\0';
+    return botan_hex_encode(buf, buf_len, hex, flags) == 0;
+}
+
+size_t
+rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
+{
+    size_t hexlen = strlen(hex);
+
+    /* check for 0x prefix */
+    if ((hexlen >= 2) && (hex[0] == '0') && ((hex[1] == 'x') || (hex[1] == 'X'))) {
+        hex += 2;
+        hexlen -= 2;
+    }
+    if (botan_hex_decode(hex, hexlen, buf, &buf_len) != 0) {
+        RNP_LOG("Hex decode failed on string: %s", hex);
+        return 0;
+    }
+    return buf_len;
 }

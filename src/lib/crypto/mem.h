@@ -78,4 +78,10 @@ template <typename T, std::size_t N> struct secure_array {
 
 void secure_clear(void *vp, size_t size);
 
+typedef enum { RNP_HEX_LOWERCASE, RNP_HEX_UPPERCASE } rnp_hex_format_t;
+
+bool rnp_hex_encode(
+  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format);
+size_t rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len);
+
 #endif // CRYPTO_MEM_H_
