@@ -80,8 +80,8 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "uniwin.h"
 #endif
 
-#include <botan/ffi.h>
 #include "crypto.h"
+#include "crypto/mem.h"
 #include "utils.h"
 #include "json_utils.h"
 
@@ -256,36 +256,6 @@ rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *
     return dest;
 }
 
-bool
-rnp_hex_encode(
-  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
-{
-    uint32_t flags = format == RNP_HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
-
-    if (hex_len < (buf_len * 2 + 1)) {
-        return false;
-    }
-    hex[buf_len * 2] = '\0';
-    return botan_hex_encode(buf, buf_len, hex, flags) == 0;
-}
-
-size_t
-rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
-{
-    size_t hexlen = strlen(hex);
-
-    /* check for 0x prefix */
-    if ((hexlen >= 2) && (hex[0] == '0') && ((hex[1] == 'x') || (hex[1] == 'X'))) {
-        hex += 2;
-        hexlen -= 2;
-    }
-    if (botan_hex_decode(hex, hexlen, buf, &buf_len) != 0) {
-        RNP_LOG("Hex decode failed on string: %s", hex);
-        return 0;
-    }
-    return buf_len;
-}
-
 char *
 rnp_strlwr(char *s)
 {
@@ -295,14 +265,6 @@ rnp_strlwr(char *s)
         p++;
     }
     return s;
-}
-
-/* convert hex string, probably prefixes with 0x, to binary form */
-bool
-hex2bin(const char *hex, size_t hexlen, uint8_t *bin, size_t len, size_t *out)
-{
-    *out = rnp_hex_decode(hex, bin, len);
-    return *out != 0;
 }
 
 /* Shortcut function to add field checking it for null to avoid allocation failure.
