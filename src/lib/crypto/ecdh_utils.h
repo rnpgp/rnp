@@ -24,36 +24,23 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string.h>
+#ifndef ECDH_UTILS_H_
+#define ECDH_UTILS_H_
+
 #include "ecdh.h"
-#include "hash.h"
-#include "symmetric.h"
-#include "types.h"
-#include "utils.h"
 
-rnp_result_t
-ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
+#define MAX_SP800_56A_OTHER_INFO 56
+// Keys up to 312 bits (+1 bytes of PKCS5 padding)
+#define MAX_SESSION_KEY_SIZE 40
 
-rnp_result_t
-ecdh_encrypt_pkcs5(rng_t *                  rng,
-                   pgp_ecdh_encrypted_t *   out,
-                   const uint8_t *const     in,
-                   size_t                   in_len,
-                   const pgp_ec_key_t *     key,
-                   const pgp_fingerprint_t &fingerprint)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
+size_t kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER_INFO],
+                                const ec_curve_desc_t *  ec_curve,
+                                const pgp_fingerprint_t &fingerprint,
+                                const pgp_hash_alg_t     kdf_hash,
+                                const pgp_symm_alg_t     wrap_alg);
 
-rnp_result_t
-ecdh_decrypt_pkcs5(uint8_t *                   out,
-                   size_t *                    out_len,
-                   const pgp_ecdh_encrypted_t *in,
-                   const pgp_ec_key_t *        key,
-                   const pgp_fingerprint_t &   fingerprint)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
+bool pad_pkcs7(uint8_t *buf, size_t buf_len, size_t offset);
+
+bool unpad_pkcs7(uint8_t *buf, size_t buf_len, size_t *offset);
+
+#endif // ECDH_UTILS_H_
