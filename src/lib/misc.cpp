@@ -301,7 +301,7 @@ obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t 
         return false;
     }
 
-    bool res = rnp_hex_encode(val, val_len, hexbuf, hexlen, RNP_HEX_LOWERCASE) &&
+    bool res = rnp::hex_encode(val, val_len, hexbuf, hexlen, rnp::HEX_LOWERCASE) &&
                obj_add_field_json(obj, name, json_object_new_string(hexbuf));
 
     if (hexbuf != smallbuf) {

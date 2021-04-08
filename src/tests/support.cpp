@@ -445,7 +445,7 @@ bin_eq_hex(const uint8_t *data, size_t len, const char *val)
     }
 
     assert_non_null(dec = (uint8_t *) malloc(len));
-    assert_true(rnp_hex_decode(val, dec, len));
+    assert_true(rnp::hex_decode(val, dec, len));
     bool res = !memcmp(data, dec, len);
     free(dec);
     return res;
@@ -841,7 +841,7 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
         return NULL;
     }
     pgp_key_id_t keyid_bin = {};
-    size_t       binlen = rnp_hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    size_t       binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
     if (binlen > PGP_KEY_ID_SIZE) {
         return NULL;
     }
@@ -855,7 +855,7 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
         return NULL;
     }
     std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
-    size_t binlen = rnp_hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    size_t binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
     if (binlen > PGP_FINGERPRINT_SIZE) {
         return NULL;
     }

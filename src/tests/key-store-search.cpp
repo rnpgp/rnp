@@ -60,16 +60,16 @@ TEST_F(rnp_tests, test_key_store_search)
             key.pkt().alg = PGP_PKA_RSA;
 
             // set the keyid
-            assert_true(rnp_hex_decode(
+            assert_true(rnp::hex_decode(
               testdata[i].keyid, (uint8_t *) key.keyid().data(), key.keyid().size()));
             // keys should have different grips otherwise rnp_key_store_add_key will fail here
             pgp_key_grip_t &grip = (pgp_key_grip_t &) key.grip();
-            assert_true(rnp_hex_decode(testdata[i].keyid, grip.data(), grip.size()));
+            assert_true(rnp::hex_decode(testdata[i].keyid, grip.data(), grip.size()));
             grip[0] = (uint8_t) n;
             // and fingerprint
             pgp_fingerprint_t &fp = (pgp_fingerprint_t &) key.fp();
             assert_true(
-              rnp_hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_SIZE));
+              rnp::hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_SIZE));
             fp.fingerprint[0] = (uint8_t) n;
             fp.length = PGP_FINGERPRINT_SIZE;
             // set the userids
@@ -88,7 +88,7 @@ TEST_F(rnp_tests, test_key_store_search)
     // keyid search
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         pgp_key_id_t keyid = {};
-        assert_true(rnp_hex_decode(testdata[i].keyid, keyid.data(), keyid.size()));
+        assert_true(rnp::hex_decode(testdata[i].keyid, keyid.data(), keyid.size()));
         std::set<pgp_key_t *> seen_keys;
         for (pgp_key_t *key = rnp_key_store_get_key_by_id(store, keyid, NULL); key;
              key = rnp_key_store_get_key_by_id(store, keyid, key)) {
@@ -109,8 +109,8 @@ TEST_F(rnp_tests, test_key_store_search)
         while (key) {
             // check that the keyid actually matches
             pgp_key_id_t expected_keyid = {};
-            assert_true(
-              rnp_hex_decode(testdata[i].keyid, expected_keyid.data(), expected_keyid.size()));
+            assert_true(rnp::hex_decode(
+              testdata[i].keyid, expected_keyid.data(), expected_keyid.size()));
             assert_true(key->keyid() == expected_keyid);
             // check that we have not already encountered this key pointer
             assert_int_equal(seen_keys.count(key), 0);
