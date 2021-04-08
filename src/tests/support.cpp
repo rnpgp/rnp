@@ -837,42 +837,31 @@ ishex(const std::string &hexid)
 pgp_key_t *
 rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_key_t *after)
 {
-    pgp_key_t *  key = NULL;
-    pgp_key_id_t keyid_bin = {};
-    size_t       binlen = 0;
-
-    if (!keyring || keyid.empty()) {
+    if (!keyring || keyid.empty() || !ishex(keyid)) {
         return NULL;
     }
-    if (ishex(keyid) &&
-        hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
-        if (binlen <= PGP_KEY_ID_SIZE) {
-            key = rnp_key_store_get_key_by_id(keyring, keyid_bin, after);
-        }
+    pgp_key_id_t keyid_bin = {};
+    size_t       binlen = rnp_hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    if (binlen > PGP_KEY_ID_SIZE) {
+        return NULL;
     }
-    return key;
+    return rnp_key_store_get_key_by_id(keyring, keyid_bin, after);
 }
 
 pgp_key_t *
 rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
 {
-    pgp_key_t *          key = NULL;
-    std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
-    size_t               binlen = 0;
-
-    if (!keyring || keyid.empty()) {
+    if (!keyring || keyid.empty() || !ishex(keyid)) {
         return NULL;
     }
-
-    if (ishex(keyid) &&
-        hex2bin(keyid.c_str(), keyid.size(), keyid_bin.data(), keyid_bin.size(), &binlen)) {
-        if (binlen <= PGP_FINGERPRINT_SIZE) {
-            pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
-            memcpy(fp.fingerprint, keyid_bin.data(), binlen);
-            key = rnp_key_store_get_key_by_fpr(keyring, fp);
-        }
+    std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
+    size_t binlen = rnp_hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
+    if (binlen > PGP_FINGERPRINT_SIZE) {
+        return NULL;
     }
-    return key;
+    pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
+    memcpy(fp.fingerprint, keyid_bin.data(), binlen);
+    return rnp_key_store_get_key_by_fpr(keyring, fp);
 }
 
 pgp_key_t *

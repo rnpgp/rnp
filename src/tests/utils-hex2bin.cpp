@@ -30,52 +30,39 @@ TEST_F(rnp_tests, test_utils_hex2bin)
 {
     // with 0x prefix
     {
-        uint8_t     buf[4];
-        const char *hex = "0xfeedbeef";
-        size_t      outsz = 0;
-
-        assert_true(hex2bin(hex, strlen(hex), buf, sizeof(buf), &outsz));
-        assert_int_equal(outsz, 4);
+        uint8_t buf[4];
+        assert_int_equal(rnp_hex_decode("0xfeedbeef", buf, sizeof(buf)), 4);
         assert_int_equal(0, memcmp(buf, "\xfe\xed\xbe\xef", 4));
     }
     // with 0X prefix, capital
     {
-        uint8_t     buf[4];
-        const char *hex = "0XFEEDBEEF";
-        size_t      outsz = 0;
-
-        assert_true(hex2bin(hex, strlen(hex), buf, sizeof(buf), &outsz));
-        assert_int_equal(outsz, 4);
+        uint8_t buf[4];
+        assert_int_equal(rnp_hex_decode("0XFEEDBEEF", buf, sizeof(buf)), 4);
         assert_int_equal(0, memcmp(buf, "\xfe\xed\xbe\xef", 4));
     }
     // without 0x prefix
     {
-        uint8_t     buf[4];
-        const char *hex = "feedbeef";
-        size_t      outsz = 0;
-
-        assert_true(hex2bin(hex, strlen(hex), buf, sizeof(buf), &outsz));
-        assert_int_equal(outsz, 4);
+        uint8_t buf[4];
+        assert_int_equal(rnp_hex_decode("feedbeef", buf, sizeof(buf)), 4);
         assert_int_equal(0, memcmp(buf, "\xfe\xed\xbe\xef", 4));
     }
     // keyid with spaces
     {
-        uint8_t     buf[PGP_KEY_ID_SIZE];
-        const char *hex = "4be1 47bb 22df 1e60";
-        size_t      outsz = 0;
-
-        assert_true(hex2bin(hex, strlen(hex), buf, sizeof(buf), &outsz));
-        assert_int_equal(outsz, PGP_KEY_ID_SIZE);
+        uint8_t buf[PGP_KEY_ID_SIZE];
+        assert_int_equal(rnp_hex_decode("4be1 47bb 22df 1e60", buf, sizeof(buf)),
+                         PGP_KEY_ID_SIZE);
         assert_int_equal(0, memcmp(buf, "\x4b\xe1\x47\xbb\x22\xdf\x1e\x60", PGP_KEY_ID_SIZE));
     }
     // keyid with spaces and tab
     {
-        uint8_t     buf[PGP_KEY_ID_SIZE];
-        const char *hex = "    4be147bb\t22df1e60   ";
-        size_t      outsz = 0;
-
-        assert_true(hex2bin(hex, strlen(hex), buf, sizeof(buf), &outsz));
-        assert_int_equal(outsz, PGP_KEY_ID_SIZE);
+        uint8_t buf[PGP_KEY_ID_SIZE];
+        assert_int_equal(rnp_hex_decode("    4be147bb\t22df1e60   ", buf, sizeof(buf)),
+                         PGP_KEY_ID_SIZE);
         assert_int_equal(0, memcmp(buf, "\x4b\xe1\x47\xbb\x22\xdf\x1e\x60", PGP_KEY_ID_SIZE));
+    }
+    // buffer is too small
+    {
+        uint8_t buf[4];
+        assert_int_equal(rnp_hex_decode("4be147bb22df1e60   ", buf, sizeof(buf)), 0);
     }
 }
