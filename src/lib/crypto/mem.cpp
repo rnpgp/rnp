@@ -35,11 +35,12 @@ secure_clear(void *vp, size_t size)
     botan_scrub_mem(vp, size);
 }
 
+namespace rnp {
+
 bool
-rnp_hex_encode(
-  const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, rnp_hex_format_t format)
+hex_encode(const uint8_t *buf, size_t buf_len, char *hex, size_t hex_len, hex_format_t format)
 {
-    uint32_t flags = format == RNP_HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
+    uint32_t flags = format == HEX_LOWERCASE ? BOTAN_FFI_HEX_LOWER_CASE : 0;
 
     if (hex_len < (buf_len * 2 + 1)) {
         return false;
@@ -49,7 +50,7 @@ rnp_hex_encode(
 }
 
 size_t
-rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
+hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
 {
     size_t hexlen = strlen(hex);
 
@@ -64,3 +65,4 @@ rnp_hex_decode(const char *hex, uint8_t *buf, size_t buf_len)
     }
     return buf_len;
 }
+} // namespace rnp

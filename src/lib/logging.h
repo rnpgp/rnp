@@ -47,29 +47,29 @@ void set_rnp_log_switch(int8_t);
 
 #define RNP_LOG(...) RNP_LOG_FD(stderr, __VA_ARGS__)
 
-#define RNP_LOG_KEY(msg, key)                                                          \
-    do {                                                                               \
-        if (!(key)) {                                                                  \
-            RNP_LOG(msg, "(null)");                                                    \
-            break;                                                                     \
-        }                                                                              \
-        char                keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                      \
-        const pgp_key_id_t &id = key->keyid();                                         \
-        rnp_hex_encode(id.data(), id.size(), keyid, sizeof(keyid), RNP_HEX_LOWERCASE); \
-        RNP_LOG(msg, keyid);                                                           \
+#define RNP_LOG_KEY(msg, key)                                                            \
+    do {                                                                                 \
+        if (!(key)) {                                                                    \
+            RNP_LOG(msg, "(null)");                                                      \
+            break;                                                                       \
+        }                                                                                \
+        char                keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                        \
+        const pgp_key_id_t &id = key->keyid();                                           \
+        rnp::hex_encode(id.data(), id.size(), keyid, sizeof(keyid), rnp::HEX_LOWERCASE); \
+        RNP_LOG(msg, keyid);                                                             \
     } while (0)
 
-#define RNP_LOG_KEY_PKT(msg, key)                                                     \
-    do {                                                                              \
-        pgp_key_id_t keyid = {};                                                      \
-        if (pgp_keyid(keyid, (key))) {                                                \
-            RNP_LOG(msg, "unknown");                                                  \
-            break;                                                                    \
-        };                                                                            \
-        char keyidhex[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                 \
-        rnp_hex_encode(                                                               \
-          keyid.data(), keyid.size(), keyidhex, sizeof(keyidhex), RNP_HEX_LOWERCASE); \
-        RNP_LOG(msg, keyidhex);                                                       \
+#define RNP_LOG_KEY_PKT(msg, key)                                                      \
+    do {                                                                               \
+        pgp_key_id_t keyid = {};                                                       \
+        if (pgp_keyid(keyid, (key))) {                                                 \
+            RNP_LOG(msg, "unknown");                                                   \
+            break;                                                                     \
+        };                                                                             \
+        char keyidhex[PGP_KEY_ID_SIZE * 2 + 1] = {0};                                  \
+        rnp::hex_encode(                                                               \
+          keyid.data(), keyid.size(), keyidhex, sizeof(keyidhex), rnp::HEX_LOWERCASE); \
+        RNP_LOG(msg, keyidhex);                                                        \
     } while (0)
 
 #endif

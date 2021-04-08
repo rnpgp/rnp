@@ -100,7 +100,7 @@ hex2mpi(pgp_mpi_t *val, const char *hex)
         return false;
     }
 
-    rnp_hex_decode(hex, buf, buf_len);
+    rnp::hex_decode(hex, buf, buf_len);
 
     ok = mem2mpi(val, buf, buf_len);
     free(buf);

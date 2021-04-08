@@ -38,11 +38,11 @@ all_keys_valid(const rnp_key_store_t *keyring, pgp_key_t *except = NULL)
 
     for (auto &key : keyring->keys) {
         if ((!key.valid() || key.expired()) && (&key != except)) {
-            assert_true(rnp_hex_encode(key.keyid().data(),
-                                       key.keyid().size(),
-                                       keyid,
-                                       sizeof(keyid),
-                                       RNP_HEX_LOWERCASE));
+            assert_true(rnp::hex_encode(key.keyid().data(),
+                                        key.keyid().size(),
+                                        keyid,
+                                        sizeof(keyid),
+                                        rnp::HEX_LOWERCASE));
             RNP_LOG("key %s is not valid", keyid);
             return false;
         }
