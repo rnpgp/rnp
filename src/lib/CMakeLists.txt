@@ -104,6 +104,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/dsa_ossl.cpp
     crypto/ec_curves.cpp
     crypto/ec_ossl.cpp
+    crypto/ecdh_utils.cpp
     crypto/ecdh_ossl.cpp
     crypto/ecdsa_ossl.cpp
     crypto/eddsa_ossl.cpp
@@ -128,6 +129,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/dsa.cpp
     crypto/ec_curves.cpp
     crypto/ec.cpp
+    crypto/ecdh_utils.cpp
     crypto/ecdh.cpp
     crypto/ecdsa.cpp
     crypto/eddsa.cpp
