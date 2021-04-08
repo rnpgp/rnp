@@ -51,107 +51,107 @@ TEST_F(rnp_tests, key_grip)
 
     // dsa-eg public/secret key
     assert_true(
-      rnp_hex_decode("552286BEB2999F0A9E26A50385B90D9724001187", grip.data(), grip.size()));
+      rnp::hex_decode("552286BEB2999F0A9E26A50385B90D9724001187", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("A5E4CD2CBBE44A16E4D6EC05C2E3C3A599DC763C", grip.data(), grip.size()));
+      rnp::hex_decode("A5E4CD2CBBE44A16E4D6EC05C2E3C3A599DC763C", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // rsa/rsa public/secret key
     assert_true(
-      rnp_hex_decode("D148210FAF36468055B83D0F5A6DEB83FBC8E864", grip.data(), grip.size()));
+      rnp::hex_decode("D148210FAF36468055B83D0F5A6DEB83FBC8E864", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("CED7034A8EB5F4CE90DF99147EC33D86FCD3296C", grip.data(), grip.size()));
+      rnp::hex_decode("CED7034A8EB5F4CE90DF99147EC33D86FCD3296C", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // ed25519 : public/secret key
     assert_true(
-      rnp_hex_decode("940D97D75C306D737A59A98EAFF1272832CEDC0B", grip.data(), grip.size()));
+      rnp::hex_decode("940D97D75C306D737A59A98EAFF1272832CEDC0B", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // x25519 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("A77DC8173DA6BEE126F5BD6F5A14E01200B52FCE", grip.data(), grip.size()));
+      rnp::hex_decode("A77DC8173DA6BEE126F5BD6F5A14E01200B52FCE", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("636C983EDB558527BA82780B52CB5DAE011BE46B", grip.data(), grip.size()));
+      rnp::hex_decode("636C983EDB558527BA82780B52CB5DAE011BE46B", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp256 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip.data(), grip.size()));
+      rnp::hex_decode("FC81AECE90BCE6E54D0D637D266109783AC8DAC0", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("A56DC8DB8355747A809037459B4258B8A743EAB5", grip.data(), grip.size()));
+      rnp::hex_decode("A56DC8DB8355747A809037459B4258B8A743EAB5", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp384 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("A1338230AED1C9C125663518470B49056C9D1733", grip.data(), grip.size()));
+      rnp::hex_decode("A1338230AED1C9C125663518470B49056C9D1733", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("797A83FE041FFE06A7F4B1D32C6F4AE0F6D87ADF", grip.data(), grip.size()));
+      rnp::hex_decode("797A83FE041FFE06A7F4B1D32C6F4AE0F6D87ADF", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // nistp521 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("D91B789603EC9138AA20342A2B6DC86C81B70F5D", grip.data(), grip.size()));
+      rnp::hex_decode("D91B789603EC9138AA20342A2B6DC86C81B70F5D", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("FD048B2CA1919CB241DC8A2C7FA3E742EF343DCA", grip.data(), grip.size()));
+      rnp::hex_decode("FD048B2CA1919CB241DC8A2C7FA3E742EF343DCA", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // brainpool256 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("A01BAA22A72F09A0FF0A1D4CBCE70844DD52DDD7", grip.data(), grip.size()));
+      rnp::hex_decode("A01BAA22A72F09A0FF0A1D4CBCE70844DD52DDD7", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("C1678B7DE5F144C93B89468D5F9764ACE182ED36", grip.data(), grip.size()));
+      rnp::hex_decode("C1678B7DE5F144C93B89468D5F9764ACE182ED36", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // brainpool384 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("2F25DB025DEBF3EA2715350209B985829B04F50A", grip.data(), grip.size()));
+      rnp::hex_decode("2F25DB025DEBF3EA2715350209B985829B04F50A", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("B6BD8B81F75AF914163D97DF8DE8F6FC64C283F8", grip.data(), grip.size()));
+      rnp::hex_decode("B6BD8B81F75AF914163D97DF8DE8F6FC64C283F8", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // brainpool512 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("5A484F56AB4B8B6583B6365034999F6543FAE1AE", grip.data(), grip.size()));
+      rnp::hex_decode("5A484F56AB4B8B6583B6365034999F6543FAE1AE", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("9133E4A7E8FC8515518DF444C3F2F247EEBBADEC", grip.data(), grip.size()));
+      rnp::hex_decode("9133E4A7E8FC8515518DF444C3F2F247EEBBADEC", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 
     // secp256k1 : public/secret key/subkey
     assert_true(
-      rnp_hex_decode("498B89C485489BA16B40755C0EBA580166393074", grip.data(), grip.size()));
+      rnp::hex_decode("498B89C485489BA16B40755C0EBA580166393074", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
     assert_true(
-      rnp_hex_decode("48FFED40D018747363BDEFFDD404D1F4870F8064", grip.data(), grip.size()));
+      rnp::hex_decode("48FFED40D018747363BDEFFDD404D1F4870F8064", grip.data(), grip.size()));
     assert_non_null(key = rnp_key_store_get_key_by_grip(pub_store, grip));
     assert_non_null(key = rnp_key_store_get_key_by_grip(sec_store, grip));
 

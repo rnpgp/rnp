@@ -381,14 +381,17 @@ parse_ks_format(pgp_key_store_format_t *key_store_format, const char *format)
 }
 
 static rnp_result_t
-hex_encode_value(const uint8_t *value, size_t len, char **res, rnp_hex_format_t format)
+hex_encode_value(const uint8_t *   value,
+                 size_t            len,
+                 char **           res,
+                 rnp::hex_format_t format = rnp::HEX_UPPERCASE)
 {
     size_t hex_len = len * 2 + 1;
     *res = (char *) malloc(hex_len);
     if (!*res) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!rnp_hex_encode(value, len, *res, hex_len, format)) {
+    if (!rnp::hex_encode(value, len, *res, hex_len, format)) {
         free(*res);
         *res = NULL;
         return RNP_ERROR_GENERIC;
@@ -1478,8 +1481,8 @@ try {
         }
         if (validate_pgp_key_material(&key.material(), &ffi->rng)) {
             char hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
-            rnp_hex_encode(
-              key.keyid().data(), key.keyid().size(), hex, sizeof(hex), RNP_HEX_LOWERCASE);
+            rnp::hex_encode(
+              key.keyid().data(), key.keyid().size(), hex, sizeof(hex), rnp::HEX_LOWERCASE);
             FFI_LOG(ffi, "warning! attempt to import key %s with invalid material.", hex);
             continue;
         }
@@ -3182,7 +3185,7 @@ try {
     }
     static_assert(sizeof(recipient->keyid) == PGP_KEY_ID_SIZE,
                   "rnp_recipient_handle_t.keyid size mismatch");
-    return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid, RNP_HEX_UPPERCASE);
+    return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid);
 }
 FFI_GUARD
 
@@ -3457,7 +3460,7 @@ str_to_locator(rnp_ffi_t         ffi,
         break;
     case PGP_KEY_SEARCH_KEYID: {
         if (strlen(identifier) != (PGP_KEY_ID_SIZE * 2) ||
-            !rnp_hex_decode(identifier, locator->by.keyid.data(), locator->by.keyid.size())) {
+            !rnp::hex_decode(identifier, locator->by.keyid.data(), locator->by.keyid.size())) {
             FFI_LOG(ffi, "Invalid keyid: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3469,7 +3472,7 @@ str_to_locator(rnp_ffi_t         ffi,
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        locator->by.fingerprint.length = rnp_hex_decode(
+        locator->by.fingerprint.length = rnp::hex_decode(
           identifier, locator->by.fingerprint.fingerprint, PGP_FINGERPRINT_SIZE);
         if (!locator->by.fingerprint.length) {
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
@@ -3478,7 +3481,7 @@ str_to_locator(rnp_ffi_t         ffi,
     } break;
     case PGP_KEY_SEARCH_GRIP: {
         if (strlen(identifier) != (PGP_KEY_GRIP_SIZE * 2) ||
-            !rnp_hex_decode(identifier, locator->by.grip.data(), locator->by.grip.size())) {
+            !rnp::hex_decode(identifier, locator->by.grip.data(), locator->by.grip.size())) {
             FFI_LOG(ffi, "Invalid grip: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -3512,29 +3515,24 @@ locator_to_str(const pgp_key_search_t *locator,
         }
         break;
     case PGP_KEY_SEARCH_KEYID:
-        if (!rnp_hex_encode(locator->by.keyid.data(),
-                            locator->by.keyid.size(),
-                            identifier,
-                            identifier_size,
-                            RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(locator->by.keyid.data(),
+                             locator->by.keyid.size(),
+                             identifier,
+                             identifier_size)) {
             return false;
         }
         break;
     case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp_hex_encode(locator->by.fingerprint.fingerprint,
-                            locator->by.fingerprint.length,
-                            identifier,
-                            identifier_size,
-                            RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(locator->by.fingerprint.fingerprint,
+                             locator->by.fingerprint.length,
+                             identifier,
+                             identifier_size)) {
             return false;
         }
         break;
     case PGP_KEY_SEARCH_GRIP:
-        if (!rnp_hex_encode(locator->by.grip.data(),
-                            locator->by.grip.size(),
-                            identifier,
-                            identifier_size,
-                            RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(
+              locator->by.grip.data(), locator->by.grip.size(), identifier, identifier_size)) {
             return false;
         }
         break;
@@ -4494,11 +4492,8 @@ gen_json_grips(char **result, const pgp_key_t *primary, const pgp_key_t *sub)
             goto done;
         }
         json_object_object_add(jso, "primary", jsoprimary);
-        if (!rnp_hex_encode(primary->grip().data(),
-                            primary->grip().size(),
-                            grip,
-                            sizeof(grip),
-                            RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(
+              primary->grip().data(), primary->grip().size(), grip, sizeof(grip))) {
             goto done;
         }
         json_object *jsogrip = json_object_new_string(grip);
@@ -4513,8 +4508,7 @@ gen_json_grips(char **result, const pgp_key_t *primary, const pgp_key_t *sub)
             goto done;
         }
         json_object_object_add(jso, "sub", jsosub);
-        if (!rnp_hex_encode(
-              sub->grip().data(), sub->grip().size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(sub->grip().data(), sub->grip().size(), grip, sizeof(grip))) {
             goto done;
         }
         json_object *jsogrip = json_object_new_string(grip);
@@ -5959,7 +5953,7 @@ try {
         return RNP_SUCCESS;
     }
     pgp_key_id_t keyid = handle->sig->sig.keyid();
-    return hex_encode_value(keyid.data(), keyid.size(), result, RNP_HEX_UPPERCASE);
+    return hex_encode_value(keyid.data(), keyid.size(), result);
 }
 FFI_GUARD
 
@@ -6188,7 +6182,7 @@ try {
     }
     const pgp_fingerprint_t &fp = key->get_subkey_fp(idx);
     char                     fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
-    if (!rnp_hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex), RNP_HEX_UPPERCASE)) {
+    if (!rnp::hex_encode(fp.fingerprint, fp.length, fphex, sizeof(fphex))) {
         return RNP_ERROR_BAD_STATE;
     }
     return rnp_locate_key(handle->ffi, "fingerprint", fphex, subkey);
@@ -6270,7 +6264,7 @@ try {
     }
 
     const pgp_fingerprint_t &fp = get_key_prefer_public(handle)->fp();
-    return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
+    return hex_encode_value(fp.fingerprint, fp.length, fprint);
 }
 FFI_GUARD
 
@@ -6282,8 +6276,7 @@ try {
     }
 
     pgp_key_t *key = get_key_prefer_public(handle);
-    return hex_encode_value(
-      key->keyid().data(), key->keyid().size(), keyid, RNP_HEX_UPPERCASE);
+    return hex_encode_value(key->keyid().data(), key->keyid().size(), keyid);
 }
 FFI_GUARD
 
@@ -6295,7 +6288,7 @@ try {
     }
 
     const pgp_key_grip_t &kgrip = get_key_prefer_public(handle)->grip();
-    return hex_encode_value(kgrip.data(), kgrip.size(), grip, RNP_HEX_UPPERCASE);
+    return hex_encode_value(kgrip.data(), kgrip.size(), grip);
 }
 FFI_GUARD
 
@@ -6332,7 +6325,7 @@ try {
         *grip = NULL;
         return RNP_SUCCESS;
     }
-    return hex_encode_value(pgrip->data(), pgrip->size(), grip, RNP_HEX_UPPERCASE);
+    return hex_encode_value(pgrip->data(), pgrip->size(), grip);
 }
 FFI_GUARD
 
@@ -6352,7 +6345,7 @@ try {
         return RNP_SUCCESS;
     }
     const pgp_fingerprint_t &fp = key->primary_fp();
-    return hex_encode_value(fp.fingerprint, fp.length, fprint, RNP_HEX_UPPERCASE);
+    return hex_encode_value(fp.fingerprint, fp.length, fprint);
 }
 FFI_GUARD
 
@@ -7342,8 +7335,7 @@ add_json_subsig(json_object *jso, bool is_sub, uint32_t flags, const pgp_subsig_
         }
         char         keyid[PGP_KEY_ID_SIZE * 2 + 1];
         pgp_key_id_t signer = sig->keyid();
-        if (!rnp_hex_encode(
-              signer.data(), signer.size(), keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(signer.data(), signer.size(), keyid, sizeof(keyid))) {
             return RNP_ERROR_GENERIC;
         }
         if (!add_json_string_field(jsosigner, "keyid", keyid)) {
@@ -7433,8 +7425,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
 
     // keyid
     char keyid[PGP_KEY_ID_SIZE * 2 + 1];
-    if (!rnp_hex_encode(
-          key->keyid().data(), key->keyid().size(), keyid, sizeof(keyid), RNP_HEX_UPPERCASE)) {
+    if (!rnp::hex_encode(key->keyid().data(), key->keyid().size(), keyid, sizeof(keyid))) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "keyid", keyid)) {
@@ -7442,8 +7433,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // fingerprint
     char fpr[PGP_FINGERPRINT_SIZE * 2 + 1];
-    if (!rnp_hex_encode(
-          key->fp().fingerprint, key->fp().length, fpr, sizeof(fpr), RNP_HEX_UPPERCASE)) {
+    if (!rnp::hex_encode(key->fp().fingerprint, key->fp().length, fpr, sizeof(fpr))) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "fingerprint", fpr)) {
@@ -7451,8 +7441,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     }
     // grip
     char grip[PGP_KEY_GRIP_SIZE * 2 + 1];
-    if (!rnp_hex_encode(
-          key->grip().data(), key->grip().size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+    if (!rnp::hex_encode(key->grip().data(), key->grip().size(), grip, sizeof(grip))) {
         return RNP_ERROR_GENERIC;
     }
     if (!add_json_string_field(jso, "grip", grip)) {
@@ -7496,8 +7485,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             if (!subgrip) {
                 continue;
             }
-            if (!rnp_hex_encode(
-                  subgrip->data(), subgrip->size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+            if (!rnp::hex_encode(subgrip->data(), subgrip->size(), grip, sizeof(grip))) {
                 return RNP_ERROR_GENERIC;
             }
             json_object *jsostr = json_object_new_string(grip);
@@ -7509,8 +7497,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     } else if (key->has_primary_fp()) {
         auto pgrip = rnp_get_grip_by_fp(handle->ffi, key->primary_fp());
         if (pgrip) {
-            if (!rnp_hex_encode(
-                  pgrip->data(), pgrip->size(), grip, sizeof(grip), RNP_HEX_UPPERCASE)) {
+            if (!rnp::hex_encode(pgrip->data(), pgrip->size(), grip, sizeof(grip))) {
                 return RNP_ERROR_GENERIC;
             }
             if (!add_json_string_field(jso, "primary key grip", grip)) {
@@ -7872,21 +7859,18 @@ key_iter_get_item(const rnp_identifier_iterator_t it, char *buf, size_t buf_len)
     const pgp_key_t *key = &**it->keyp;
     switch (it->type) {
     case PGP_KEY_SEARCH_KEYID: {
-        if (!rnp_hex_encode(
-              key->keyid().data(), key->keyid().size(), buf, buf_len, RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(key->keyid().data(), key->keyid().size(), buf, buf_len)) {
             return false;
         }
         break;
     }
     case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp_hex_encode(
-              key->fp().fingerprint, key->fp().length, buf, buf_len, RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(key->fp().fingerprint, key->fp().length, buf, buf_len)) {
             return false;
         }
         break;
     case PGP_KEY_SEARCH_GRIP:
-        if (!rnp_hex_encode(
-              key->grip().data(), key->grip().size(), buf, buf_len, RNP_HEX_UPPERCASE)) {
+        if (!rnp::hex_encode(key->grip().data(), key->grip().size(), buf, buf_len)) {
             return false;
         }
         break;

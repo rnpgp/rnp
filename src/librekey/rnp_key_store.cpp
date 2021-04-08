@@ -737,7 +737,7 @@ static bool
 grip_hash_ecc_hex(pgp_hash_t *hash, const char *hex, char name)
 {
     pgp_mpi_t mpi = {};
-    mpi.len = rnp_hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
+    mpi.len = rnp::hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
     if (!mpi.len) {
         RNP_LOG("wrong hex mpi");
         return false;
@@ -763,13 +763,13 @@ grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
     /* build uncompressed point from gx and gy */
     g.mpi[0] = 0x04;
     g.len = 1;
-    len = rnp_hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
+    len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
     if (!len) {
         RNP_LOG("wrong x mpi");
         return false;
     }
     g.len += len;
-    len = rnp_hex_decode(desc->gy, g.mpi + g.len, sizeof(g.mpi) - g.len);
+    len = rnp::hex_decode(desc->gy, g.mpi + g.len, sizeof(g.mpi) - g.len);
     if (!len) {
         RNP_LOG("wrong y mpi");
         return false;
