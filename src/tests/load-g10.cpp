@@ -38,7 +38,7 @@ test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
     pgp_password_provider_t pswd_prov = {.callback = string_copy_password_callback,
                                          .userdata = (void *) "password"};
 
-    if (!rnp_hex_decode(id, keyid.data(), keyid.size())) {
+    if (!rnp::hex_decode(id, keyid.data(), keyid.size())) {
         return false;
     }
     if (!rnp_key_store_get_key_by_id(pub, keyid, NULL)) {

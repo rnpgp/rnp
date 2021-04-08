@@ -198,7 +198,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
@@ -219,14 +219,14 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("1ED63EE56FADC34D", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("1ED63EE56FADC34D", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
-    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569820);
@@ -238,14 +238,14 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("1D7E8A5393C997A8", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("1D7E8A5393C997A8", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
-    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569851);
@@ -257,14 +257,14 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("8A05B89FAD5ADED1", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("8A05B89FAD5ADED1", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
-    assert_true(rnp_hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("7BC6709B15C23A4A", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569896);
@@ -276,7 +276,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
@@ -299,14 +299,14 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("54505A936A4A970E", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("54505A936A4A970E", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
-    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500569946);
@@ -318,14 +318,14 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("326EF111425D14A5", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("326EF111425D14A5", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check subsig count
     assert_int_equal(key->sig_count(), 1);
     sig = &key->get_sig(0).sig;
     // check SS_ISSUER_KEY_ID
-    assert_true(rnp_hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("2FCADF05FFA501BB", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check SS_CREATION_TIME [0]
     assert_int_equal(sig->creation(), 1500570165);
@@ -355,7 +355,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 
     // find
     key = NULL;
-    assert_true(rnp_hex_decode("DC70C124A50283F1", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("DC70C124A50283F1", keyid.data(), keyid.size()));
     key = rnp_key_store_get_key_by_id(key_store, keyid, NULL);
     assert_non_null(key);
     // check key version
@@ -366,7 +366,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     // check signature version
     assert_int_equal(sig->version, 3);
     // check issuer
-    assert_true(rnp_hex_decode("DC70C124A50283F1", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("DC70C124A50283F1", keyid.data(), keyid.size()));
     assert_true(keyid == sig->keyid());
     // check creation time
     assert_int_equal(sig->creation(), 1005209227);
@@ -395,7 +395,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     /* we must have 1 main key and 2 subkeys */
     assert_int_equal(rnp_key_store_get_key_count(key_store), 3);
 
-    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid());
     assert_true(key->is_primary());
@@ -407,7 +407,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_int_equal(key->get_uid(1).rawpkt.tag, PGP_PKT_USER_ID);
     assert_int_equal(key->get_sig(1).rawpkt.tag, PGP_PKT_SIGNATURE);
 
-    assert_true(rnp_hex_decode("AF1114A47F5F5B28", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("AF1114A47F5F5B28", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid());
     assert_true(key->is_subkey());
@@ -416,7 +416,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_int_equal(key->rawpkt().tag, PGP_PKT_SECRET_SUBKEY);
     assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
-    assert_true(rnp_hex_decode("16CD16F267CCDD4F", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("16CD16F267CCDD4F", keyid.data(), keyid.size()));
     assert_non_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
     assert_true(key->valid());
     assert_true(key->is_subkey());
@@ -485,9 +485,9 @@ TEST_F(rnp_tests, test_load_merge)
     provider.userdata = (void *) "password";
 
     key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
-    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
-    assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
-    assert_true(rnp_hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
+    assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
+    assert_true(rnp::hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
 
     /* load just key packet */
     assert_true(load_transferable_key(&tkey, MERGE_PATH "key-pub-just-key.pgp"));
@@ -701,9 +701,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(rnp_key_store_load_from_path(secstore, NULL));
     pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg");
 
-    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
-    assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
-    assert_true(rnp_hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
+    assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
+    assert_true(rnp::hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
 
     assert_non_null(key = rnp_key_store_get_key_by_id(secstore, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(secstore, sub1id, NULL));
@@ -956,9 +956,9 @@ TEST_F(rnp_tests, test_load_subkey)
     rnp_key_store_t *key_store;
 
     key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
-    assert_true(rnp_hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
-    assert_true(rnp_hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
-    assert_true(rnp_hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
+    assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
+    assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
+    assert_true(rnp::hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
 
     /* load first subkey with signature */
     assert_true(load_keystore(key_store, MERGE_PATH "key-pub-just-subkey-1.pgp"));
