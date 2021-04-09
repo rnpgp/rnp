@@ -26,7 +26,7 @@
 set(PACKAGE_VENDOR "Ribose Inc.")
 set(PACKAGE_URL "https://github.com/rnpgp/rnp")
 
-set(PACKAGING_EMAIL "Ribose Inc. <packaging@ribose.com>")
+set(PACKAGING_EMAIL "Ribose Inc. <rnpgp@ribose.com>")
 set(BUGREPORT_EMAIL "${PACKAGING_EMAIL}")
 
 set(PACKAGE_DESCRIPTION [=[
