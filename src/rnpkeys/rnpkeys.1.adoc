@@ -1,7 +1,7 @@
 = rnpkeys(1)
 RNP
 :doctype: manpage
-:release-version: 0.15.0
+:release-version: {component-version}
 :man manual: RNP Manual
 :man source: RNP {release-version}
 
