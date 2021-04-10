@@ -49,7 +49,7 @@ else()
   set(ADOCCOMMAND_FOUND 1)
 endif()
 
-function(add_adoc_man SRC)
+function(add_adoc_man SRC COMPONENT_VERSION)
   if (NOT ${ADOCCOMMAND_FOUND})
     return()
   endif()
@@ -113,7 +113,7 @@ function(add_adoc_man SRC)
 
   add_custom_command(
     OUTPUT ${DST}
-    COMMAND ${ADOCCOMMAND_PATH} -b manpage ${SRC} -o ${DST}
+    COMMAND ${ADOCCOMMAND_PATH} -b manpage ${SRC} -o ${DST} -a component-version=${COMPONENT_VERSION}
     DEPENDS ${SRC}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Generating man page ${SUBDIR_PATH_DIRECTORY}/${SUBDIR_PATH_NAME_WLE}"
