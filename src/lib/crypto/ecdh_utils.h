@@ -32,6 +32,7 @@
 #define MAX_SP800_56A_OTHER_INFO 56
 // Keys up to 312 bits (+1 bytes of PKCS5 padding)
 #define MAX_SESSION_KEY_SIZE 40
+#define MAX_AES_KEY_SIZE 32
 
 size_t kdf_other_info_serialize(uint8_t                  other_info[MAX_SP800_56A_OTHER_INFO],
                                 const ec_curve_desc_t *  ec_curve,
