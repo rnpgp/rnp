@@ -28,6 +28,7 @@
 #include "utils.h"
 #include <string.h>
 #include "bn.h"
+#include "ec_ossl.h"
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
@@ -46,76 +47,6 @@ ecdsa_decode_sig(const uint8_t *data, size_t len, pgp_ec_signature_t &sig)
     bn2mpi(s, &sig.s);
     ECDSA_SIG_free(esig);
     return true;
-}
-
-static EVP_PKEY *
-ec_load_key(const pgp_ec_key_t &key, bool secret = false)
-{
-    const ec_curve_desc_t *curve = get_curve_desc(key.curve);
-    if (!curve) {
-        RNP_LOG("unknown curve");
-        return NULL;
-    }
-    int nid = OBJ_sn2nid(curve->openssl_name);
-    if (nid == NID_undef) {
-        RNP_LOG("Unknown SN: %s", curve->openssl_name);
-        return NULL;
-    }
-    EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
-    if (!ec) {
-        RNP_LOG("Failed to create EC key with group %d: %lu", nid, ERR_peek_last_error());
-        return NULL;
-    }
-
-    bool      res = false;
-    bignum_t *x = NULL;
-    EVP_PKEY *pkey = NULL;
-    EC_POINT *p = EC_POINT_new(EC_KEY_get0_group(ec));
-    if (!p) {
-        RNP_LOG("Failed to allocate point: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    if (EC_POINT_oct2point(EC_KEY_get0_group(ec), p, key.p.mpi, key.p.len, NULL) <= 0) {
-        RNP_LOG("Failed to decode point: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    if (EC_KEY_set_public_key(ec, p) <= 0) {
-        RNP_LOG("Failed to set public key: %lu", ERR_peek_last_error());
-        goto done;
-    }
-
-    pkey = EVP_PKEY_new();
-    if (!pkey) {
-        RNP_LOG("EVP_PKEY allocation failed: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    if (!secret) {
-        res = true;
-        goto done;
-    }
-
-    x = mpi2bn(&key.x);
-    if (!x) {
-        RNP_LOG("allocation failed");
-        goto done;
-    }
-    if (EC_KEY_set_private_key(ec, x) <= 0) {
-        RNP_LOG("Failed to set secret key: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    res = true;
-done:
-    if (res) {
-        res = EVP_PKEY_set1_EC_KEY(pkey, ec) > 0;
-    }
-    EC_POINT_free(p);
-    BN_free(x);
-    EC_KEY_free(ec);
-    if (!res) {
-        EVP_PKEY_free(pkey);
-        pkey = NULL;
-    }
-    return pkey;
 }
 
 static bool
@@ -150,23 +81,7 @@ done:
 rnp_result_t
 ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
-    EVP_PKEY *evpkey = ec_load_key(*key, secret);
-    if (!evpkey) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
-    if (!ctx) {
-        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    if (EVP_PKEY_check(ctx) > 0) {
-        ret = RNP_SUCCESS;
-    }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return ec_validate_key(*key, secret);
 }
 
 rnp_result_t
