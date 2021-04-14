@@ -43,6 +43,8 @@ Cipher::encryption(pgp_symm_alg_t    cipher,
     return Cipher_OpenSSL::encryption(cipher, mode, tag_size, disable_padding);
 #elif defined(CRYPTO_BACKEND_BOTAN)
     return Cipher_Botan::encryption(cipher, mode, tag_size, disable_padding);
+#else
+#error "Crypto backend not specified"
 #endif
 }
 
@@ -56,6 +58,8 @@ Cipher::decryption(pgp_symm_alg_t    cipher,
     return Cipher_OpenSSL::decryption(cipher, mode, tag_size, disable_padding);
 #elif defined(CRYPTO_BACKEND_BOTAN)
     return Cipher_Botan::decryption(cipher, mode, tag_size, disable_padding);
+#else
+#error "Crypto backend not specified"
 #endif
 }
 
