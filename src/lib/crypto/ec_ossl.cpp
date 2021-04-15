@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include "ec.h"
+#include "ec_ossl.h"
 #include "bn.h"
 #include "types.h"
 #include "utils.h"
@@ -87,30 +88,20 @@ ec_generate(rng_t *                rng,
     if (!pkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
     rnp_result_t ret = RNP_ERROR_GENERIC;
     EC_KEY *     ec = EVP_PKEY_get0_EC_KEY(pkey);
     if (!ec) {
         RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
         goto done;
     }
-    const bignum_t *x;
-    const EC_POINT *p;
-    x = EC_KEY_get0_private_key(ec);
-    p = EC_KEY_get0_public_key(ec);
-    if (!x || !p) {
-        ret = RNP_ERROR_BAD_STATE;
+    if (!ec_write_pubkey(pkey, key->p)) {
+        RNP_LOG("Failed to write pubkey.");
         goto done;
     }
-    /* call below adds leading zeroes if needed */
-    key->p.len = EC_POINT_point2oct(EC_KEY_get0_group(ec),
-                                    p,
-                                    POINT_CONVERSION_UNCOMPRESSED,
-                                    key->p.mpi,
-                                    sizeof(key->p.mpi),
-                                    NULL);
-    if (!key->p.len) {
-        RNP_LOG("Failed to encode public key: %lu", ERR_peek_last_error());
+    const bignum_t *x;
+    x = EC_KEY_get0_private_key(ec);
+    if (!x) {
+        ret = RNP_ERROR_BAD_STATE;
         goto done;
     }
     if (bn2mpi(x, &key->x)) {
@@ -122,7 +113,7 @@ done:
 }
 
 EVP_PKEY *
-ec_load_key(const pgp_ec_key_t &key, bool secret = false)
+ec_load_key(const pgp_ec_key_t &key, bool secret)
 {
     const ec_curve_desc_t *curve = get_curve_desc(key.curve);
     if (!curve) {
@@ -211,4 +202,26 @@ done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(evpkey);
     return ret;
+}
+
+bool
+ec_write_pubkey(EVP_PKEY *pkey, pgp_mpi_t &mpi)
+{
+    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
+    if (!ec) {
+        RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
+        return false;
+    }
+    const EC_POINT *p = EC_KEY_get0_public_key(ec);
+    if (!p) {
+        RNP_LOG("Null point: %lu", ERR_peek_last_error());
+        return false;
+    }
+    /* call below adds leading zeroes if needed */
+    mpi.len = EC_POINT_point2oct(
+      EC_KEY_get0_group(ec), p, POINT_CONVERSION_UNCOMPRESSED, mpi.mpi, sizeof(mpi.mpi), NULL);
+    if (!mpi.len) {
+        RNP_LOG("Failed to encode public key: %lu", ERR_peek_last_error());
+    }
+    return mpi.len;
 }
