@@ -37,4 +37,6 @@ rnp_result_t ec_validate_key(const pgp_ec_key_t &key, bool secret);
 
 EVP_PKEY *ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve);
 
+bool ec_write_pubkey(EVP_PKEY *key, pgp_mpi_t &mpi);
+
 #endif
