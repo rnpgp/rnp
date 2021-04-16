@@ -303,7 +303,7 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
         goto done;
     }
     /* write ephemeral public key */
-    if (!ec_write_pubkey(ephkey, out->p)) {
+    if (!ec_write_pubkey(ephkey, out->p, key->curve)) {
         RNP_LOG("Failed to write ec key.");
         goto done;
     }

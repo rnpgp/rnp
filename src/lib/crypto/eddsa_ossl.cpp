@@ -24,8 +24,11 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string.h>
+#include <string>
+#include <cassert>
 #include "eddsa.h"
+#include "ec.h"
+#include "ec_ossl.h"
 #include "utils.h"
 #include "bn.h"
 #include <openssl/evp.h>
@@ -36,27 +39,14 @@
 rnp_result_t
 eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
-    EVP_PKEY *evpkey =
-      secret ?
-        EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, key->x.mpi, key->x.len) :
-        EVP_PKEY_new_raw_public_key(EVP_PKEY_ED25519, NULL, &key->p.mpi[1], key->p.len - 1);
-    if (!evpkey) {
-        RNP_LOG("Failed to load key");
+    /* Not implemented in the OpenSSL, so just do basic size checks. */
+    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(evpkey, NULL);
-    if (!ctx) {
-        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
-        goto done;
+    if (secret && mpi_bytes(&key->x) != 32) {
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (EVP_PKEY_check(ctx) > 0) {
-        ret = RNP_SUCCESS;
-    }
-done:
-    EVP_PKEY_CTX_free(ctx);
-    EVP_PKEY_free(evpkey);
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -65,41 +55,10 @@ eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits)
     if (numbits != 255) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_ED25519, NULL);
-    if (!ctx) {
-        RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
-        return RNP_ERROR_GENERIC;
+    rnp_result_t ret = ec_generate(rng, key, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
+    if (!ret) {
+        key->curve = PGP_CURVE_ED25519;
     }
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    EVP_PKEY *   pkey = NULL;
-    if (EVP_PKEY_keygen_init(ctx) <= 0) {
-        RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    if (EVP_PKEY_keygen(ctx, &pkey) <= 0) {
-        RNP_LOG("EC keygen failed: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    static_assert(sizeof(key->x.mpi) > 32, "mpi is too small.");
-    key->x.len = sizeof(key->x.mpi);
-    if (EVP_PKEY_get_raw_private_key(pkey, key->x.mpi, &key->x.len) <= 0) {
-        RNP_LOG("Failed get raw private key: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    assert(key->x.len == 32);
-    key->p.len = sizeof(key->p.mpi) - 1;
-    if (EVP_PKEY_get_raw_public_key(pkey, &key->p.mpi[1], &key->p.len) <= 0) {
-        RNP_LOG("Failed get raw private key: %lu", ERR_peek_last_error());
-        goto done;
-    }
-    assert(key->p.len == 32);
-    key->p.mpi[0] = 0x40;
-    key->p.len++;
-    ret = RNP_SUCCESS;
-done:
-    EVP_PKEY_free(pkey);
-    EVP_PKEY_CTX_free(ctx);
     return ret;
 }
 
@@ -113,13 +72,12 @@ eddsa_verify(const pgp_ec_signature_t *sig,
         RNP_LOG("Invalid EdDSA signature.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (mpi_bytes(&key->p) != 33) {
+    if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
         RNP_LOG("Invalid EdDSA public key.");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    EVP_PKEY *evpkey = EVP_PKEY_new_raw_public_key(
-      EVP_PKEY_ED25519, NULL, &key->p.mpi[1], mpi_bytes(&key->p) - 1);
+    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -158,13 +116,11 @@ eddsa_sign(rng_t *             rng,
            size_t              hash_len,
            const pgp_ec_key_t *key)
 {
-    if (mpi_bytes(&key->x) == 0) {
+    if (!mpi_bytes(&key->x)) {
         RNP_LOG("private key not set");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
-    EVP_PKEY *evpkey =
-      EVP_PKEY_new_raw_private_key(EVP_PKEY_ED25519, NULL, key->x.mpi, key->x.len);
+    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, PGP_CURVE_ED25519);
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
         return RNP_ERROR_BAD_PARAMETERS;
