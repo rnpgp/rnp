@@ -98,7 +98,7 @@ ecdsa_sign(rng_t *             rng,
     }
 
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(*key, true);
+    EVP_PKEY *evpkey = ec_load_key(key->p, &key->x, key->curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
@@ -140,7 +140,7 @@ ecdsa_verify(const pgp_ec_signature_t *sig,
              const pgp_ec_key_t *      key)
 {
     /* Load secret key to DSA structure*/
-    EVP_PKEY *evpkey = ec_load_key(*key, false);
+    EVP_PKEY *evpkey = ec_load_key(key->p, NULL, key->curve);
     if (!evpkey) {
         RNP_LOG("Failed to load key");
         return RNP_ERROR_BAD_PARAMETERS;
