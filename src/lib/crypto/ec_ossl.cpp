@@ -113,16 +113,16 @@ done:
 }
 
 EVP_PKEY *
-ec_load_key(const pgp_ec_key_t &key, bool secret)
+ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve)
 {
-    const ec_curve_desc_t *curve = get_curve_desc(key.curve);
-    if (!curve) {
+    const ec_curve_desc_t *curv_desc = get_curve_desc(curve);
+    if (!curv_desc) {
         RNP_LOG("unknown curve");
         return NULL;
     }
-    int nid = OBJ_sn2nid(curve->openssl_name);
+    int nid = OBJ_sn2nid(curv_desc->openssl_name);
     if (nid == NID_undef) {
-        RNP_LOG("Unknown SN: %s", curve->openssl_name);
+        RNP_LOG("Unknown SN: %s", curv_desc->openssl_name);
         return NULL;
     }
     EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
@@ -139,7 +139,7 @@ ec_load_key(const pgp_ec_key_t &key, bool secret)
         RNP_LOG("Failed to allocate point: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (EC_POINT_oct2point(EC_KEY_get0_group(ec), p, key.p.mpi, key.p.len, NULL) <= 0) {
+    if (EC_POINT_oct2point(EC_KEY_get0_group(ec), p, keyp.mpi, keyp.len, NULL) <= 0) {
         RNP_LOG("Failed to decode point: %lu", ERR_peek_last_error());
         goto done;
     }
@@ -153,12 +153,12 @@ ec_load_key(const pgp_ec_key_t &key, bool secret)
         RNP_LOG("EVP_PKEY allocation failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!secret) {
+    if (!keyx) {
         res = true;
         goto done;
     }
 
-    x = mpi2bn(&key.x);
+    x = mpi2bn(keyx);
     if (!x) {
         RNP_LOG("allocation failed");
         goto done;
@@ -185,7 +185,7 @@ done:
 rnp_result_t
 ec_validate_key(const pgp_ec_key_t &key, bool secret)
 {
-    EVP_PKEY *evpkey = ec_load_key(key, secret);
+    EVP_PKEY *evpkey = ec_load_key(key.p, secret ? &key.x : NULL, key.curve);
     if (!evpkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
