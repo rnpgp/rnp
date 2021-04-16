@@ -24,21 +24,29 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <string.h>
+#include <string>
+#include <cassert>
 #include "ec.h"
 #include "ec_ossl.h"
 #include "bn.h"
 #include "types.h"
+#include "mem.h"
 #include "utils.h"
 #include <openssl/evp.h>
 #include <openssl/objects.h>
 #include <openssl/err.h>
 #include <openssl/ec.h>
 
+static bool
+ec_is_raw_key(const pgp_curve_t curve)
+{
+    return (curve == PGP_CURVE_ED25519) || (curve == PGP_CURVE_25519);
+}
+
 rnp_result_t
 x25519_generate(rng_t *rng, pgp_ec_key_t *key)
 {
-    return RNP_ERROR_NOT_IMPLEMENTED;
+    return ec_generate(rng, key, PGP_PKA_ECDH, PGP_CURVE_25519);
 }
 
 EVP_PKEY *
@@ -56,7 +64,8 @@ ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
         RNP_LOG("Unknown SN: %s", ec_desc->openssl_name);
         return NULL;
     }
-    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_EC, NULL);
+    bool          raw = ec_is_raw_key(curve);
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(raw ? nid : EVP_PKEY_EC, NULL);
     if (!ctx) {
         RNP_LOG("Failed to create ctx: %lu", ERR_peek_last_error());
         return NULL;
@@ -66,7 +75,7 @@ ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
         RNP_LOG("Failed to init keygen: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) <= 0) {
+    if (!raw && (EVP_PKEY_CTX_set_ec_paramgen_curve_nid(ctx, nid) <= 0)) {
         RNP_LOG("Failed to set curve nid: %lu", ERR_peek_last_error());
         goto done;
     }
@@ -76,6 +85,26 @@ ec_generate_pkey(const pgp_pubkey_alg_t alg_id, const pgp_curve_t curve)
 done:
     EVP_PKEY_CTX_free(ctx);
     return pkey;
+}
+
+static bool
+ec_write_raw_seckey(EVP_PKEY *pkey, pgp_ec_key_t *key)
+{
+    /* EdDSA and X25519 keys are saved in a different way */
+    static_assert(sizeof(key->x.mpi) > 32, "mpi is too small.");
+    key->x.len = sizeof(key->x.mpi);
+    if (EVP_PKEY_get_raw_private_key(pkey, key->x.mpi, &key->x.len) <= 0) {
+        RNP_LOG("Failed get raw private key: %lu", ERR_peek_last_error());
+        return false;
+    }
+    assert(key->x.len == 32);
+    if (EVP_PKEY_id(pkey) == EVP_PKEY_X25519) {
+        /* in OpenSSL private key is exported as little-endian, while MPI is big-endian */
+        for (size_t i = 0; i < 16; i++) {
+            std::swap(key->x.mpi[i], key->x.mpi[31 - i]);
+        }
+    }
+    return true;
 }
 
 rnp_result_t
@@ -89,12 +118,19 @@ ec_generate(rng_t *                rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    EC_KEY *     ec = EVP_PKEY_get0_EC_KEY(pkey);
+    if (ec_is_raw_key(curve)) {
+        if (ec_write_pubkey(pkey, key->p, curve) && ec_write_raw_seckey(pkey, key)) {
+            ret = RNP_SUCCESS;
+        }
+        EVP_PKEY_free(pkey);
+        return ret;
+    }
+    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
     if (!ec) {
         RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!ec_write_pubkey(pkey, key->p)) {
+    if (!ec_write_pubkey(pkey, key->p, curve)) {
         RNP_LOG("Failed to write pubkey.");
         goto done;
     }
@@ -112,6 +148,45 @@ done:
     return ret;
 }
 
+static EVP_PKEY *
+ec_load_raw_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, int nid)
+{
+    if (!keyx) {
+        /* as per RFC, EdDSA & 25519 keys must use 0x40 byte for encoding */
+        if ((mpi_bytes(&keyp) != 33) || (keyp.mpi[0] != 0x40)) {
+            RNP_LOG("Invalid 25519 public key.");
+            return NULL;
+        }
+
+        EVP_PKEY *evpkey =
+          EVP_PKEY_new_raw_public_key(nid, NULL, &keyp.mpi[1], mpi_bytes(&keyp) - 1);
+        if (!evpkey) {
+            RNP_LOG("Failed to load public key: %lu", ERR_peek_last_error());
+        }
+        return evpkey;
+    }
+
+    if (keyx->len != 32) {
+        RNP_LOG("Invalid 25519 secret key");
+        return NULL;
+    }
+    EVP_PKEY *evpkey = NULL;
+    if (nid == EVP_PKEY_X25519) {
+        /* need to reverse byte order since in mpi we have big-endian */
+        rnp::secure_array<uint8_t, 32> prkey;
+        for (int i = 0; i < 32; i++) {
+            prkey[i] = keyx->mpi[31 - i];
+        }
+        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), keyx->len);
+    } else {
+        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, keyx->mpi, keyx->len);
+    }
+    if (!evpkey) {
+        RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
+    }
+    return evpkey;
+}
+
 EVP_PKEY *
 ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve)
 {
@@ -124,6 +199,10 @@ ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve)
     if (nid == NID_undef) {
         RNP_LOG("Unknown SN: %s", curv_desc->openssl_name);
         return NULL;
+    }
+    /* EdDSA and X25519 keys are loaded in a different way */
+    if (ec_is_raw_key(curve)) {
+        return ec_load_raw_key(keyp, keyx, nid);
     }
     EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
     if (!ec) {
@@ -185,6 +264,17 @@ done:
 rnp_result_t
 ec_validate_key(const pgp_ec_key_t &key, bool secret)
 {
+    if (key.curve == PGP_CURVE_25519) {
+        /* No key check implementation for x25519 in the OpenSSL yet, so just basic size checks
+         */
+        if ((mpi_bytes(&key.p) != 33) || (key.p.mpi[0] != 0x40)) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        if (secret && mpi_bytes(&key.x) != 32) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        return RNP_SUCCESS;
+    }
     EVP_PKEY *evpkey = ec_load_key(key.p, secret ? &key.x : NULL, key.curve);
     if (!evpkey) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -205,8 +295,20 @@ done:
 }
 
 bool
-ec_write_pubkey(EVP_PKEY *pkey, pgp_mpi_t &mpi)
+ec_write_pubkey(EVP_PKEY *pkey, pgp_mpi_t &mpi, pgp_curve_t curve)
 {
+    if (ec_is_raw_key(curve)) {
+        /* EdDSA and X25519 keys are saved in a different way */
+        mpi.len = sizeof(mpi.mpi) - 1;
+        if (EVP_PKEY_get_raw_public_key(pkey, &mpi.mpi[1], &mpi.len) <= 0) {
+            RNP_LOG("Failed get raw public key: %lu", ERR_peek_last_error());
+            return false;
+        }
+        assert(mpi.len == 32);
+        mpi.mpi[0] = 0x40;
+        mpi.len++;
+        return true;
+    }
     EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
     if (!ec) {
         RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
