@@ -31,7 +31,7 @@
 #include "ec.h"
 #include <openssl/evp.h>
 
-EVP_PKEY *ec_load_key(const pgp_ec_key_t &key, bool secret = false);
+EVP_PKEY *ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve);
 
 rnp_result_t ec_validate_key(const pgp_ec_key_t &key, bool secret);
 
