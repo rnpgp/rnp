@@ -1552,6 +1552,13 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         defhomedir = true;
     }
 
+    struct stat st;
+
+    if (rnp_stat(homedir.c_str(), &st) || rnp_access(homedir.c_str(), R_OK | W_OK)) {
+        ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
+        return false;
+    }
+
     /* detecting key storage format */
     std::string subdir = defhomedir ? SUBDIRECTORY_RNP : "";
     std::string pubpath;
@@ -1562,9 +1569,8 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
         secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
 
-        struct stat st;
-        bool        pubpath_exists = !rnp_stat(pubpath.c_str(), &st);
-        bool        secpath_exists = !rnp_stat(secpath.c_str(), &st);
+        bool pubpath_exists = !rnp_stat(pubpath.c_str(), &st);
+        bool secpath_exists = !rnp_stat(secpath.c_str(), &st);
 
         if (pubpath_exists && secpath_exists) {
             ks_format = RNP_KEYSTORE_GPG21;
