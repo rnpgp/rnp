@@ -27,7 +27,7 @@ freebsd_install() {
     libtool
     gettext-tools
     python
-    ruby25
+    ruby26
 "
   # Note: we assume sudo is already installed
   sudo pkg install -y ${packages}
