@@ -161,6 +161,15 @@ declare dynamic_build_dependencies_yum=(
 )
 
 
+apt_install() {
+  local apt_command=(apt -y -q install "$@")
+  if command -v sudo >/dev/null; then
+    sudo "${apt_command[@]}"
+  else
+    "${apt_command[@]}"
+  fi
+}
+
 yum_install() {
   local yum_command=("${YUM}" -y -q install "$@")
   if command -v sudo >/dev/null; then
@@ -356,7 +365,53 @@ linux_install_ubuntu() {
     ruby-bundler libncurses-dev
 }
 
+declare util_dependencies_deb=(
+  sudo
+  wget
+  git
+)
+
+declare basic_build_dependencies_deb=(
+  autoconf
+  automake
+  make
+  build-essential
+  cmake
+  libtool
+)
+
+declare build_dependencies_deb=(
+  bison
+  byacc
+  curl
+  gettext
+  libbz2-dev
+  libncurses5-dev
+  libssl-dev
+  python3
+  python3-venv
+  ruby-dev
+  zlib1g-dev
+)
+
+declare ruby_build_dependencies_deb=(
+  bison
+  curl
+  libbz2-dev
+  libssl-dev
+  ruby-bundler
+  rubygems
+  zlib1g-dev
+)
+
 linux_install_debian() {
+  "${SUDO}" apt-get update
+  apt_install \
+    "${util_dependencies_deb[@]}" \
+    "${basic_build_dependencies_deb[@]}" \
+    "${build_dependencies_deb[@]}" \
+    "$@"
+
   build_and_install_automake
   build_and_install_cmake
 }
@@ -424,7 +479,7 @@ install_botan() {
         ;;
       linux)
         case "${DIST_VERSION}" in
-          centos-8|fedora-*)
+          centos-8|fedora-*|debian-*)
             run=run_in_python_venv
             ;;
         esac
@@ -686,6 +741,9 @@ ensure_ruby() {
       rbenv global "${RECOMMENDED_RUBY_VERSION}"
       rbenv rehash
       sudo chown -R "${USER}" "$(rbenv prefix)"
+      ;;
+    debian)
+      apt_install "${ruby_build_dependencies_deb[@]}"
       ;;
     *)
       # TODO: handle ubuntu?
