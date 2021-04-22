@@ -32,16 +32,11 @@
 #include "hash.h"
 #include "utils.h"
 #include <openssl/dsa.h>
+#include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 
 #define DSA_MAX_Q_BITLEN 256
-
-rnp_result_t
-dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
 
 static bool
 dsa_decode_sig(const uint8_t *data, size_t len, pgp_dsa_signature_t &sig)
@@ -132,7 +127,6 @@ dsa_load_key(const pgp_dsa_key_t *key, bool secret = false)
         RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
         EVP_PKEY_free(evpkey);
         evpkey = NULL;
-        goto done;
     }
 done:
     DSA_free(dsa);
@@ -142,6 +136,142 @@ done:
     bn_free(y);
     bn_free(x);
     return evpkey;
+}
+
+static EVP_PKEY *
+dl_load_key(const pgp_mpi_t &mp,
+            const pgp_mpi_t &mq,
+            const pgp_mpi_t &mg,
+            const pgp_mpi_t &my,
+            const pgp_mpi_t *mx)
+{
+    DH *      dh = NULL;
+    EVP_PKEY *evpkey = NULL;
+    bignum_t *p = mpi2bn(&mp);
+    bignum_t *q = mpi2bn(&mq);
+    bignum_t *g = mpi2bn(&mg);
+    bignum_t *y = mpi2bn(&my);
+    bignum_t *x = mx ? mpi2bn(mx) : NULL;
+
+    if (!p || !q || !g || !y || (mx && !x)) {
+        RNP_LOG("out of memory");
+        goto done;
+    }
+
+    dh = DH_new();
+    if (!dh) {
+        RNP_LOG("out of memory");
+        goto done;
+    }
+    /* line below must not fail */
+    assert(DH_set0_pqg(dh, p, q, g) == 1);
+    p = NULL;
+    q = NULL;
+    g = NULL;
+    /* line below must not fail */
+    assert(DH_set0_key(dh, y, x) == 1);
+    y = NULL;
+    x = NULL;
+
+    evpkey = EVP_PKEY_new();
+    if (!evpkey) {
+        RNP_LOG("allocation failed");
+        goto done;
+    }
+    if (EVP_PKEY_set1_DH(evpkey, dh) <= 0) {
+        RNP_LOG("Failed to set key: %lu", ERR_peek_last_error());
+        EVP_PKEY_free(evpkey);
+        evpkey = NULL;
+    }
+done:
+    DH_free(dh);
+    bn_free(p);
+    bn_free(q);
+    bn_free(g);
+    bn_free(y);
+    bn_free(x);
+    return evpkey;
+}
+
+static rnp_result_t
+dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
+{
+    DH *dh = EVP_PKEY_get0_DH(dlkey);
+    assert(dh);
+    const bignum_t *p = DH_get0_p(dh);
+    const bignum_t *q = DH_get0_q(dh);
+    const bignum_t *g = DH_get0_g(dh);
+    const bignum_t *y = DH_get0_pub_key(dh);
+    assert(p && q && g && y);
+
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+
+    BN_CTX *  ctx = BN_CTX_new();
+    bignum_t *x = mpi2bn(&mx);
+    bignum_t *cy = bn_new();
+
+    if (!x || !cy || !ctx) {
+        RNP_LOG("Allocation failed");
+        goto done;
+    }
+    if (BN_cmp(x, q) != -1) {
+        RNP_LOG("x is too large.");
+        goto done;
+    }
+    if (BN_mod_exp_mont_consttime(cy, g, x, p, ctx, NULL) < 1) {
+        RNP_LOG("Exponentiation failed");
+        goto done;
+    }
+    if (BN_cmp(cy, y) == 0) {
+        ret = RNP_SUCCESS;
+    }
+done:
+    BN_CTX_free(ctx);
+    bn_free(x);
+    bn_free(cy);
+    return ret;
+}
+
+rnp_result_t
+dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
+{
+    /* OpenSSL doesn't implement key checks for the DSA, however we may use DL via DH */
+    EVP_PKEY *pkey = dl_load_key(key->p, key->q, key->g, key->y, NULL);
+    if (!pkey) {
+        RNP_LOG("Failed to load key");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
+        goto done;
+    }
+    int res;
+    res = EVP_PKEY_param_check(ctx);
+    if (res < 0) {
+        RNP_LOG("Param validation error: %lu", ERR_peek_last_error());
+    }
+    if (res < 1) {
+        goto done;
+    }
+    res = EVP_PKEY_public_check(ctx);
+    if (res < 0) {
+        RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
+    }
+    if (res < 1) {
+        goto done;
+    }
+    if (!secret) {
+        ret = RNP_SUCCESS;
+        goto done;
+    }
+    /* There is no private key check in OpenSSL yet, so need to check x vs y manually */
+    ret = dl_validate_secret_key(pkey, key->x);
+done:
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
 }
 
 rnp_result_t
