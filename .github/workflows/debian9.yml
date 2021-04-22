@@ -16,6 +16,7 @@ env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   SUDO: ""
+  USE_STATIC_DEPENDENCIES: yes
 
 jobs:
   tests:
@@ -34,9 +35,13 @@ jobs:
     steps:
       - name: Installing prerequisites
         run: |
-          ${SUDO} apt update
-          ${SUDO} apt -y install git python3 g++ wget autoconf libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
-          ${SUDO} ln -s /usr/bin/python3 /usr/bin/python
+          apt update
+          apt -y install git sudo
+      # - uses: actions/checkout@v2 # XXX: actions/checkout give error about OCI container
+      #   with:
+      #     fetch-depth: 0
+      - name: Check out repository
+        run: |
           cd $GITHUB_WORKSPACE
           git init
           git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
@@ -49,9 +54,7 @@ jobs:
       - name: Building dependencies
         run: |
           set -euxo pipefail
-          . ci/env.inc.sh
-          bash ci/before_install.sh
-          ./ci/install.sh
+          ci/before_install.sh
         shell: bash
       - name: Add rnpuser
         # it's only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
@@ -63,8 +66,6 @@ jobs:
       - name: Building and Testing
         run: |
           set -x
-          . ci/env.inc.sh
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/main.sh
-          exec su rnpuser -c ./ci/success.sh
+          exec su rnpuser -c ./ci/run.sh
         shell: bash
