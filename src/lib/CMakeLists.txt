@@ -108,6 +108,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/ecdh_ossl.cpp
     crypto/ecdsa_ossl.cpp
     crypto/eddsa_ossl.cpp
+    crypto/dl_ossl.cpp
     crypto/elgamal_ossl.cpp
     crypto/hash_ossl.cpp
     crypto/hash_crc24.cpp
