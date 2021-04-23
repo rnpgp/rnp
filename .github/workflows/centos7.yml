@@ -13,6 +13,7 @@ env:
   LANG: en_US.UTF-8
   LC_ALL: en_US.UTF-8
   LC_LANG: en_US.UTF-8
+  USE_STATIC_DEPENDENCIES: yes
 
 jobs:
   tests:
@@ -66,10 +67,8 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
-          . ci/env.inc.sh
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/install.sh
+          exec su rnpuser -c ./ci/before_install.sh
       - name: tests
         run: |
           set -x
@@ -93,6 +92,7 @@ jobs:
           - BUILD_SHARED_LIBS: yes
           - BUILD_SHARED_LIBS: no
     env: ${{ matrix.env }}
+    continue-on-error: true
     steps:
       - run: |
           yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
@@ -102,77 +102,15 @@ jobs:
           fetch-depth: 0
       - name: Test
         run: |
-          # cmake
           set -euxo pipefail
-          pushd /
-          curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
-          sh cmake.sh --skip-license --prefix=/usr
-          popd
-          # packages
-          rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
-          curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
-          yum -y install epel-release
-          yum -y install json-c12-devel git gcc gcc-c++ make autoconf automake libtool bzip2-devel \
-            zlib-devel botan2-devel
+          export USE_STATIC_DEPENDENCIES=no
+          ci/before_install.sh
+
+          . ci/env.inc.sh
+
           # build+install
-          cmake -DBUILD_SHARED_LIBS=$BUILD_SHARED_LIBS -DBUILD_TESTING=no -DCMAKE_INSTALL_PREFIX=/usr .
-          make -j2 install
+          build_and_install /usr
+
           # check for install issues
-          rnpsrc="$PWD"
-          cd /tmp
-          if [ $BUILD_SHARED_LIBS == "yes" ]; then
-            pkgflags=
-            gccflags=
-            if [ ! -e "/usr/lib64/"librnp*.so ] || [ -e "/usr/lib64/"librnp*.a ]; then
-              echo "librnp installed libraries incorrect"
-            fi
-          else
-            pkgflags=--static
-            gccflags=-lstdc++
-            if [ ! -e "/usr/lib64/"librnp*.a ] || [ -e "/usr/lib64/"librnp*.so ]; then
-              echo "librnp installed libraries incorrect"
-            fi
-          fi
-          # build an example using pkg-config
-          gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
-          ./generate
-          readelf -d generate
-          if [ $BUILD_SHARED_LIBS == "yes" ]; then
-            readelf -d generate | grep -q librnp
-          else
-            readelf -d generate | grep -qv librnp
-          fi
-          # remove the pkgconfig for the next test
-          pkg-config --list-all | grep -q ^librnp
-          rm /usr/lib64/pkgconfig/librnp*
-          # should not be found
-          pkg-config --list-all | grep -qv ^librnp
-          # build an example using cmake targets
-          mkdir rnp-project
-          cd rnp-project
-          cat << "EOF" > mytest.cpp
-            #include <rnp/rnp.h>
-
-            int main(int argc, char *argv[]) {
-                printf("RNP version: %s\n", rnp_version_string());
-                return 0;
-            }
-          EOF
-          cat << "EOF" > CMakeLists.txt
-            set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
-            find_package(BZip2 REQUIRED)
-            find_package(ZLIB REQUIRED)
-            find_package(JSON-C 0.11 REQUIRED)
-            find_package(Botan2 2.14.0 REQUIRED)
-            find_package(rnp REQUIRED)
-
-            cmake_minimum_required(VERSION 3.12)
-            add_executable(mytest mytest.cpp)
-            target_link_libraries(mytest rnp::librnp)
-          EOF
-          cp ${rnpsrc}/cmake/Modules/* .
-          cmake .
-          make VERBOSE=1
-          ./mytest
-          exit 0
-
+          check_build
+          build_example_pkgconfig
