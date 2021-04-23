@@ -33,8 +33,7 @@ jobs:
         run: |
           set -x
           ci/before_install.sh
-          . ci/env.inc.sh
-          ./ci/install.sh botan jsonc
+          ci/install.sh botan jsonc
       - name: Download Coverity
         env:
           TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
@@ -61,4 +60,3 @@ jobs:
             --form version=$GITHUB_REF \
             --form description=$GITHUB_SHA \
             https://scan.coverity.com/builds?project=$GITHUB_REPOSITORY
-
