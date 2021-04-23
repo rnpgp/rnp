@@ -11,6 +11,7 @@ env:
   CORES: 2
   BUILD_MODE: normal
   GPG_VERSION: stable
+  USE_STATIC_DEPENDENCIES: yes
 
 jobs:
   tests:
@@ -40,8 +41,6 @@ jobs:
         run: |
           set -x
           ci/before_install.sh
-          . ci/env.inc.sh
-          ./ci/install.sh
       - name: tests
-        run: ./ci/run.sh
-
+        run: |
+          ./ci/run.sh
