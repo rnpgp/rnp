@@ -1,6 +1,9 @@
 #!/bin/bash
 set -eux
 
+: "${GPG_VERSION:=stable}"
+: "${BUILD_MODE:=normal}"
+
 rsync -a /usr/local/rnp /tmp
 sudo -iu travis bash -x <<EOF
 cd /tmp/rnp
@@ -11,4 +14,3 @@ env ${CXX:+CXX=$CXX} \
     ${RNP_TESTS:+RNP_TESTS=$RNP_TESTS} \
     ci/run.sh
 EOF
-

@@ -8,15 +8,19 @@
 : "${RUBY_RNP_VERSION:=master}"
 : "${CPU:=}"
 : "${SUDO:=}"
+
 for var in LOCAL_BUILDS LOCAL_INSTALLS BOTAN_INSTALL JSONC_INSTALL \
   GPG_INSTALL RNP_INSTALL RUBY_RNP_INSTALL RUBY_RNP_VERSION CPU SUDO; do
   export "${var?}"
 done
+
+: "${BUILD_MODE:=normal}"
 
 if [ "$BUILD_MODE" = "sanitize" ]; then
   export CXX=clang++
   export CC=clang
 fi
 
-export BOTAN_MODULES=$(cat ci/botan-modules | tr '\n' ',')
+BOTAN_MODULES=$(<ci/botan-modules tr '\n' ',')
 
+export BOTAN_MODULES
