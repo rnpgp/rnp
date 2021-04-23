@@ -285,7 +285,13 @@ ec_validate_key(const pgp_ec_key_t &key, bool secret)
         RNP_LOG("Context allocation failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (EVP_PKEY_check(ctx) > 0) {
+    int res;
+    res = secret ? EVP_PKEY_check(ctx) : EVP_PKEY_public_check(ctx);
+    if (res < 0) {
+        auto err = ERR_peek_last_error();
+        RNP_LOG("EC key check failed: %lu (%s)", err, ERR_reason_error_string(err));
+    }
+    if (res > 0) {
         ret = RNP_SUCCESS;
     }
 done:
