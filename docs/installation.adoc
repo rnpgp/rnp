@@ -120,7 +120,7 @@ pacman -Syu --noconfirm --needed
 pacman -Syu --noconfirm --needed
 
 # Install packages
-pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkgconfig mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
+pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkg-config mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
 ----
 
 Then clone the RNP repository and build it.
@@ -131,8 +131,8 @@ Then clone the RNP repository and build it.
 mkdir rnp-build
 cd rnp-build
 
-# Add MinGW's lib and bin to PATH so dependency dll/lib files can be found
-export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PATH"
+# Add paths to PATH so dependency dll/lib files can be found
+export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PWD/bin:$PATH"
 
 # Run CMake
 cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" ../rnp
