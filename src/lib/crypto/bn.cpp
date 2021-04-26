@@ -68,6 +68,11 @@ bool
 bn2mpi(const bignum_t *bn, pgp_mpi_t *val)
 {
     val->len = bn_num_bytes(*bn);
+    if (val->len > PGP_MPINT_SIZE) {
+        RNP_LOG("Too large MPI.");
+        val->len = 0;
+        return false;
+    }
     return bn_bn2bin(bn, val->mpi) == 0;
 }
 
