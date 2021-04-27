@@ -1077,8 +1077,6 @@ rnp_dearmor_source(pgp_source_t *src, pgp_dest_t *dst)
 {
     rnp_result_t res = RNP_ERROR_BAD_FORMAT;
     pgp_source_t armorsrc = {0};
-    uint8_t      readbuf[sizeof(ST_CLEAR_BEGIN)];
-    size_t       read;
 
     /* initializing armored message */
     res = init_armored_src(&armorsrc, src);
