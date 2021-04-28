@@ -1188,6 +1188,11 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_failure(rnp_key_valid_till(NULL, &till));
     assert_rnp_success(rnp_key_valid_till(primary, &till));
     assert_int_equal(till, 0xffffffff);
+    uint64_t till64 = 0;
+    assert_rnp_failure(rnp_key_valid_till64(primary, NULL));
+    assert_rnp_failure(rnp_key_valid_till64(NULL, &till64));
+    assert_rnp_success(rnp_key_valid_till64(primary, &till64));
+    assert_int_equal(till64, UINT64_MAX);
     rnp_key_handle_destroy(primary);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", subid, &subkey));
     assert_non_null(subkey);
@@ -1198,6 +1203,8 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     till = 0;
     assert_rnp_success(rnp_key_valid_till(subkey, &till));
     assert_int_equal(till, 0xffffffff);
+    assert_rnp_success(rnp_key_valid_till64(subkey, &till64));
+    assert_int_equal(till64, UINT64_MAX);
     rnp_key_handle_destroy(subkey);
     rnp_buffer_destroy(keyid);
     rnp_buffer_destroy(subid);
@@ -1803,6 +1810,9 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     uint32_t expiry = 0;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_true(expiry == 60 * 60 * 24 * 300);
+    uint32_t till = 0;
+    assert_rnp_success(rnp_key_valid_till(key, &till));
+    assert_int_equal(till, create + expiry);
     /* check whether key is encrypted */
     assert_rnp_success(rnp_key_is_protected(key, &flag));
     assert_true(flag);
@@ -2097,6 +2107,62 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_destroy(keygen));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
+    assert_rnp_success(rnp_key_handle_destroy(key));
+    assert_rnp_success(rnp_ffi_destroy(ffi));
+}
+
+TEST_F(rnp_tests, test_ffi_key_generate_expiry_32bit)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(rnp_ffi_set_key_provider(ffi, unused_getkeycb, NULL));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "123"));
+
+    /* Generate RSA key with creation + expiration > 32 bit */
+    rnp_op_generate_t keygen = NULL;
+    assert_rnp_success(rnp_op_generate_create(&keygen, ffi, "RSA"));
+    assert_rnp_success(rnp_op_generate_set_bits(keygen, 1024));
+    /* key expiration */
+    assert_rnp_success(rnp_op_generate_set_expiration(keygen, UINT32_MAX));
+    /* now execute keygen operation */
+    assert_rnp_success(rnp_op_generate_set_request_password(keygen, true));
+    assert_rnp_success(rnp_op_generate_execute(keygen));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_op_generate_get_key(keygen, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_op_generate_destroy(keygen));
+    /* check key creation and expiration */
+    uint32_t create = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &create));
+    assert_true((create != 0) && (create <= time(NULL)));
+    uint32_t expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_true(expiry == UINT32_MAX);
+    uint32_t till = 0;
+    assert_rnp_success(rnp_key_valid_till(key, &till));
+    assert_int_equal(till, UINT32_MAX - 1);
+    uint64_t till64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, (uint64_t) create + expiry);
+    assert_rnp_success(rnp_key_handle_destroy(key));
+
+    /* Load key with creation + expiration == UINT32_MAX */
+    assert_true(import_pub_keys(ffi, "data/test_key_edge_cases/key-create-expiry-32bit.asc"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "60eac9ddf0d9ac9f", &key));
+    /* check key creation and expiration */
+    create = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &create));
+    assert_int_equal(create, 1619611313);
+    expiry = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiry));
+    assert_true(expiry == UINT32_MAX - create);
+    till = 0;
+    assert_rnp_success(rnp_key_valid_till(key, &till));
+    assert_int_equal(till, UINT32_MAX - 1);
+    till64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, UINT32_MAX);
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
@@ -5238,6 +5304,9 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_false(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, 1556799806);
+    uint64_t till64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, 1556799806);
     assert_rnp_success(rnp_key_handle_destroy(key));
 
     // cleanup
@@ -8094,6 +8163,9 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     uint32_t till = 0;
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, 1577369391 + 1);
+    uint64_t till64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, 1577369391 + 1);
     assert_rnp_success(rnp_key_set_expiration(sub, 1));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 1);
@@ -8104,6 +8176,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     till = 1;
     assert_rnp_success(rnp_key_valid_till(sub, &till));
     assert_int_equal(till, 1577369391 + 1);
+    assert_rnp_success(rnp_key_valid_till64(sub, &till64));
+    assert_int_equal(till64, 1577369391 + 1);
     assert_rnp_success(rnp_key_set_expiration(key, 0));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
@@ -8112,6 +8186,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_true(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, 0xffffffff);
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, UINT64_MAX);
     assert_rnp_success(rnp_key_set_expiration(sub, 0));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 0);
@@ -8122,6 +8198,9 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     till = 0;
     assert_rnp_success(rnp_key_valid_till(sub, &till));
     assert_int_equal(till, 0xffffffff);
+    till64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(sub, &till64));
+    assert_int_equal(till64, UINT64_MAX);
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(sub));
 
@@ -8201,6 +8280,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_false(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, 1577369391 + 16324055);
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, 1577369391 + 16324055);
     assert_false(key->pub->valid());
     assert_true(key->sec->valid());
     assert_rnp_success(rnp_key_is_valid(sub, &valid));
@@ -8208,6 +8289,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_valid_till(sub, &till));
     /* subkey valid no longer then the primary key */
     assert_int_equal(till, 1577369391 + 16324055);
+    assert_rnp_success(rnp_key_valid_till64(sub, &till64));
+    assert_int_equal(till64, 1577369391 + 16324055);
     assert_false(sub->pub->valid());
     assert_true(sub->sec->valid());
     creation = 0;
@@ -8232,12 +8315,16 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_true(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, keytill);
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, keytill);
     assert_true(key->pub->valid());
     assert_true(key->sec->valid());
     assert_rnp_success(rnp_key_is_valid(sub, &valid));
     assert_true(valid);
     assert_rnp_success(rnp_key_valid_till(sub, &till));
     assert_int_equal(till, subtill);
+    assert_rnp_success(rnp_key_valid_till64(sub, &till64));
+    assert_int_equal(till64, subtill);
     assert_true(sub->pub->valid());
     assert_true(sub->sec->valid());
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -8261,10 +8348,12 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     /* public key is not available - bad parameters */
     assert_int_equal(rnp_key_is_valid(key, &valid), RNP_ERROR_BAD_PARAMETERS);
     assert_int_equal(rnp_key_valid_till(key, &till), RNP_ERROR_BAD_PARAMETERS);
+    assert_int_equal(rnp_key_valid_till64(key, &till64), RNP_ERROR_BAD_PARAMETERS);
     assert_null(key->pub);
     assert_true(key->sec->valid());
     assert_int_equal(rnp_key_is_valid(sub, &valid), RNP_ERROR_BAD_PARAMETERS);
     assert_int_equal(rnp_key_valid_till(sub, &till), RNP_ERROR_BAD_PARAMETERS);
+    assert_int_equal(rnp_key_valid_till64(sub, &till64), RNP_ERROR_BAD_PARAMETERS);
     assert_null(sub->pub);
     assert_true(sub->sec->valid());
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -8299,12 +8388,16 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_true(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, keytill);
+    assert_rnp_success(rnp_key_valid_till64(key, &till64));
+    assert_int_equal(till64, keytill);
     assert_true(key->pub->valid());
     assert_true(key->sec->valid());
     assert_rnp_success(rnp_key_is_valid(sub, &valid));
     assert_true(valid);
     assert_rnp_success(rnp_key_valid_till(sub, &till));
     assert_int_equal(till, keytill);
+    assert_rnp_success(rnp_key_valid_till64(sub, &till64));
+    assert_int_equal(till64, keytill);
     assert_true(sub->pub->valid());
     assert_true(sub->sec->valid());
     assert_rnp_success(rnp_key_handle_destroy(key));
@@ -8819,6 +8912,9 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     uint32_t expiry = 0;
     assert_rnp_success(rnp_key_valid_till(key, &expiry));
     assert_int_equal(expiry, 0xffffffff);
+    uint64_t expiry64 = 0;
+    assert_rnp_success(rnp_key_valid_till64(key, &expiry64));
+    assert_int_equal(expiry64, UINT64_MAX);
 
     rnp_key_handle_destroy(key);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "74F971795A5DDBC9", &sub));
@@ -8827,6 +8923,8 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_true(sub->pub->valid());
     assert_rnp_success(rnp_key_valid_till(sub, &expiry));
     assert_int_equal(expiry, 0xffffffff);
+    assert_rnp_success(rnp_key_valid_till64(sub, &expiry64));
+    assert_int_equal(expiry64, UINT64_MAX);
     rnp_key_handle_destroy(sub);
 
     /* key/subkey with expiration times in unhashed subpackets */
@@ -8840,6 +8938,8 @@ TEST_F(rnp_tests, test_ffi_key_import_edge_cases)
     assert_int_equal(expiry, 0);
     assert_rnp_success(rnp_key_valid_till(key, &expiry));
     assert_int_equal(expiry, 0xffffffff);
+    assert_rnp_success(rnp_key_valid_till64(key, &expiry64));
+    assert_int_equal(expiry64, UINT64_MAX);
     rnp_key_handle_destroy(key);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "1ED63EE56FADC34D", &sub));
     assert_true(sub->pub->valid());
