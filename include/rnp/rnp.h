@@ -1519,13 +1519,17 @@ RNP_API rnp_result_t rnp_key_is_valid(rnp_key_handle_t key, bool *result);
  * @brief Get the timestamp till which key can be considered as valid.
  *        Note: this will take into account not only key's expiration, but revocations as well.
  *        For the subkey primary key's validity time will be also checked.
+ *        While in OpenPGP key creation and expiration times are 32-bit, their sum may overflow
+ *        32 bits, so rnp_key_valid_till64 function should be used.
+ *        In case of 32 bit overflow result will be set to the UINT32_MAX - 1.
  * @param key key's handle.
  * @param result on success timestamp will be stored here. If key doesn't expire then maximum
- *               value will be stored here. If key was never valid then zero value will be
- * stored here.
+ *               value (UINT32_MAX or UINT64_MAX) will be stored here. If key was never valid
+ *               then zero value will be stored here.
  * @return RNP_SUCCESS or error code on failure.
  */
 RNP_API rnp_result_t rnp_key_valid_till(rnp_key_handle_t key, uint32_t *result);
+RNP_API rnp_result_t rnp_key_valid_till64(rnp_key_handle_t key, uint64_t *result);
 
 /**
  * @brief Check whether key is revoked.

@@ -1392,13 +1392,13 @@ pgp_key_t::validated() const
     return validity_.validated;
 }
 
-uint32_t
+uint64_t
 pgp_key_t::valid_till_common(bool expiry) const
 {
     if (!validated()) {
         return 0;
     }
-    uint32_t till = expiration() ? creation() + expiration() : 0xffffffff;
+    uint64_t till = expiration() ? (uint64_t) creation() + expiration() : UINT64_MAX;
     if (valid()) {
         return till;
     }
@@ -1410,7 +1410,7 @@ pgp_key_t::valid_till_common(bool expiry) const
         const pgp_subsig_t &revsig = get_sig(revocation_.sigid);
         if (revsig.sig.creation() > creation()) {
             /* pick less time from revocation time and expiration time */
-            return std::min(revsig.sig.creation(), till);
+            return std::min((uint64_t) revsig.sig.creation(), till);
         }
         return 0;
     }
@@ -1418,7 +1418,7 @@ pgp_key_t::valid_till_common(bool expiry) const
     return expiry ? till : 0;
 }
 
-uint32_t
+uint64_t
 pgp_key_t::valid_till() const
 {
     if (!is_primary()) {
@@ -1428,14 +1428,14 @@ pgp_key_t::valid_till() const
     return valid_till_common(expired());
 }
 
-uint32_t
+uint64_t
 pgp_key_t::valid_till(const pgp_key_t &primary) const
 {
     if (!is_subkey()) {
         RNP_LOG("must be called for subkey only");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    uint32_t till = primary.valid_till();
+    uint64_t till = primary.valid_till();
     /* if primary key was never valid then subkey was not either */
     if (!till) {
         return till;
