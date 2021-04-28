@@ -6422,6 +6422,28 @@ FFI_GUARD
 rnp_result_t
 rnp_key_valid_till(rnp_key_handle_t handle, uint32_t *result)
 try {
+    if (!result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    uint64_t     res = 0;
+    rnp_result_t ret = rnp_key_valid_till64(handle, &res);
+    if (ret) {
+        return ret;
+    }
+    if (res == UINT64_MAX) {
+        *result = UINT32_MAX;
+    } else if (res >= UINT32_MAX) {
+        *result = UINT32_MAX - 1;
+    } else {
+        *result = (uint32_t) res;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_valid_till64(rnp_key_handle_t handle, uint64_t *result)
+try {
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
