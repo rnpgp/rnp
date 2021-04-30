@@ -499,7 +499,7 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             return false;
         }
         bool supported = false;
-        if (rnp_supports_feature("hash algorithm", arg, &supported) || !supported) {
+        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, arg, &supported) || !supported) {
             ERR_MSG("Unsupported hash algorithm: %s", arg);
             return false;
         }
@@ -562,7 +562,7 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_CIPHER: {
         bool supported = false;
-        if (rnp_supports_feature("symmetric algorithm", arg, &supported) || !supported) {
+        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, arg, &supported) || !supported) {
             ERR_MSG("Unsupported symmetric algorithm: %s", arg);
             return false;
         }
