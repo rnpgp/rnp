@@ -425,7 +425,7 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             return false;
         }
         bool supported = false;
-        if (rnp_supports_feature("hash algorithm", arg, &supported) || !supported) {
+        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, arg, &supported) || !supported) {
             ERR_MSG("Unsupported hash algorithm: %s", arg);
             return false;
         }
@@ -487,7 +487,7 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             return false;
         }
         bool supported = false;
-        if (rnp_supports_feature("symmetric algorithm", arg, &supported) || !supported) {
+        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, arg, &supported) || !supported) {
             ERR_MSG("Warning, unsupported encryption algorithm: %s", arg);
             arg = DEFAULT_SYMM_ALG;
         }

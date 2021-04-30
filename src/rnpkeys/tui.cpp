@@ -116,7 +116,7 @@ ask_curve_name(FILE *input_fp)
                      std::back_inserter(curves),
                      [](const char *curve) {
                          bool supported = false;
-                         return !rnp_supports_feature("elliptic curve", curve, &supported) &&
+                         return !rnp_supports_feature(RNP_FEATURE_CURVE, curve, &supported) &&
                                 supported;
                      });
     } catch (const std::exception &e) {
