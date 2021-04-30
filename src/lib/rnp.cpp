@@ -959,25 +959,25 @@ try {
     if (!type || !name || !supported) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!rnp_strcasecmp(type, "symmetric algorithm")) {
+    if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
         pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
         *supported = str_to_cipher(name, &alg);
-    } else if (!rnp_strcasecmp(type, "aead algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
         pgp_aead_alg_t alg = PGP_AEAD_UNKNOWN;
         *supported = str_to_aead_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, "protection mode")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
         // for now we support only CFB for key encryption
         *supported = rnp_strcasecmp(name, "CFB") == 0;
-    } else if (!rnp_strcasecmp(type, "public key algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PK_ALG)) {
         pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
         *supported = str_to_pubkey_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, "hash algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
         pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
         *supported = str_to_hash_alg(name, &alg) && (alg != PGP_HASH_CRC24);
-    } else if (!rnp_strcasecmp(type, "compression algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
         pgp_compression_type_t alg = PGP_C_UNKNOWN;
         *supported = str_to_compression_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, "elliptic curve")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
         pgp_curve_t curve = PGP_CURVE_UNKNOWN;
         *supported = curve_str_to_type(name, &curve);
     } else {
@@ -1020,22 +1020,22 @@ try {
 
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
-    if (!rnp_strcasecmp(type, "symmetric algorithm")) {
+    if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
         ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_SM4);
-    } else if (!rnp_strcasecmp(type, "aead algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
         ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_EAX, PGP_AEAD_OCB);
-    } else if (!rnp_strcasecmp(type, "protection mode")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
         ret = json_array_add_map_str(
           features, cipher_mode_map, PGP_CIPHER_MODE_CFB, PGP_CIPHER_MODE_CFB);
-    } else if (!rnp_strcasecmp(type, "public key algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PK_ALG)) {
         // workaround to avoid duplicates, maybe there is a better solution
         (void) json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_RSA, PGP_PKA_RSA);
         ret = json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_SM2);
-    } else if (!rnp_strcasecmp(type, "hash algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
         ret = json_array_add_map_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SM3);
-    } else if (!rnp_strcasecmp(type, "compression algorithm")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
         ret = json_array_add_map_str(features, compress_alg_map, PGP_C_NONE, PGP_C_BZIP2);
-    } else if (!rnp_strcasecmp(type, "elliptic curve")) {
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
             const ec_curve_desc_t *desc = get_curve_desc(curve);
