@@ -28,6 +28,7 @@
 #include <memory>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include "config.h"
 #include "hash.h"
 #include "types.h"
 #include "utils.h"
@@ -93,12 +94,17 @@ pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
     if (!hash_name) {
         return false;
     }
+#if !defined(ENABLE_SM2)
+    if (alg == PGP_HASH_SM3) {
+        RNP_LOG("SM3 hash is not available.");
+        return false;
+    }
+#endif
     const EVP_MD *hash_tp = EVP_get_digestbyname(hash_name);
     if (!hash_tp) {
         RNP_LOG("Error creating hash object for '%s'", hash_name);
         return false;
     }
-
     EVP_MD_CTX *hash_fn = EVP_MD_CTX_new();
     if (!hash_fn) {
         RNP_LOG("Allocation failure");

@@ -226,7 +226,7 @@ static const ec_curve_desc_t ec_curves[] = {
 #if defined(CRYPTO_BACKEND_BOTAN)
     "sm2p256v1",
 #elif defined(CRYPTO_BACKEND_OPENSSL)
-    "",
+    "sm2",
 #endif
     "SM2 P-256",
     "0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF",
