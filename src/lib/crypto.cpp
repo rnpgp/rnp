@@ -137,6 +137,12 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
     /* FALLS THROUGH for non-x25519 curves */
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
+#if !defined(ENABLE_SM2)
+        if (seckey->alg == PGP_PKA_SM2) {
+            RNP_LOG("SM2 key generation not supported.");
+            return false;
+        }
+#endif
         if (ec_generate(crypto->rng, &seckey->material.ec, seckey->alg, crypto->ecc.curve)) {
             RNP_LOG("failed to generate EC key");
             return false;
@@ -215,7 +221,12 @@ validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
     case PGP_PKA_ECDSA:
         return ecdsa_validate_key(rng, &material->ec, material->secret);
     case PGP_PKA_SM2:
+#if defined(ENABLE_SM2)
         return sm2_validate_key(rng, &material->ec, material->secret);
+#else
+        RNP_LOG("SM2 key validation is not available.");
+        return RNP_ERROR_NOT_IMPLEMENTED;
+#endif
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return elgamal_validate_key(rng, &material->eg, material->secret);

@@ -249,6 +249,12 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
     if (!key || !out || !in || (in_len > MAX_SESSION_KEY_SIZE)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
+#if !defined(ENABLE_SM2)
+    if (key->curve == PGP_CURVE_SM2_P_256) {
+        RNP_LOG("SM2 curve support is disabled.");
+        return RNP_ERROR_NOT_IMPLEMENTED;
+    }
+#endif
     /* check whether we have valid wrap_alg before doing heavy operations */
     size_t keklen = ecdh_kek_len(key->key_wrap_alg);
     if (!keklen) {

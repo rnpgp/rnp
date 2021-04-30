@@ -202,7 +202,12 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
     if (!key || !out || !in || (in_len > sizeof(m))) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-
+#if !defined(ENABLE_SM2)
+    if (key->curve == PGP_CURVE_SM2_P_256) {
+        RNP_LOG("SM2 curve support is disabled.");
+        return RNP_ERROR_NOT_IMPLEMENTED;
+    }
+#endif
     const ec_curve_desc_t *curve_desc = get_curve_desc(key->curve);
     if (!curve_desc) {
         RNP_LOG("unsupported curve");
