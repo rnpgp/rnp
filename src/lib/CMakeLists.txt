@@ -75,20 +75,24 @@ if(CRYPTO_BACKEND_BOTAN)
       # AEAD
       BLOCK_CIPHER AEAD_EAX AEAD_OCB
       # symmetric ciphers
-      AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 SM4 TWOFISH
+      AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 TWOFISH
       # cipher modes
       MODE_CBC MODE_CFB
       # RNG
       AUTO_RNG AUTO_SEEDING_RNG HMAC HMAC_DRBG
       # hash
-      CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3 SM3
+      CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3
       # public-key core
       DL_GROUP DL_PUBLIC_KEY_FAMILY ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO
       # public-key algs
-      CURVE_25519 DSA ECDH ECDSA ED25519 ELGAMAL RSA SM2
+      CURVE_25519 DSA ECDH ECDSA ED25519 ELGAMAL RSA
       # public-key operations etc
       EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
   )
+  # SM2 algorithms suite
+  if (ENABLE_SM2)
+    list(APPEND _botan_required_features SM2 SM3 SM4)
+  endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
     if (NOT _botan_has_${feature})
@@ -117,13 +121,15 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/rsa_ossl.cpp
     crypto/s2k.cpp
     crypto/s2k_ossl.cpp
-    crypto/sm2_ossl.cpp
     crypto/symmetric_ossl.cpp
     crypto/signatures.cpp
     crypto/mem_ossl.cpp
     crypto/cipher.cpp
     crypto/cipher_ossl.cpp
   )
+  if(ENABLE_SM2)
+    list(APPEND CRYPTO_SOURCES crypto/sm2_ossl.cpp)
+  endif()
 elseif(CRYPTO_BACKEND_BOTAN)
   set(CRYPTO_SOURCES
     crypto/bn.cpp
@@ -140,13 +146,15 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/rng.cpp
     crypto/rsa.cpp
     crypto/s2k.cpp
-    crypto/sm2.cpp
     crypto/symmetric.cpp
     crypto/signatures.cpp
     crypto/mem.cpp
     crypto/cipher.cpp
     crypto/cipher_botan.cpp
   )
+  if(ENABLE_SM2)
+    list(APPEND CRYPTO_SOURCES crypto/sm2)
+  endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()

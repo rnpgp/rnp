@@ -1393,6 +1393,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         }
         break;
     case PGP_PKA_SM2:
+#if defined(ENABLE_SM2)
         declen = decbuf.size();
         err = sm2_decrypt(decbuf.data(), &declen, &encmaterial.sm2, &keymaterial->ec);
         if (err != RNP_SUCCESS) {
@@ -1400,6 +1401,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             return false;
         }
         break;
+#else
+        RNP_LOG("SM2 decryption is not available.");
+        return false;
+#endif
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         const rnp_result_t ret = elgamal_decrypt_pkcs1(

@@ -551,6 +551,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_SM2: {
+#if defined(ENABLE_SM2)
         ret = sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
                           &material.sm2,
                           enckey.data(),
@@ -562,6 +563,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             return ret;
         }
         break;
+#else
+        RNP_LOG("sm2_encrypt is not available");
+        return RNP_ERROR_NOT_IMPLEMENTED;
+#endif
     }
     case PGP_PKA_ECDH: {
         ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
