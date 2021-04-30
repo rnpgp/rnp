@@ -55,6 +55,8 @@ option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
+# crypto components
+option(ENABLE_SM2 "Enable SM2/SM3/SM4 algorithms support." On)
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
@@ -90,6 +92,10 @@ elseif(CRYPTO_BACKEND STREQUAL "openssl")
   # Do not allow OpenSSL backend in release builds yet.
   if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
     message(FATAL_ERROR "OpenSSL backend is supported only at debug mode and not ready for release yet.")
+  endif()
+  # No SM2 support for OpenSSL yet.
+  if (ENABLE_SM2)
+    message(FATAL_ERROR "OpenSSL backend doesn't support SM2/SM3/SM4 algorithms yet.")
   endif()
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
