@@ -392,14 +392,8 @@ RNP_API rnp_result_t rnp_calculate_iterations(const char *hash,
 
 /** Check whether rnp supports specific feature (algorithm, elliptic curve, whatever else).
  *
- * @param type string with the feature type:
- *             - 'symmetric algorithm'
- *             - 'aead algorithm'
- *             - 'protection mode'
- *             - 'public key algorithm'
- *             - 'hash algorithm'
- *             - 'compression algorithm'
- *             - 'elliptic curve'
+ * @param type string with the feature type. See RNP_FEATURE_* defines for the supported
+ * values.
  * @param name value of the feature to check whether it is supported.
  * @param supported will contain true or false depending whether feature is supported or not.
  * @return RNP_SUCCESS on success or any other value on error.
@@ -408,9 +402,9 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
 
 /** Get the JSON with array of supported rnp feature values (algorithms, curves, etc) by type.
  *
- * @param type type of the feature. See rnp_supports_feature() function for possible values.
+ * @param type type of the feature. See RNP_FEATURE_* defines for the supported values.
  * @param result after successful execution will contain the JSON with supported feature
- * values. You must destroy it using the rnp_buffer_destroy() function.
+ *        values. You must destroy it using the rnp_buffer_destroy() function.
  * @return RNP_SUCCESS on success or any other value on error.
  */
 RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
@@ -2696,6 +2690,21 @@ RNP_API rnp_result_t rnp_output_armor_set_line_length(rnp_output_t output, size_
 
 #if defined(__cplusplus)
 }
+
+#endif
+
+/**
+ * Feature strings.
+ */
+#ifndef RNP_FEATURE_SYMM_ALG
+
+#define RNP_FEATURE_SYMM_ALG "symmetric algorithm"
+#define RNP_FEATURE_AEAD_ALG "aead algorithm"
+#define RNP_FEATURE_PROT_MODE "protection mode"
+#define RNP_FEATURE_PK_ALG "public key algorithm"
+#define RNP_FEATURE_HASH_ALG "hash algorithm"
+#define RNP_FEATURE_COMP_ALG "compression algorithm"
+#define RNP_FEATURE_CURVE "elliptic curve"
 
 #endif
 
