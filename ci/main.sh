@@ -6,37 +6,10 @@ set -eux
 : "${RNP_TESTS=${RNP_TESTS-.*}}"
 : "${LD_LIBRARY_PATH:=}"
 
-build_and_install_cmake() {
-  # cmake
-  cmake_build=${LOCAL_BUILDS}/cmake
-  mkdir -p "${cmake_build}"
-  pushd ${cmake_build}
-  wget https://github.com/Kitware/CMake/releases/download/v3.19.6/cmake-3.19.6.tar.gz -O cmake.tar.gz
-  tar xzf cmake.tar.gz --strip 1
-  ./configure --prefix=/usr && ${MAKE} -j${MAKE_PARALLEL} && ${SUDO} make install
-  popd
-  CMAKE=/usr/bin/cmake
-}
-
-build_and_install_python() {
-  # python
-  python_build=${LOCAL_BUILDS}/python
-  mkdir -p "${python_build}"
-  pushd ${python_build}
-  curl -L -o python.tar.xz https://www.python.org/ftp/python/3.9.2/Python-3.9.2.tar.xz
-  tar -xf python.tar.xz --strip 1
-  ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j${MAKE_PARALLEL} && ${SUDO} make install
-  ${SUDO} ln -sf /usr/bin/python3 /usr/bin/python
-  popd
-}
-
 CMAKE=cmake
 
 if [[ "$(get_os)" = "linux" ]]; then
-  if [[ ${CPU} = "i386" ]]; then
-    build_and_install_cmake
-    # build_and_install_python
-  else
+  if [[ ${CPU} != "i386" ]]; then
     pushd /
     ${SUDO} curl -L -o cmake.sh https://github.com/Kitware/CMake/releases/download/v3.14.5/cmake-3.14.5-Linux-x86_64.sh
     ${SUDO} sh cmake.sh --skip-license --prefix=/usr
