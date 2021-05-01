@@ -56,6 +56,12 @@ option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 
+# tri-state options
+set(TRISTATE_VALUES On Off Auto)
+
+set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
+set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
+
 # so we can use our bundled finders
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
@@ -137,7 +143,9 @@ if (ENABLE_SANITIZERS)
 endif()
 
 # adoc for man generation
-include(AdocMan)
+if (ENABLE_DOC)
+  include(AdocMan)
+endif()
 
 # everything else is in subdirs
 add_subdirectory(src/examples)
