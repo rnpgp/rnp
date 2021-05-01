@@ -35,7 +35,7 @@ jobs:
       - name: Installing prerequisites
         run: |
           ${SUDO} apt update
-          ${SUDO} apt -y install git python3 g++ wget autoconf automake libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
+          ${SUDO} apt -y install git python3 g++ wget autoconf libtool curl libncurses5-dev rubygems make libssl-dev zlib1g-dev libbz2-dev ruby-dev sudo
           ${SUDO} ln -s /usr/bin/python3 /usr/bin/python
           cd $GITHUB_WORKSPACE
           git init
@@ -49,8 +49,8 @@ jobs:
       - name: Building dependencies
         run: |
           set -euxo pipefail
-          ci/before_install.sh
           . ci/env.inc.sh
+          bash ci/before_install.sh
           ./ci/install.sh
         shell: bash
       - name: Add rnpuser
@@ -63,6 +63,8 @@ jobs:
       - name: Building and Testing
         run: |
           set -x
+          . ci/env.inc.sh
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/run.sh
+          exec su rnpuser -c ./ci/main.sh
+          exec su rnpuser -c ./ci/success.sh
         shell: bash
