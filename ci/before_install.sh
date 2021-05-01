@@ -66,6 +66,11 @@ linux_install_ubuntu() {
     ruby-bundler libncurses-dev
 }
 
+linux_install_debian() {
+  build_and_install_automake
+  build_and_install_cmake
+}
+
 linux_install() {
   local dist=$(get_linux_dist)
   type "linux_install_$dist" | grep -qwi 'function' && "linux_install_$dist"
