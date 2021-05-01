@@ -44,7 +44,14 @@ find_program(ADOCCOMMAND_PATH
 )
 
 if(NOT EXISTS ${ADOCCOMMAND_PATH})
-  message(WARNING "AsciiDoc processor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
+  set(ADOC_MISSING_MSG "AsciiDoc processor not found, man pages will not be generated. Install asciidoctor or use the CMAKE_PROGRAM_PATH variable.")
+
+  string(TOLOWER "${ENABLE_DOC}" ENABLE_DOC)
+  if (ENABLE_DOC STREQUAL "auto")
+    message(WARNING ${ADOC_MISSING_MSG})
+  elseif(ENABLE_DOC)
+    message(FATAL_ERROR ${ADOC_MISSING_MSG})
+  endif()
 else()
   set(ADOCCOMMAND_FOUND 1)
 endif()
