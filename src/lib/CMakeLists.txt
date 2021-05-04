@@ -72,10 +72,8 @@ if(CRYPTO_BACKEND_BOTAN)
   set(_botan_required_features
       # base
       BIGINT FFI HEX_CODEC PGP_S2K
-      # AEAD
-      BLOCK_CIPHER AEAD_EAX AEAD_OCB
       # symmetric ciphers
-      AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 TWOFISH
+      BLOCK_CIPHER AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160 TWOFISH
       # cipher modes
       MODE_CBC MODE_CFB
       # RNG
@@ -92,6 +90,10 @@ if(CRYPTO_BACKEND_BOTAN)
   # SM2 algorithms suite
   if (ENABLE_SM2)
     list(APPEND _botan_required_features SM2 SM3 SM4)
+  endif()
+  # AEAD algorithms
+  if (ENABLE_AEAD)
+    list(APPEND _botan_required_features AEAD_EAX AEAD_OCB)
   endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})

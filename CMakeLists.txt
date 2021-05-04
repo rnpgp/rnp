@@ -57,6 +57,7 @@ option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 # crypto components
 option(ENABLE_SM2 "Enable SM2/SM3/SM4 algorithms support." On)
+option(ENABLE_AEAD "Enable AEAD ciphers support." On)
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
@@ -96,6 +97,9 @@ elseif(CRYPTO_BACKEND STREQUAL "openssl")
   # No SM2 support for OpenSSL yet.
   if (ENABLE_SM2)
     message(FATAL_ERROR "OpenSSL backend doesn't support SM2/SM3/SM4 algorithms yet.")
+  endif()
+  if (ENABLE_AEAD)
+    message(FATAL_ERROR "OpenSSL backend doesn't support AEAD ciphers yet.")
   endif()
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
