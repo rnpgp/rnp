@@ -104,8 +104,10 @@ struct pgp_crypt_aead_param_t {
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
     union {
-        struct pgp_crypt_cfb_param_t  cfb;
+        struct pgp_crypt_cfb_param_t cfb;
+#if defined(ENABLE_AEAD)
         struct pgp_crypt_aead_param_t aead;
+#endif
     };
 
     pgp_symm_alg_t alg;
@@ -135,6 +137,7 @@ int pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, 
 
 void pgp_cipher_cfb_resync(pgp_crypt_t *crypt, const uint8_t *buf);
 
+#if defined(ENABLE_AEAD)
 /** @brief Initialize AEAD cipher instance
  *  @param crypt pgp crypto object
  *  @param ealg symmetric encryption algorithm to use together with AEAD cipher mode
@@ -155,6 +158,7 @@ bool pgp_cipher_aead_init(pgp_crypt_t *  crypt,
  *  @return Update granularity value in bytes
  */
 size_t pgp_cipher_aead_granularity(pgp_crypt_t *crypt);
+#endif
 
 /** @brief Return the AEAD cipher tag length
  *  @param aalg OpenPGP AEAD algorithm
@@ -168,6 +172,7 @@ size_t pgp_cipher_aead_tag_len(pgp_aead_alg_t aalg);
  */
 size_t pgp_cipher_aead_nonce_len(pgp_aead_alg_t aalg);
 
+#if defined(ENABLE_AEAD)
 /** @brief Set associated data
  *  @param crypt initialized AEAD crypto
  *  @param ad buffer with data. Cannot be NULL.
@@ -233,5 +238,6 @@ size_t pgp_cipher_aead_nonce(pgp_aead_alg_t aalg,
                              const uint8_t *iv,
                              uint8_t *      nonce,
                              size_t         index);
+#endif // ENABLE_AEAD
 
 #endif

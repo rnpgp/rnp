@@ -434,6 +434,7 @@ compressed_src_close(pgp_source_t *src)
     src->param = NULL;
 }
 
+#if defined(ENABLE_AEAD)
 static bool
 encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool last)
 {
@@ -588,10 +589,14 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
     return res;
 }
+#endif
 
 static bool
 encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
 {
+#if !defined(ENABLE_AEAD)
+    return false;
+#else
     pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
     size_t                        cbytes;
     size_t                        left = len;
@@ -623,6 +628,7 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
 
     *read = len - left;
     return true;
+#endif
 }
 
 static bool
@@ -737,7 +743,9 @@ encrypted_src_close(pgp_source_t *src)
     }
 
     if (param->aead) {
+#if defined(ENABLE_AEAD)
         pgp_cipher_aead_destroy(&param->decrypt);
+#endif
     } else {
         pgp_cipher_cfb_finish(&param->decrypt);
     }
@@ -1339,6 +1347,10 @@ error:
 static bool
 encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, uint8_t *key)
 {
+#if !defined(ENABLE_AEAD)
+    RNP_LOG("AEAD is not enabled.");
+    return false;
+#else
     size_t gran;
 
     if (alg != param->aead_hdr.ealg) {
@@ -1358,6 +1370,7 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
     }
 
     return encrypted_start_aead_chunk(param, 0, false);
+#endif
 }
 
 static bool
@@ -1473,6 +1486,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     return res;
 }
 
+#if defined(ENABLE_AEAD)
 static bool
 encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
 {
@@ -1487,6 +1501,7 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     RNP_DHEX("sesk ad: ", ad_data, 4);
     return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
+#endif
 
 static int
 encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password)
@@ -1530,6 +1545,9 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             }
             keyavail = true;
         } else if (skey.version == PGP_SKSK_V5) {
+#if !defined(ENABLE_AEAD)
+            continue;
+#else
             /* v5 AEAD-encrypted session key */
             size_t  taglen = pgp_cipher_aead_tag_len(skey.aalg);
             uint8_t nonce[PGP_AEAD_MAX_NONCE_LEN];
@@ -1572,6 +1590,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             if (!keyavail || !decres) {
                 continue;
             }
+#endif
         } else {
             continue;
         }
