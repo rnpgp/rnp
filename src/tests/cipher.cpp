@@ -810,3 +810,78 @@ TEST_F(rnp_tests, test_validate_key_material)
 
     rng_destroy(&rng);
 }
+
+TEST_F(rnp_tests, test_sm2_enabled)
+{
+    char *features = NULL;
+    bool  supported = false;
+    /* check whether FFI returns value which corresponds to defines */
+#if defined(ENABLE_SM2)
+    assert_true(sm2_enabled());
+    /* SM2 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_PK_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM2") != std::string::npos);
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &supported));
+    assert_true(supported);
+    /* SM3 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_HASH_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM3") != std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = false;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SM3", &supported));
+    assert_true(supported);
+    /* SM4 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_SYMM_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM4") != std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = false;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "SM4", &supported));
+    assert_true(supported);
+    /* Curve */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM2 P-256") != std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = false;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "SM2 P-256", &supported));
+    assert_true(supported);
+#else
+    assert_false(sm2_enabled());
+    /* SM2 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_PK_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM2") == std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = true;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &supported));
+    assert_false(supported);
+    /* SM3 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_HASH_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM3") == std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = true;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SM3", &supported));
+    assert_false(supported);
+    /* SM4 */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_SYMM_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM4") == std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = true;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "SM4", &supported));
+    assert_false(supported);
+    /* Curve */
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("SM2 P-256") == std::string::npos);
+    rnp_buffer_destroy(features);
+    supported = true;
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "SM2 P-256", &supported));
+    assert_false(supported);
+#endif
+}

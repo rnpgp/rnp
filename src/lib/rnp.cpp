@@ -249,6 +249,11 @@ static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
     *value = find_curve_by_name(str);
+#if !defined(ENABLE_SM2)
+    if (*value == PGP_CURVE_SM2_P_256) {
+        return false;
+    }
+#endif
     return *value != PGP_CURVE_MAX;
 }
 
@@ -271,7 +276,11 @@ str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
     if (alg == PGP_SA_UNKNOWN) {
         return false;
     }
-
+#if !defined(ENABLE_SM2)
+    if (alg == PGP_SA_SM4) {
+        return false;
+    }
+#endif
     *cipher = alg;
     return true;
 }
@@ -284,7 +293,11 @@ str_to_hash_alg(const char *str, pgp_hash_alg_t *hash_alg)
     if (alg == PGP_HASH_UNKNOWN) {
         return false;
     }
-
+#if !defined(ENABLE_SM2)
+    if (alg == PGP_HASH_SM3) {
+        return false;
+    }
+#endif
     *hash_alg = alg;
     return true;
 }
@@ -347,7 +360,11 @@ str_to_pubkey_alg(const char *str, pgp_pubkey_alg_t *pub_alg)
     if (alg == PGP_PKA_NOTHING) {
         return false;
     }
-
+#if !defined(ENABLE_SM2)
+    if (alg == PGP_PKA_SM2) {
+        return false;
+    }
+#endif
     *pub_alg = alg;
     return true;
 }
@@ -1020,7 +1037,10 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
-        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_SM4);
+        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_CAMELLIA_256);
+#if defined(ENABLE_SM2)
+        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_SM4, PGP_SA_SM4);
+#endif
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
         ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_EAX, PGP_AEAD_OCB);
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
@@ -1029,14 +1049,25 @@ try {
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_PK_ALG)) {
         // workaround to avoid duplicates, maybe there is a better solution
         (void) json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_RSA, PGP_PKA_RSA);
-        ret = json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_SM2);
+        ret = json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_EDDSA);
+#if defined(ENABLE_SM2)
+        ret = json_array_add_map_str(features, pubkey_alg_map, PGP_PKA_SM2, PGP_PKA_SM2);
+#endif
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
-        ret = json_array_add_map_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SM3);
+        ret = json_array_add_map_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SHA3_512);
+#if defined(ENABLE_SM2)
+        ret = json_array_add_map_str(features, hash_alg_map, PGP_HASH_SM3, PGP_HASH_SM3);
+#endif
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
         ret = json_array_add_map_str(features, compress_alg_map, PGP_C_NONE, PGP_C_BZIP2);
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
+#if !defined(ENABLE_SM2)
+            if (curve == PGP_CURVE_SM2_P_256) {
+                continue;
+            }
+#endif
             const ec_curve_desc_t *desc = get_curve_desc(curve);
             if (!desc) {
                 ret = RNP_ERROR_BAD_STATE;
