@@ -150,6 +150,13 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 cfg.add_str(CFG_SIGNERS, userId);
 
                 /* Sign the file */
+                if (!sm2_enabled() &&
+                    (!strcmp(hashAlg[i], "sm3") || !strcmp(hashAlg[i], "SM3"))) {
+                    assert_false(cli_rnp_protect_file(&rnp));
+                    cli_rnp_end(&rnp);
+                    assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), -1);
+                    continue;
+                }
                 assert_true(cli_rnp_protect_file(&rnp));
                 if (pipefd[0] != -1) {
                     close(pipefd[0]);
@@ -292,6 +299,10 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         /* Setting up rnp again and decrypting memory */
         printf("keystore: %s\n", keystore);
         /* Generate key with specified hash algorithm */
+        if (!sm2_enabled() && (!strcmp(hashAlg[i], "sm3") || !strcmp(hashAlg[i], "SM3"))) {
+            assert_false(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL));
+            continue;
+        }
         assert_true(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL));
         /* Load and check key */
         assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
@@ -810,10 +821,14 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     ops.set_int(CFG_S2K_ITER, 1);
     ops.unset(CFG_USERID);
     ops.add_str(CFG_USERID, "expert_sm2");
-    assert_true(ask_expert_details(&rnp, ops, "99\n"));
-    assert_true(check_cfg_props(ops, "SM2", "SM2", NULL, NULL, 0, 0));
-    assert_true(check_key_props(
-      &rnp, "expert_sm2", "SM2", "SM2", "SM2 P-256", "SM2 P-256", 0, 0, "SM3"));
+    if (!sm2_enabled()) {
+        assert_false(ask_expert_details(&rnp, ops, "99\n"));
+    } else {
+        assert_true(ask_expert_details(&rnp, ops, "99\n"));
+        assert_true(check_cfg_props(ops, "SM2", "SM2", NULL, NULL, 0, 0));
+        assert_true(check_key_props(
+          &rnp, "expert_sm2", "SM2", "SM2", "SM2 P-256", "SM2 P-256", 0, 0, "SM3"));
+    }
     cli_rnp_end(&rnp);
 }
 

@@ -170,7 +170,13 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     // add password (using all defaults)
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
     // add password
-    assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
+        assert_rnp_success(
+          rnp_op_encrypt_add_password(op, "pass2", "SHA256", 12345, "TWOFISH"));
+    } else {
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
+    }
     // set the data encryption cipher
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
@@ -281,7 +287,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass_provider)
     assert_rnp_success(rnp_ffi_set_pass_provider(ffi, getpasscb_inc, &pswdnum));
     assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, NULL, 0, NULL));
     // add another password with different encryption parameters
-    assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
+        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SHA256", 12345, "TWOFISH"));
+    } else {
+        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
+    }
     // set the data encryption cipher
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAMELLIA256"));
     // execute the operation
