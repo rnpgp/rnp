@@ -1015,3 +1015,13 @@ import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
 {
     return import_keys(ffi, data, len, RNP_LOAD_SAVE_SECRET_KEYS);
 }
+
+bool
+sm2_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
