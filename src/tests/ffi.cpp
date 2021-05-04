@@ -1635,6 +1635,11 @@ TEST_F(rnp_tests, test_ffi_key_generate_sm2)
 
     /* generate sm2 key */
     rnp_key_handle_t key = NULL;
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_generate_key_sm2(ffi, "sm2", NULL, &key));
+        assert_rnp_success(rnp_ffi_destroy(ffi));
+        return;
+    }
     assert_rnp_success(rnp_generate_key_sm2(ffi, "sm2", NULL, &key));
     assert_non_null(key);
     /* check properties of the generated key */
@@ -2027,8 +2032,12 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_op_generate_destroy(keygen));
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
-    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
+    } else {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+    }
     assert_rnp_success(rnp_op_generate_destroy(keygen));
 
     /* Add EDDSA subkey */
@@ -2098,15 +2107,19 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* Add SM2 subkey */
-    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "SM2"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
+    if (!sm2_enabled()) {
+        keygen = NULL;
+        assert_rnp_failure(rnp_op_generate_subkey_create(&keygen, ffi, key, "SM2"));
+    } else {
+        assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "SM2"));
+        assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
+        assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    }
     assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
-
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
@@ -2290,8 +2303,12 @@ TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
     assert_rnp_success(rnp_op_generate_destroy(keygen));
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
-    assert_rnp_failure(rnp_op_generate_execute(keygen));
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
+    } else {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "SM2 P-256"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+    }
     assert_rnp_success(rnp_op_generate_destroy(keygen));
 
     /* Add EDDSA subkey */
@@ -2328,15 +2345,19 @@ TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     /* Add SM2 subkey */
-    assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "sm2"));
-    assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
-    assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
+    if (!sm2_enabled()) {
+        keygen = NULL;
+        assert_rnp_failure(rnp_op_generate_subkey_create(&keygen, ffi, key, "sm2"));
+    } else {
+        assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "sm2"));
+        assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
+        assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    }
     assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
-
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
@@ -2501,7 +2522,13 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     assert_int_equal(1, count);
 
     // protect+lock the key
-    assert_rnp_success(rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
+    if (!sm2_enabled()) {
+        assert_rnp_failure(rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
+        assert_rnp_success(
+          rnp_key_protect(key_handle, "pass", "AES128", "CFB", "SHA256", 999999));
+    } else {
+        assert_rnp_success(rnp_key_protect(key_handle, "pass", "SM4", "CFB", "SM3", 999999));
+    }
     assert_rnp_success(rnp_key_lock(key_handle));
 
     // add the userid (no pass provider, should fail)
@@ -6146,7 +6173,8 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* symmetric algorithms */
     assert_rnp_success(rnp_supported_features("Symmetric Algorithm", &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 12));
+    bool has_sm2 = sm2_enabled();
+    assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 11 + has_sm2));
     rnp_buffer_destroy(features);
     bool supported = false;
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &supported));
@@ -6172,7 +6200,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAMELLIA256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "SM4", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "idea", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "tripledes", &supported));
@@ -6196,7 +6224,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "camellia256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "sm4", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "wrong", &supported));
     assert_false(supported);
     /* aead algorithms */
@@ -6222,7 +6250,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* public key algorithm */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_PK_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_PK_ALG, features, 7));
+    assert_true(check_features(RNP_FEATURE_PK_ALG, features, 6 + has_sm2));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "RSA", &supported));
     assert_true(supported);
@@ -6237,7 +6265,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "EDDSA", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "rsa", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "dsa", &supported));
@@ -6251,13 +6279,13 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "eddsa", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "sm2", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "wrong", &supported));
     assert_false(supported);
     /* hash algorithm */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_HASH_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_HASH_ALG, features, 10));
+    assert_true(check_features(RNP_FEATURE_HASH_ALG, features, 9 + has_sm2));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "MD5", &supported));
     assert_true(supported);
@@ -6278,7 +6306,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SHA3-512", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SM3", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "md5", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sha1", &supported));
@@ -6298,7 +6326,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sha3-512", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sm3", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "wrong", &supported));
     assert_false(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "CRC24", &supported));
@@ -6321,7 +6349,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* elliptic curve */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_CURVE, features, 10));
+    assert_true(check_features(RNP_FEATURE_CURVE, features, 9 + has_sm2));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "NIST P-256", &supported));
     assert_true(supported);
@@ -6342,7 +6370,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "secp256k1", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "SM2 P-256", &supported));
-    assert_true(supported);
+    assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "wrong", &supported));
     assert_false(supported);
 }

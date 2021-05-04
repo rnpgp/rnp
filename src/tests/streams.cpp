@@ -1175,10 +1175,16 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
     /* setup operation context */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass1"));
-    /* operation should success if output is not discarded, i.e. operation = decrypt */
     rnpcfg.set_bool(CFG_NO_OUTPUT, false);
-    assert_true(cli_rnp_process_file(&rnp));
-    assert_int_equal(file_size("output.dat"), 4);
+    if (sm2_enabled()) {
+        /* operation should success if output is not discarded, i.e. operation = decrypt */
+        assert_true(cli_rnp_process_file(&rnp));
+        assert_int_equal(file_size("output.dat"), 4);
+    } else {
+        /* operation should fail */
+        assert_false(cli_rnp_process_file(&rnp));
+        assert_int_equal(file_size("output.dat"), -1);
+    }
     /* try second password */
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_string_password_provider, (void *) "pass2"));
