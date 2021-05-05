@@ -240,5 +240,7 @@ bool import_pub_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 
 bool sm2_enabled();
+bool aead_eax_enabled();
+bool aead_ocb_enabled();
 
 #endif /* SUPPORT_H_ */

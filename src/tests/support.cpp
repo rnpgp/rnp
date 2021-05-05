@@ -1025,3 +1025,23 @@ sm2_enabled()
     }
     return enabled;
 }
+
+bool
+aead_eax_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "EAX", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
+aead_ocb_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "OCB", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
