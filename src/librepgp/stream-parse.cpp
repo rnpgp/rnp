@@ -1611,6 +1611,11 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         return 1;
     }
 
+    if (param->aead && pgp_block_size(param->aead_hdr.ealg)) {
+        /* we know aead symm alg even if we wasn't able to start decryption */
+        param->salg = param->aead_hdr.ealg;
+    }
+
     if (!keyavail) {
         RNP_LOG("no supported sk available");
         return -1;
@@ -2100,18 +2105,18 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         }
     }
 
+    /* report decryption start to the handler */
+    if (handler->on_decryption_info) {
+        handler->on_decryption_info(
+          param->has_mdc, param->aead_hdr.aalg, param->salg, handler->param);
+    }
+
     if (!have_key) {
         RNP_LOG("failed to obtain decrypting key or password");
         if (!errcode) {
             errcode = RNP_ERROR_NO_SUITABLE_KEY;
         }
         goto finish;
-    }
-
-    /* report decryption start to the handler */
-    if (handler->on_decryption_info) {
-        handler->on_decryption_info(
-          param->has_mdc, param->aead_hdr.aalg, param->salg, handler->param);
     }
     errcode = RNP_SUCCESS;
 finish:

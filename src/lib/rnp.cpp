@@ -310,7 +310,11 @@ str_to_aead_alg(const char *str, pgp_aead_alg_t *aead_alg)
     if (alg == PGP_AEAD_UNKNOWN) {
         return false;
     }
-
+#if !defined(ENABLE_AEAD)
+    if (alg != PGP_AEAD_NONE) {
+        return false;
+    }
+#endif
     *aead_alg = alg;
     return true;
 }
@@ -1042,7 +1046,11 @@ try {
         ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_SM4, PGP_SA_SM4);
 #endif
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
-        ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_EAX, PGP_AEAD_OCB);
+#if defined(ENABLE_AEAD)
+        ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_OCB);
+#else
+        ret = json_array_add_map_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_NONE);
+#endif
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
         ret = json_array_add_map_str(
           features, cipher_mode_map, PGP_CIPHER_MODE_CFB, PGP_CIPHER_MODE_CFB);
