@@ -92,12 +92,12 @@ pgp_sa_to_botan_string(pgp_symm_alg_t alg)
         return "AES-256";
 #endif
 
-#if defined(BOTAN_HAS_SM4)
+#if defined(BOTAN_HAS_SM4) && defined(ENABLE_SM2)
     case PGP_SA_SM4:
         return "SM4";
 #endif
 
-#if defined(BOTAN_HAS_TWOFISH)
+#if defined(BOTAN_HAS_TWOFISH) && defined(ENABLE_TWOFISH)
     case PGP_SA_TWOFISH:
         return "Twofish";
 #endif

@@ -930,3 +930,27 @@ TEST_F(rnp_tests, test_aead_enabled)
     assert_false(supported);
 #endif
 }
+
+TEST_F(rnp_tests, test_twofish_enabled)
+{
+    char *features = NULL;
+    bool  supported = false;
+    /* check whether FFI returns value which corresponds to defines */
+#if defined(ENABLE_TWOFISH)
+    assert_true(twofish_enabled());
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_SYMM_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("TWOFISH") != std::string::npos);
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TWOFISH", &supported));
+    assert_true(supported);
+#else
+    assert_false(twofish_enabled());
+    assert_rnp_success(rnp_supported_features(RNP_FEATURE_SYMM_ALG, &features));
+    assert_non_null(features);
+    assert_true(std::string(features).find("TWOFISH") == std::string::npos);
+    rnp_buffer_destroy(features);
+    assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TWOFISH", &supported));
+    assert_false(supported);
+#endif
+}
