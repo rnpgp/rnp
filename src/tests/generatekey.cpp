@@ -88,6 +88,15 @@ done:
     return res;
 }
 
+static bool
+hash_supported(const std::string &hash)
+{
+    if (!sm2_enabled() && lowercase(hash) == "sm3") {
+        return false;
+    }
+    return true;
+}
+
 TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 {
     /* Set the UserId = custom value.
@@ -150,8 +159,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 cfg.add_str(CFG_SIGNERS, userId);
 
                 /* Sign the file */
-                if (!sm2_enabled() &&
-                    (!strcmp(hashAlg[i], "sm3") || !strcmp(hashAlg[i], "SM3"))) {
+                if (!hash_supported(hashAlg[i])) {
                     assert_false(cli_rnp_protect_file(&rnp));
                     cli_rnp_end(&rnp);
                     assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), -1);
@@ -203,13 +211,25 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
     assert_int_equal(rnp_unlink("dummyfile.dat"), 0);
 }
 
+static bool
+cipher_supported(const std::string &cipher)
+{
+    if (!sm2_enabled() && lowercase(cipher) == "sm4") {
+        return false;
+    }
+    if (!twofish_enabled() && lowercase(cipher) == "twofish") {
+        return false;
+    }
+    return true;
+}
+
 TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
 {
     const char *cipherAlg[] = {
-      "BLOWFISH",    "TWOFISH",     "CAST5",       "TRIPLEDES",   "AES128",   "AES192",
-      "AES256",      "CAMELLIA128", "CAMELLIA192", "CAMELLIA256", "blowfish", "twofish",
-      "cast5",       "tripledes",   "aes128",      "aes192",      "aes256",   "camellia128",
-      "camellia192", "camellia256", NULL};
+      "BLOWFISH",    "TWOFISH",     "CAST5",       "TRIPLEDES",   "AES128", "AES192",
+      "AES256",      "CAMELLIA128", "CAMELLIA192", "CAMELLIA256", "SM4",    "blowfish",
+      "twofish",     "cast5",       "tripledes",   "aes128",      "aes192", "aes256",
+      "camellia128", "camellia192", "camellia256", "sm4",         NULL};
 
     cli_rnp_t   rnp = {};
     char        memToEncrypt[] = "A simple test message";
@@ -241,8 +261,12 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             cfg.set_str(CFG_CIPHER, cipherAlg[i]);
             cfg.add_str(CFG_RECIPIENTS, userid);
             /* Encrypt the file */
-            assert_true(cli_rnp_protect_file(&rnp));
+            bool supported = cipher_supported(cipherAlg[i]);
+            assert_true(cli_rnp_protect_file(&rnp) == supported);
             cli_rnp_end(&rnp);
+            if (!supported) {
+                continue;
+            }
 
             /* Set up rnp again and decrypt the file */
             assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
@@ -297,13 +321,13 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
     for (size_t i = 0; i < ARRAY_SIZE(hashAlg); i++) {
         const char *keystore = keystores[i % ARRAY_SIZE(keystores)];
         /* Setting up rnp again and decrypting memory */
-        printf("keystore: %s\n", keystore);
+        printf("keystore: %s, hashalg %s\n", keystore, hashAlg[i]);
         /* Generate key with specified hash algorithm */
-        if (!sm2_enabled() && (!strcmp(hashAlg[i], "sm3") || !strcmp(hashAlg[i], "SM3"))) {
-            assert_false(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL));
+        bool supported = hash_supported(hashAlg[i]);
+        assert_true(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL) == supported);
+        if (!supported) {
             continue;
         }
-        assert_true(generate_test_key(keystore, hashAlg[i], hashAlg[i], NULL));
         /* Load and check key */
         assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
         /* Loading the keyrings */
