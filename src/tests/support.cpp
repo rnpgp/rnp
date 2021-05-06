@@ -44,6 +44,7 @@
 #include <pgp-key.h>
 #include <fstream>
 #include <vector>
+#include <algorithm>
 
 #ifndef WINSHELLAPI
 #include <ftw.h>
@@ -734,6 +735,15 @@ strip_eol(const std::string &str)
     return str;
 }
 
+std::string
+lowercase(const std::string &str)
+{
+    std::string res = str;
+    std::transform(
+      res.begin(), res.end(), res.begin(), [](unsigned char ch) { return std::tolower(ch); });
+    return res;
+}
+
 static bool
 jso_get_field(json_object *obj, json_object **fld, const std::string &name)
 {
@@ -1041,6 +1051,16 @@ aead_ocb_enabled()
 {
     bool enabled = false;
     if (rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "OCB", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
+twofish_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "Twofish", &enabled)) {
         return false;
     }
     return enabled;

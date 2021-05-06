@@ -211,6 +211,7 @@ bool ends_with(const std::string &data, const std::string &match);
 
 std::string fmt(const char *format, ...);
 std::string strip_eol(const std::string &str);
+std::string lowercase(const std::string &str);
 
 bool check_json_field_str(json_object *      obj,
                           const std::string &field,
@@ -242,5 +243,6 @@ bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 bool sm2_enabled();
 bool aead_eax_enabled();
 bool aead_ocb_enabled();
+bool twofish_enabled();
 
 #endif /* SUPPORT_H_ */

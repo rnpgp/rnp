@@ -281,6 +281,11 @@ str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
         return false;
     }
 #endif
+#if !defined(ENABLE_TWOFISH)
+    if (alg == PGP_SA_TWOFISH) {
+        return false;
+    }
+#endif
     *cipher = alg;
     return true;
 }
@@ -1041,7 +1046,12 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
-        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_CAMELLIA_256);
+        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_AES_256);
+#if defined(ENABLE_TWOFISH)
+        ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_TWOFISH, PGP_SA_TWOFISH);
+#endif
+        ret = json_array_add_map_str(
+          features, symm_alg_map, PGP_SA_CAMELLIA_128, PGP_SA_CAMELLIA_256);
 #if defined(ENABLE_SM2)
         ret = json_array_add_map_str(features, symm_alg_map, PGP_SA_SM4, PGP_SA_SM4);
 #endif
@@ -2438,7 +2448,7 @@ try {
     }
     pgp_symm_alg_t symm_alg = PGP_SA_UNKNOWN;
     if (!str_to_cipher(s2k_cipher, &symm_alg)) {
-        FFI_LOG(op->ffi, "Invalid cipher: %s", s2k_hash);
+        FFI_LOG(op->ffi, "Invalid cipher: %s", s2k_cipher);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     try {

@@ -6174,7 +6174,8 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supported_features("Symmetric Algorithm", &features));
     assert_non_null(features);
     bool has_sm2 = sm2_enabled();
-    assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 11 + has_sm2));
+    bool has_tf = twofish_enabled();
+    assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 10 + has_sm2 + has_tf));
     rnp_buffer_destroy(features);
     bool supported = false;
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &supported));
@@ -6192,7 +6193,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "AES256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TWOFISH", &supported));
-    assert_true(supported);
+    assert_true(supported == has_tf);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAMELLIA128", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAMELLIA192", &supported));
@@ -6216,7 +6217,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "aes256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "twofish", &supported));
-    assert_true(supported);
+    assert_true(supported == has_tf);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "camellia128", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "camellia192", &supported));
