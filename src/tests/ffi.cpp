@@ -9970,3 +9970,136 @@ TEST_F(rnp_tests, test_ffi_exception)
         rnp_output_destroy(output);
     }
 }
+
+TEST_F(rnp_tests, test_ffi_key_protection_change)
+{
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8a05b89fad5aded1", &sub));
+
+    assert_rnp_success(rnp_key_unprotect(key, "password"));
+    assert_rnp_success(rnp_key_unprotect(sub, "password"));
+
+    bool protect = true;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_false(protect);
+    protect = true;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_false(protect);
+
+    assert_rnp_success(rnp_key_protect(key, "password2", "Camellia128", NULL, "SHA1", 0));
+    assert_rnp_success(rnp_key_protect(sub, "password2", "Camellia256", NULL, "SHA512", 0));
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_true(protect);
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_true(protect);
+
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+
+    reload_keyrings(&ffi);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8a05b89fad5aded1", &sub));
+
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_true(protect);
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_true(protect);
+
+    char *cipher = NULL;
+    assert_rnp_success(rnp_key_get_protection_cipher(key, &cipher));
+    assert_string_equal(cipher, "CAMELLIA128");
+    rnp_buffer_destroy(cipher);
+    char *hash = NULL;
+    assert_rnp_success(rnp_key_get_protection_hash(key, &hash));
+    assert_string_equal(hash, "SHA1");
+    rnp_buffer_destroy(hash);
+    cipher = NULL;
+    assert_rnp_success(rnp_key_get_protection_cipher(sub, &cipher));
+    assert_string_equal(cipher, "CAMELLIA256");
+    rnp_buffer_destroy(cipher);
+    hash = NULL;
+    assert_rnp_success(rnp_key_get_protection_hash(sub, &hash));
+    assert_string_equal(hash, "SHA512");
+    rnp_buffer_destroy(hash);
+
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    assert_rnp_failure(rnp_key_unlock(sub, "password"));
+
+    assert_rnp_success(rnp_key_unlock(key, "password2"));
+    assert_rnp_success(rnp_key_unlock(sub, "password2"));
+
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_true(protect);
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_true(protect);
+
+    assert_rnp_success(rnp_key_protect(key, "password3", "AES256", NULL, "SHA512", 10000000));
+    assert_rnp_success(rnp_key_protect(sub, "password3", "AES128", NULL, "SHA1", 10000000));
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_true(protect);
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_true(protect);
+
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+
+    reload_keyrings(&ffi);
+
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8a05b89fad5aded1", &sub));
+
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(key, &protect));
+    assert_true(protect);
+    protect = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &protect));
+    assert_true(protect);
+
+    cipher = NULL;
+    assert_rnp_success(rnp_key_get_protection_cipher(key, &cipher));
+    assert_string_equal(cipher, "AES256");
+    rnp_buffer_destroy(cipher);
+    hash = NULL;
+    assert_rnp_success(rnp_key_get_protection_hash(key, &hash));
+    assert_string_equal(hash, "SHA512");
+    rnp_buffer_destroy(hash);
+    size_t iterations = 0;
+    assert_rnp_success(rnp_key_get_protection_iterations(key, &iterations));
+    assert_true(iterations >= 10000000);
+    cipher = NULL;
+    assert_rnp_success(rnp_key_get_protection_cipher(sub, &cipher));
+    assert_string_equal(cipher, "AES128");
+    rnp_buffer_destroy(cipher);
+    hash = NULL;
+    assert_rnp_success(rnp_key_get_protection_hash(sub, &hash));
+    assert_string_equal(hash, "SHA1");
+    rnp_buffer_destroy(hash);
+    iterations = 0;
+    assert_rnp_success(rnp_key_get_protection_iterations(sub, &iterations));
+    assert_true(iterations >= 10000000);
+
+    assert_rnp_failure(rnp_key_unlock(key, "password"));
+    assert_rnp_failure(rnp_key_unlock(sub, "password"));
+
+    assert_rnp_success(rnp_key_unlock(key, "password3"));
+    assert_rnp_success(rnp_key_unlock(sub, "password3"));
+
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(sub);
+
+    rnp_ffi_destroy(ffi);
+}
