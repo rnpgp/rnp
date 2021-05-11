@@ -234,67 +234,59 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     }
 }
 
-static bool
-pgp_write_seckey(pgp_dest_t *   dst,
-                 pgp_pkt_type_t tag,
-                 pgp_key_pkt_t *seckey,
-                 const char *   password)
+bool
+pgp_key_t::write_sec_pgp(pgp_dest_t &dst, pgp_key_pkt_t &seckey, const std::string &password)
 {
     bool           res = false;
-    pgp_pkt_type_t oldtag = seckey->tag;
+    pgp_pkt_type_t oldtag = seckey.tag;
 
-    seckey->tag = tag;
-    if (encrypt_secret_key(seckey, password, NULL)) {
+    seckey.tag = type();
+    if (encrypt_secret_key(&seckey, password.c_str(), NULL)) {
         goto done;
     }
     try {
-        seckey->write(*dst);
-        res = !dst->werr;
+        seckey.write(dst);
+        res = !dst.werr;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
     }
 done:
-    seckey->tag = oldtag;
+    seckey.tag = oldtag;
     return res;
 }
 
-static bool
-write_key_to_rawpacket(pgp_key_pkt_t *        seckey,
-                       pgp_rawpacket_t &      packet,
-                       pgp_pkt_type_t         type,
-                       pgp_key_store_format_t format,
-                       const char *           password)
+bool
+pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password)
 {
     pgp_dest_t memdst = {};
-    bool       ret = false;
-
     if (init_mem_dest(&memdst, NULL, 0)) {
-        goto done;
+        return false;
     }
 
+    bool ret = false;
     // encrypt+write the key in the appropriate format
-    switch (format) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
-        if (!pgp_write_seckey(&memdst, type, seckey, password)) {
-            RNP_LOG("failed to write seckey");
-            goto done;
-        }
-        break;
-    case PGP_KEY_STORE_G10:
-        if (!g10_write_seckey(&memdst, seckey, password)) {
-            RNP_LOG("failed to write g10 seckey");
-            goto done;
-        }
-        break;
-    default:
-        RNP_LOG("invalid format");
-        goto done;
-    }
-
     try {
+        switch (format) {
+        case PGP_KEY_STORE_GPG:
+        case PGP_KEY_STORE_KBX:
+            if (!write_sec_pgp(memdst, seckey, password)) {
+                RNP_LOG("failed to write secret key");
+                goto done;
+            }
+            break;
+        case PGP_KEY_STORE_G10:
+            if (!g10_write_seckey(&memdst, &seckey, password.c_str())) {
+                RNP_LOG("failed to write g10 secret key");
+                goto done;
+            }
+            break;
+        default:
+            RNP_LOG("invalid format");
+            goto done;
+        }
+
         uint8_t *mem = (uint8_t *) mem_dest_get_memory(&memdst);
-        packet = pgp_rawpacket_t(mem, memdst.writeb, type);
+        rawpkt_ = pgp_rawpacket_t(mem, memdst.writeb, type());
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         goto done;
@@ -1604,9 +1596,8 @@ pgp_key_t::lock()
 }
 
 bool
-pgp_key_t::add_protection(pgp_key_store_format_t             format,
-                          const rnp_key_protection_params_t &protection,
-                          const pgp_password_provider_t &    password_provider)
+pgp_key_t::protect(const rnp_key_protection_params_t &protection,
+                   const pgp_password_provider_t &    password_provider)
 {
     pgp_password_ctx_t ctx;
     memset(&ctx, 0, sizeof(ctx));
@@ -1618,12 +1609,11 @@ pgp_key_t::add_protection(pgp_key_store_format_t             format,
     if (!pgp_request_password(&password_provider, &ctx, password.data(), password.size())) {
         return false;
     }
-    return protect(pkt_, format, protection, password.data());
+    return protect(pkt_, protection, password.data());
 }
 
 bool
-pgp_key_t::protect(pgp_key_pkt_t &                    decrypted_seckey,
-                   pgp_key_store_format_t             kformat,
+pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
                    const rnp_key_protection_params_t &protection,
                    const std::string &                new_password)
 {
@@ -1631,43 +1621,35 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted_seckey,
         RNP_LOG("Warning: this is not a secret key");
         return false;
     }
-    if (!decrypted_seckey.material.secret) {
-        RNP_LOG("Decrypted seckey must be provided");
+    bool ownpkt = &decrypted == &pkt_;
+    if (!decrypted.material.secret) {
+        RNP_LOG("Decrypted secret key must be provided");
         return false;
     }
 
-    /* setup default values where needed */
-    rnp_key_protection_params_t usedprot = protection;
-    if (!usedprot.symm_alg) {
-        usedprot.symm_alg = DEFAULT_PGP_SYMM_ALG;
-    }
-    if (!usedprot.cipher_mode) {
-        usedprot.cipher_mode = DEFAULT_PGP_CIPHER_MODE;
-    }
-    if (!usedprot.hash_alg) {
-        usedprot.hash_alg = DEFAULT_PGP_HASH_ALG;
-    }
-    if (!usedprot.iterations) {
-        usedprot.iterations =
-          pgp_s2k_compute_iters(usedprot.hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
-    }
-
-    /* force encrypted-and-hashed and iterated-and-salted, as it's the only method we support
-     */
+    /* force encrypted-and-hashed and iterated-and-salted as it's the only method we support*/
     pkt_.sec_protection.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
     pkt_.sec_protection.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
-    pkt_.sec_protection.symm_alg = usedprot.symm_alg;
-    pkt_.sec_protection.cipher_mode = usedprot.cipher_mode;
-    pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(usedprot.iterations);
-    pkt_.sec_protection.s2k.hash_alg = usedprot.hash_alg;
+    /* use default values where needed */
+    pkt_.sec_protection.symm_alg =
+      protection.symm_alg ? protection.symm_alg : DEFAULT_PGP_SYMM_ALG;
+    pkt_.sec_protection.cipher_mode =
+      protection.cipher_mode ? protection.cipher_mode : DEFAULT_PGP_CIPHER_MODE;
+    pkt_.sec_protection.s2k.hash_alg =
+      protection.hash_alg ? protection.hash_alg : DEFAULT_PGP_HASH_ALG;
+    auto iter = protection.iterations;
+    if (!iter) {
+        iter = pgp_s2k_compute_iters(
+          pkt_.sec_protection.s2k.hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+    }
+    pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(iter);
+    if (!ownpkt) {
+        /* decrypted is assumed to be temporary variable so we may modify it */
+        decrypted.sec_protection = pkt_.sec_protection;
+    }
 
     /* write the protected key to raw packet */
-    if (!write_key_to_rawpacket(
-          &decrypted_seckey, rawpkt_, type(), kformat, new_password.c_str())) {
-        return false;
-    }
-    format = kformat;
-    return true;
+    return write_sec_rawpkt(decrypted, new_password);
 }
 
 bool
@@ -1685,7 +1667,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider)
     /* simple case */
     if (!encrypted()) {
         pkt_.sec_protection.s2k.usage = PGP_S2KU_NONE;
-        return write_key_to_rawpacket(&pkt_, rawpkt_, type(), format, NULL);
+        return write_sec_rawpkt(pkt_, "");
     }
 
     pgp_password_ctx_t ctx;
@@ -1698,7 +1680,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider)
         return false;
     }
     decrypted_seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_key_to_rawpacket(decrypted_seckey, rawpkt_, type(), format, NULL)) {
+    if (!write_sec_rawpkt(*decrypted_seckey, "")) {
         delete decrypted_seckey;
         return false;
     }

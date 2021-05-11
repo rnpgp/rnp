@@ -4614,15 +4614,13 @@ try {
         }
         /* add key/subkey protection */
         if (keygen_desc.primary.protection.symm_alg &&
-            !primary_sec.add_protection(
-              ffi->secring->format, keygen_desc.primary.protection, ffi->pass_provider)) {
+            !primary_sec.protect(keygen_desc.primary.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
 
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.add_protection(
-              ffi->secring->format, keygen_desc.subkey.protection, ffi->pass_provider)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4660,8 +4658,7 @@ try {
         }
         /* encrypt secret key if specified */
         if (keygen_desc.primary.protection.symm_alg &&
-            !primary_sec.add_protection(
-              ffi->secring->format, keygen_desc.primary.protection, ffi->pass_provider)) {
+            !primary_sec.protect(keygen_desc.primary.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4737,8 +4734,7 @@ try {
         }
         /* encrypt subkey if specified */
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.add_protection(
-              ffi->secring->format, keygen_desc.subkey.protection, ffi->pass_provider)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -5410,7 +5406,7 @@ try {
     } else if (op->request_password) {
         prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
     }
-    if (prov.callback && !sec.add_protection(op->ffi->secring->format, op->protection, prov)) {
+    if (prov.callback && !sec.protect(op->protection, prov)) {
         FFI_LOG(op->ffi, "failed to encrypt the key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
@@ -6812,8 +6808,6 @@ rnp_key_protect(rnp_key_handle_t handle,
                 const char *     hash,
                 size_t           iterations)
 try {
-    pgp_key_pkt_t *             seckey = NULL;
-    pgp_key_pkt_t *             decrypted_seckey = NULL;
     rnp_key_protection_params_t protection = {};
 
     // checks
@@ -6840,20 +6834,18 @@ try {
     if (!key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &key->pkt();
+    pgp_key_pkt_t *   decrypted_key = NULL;
     const std::string pass = password;
     if (key->encrypted()) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
-        decrypted_seckey = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
-        if (!decrypted_seckey) {
+        decrypted_key = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
+        if (!decrypted_key) {
             return RNP_ERROR_GENERIC;
         }
-        seckey = decrypted_seckey;
     }
-    rnp_result_t ret =
-      key->protect(*seckey, key->format, protection, pass) ? RNP_SUCCESS : RNP_ERROR_GENERIC;
-    delete decrypted_seckey;
-    return ret;
+    bool res = key->protect(decrypted_key ? *decrypted_key : key->pkt(), protection, pass);
+    delete decrypted_key;
+    return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
 FFI_GUARD
 
