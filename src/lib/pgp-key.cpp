@@ -395,70 +395,86 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         return false;
     }
 
-    /* locate the latest valid certification */
-    pgp_subsig_t *subsig = key->latest_selfsig();
-    if (!subsig) {
-        RNP_LOG("No valid self-signature");
+    std::vector<pgp_sig_id_t> sigs;
+    /* update expiration for the latest direct-key signature and self-signature for each userid
+     */
+    pgp_subsig_t *sig = key->latest_selfsig(PGP_UID_NONE);
+    if (sig) {
+        sigs.push_back(sig->sigid);
+    }
+    for (size_t uid = 0; uid < key->uid_count(); uid++) {
+        sig = key->latest_selfsig(uid);
+        if (sig) {
+            sigs.push_back(sig->sigid);
+        }
+    }
+    if (sigs.empty()) {
+        RNP_LOG("No valid self-signature(s)");
         return false;
     }
 
-    /* update signature and re-sign it */
-    if (!expiry && !subsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY)) {
-        return true;
-    }
+    bool locked = false;
+    bool res = false;
+    for (const auto &sigid : sigs) {
+        pgp_subsig_t &sig = key->get_sig(sigid);
+        /* update signature and re-sign it */
+        if (!expiry && !sig.sig.has_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY)) {
+            continue;
+        }
 
-    bool locked = seckey->is_locked();
-    if (locked && !seckey->unlock(prov)) {
-        RNP_LOG("Failed to unlock secret key");
-        return false;
-    }
-    pgp_signature_t newsig;
-    pgp_sig_id_t    oldsigid = subsig->sigid;
-    bool            res = false;
-    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
-        goto done;
-    }
-    if (subsig->is_cert()) {
-        if (subsig->uid >= key->uid_count()) {
-            RNP_LOG("uid not found");
-            goto done;
+        /* unlock secret key if needed */
+        locked = seckey->is_locked();
+        if (locked && !seckey->unlock(prov)) {
+            RNP_LOG("Failed to unlock secret key");
+            return false;
         }
-        if (!signature_calculate_certification(
-              &key->pkt(), &key->get_uid(subsig->uid).pkt, &newsig, &seckey->pkt())) {
-            RNP_LOG("failed to calculate signature");
-            goto done;
-        }
-    } else {
-        /* direct-key signature case */
-        if (!signature_calculate_direct(&key->pkt(), &newsig, &seckey->pkt())) {
-            RNP_LOG("failed to calculate signature");
-            goto done;
-        }
-    }
 
-    /* replace signature, first for secret key since it may be replaced in public */
-    if (seckey->has_sig(oldsigid)) {
+        pgp_signature_t newsig;
+        pgp_sig_id_t    oldsigid = sigid;
+        if (!update_sig_expiration(&newsig, &sig.sig, expiry)) {
+            goto done;
+        }
+        if (sig.is_cert()) {
+            if (sig.uid >= key->uid_count()) {
+                RNP_LOG("uid not found");
+                goto done;
+            }
+            if (!signature_calculate_certification(
+                  &key->pkt(), &key->get_uid(sig.uid).pkt, &newsig, &seckey->pkt())) {
+                RNP_LOG("failed to calculate signature");
+                goto done;
+            }
+        } else {
+            /* direct-key signature case */
+            if (!signature_calculate_direct(&key->pkt(), &newsig, &seckey->pkt())) {
+                RNP_LOG("failed to calculate signature");
+                goto done;
+            }
+        }
+
+        /* replace signature, first for secret key since it may be replaced in public */
         try {
-            seckey->replace_sig(oldsigid, newsig);
+            if (seckey->has_sig(oldsigid)) {
+                seckey->replace_sig(oldsigid, newsig);
+            }
+            if (key != seckey) {
+                key->replace_sig(oldsigid, newsig);
+            }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             goto done;
         }
-        if (!seckey->refresh_data()) {
-            goto done;
-        }
     }
-    if (key == seckey) {
-        res = true;
+
+    if (!seckey->refresh_data()) {
+        RNP_LOG("Failed to refresh seckey data.");
         goto done;
     }
-    try {
-        key->replace_sig(oldsigid, newsig);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    if ((key != seckey) && !key->refresh_data()) {
+        RNP_LOG("Failed to refresh key data.");
         goto done;
     }
-    res = key->refresh_data();
+    res = true;
 done:
     if (locked) {
         seckey->lock();
@@ -1810,8 +1826,13 @@ pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
     return res;
 }
 
+/* look only for primary userids */
+#define PGP_UID_PRIMARY ((uint32_t) -2)
+/* look for any uid, except PGP_UID_NONE) */
+#define PGP_UID_ANY ((uint32_t) -3)
+
 pgp_subsig_t *
-pgp_key_t::latest_selfsig(pgp_sig_subpacket_type_t subpkt)
+pgp_key_t::latest_selfsig(uint32_t uid)
 {
     uint32_t      latest = 0;
     pgp_subsig_t *res = NULL;
@@ -1821,11 +1842,24 @@ pgp_key_t::latest_selfsig(pgp_sig_subpacket_type_t subpkt)
         if (!sig.valid()) {
             continue;
         }
-        if (!is_self_cert(sig) && !is_direct_self(sig)) {
-            continue;
+        bool skip = false;
+        switch (uid) {
+        case PGP_UID_NONE:
+            skip = (sig.uid != PGP_UID_NONE) || !is_direct_self(sig);
+            break;
+        case PGP_UID_PRIMARY: {
+            pgp_sig_subpkt_t *subpkt = sig.sig.get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
+            skip = !is_self_cert(sig) || !subpkt || !subpkt->fields.primary_uid;
+            break;
         }
-
-        if (subpkt && !sig.sig.get_subpkt(subpkt)) {
+        case PGP_UID_ANY:
+            skip = !is_self_cert(sig) || (sig.uid == PGP_UID_NONE);
+            break;
+        default:
+            skip = (sig.uid != uid) || !is_self_cert(sig);
+            break;
+        }
+        if (skip) {
             continue;
         }
 
@@ -2201,11 +2235,29 @@ pgp_key_t::refresh_data()
     /* validate self-signatures if not done yet */
     validate_self_signatures();
     /* key expiration */
-    pgp_subsig_t *sig = latest_selfsig();
-    expiration_ = sig ? sig->sig.key_expiration() : 0;
-    /* key flags */
-    if (sig && sig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
-        flags_ = sig->key_flags;
+    expiration_ = 0;
+    /* if we have direct-key signature, then it has higher priority */
+    pgp_subsig_t *dirsig = latest_selfsig(PGP_UID_NONE);
+    if (dirsig) {
+        expiration_ = dirsig->sig.key_expiration();
+    }
+    /* if we have primary uid and it is more restrictive, then use it as well */
+    pgp_subsig_t *prisig = latest_selfsig(PGP_UID_PRIMARY);
+    if (prisig && (!expiration_ || (prisig->sig.key_expiration() < expiration_))) {
+        expiration_ = prisig->sig.key_expiration();
+    }
+    /* if we don't have direct-key sig and primary uid, use the latest self-cert */
+    pgp_subsig_t *latest = latest_selfsig(PGP_UID_ANY);
+    if (!dirsig && !prisig && latest) {
+        expiration_ = latest->sig.key_expiration();
+    }
+    /* key flags: check in direct-key sig first, then primary uid, and then latest */
+    if (dirsig && dirsig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        flags_ = dirsig->key_flags;
+    } else if (prisig && prisig->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        flags_ = prisig->key_flags;
+    } else if (latest && latest->sig.has_subpkt(PGP_SIG_SUBPKT_KEY_FLAGS)) {
+        flags_ = latest->key_flags;
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
     }

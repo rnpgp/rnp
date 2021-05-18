@@ -330,15 +330,17 @@ struct pgp_key_t {
     bool write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid);
 
     /**
-     * @brief Get the latest valid self-signature with information about the primary key,
-     * containing the specified subpacket. It could be userid certification or direct-key
-     * signature.
+     * @brief Get the latest valid self-signature with information about the primary key for
+     *        the specified uid (including the special cases). It could be userid certification
+     *        or direct-key signature.
      *
-     * @param subpkt subpacket type. Pass PGP_SIG_SUBPKT_UNKNOWN to return just latest
-     * signature.
+     * @param uid uid for which latest self-signature should be returned,
+     *            PGP_UID_NONE for direct-key signature,
+     *            PGP_UID_PRIMARY for any primary key,
+     *            PGP_UID_ANY for any uid.
      * @return pointer to signature object or NULL if failed/not found.
      */
-    pgp_subsig_t *latest_selfsig(pgp_sig_subpacket_type_t subpkt = PGP_SIG_SUBPKT_UNKNOWN);
+    pgp_subsig_t *latest_selfsig(uint32_t uid);
 
     /**
      * @brief Get the latest valid subkey binding. Should be called on subkey.
