@@ -1186,6 +1186,16 @@ pgp_key_t::del_uid(size_t idx)
     }
     sigs_ = newsigs;
     uids_.erase(uids_.begin() + idx);
+    /* update uids */
+    if (idx == uids_.size()) {
+        return;
+    }
+    for (auto &sig : sigs_map_) {
+        if ((sig.second.uid == PGP_UID_NONE) || (sig.second.uid <= idx)) {
+            continue;
+        }
+        sig.second.uid--;
+    }
 }
 
 bool
