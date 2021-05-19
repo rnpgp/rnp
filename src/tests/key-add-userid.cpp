@@ -69,14 +69,15 @@ TEST_F(rnp_tests, test_key_add_userid)
     rnp_selfsig_cert_info_t selfsig0 = {};
     memcpy(selfsig0.userid, "added0", 7);
     selfsig0.key_flags = 0x2;
-    selfsig0.key_expiration = 0;
+    selfsig0.key_expiration = 123456788;
     selfsig0.primary = false;
     assert_true(pgp_key_add_userid_certified(key, &key->pkt(), PGP_HASH_SHA1, &selfsig0));
     // make sure this userid has not been marked as primary
     assert_false(key->has_primary_uid());
     // make sure key expiration and flags are set
-    assert_int_equal(0, key->expiration());
+    assert_int_equal(123456788, key->expiration());
     assert_int_equal(0x2, key->flags());
+    assert_true(key->get_uid(uidc).valid);
 
     // add a primary userid
     rnp_selfsig_cert_info_t selfsig1 = {};
@@ -91,6 +92,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     // make sure key expiration and flags are set
     assert_int_equal(123456789, key->expiration());
     assert_int_equal(0xAB, key->flags());
+    assert_true(key->get_uid(uidc + 1).valid);
 
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info_t dup_selfsig = {};
@@ -113,6 +115,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     // confirm that the counts have increased as expected
     assert_int_equal(key->uid_count(), uidc + 3);
     assert_int_equal(key->sig_count(), subsigc + 3);
+    assert_true(key->get_uid(uidc + 2).valid);
 
     // make sure key expiration and flags are not updated as they are picked from the primary
     assert_int_equal(123456789, key->expiration());
@@ -161,14 +164,44 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_string_equal(key->get_uid(uidc).str.c_str(), "added0");
     assert_int_equal(uidc, key->get_sig(subsigc).uid);
     assert_int_equal(0x2, key->get_sig(subsigc).key_flags);
+    assert_true(key->get_uid(uidc).valid);
     // added1
     assert_string_equal(key->get_uid(uidc + 1).str.c_str(), "added1");
     assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
     assert_int_equal(0xAB, key->get_sig(subsigc + 1).key_flags);
+    assert_true(key->get_uid(uidc + 1).valid);
     // added2
     assert_string_equal(key->get_uid(uidc + 2).str.c_str(), "added2");
     assert_int_equal(uidc + 2, key->get_sig(subsigc + 2).uid);
     assert_int_equal(0xCD, key->get_sig(subsigc + 2).key_flags);
+    assert_true(key->get_uid(uidc + 2).valid);
+    // delete primary userid and see how flags/expiration changes
+    key->del_uid(uidc + 1);
+    key->revalidate(*ks);
+    assert_string_equal(key->get_uid(uidc + 1).str.c_str(), "added2");
+    assert_int_equal(uidc + 1, key->get_sig(subsigc + 1).uid);
+    assert_int_equal(0xCD, key->get_sig(subsigc + 1).key_flags);
+    assert_int_equal(key->expiration(), 0);
+    assert_int_equal(key->flags(), 0xCD);
+    // delete first uid
+    key->del_uid(0);
+    key->revalidate(*ks);
+    assert_string_equal(key->get_uid(uidc).str.c_str(), "added2");
+    assert_int_equal(uidc, key->get_sig(subsigc).uid);
+    assert_int_equal(0xCD, key->get_sig(subsigc).key_flags);
+    assert_int_equal(key->expiration(), 0);
+    assert_int_equal(key->flags(), 0xCD);
+    // delete last uid, leaving added0 only
+    key->del_uid(uidc);
+    key->revalidate(*ks);
+    assert_string_equal(key->get_uid(uidc - 1).str.c_str(), "added0");
+    assert_int_equal(uidc - 1, key->get_sig(subsigc - 1).uid);
+    assert_int_equal(0x2, key->get_sig(subsigc - 1).key_flags);
+    assert_int_equal(key->expiration(), 123456788);
+    assert_int_equal(key->flags(), 0x2);
+    // delete added0
+    key->del_uid(0);
+    key->revalidate(*ks);
 
     // cleanup
     delete ks;
