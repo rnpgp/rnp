@@ -1941,11 +1941,12 @@ bool
 pgp_key_t::is_expired(const pgp_subsig_t &sig) const
 {
     /* key expiration: absence of subpkt or 0 means it never expires */
-    uint32_t expiration = sig.sig.key_expiration();
+    uint64_t expiration = sig.sig.key_expiration();
     if (!expiration) {
         return false;
     }
-    return creation() + expiration < time(NULL);
+    uint64_t now = time(NULL);
+    return expiration + creation() < now;
 }
 
 bool
