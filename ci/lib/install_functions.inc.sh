@@ -295,6 +295,8 @@ ensure_cmake() {
 
   command -v cmake
 
+  popd
+
   # Abort if ctest still not found.
   if ! command -v ctest >/dev/null; then
     >&2 echo "Error: ctest not found.  Aborting."
@@ -952,5 +954,6 @@ EOF
   cmake .
   make VERBOSE="${VERBOSE}"
   ./mytest
-  # popd
+  popd
+  popd
 }
