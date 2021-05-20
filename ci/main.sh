@@ -22,7 +22,6 @@ prepare_build_prerequisites() {
     linux-*)
       PREFIX=/usr
       ensure_cmake
-      CMAKE="$PREFIX"/bin/cmake
       ;;
   esac
 

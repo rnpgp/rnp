@@ -283,6 +283,7 @@ ensure_cmake() {
   fi
 
   if [[ "${need_to_build_cmake}" != 1 ]]; then
+    CMAKE="$(command -v cmake)"
     >&2 echo "cmake rebuild is NOT needed."
     return
   fi
