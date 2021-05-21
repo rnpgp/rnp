@@ -188,9 +188,7 @@ prepare_build_tool_env() {
       ;;
   esac
 
-  if command -v rbenv >/dev/null; then
-    rbenv rehash
-  fi
+  prepare_rbenv_env
 }
 
 yum_install_build_dependencies() {
@@ -590,11 +588,24 @@ setup_rbenv() {
   git clone https://github.com/sstephenson/ruby-build.git ~/.rbenv/plugins/ruby-build
   echo 'export PATH="$HOME/.rbenv/plugins/ruby-build/bin:$PATH"' >> "${rbenv_rc}"
   echo ". \"${rbenv_rc}\"" >> ~/.bash_profile
-  . "${rbenv_rc}"
+  prepare_rbenv_env
 
   # Verify rbenv is set up correctly
   curl -fsSL https://github.com/rbenv/rbenv-installer/raw/master/bin/rbenv-doctor | bash
   popd || return 1
+}
+
+prepare_rbenv_env() {
+  case "${DIST}" in
+    centos|fedora)
+      local rbenv_rc=$HOME/setup_rbenv.sh
+      [[ ! -r "${rbenv_rc}" ]] || . "${rbenv_rc}"
+      ;;
+  esac
+
+  if command -v rbenv >/dev/null; then
+    rbenv rehash
+  fi
 }
 
 is_version_at_least() {
