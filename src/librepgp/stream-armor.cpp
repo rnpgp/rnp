@@ -714,7 +714,7 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
     param = (pgp_source_armored_param_t *) src->param;
     param->readsrc = readsrc;
 
-    if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
+    if (!pgp_hash_create_crc24(&param->crc_ctx)) {
         RNP_LOG("Internal error");
         return RNP_ERROR_GENERIC;
     }
@@ -998,7 +998,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     dst->writeb = 0;
     dst->clen = 0;
 
-    if (!pgp_hash_create(&param->crc_ctx, PGP_HASH_CRC24)) {
+    if (!pgp_hash_create_crc24(&param->crc_ctx)) {
         RNP_LOG("Internal error");
         return RNP_ERROR_GENERIC;
     }

@@ -198,8 +198,7 @@ static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
                                          {PGP_HASH_SHA224, RNP_ALGNAME_SHA224},
                                          {PGP_HASH_SHA3_256, RNP_ALGNAME_SHA3_256},
                                          {PGP_HASH_SHA3_512, RNP_ALGNAME_SHA3_512},
-                                         {PGP_HASH_SM3, RNP_ALGNAME_SM3},
-                                         {PGP_HASH_CRC24, RNP_ALGNAME_CRC24}};
+                                         {PGP_HASH_SM3, RNP_ALGNAME_SM3}};
 
 static const pgp_map_t s2k_type_map[] = {
   {PGP_S2KS_SIMPLE, "Simple"},
@@ -973,7 +972,7 @@ try {
         *supported = str_to_pubkey_alg(name, &alg);
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
         pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
-        *supported = str_to_hash_alg(name, &alg) && (alg != PGP_HASH_CRC24);
+        *supported = str_to_hash_alg(name, &alg);
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
         pgp_compression_type_t alg = PGP_C_UNKNOWN;
         *supported = str_to_compression_alg(name, &alg);
