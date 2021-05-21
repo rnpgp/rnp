@@ -486,7 +486,6 @@ typedef enum : uint8_t {
 
     /* Private range */
     PGP_HASH_SM3 = 105,
-    PGP_HASH_CRC24 = 106
 } pgp_hash_alg_t;
 
 typedef enum pgp_key_store_format_t {
