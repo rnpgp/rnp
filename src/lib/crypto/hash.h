@@ -51,6 +51,7 @@ typedef struct pgp_hash_t {
 const char *pgp_hash_name_botan(const pgp_hash_alg_t alg);
 
 bool   pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg);
+bool   pgp_hash_create_crc24(pgp_hash_t *hash);
 bool   pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src);
 int    pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len);
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
