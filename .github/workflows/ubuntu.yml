@@ -25,6 +25,7 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
         uses: actions/cache@v2
@@ -35,7 +36,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
+          ci/install_cacheable_dependencies.sh
       - name: tests
         run: |
           set -x
@@ -54,11 +55,19 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
-      - name: Build
+          ci/install_noncacheable_dependencies.sh
+          sudo apt-get -y install googletest
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
-          sudo apt-get -y install googletest
+          ci/install_cacheable_dependencies.sh
       - name: tests
         run: |
           set -x
@@ -80,11 +89,19 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
-      - name: Build
+          ci/install_noncacheable_dependencies.sh
+          sudo apt-get -y install googletest
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
-          sudo apt-get -y install googletest
+          ci/install_cacheable_dependencies.sh
           mkdir -p "${LOCAL_BUILDS}/googletest-build"
           pushd "${LOCAL_BUILDS}/googletest-build"
           cmake /usr/src/googletest
@@ -111,10 +128,18 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
-      - name: Build
+          ci/install_noncacheable_dependencies.sh
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
+          ci/install_cacheable_dependencies.sh
       - name: tests
         run: |
           set -x

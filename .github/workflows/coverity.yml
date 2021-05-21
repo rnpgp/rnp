@@ -10,6 +10,7 @@ env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   RNP_TESTS: ''
+  USE_STATIC_DEPENDENCIES: yes
 
 jobs:
   scan:
@@ -22,6 +23,7 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
         uses: actions/cache@v2
@@ -32,7 +34,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
+          ci/install_cacheable_dependencies.sh
           ci/install.sh botan jsonc
       - name: Download Coverity
         env:
@@ -45,7 +47,6 @@ jobs:
         run: |
           set -x
           export PATH="$PWD/cov-analysis-linux64/bin:$PATH"
-          . ci/env.inc.sh
           cov-build --dir cov-int ci/main.sh
       - name: Submit
         env:
