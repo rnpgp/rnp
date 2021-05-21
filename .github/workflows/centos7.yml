@@ -57,6 +57,7 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
+          exec su rnpuser -c ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
         uses: actions/cache@v2
@@ -68,12 +69,12 @@ jobs:
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/before_install.sh
+          exec su rnpuser -c ci/install_cacheable_dependencies.sh
       - name: tests
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/run.sh
+          exec su rnpuser -c ci/run.sh
       - name: symbol-visibility
         run: |
           set -euxo pipefail
@@ -104,7 +105,8 @@ jobs:
         run: |
           set -euxo pipefail
           export USE_STATIC_DEPENDENCIES=no
-          ci/before_install.sh
+          ci/install_noncacheable_dependencies.sh
+          ci/install_cacheable_dependencies.sh
 
           . ci/env.inc.sh
 

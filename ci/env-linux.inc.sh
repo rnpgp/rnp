@@ -47,7 +47,7 @@ case "${DIST}" in
 esac
 
 # Keep this re-entrant and run it after all calls to yum install.
-post_yum_install_set_env() {
+post_build_tool_install_set_env() {
   case "${DIST}" in
     centos)
       if rpm --quiet -q ribose-automake116 && [[ "$PATH" != */opt/ribose/ribose-automake116/root/usr/bin* ]]; then

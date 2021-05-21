@@ -11,6 +11,7 @@ task:
     GPG_VERSION: stable
     LOCAL_BUILDS: /home/rnpuser/local-builds
     LOCAL_INSTALLS: /home/rnpuser/local-installs
+    USE_STATIC_DEPENDENCIES: yes
   user_setup_script: |
     # workaround 'pkg: repository meta has wrong version 2'
     env ASSUME_ALWAYS_YES=yes pkg bootstrap -f
@@ -23,7 +24,7 @@ task:
     # change ownership for the cloned repo
     chown -R rnpuser:rnpuser "$PWD"
   before_install_script: |
-    su rnpuser -c 'bash ci/before_install.sh'
+    su rnpuser -c 'bash ci/install_noncacheable_dependencies.sh'
   dependencies_cache:
     folder: $LOCAL_INSTALLS
     fingerprint_script: sha256 ci/install.sh && git ls-remote https://github.com/riboseinc/ruby-rnp.git HEAD
