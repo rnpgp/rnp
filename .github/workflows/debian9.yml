@@ -50,11 +50,19 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
         shell: bash
-      - name: Building dependencies
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.CPU }}-gpg-${{ matrix.env.IMAGE }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
-          ci/before_install.sh
+          ci/install_cacheable_dependencies.sh
         shell: bash
       - name: Add rnpuser
         # it's only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
@@ -67,5 +75,5 @@ jobs:
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ./ci/run.sh
+          exec su rnpuser -c ci/run.sh
         shell: bash

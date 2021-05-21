@@ -28,10 +28,8 @@ prepare_build_prerequisites() {
   export CMAKE
 }
 
-prepare_paths_env() {
-  if [[ "${DIST}" = "centos" ]]; then
-    post_yum_install_set_env
-  fi
+prepare_test_env() {
+  prepare_build_tool_env
 
   export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
 
@@ -71,7 +69,7 @@ build_tests() {
 }
 
 main() {
-  prepare_paths_env
+  prepare_test_env
   prepare_build_prerequisites
 
   export rnpsrc="$PWD"

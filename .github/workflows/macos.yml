@@ -30,6 +30,7 @@ jobs:
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
         uses: actions/cache@v2
@@ -40,7 +41,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/before_install.sh
+          ci/install_cacheable_dependencies.sh
       - name: tests
         run: |
-          ./ci/run.sh
+          ci/run.sh

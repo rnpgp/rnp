@@ -26,13 +26,13 @@ install_packaging_dependencies() {
   esac
 }
 
-# NOTE: This should be done by before_install.sh.
+# NOTE: This should be done by install_noncacheable_dependencies.sh.
 install_build_dependencies() {
   "${OS}_install"
 }
 
 install_dependencies() {
-  # NOTE: This is done by before_install.sh.
+  # NOTE: This is done by install_noncacheable_dependencies.sh.
   # install_build_dependencies
   install_packaging_dependencies
 }
