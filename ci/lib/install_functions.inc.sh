@@ -564,7 +564,7 @@ ensure_ruby() {
       rbenv install -v "${RECOMMENDED_RUBY_VERSION}"
       rbenv global "${RECOMMENDED_RUBY_VERSION}"
       rbenv rehash
-      sudo chown -R "${USER}" "$(rbenv prefix)"
+      sudo chown -R "$(whoami)" "$(rbenv prefix)"
       ;;
     debian)
       apt_install "${ruby_build_dependencies_deb[@]}"
