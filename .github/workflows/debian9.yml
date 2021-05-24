@@ -52,12 +52,12 @@ jobs:
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
         shell: bash
-      - name: Cache
-        id: cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.CPU }}-gpg-${{ matrix.env.IMAGE }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      # - name: Cache
+      #   id: cache
+      #   uses: actions/cache@v2
+      #   with:
+      #     path: ${{ env.CACHE_DIR }}
+      #     key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.CPU }}-gpg-${{ matrix.env.IMAGE }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
