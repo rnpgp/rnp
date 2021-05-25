@@ -103,6 +103,9 @@ jobs:
         run: |
           set -x
           ci/install_cacheable_dependencies.sh
+      - name: Build googletest
+        run: |
+          set -x
           mkdir -p "${LOCAL_BUILDS}/googletest-build"
           pushd "${LOCAL_BUILDS}/googletest-build"
           cmake /usr/src/googletest
