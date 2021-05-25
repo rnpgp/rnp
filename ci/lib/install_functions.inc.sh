@@ -239,13 +239,13 @@ yum_install_dynamic_build_dependencies_if_needed() {
 
 install_static_noncacheable_build_dependencies_if_needed() {
   if is_use_static_dependencies; then
-    install_static_noncacheable_build_dependencies
+    install_static_noncacheable_build_dependencies "$@"
   fi
 }
 
 install_static_cacheable_build_dependencies_if_needed() {
-  if is_use_static_dependencies; then
-    install_static_cacheable_build_dependencies
+  if is_use_static_dependencies || [[ "$#" -gt 0 ]]; then
+    install_static_cacheable_build_dependencies "$@"
   fi
 }
 
