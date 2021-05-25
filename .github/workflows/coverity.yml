@@ -34,8 +34,7 @@ jobs:
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -x
-          ci/install_cacheable_dependencies.sh
-          ci/install.sh botan jsonc
+          ci/install_cacheable_dependencies.sh botan jsonc
       - name: Download Coverity
         env:
           TOKEN: ${{ secrets.COVERITY_SCAN_TOKEN }}
