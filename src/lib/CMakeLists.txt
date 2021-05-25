@@ -35,6 +35,7 @@ if (CRYPTO_BACKEND_BOTAN)
   find_package(Botan2 2.14.0 REQUIRED)
 endif()
 if (CRYPTO_BACKEND_OPENSSL)
+  include(FindOpenSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
 endif()
 
