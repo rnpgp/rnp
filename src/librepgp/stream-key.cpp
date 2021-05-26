@@ -1256,6 +1256,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
 
         /* check whether data is not encrypted */
         if (key->sec_protection.s2k.usage == PGP_S2KU_NONE) {
+            secure_clear(key->sec_data, key->sec_len);
             free(key->sec_data);
             key->sec_data = (uint8_t *) malloc(body.size());
             if (!key->sec_data) {
@@ -1312,6 +1313,7 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
         }
         pgp_cipher_cfb_encrypt(&crypt, body.data(), body.data(), body.size());
         pgp_cipher_cfb_finish(&crypt);
+        secure_clear(key->sec_data, key->sec_len);
         free(key->sec_data);
         key->sec_data = (uint8_t *) malloc(body.size());
         if (!key->sec_data) {
@@ -1563,10 +1565,12 @@ pgp_key_pkt_t::operator=(pgp_key_pkt_t &&src)
     src.hashed_data = NULL;
     material = src.material;
     forget_secret_key_fields(&src.material);
-    sec_len = src.sec_len;
+    secure_clear(sec_data, sec_len);
     free(sec_data);
+    sec_len = src.sec_len;
     sec_data = src.sec_data;
     src.sec_data = NULL;
+    src.sec_len = 0;
     sec_protection = src.sec_protection;
     return *this;
 }
@@ -1593,9 +1597,10 @@ pgp_key_pkt_t::operator=(const pgp_key_pkt_t &src)
         memcpy(hashed_data, src.hashed_data, hashed_len);
     }
     material = src.material;
-    sec_len = src.sec_len;
+    secure_clear(sec_data, sec_len);
     free(sec_data);
     sec_data = NULL;
+    sec_len = src.sec_len;
     if (src.sec_data) {
         sec_data = (uint8_t *) malloc(sec_len);
         if (!sec_data) {
@@ -1613,6 +1618,7 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
 {
     forget_secret_key_fields(&material);
     free(hashed_data);
+    secure_clear(sec_data, sec_len);
     free(sec_data);
 }
 
