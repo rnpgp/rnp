@@ -206,7 +206,10 @@ ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve)
     }
     EC_KEY *ec = EC_KEY_new_by_curve_name(nid);
     if (!ec) {
-        RNP_LOG("Failed to create EC key with group %d: %lu", nid, ERR_peek_last_error());
+        RNP_LOG("Failed to create EC key with group %d (%s): %s",
+                nid,
+                curv_desc->openssl_name,
+                ERR_reason_error_string(ERR_peek_last_error()));
         return NULL;
     }
 
