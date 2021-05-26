@@ -30,6 +30,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto/hash.h"
+#include "crypto.h"
 
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are
@@ -222,4 +223,144 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // cleanup
     delete key;
+}
+
+TEST_F(rnp_tests, test_key_protect_sec_data)
+{
+    rng_t rng;
+    assert_true(rng_init(&rng, RNG_DRBG));
+
+    rnp_keygen_primary_desc_t pri_desc = {};
+    pri_desc.crypto.key_alg = PGP_PKA_RSA;
+    pri_desc.crypto.rsa.modulus_bit_len = 1024;
+    pri_desc.crypto.rng = &rng;
+    memcpy(pri_desc.cert.userid, "test", 5);
+
+    rnp_keygen_subkey_desc_t sub_desc = {};
+    sub_desc.crypto.key_alg = PGP_PKA_RSA;
+    sub_desc.crypto.rsa.modulus_bit_len = 1024;
+    sub_desc.crypto.rng = &rng;
+
+    /* generate raw unprotected keypair */
+    pgp_key_t skey, pkey, ssub, psub;
+    assert_true(pgp_generate_keypair(
+      &rng, &pri_desc, &sub_desc, true, &skey, &pkey, &ssub, &psub, PGP_KEY_STORE_GPG));
+    assert_non_null(skey.pkt().sec_data);
+    assert_non_null(ssub.pkt().sec_data);
+    assert_null(pkey.pkt().sec_data);
+    assert_null(psub.pkt().sec_data);
+    /* copy part of the cleartext secret key and save pointers for later checks */
+    assert_true(skey.pkt().sec_len >= 32);
+    assert_true(ssub.pkt().sec_len >= 32);
+    uint8_t raw_skey[32];
+    uint8_t raw_ssub[32];
+    memcpy(raw_skey, skey.pkt().sec_data, 32);
+    memcpy(raw_ssub, ssub.pkt().sec_data, 32);
+    pgp_key_pkt_t *skeypkt;
+    pgp_key_pkt_t *ssubpkt;
+#if defined(__has_feature)
+#if !__has_feature(address_sanitizer)
+    /* copy keys and delete, making sure secret data is wiped*/
+    pgp_key_t *skeycp = new pgp_key_t(skey);
+    pgp_key_t *ssubcp = new pgp_key_t(ssub);
+    uint8_t *  raw_skey_ptr = skeycp->pkt().sec_data;
+    uint8_t *  raw_ssub_ptr = ssubcp->pkt().sec_data;
+    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
+    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
+    delete skeycp;
+    delete ssubcp;
+    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
+    /* do the same with key packet */
+    skeypkt = new pgp_key_pkt_t(skey.pkt());
+    ssubpkt = new pgp_key_pkt_t(ssub.pkt());
+    raw_skey_ptr = skeypkt->sec_data;
+    raw_ssub_ptr = ssubpkt->sec_data;
+    assert_int_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
+    assert_int_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
+    delete skeypkt;
+    delete ssubpkt;
+    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
+    /* save original pointers */
+    raw_skey_ptr = skey.pkt().sec_data;
+    raw_ssub_ptr = ssub.pkt().sec_data;
+#endif
+#endif
+
+    /* protect key and subkey */
+    pgp_password_provider_t     pprov = {.callback = string_copy_password_callback,
+                                     .userdata = (void *) "password"};
+    rnp_key_protection_params_t prot = {};
+    assert_true(skey.protect(prot, pprov));
+    assert_true(ssub.protect(prot, pprov));
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+#if defined(__has_feature)
+#if !__has_feature(address_sanitizer)
+    assert_int_not_equal(memcmp(raw_skey, raw_skey_ptr, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, raw_ssub_ptr, 32), 0);
+#endif
+#endif
+    /* make sure rawpkt is also protected */
+    skeypkt = new pgp_key_pkt_t();
+    pgp_source_t memsrc = {};
+    assert_rnp_success(
+      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
+    assert_rnp_success(skeypkt->parse(memsrc));
+    src_close(&memsrc);
+    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
+    assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
+    delete skeypkt;
+    ssubpkt = new pgp_key_pkt_t();
+    assert_rnp_success(
+      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
+    assert_rnp_success(ssubpkt->parse(memsrc));
+    src_close(&memsrc);
+    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
+    assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
+    delete ssubpkt;
+
+    /* unlock and make sure sec_data is not decrypted */
+    assert_true(skey.unlock(pprov));
+    assert_true(ssub.unlock(pprov));
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    /* unprotect key */
+    assert_true(skey.unprotect(pprov));
+    assert_true(ssub.unprotect(pprov));
+    assert_int_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
+    assert_int_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    /* protect it back  with another password */
+    pgp_password_provider_t pprov2 = {.callback = string_copy_password_callback,
+                                      .userdata = (void *) "password2"};
+    assert_true(skey.protect(prot, pprov2));
+    assert_true(ssub.protect(prot, pprov2));
+    assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
+    assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
+    assert_false(skey.unlock(pprov));
+    assert_false(ssub.unlock(pprov));
+    assert_true(skey.unlock(pprov2));
+    assert_true(ssub.unlock(pprov2));
+    assert_true(skey.lock());
+    assert_true(ssub.lock());
+    /* make sure rawpkt is also protected */
+    skeypkt = new pgp_key_pkt_t();
+    assert_rnp_success(
+      init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
+    assert_rnp_success(skeypkt->parse(memsrc));
+    src_close(&memsrc);
+    assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
+    assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
+    delete skeypkt;
+    ssubpkt = new pgp_key_pkt_t();
+    assert_rnp_success(
+      init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
+    assert_rnp_success(ssubpkt->parse(memsrc));
+    src_close(&memsrc);
+    assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
+    assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
+    delete ssubpkt;
+
+    rng_destroy(&rng);
 }
