@@ -2046,7 +2046,8 @@ pgp_key_t::validate_self_signatures()
             continue;
         }
 
-        if (is_self_cert(sig) || is_uid_revocation(sig) || is_revocation(sig)) {
+        if (is_direct_self(sig) || is_self_cert(sig) || is_uid_revocation(sig) ||
+            is_revocation(sig)) {
             validate_sig(*this, sig);
         }
     }
@@ -2073,28 +2074,41 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
     /* validate signatures if needed */
     validate_self_signatures();
 
-    /* consider public key as valid on this level if it has at least one non-expired
-     * self-signature (or it is secret), and is not revoked */
+    /* consider public key as valid on this level if it is not expired and has at least one
+     * valid self-signature (or it is secret), and is not revoked */
     validity_.reset();
     validity_.validated = true;
     bool has_cert = false;
     bool has_expired = false;
+    /* check whether key is revoked */
     for (auto &sigid : sigs_) {
         pgp_subsig_t &sig = get_sig(sigid);
         if (!sig.valid()) {
             continue;
         }
-
-        if (is_self_cert(sig) && !has_cert) {
-            if (!is_expired(sig)) {
-                has_cert = true;
-                continue;
-            }
-            has_expired = true;
-        } else if (is_revocation(sig)) {
+        if (is_revocation(sig)) {
             return;
         }
     }
+    /* if we have direct-key signature, then it has higher priority for expiration check */
+    pgp_subsig_t *dirsig = latest_selfsig(PGP_UID_NONE);
+    if (dirsig) {
+        has_expired = is_expired(*dirsig);
+        has_cert = !is_expired(*dirsig);
+    }
+    /* if we have primary uid and it is more restrictive, then use it as well */
+    pgp_subsig_t *prisig = NULL;
+    if (!has_expired && (prisig = latest_selfsig(PGP_UID_PRIMARY))) {
+        has_expired = is_expired(*prisig);
+        has_cert = !is_expired(*prisig);
+    }
+    /* if we don't have direct-key sig and primary uid, use the latest self-cert */
+    pgp_subsig_t *latest = NULL;
+    if (!dirsig && !prisig && (latest = latest_selfsig(PGP_UID_ANY))) {
+        has_expired = is_expired(*latest);
+        has_cert = !is_expired(*latest);
+    }
+
     /* we have at least one non-expiring key self-signature or secret key */
     if (has_cert || is_secret()) {
         validity_.valid = true;
