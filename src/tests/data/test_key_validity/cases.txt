@@ -45,3 +45,18 @@ Case9:
 Keys Alice [pub, sub]
 Alice key has two self-signatures, one which expires key and second without key expiration.
 Result: Alice [valid], Alice sub[valid]
+
+Case10:
+Keys Alice [pub, sub]
+Alice key has expiring direct-key signature and non-expiring self-certification.
+Result: Alice [invalid], Alice sub[invalid]
+
+Case11:
+Keys Alice [pub, sub]
+Alice key has expiring direct-key signature, non-expiring self-certification and expiring
+primary userid certification. Result: Alice [invalid], Alice sub[invalid]
+
+Case12:
+Keys Alice [pub, sub]
+Alice key has non-expiring direct-key signature, non-expiring self-certification and expiring
+primary userid certification. Result: Alice [invalid], Alice sub[invalid]
