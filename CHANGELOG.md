@@ -1,5 +1,23 @@
 ## Changelog
 
+### 0.15.1 [2021-05-28]
+
+#### General
+
+* Make man pages building optional.
+* Fixed updating of expiration time for a key with multiple user ids.
+* Fixed key expiry check for keys valid after the year 2038.
+* Pick up key expiration time from direct-key signature or primary userid certification if available.
+
+#### FFI
+
+* Added function `rnp_key_valid_till64()` to correctly handle keys which expire after the year 2038.
+* Added RNP_FEATURE_* defines to be used instead of raw strings.
+
+#### Security
+
+* Fixed issue with cleartext key data after the `rnp_key_unprotect()`/`rnp_key_protect()` calls (CVE-2021-33589).
+
 ### 0.15.0 [2021-04-04]
 
 #### General
