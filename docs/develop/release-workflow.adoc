@@ -68,6 +68,10 @@ git push origin release/1.x
 git push origin v1.0.0
 --
 
+=== Create release in GitHub
+
+Navigate to the link:#https://github.com/rnpgp/rnp/releases[releases page], and edit just pushed tag, filling it with data from the CHANGELOG, and publishing afterwards.
+
 == Creating a New Release
 
 Maintaining a release branch involves cherry-picking hotfixes and similar commits
