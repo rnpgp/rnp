@@ -1065,3 +1065,13 @@ twofish_enabled()
     }
     return enabled;
 }
+
+bool
+brainpool_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP256r1", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
