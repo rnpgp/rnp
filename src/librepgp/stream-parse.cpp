@@ -1429,6 +1429,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         break;
     }
     case PGP_PKA_ECDH: {
+        if (!curve_supported(keymaterial->ec.curve)) {
+            RNP_LOG("ECDH decrypt: curve %d is not supported.", (int) keymaterial->ec.curve);
+            return false;
+        }
         pgp_fingerprint_t fingerprint;
         if (pgp_fingerprint(fingerprint, *seckey)) {
             RNP_LOG("ECDH fingerprint calculation failed");

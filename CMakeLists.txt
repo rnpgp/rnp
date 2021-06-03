@@ -59,6 +59,7 @@ option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 option(ENABLE_SM2 "Enable SM2/SM3/SM4 algorithms support." On)
 option(ENABLE_AEAD "Enable AEAD ciphers support." On)
 option(ENABLE_TWOFISH "Enable Twofish cipher support." On)
+option(ENABLE_BRAINPOOL "Enable Brainpool curves support." On)
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
@@ -99,6 +100,7 @@ elseif(CRYPTO_BACKEND STREQUAL "openssl")
   set(ENABLE_SM2 Off CACHE BOOL "" FORCE)
   set(ENABLE_AEAD Off CACHE BOOL "" FORCE)
   set(ENABLE_TWOFISH Off CACHE BOOL "" FORCE)
+  set(ENABLE_BRAINPOOL Off CACHE BOOL "" FORCE)
   # No SM2 support for OpenSSL yet.
   if (ENABLE_SM2)
     message(FATAL_ERROR "OpenSSL backend doesn't support SM2/SM3/SM4 algorithms yet.")

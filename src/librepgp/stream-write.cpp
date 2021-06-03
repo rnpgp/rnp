@@ -582,6 +582,11 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #endif
     }
     case PGP_PKA_ECDH: {
+        if (!curve_supported(userkey->material().ec.curve)) {
+            RNP_LOG("ECDH encrypt: curve %d is not supported.",
+                    (int) userkey->material().ec.curve);
+            return RNP_ERROR_NOT_SUPPORTED;
+        }
         ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
                                  &material.ecdh,
                                  enckey.data(),

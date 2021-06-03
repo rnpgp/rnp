@@ -62,6 +62,8 @@ typedef struct ec_curve_desc_t {
     const char *openssl_name;
 #endif
     const char *pgp_name;
+    /* Curve is supported for keygen/sign/encrypt operations */
+    bool supported;
     /* Curve parameters below. Needed for grip calculation */
     const char *p;
     const char *a;
@@ -113,6 +115,13 @@ pgp_curve_t find_curve_by_name(const char *name);
 const ec_curve_desc_t *get_curve_desc(const pgp_curve_t curve_id);
 
 bool alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve);
+
+/**
+ * @brief Check whether curve is supported for operations.
+ *        All available curves are supported for reading/parsing key data, however some of them
+ *        may be disabled for use, i.e. for key generation/signing/encryption.
+ */
+bool curve_supported(pgp_curve_t curve);
 
 /*
  * @brief   Generates EC key in uncompressed format

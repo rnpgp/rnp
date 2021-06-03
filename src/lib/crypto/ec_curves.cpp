@@ -50,6 +50,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "prime256v1",
 #endif
    "NIST P-256",
+   true,
    "0xffffffff00000001000000000000000000000000ffffffffffffffffffffffff",
    "0xffffffff00000001000000000000000000000000fffffffffffffffffffffffc",
    "0x5ac635d8aa3a93e7b3ebbd55769886bc651d06b0cc53b0f63bce3c3e27d2604b",
@@ -67,6 +68,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "secp384r1",
 #endif
    "NIST P-384",
+   true,
    "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000"
    "ffffffff",
    "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffeffffffff0000000000000000"
@@ -90,6 +92,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "secp521r1",
 #endif
    "NIST P-521",
+   true,
    "0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
    "ffffffffffffffffffffffffffffffffffffffffffff",
    "0x01ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
@@ -113,6 +116,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "ED25519",
 #endif
    "Ed25519",
+   true,
    "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
    /* two below are actually negative */
    "0x01",
@@ -131,6 +135,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "X25519",
 #endif
    "Curve25519",
+   true,
    "0x7fffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffed",
    "0x01db41",
    "0x01",
@@ -148,6 +153,11 @@ static const ec_curve_desc_t ec_curves[] = {
    "brainpoolP256r1",
 #endif
    "brainpoolP256r1",
+#if defined(ENABLE_BRAINPOOL)
+   true,
+#else
+   false,
+#endif
    "0xa9fb57dba1eea9bc3e660a909d838d726e3bf623d52620282013481d1f6e5377",
    "0x7d5a0975fc2c3057eef67530417affe7fb8055c126dc5c6ce94a4b44f330b5d9",
    "0x26dc5c6ce94a4b44f330b5d9bbd77cbf958416295cf7e1ce6bccdc18ff8c07b6",
@@ -165,6 +175,11 @@ static const ec_curve_desc_t ec_curves[] = {
    "brainpoolP384r1",
 #endif
    "brainpoolP384r1",
+#if defined(ENABLE_BRAINPOOL)
+   true,
+#else
+   false,
+#endif
    "0x8cb91e82a3386d280f5d6f7e50e641df152f7109ed5456b412b1da197fb71123acd3a729901d1a7187470013"
    "3107ec53",
    "0x7bc382c63d8c150c3c72080ace05afa0c2bea28e4fb22787139165efba91f90f8aa5814a503ad4eb04a8c7dd"
@@ -188,6 +203,11 @@ static const ec_curve_desc_t ec_curves[] = {
    "brainpoolP512r1",
 #endif
    "brainpoolP512r1",
+#if defined(ENABLE_BRAINPOOL)
+   true,
+#else
+   false,
+#endif
    "0xaadd9db8dbe9c48b3fd4e6ae33c9fc07cb308db3b3c9d20ed6639cca703308717d4d9b009bc66842aecda12a"
    "e6a380e62881ff2f2d82c68528aa6056583a48f3",
    "0x7830a3318b603b89e2327145ac234cc594cbdd8d3df91610a83441caea9863bc2ded5d5aa8253aa10a2ef1c9"
@@ -211,6 +231,7 @@ static const ec_curve_desc_t ec_curves[] = {
    "secp256k1",
 #endif
    "secp256k1",
+   true,
    "0xfffffffffffffffffffffffffffffffffffffffffffffffffffffffefffffc2f",
    "0x0000000000000000000000000000000000000000000000000000000000000000",
    "0x0000000000000000000000000000000000000000000000000000000000000007",
@@ -229,6 +250,11 @@ static const ec_curve_desc_t ec_curves[] = {
     "sm2",
 #endif
     "SM2 P-256",
+#if defined(ENABLE_SM2)
+    true,
+#else
+    false,
+#endif
     "0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF",
     "0xFFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC",
     "0x28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93",
@@ -286,4 +312,11 @@ alg_allows_curve(pgp_pubkey_alg_t alg, pgp_curve_t curve)
     }
     /* Other curves are good for both ECDH and ECDSA */
     return true;
+}
+
+bool
+curve_supported(pgp_curve_t curve)
+{
+    const ec_curve_desc_t *info = get_curve_desc(curve);
+    return info && info->supported;
 }
