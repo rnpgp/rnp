@@ -249,12 +249,7 @@ static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
     *value = find_curve_by_name(str);
-#if !defined(ENABLE_SM2)
-    if (*value == PGP_CURVE_SM2_P_256) {
-        return false;
-    }
-#endif
-    return *value != PGP_CURVE_MAX;
+    return curve_supported(*value);
 }
 
 static bool
@@ -1081,15 +1076,13 @@ try {
     } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
-#if !defined(ENABLE_SM2)
-            if (curve == PGP_CURVE_SM2_P_256) {
-                continue;
-            }
-#endif
             const ec_curve_desc_t *desc = get_curve_desc(curve);
             if (!desc) {
                 ret = RNP_ERROR_BAD_STATE;
                 goto done;
+            }
+            if (!desc->supported) {
+                continue;
             }
             if (!array_add_element_json(features, json_object_new_string(desc->pgp_name))) {
                 ret = RNP_ERROR_OUT_OF_MEMORY;

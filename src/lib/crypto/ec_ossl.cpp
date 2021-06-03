@@ -195,6 +195,10 @@ ec_load_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, pgp_curve_t curve)
         RNP_LOG("unknown curve");
         return NULL;
     }
+    if (!curve_supported(curve)) {
+        RNP_LOG("Curve %s is not supported.", curv_desc->pgp_name);
+        return NULL;
+    }
     int nid = OBJ_sn2nid(curv_desc->openssl_name);
     if (nid == NID_undef) {
         RNP_LOG("Unknown SN: %s", curv_desc->openssl_name);
