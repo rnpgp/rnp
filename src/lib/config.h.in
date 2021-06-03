@@ -56,6 +56,7 @@
 #cmakedefine ENABLE_SM2
 #cmakedefine ENABLE_AEAD
 #cmakedefine ENABLE_TWOFISH
+#cmakedefine ENABLE_BRAINPOOL
 
 /* Macro _GLIBCXX_USE_CXX11_ABI was first introduced with GCC 5.0, which
  * we assume to be bundled with a sane implementation of std::regex. */
