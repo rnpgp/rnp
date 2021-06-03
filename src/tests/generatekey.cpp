@@ -750,60 +750,93 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     ops.unset(CFG_USERID);
     ops.add_str(CFG_USERID, "expert_ecdsa_bp256");
     assert_true(ask_expert_details(&rnp, ops, "19\n4\n"));
-    assert_true(
-      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
-    assert_true(check_key_props(&rnp,
-                                "expert_ecdsa_bp256",
-                                "ECDSA",
-                                "ECDH",
-                                "brainpoolP256r1",
-                                "brainpoolP256r1",
-                                0,
-                                0,
-                                "SHA256"));
+    if (brainpool_enabled()) {
+        assert_true(
+          check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP256r1", "brainpoolP256r1", 0, 0));
+        assert_true(check_key_props(&rnp,
+                                    "expert_ecdsa_bp256",
+                                    "ECDSA",
+                                    "ECDH",
+                                    "brainpoolP256r1",
+                                    "brainpoolP256r1",
+                                    0,
+                                    0,
+                                    "SHA256"));
+    } else {
+        /* secp256k1 will be selected instead */
+        assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
+        assert_true(check_key_props(&rnp,
+                                    "expert_ecdsa_bp256",
+                                    "ECDSA",
+                                    "ECDH",
+                                    "secp256k1",
+                                    "secp256k1",
+                                    0,
+                                    0,
+                                    "SHA256"));
+    }
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool384 keypair */
     ops.unset(CFG_USERID);
     ops.add_str(CFG_USERID, "expert_ecdsa_bp384");
-    assert_true(ask_expert_details(&rnp, ops, "19\n5\n"));
-    assert_true(
-      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
-    assert_true(check_key_props(&rnp,
-                                "expert_ecdsa_bp384",
-                                "ECDSA",
-                                "ECDH",
-                                "brainpoolP384r1",
-                                "brainpoolP384r1",
-                                0,
-                                0,
-                                "SHA384"));
+    if (brainpool_enabled()) {
+        assert_true(ask_expert_details(&rnp, ops, "19\n5\n"));
+        assert_true(
+          check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP384r1", "brainpoolP384r1", 0, 0));
+        assert_true(check_key_props(&rnp,
+                                    "expert_ecdsa_bp384",
+                                    "ECDSA",
+                                    "ECDH",
+                                    "brainpoolP384r1",
+                                    "brainpoolP384r1",
+                                    0,
+                                    0,
+                                    "SHA384"));
+    } else {
+        assert_false(ask_expert_details(&rnp, ops, "19\n5\n"));
+    }
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh brainpool512 keypair */
     ops.unset(CFG_USERID);
     ops.add_str(CFG_USERID, "expert_ecdsa_bp512");
-    assert_true(ask_expert_details(&rnp, ops, "19\n6\n"));
-    assert_true(
-      check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
-    assert_true(check_key_props(&rnp,
-                                "expert_ecdsa_bp512",
-                                "ECDSA",
-                                "ECDH",
-                                "brainpoolP512r1",
-                                "brainpoolP512r1",
-                                0,
-                                0,
-                                "SHA512"));
+    if (brainpool_enabled()) {
+        assert_true(ask_expert_details(&rnp, ops, "19\n6\n"));
+        assert_true(
+          check_cfg_props(ops, "ECDSA", "ECDH", "brainpoolP512r1", "brainpoolP512r1", 0, 0));
+        assert_true(check_key_props(&rnp,
+                                    "expert_ecdsa_bp512",
+                                    "ECDSA",
+                                    "ECDH",
+                                    "brainpoolP512r1",
+                                    "brainpoolP512r1",
+                                    0,
+                                    0,
+                                    "SHA512"));
+    } else {
+        assert_false(ask_expert_details(&rnp, ops, "19\n6\n"));
+    }
     cli_rnp_end(&rnp);
 
     /* ecdsa/ecdh secp256k1 keypair */
     ops.unset(CFG_USERID);
     ops.add_str(CFG_USERID, "expert_ecdsa_p256k1");
-    assert_true(ask_expert_details(&rnp, ops, "19\n7\n"));
-    assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
-    assert_true(check_key_props(
-      &rnp, "expert_ecdsa_p256k1", "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0, "SHA256"));
+    if (brainpool_enabled()) {
+        assert_true(ask_expert_details(&rnp, ops, "19\n7\n"));
+        assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "secp256k1", "secp256k1", 0, 0));
+        assert_true(check_key_props(&rnp,
+                                    "expert_ecdsa_p256k1",
+                                    "ECDSA",
+                                    "ECDH",
+                                    "secp256k1",
+                                    "secp256k1",
+                                    0,
+                                    0,
+                                    "SHA256"));
+    } else {
+        assert_false(ask_expert_details(&rnp, ops, "19\n7\n"));
+    }
     cli_rnp_end(&rnp);
 
     /* eddsa/x25519 keypair */
