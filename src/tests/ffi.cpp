@@ -1981,34 +1981,52 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "AES128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "SHA1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ECDSA"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "secp256k1"));
@@ -2252,34 +2270,52 @@ TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP256r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP384r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
-    assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
     assert_rnp_success(rnp_op_generate_set_protection_cipher(keygen, "aes128"));
     assert_rnp_success(rnp_op_generate_set_protection_hash(keygen, "sha1"));
-    assert_rnp_success(rnp_op_generate_execute(keygen));
-    assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
-    assert_non_null(subkey);
-    assert_rnp_success(rnp_op_generate_destroy(keygen));
-    assert_rnp_success(rnp_key_handle_destroy(subkey));
+    if (brainpool_enabled()) {
+        assert_rnp_success(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
+        assert_rnp_success(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_get_key(keygen, &subkey));
+        assert_non_null(subkey);
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+        assert_rnp_success(rnp_key_handle_destroy(subkey));
+    } else {
+        assert_rnp_failure(rnp_op_generate_set_curve(keygen, "brainpoolP512r1"));
+        assert_rnp_failure(rnp_op_generate_execute(keygen));
+        assert_rnp_success(rnp_op_generate_destroy(keygen));
+    }
 
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "secp256k1"));
@@ -2291,7 +2327,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_algnamecase)
     assert_rnp_success(rnp_op_generate_destroy(keygen));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
 
-    /* These curves will not work with ECDSA*/
+    /* These curves will not work with ECDSA */
     assert_rnp_success(rnp_op_generate_subkey_create(&keygen, ffi, key, "ecdsa"));
     assert_rnp_success(rnp_op_generate_set_curve(keygen, "Ed25519"));
     assert_rnp_failure(rnp_op_generate_execute(keygen));
@@ -6175,6 +6211,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_non_null(features);
     bool has_sm2 = sm2_enabled();
     bool has_tf = twofish_enabled();
+    bool has_brainpool = brainpool_enabled();
     assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 10 + has_sm2 + has_tf));
     rnp_buffer_destroy(features);
     bool supported = false;
@@ -6354,7 +6391,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* elliptic curve */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_CURVE, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_CURVE, features, 9 + has_sm2));
+    assert_true(check_features(RNP_FEATURE_CURVE, features, 6 + has_sm2 + 3 * has_brainpool));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "NIST P-256", &supported));
     assert_true(supported);
@@ -6367,11 +6404,11 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "curve25519", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP256r1", &supported));
-    assert_true(supported);
+    assert_true(supported == has_brainpool);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP384r1", &supported));
-    assert_true(supported);
+    assert_true(supported == has_brainpool);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP512r1", &supported));
-    assert_true(supported);
+    assert_true(supported == has_brainpool);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "secp256k1", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_CURVE, "SM2 P-256", &supported));
