@@ -341,6 +341,8 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     bignum_t *    u = NULL;
+    bignum_t *    nq = NULL;
+    BN_CTX *      bnctx = NULL;
 
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx) {
@@ -385,27 +387,22 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
     }
     /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse of q
      * mod p */
-    {
-        BIGNUM *nq = BN_new();
-        u = BN_new();
-        if (!nq) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        BN_with_flags(nq, RSA_get0_q(rsa), BN_FLG_CONSTTIME);
-        /* calculate inverse of p mod q */
-        if (!BN_mod_inverse(u, RSA_get0_p(rsa), nq, NULL)) {
-            BN_free(nq);
-            RNP_LOG("Failed to calculate u");
-            ret = RNP_ERROR_BAD_STATE;
-            goto done;
-        }
-        BN_free(nq);
-    }
-    if (!u) {
+    bnctx = BN_CTX_new();
+    u = BN_new();
+    nq = BN_new();
+    if (!ctx || !u || !nq) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
+    BN_with_flags(nq, RSA_get0_q(rsa), BN_FLG_CONSTTIME);
+    /* calculate inverse of p mod q */
+    if (!BN_mod_inverse(u, RSA_get0_p(rsa), nq, bnctx)) {
+        bn_free(nq);
+        RNP_LOG("Failed to calculate u");
+        ret = RNP_ERROR_BAD_STATE;
+        goto done;
+    }
+    bn_free(nq);
     bn2mpi(n, &key->n);
     bn2mpi(e, &key->e);
     bn2mpi(p, &key->p);
@@ -416,6 +413,7 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
+    BN_CTX_free(bnctx);
     bn_free(u);
     return ret;
 }
