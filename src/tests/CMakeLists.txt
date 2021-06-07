@@ -62,8 +62,9 @@ else()
 endif()
 
 find_package(JSON-C 0.11 REQUIRED)
-# We do not link against Botan, but need headers.
-find_package(Botan2 2.14.0 REQUIRED)
+if (CRYPTO_BACKEND STREQUAL "botan")
+  find_package(Botan2 2.14.0 REQUIRED)
+endif()
 if (CRYPTO_BACKEND STREQUAL "openssl")
   find_package(OpenSSL 1.1.1 REQUIRED)
 endif()
