@@ -2317,6 +2317,9 @@ try {
                                        get_key_prefer_public(handle),
                                        &handle->ffi->key_provider,
                                        PGP_KF_ENCRYPT);
+    if (!key) {
+        key = get_key_prefer_public(handle);
+    }
     op->rnpctx.recipients.push_back(key);
     return RNP_SUCCESS;
 }

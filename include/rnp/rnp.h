@@ -2461,6 +2461,14 @@ RNP_API rnp_result_t rnp_op_encrypt_create(rnp_op_encrypt_t *op,
                                            rnp_input_t       input,
                                            rnp_output_t      output);
 
+/**
+ * @brief Add recipient's public key to encrypting context.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param key public key, used for encryption. Key is not checked for
+ *        validity or expiration.
+ * @return RNP_SUCCESS if operation succeeds or error code otherwise.
+ */
 RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key);
 
 /**

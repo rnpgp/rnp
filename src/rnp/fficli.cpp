@@ -2287,6 +2287,7 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     std::vector<rnp_key_handle_t> enckeys;
     std::vector<rnp_key_handle_t> signkeys;
     bool                          res = false;
+    rnp_result_t                  ret;
 
     rnp_op_encrypt_set_armor(op, cfg.get_bool(CFG_ARMOR));
 
@@ -2371,7 +2372,11 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     }
 
     /* execute encrypt or encrypt-and-sign operation */
-    res = !rnp_op_encrypt_execute(op);
+    ret = rnp_op_encrypt_execute(op);
+    res = (ret == RNP_SUCCESS);
+    if (ret != RNP_SUCCESS) {
+        ERR_MSG("Operation failed: %s", rnp_result_to_string(ret));
+    }
 done:
     clear_key_handles(signkeys);
     clear_key_handles(enckeys);
