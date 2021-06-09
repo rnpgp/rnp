@@ -171,7 +171,7 @@ jobs:
       - name: Download latest version.cmake
         uses: actions/checkout@v2
         with:
-          repository: riboseinc/cmake-versioning
+          repository: rnpgp/cmake-versioning
           fetch-depth: 0
           path: cmake-versioning
       - name: Compare
