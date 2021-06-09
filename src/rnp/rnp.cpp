@@ -79,6 +79,7 @@ static const char *usage = "-h, --help OR\n"
                            "\t[--passwords] AND/OR\n"
                            "\t[--armor] AND/OR\n"
                            "\t[--cipher=<ciphername>] AND/OR\n"
+                           "\t[--force-weak] AND/OR\n"
                            "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
                            "\t[--aead[=EAX, OCB]] AND/OR\n"
                            "\t[--aead-chunk-bits=0..56] AND/OR\n"
@@ -119,6 +120,7 @@ enum optdefs {
     OPT_HOMEDIR,
     OPT_DETACHED,
     OPT_HASH_ALG,
+    OPT_FORCE_WEAK,
     OPT_OUTPUT,
     OPT_RESULTS,
     OPT_VERBOSE,
@@ -186,6 +188,7 @@ static struct option options[] = {
   {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
   {"hash", required_argument, NULL, OPT_HASH_ALG},
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
+  {"force-weak", no_argument, NULL, OPT_FORCE_WEAK},
   {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"password", required_argument, NULL, OPT_PASSWD},
@@ -418,6 +421,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         }
         cfg.set_str(CFG_KEYFILE, arg);
         cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
+        return true;
+    case OPT_FORCE_WEAK:
+        cfg.set_bool(CFG_WEAK, true);
         return true;
     case OPT_HASH_ALG: {
         if (!arg) {
@@ -746,6 +752,12 @@ rnp_main(int argc, char **argv)
 
     if (!cli_rnp_init(&rnp, cfg)) {
         ERR_MSG("fatal: cannot initialise");
+        goto finish;
+    }
+
+    if (!cli_rnp_check_weak(&rnp)) {
+        ERR_MSG(
+          "Weak algorithm detected. Pass --force-weak option if you really want to use it.");
         goto finish;
     }
 

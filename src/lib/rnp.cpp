@@ -178,6 +178,9 @@ static const pgp_map_t symm_alg_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
                                          {PGP_SA_CAMELLIA_256, RNP_ALGNAME_CAMELLIA_256},
                                          {PGP_SA_SM4, RNP_ALGNAME_SM4}};
 
+static const pgp_map_t weak_symm_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
+                                          {PGP_SA_TRIPLEDES, RNP_ALGNAME_TRIPLEDES}};
+
 static const pgp_map_t aead_alg_map[] = {
   {PGP_AEAD_NONE, "None"}, {PGP_AEAD_EAX, "EAX"}, {PGP_AEAD_OCB, "OCB"}};
 
@@ -199,6 +202,9 @@ static const pgp_map_t hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
                                          {PGP_HASH_SHA3_256, RNP_ALGNAME_SHA3_256},
                                          {PGP_HASH_SHA3_512, RNP_ALGNAME_SHA3_512},
                                          {PGP_HASH_SM3, RNP_ALGNAME_SM3}};
+
+static const pgp_map_t weak_hash_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
+                                          {PGP_HASH_SHA1, RNP_ALGNAME_SHA1}};
 
 static const pgp_map_t s2k_type_map[] = {
   {PGP_S2KS_SIMPLE, "Simple"},
@@ -981,6 +987,41 @@ try {
         *supported = curve_str_to_type(name, &curve);
     } else {
         return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_weak_feature(const char *type, const char *name, bool *weak)
+try {
+    if (!type || !name || !weak) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
+        pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+        ARRAY_LOOKUP_BY_STRCASE(weak_hash_map, string, type, name, alg);
+        if (alg != PGP_HASH_UNKNOWN) {
+            *weak = true;
+            return RNP_SUCCESS;
+        }
+        if (!str_to_hash_alg(name, &alg)) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        *weak = false;
+    } else if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
+        pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
+        ARRAY_LOOKUP_BY_STRCASE(weak_symm_map, string, type, name, alg);
+        if (alg != PGP_SA_UNKNOWN) {
+            *weak = true;
+            return RNP_SUCCESS;
+        }
+        if (!str_to_cipher(name, &alg)) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        *weak = false;
+    } else {
+        *weak = false;
     }
     return RNP_SUCCESS;
 }

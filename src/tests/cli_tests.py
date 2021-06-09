@@ -307,7 +307,7 @@ def rnp_params_insert_aead(params, pos, aead):
             params[pos + 1:pos + 1] = ['--aead-chunk-bits=' + str(aead[1])]
 
 def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None,
-                        z=None, armor=False):
+                        z=None, armor=False, weak=False):
     params = ['--homedir', RNPDIR, src, '--output', dst]
     # Recipients. None disables PK encryption, [] to use default key. Otherwise list of ids.
     if recipients != None:
@@ -326,6 +326,8 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     if cipher: params[2:2] = ['--cipher', cipher]
     # Armor
     if armor: params += ['--armor']
+    # Weak ciphers
+    if weak: params += ['--force-weak']
     rnp_params_insert_aead(params, 2, aead)
     rnp_params_insert_z(params, 2, z)
     ret, _, err = run_proc(RNP, params)
@@ -676,7 +678,7 @@ def rnp_sym_encryption_rnp_to_gpg(filesize, cipher = None, z = None):
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_encrypt_file_ex(src, enc, None, [PASSWORD], None, cipher, z, armor)
+        rnp_encrypt_file_ex(src, enc, None, [PASSWORD], None, cipher, z, armor, True)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, 'gpg decrypted data differs')

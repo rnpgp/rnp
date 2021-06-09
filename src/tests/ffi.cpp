@@ -6114,6 +6114,43 @@ done:
     return res;
 }
 
+TEST_F(rnp_tests, test_ffi_weak_features)
+{
+    bool weak = false;
+    assert_rnp_failure(rnp_weak_feature(NULL, NULL, NULL));
+    assert_rnp_failure(rnp_weak_feature(RNP_FEATURE_HASH_ALG, NULL, NULL));
+    assert_rnp_failure(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "MD5", NULL));
+    assert_rnp_failure(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "NONEXISTENT", &weak));
+
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "MD5", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "SHA1", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "md5", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "sha1", &weak));
+    assert_true(weak);
+
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "SHA256", &weak));
+    assert_false(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_HASH_ALG, "sha256", &weak));
+    assert_false(weak);
+
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "idea", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "TRIPLEDES", &weak));
+    assert_true(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "tripledes", &weak));
+    assert_true(weak);
+
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "AES256", &weak));
+    assert_false(weak);
+    assert_rnp_success(rnp_weak_feature(RNP_FEATURE_SYMM_ALG, "aes256", &weak));
+    assert_false(weak);
+}
+
 TEST_F(rnp_tests, test_ffi_supported_features)
 {
     char *features = NULL;

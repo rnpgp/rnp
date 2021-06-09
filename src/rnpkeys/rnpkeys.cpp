@@ -64,6 +64,7 @@ const char *usage = "-h, --help OR\n"
                     "\t[--with-sigs] AND/OR\n"
                     "\t[--force] AND/OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
+                    "\t[--force-weak] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
                     "\t[--keyring=<keyring>] AND/OR\n"
                     "\t[--pass-fd=<fd>] OR\n"
@@ -105,6 +106,7 @@ struct option options[] = {
   {"hash-alg", required_argument, NULL, OPT_HASH_ALG},
   {"hash", required_argument, NULL, OPT_HASH_ALG},
   {"algorithm", required_argument, NULL, OPT_HASH_ALG},
+  {"force-weak", no_argument, NULL, OPT_FORCE_WEAK},
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"numbits", required_argument, NULL, OPT_NUMBITS},
@@ -493,6 +495,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_int(CFG_NUMBITS, bits);
         return true;
     }
+    case OPT_FORCE_WEAK:
+        cfg.set_bool(CFG_WEAK, true);
+        return true;
     case OPT_HASH_ALG: {
         if (!arg) {
             ERR_MSG("No hash algorithm argument provided");
@@ -699,6 +704,11 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
     }
     if (!cli_rnp_init(rnp, rnpcfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
+        goto end;
+    }
+    if (!cli_rnp_check_weak(rnp)) {
+        ERR_MSG(
+          "Weak algorithm detected. Pass --force-weak option if you really want to use it.");
         goto end;
     }
     /* TODO: at some point we should check for error here */

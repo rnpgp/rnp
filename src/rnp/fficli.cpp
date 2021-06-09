@@ -2395,6 +2395,29 @@ cli_rnp_setup(cli_rnp_t *rnp)
 }
 
 bool
+cli_rnp_check_weak(cli_rnp_t *rnp)
+{
+    rnp_cfg &cfg = cli_rnp_cfg(*rnp);
+
+    if (cfg.has(CFG_WEAK)) {
+        return true;
+    }
+
+    bool weak = false;
+    if (!rnp_weak_feature(RNP_FEATURE_HASH_ALG, cfg.get_hashalg().c_str(), &weak) && weak) {
+        ERR_MSG("Hash algorithm %s is weak!", cfg.get_hashalg().c_str());
+        return false;
+    }
+    if (cfg.has(CFG_CIPHER)) {
+        if (!rnp_weak_feature(RNP_FEATURE_SYMM_ALG, cfg.get_cstr(CFG_CIPHER), &weak) && weak) {
+            ERR_MSG("Weak cipher %s is selected!", cfg.get_cstr(CFG_CIPHER));
+            return false;
+        }
+    }
+    return true;
+}
+
+bool
 cli_rnp_protect_file(cli_rnp_t *rnp)
 {
     rnp_input_t  input = NULL;

@@ -126,6 +126,7 @@ bool        cli_rnp_add_key(cli_rnp_t *rnp);
 bool        cli_rnp_dump_file(cli_rnp_t *rnp);
 bool        cli_rnp_armor_file(cli_rnp_t *rnp);
 bool        cli_rnp_dearmor_file(cli_rnp_t *rnp);
+bool        cli_rnp_check_weak(cli_rnp_t *rnp);
 bool        cli_rnp_setup(cli_rnp_t *rnp);
 bool        cli_rnp_protect_file(cli_rnp_t *rnp);
 bool        cli_rnp_process_file(cli_rnp_t *rnp);

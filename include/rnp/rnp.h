@@ -409,6 +409,15 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
  */
 RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
 
+/** Check if specified algorithm or feature is considered cryptographically weak.
+ *
+ *  @param type string containing feature type, See RNP_FEATURE_* defines.
+ *  @param name string containing feature name.
+ *  @param weak will contain true if feature is weak, false otherwise.
+ *  @return RNP_SUCCESS on success or any other value on error.
+ */
+RNP_API rnp_result_t rnp_weak_feature(const char *type, const char *name, bool *weak);
+
 /**
  * @brief Request password via configured FFI's callback
  *

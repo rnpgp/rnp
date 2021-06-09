@@ -824,6 +824,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
 
     ops.set_bool(CFG_EXPERT, true);
     ops.set_str(CFG_HASH, "SHA1");
+    ops.set_bool(CFG_WEAK, true);
     ops.set_int(CFG_S2K_ITER, 1);
     ops.add_str(CFG_USERID, "expert_small_digest");
     assert_true(ask_expert_details(&rnp, ops, "19\n2\n"));

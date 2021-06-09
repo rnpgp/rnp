@@ -62,6 +62,7 @@
 #define CFG_CREATION "creation"         /* signature validity start */
 #define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
 #define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
+#define CFG_WEAK "weak"                 /* allow weak algorithms */
 #define CFG_S2K_ITER "s2k-iter"         /* number of S2K hash iterations to perform */
 #define CFG_S2K_MSEC "s2k-msec"         /* number of milliseconds S2K should target */
 #define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */

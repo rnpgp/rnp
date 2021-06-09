@@ -271,6 +271,8 @@ void test_ffi_calculate_iterations(void **state);
 
 void test_ffi_supported_features(void **state);
 
+void test_ffi_weak_features(void **state);
+
 void test_ffi_enable_debug(void **state);
 
 void test_ffi_rnp_key_get_primary_grip(void **state);
