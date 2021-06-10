@@ -356,7 +356,7 @@ struct pgp_key_t {
     bool is_signer(const pgp_subsig_t &sig) const;
 
     /** @brief Returns true if key is expired according to sig. */
-    bool is_expired(const pgp_subsig_t &sig) const;
+    bool expired_with(const pgp_subsig_t &sig) const;
 
     /** @brief Check whether signature is key's self certification. */
     bool is_self_cert(const pgp_subsig_t &sig) const;
