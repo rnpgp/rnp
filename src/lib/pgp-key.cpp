@@ -1919,7 +1919,7 @@ pgp_key_t::is_signer(const pgp_subsig_t &sig) const
 }
 
 bool
-pgp_key_t::is_expired(const pgp_subsig_t &sig) const
+pgp_key_t::expired_with(const pgp_subsig_t &sig) const
 {
     /* key expiration: absence of subpkt or 0 means it never expires */
     uint64_t expiration = sig.sig.key_expiration();
@@ -2082,20 +2082,20 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
     /* if we have direct-key signature, then it has higher priority for expiration check */
     pgp_subsig_t *dirsig = latest_selfsig(PGP_UID_NONE);
     if (dirsig) {
-        has_expired = is_expired(*dirsig);
-        has_cert = !is_expired(*dirsig);
+        has_expired = expired_with(*dirsig);
+        has_cert = !has_expired;
     }
     /* if we have primary uid and it is more restrictive, then use it as well */
     pgp_subsig_t *prisig = NULL;
     if (!has_expired && (prisig = latest_selfsig(PGP_UID_PRIMARY))) {
-        has_expired = is_expired(*prisig);
-        has_cert = !is_expired(*prisig);
+        has_expired = expired_with(*prisig);
+        has_cert = !has_expired;
     }
     /* if we don't have direct-key sig and primary uid, use the latest self-cert */
     pgp_subsig_t *latest = NULL;
     if (!dirsig && !prisig && (latest = latest_selfsig(PGP_UID_ANY))) {
-        has_expired = is_expired(*latest);
-        has_cert = !is_expired(*latest);
+        has_expired = expired_with(*latest);
+        has_cert = !has_expired;
     }
 
     /* we have at least one non-expiring key self-signature or secret key */
@@ -2121,7 +2121,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
             continue;
         }
         /* check whether subkey is expired - then do not mark key as valid */
-        if (sub->is_expired(*sig)) {
+        if (sub->expired_with(*sig)) {
             continue;
         }
         validity_.valid = true;
@@ -2152,7 +2152,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
 
         if (is_binding(sig) && !has_binding) {
             /* check whether subkey is expired */
-            if (is_expired(sig)) {
+            if (expired_with(sig)) {
                 has_expired = true;
                 continue;
             }
