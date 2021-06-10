@@ -2250,7 +2250,8 @@ pgp_key_t::refresh_data()
     }
     /* if we have primary uid and it is more restrictive, then use it as well */
     pgp_subsig_t *prisig = latest_selfsig(PGP_UID_PRIMARY);
-    if (prisig && (!expiration_ || (prisig->sig.key_expiration() < expiration_))) {
+    if (prisig && prisig->sig.key_expiration() &&
+        (!expiration_ || (prisig->sig.key_expiration() < expiration_))) {
         expiration_ = prisig->sig.key_expiration();
     }
     /* if we don't have direct-key sig and primary uid, use the latest self-cert */
