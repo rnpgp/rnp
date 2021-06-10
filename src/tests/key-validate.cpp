@@ -548,6 +548,24 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
+
+    /* Case15:
+     * Keys [pub, sub]
+     * Signing subkey has expired primary-key signature embedded into the subkey binding.
+     * Result: primary [valid], sub[invalid]
+     */
+    pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case15/pubring.gpg");
+    assert_non_null(pubring);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_non_null(key = rnp_tests_get_key_by_id(pubring, "E863072D3E9042EE", NULL));
+    assert_true(key->valid());
+    assert_false(key->expired());
+    assert_int_equal(key->expiration(), 0);
+    assert_int_equal(key->subkey_count(), 1);
+    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_false(subkey->valid());
+    assert_false(subkey->expired());
+    delete pubring;
 }
 
 TEST_F(rnp_tests, test_key_expiry_direct_sig)
