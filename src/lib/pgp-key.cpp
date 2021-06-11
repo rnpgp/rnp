@@ -795,6 +795,18 @@ pgp_subsig_t::is_cert() const
            (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
 }
 
+bool
+pgp_subsig_t::expired() const
+{
+    /* sig expiration: absence of subpkt or 0 means it never expires */
+    uint64_t expiration = sig.expiration();
+    if (!expiration) {
+        return false;
+    }
+    uint64_t now = time(NULL);
+    return expiration + sig.creation() < now;
+}
+
 pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
 {
     /* copy packet data */
@@ -2297,7 +2309,7 @@ pgp_key_t::refresh_data()
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
         /* if certification expires key then consider userid as expired too */
-        if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || is_expired(sig)) {
+        if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || sig.expired()) {
             continue;
         }
         if (sig.uid >= uid_count()) {
