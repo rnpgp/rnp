@@ -109,6 +109,8 @@ typedef struct pgp_subsig_t {
     bool valid() const;
     /** @brief Returns true if signature is certification */
     bool is_cert() const;
+    /** @brief Returns true if signature is expired */
+    bool expired() const;
 } pgp_subsig_t;
 
 typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
