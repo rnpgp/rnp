@@ -1097,8 +1097,11 @@ RNP_API rnp_result_t rnp_uid_get_data(rnp_uid_handle_t uid, void **data, size_t 
  */
 RNP_API rnp_result_t rnp_uid_is_primary(rnp_uid_handle_t uid, bool *primary);
 
-/** Get userid validity status. Userid is considered as valid if it has at least one
- *  valid, non-expired self-certification.
+/** Get userid validity status. Userid is considered as valid if key itself is valid, and
+ *  userid has at least one valid, non-expired self-certification.
+ *  Note: - userid still may be valid even if a primary key is invalid - expired, revoked, etc.
+ *        - up to the RNP version 0.15.1 uid was not considered as valid if it's latest
+ *          self-signature has key expiration in the past.
  *
  * @param uid user id handle.
  * @param valid validity status will be stored here on success.
