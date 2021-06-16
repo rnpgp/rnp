@@ -6468,7 +6468,7 @@ try {
         if (!primary->validated()) {
             return RNP_ERROR_VERIFICATION_FAILED;
         }
-        *result = key->valid_till(*primary);
+        *result = key->valid_till();
     } else {
         *result = key->valid_till();
     }
