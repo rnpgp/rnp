@@ -149,7 +149,7 @@ struct pgp_key_t {
     std::vector<pgp_userid_t> uids_{};     /* array of user ids */
     pgp_key_pkt_t             pkt_{};      /* pubkey/seckey data packet */
     uint8_t                   flags_{};    /* key flags */
-    time_t                    expiration_{}; /* key expiration time, if available */
+    uint32_t                  expiration_{}; /* key expiration time, if available */
     pgp_key_id_t              keyid_{};
     pgp_fingerprint_t         fingerprint_{};
     pgp_key_grip_t            grip_{};
