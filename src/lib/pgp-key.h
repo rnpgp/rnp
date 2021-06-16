@@ -245,6 +245,8 @@ struct pgp_key_t {
     bool validated() const;
     /** @brief return time till which key is considered to be valid */
     uint64_t valid_till() const;
+    /** @brief check whether key was/will be valid at the specified time */
+    bool valid_at(uint64_t timestamp) const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
