@@ -937,6 +937,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     revocation_ = src.revocation_;
     format = src.format;
     validity_ = src.validity_;
+    valid_till_ = src.valid_till_;
 }
 
 pgp_key_t::pgp_key_t(const pgp_transferable_key_t &src) : pgp_key_t(src.key)
@@ -1439,27 +1440,7 @@ pgp_key_t::valid_till_common(bool expiry) const
 uint64_t
 pgp_key_t::valid_till() const
 {
-    if (!is_primary()) {
-        RNP_LOG("must be called for primary key only");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-    return valid_till_common(expired());
-}
-
-uint64_t
-pgp_key_t::valid_till(const pgp_key_t &primary) const
-{
-    if (!is_subkey()) {
-        RNP_LOG("must be called for subkey only");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-    uint64_t till = primary.valid_till();
-    /* if primary key was never valid then subkey was not either */
-    if (!till) {
-        return till;
-    }
-    /* subkey cannot be valid longer then the primary key */
-    return std::min(till, valid_till_common(expired() || primary.expired()));
+    return valid_till_;
 }
 
 const pgp_key_id_t &
@@ -2207,6 +2188,9 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
     }
 
     validate(keyring);
+    if (!refresh_data()) {
+        RNP_LOG("Failed to refresh key data");
+    }
     /* validate/re-validate all subkeys as well */
     for (auto &fp : subkey_fps_) {
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(&keyring, fp);
@@ -2216,10 +2200,6 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
                 RNP_LOG("Failed to refresh subkey data");
             }
         }
-    }
-
-    if (!refresh_data()) {
-        RNP_LOG("Failed to refresh key data");
     }
 }
 
@@ -2300,6 +2280,8 @@ pgp_key_t::refresh_data()
             return false;
         }
     }
+    /* valid till */
+    valid_till_ = valid_till_common(expired());
     /* userid validities */
     for (size_t i = 0; i < uid_count(); i++) {
         get_uid(i).valid = false;
@@ -2372,6 +2354,13 @@ pgp_key_t::refresh_data(pgp_key_t *primary)
             return false;
         }
         break;
+    }
+    /* valid till */
+    if (primary) {
+        valid_till_ =
+          std::min(primary->valid_till(), valid_till_common(expired() || primary->expired()));
+    } else {
+        valid_till_ = valid_till_common(expired());
     }
     return true;
 }
