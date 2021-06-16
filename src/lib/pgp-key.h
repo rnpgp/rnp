@@ -163,6 +163,7 @@ struct pgp_key_t {
     bool            revoked_{};    /* key has been revoked */
     pgp_revoke_t    revocation_{}; /* revocation reason */
     pgp_validity_t  validity_{};   /* key's validity */
+    uint64_t        valid_till_{}; /* date till which key is/was valid */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
     void          validate_primary(rnp_key_store_t &keyring);
@@ -242,10 +243,8 @@ struct pgp_key_t {
 
     bool valid() const;
     bool validated() const;
-    /** @brief return time till which primary key is considered to be valid */
+    /** @brief return time till which key is considered to be valid */
     uint64_t valid_till() const;
-    /** @brief return time till which subkey is considered to be valid */
-    uint64_t valid_till(const pgp_key_t &primary) const;
 
     /** @brief Get key's id */
     const pgp_key_id_t &keyid() const;
