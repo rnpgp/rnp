@@ -1443,6 +1443,14 @@ pgp_key_t::valid_till() const
     return valid_till_;
 }
 
+bool
+pgp_key_t::valid_at(uint64_t timestamp) const
+{
+    /* TODO: consider implementing more sophisticated checks, as key validity time could
+     * possibly be non-continuous */
+    return (timestamp >= creation()) && timestamp && (timestamp <= valid_till());
+}
+
 const pgp_key_id_t &
 pgp_key_t::keyid() const
 {
