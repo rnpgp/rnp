@@ -1026,6 +1026,26 @@ import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
     return import_keys(ffi, data, len, RNP_LOAD_SAVE_SECRET_KEYS);
 }
 
+void
+dump_key_stdout(rnp_key_handle_t key, bool secret)
+{
+    rnp_output_t output = NULL;
+    rnp_output_to_memory(&output, 0);
+    rnp_key_export(
+      key, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_SUBKEYS | RNP_KEY_EXPORT_ARMORED);
+    if (secret) {
+        rnp_key_export(key,
+                       output,
+                       RNP_KEY_EXPORT_SECRET | RNP_KEY_EXPORT_SUBKEYS |
+                         RNP_KEY_EXPORT_ARMORED);
+    }
+    size_t   len = 0;
+    uint8_t *buf = NULL;
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    printf("%.*s", (int) len, (char *) buf);
+    rnp_output_destroy(output);
+}
+
 bool
 sm2_enabled()
 {
