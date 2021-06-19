@@ -239,6 +239,8 @@ bool import_sec_keys(rnp_ffi_t ffi, const std::string &path);
 bool import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 bool import_pub_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
+/* Dump key to the stdout. Not used in real tests, but useful for artefact generation */
+void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
 bool sm2_enabled();
 bool aead_eax_enabled();
