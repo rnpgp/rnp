@@ -250,8 +250,23 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     if (!rsa_setup_context(ctx, hash_alg)) {
         goto done;
     }
-    if (EVP_PKEY_verify(ctx, sig->s.mpi, sig->s.len, hash, hash_len) > 0) {
+    int res;
+    if (sig->s.len < key->n.len) {
+        /* OpenSSL doesn't like signatures smaller then N */
+        pgp_mpi_t sn;
+        sn.len = key->n.len;
+        size_t diff = key->n.len - sig->s.len;
+        memset(sn.mpi, 0, diff);
+        memcpy(&sn.mpi[diff], sig->s.mpi, sig->s.len);
+        res = EVP_PKEY_verify(ctx, sn.mpi, sn.len, hash, hash_len);
+    } else {
+        res = EVP_PKEY_verify(ctx, sig->s.mpi, sig->s.len, hash, hash_len);
+    }
+    if (res > 0) {
         ret = RNP_SUCCESS;
+    } else {
+        RNP_LOG("RSA verification failure: %s",
+                ERR_reason_error_string(ERR_peek_last_error()));
     }
 done:
     EVP_PKEY_CTX_free(ctx);
