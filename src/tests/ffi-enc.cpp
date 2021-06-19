@@ -882,3 +882,25 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_decrypt_small_rsa)
+{
+    rnp_ffi_t   ffi = NULL;
+    const char *plaintext = "data1";
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_key_validity/rsa_key_small_sig-sec.asc"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/data.enc.small-rsa"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    size_t   len = 0;
+    uint8_t *buf = NULL;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 5);
+    assert_int_equal(memcmp(plaintext, buf, 5), 0);
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_ffi_destroy(ffi);
+}
