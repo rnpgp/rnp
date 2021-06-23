@@ -9890,7 +9890,7 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     /* export key without specifying subkey */
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, "key0-uid2", output, 0));
     assert_true(
-      check_key_autocrypt(output, "7bc6709b15c23a4a", "1ed63ee56fadc34d", "key0-uid2"));
+      check_key_autocrypt(output, "7bc6709b15c23a4a", "8a05b89fad5aded1", "key0-uid2"));
     rnp_output_destroy(output);
 
     /* remove first subkey and export again */
@@ -9901,6 +9901,20 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, "key0-uid0", output, 0));
     assert_true(
       check_key_autocrypt(output, "7bc6709b15c23a4a", "8a05b89fad5aded1", "key0-uid0"));
+    rnp_output_destroy(output);
+    rnp_key_handle_destroy(key);
+
+    /* primary key with encrypting capability, make sure subkey is exported */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(import_pub_keys(ffi, "data/test_key_validity/encrypting-primary.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "92091b7b76c50017", &key));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_key_export_autocrypt(
+      key, NULL, "encrypting primary <encrypting_primary@rnp>", output, 0));
+    assert_true(check_key_autocrypt(output,
+                                    "92091b7b76c50017",
+                                    "c2e243e872c1fe50",
+                                    "encrypting primary <encrypting_primary@rnp>"));
     rnp_output_destroy(output);
     rnp_key_handle_destroy(key);
 
