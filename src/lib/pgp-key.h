@@ -469,6 +469,7 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
  *  @param desired_usage
  *  @param key_provider the key provider. This will be used
  *         if/when subkeys are checked.
+ *  @param no_primary set true if only subkeys must be returned
  *
  *  @returns key or last created subkey with desired usage flag
  *           set or NULL if not found
@@ -476,7 +477,8 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
 pgp_key_t *find_suitable_key(pgp_op_t            op,
                              pgp_key_t *         key,
                              pgp_key_provider_t *key_provider,
-                             uint8_t             desired_usage);
+                             uint8_t             desired_usage,
+                             bool                no_primary = false);
 
 /*
  *  Picks up hash algorithm according to domain parameters set
