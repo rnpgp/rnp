@@ -5568,8 +5568,12 @@ try {
     pgp_key_pkt_t *         seckey = NULL;
     pgp_key_pkt_t *         decrypted_seckey = NULL;
 
-    if (!handle || !uid || !hash) {
+    if (!handle || !uid) {
         return RNP_ERROR_NULL_POINTER;
+    }
+
+    if (!hash) {
+        hash = DEFAULT_HASH_ALG;
     }
 
     if (!str_to_hash_alg(hash, &hash_alg)) {
