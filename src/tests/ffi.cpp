@@ -2460,12 +2460,17 @@ TEST_F(rnp_tests, test_ffi_key_generate_protection)
 
 TEST_F(rnp_tests, test_ffi_add_userid)
 {
-    rnp_ffi_t ffi = NULL;
-    char *    json = NULL;
-    char *    results = NULL;
-    size_t    count = 0;
+    rnp_ffi_t              ffi = NULL;
+    char *                 json = NULL;
+    char *                 results = NULL;
+    size_t                 count = 0;
+    rnp_uid_handle_t       uid;
+    rnp_signature_handle_t sig;
+    char *                 hash_alg_name = NULL;
 
     const char *new_userid = "my new userid <user@example.com>";
+    const char *default_hash_userid = "default hash <user@example.com";
+    const char *ripemd_hash_userid = "ripemd160 <user@example.com";
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -2507,11 +2512,27 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     // actually add the userid
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass"));
+    // add with default hash algorithm
+    assert_rnp_success(
+      rnp_key_add_uid(key_handle, default_hash_userid, NULL, 2147317200, 0, false));
+    // check if default hash was used
+    assert_rnp_success(rnp_key_get_uid_handle_at(key_handle, 1, &uid));
+    assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));
+    assert_rnp_success(rnp_signature_get_hash_alg(sig, &hash_alg_name));
+    assert_int_equal(strcasecmp(hash_alg_name, DEFAULT_HASH_ALG), 0);
+    rnp_buffer_destroy(hash_alg_name);
+    hash_alg_name = NULL;
+    assert_rnp_success(rnp_signature_handle_destroy(sig));
+    assert_rnp_success(rnp_uid_handle_destroy(uid));
+
     assert_int_equal(
       RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
+    assert_rnp_success(
+      rnp_key_add_uid(key_handle, ripemd_hash_userid, "RIPEMD160", 2147317200, 0, false));
+
     assert_rnp_success(rnp_key_get_uid_count(key_handle, &count));
-    assert_int_equal(2, count);
+    assert_int_equal(4, count);
 
     rnp_key_handle_t key_handle2 = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", new_userid, &key_handle2));
