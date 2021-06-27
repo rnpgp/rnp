@@ -1388,7 +1388,8 @@ RNP_API rnp_result_t rnp_key_get_curve(rnp_key_handle_t key, char **curve);
  *  @param key the key to add - must be a secret key
  *  @param uid the UID to add
  *  @param hash name of the hash function to use for the uid binding
- *         signature (eg "SHA256")
+ *         signature (eg "SHA256"). If NULL, default hash algorithm
+ *         will be used.
  *  @param expiration time when this user id expires
  *  @param key_flags usage flags, see section 5.2.3.21 of RFC 4880
  *         or just provide zero to indicate no special handling.
