@@ -48,25 +48,16 @@ elseif (NOT DOWNLOAD_GTEST)
   set(GTestMain GTest::Main)
 else()
   # download and build googletest
-  configure_file(gtest-CMakeLists.txt.in googletest-download/CMakeLists.txt)
-  execute_process(COMMAND ${CMAKE_COMMAND} -G "${CMAKE_GENERATOR}" .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-  if(result)
-    message(FATAL_ERROR "CMake step for googletest failed: ${result}")
-  endif()
-  execute_process(COMMAND ${CMAKE_COMMAND} --build .
-    RESULT_VARIABLE result
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/googletest-download )
-  if(result)
-    message(FATAL_ERROR "Build step for googletest failed: ${result}")
-  endif()
+  include(FetchContent)
+  FetchContent_Declare(googletest
+    GIT_REPOSITORY  https://github.com/google/googletest.git
+    GIT_TAG         c43f710
+  )
   # maintain compiler/linker settings on Windows
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  # add to our build (provides gtest_main target)
-  add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
-                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
-                  EXCLUDE_FROM_ALL)
+  # explicitely disable unneeded gmock build
+  set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
+  FetchContent_MakeAvailable(googletest)
   set(GTestMain gtest_main)
 endif()
 
