@@ -49,6 +49,16 @@ jobs:
         run: |
           set -x
           ci/run.sh
+      - name: Package
+        with:
+          path: ${LOCAL_BUILDS}/rnp-build
+        run: |
+          set -x
+          cpack -G DEB
+      - name: Upload package
+        uses: actions/upload-artifact@v2
+        with:
+          path: ${LOCAL_BUILDS}/rnp-build/*.deb
   cmake-offline-googletest-src:
     env:
       GTEST_SOURCES: /usr/src/googletest
