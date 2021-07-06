@@ -680,10 +680,13 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
         auto diff_to_y2k38 = y2k38time - basetime;
         expected_diff_beyond2038_absolute = diff_to_y2k38;
     } else {
-        struct tm tm2100 {
-            0
-        };
+        time_t    now = time(NULL);
+        struct tm tm2100 = *localtime(&now);
+        tm2100.tm_hour = 0;
+        tm2100.tm_min = 0;
+        tm2100.tm_sec = 0;
         tm2100.tm_mday = 1;
+        tm2100.tm_mon = 0;
         tm2100.tm_year = 200;
         expected_diff_beyond2038_absolute = mktime(&tm2100) - basetime;
     }
