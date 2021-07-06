@@ -286,6 +286,7 @@ Set signature expiration time, counting from the creation time. +
 By default, signatures do not expire. +
 +
 A specific expiration time can be specified as:
+
 *** expiration date in the ISO 8601:2019 date format (_yyyy-mm-dd_); or
 *** hours/days/months/years since creation time with the syntax of _20h_/_30d_/_1m_/_1y_;
 *** number of seconds.
