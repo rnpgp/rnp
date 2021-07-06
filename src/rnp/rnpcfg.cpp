@@ -357,6 +357,39 @@ rnp_cfg::~rnp_cfg()
 }
 
 /**
+ * @brief Get number of days in month.
+ *
+ * @param year number of year, i.e. 2021
+ * @param month number of month, 1..12
+ * @return number of days (28..31) or 0 if month is wrong.
+ */
+static int
+days_in_month(int year, int month)
+{
+    switch (month) {
+    case 1:
+    case 3:
+    case 5:
+    case 7:
+    case 8:
+    case 10:
+    case 12:
+        return 31;
+    case 4:
+    case 6:
+    case 9:
+    case 11:
+        return 30;
+    case 2: {
+        bool leap_year = !(year % 400) || (!(year % 4) && (year % 100));
+        return leap_year ? 29 : 28;
+    }
+    default:
+        return 0;
+    }
+}
+
+/**
  * @brief Grabs date from the string in %Y-%m-%d format
  *
  * @param s [in] NULL-terminated string with the date
@@ -378,8 +411,12 @@ rnp_cfg::~rnp_cfg()
 static int
 grabdate(const char *s, uint64_t *t)
 {
-    struct tm tm;
-    (void) memset(&tm, 0x0, sizeof(tm));
+    /* fill time zone information */
+    const time_t now = time(NULL);
+    struct tm    tm = *localtime(&now);
+    tm.tm_hour = 0;
+    tm.tm_min = 0;
+    tm.tm_sec = 0;
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     static int     compiled;
@@ -399,7 +436,7 @@ grabdate(const char *s, uint64_t *t)
     }
     int year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
     int mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10);
-    tm.tm_mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+    int mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
 #else
     static std::regex re("^([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])$",
                          std::regex_constants::ECMAScript);
@@ -411,20 +448,24 @@ grabdate(const char *s, uint64_t *t)
     }
     int year = (int) strtol(result[1].str().c_str(), NULL, 10);
     int mon = (int) strtol(result[2].str().c_str(), NULL, 10);
-    tm.tm_mday = (int) strtol(result[3].str().c_str(), NULL, 10);
+    int mday = (int) strtol(result[3].str().c_str(), NULL, 10);
 #endif
-    if (year < 1970 || mon < 1 || mon > 12) {
+    if (year < 1970 || mon < 1 || mon > 12 || !mday || (mday > days_in_month(year, mon))) {
         return -1;
     }
     tm.tm_year = year - 1900;
     tm.tm_mon = mon - 1;
+    tm.tm_mday = mday;
 
     struct tm check_tm = tm;
     time_t    built_time = rnp_mktime(&tm);
-    // check that the time wasn't adjusted
-    if (check_tm.tm_year != tm.tm_year || check_tm.tm_mon != tm.tm_mon ||
-        check_tm.tm_mday != tm.tm_mday) {
-        return -1;
+    time_t    check_time = mktime(&check_tm);
+    if (built_time != check_time) {
+        /* If date is beyond of yk2038 and we have 32-bit signed time_t, we need to reduce
+         * timestamp */
+        RNP_LOG("Warning: date %s is beyond of 32-bit time_t, so timestamp was reduced to "
+                "maximum supported value.",
+                s);
     }
     *t = built_time;
     return 0;
@@ -440,10 +481,10 @@ get_expiration(const char *s, uint32_t *res)
     uint64_t t;
     int      grabdate_result = grabdate(s, &t);
     if (!grabdate_result) {
-        uint32_t now = time(NULL);
+        uint64_t now = time(NULL);
         if (t > now) {
             delta = t - now;
-            if (delta > UINT_MAX) {
+            if (delta > UINT32_MAX) {
                 return -3;
             }
             *res = delta;
@@ -505,7 +546,7 @@ get_expiration(const char *s, uint32_t *res)
         delta *= 60 * 60 * 24 * 365;
         break;
     }
-    if (delta > UINT_MAX) {
+    if (delta > UINT32_MAX) {
         return -4;
     }
     *res = delta;
