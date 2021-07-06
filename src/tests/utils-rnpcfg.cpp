@@ -111,3 +111,36 @@ TEST_F(rnp_tests, test_rnpcfg)
     /* unset value */
     cfg1.unset("key_int");
 }
+
+TEST_F(rnp_tests, test_rnpcfg_get_expiration)
+{
+    time_t     basetime = time(NULL);
+    time_t     rawtime = basetime + 604800;
+    struct tm *timeinfo = localtime(&rawtime);
+    // clear hours, minutes and seconds
+    timeinfo->tm_hour = 0;
+    timeinfo->tm_min = 0;
+    timeinfo->tm_sec = 0;
+    rawtime = mktime(timeinfo);
+    auto exp =
+      fmt("%d-%02d-%02d", timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+    uint32_t raw_expiry = 0;
+    assert_int_equal(get_expiration(exp.c_str(), &raw_expiry), 0);
+    assert_int_equal(raw_expiry, rawtime - basetime);
+    assert_int_equal(get_expiration("2100-01-01", &raw_expiry), 0);
+    assert_int_equal(get_expiration("2024-02-29", &raw_expiry), 0);
+    /* date in a past */
+    assert_int_not_equal(get_expiration("2000-02-29", &raw_expiry), 0);
+    if ((sizeof(time_t) > 4)) {
+        /* date is correct, but overflows 32 bits */
+        assert_int_not_equal(get_expiration("2400-02-29", &raw_expiry), 0);
+    } else {
+        /* for 32-bit time_t we return INT32_MAX for all dates beyond the y2038 */
+        assert_int_equal(get_expiration("2400-02-29", &raw_expiry), 0);
+        assert_int_equal(raw_expiry, INT32_MAX - basetime);
+    }
+    assert_int_not_equal(get_expiration("2100-02-29", &raw_expiry), 0);
+    assert_int_not_equal(get_expiration("4294967296", &raw_expiry), 0);
+    assert_int_not_equal(get_expiration("2037-02-29", &raw_expiry), 0);
+    assert_int_not_equal(get_expiration("2037-13-01", &raw_expiry), 0);
+}
