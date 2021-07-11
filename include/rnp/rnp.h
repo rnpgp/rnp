@@ -97,6 +97,11 @@ typedef uint32_t rnp_result_t;
 #define RNP_OUTPUT_FILE_RANDOM (1U << 1)
 
 /**
+ * Flags for default key selection.
+ */
+#define RNP_KEY_SUBKEYS_ONLY (1U << 0)
+
+/**
  * User id type
  */
 #define RNP_USER_ID (1U)
@@ -1349,6 +1354,28 @@ RNP_API rnp_result_t rnp_key_get_subkey_count(rnp_key_handle_t key, size_t *coun
 RNP_API rnp_result_t rnp_key_get_subkey_at(rnp_key_handle_t  key,
                                            size_t            idx,
                                            rnp_key_handle_t *subkey);
+
+/** Get default key for specified usage. Accepts primary key
+ *  and returns one of its subkeys suitable for desired usage.
+ *  May return the same primary key if it is suitable for requested
+ *  usage and flag RNP_KEY_SUBKEYS_ONLY is not set.
+ *
+ *  @param primary_key handle of the primary key.
+ *  @param usage desired key usage i.e. "sign", "certify", etc,
+ *               see rnp_op_generate_add_usage() function description for all possible values.
+ *  @param flags possible values:  RNP_KEY_SUBKEYS_ONLY - select only subkeys,
+ *               otherwise if flags is 0, primary key can be returned if
+ *               it is suitable for specified usage.
+ *  @param default_key on success resulting key handle will be stored here, otherwise it
+ *                     will contain NULL value. You must free this handle after use with
+ *                     rnp_key_handle_destroy().
+ *  @return RNP_SUCCESS on success, RNP_ERROR_KEY_NOT_FOUND if no key with desired usage
+ *          was found or any other error code.
+ */
+RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
+                                             const char *      usage,
+                                             uint32_t          flags,
+                                             rnp_key_handle_t *default_key);
 
 /** Get the key's algorithm.
  *
