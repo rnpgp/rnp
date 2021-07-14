@@ -1,0 +1,115 @@
+name: Sign release
+
+on:
+  # Run if version tag is pushed
+  push:
+    tags:
+      - 'v*'
+  # Allow to run workflow manually, for already existing tag
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (tag name)'
+        required: true
+        default: 'v0.0.0'
+
+jobs:
+  sign:
+    name: Sign release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup environment
+        run: |
+          set -eux
+          shopt -s extglob
+          EVENT_VER="${{ github.event.inputs.version }}"
+          if [[ $EVENT_VER ]]; then
+            RELEASE_VER=${EVENT_VER#v}
+          else
+            RELEASE_VER=${GITHUB_REF#refs/tags/v}
+          fi
+          if [[ $RELEASE_VER != +([0-9]).+([0-9]).+([0-9])* ]]; then
+            printf "Invalid version: %s\n" $RELEASE_VER
+            exit 1
+          fi
+          printf "RELEASE_VER=%s\n" ${RELEASE_VER} >> $GITHUB_ENV
+          printf "RELEASE_REF=refs/tags/v%s\n" ${RELEASE_VER} >> $GITHUB_ENV
+      - name: Checkout RNP release version
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ env.RELEASE_REF }}
+          path: rnp-release
+      - name: Checkout latest RNP for signing
+        uses: actions/checkout@v2
+        with:
+          path: rnp-latest
+      - name: Checkout release-sign
+        uses: actions/checkout@v2
+        with:
+          repository: rnpgp/release-sign
+          path: release-sign
+      - name: Checkout Botan
+        uses: actions/checkout@v2
+        with:
+          repository: randombit/botan
+          ref: 2.17.3
+          path: botan
+      - name: Install RNP prerequisites
+        run: |
+          set -eux
+          sudo apt-get update
+          sudo apt-get -y install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev build-essential gettext libncurses-dev
+          pushd "${GITHUB_WORKSPACE}/botan"
+          BOTAN_MODULES=$(<../rnp-release/ci/botan-modules tr '\n' ',')
+          ./configure.py --cxxflags="-fno-omit-frame-pointer" --without-documentation --without-openssl --build-targets=shared --minimized-build --enable-modules="$BOTAN_MODULES"
+          make -j2 -s
+          sudo make -j2 install
+          popd
+          sudo ldconfig /usr/local/lib
+      - name: Install RNP
+        run: |
+          set -eux
+          mkdir "${GITHUB_WORKSPACE}/rnp-build"
+          pushd "${GITHUB_WORKSPACE}/rnp-build"
+          cmake -DDOWNLOAD_RUBYRNP=Off -DBUILD_TESTING=Off ../rnp-release/
+          make -j2 -s
+          sudo make -j2 install
+          popd
+          rnp --version
+      - name: Sign sourceballs
+        env:
+          RELEASE_PUBLIC_KEY: ${{ secrets.RNPGP_RELEASE_SIGNING_PUBLIC_KEY }}
+          RELEASE_SECRET_KEY: ${{ secrets.RNPGP_RELEASE_SIGNING_SECRET_KEY }}
+        run: |
+          set -eux
+          pushd "${GITHUB_WORKSPACE}/release-sign"
+          mkdir ~/.rnp
+          set +x
+          if [[ -z $RELEASE_PUBLIC_KEY ]]; then
+            printf "RELEASE_PUBLIC_KEY is not set!\n"
+            exit 1
+          fi
+          if [[ -z $RELEASE_SECRET_KEY ]]; then
+            printf "RELEASE_SECRET_KEY is not set!\n"
+            exit 1
+          fi
+          printf "%s" "${RELEASE_PUBLIC_KEY}" > release-pub.asc
+          printf "%s" "${RELEASE_SECRET_KEY}" > release-sec.asc
+          set -x
+          rnpkeys --import release-pub.asc
+          ./rel-sign.sh -r ${{ github.repository }} -v ${RELEASE_VER} --src ${GITHUB_WORKSPACE}/rnp-release --pparams --keyfile release-sec.asc
+          popd
+      - name: Cleanup
+        if: ${{ failure() || success() }}
+        run: |
+          set -eux
+          shred -u "${GITHUB_WORKSPACE}/release-sign/release-sec.asc"
+      - name: Create release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "release-sign/*.tar.gz.asc, release-sign/*.zip.asc"
+          tag: v${{ env.RELEASE_VER }}
+          body: "## Please update changelog before publishing this release."
+          draft: true
+          name: "Version ${{ env.RELEASE_VER }}"
+          token: ${{ secrets.GITHUB_TOKEN }}
