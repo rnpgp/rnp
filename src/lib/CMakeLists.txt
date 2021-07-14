@@ -215,7 +215,9 @@ install(TARGETS librnp
     DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
     COMPONENT runtime
     ${namelink_component}
-  ARCHIVE DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+  ARCHIVE 
+    DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+    COMPONENT development
 )
 
 # install dll only for windows
