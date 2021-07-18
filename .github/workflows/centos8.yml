@@ -137,9 +137,3 @@ jobs:
           set -euxo pipefail
           yum install -y rpm-build
           cpack -G RPM
-      - name: Upload package
-        uses: actions/upload-artifact@v2
-        with:
-          name: ${{ github.workflow }}-rpm-package-BUILD_SHARED_LIBS-${{ matrix.env.BUILD_SHARED_LIBS }}
-          path: ./*.rpm
-          if-no-files-found: error
