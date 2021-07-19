@@ -236,55 +236,51 @@ cli_rnp_get_confirmation(const cli_rnp_t *rnp, const char *msg, ...)
 }
 
 /** @brief checks whether file exists already and asks user for the new filename
- *  @param path output file name with path. May be NULL, then user is asked for it.
- *  @param newpath preallocated pointer which will store the result on success
- *  @param maxlen maximum number of chars in newfile, including the trailing \0
- *  @param overwrite whether it is allowed to overwrite output file by default
+ *  @param path output file name with path. May be an empty string, then user is asked for it.
+ *  @param res resulting output path will be stored here.
+ *  @param rnp initialized cli_rnp_t structure with additional data
  *  @return true on success, or false otherwise (user cancels the operation)
  **/
 
 static bool
-rnp_get_output_filename(
-  const char *path, char *newpath, size_t maxlen, bool overwrite, cli_rnp_t *rnp)
+rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rnp)
 {
-    if (!path || !path[0]) {
-        fprintf(rnp->userio_out, "Please enter the output filename: ");
-        fflush(rnp->userio_out);
-        if (fgets(newpath, maxlen, rnp->userio_in) == NULL) {
+    const size_t maxlen = PATH_MAX;
+    char         newpath[maxlen] = {0};
+    if (path.empty()) {
+        fprintf(rnp.userio_out, "Please enter the output filename: ");
+        fflush(rnp.userio_out);
+        if (!fgets(newpath, maxlen, rnp.userio_in)) {
             return false;
         }
         rnp_strip_eol(newpath);
     } else {
-        strncpy(newpath, path, maxlen - 1);
+        strncpy(newpath, path.c_str(), maxlen - 1);
         newpath[maxlen - 1] = '\0';
     }
 
     while (true) {
-        if (rnp_file_exists(newpath)) {
-            if (overwrite) {
-                rnp_unlink(newpath);
-                return true;
-            }
-
-            if (cli_rnp_get_confirmation(
-                  rnp, "File '%s' already exists. Would you like to overwrite it?", newpath)) {
-                rnp_unlink(newpath);
-                return true;
-            }
-
-            fprintf(rnp->userio_out, "Please enter the new filename: ");
-            fflush(rnp->userio_out);
-            if (fgets(newpath, maxlen, rnp->userio_in) == NULL) {
-                return false;
-            }
-
-            rnp_strip_eol(newpath);
-
-            if (strlen(newpath) == 0) {
-                return false;
-            }
-        } else {
+        if (!rnp_file_exists(newpath)) {
+            res = newpath;
             return true;
+        }
+        if (cli_rnp_cfg(rnp).get_bool(CFG_OVERWRITE) ||
+            cli_rnp_get_confirmation(
+              &rnp, "File '%s' already exists. Would you like to overwrite it?", newpath)) {
+            rnp_unlink(newpath);
+            res = newpath;
+            return true;
+        }
+
+        fprintf(rnp.userio_out, "Please enter the new filename: ");
+        fflush(rnp.userio_out);
+        if (!fgets(newpath, maxlen, rnp.userio_in)) {
+            return false;
+        }
+
+        rnp_strip_eol(newpath);
+        if (!strlen(newpath)) {
+            return false;
         }
     }
 }
@@ -2054,20 +2050,6 @@ extract_filename(const std::string path)
     return path.substr(lpos + 1);
 }
 
-/* TODO: replace temporary stub with C++ function */
-static bool
-adjust_output_path(std::string &path, bool overwrite, cli_rnp_t *rnp)
-{
-    char pathbuf[PATH_MAX] = {0};
-
-    if (!rnp_get_output_filename(path.c_str(), pathbuf, sizeof(pathbuf), overwrite, rnp)) {
-        return false;
-    }
-
-    path = pathbuf;
-    return true;
-}
-
 static bool
 cli_rnp_init_io(const std::string &op,
                 rnp_input_t *      input,
@@ -2107,7 +2089,7 @@ cli_rnp_init_io(const std::string &op,
         res = rnp_output_to_null(output);
     } else if (is_stdout) {
         res = rnp_output_to_callback(output, stdout_writer, NULL, NULL);
-    } else if (!adjust_output_path(out, cfg.get_bool(CFG_OVERWRITE), rnp)) {
+    } else if (!rnp_get_output_filename(out, out, *rnp)) {
         ERR_MSG("Operation failed: file '%s' already exists.", out.c_str());
         res = RNP_ERROR_BAD_PARAMETERS;
     } else {
