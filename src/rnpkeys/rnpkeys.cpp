@@ -165,16 +165,10 @@ imported_key_changed(json_object *key)
 }
 
 static bool
-import_keys(cli_rnp_t *rnp, const char *file)
+import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
-    rnp_input_t input = NULL;
-    bool        res = false;
-    bool        updated = false;
-
-    if (rnp_input_from_path(&input, file)) {
-        ERR_MSG("failed to open file %s", file);
-        return false;
-    }
+    bool res = false;
+    bool updated = false;
 
     uint32_t flags =
       RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
@@ -193,7 +187,7 @@ import_keys(cli_rnp_t *rnp, const char *file)
             break;
         }
         if (ret) {
-            ERR_MSG("failed to import key(s), from file %s, stopping.", file);
+            ERR_MSG("failed to import key(s) from %s, stopping.", inname.c_str());
             break;
         }
 
@@ -239,21 +233,13 @@ import_keys(cli_rnp_t *rnp, const char *file)
             ERR_MSG("failed to save keyrings");
         }
     }
-    rnp_input_destroy(input);
     return res;
 }
 
 static bool
-import_sigs(cli_rnp_t *rnp, const char *file)
+import_sigs(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 {
-    rnp_input_t input = NULL;
-    bool        res = false;
-
-    if (rnp_input_from_path(&input, file)) {
-        ERR_MSG("Failed to open file %s", file);
-        return false;
-    }
-
+    bool         res = false;
     char *       results = NULL;
     json_object *jso = NULL;
     json_object *sigs = NULL;
@@ -262,7 +248,7 @@ import_sigs(cli_rnp_t *rnp, const char *file)
     int          old_sigs = 0;
 
     if (rnp_import_signatures(rnp->ffi, input, 0, &results)) {
-        ERR_MSG("Failed to import signatures from file %s", file);
+        ERR_MSG("Failed to import signatures from %s", inname.c_str());
         goto done;
     }
     // print information about imported signature(s)
@@ -307,40 +293,43 @@ import_sigs(cli_rnp_t *rnp, const char *file)
 done:
     json_object_put(jso);
     rnp_buffer_destroy(results);
-    rnp_input_destroy(input);
     return res;
 }
 
 static bool
-import(cli_rnp_t *rnp, const char *file, int cmd)
+import(cli_rnp_t *rnp, const std::string &spec, int cmd)
 {
-    if (!file) {
-        ERR_MSG("Import file isn't specified");
+    if (spec.empty()) {
+        ERR_MSG("Import path isn't specified");
         return false;
     }
-
-    if (cmd == CMD_IMPORT_KEYS) {
-        return import_keys(rnp, file);
-    }
-    if (cmd == CMD_IMPORT_SIGS) {
-        return import_sigs(rnp, file);
-    }
-
-    rnp_input_t input = NULL;
-    if (rnp_input_from_path(&input, file)) {
-        ERR_MSG("Failed to open file %s", file);
+    rnp_input_t input = cli_rnp_input_from_specifier(*rnp, spec, NULL);
+    if (!input) {
+        ERR_MSG("Failed to create input for %s", spec.c_str());
         return false;
     }
+    if (cmd == CMD_IMPORT) {
+        char *contents = NULL;
+        if (rnp_guess_contents(input, &contents)) {
+            ERR_MSG("Warning! Failed to guess content type to import. Assuming keys.");
+        }
+        cmd = (contents && !strcmp(contents, "signature")) ? CMD_IMPORT_SIGS : CMD_IMPORT_KEYS;
+        rnp_buffer_destroy(contents);
+    }
 
-    char *contents = NULL;
-    if (rnp_guess_contents(input, &contents)) {
-        ERR_MSG("Warning! Failed to guess content type to import. Assuming keys.");
+    bool res = false;
+    switch (cmd) {
+    case CMD_IMPORT_KEYS:
+        res = import_keys(rnp, input, spec);
+        break;
+    case CMD_IMPORT_SIGS:
+        res = import_sigs(rnp, input, spec);
+        break;
+    default:
+        ERR_MSG("Unexpected command: %d", cmd);
     }
     rnp_input_destroy(input);
-    bool signature = contents && !strcmp(contents, "signature");
-    rnp_buffer_destroy(contents);
-
-    return signature ? import_sigs(rnp, file) : import_keys(rnp, file);
+    return res;
 }
 
 void
@@ -386,7 +375,7 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
-        return import(rnp, f, cmd);
+        return import(rnp, f ? f : "", cmd);
     case CMD_GENERATE_KEY: {
         if (!f) {
             size_t count = cli_rnp_cfg(*rnp).get_count(CFG_USERID);
