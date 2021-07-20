@@ -1748,6 +1748,38 @@ stdout_writer(void *app_ctx, const void *buf, size_t len)
     return (wlen >= 0) && (size_t) wlen == len;
 }
 
+rnp_input_t
+cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_path)
+{
+    rnp_input_t  input = NULL;
+    rnp_result_t res = RNP_ERROR_GENERIC;
+    bool         path = false;
+    if (spec.empty() || (spec == "-")) {
+        /* input from stdin */
+        res = rnp_input_from_callback(&input, stdin_reader, NULL, NULL);
+    } else if ((spec.size() > 4) && (spec.compare(0, 4, "env:") == 0)) {
+        /* input from an environment variable */
+        const char *envval = getenv(spec.c_str() + 4);
+        if (!envval) {
+            ERR_MSG("Failed to get value of the environment variable '%s'.", spec.c_str() + 4);
+            return NULL;
+        }
+        res = rnp_input_from_memory(&input, (const uint8_t *) envval, strlen(envval), true);
+    } else {
+        /* input from path */
+        res = rnp_input_from_path(&input, spec.c_str());
+        path = true;
+    }
+
+    if (res) {
+        return NULL;
+    }
+    if (is_path) {
+        *is_path = path;
+    }
+    return input;
+}
+
 bool
 cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
@@ -1984,9 +2016,9 @@ cli_rnp_add_key(cli_rnp_t *rnp)
         return false;
     }
 
-    rnp_input_t input = NULL;
-    if (rnp_input_from_path(&input, path.c_str())) {
-        ERR_MSG("failed to open key file %s", path.c_str());
+    rnp_input_t input = cli_rnp_input_from_specifier(*rnp, path, NULL);
+    if (!input) {
+        ERR_MSG("failed to open key from %s", path.c_str());
         return false;
     }
 
@@ -2058,13 +2090,10 @@ cli_rnp_init_io(const std::string &op,
 {
     rnp_cfg &          cfg = cli_rnp_cfg(*rnp);
     const std::string &in = cfg.get_str(CFG_INFILE);
-    bool               is_stdin = in.empty() || (in == "-");
+    bool               is_pathin = !in.empty() && (in != "-");
     if (input) {
-        rnp_result_t res = is_stdin ?
-                             rnp_input_from_callback(input, stdin_reader, NULL, NULL) :
-                             rnp_input_from_path(input, in.c_str());
-
-        if (res) {
+        *input = cli_rnp_input_from_specifier(*rnp, in, &is_pathin);
+        if (!*input) {
             return false;
         }
     }
@@ -2076,7 +2105,7 @@ cli_rnp_init_io(const std::string &op,
     bool        is_stdout = out.empty() || (out == "-");
     bool        discard = (op == "verify") && out.empty() && cfg.get_bool(CFG_NO_OUTPUT);
 
-    if (is_stdout && !is_stdin && !discard) {
+    if (is_stdout && is_pathin && !discard) {
         std::string ext = output_extension(cfg, op);
         if (!ext.empty()) {
             out = in + ext;
