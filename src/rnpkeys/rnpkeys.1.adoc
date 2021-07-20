@@ -28,6 +28,10 @@ provides OpenPGP key management functionality, including:
 
 By default, *rnp* will apply a _COMMAND_, additionally configured with _OPTIONS_,
 to all _INPUT_FILE_(s) or _stdin_ if no _INPUT_FILE_ is given.
+There are some special cases for _INPUT_FILE_ :
+
+* _-_ (dash) substitutes to _stdin_
+* env:VARIABLE_NAME substitutes to the contents of environment variable VARIABLE_NAME
 
 Depending on the input, output may be written:
 

@@ -27,6 +27,10 @@ please use _rnpkeys(1)_ for that purpose.
 
 By default, *rnp* will apply a _COMMAND_, additionally configured with _OPTIONS_,
 to all _INPUT_FILE_(s) or _stdin_ if no _INPUT_FILE_ is given.
+There are some special cases for _INPUT_FILE_ :
+
+* _-_ (dash) substitutes to _stdin_
+* env:VARIABLE_NAME substitutes to the contents of environment variable VARIABLE_NAME
 
 Depending on the input, output may be written:
 
@@ -353,6 +357,11 @@ so *any* of these may be used to decrypt the resulting file.
 
 Additionally, the message will be signed with key _0x44616E69656C2057_.
 
+=== EXAMPLE 5
+
+*printf* _"Message"_ | *rnp* *--keyfile* _env:PGP_ENCRYPTION_KEY_ *-e* *-* *--armor*
+
+Encrypt message, passed via stdin, using the key, stored in environment variable *PGP_ENCRYPTION_KEY*, add ascii armoring, and print result to the stdout.
 
 == BUGS
 
