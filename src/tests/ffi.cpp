@@ -6654,6 +6654,13 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     assert_string_equal(msgt, "message");
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.wrong-armor.asc"));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_string_equal(msgt, "unknown");
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
 }
 
 TEST_F(rnp_tests, test_ffi_literal_filename)
