@@ -995,13 +995,15 @@ RNP_API rnp_result_t rnp_key_remove_signatures(rnp_key_handle_t      key,
                                                rnp_key_signatures_cb sigcb,
                                                void *                app_ctx);
 
-/** guess contents of the OpenPGP data stream.
- *
+/**
+ * @brief Guess contents of the OpenPGP data stream.
+ *        Note: This call just peeks data from the stream, so stream is still usable for
+ *              the further processing.
  * @param input stream with data. Must be opened and cannot be NULL.
  * @param contents string with guessed data format will be stored here.
  *                 Possible values: 'message', 'public key', 'secret key', 'signature',
- * 'unknown'. May be used as type in rnp_enarmor() function. Must be deallocated with
- * rnp_buffer_destroy() call.
+ *                 'unknown'. May be used as type in rnp_enarmor() function. Must be
+ *                 deallocated with rnp_buffer_destroy() call.
  * @return RNP_SUCCESS on success, or any other value on error.
  */
 RNP_API rnp_result_t rnp_guess_contents(rnp_input_t input, char **contents);
