@@ -71,6 +71,21 @@ const std::string cli_rnp_pubpath(cli_rnp_t *rnp);
 const std::string cli_rnp_secpath(cli_rnp_t *rnp);
 const std::string cli_rnp_pubformat(cli_rnp_t *rnp);
 const std::string cli_rnp_secformat(cli_rnp_t *rnp);
+/**
+ * @brief Create input object from the specifier, which may represent:
+ *        - path
+ *        - stdin (if `-` or empty string is passed)
+ *        - environment variable contents, if path looks like `env:VARIABLE_NAME`
+ * @param rnp initialized CLI rnp object
+ * @param spec specifier
+ * @param is_path optional parameter. If specifier is path (not stdin, env variable), then true
+ *                will be stored here, false otherwise. May be NULL if this information is not
+ *                needed.
+ * @return rnp_input_t object or NULL if operation failed.
+ */
+rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t &        rnp,
+                                         const std::string &spec,
+                                         bool *             is_path);
 
 bool cli_rnp_init(cli_rnp_t *, const rnp_cfg &);
 bool cli_rnp_baseinit(cli_rnp_t *);
