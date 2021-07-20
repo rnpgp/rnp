@@ -549,6 +549,7 @@ rnp_armored_guess_type_by_readahead(pgp_source_t *src)
     }
     rnp_result_t res = init_armored_src(&armorsrc, &memsrc);
     if (res) {
+        src_close(&memsrc);
         RNP_LOG("failed to parse armored data");
         return PGP_ARMORED_UNKNOWN;
     }
