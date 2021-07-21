@@ -18,6 +18,7 @@ jobs:
   build_and_test:
     name: debug-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
       matrix:
@@ -26,46 +27,38 @@ jobs:
           - arch: x64
             os: windows-latest
             triplet: x64-windows
-            vcpkg_tag: 2020.11-1
             vcpkg_dir: 'C:\\vcpkg'
           - arch: Win32
             os: windows-latest
             triplet: x86-windows
-            vcpkg_tag: 2020.11-1
             vcpkg_dir: 'C:\\vcpkg'
-
     steps:
       - name: Checkout
         uses: actions/checkout@v2
         with:
           submodules: true
           lfs: true
-
-      - name: Configure vcpkg
-        shell: bash
-        run: |
-          cd ${{ matrix.vcpkg_dir }}
-          git fetch origin --tags
-          git reset --hard ${{ matrix.vcpkg_tag }}
-          ./bootstrap-vcpkg.bat
       - name: Cache vcpkg
         uses: actions/cache@v2
         with:
           path: '${{ matrix.vcpkg_dir }}/installed'
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.vcpkg_tag }}
+          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}
       - name: Install vcpkg packages
         shell: bash
-        run: vcpkg install --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
+        run: |
+          set -eux
+          vcpkg install --debug --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
       - name: Configure
         env:
           VCPKG_DIR: '${{ matrix.vcpkg_dir }}'
         shell: bash
         run: |
+          set -eux
           mkdir build
           cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug .
       - name: Compile
         shell: bash
-        run: cmake --build ./build
+        run: cmake --build ./build -j 2
       - name: Testing
         shell: bash
         run: ci/test.msvc.sh
