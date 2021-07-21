@@ -1,1 +1,1 @@
-bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
+bzip2 zlib botan json-c getopt dirent python3
