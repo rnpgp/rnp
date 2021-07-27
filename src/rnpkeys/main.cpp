@@ -101,6 +101,10 @@ rnpkeys_main(int argc, char **argv)
                     goto end;
                 }
                 break;
+            case '?':
+                print_usage(usage);
+                ret = EXIT_FAILURE;
+                goto end;
             default:
                 cmd = CMD_HELP;
                 break;
