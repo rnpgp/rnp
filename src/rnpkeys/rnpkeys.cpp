@@ -426,7 +426,7 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
     case CMD_HELP:
     default:
         print_usage(usage);
-        return false;
+        return true;
     }
 }
 
