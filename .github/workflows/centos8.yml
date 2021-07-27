@@ -38,7 +38,8 @@ jobs:
           - BUILD_MODE: normal
             GPG_VERSION: beta
           - BUILD_MODE: sanitize
-            GPG_VERSION: stable
+            LSAN_OPTIONS: fast_unwind_on_malloc=0
+            RNP_TESTS: rnp_tests
 
           # TODO: fix build error:
           # libcommon.a(libcommon_a-iobuf.o):(.bss+0x8): multiple definition of `iobuf_debug_mode'

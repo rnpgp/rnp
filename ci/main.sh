@@ -64,7 +64,7 @@ build_tests() {
       ;;
   esac
 
-  "${run}" ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
+  "${run}" ctest -j"${CTEST_PARALLEL}" -V -R "$RNP_TESTS" --rerun-failed
   popd
 }
 

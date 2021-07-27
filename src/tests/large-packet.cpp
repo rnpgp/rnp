@@ -34,21 +34,30 @@ TEST_F(rnp_tests, test_large_packet)
     rnp_output_t    output = NULL;
     rnp_op_verify_t verify;
 
-    /* init ffi and inputs */
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
-    assert_rnp_success(rnp_input_destroy(input));
+    try {
+        /* init ffi and inputs */
+        printf("1\n");
+        assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+        assert_rnp_success(rnp_input_from_path(&input, "data/keyrings/1/pubring.gpg"));
+        assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+        assert_rnp_success(rnp_input_destroy(input));
 
-    // Verify part
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_large_packet/4g.bzip2.gpg"));
-    assert_rnp_success(rnp_output_to_null(&output));
-    /* call verify */
-    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
-    assert_rnp_success(rnp_op_verify_execute(verify));
-    /* cleanup */
-    assert_rnp_success(rnp_op_verify_destroy(verify));
-    assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_input_destroy(input));
-    assert_rnp_success(rnp_ffi_destroy(ffi));
+        // Verify part
+        printf("2\n");
+        assert_rnp_success(rnp_input_from_path(&input, "data/test_large_packet/4g.bzip2.gpg"));
+        assert_rnp_success(rnp_output_to_null(&output));
+        /* call verify */
+        printf("3\n");
+        assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+        printf("4\n");
+        assert_rnp_success(rnp_op_verify_execute(verify));
+        printf("5\n");
+        /* cleanup */
+        assert_rnp_success(rnp_op_verify_destroy(verify));
+        assert_rnp_success(rnp_output_destroy(output));
+        assert_rnp_success(rnp_input_destroy(input));
+        assert_rnp_success(rnp_ffi_destroy(ffi));
+    } catch (const std::exception &e) {
+        printf("Exception: %s\n", e.what());
+    }
 }
