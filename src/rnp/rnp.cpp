@@ -716,6 +716,10 @@ rnp_main(int argc, char **argv)
                 cfg.set_str(CFG_KEYFILE, optarg);
                 cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
                 break;
+            case '?':
+                print_usage(usage);
+                ret = EXIT_FAILURE;
+                goto finish;
             default:
                 cmd = CMD_HELP;
                 break;
