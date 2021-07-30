@@ -1993,6 +1993,20 @@ class Misc(unittest.TestCase):
         if ret != 2:
             raise_err("failed to run without HOME env variable")
 
+    def test_exit_codes(self):
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--help'])
+        if ret != 0:
+            raise_err("invalid exit code of 'rnp --help'")
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--help'])
+        if ret != 0:
+            raise_err("invalid exit code of 'rnpkeys --help'")
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--unknown-option', '--help'])
+        if ret == 0:
+            raise_err("rnp should return non-zero exit code for unknown command line options")
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--unknown-option', '--help'])
+        if ret == 0:
+            raise_err("rnpkeys should return non-zero exit code for unknown command line options")
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
