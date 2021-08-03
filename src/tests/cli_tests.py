@@ -1126,13 +1126,13 @@ class Keystore(unittest.TestCase):
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs'])
         if ret == 0:
             raise_err('Sigs import without file failed')
-        if not re.match(r'(?s)^.*Import file isn\'t specified.*', err):
+        if not re.match(r'(?s)^.*Import path isn\'t specified.*', err):
             raise_err('Sigs import without file wrong output')
         # Import command with invalid path parameter
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', data_path('test_key_validity/alice-rev-no-file.pgp')])
         if ret == 0:
             raise_err('Sigs import with invalid path failed')
-        if not re.match(r'(?s)^.*Failed to open file .*', err):
+        if not re.match(r'(?s)^.*Failed to create input for .*', err):
             raise_err('Sigs import with invalid path wrong output')
         # Try to import signature to empty keyring
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-sigs', data_path('test_key_validity/alice-rev.pgp')])
@@ -1172,11 +1172,25 @@ class Keystore(unittest.TestCase):
             raise_err('Alice sigs reimport failed')
         if not re.match(r'(?s)^.*Import finished: 0 new signatures, 2 unchanged, 0 unknown.*', err):
             raise_err('Alice sigs reimport wrong output')
+        # Import two signatures again via stdin
+        stext = file_text(data_path('test_key_validity/alice-sigs.asc'))
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', '-'], stext)
+        if ret != 0:
+            raise_err('Alice sigs stdin reimport failed')
+        if not re.match(r'(?s)^.*Import finished: 0 new signatures, 2 unchanged, 0 unknown.*', err):
+            raise_err('Alice sigs reimport wrong output')
+        # Import two signatures via env variable
+        os.environ["SIG_FILE"] = stext
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', 'env:SIG_FILE'])
+        if ret != 0:
+            raise_err('Alice sigs env reimport failed')
+        if not re.match(r'(?s)^.*Import finished: 0 new signatures, 2 unchanged, 0 unknown.*', err):
+            raise_err('Alice sigs reimport wrong output')
         # Try to import malformed signatures
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sigs-malf.pgp')])
         if ret == 0:
             raise_err('Alice malformed sigs import failed')
-        if not re.match(r'(?s)^.*Failed to import signatures from file .*', err):
+        if not re.match(r'(?s)^.*Failed to import signatures from .*', err):
             raise_err('Alice malformed sigs wrong output')
     
     def test_export_revocation(self):
@@ -2006,6 +2020,84 @@ class Misc(unittest.TestCase):
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--unknown-option', '--help'])
         if ret == 0:
             raise_err("rnpkeys should return non-zero exit code for unknown command line options")
+
+    def test_input_from_specifier(self):
+        KEY_LIST = r'(?s)^.*' \
+        r'1 key found.*' \
+        r'pub .*255/EdDSA.*0451409669ffde3c.*' \
+        r'73edcc9119afc8e2dbbdcde50451409669ffde3c.*$'
+        NO_KEY_LIST = r'(?s)^.*' \
+        r'Key\(s\) not found.*$'
+        WRONG_VAR = r'(?s)^.*' \
+        r'Failed to get value of the environment variable \'SOMETHING_UNSET\'.*' \
+        r'Failed to create input for env:SOMETHING_UNSET.*$'
+        WRONG_DATA = r'(?s)^.*' \
+        r'failed to import key\(s\) from env:KEY_FILE, stopping.*$'
+        PGP_MSG = r'(?s)^.*' \
+        r'-----BEGIN PGP MESSAGE-----.*' \
+        r'-----END PGP MESSAGE-----.*$'
+
+        clear_keyrings()
+        # Import key from the stdin
+        ktext = file_text(data_path('test_key_validity/alice-sec.asc'))
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', '-'], ktext)
+        if ret != 0:
+            raise_err("failed to import key from stdin")
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if ret != 0:
+            raise_err("key list failed")
+        match = re.match(KEY_LIST, out)
+        if not match:
+            raise_err('wrong key list output', out)
+        # Cleanup and import key from the env variable
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if ret == 0:
+            raise_err("key list failed")
+        match = re.match(NO_KEY_LIST, out)
+        if not match:
+            raise_err('wrong key list output', out)
+        # Pass unset variable
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', 'env:SOMETHING_UNSET'])
+        if ret == 0:
+            raise_err("key import failed")
+        match = re.match(WRONG_VAR, err)
+        if not match:
+            raise_err('wrong output', err)
+        # Pass incorrect value in environment variable
+        os.environ["KEY_FILE"] = "something"
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', 'env:KEY_FILE'])
+        if ret == 0:
+            raise_err("key import failed")
+        match = re.match(WRONG_DATA, err)
+        if not match:
+            raise_err('wrong output', err)
+        # Now import the correct key
+        os.environ["KEY_FILE"] = ktext
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', 'env:KEY_FILE'])
+        if ret != 0:
+            raise_err("key import failed")
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        if ret != 0:
+            raise_err("key list failed")
+        match = re.match(KEY_LIST, out)
+        if not match:
+            raise_err('wrong key list output', out)
+
+        # Sign message from the stdin, using the env keyfile
+        ret, out, _ = run_proc(RNP, ['-s', '-', '--password', 'password', '--armor', '--keyfile', 'env:KEY_FILE'], 'Message to sign')
+        if ret != 0:
+            raise_err("Message signing failed")
+        match = re.match(PGP_MSG, out)
+        if not match:
+            raise_err('wrong signing output', out)
+        os.environ["SIGN_MSG"] = out
+        # Verify message from the env variable
+        ret, out, _ = run_proc(RNP, ['-d', 'env:SIGN_MSG', '--keyfile', 'env:KEY_FILE'])
+        if ret != 0:
+            raise_err("Message verification failed")
+        if out != 'Message to sign':
+            raise_err('wrong verification output', out)
 
 class Encryption(unittest.TestCase):
     '''
