@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - 'release/**'
+      - issue-1571
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
@@ -46,16 +47,16 @@ jobs:
         run: |
           apt update
           apt -y install git sudo
-      # - uses: actions/checkout@v2 # XXX: actions/checkout give error about OCI container
+      - uses: actions/checkout@v2 # XXX: actions/checkout give error about OCI container
       #   with:
       #     fetch-depth: 0
-      - name: Check out repository
-        run: |
-          cd $GITHUB_WORKSPACE
-          git init
-          git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
-          git fetch origin $GITHUB_SHA
-          git reset --hard FETCH_HEAD
+      #- name: Check out repository
+      #  run: |
+      #    cd $GITHUB_WORKSPACE
+      #    git init
+      #    git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
+      #    git fetch origin $GITHUB_SHA
+      #    git reset --hard FETCH_HEAD
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
