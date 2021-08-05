@@ -4,6 +4,7 @@ on:
     branches:
       - master
       - 'release/**'
+      - issue-1571
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
@@ -55,10 +56,10 @@ jobs:
         run: |
           set -eux
           mkdir build
-          cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake -DCMAKE_BUILD_TYPE=Debug .
+          cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
       - name: Compile
         shell: bash
-        run: cmake --build ./build -j 2
+        run: cmake --build --config Release ./build -j 2
       - name: Testing
         shell: bash
         run: ci/test.msvc.sh
