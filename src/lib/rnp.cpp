@@ -3546,12 +3546,20 @@ locator_to_str(const pgp_key_search_t *locator,
 }
 
 static rnp_result_t
-rnp_locate_key_int(rnp_ffi_t ffi, const pgp_key_search_t &locator, rnp_key_handle_t *handle)
+rnp_locate_key_int(rnp_ffi_t               ffi,
+                   const pgp_key_search_t &locator,
+                   rnp_key_handle_t *      handle,
+                   bool                    require_secret = false)
 {
     // search pubring
     pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &locator, NULL);
     // search secring
     pgp_key_t *sec = rnp_key_store_search(ffi->secring, &locator, NULL);
+
+    if (require_secret && !sec) {
+        *handle = NULL;
+        return RNP_SUCCESS;
+    }
 
     if (pub || sec) {
         *handle = (rnp_key_handle_t) malloc(sizeof(**handle));
@@ -6207,33 +6215,20 @@ try {
         *default_key = NULL;
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
+
     pgp_key_search_t search = {(pgp_key_search_type_t) 0};
     search.type = PGP_KEY_SEARCH_FINGERPRINT;
     search.by.fingerprint = defkey->fp();
 
-    // search pubring
-    pgp_key_t *pub = rnp_key_store_search(primary_key->ffi->pubring, &search, NULL);
-    // search secring
-    pgp_key_t *sec = rnp_key_store_search(primary_key->ffi->secring, &search, NULL);
+    bool         require_secret = keyflag != PGP_KF_ENCRYPT;
+    rnp_result_t ret =
+      rnp_locate_key_int(primary_key->ffi, search, default_key, require_secret);
 
-    if (!sec && keyflag != PGP_KF_ENCRYPT) {
+    if (!*default_key && !ret) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-    if (pub || sec) {
-        *default_key = (rnp_key_handle_t) malloc(sizeof(**default_key));
-        if (!*default_key) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        (*default_key)->ffi = primary_key->ffi;
-        (*default_key)->pub = pub;
-        (*default_key)->sec = sec;
-        (*default_key)->locator = search;
-    } else {
-        *default_key = NULL;
-        return RNP_ERROR_NO_SUITABLE_KEY;
-    }
-    return RNP_SUCCESS;
+    return ret;
 }
 FFI_GUARD
 
