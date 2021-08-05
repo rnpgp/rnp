@@ -17,7 +17,7 @@ on:
 
 jobs:
   build_and_test:
-    name: debug-${{ matrix.arch }}
+    name: MSVC-${{ matrix.arch }}
     runs-on: ${{ matrix.os }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -59,7 +59,7 @@ jobs:
           cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
       - name: Compile
         shell: bash
-        run: cmake --build --config Release ./build -j 2
+        run: cmake --build --config="Release" ./build -j 2
       - name: Testing
         shell: bash
         run: ci/test.msvc.sh
