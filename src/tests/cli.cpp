@@ -726,7 +726,7 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
     assert_int_not_equal(key_generate(GENKEYS, "expiration_overflow@rnp", "200y"), 0);
     assert_int_not_equal(key_generate(GENKEYS, "expiration_past@rnp", "2021-01-01"), 0);
 
-    // these should pass and go to the keystore -- 15 primary keys and 15 subkeys
+    // these should pass and go to the keystore -- 17 primary keys and 17 subkeys
     assert_int_equal(key_generate(GENKEYS, "expiration_beyond2038_relative@rnp", "20y"), 0);
     assert_int_equal(key_generate(GENKEYS, "expiration_beyond2038_absolute@rnp", "2100-01-01"),
                      0);
