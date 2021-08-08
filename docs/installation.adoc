@@ -91,6 +91,32 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on \
 sudo make install
 ----
 
+== On Gentoo
+
+RNP ebuilds are available in overlay repository named `rnp`.
+
+=== Using layman (the old way)
+
+Prerequisite: make sure `layman` is installed on your system.
+
+[source,console]
+----
+layman -a rnp
+layman -s rnp
+emerge -av app-crypt/rnp
+----
+
+=== Using eselect-repository (the new way)
+
+Prerequisite: make sure `eselect-repository` is installed on your system.
+
+[source,console]
+----
+eselect repository enable rnp
+emaint sync -r rnp
+emerge -av app-crypt/rnp
+----
+
 == Compile from source
 
 Clone this repo, or download a release and expand it.
