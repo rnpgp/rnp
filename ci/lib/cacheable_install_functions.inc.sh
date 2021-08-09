@@ -80,7 +80,7 @@ install_jsonc() {
     autoreconf -ivf
     local cpuparam=()
     [[ -z "$CPU" ]] || cpuparam=(--build="$CPU")
-    env CFLAGS="-fPIC -fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} --prefix="${JSONC_INSTALL}"
+    env CFLAGS="-fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} --prefix="${JSONC_INSTALL}"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
   fi
@@ -149,8 +149,8 @@ _install_gpg() {
 
   local common_args=(
       --force-autogen
-#      --verbose		commnted out to speed up recurring CI builds
-#      --trace                  uncomment if you are debugging CI
+      --verbose
+      --trace
       --build-dir "${gpg_build}"
       --configure-opts "${configure_opts[*]}"
   )
