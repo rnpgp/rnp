@@ -29,7 +29,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
@@ -64,7 +64,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
@@ -98,7 +98,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
@@ -141,7 +141,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
@@ -171,13 +171,13 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
           path: rnp
       - name: Download latest version.cmake
         uses: actions/checkout@v2
         with:
           repository: rnpgp/cmake-versioning
-          fetch-depth: 0
+          fetch-depth: 1
           path: cmake-versioning
       - name: Compare
         run: |
