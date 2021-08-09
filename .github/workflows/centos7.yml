@@ -55,7 +55,7 @@ jobs:
           yum -y install git
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Add rnpuser
         run: |
           useradd rnpuser
@@ -108,7 +108,7 @@ jobs:
           yum -y install git
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - name: Test
         run: |
           set -euxo pipefail
