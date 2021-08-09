@@ -30,7 +30,7 @@ jobs:
     steps:
       - uses: actions/checkout@v2
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - uses: msys2/setup-msys2@v2
         with:
           path-type: inherit

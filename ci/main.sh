@@ -16,10 +16,10 @@ prepare_build_prerequisites() {
   CMAKE=cmake
 
   case "${OS}-${CPU}" in
-    linux-i386)
-      build_and_install_python
-      ;;
-    linux-*)
+#    linux-i386)                                       #  For i386/Debian (the only 32 bit run) python3 is already installed by  
+#      build_and_install_python                        #  linux_install @ install_functions.inc.sh called from install_cacheable_dependencies.sh
+#      ;;                                              #  If there is a distribution that does not have python3 pre-apckeges (highly unlikely) 
+    linux-*)                                           #  it shall be implemented like ensure_cmake 
       PREFIX=/usr
       ensure_cmake
       ;;
@@ -78,7 +78,7 @@ main() {
   pushd "${LOCAL_BUILDS}/rnp-build"
 
   cmakeopts=(
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs. 
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
@@ -94,7 +94,7 @@ main() {
     cmakeopts+=(-G "MSYS Makefiles")
   fi
   build_rnp "${rnpsrc}"
-  make_install VERBOSE=1
+  make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
 
   prepare_tests
   build_tests
