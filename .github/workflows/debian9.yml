@@ -36,43 +36,45 @@ jobs:
     timeout-minutes: 120
     strategy:
       matrix:
+# I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2 
+#       give error about OCI container [https://github.com/actions/checkout/issues/334]
+#                                      [https://github.com/actions/runner/issues/1011]
         env:
           - CPU: i386
             IMAGE: "i386/debian:9"
     env: ${{ matrix.env }}
     continue-on-error: false
     steps:
-      - name: Installing prerequisites
+      - name: Install prerequisites
         run: |
           apt update
           apt -y install git sudo
-      #- uses: actions/checkout@v2 # XXX: actions/checkout give error about OCI container
-      #   with:
-      #     fetch-depth: 0
+      
       - name: Check out repository
-        run: |
-          cd $GITHUB_WORKSPACE
-          git init
-          git remote add origin $GITHUB_SERVER_URL/$GITHUB_REPOSITORY
-          git fetch origin $GITHUB_SHA
-          git reset --hard FETCH_HEAD
-      - name: Setup environment
+        uses: actions/checkout@v1
+        with:
+          fetch-depth: 1
+
+      - name: Setup noncacheable dependencies
         run: |
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
         shell: bash
-      # - name: Cache
-      #   id: cache
-      #   uses: actions/cache@v2
-      #   with:
-      #     path: ${{ env.CACHE_DIR }}
-      #     key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.CPU }}-gpg-${{ matrix.env.IMAGE }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
+
+#      - name: Cache 
+#        id: cache
+#        uses: actions/cache@v2
+#        with:
+#          path: ${{github.workspace}}/${{ env.CACHE_DIR }}
+#          key: ${{runner.os}}-${{ matrix.env.CPU }}-${{ matrix.env.IMAGE }}-v1
+
+      - name: Setup cacheable dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
           ci/install_cacheable_dependencies.sh
         shell: bash
+
       - name: Add rnpuser
         # it's only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
         run: |
@@ -80,12 +82,14 @@ jobs:
            printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
            printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
            echo "SUDO=sudo" >> $GITHUB_ENV
-      - name: Building and Testing
+
+      - name: Build and Test
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
         shell: bash
+
       - name: Package
         run: |
           set -x
