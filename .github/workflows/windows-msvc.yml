@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           set -eux
-          vcpkg install --debug --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
+          vcpkg install --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
       - name: Configure
         env:
           VCPKG_DIR: '${{ matrix.vcpkg_dir }}'
