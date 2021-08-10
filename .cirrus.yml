@@ -4,7 +4,7 @@ freebsd_instance:
 task:
   name: build
   only_if: $CIRRUS_BRANCH == 'master' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_PR != ''
-  skip: "changesIncludeOnly('docs/*', '.github/*') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
+  skip: "!changesInclude('.cirrus.yml') && changesIncludeOnly('/*.sh', '/.*', '/_*', '/vcpkg.txt', 'Brewfile', 'docs/**', '**.adoc', '**.md', '**.nix', 'flake.lock', '.github/**') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
   # increase timeout since we use a single task for building cache and testing
   timeout_in: 90m
   env:
