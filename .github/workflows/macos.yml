@@ -6,16 +6,28 @@ on:
       - master
       - 'release/**'
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
       - '.github/workflows/*.yml'
       - '!.github/workflows/macos.yml'
   pull_request:
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 env:
   CORES: 2

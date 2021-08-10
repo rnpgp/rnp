@@ -6,16 +6,30 @@ on:
       - master
       - 'release/**'
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
       - '.github/workflows/*.yml'
       - '!.github/workflows/centos8-ossl.yml'
   pull_request:
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 env:
   CORES: 2
