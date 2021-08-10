@@ -6,16 +6,28 @@ on:
       - master
       - 'release/**'
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
       - '.github/workflows/*.yml'
       - '!.github/workflows/windows-msys2.yml'
   pull_request:
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 env:
   BUILD_MODE: normal
@@ -57,7 +69,7 @@ jobs:
 #          . ci/gha/setup-env.inc.sh
         run: |
           bash ci/install_noncacheable_dependencies.sh
-# Since all dependencies are available as binary packages no extra steps or cache are required 
+# Since all dependencies are available as binary packages no extra steps or cache are required
 # The code below kept here for potential need to build some dependencies locally
 #      - name: Cache
 #        id: cache

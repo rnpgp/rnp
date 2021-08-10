@@ -3,9 +3,16 @@ name: fuzzing
 on:
   pull_request:
     paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 jobs:
   fuzzing:

@@ -5,6 +5,26 @@ Binaries that will be installed:
 * `rnp`
 * `rnpkeys`
 
+
+== On NixOS or Nix package manager
+
+We provide a Nix package for easy installation on NixOS and any OS with Nix
+installed (including Linux and macOS, even NixOS on WSL).
+
+[source,console]
+----
+nix-env -iA nixpkgs.rnp
+----
+
+== With Nix Flakes
+
+We provide a Nix flake.
+
+[source,console]
+----
+nix profile install github:rnpgp/rnp
+----
+
 == On macOS using Homebrew
 
 We provide a Homebrew tap for easy installation of RNP on macOS.
@@ -211,4 +231,3 @@ executables):
 
 You may check dependencies and their paths via `ntldd.exe` in the MSYS command
 prompt.
-

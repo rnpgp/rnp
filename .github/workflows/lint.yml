@@ -3,9 +3,16 @@ name: lint
 on:
   pull_request:
     paths-ignore:
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - '!.clang-format'
+      - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '**.nix'
+      - 'flake.lock'
 
 jobs:
   clang-format:
