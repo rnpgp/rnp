@@ -605,7 +605,7 @@ setup_cli_rnp_common(cli_rnp_t *rnp, const char *ks_format, const char *homedir,
     }
 
     /*initialize the basic RNP structure. */
-    return cli_rnp_init(rnp, cfg);
+    return rnp->init(cfg);
 }
 
 void

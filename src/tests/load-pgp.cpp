@@ -779,7 +779,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, ".rnp", NULL));
 
     /* import just the public key */
-    rnp_cfg &cfg = cli_rnp_cfg(rnp);
+    rnp_cfg &cfg = rnp.cfg();
     cfg.set_str(CFG_KEYFILE, MERGE_PATH "key-pub-just-key.pgp");
     assert_true(cli_rnp_add_key(&rnp));
     assert_true(cli_rnp_save_keyrings(&rnp));
@@ -944,7 +944,7 @@ TEST_F(rnp_tests, test_key_import)
     assert_int_equal(tskey->subkey.tag, PGP_PKT_SECRET_SUBKEY);
     assert_rnp_success(decrypt_secret_key(&tskey->subkey, "password"));
 
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, test_load_subkey)

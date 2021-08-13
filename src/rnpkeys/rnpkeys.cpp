@@ -132,8 +132,8 @@ struct option options[] = {
 static bool
 print_keys_info(cli_rnp_t *rnp, FILE *fp, const char *filter)
 {
-    bool psecret = cli_rnp_cfg(*rnp).get_bool(CFG_SECRET);
-    bool psigs = cli_rnp_cfg(*rnp).get_bool(CFG_WITH_SIGS);
+    bool psecret = rnp->cfg().get_bool(CFG_SECRET);
+    bool psigs = rnp->cfg().get_bool(CFG_WITH_SIGS);
     int  flags = CLI_SEARCH_SUBKEYS_AFTER | (psecret ? CLI_SEARCH_SECRET : 0);
     std::vector<rnp_key_handle_t> keys;
 
@@ -173,7 +173,7 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
     uint32_t flags =
       RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
 
-    bool permissive = cli_rnp_cfg(*rnp).get_bool(CFG_PERMISSIVE);
+    bool permissive = rnp->cfg().get_bool(CFG_PERMISSIVE);
     if (permissive) {
         flags |= RNP_LOAD_SAVE_PERMISSIVE;
     }
@@ -224,8 +224,8 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
 
     if (updated) {
         // set default key if we didn't have one
-        if (cli_rnp_defkey(rnp).empty()) {
-            cli_rnp_set_default_key(rnp);
+        if (rnp->defkey().empty()) {
+            rnp->set_defkey();
         }
 
         // save public and secret keyrings
@@ -356,14 +356,14 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
 
     switch (cmd) {
     case CMD_LIST_KEYS:
-        if (!f && cli_rnp_cfg(*rnp).get_count(CFG_USERID)) {
-            fs = cli_rnp_cfg(*rnp).get_str(CFG_USERID, 0);
+        if (!f && rnp->cfg().get_count(CFG_USERID)) {
+            fs = rnp->cfg().get_str(CFG_USERID, 0);
             f = fs.c_str();
         }
         return print_keys_info(rnp, stdout, f);
     case CMD_EXPORT_KEY: {
-        if (!f && cli_rnp_cfg(*rnp).get_count(CFG_USERID)) {
-            fs = cli_rnp_cfg(*rnp).get_str(CFG_USERID, 0);
+        if (!f && rnp->cfg().get_count(CFG_USERID)) {
+            fs = rnp->cfg().get_str(CFG_USERID, 0);
             f = fs.c_str();
         }
         if (!f) {
@@ -378,9 +378,9 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         return import(rnp, f ? f : "", cmd);
     case CMD_GENERATE_KEY: {
         if (!f) {
-            size_t count = cli_rnp_cfg(*rnp).get_count(CFG_USERID);
+            size_t count = rnp->cfg().get_count(CFG_USERID);
             if (count == 1) {
-                fs = cli_rnp_cfg(*rnp).get_str(CFG_USERID, 0);
+                fs = rnp->cfg().get_str(CFG_USERID, 0);
                 f = fs.c_str();
             } else if (count > 1) {
                 ERR_MSG("Only single userid is supported for generated keys");
@@ -693,7 +693,7 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
         ERR_MSG("fatal: cannot set keystore info");
         goto end;
     }
-    if (!cli_rnp_init(rnp, rnpcfg)) {
+    if (!rnp->init(rnpcfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
         goto end;
     }
@@ -702,7 +702,7 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
     ret = true;
 end:
     if (!ret) {
-        cli_rnp_end(rnp);
+        rnp->end();
     }
     return ret;
 }
