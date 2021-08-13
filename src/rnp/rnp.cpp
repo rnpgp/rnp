@@ -236,7 +236,7 @@ rnp_cmd(cli_rnp_t *rnp)
 {
     bool ret = false;
 
-    switch (cli_rnp_cfg(*rnp).get_int(CFG_COMMAND)) {
+    switch (rnp->cfg().get_int(CFG_COMMAND)) {
     case CMD_PROTECT:
         ret = cli_rnp_protect_file(rnp);
         break;
@@ -748,21 +748,19 @@ rnp_main(int argc, char **argv)
         goto finish;
     }
 
-    if (!cli_rnp_init(&rnp, cfg)) {
+    if (!rnp.init(cfg)) {
         ERR_MSG("fatal: cannot initialise");
         goto finish;
     }
 
-    disable_ks = cli_rnp_cfg(rnp).get_bool(CFG_KEYSTORE_DISABLED);
-    if (!disable_ks &&
-        !cli_rnp_load_keyrings(&rnp, cli_rnp_cfg(rnp).get_bool(CFG_NEEDSSECKEY))) {
+    disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
+    if (!disable_ks && !cli_rnp_load_keyrings(&rnp, rnp.cfg().get_bool(CFG_NEEDSSECKEY))) {
         ERR_MSG("fatal: failed to load keys");
         goto finish;
     }
 
     /* load the keyfile if any */
-    if (disable_ks && !cli_rnp_cfg(rnp).get_str(CFG_KEYFILE).empty() &&
-        !cli_rnp_add_key(&rnp)) {
+    if (disable_ks && !rnp.cfg().get_str(CFG_KEYFILE).empty() && !cli_rnp_add_key(&rnp)) {
         ERR_MSG("fatal: failed to load key(s) from the file");
         goto finish;
     }
@@ -778,14 +776,14 @@ rnp_main(int argc, char **argv)
             ret = EXIT_FAILURE;
     } else {
         for (int i = optind; i < argc; i++) {
-            cli_rnp_cfg(rnp).set_str(CFG_INFILE, argv[i]);
+            rnp.cfg().set_str(CFG_INFILE, argv[i]);
             if (!rnp_cmd(&rnp)) {
                 ret = EXIT_FAILURE;
             }
         }
     }
 finish:
-    cli_rnp_end(&rnp);
+    rnp.end();
 #if !defined(RNP_RUN_TESTS) && defined(_WIN32)
     if (args_are_substituted) {
         rnp_win_clear_args(argc, argv);

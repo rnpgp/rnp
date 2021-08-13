@@ -57,7 +57,7 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
 
     std::vector<rnp_key_handle_t> keys;
     /* Generate the key */
-    cli_set_default_rsa_key_desc(cli_rnp_cfg(rnp), hash);
+    cli_set_default_rsa_key_desc(rnp.cfg(), hash);
     if (!cli_rnp_generate_key(&rnp, userid)) {
         goto done;
     }
@@ -84,7 +84,7 @@ done:
         close(pipefd[0]);
     }
     clear_key_handles(keys);
-    cli_rnp_end(&rnp);
+    rnp.end();
     return res;
 }
 
@@ -147,7 +147,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 assert_true(seccount > 0);
 
                 /* Setup signing context */
-                rnp_cfg &cfg = cli_rnp_cfg(rnp);
+                rnp_cfg &cfg = rnp.cfg();
                 cfg.load_defaults();
                 cfg.set_bool(CFG_ARMOR, armored);
                 cfg.set_bool(CFG_SIGN_NEEDED, true);
@@ -161,7 +161,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 /* Sign the file */
                 if (!hash_supported(hashAlg[i])) {
                     assert_false(cli_rnp_protect_file(&rnp));
-                    cli_rnp_end(&rnp);
+                    rnp.end();
                     assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), -1);
                     continue;
                 }
@@ -202,7 +202,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                     assert_false(cli_rnp_process_file(&rnp));
                 }
 
-                cli_rnp_end(&rnp);
+                rnp.end();
                 assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), 0);
                 rnp_unlink("dummyfile.verify");
             }
@@ -251,7 +251,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount == 0);
             /* Set the cipher and armored flags */
-            rnp_cfg &cfg = cli_rnp_cfg(rnp);
+            rnp_cfg &cfg = rnp.cfg();
             cfg.load_defaults();
             cfg.set_bool(CFG_ARMOR, armored);
             cfg.set_bool(CFG_ENCRYPT_PK, true);
@@ -263,7 +263,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             /* Encrypt the file */
             bool supported = cipher_supported(cipherAlg[i]);
             assert_true(cli_rnp_protect_file(&rnp) == supported);
-            cli_rnp_end(&rnp);
+            rnp.end();
             if (!supported) {
                 continue;
             }
@@ -275,13 +275,13 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount > 0);
             /* Setup the decryption context and decrypt */
-            rnp_cfg &newcfg = cli_rnp_cfg(rnp);
+            rnp_cfg &newcfg = rnp.cfg();
             newcfg.load_defaults();
             newcfg.set_bool(CFG_OVERWRITE, true);
             newcfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
             newcfg.set_str(CFG_OUTFILE, "dummyfile.decrypt");
             assert_true(cli_rnp_process_file(&rnp));
-            cli_rnp_end(&rnp);
+            rnp.end();
             if (pipefd[0] != -1) {
                 close(pipefd[0]);
             }
@@ -343,7 +343,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", hashAlg[i], &handle));
         assert_non_null(handle);
         rnp_key_handle_destroy(handle);
-        cli_rnp_end(&rnp);
+        rnp.end();
         delete_recursively(".rnp");
     }
 }
@@ -385,7 +385,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
         assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userIds[i], &handle));
         assert_non_null(handle);
         rnp_key_handle_destroy(handle);
-        cli_rnp_end(&rnp);
+        rnp.end();
         delete_recursively(".rnp");
     }
 }
@@ -424,7 +424,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
     rnp_key_handle_destroy(handle);
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* Now we start over with a new home. When home is specified explicitly then it should
      * include .rnp as well */
@@ -461,7 +461,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", "newhomekey", &handle));
     assert_non_null(handle);
     rnp_key_handle_destroy(handle);
-    cli_rnp_end(&rnp); // Free memory and other allocated resources.
+    rnp.end(); // Free memory and other allocated resources.
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
@@ -499,7 +499,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", userid.c_str(), &handle));
     assert_non_null(handle);
     rnp_key_handle_destroy(handle);
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* Now we start over with a new home. */
     path_mkdir(0700, newhome, NULL);
@@ -532,7 +532,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", "newhomekey", &handle));
     assert_non_null(handle);
     rnp_key_handle_destroy(handle);
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirNoPermission)
@@ -579,13 +579,13 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     close(user_input_pipefd[1]);
 
     /* Mock user-input*/
-    cli_rnp_cfg(*ctx).set_int(CFG_USERINPUTFD, user_input_pipefd[0]);
+    ctx->cfg().set_int(CFG_USERINPUTFD, user_input_pipefd[0]);
 
     if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }
-    ops.copy(cli_rnp_cfg(*ctx));
+    ops.copy(ctx->cfg());
     ret = true;
 end:
     /* Close & clean fd*/
@@ -724,7 +724,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-256", "NIST P-256", 0, 0, "SHA256"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh p384 keypair */
     ops.unset(CFG_USERID);
@@ -735,7 +735,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
       &rnp, "expert_ecdsa_p256", "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0, "SHA384"));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p384", "ECDSA", "ECDH", "NIST P-384", "NIST P-384", 0, 0, "SHA384"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh p521 keypair */
     ops.unset(CFG_USERID);
@@ -744,7 +744,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     assert_true(check_cfg_props(ops, "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_ecdsa_p521", "ECDSA", "ECDH", "NIST P-521", "NIST P-521", 0, 0, "SHA512"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh brainpool256 keypair */
     ops.unset(CFG_USERID);
@@ -775,7 +775,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
                                     0,
                                     "SHA256"));
     }
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh brainpool384 keypair */
     ops.unset(CFG_USERID);
@@ -796,7 +796,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     } else {
         assert_false(ask_expert_details(&rnp, ops, "19\n5\n"));
     }
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh brainpool512 keypair */
     ops.unset(CFG_USERID);
@@ -817,7 +817,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     } else {
         assert_false(ask_expert_details(&rnp, ops, "19\n6\n"));
     }
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* ecdsa/ecdh secp256k1 keypair */
     ops.unset(CFG_USERID);
@@ -837,7 +837,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     } else {
         assert_false(ask_expert_details(&rnp, ops, "19\n7\n"));
     }
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* eddsa/x25519 keypair */
     ops.clear();
@@ -849,7 +849,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     assert_true(check_cfg_props(ops, "EDDSA", "ECDH", NULL, "Curve25519", 0, 0));
     assert_true(check_key_props(
       &rnp, "expert_eddsa_ecdh", "EDDSA", "ECDH", "Ed25519", "Curve25519", 0, 0, "SHA256"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* rsa/rsa 1024 key */
     ops.clear();
@@ -861,7 +861,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     assert_true(check_cfg_props(ops, "RSA", "RSA", NULL, NULL, 1024, 1024));
     assert_true(check_key_props(
       &rnp, "expert_rsa_1024", "RSA", "RSA", NULL, NULL, 1024, 1024, "SHA256"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* rsa 4096 key, asked twice */
     ops.unset(CFG_USERID);
@@ -870,7 +870,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
     assert_true(check_cfg_props(ops, "RSA", "RSA", NULL, NULL, 4096, 4096));
     assert_true(check_key_props(
       &rnp, "expert_rsa_4096", "RSA", "RSA", NULL, NULL, 4096, 4096, "SHA256"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* sm2 key */
     ops.clear();
@@ -886,7 +886,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testExpertMode)
         assert_true(check_key_props(
           &rnp, "expert_sm2", "SM2", "SM2", "SM2 P-256", "SM2 P-256", 0, 0, "SM3"));
     }
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjusted)
@@ -909,7 +909,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetSmallOutputDigest_DigestAlgAdjus
                                 0,
                                 0,
                                 "SHA384"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
@@ -922,7 +922,7 @@ TEST_F(rnp_tests, generatekey_multipleUserIds_ShouldFail)
     ops.add_str(CFG_USERID, "multi_userid_1");
     ops.add_str(CFG_USERID, "multi_userid_2");
     assert_false(ask_expert_details(&rnp, ops, "1\n1024\n"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuceed)
@@ -945,7 +945,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetBiggerThanNeededDigest_ShouldSuc
                                 0,
                                 0,
                                 "SHA512"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
@@ -959,7 +959,7 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
 
     // Finds out that hash doesn't exist and returns an error
     assert_false(ask_expert_details(&rnp, ops, "19\n2\n"));
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 /* This tests some of the mid-level key generation functions and their

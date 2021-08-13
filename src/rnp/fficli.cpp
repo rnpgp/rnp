@@ -264,7 +264,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
             res = newpath;
             return true;
         }
-        if (cli_rnp_cfg(rnp).get_bool(CFG_OVERWRITE) ||
+        if (rnp.cfg().get_bool(CFG_OVERWRITE) ||
             cli_rnp_get_confirmation(
               &rnp, "File '%s' already exists. Would you like to overwrite it?", newpath)) {
             rnp_unlink(newpath);
@@ -452,146 +452,102 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
     return true;
 }
 
-rnp_cfg &
-cli_rnp_cfg(cli_rnp_t &rnp)
-{
-    return rnp.cfg;
-}
-
-const std::string
-cli_rnp_defkey(cli_rnp_t *rnp)
-{
-    return rnp->cfg.get_str(CFG_KR_DEF_KEY);
-}
-
-const std::string
-cli_rnp_pubpath(cli_rnp_t *rnp)
-{
-    return rnp->cfg.get_str(CFG_KR_PUB_PATH);
-}
-const std::string
-cli_rnp_secpath(cli_rnp_t *rnp)
-{
-    return rnp->cfg.get_str(CFG_KR_SEC_PATH);
-}
-
-const std::string
-cli_rnp_pubformat(cli_rnp_t *rnp)
-{
-    return rnp->cfg.get_str(CFG_KR_PUB_FORMAT);
-}
-
-const std::string
-cli_rnp_secformat(cli_rnp_t *rnp)
-{
-    return rnp->cfg.get_str(CFG_KR_SEC_FORMAT);
-}
-
 bool
-cli_rnp_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
+cli_rnp_t::init(const rnp_cfg &cfg)
 {
     bool coredumps = true;
 
-    if (!cli_rnp_baseinit(rnp)) {
-        return false;
-    }
-    rnp->cfg.copy(cfg);
+    /* Configure user's io streams. */
+    userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
+    userio_in = (userio_in ? userio_in : stdin);
+    userio_out = (isatty(fileno(stdout)) ? stdout : fopen("/dev/tty", "a+"));
+    userio_out = (userio_out ? userio_out : stdout);
+
+    cfg_.copy(cfg);
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
      */
-    if (!rnp->cfg.get_bool(CFG_COREDUMPS)) {
+    if (!cfg_.get_bool(CFG_COREDUMPS)) {
 #ifdef HAVE_SYS_RESOURCE_H
         coredumps = !disable_core_dumps();
 #endif
     }
 
     if (coredumps) {
-        ERR_MSG(
-          "rnp: warning: core dumps may be enabled, sensitive data may be leaked to disk");
+        ERR_MSG("warning: core dumps may be enabled, sensitive data may be leaked to disk");
     }
 
     /* Configure the results stream. */
     // TODO: UTF8?
-    const std::string &ress = rnp->cfg.get_str(CFG_IO_RESS);
+    const std::string &ress = cfg_.get_str(CFG_IO_RESS);
     if (ress.empty() || (ress == "<stderr>")) {
-        rnp->resfp = stderr;
+        resfp = stderr;
     } else if (ress == "<stdout>") {
-        rnp->resfp = stdout;
-    } else if (!(rnp->resfp = rnp_fopen(ress.c_str(), "w"))) {
+        resfp = stdout;
+    } else if (!(resfp = rnp_fopen(ress.c_str(), "w"))) {
         ERR_MSG("cannot open results %s for writing", ress.c_str());
         return false;
     }
 
     bool              res = false;
-    const std::string pformat = cli_rnp_pubformat(rnp);
-    const std::string sformat = cli_rnp_secformat(rnp);
+    const std::string pformat = pubformat();
+    const std::string sformat = secformat();
     if (pformat.empty() || sformat.empty()) {
         ERR_MSG("Unknown public or secret keyring format");
         return false;
     }
-    if (rnp_ffi_create(&rnp->ffi, pformat.c_str(), sformat.c_str())) {
+    if (rnp_ffi_create(&ffi, pformat.c_str(), sformat.c_str())) {
         ERR_MSG("failed to initialize FFI");
         return false;
     }
 
     // by default use stdin password provider
-    if (rnp_ffi_set_pass_provider(rnp->ffi, ffi_pass_callback_stdin, rnp)) {
+    if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_stdin, this)) {
         goto done;
     }
 
     // setup file/pipe password input if requested
-    if (rnp->cfg.get_int(CFG_PASSFD, -1) >= 0) {
-        if (!set_pass_fd(&rnp->passfp, rnp->cfg.get_int(CFG_PASSFD))) {
+    if (cfg_.get_int(CFG_PASSFD, -1) >= 0) {
+        if (!set_pass_fd(&passfp, cfg_.get_int(CFG_PASSFD))) {
             goto done;
         }
-        if (rnp_ffi_set_pass_provider(rnp->ffi, ffi_pass_callback_file, rnp->passfp)) {
+        if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_file, passfp)) {
             goto done;
         }
     }
-    rnp->pswdtries = MAX_PASSWORD_ATTEMPTS;
+    pswdtries = MAX_PASSWORD_ATTEMPTS;
     res = true;
 done:
     if (!res) {
-        rnp_ffi_destroy(rnp->ffi);
-        rnp->ffi = NULL;
+        rnp_ffi_destroy(ffi);
+        ffi = NULL;
     }
     return res;
 }
 
-bool
-cli_rnp_baseinit(cli_rnp_t *rnp)
-{
-    /* Configure user's io streams. */
-    rnp->userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
-    rnp->userio_in = (rnp->userio_in ? rnp->userio_in : stdin);
-    rnp->userio_out = (isatty(fileno(stdout)) ? stdout : fopen("/dev/tty", "a+"));
-    rnp->userio_out = (rnp->userio_out ? rnp->userio_out : stdout);
-    return true;
-}
-
 void
-cli_rnp_end(cli_rnp_t *rnp)
+cli_rnp_t::end()
 {
-    if (rnp->passfp) {
-        fclose(rnp->passfp);
-        rnp->passfp = NULL;
+    if (passfp) {
+        fclose(passfp);
+        passfp = NULL;
     }
-    if (rnp->resfp && (rnp->resfp != stderr) && (rnp->resfp != stdout)) {
-        fclose(rnp->resfp);
-        rnp->resfp = NULL;
+    if (resfp && (resfp != stderr) && (resfp != stdout)) {
+        fclose(resfp);
+        resfp = NULL;
     }
-    if (rnp->userio_in && rnp->userio_in != stdin) {
-        fclose(rnp->userio_in);
+    if (userio_in && userio_in != stdin) {
+        fclose(userio_in);
     }
-    rnp->userio_in = NULL;
-    if (rnp->userio_out && rnp->userio_out != stdout) {
-        fclose(rnp->userio_out);
+    userio_in = NULL;
+    if (userio_out && userio_out != stdout) {
+        fclose(userio_out);
     }
-    rnp->userio_out = NULL;
-    rnp_ffi_destroy(rnp->ffi);
-    rnp->ffi = NULL;
-    rnp->cfg.clear();
+    userio_out = NULL;
+    rnp_ffi_destroy(ffi);
+    ffi = NULL;
+    cfg_.clear();
 }
 
 bool
@@ -606,13 +562,12 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
         goto done;
     }
 
-    if (rnp_input_from_path(&keyin, cli_rnp_pubpath(rnp).c_str())) {
+    if (rnp_input_from_path(&keyin, rnp->pubpath().c_str())) {
         ERR_MSG("wrong pubring path");
         goto done;
     }
 
-    if (rnp_load_keys(
-          rnp->ffi, cli_rnp_pubformat(rnp).c_str(), keyin, RNP_LOAD_SAVE_PUBLIC_KEYS)) {
+    if (rnp_load_keys(rnp->ffi, rnp->pubformat().c_str(), keyin, RNP_LOAD_SAVE_PUBLIC_KEYS)) {
         ERR_MSG("cannot read pub keyring");
         goto done;
     }
@@ -625,7 +580,7 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
     }
 
     if (keycount < 1) {
-        ERR_MSG("pub keyring '%s' is empty", cli_rnp_pubpath(rnp).c_str());
+        ERR_MSG("pub keyring '%s' is empty", rnp->pubpath().c_str());
         goto done;
     }
 
@@ -636,13 +591,13 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
             goto done;
         }
 
-        if (rnp_input_from_path(&keyin, cli_rnp_secpath(rnp).c_str())) {
+        if (rnp_input_from_path(&keyin, rnp->secpath().c_str())) {
             ERR_MSG("wrong secring path");
             goto done;
         }
 
         if (rnp_load_keys(
-              rnp->ffi, cli_rnp_secformat(rnp).c_str(), keyin, RNP_LOAD_SAVE_SECRET_KEYS)) {
+              rnp->ffi, rnp->secformat().c_str(), keyin, RNP_LOAD_SAVE_SECRET_KEYS)) {
             ERR_MSG("cannot read sec keyring");
             goto done;
         }
@@ -655,12 +610,12 @@ cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
         }
 
         if (keycount < 1) {
-            ERR_MSG("sec keyring '%s' is empty", cli_rnp_secpath(rnp).c_str());
+            ERR_MSG("sec keyring '%s' is empty", rnp->secpath().c_str());
             goto done;
         }
     }
-    if (cli_rnp_defkey(rnp).empty()) {
-        cli_rnp_set_default_key(rnp);
+    if (rnp->defkey().empty()) {
+        rnp->set_defkey();
     }
     res = true;
 done:
@@ -669,14 +624,14 @@ done:
 }
 
 void
-cli_rnp_set_default_key(cli_rnp_t *rnp)
+cli_rnp_t::set_defkey()
 {
     rnp_identifier_iterator_t it = NULL;
     rnp_key_handle_t          handle = NULL;
     const char *              grip = NULL;
 
-    cli_rnp_cfg(*rnp).unset(CFG_KR_DEF_KEY);
-    if (rnp_identifier_iterator_create(rnp->ffi, &it, "grip")) {
+    cfg_.unset(CFG_KR_DEF_KEY);
+    if (rnp_identifier_iterator_create(ffi, &it, "grip")) {
         ERR_MSG("failed to create key iterator");
         return;
     }
@@ -688,7 +643,7 @@ cli_rnp_set_default_key(cli_rnp_t *rnp)
         if (!grip) {
             break;
         }
-        if (rnp_locate_key(rnp->ffi, "grip", grip, &handle)) {
+        if (rnp_locate_key(ffi, "grip", grip, &handle)) {
             ERR_MSG("failed to locate key");
             continue;
         }
@@ -698,8 +653,8 @@ cli_rnp_set_default_key(cli_rnp_t *rnp)
         if (rnp_key_have_secret(handle, &is_secret)) {
             goto next;
         }
-        if (!cli_rnp_cfg(*rnp).has(CFG_KR_DEF_KEY) || is_secret) {
-            cli_rnp_cfg(*rnp).set_str(CFG_KR_DEF_KEY, grip);
+        if (!cfg_.has(CFG_KR_DEF_KEY) || is_secret) {
+            cfg_.set_str(CFG_KR_DEF_KEY, grip);
             /* if we have secret primary key then use it as default */
             if (is_secret) {
                 break;
@@ -995,14 +950,14 @@ done:
 bool
 cli_rnp_save_keyrings(cli_rnp_t *rnp)
 {
-    rnp_output_t      output = NULL;
-    rnp_result_t      pub_ret = 0;
-    rnp_result_t      sec_ret = 0;
-    const std::string ppath = cli_rnp_pubpath(rnp);
-    const std::string spath = cli_rnp_secpath(rnp);
+    rnp_output_t       output = NULL;
+    rnp_result_t       pub_ret = 0;
+    rnp_result_t       sec_ret = 0;
+    const std::string &ppath = rnp->pubpath();
+    const std::string &spath = rnp->secpath();
 
     // check whether we have G10 secret keyring - then need to create directory
-    if (cli_rnp_secformat(rnp) == "G10") {
+    if (rnp->secformat() == "G10") {
         struct stat path_stat;
         if (rnp_stat(spath.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
@@ -1023,8 +978,8 @@ cli_rnp_save_keyrings(cli_rnp_t *rnp)
 
     // public keyring
     if (!(pub_ret = rnp_output_to_path(&output, ppath.c_str()))) {
-        pub_ret = rnp_save_keys(
-          rnp->ffi, cli_rnp_pubformat(rnp).c_str(), output, RNP_LOAD_SAVE_PUBLIC_KEYS);
+        pub_ret =
+          rnp_save_keys(rnp->ffi, rnp->pubformat().c_str(), output, RNP_LOAD_SAVE_PUBLIC_KEYS);
         rnp_output_destroy(output);
     }
     if (pub_ret) {
@@ -1033,8 +988,8 @@ cli_rnp_save_keyrings(cli_rnp_t *rnp)
 
     // secret keyring
     if (!(sec_ret = rnp_output_to_path(&output, spath.c_str()))) {
-        sec_ret = rnp_save_keys(
-          rnp->ffi, cli_rnp_secformat(rnp).c_str(), output, RNP_LOAD_SAVE_SECRET_KEYS);
+        sec_ret =
+          rnp_save_keys(rnp->ffi, rnp->secformat().c_str(), output, RNP_LOAD_SAVE_SECRET_KEYS);
         rnp_output_destroy(output);
     }
     if (sec_ret) {
@@ -1048,7 +1003,7 @@ bool
 cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
 {
     /* set key generation parameters to rnp_cfg_t */
-    rnp_cfg &cfg = cli_rnp_cfg(*rnp);
+    rnp_cfg &cfg = rnp->cfg();
     if (!cli_rnp_set_generate_params(cfg)) {
         ERR_MSG("Key generation setup failed.");
         return false;
@@ -1497,12 +1452,11 @@ cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
 
     /* search for default key */
     if (keys.empty() && (flags & CLI_SEARCH_DEFAULT)) {
-        if (cli_rnp_defkey(rnp).empty()) {
+        if (rnp->defkey().empty()) {
             ERR_MSG("No userid or default key for operation");
             goto done;
         }
-        cli_rnp_keys_matching_string(
-          rnp, keys, cli_rnp_defkey(rnp), flags & ~CLI_SEARCH_DEFAULT);
+        cli_rnp_keys_matching_string(rnp, keys, rnp->defkey(), flags & ~CLI_SEARCH_DEFAULT);
         if (keys.empty()) {
             ERR_MSG("Default key not found");
         }
@@ -1783,7 +1737,7 @@ cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_p
 bool
 cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
-    bool                          secret = cli_rnp_cfg(*rnp).get_bool(CFG_SECRET);
+    bool                          secret = rnp->cfg().get_bool(CFG_SECRET);
     int                           flags = secret ? CLI_SEARCH_SECRET : 0;
     std::vector<rnp_key_handle_t> keys;
 
@@ -1794,13 +1748,13 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 
     rnp_output_t       output = NULL;
     rnp_output_t       armor = NULL;
-    const std::string &file = cli_rnp_cfg(*rnp).get_str(CFG_OUTFILE);
+    const std::string &file = rnp->cfg().get_str(CFG_OUTFILE);
     rnp_result_t       ret;
     uint32_t           base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
     bool               result = false;
 
     if (!file.empty()) {
-        uint32_t flags = cli_rnp_cfg(*rnp).get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        uint32_t flags = rnp->cfg().get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file.c_str(), flags);
     } else {
         ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
@@ -1849,15 +1803,14 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
         clear_key_handles(keys);
         return false;
     }
-    rnp_cfg &          cfg = cli_rnp_cfg(*rnp);
-    const std::string &file = cfg.get_str(CFG_OUTFILE);
+    const std::string &file = rnp->cfg().get_str(CFG_OUTFILE);
     rnp_result_t       ret = RNP_ERROR_GENERIC;
     rnp_output_t       output = NULL;
     rnp_output_t       armored = NULL;
     bool               result = false;
 
     if (!file.empty()) {
-        uint32_t flags = cfg.get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
+        uint32_t flags = rnp->cfg().get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
         ret = rnp_output_to_file(&output, file.c_str(), flags);
     } else {
         ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
@@ -1874,9 +1827,9 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
     result = !rnp_key_export_revocation(keys[0],
                                         armored,
                                         0,
-                                        cfg.get_cstr(CFG_HASH),
-                                        cfg.get_cstr(CFG_REV_TYPE),
-                                        cfg.get_cstr(CFG_REV_REASON));
+                                        rnp->cfg().get_cstr(CFG_HASH),
+                                        rnp->cfg().get_cstr(CFG_REV_TYPE),
+                                        rnp->cfg().get_cstr(CFG_REV_REASON));
 done:
     rnp_output_destroy(armored);
     rnp_output_destroy(output);
@@ -1892,7 +1845,6 @@ cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
-    rnp_cfg &    cfg = cli_rnp_cfg(*rnp);
     bool         res = false;
     bool         revoked = false;
     rnp_result_t ret = 0;
@@ -1905,7 +1857,7 @@ cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
         ERR_MSG("Error getting key revocation status.");
         goto done;
     }
-    if (revoked && !cfg.get_bool(CFG_FORCE)) {
+    if (revoked && !rnp->cfg().get_bool(CFG_FORCE)) {
         ERR_MSG("Error: key '%s' is revoked already. Use --force to generate another "
                 "revocation signature.",
                 key);
@@ -1914,9 +1866,9 @@ cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
 
     ret = rnp_key_revoke(keys[0],
                          0,
-                         cfg.get_cstr(CFG_HASH),
-                         cfg.get_cstr(CFG_REV_TYPE),
-                         cfg.get_cstr(CFG_REV_REASON));
+                         rnp->cfg().get_cstr(CFG_HASH),
+                         rnp->cfg().get_cstr(CFG_REV_TYPE),
+                         rnp->cfg().get_cstr(CFG_REV_REASON));
     if (ret) {
         ERR_MSG("Failed to revoke a key: error %d", (int) ret);
         goto done;
@@ -1960,7 +1912,6 @@ cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
-    rnp_cfg &    cfg = cli_rnp_cfg(*rnp);
     bool         res = false;
     bool         secret = false;
     bool         primary = false;
@@ -1987,7 +1938,7 @@ cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
         flags |= RNP_KEY_REMOVE_SUBKEYS;
     }
 
-    if (secret && !cfg.get_bool(CFG_FORCE)) {
+    if (secret && !rnp->cfg().get_bool(CFG_FORCE)) {
         if (!cli_rnp_get_confirmation(
               rnp,
               "Key '%s' has corresponding secret key. Do you really want to delete it?",
@@ -2011,7 +1962,7 @@ done:
 bool
 cli_rnp_add_key(cli_rnp_t *rnp)
 {
-    const std::string &path = cli_rnp_cfg(*rnp).get_str(CFG_KEYFILE);
+    const std::string &path = rnp->cfg().get_str(CFG_KEYFILE);
     if (path.empty()) {
         return false;
     }
@@ -2027,8 +1978,8 @@ cli_rnp_add_key(cli_rnp_t *rnp)
     rnp_input_destroy(input);
 
     // set default key if we didn't have one
-    if (res && cli_rnp_defkey(rnp).empty()) {
-        cli_rnp_set_default_key(rnp);
+    if (res && rnp->defkey().empty()) {
+        rnp->set_defkey();
     }
     return res;
 }
@@ -2088,8 +2039,7 @@ cli_rnp_init_io(const std::string &op,
                 rnp_output_t *     output,
                 cli_rnp_t *        rnp)
 {
-    rnp_cfg &          cfg = cli_rnp_cfg(*rnp);
-    const std::string &in = cfg.get_str(CFG_INFILE);
+    const std::string &in = rnp->cfg().get_str(CFG_INFILE);
     bool               is_pathin = !in.empty() && (in != "-");
     if (input) {
         *input = cli_rnp_input_from_specifier(*rnp, in, &is_pathin);
@@ -2101,12 +2051,12 @@ cli_rnp_init_io(const std::string &op,
     if (!output) {
         return true;
     }
-    std::string out = cfg.get_str(CFG_OUTFILE);
+    std::string out = rnp->cfg().get_str(CFG_OUTFILE);
     bool        is_stdout = out.empty() || (out == "-");
-    bool        discard = (op == "verify") && out.empty() && cfg.get_bool(CFG_NO_OUTPUT);
+    bool discard = (op == "verify") && out.empty() && rnp->cfg().get_bool(CFG_NO_OUTPUT);
 
     if (is_stdout && is_pathin && !discard) {
-        std::string ext = output_extension(cfg, op);
+        std::string ext = output_extension(rnp->cfg(), op);
         if (!ext.empty()) {
             out = in + ext;
             is_stdout = false;
@@ -2138,17 +2088,16 @@ cli_rnp_dump_file(cli_rnp_t *rnp)
     rnp_output_t output = NULL;
     uint32_t     flags = 0;
     uint32_t     jflags = 0;
-    rnp_cfg &    cfg = cli_rnp_cfg(*rnp);
 
-    if (cfg.get_bool(CFG_GRIPS)) {
+    if (rnp->cfg().get_bool(CFG_GRIPS)) {
         flags |= RNP_DUMP_GRIP;
         jflags |= RNP_JSON_DUMP_GRIP;
     }
-    if (cfg.get_bool(CFG_MPIS)) {
+    if (rnp->cfg().get_bool(CFG_MPIS)) {
         flags |= RNP_DUMP_MPI;
         jflags |= RNP_JSON_DUMP_MPI;
     }
-    if (cfg.get_bool(CFG_RAW)) {
+    if (rnp->cfg().get_bool(CFG_RAW)) {
         flags |= RNP_DUMP_RAW;
         jflags |= RNP_JSON_DUMP_RAW;
     }
@@ -2160,7 +2109,7 @@ cli_rnp_dump_file(cli_rnp_t *rnp)
         goto done;
     }
 
-    if (cfg.get_bool(CFG_JSON)) {
+    if (rnp->cfg().get_bool(CFG_JSON)) {
         char *json = NULL;
         ret = rnp_dump_packets_to_json(input, jflags, &json);
         if (!ret) {
@@ -2198,8 +2147,7 @@ cli_rnp_armor_file(cli_rnp_t *rnp)
         ERR_MSG("failed to open source or create output");
         return false;
     }
-    rnp_result_t ret =
-      rnp_enarmor(input, output, cli_rnp_cfg(*rnp).get_cstr(CFG_ARMOR_DATA_TYPE));
+    rnp_result_t ret = rnp_enarmor(input, output, rnp->cfg().get_cstr(CFG_ARMOR_DATA_TYPE));
     rnp_input_destroy(input);
     rnp_output_destroy(output);
     return !ret;
@@ -2423,14 +2371,14 @@ bool
 cli_rnp_setup(cli_rnp_t *rnp)
 {
     /* unset CFG_PASSWD and empty CFG_PASSWD are different cases */
-    if (cli_rnp_cfg(*rnp).has(CFG_PASSWD)) {
-        const std::string &passwd = cli_rnp_cfg(*rnp).get_str(CFG_PASSWD);
+    if (rnp->cfg().has(CFG_PASSWD)) {
+        const std::string &passwd = rnp->cfg().get_str(CFG_PASSWD);
         if (rnp_ffi_set_pass_provider(
               rnp->ffi, ffi_pass_callback_string, (void *) passwd.c_str())) {
             return false;
         }
     }
-    rnp->pswdtries = cli_rnp_cfg(*rnp).get_pswdtries();
+    rnp->pswdtries = rnp->cfg().get_pswdtries();
     return true;
 }
 
@@ -2445,14 +2393,13 @@ cli_rnp_protect_file(cli_rnp_t *rnp)
         return false;
     }
 
-    rnp_cfg &cfg = cli_rnp_cfg(*rnp);
-    bool     res = false;
-    bool     sign = cfg.get_bool(CFG_SIGN_NEEDED);
-    bool     encrypt = cfg.get_bool(CFG_ENCRYPT_PK) || cfg.get_bool(CFG_ENCRYPT_SK);
+    bool res = false;
+    bool sign = rnp->cfg().get_bool(CFG_SIGN_NEEDED);
+    bool encrypt = rnp->cfg().get_bool(CFG_ENCRYPT_PK) || rnp->cfg().get_bool(CFG_ENCRYPT_SK);
     if (sign && !encrypt) {
-        res = cli_rnp_sign(cfg, rnp, input, output);
+        res = cli_rnp_sign(rnp->cfg(), rnp, input, output);
     } else if (encrypt) {
-        res = cli_rnp_encrypt_and_sign(cfg, rnp, input, output);
+        res = cli_rnp_encrypt_and_sign(rnp->cfg(), rnp, input, output);
     } else {
         ERR_MSG("No operation specified");
     }
@@ -2609,7 +2556,7 @@ cli_rnp_process_file(cli_rnp_t *rnp)
 
     if (rnp_casecmp(contents, "signature")) {
         /* detached signature */
-        std::string in = cli_rnp_cfg(*rnp).get_str(CFG_INFILE);
+        std::string in = rnp->cfg().get_str(CFG_INFILE);
         if (in.empty() || in == "-") {
             ERR_MSG("Cannot verify detached signature from stdin.");
             goto done;

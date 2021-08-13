@@ -67,7 +67,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // try signing with a failing password provider (should fail)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(rnp.ffi, ffi_failing_password_provider, NULL));
-    rnp_cfg &cfg = cli_rnp_cfg(rnp);
+    rnp_cfg &cfg = rnp.cfg();
     cfg.load_defaults();
     cfg.set_bool(CFG_SIGN_NEEDED, true);
     cfg.set_str(CFG_HASH, "SHA1");
@@ -217,6 +217,6 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     // cleanup
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
-    cli_rnp_end(&rnp);
+    rnp.end();
     assert_int_equal(rnp_unlink("dummyfile.dat"), 0);
 }
