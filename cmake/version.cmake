@@ -37,15 +37,6 @@ macro(_git var)
   )
 endmacro()
 
-# call git, store output in var (can not fail)
-macro(git var)
-  _git(${var} ${ARGN})
-  if (NOT _git_ec EQUAL 0)
-    string(REPLACE ";" " " args "${ARGN}")
-    message(FATAL_ERROR "Failed to execute: git ${args}")
-  endif()
-endmacro()
-
 function(extract_version_info version var_prefix)
   # extract the main components
   #   v1.9.0-3-g5b92266+1546836556
@@ -91,7 +82,7 @@ function(determine_version source_dir var_prefix)
     message(STATUS "Found no version.txt.")
   endif()
   # for GIT_EXECUTABLE
-  find_package(Git REQUIRED)
+  find_package(Git)
   # get a description of the version, something like:
   #   v1.9.1-0-g38ffe82        (a tagged release)
   #   v1.9.1-0-g38ffe82-dirty  (a tagged release with local modifications)
