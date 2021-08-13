@@ -37,13 +37,57 @@
 #include "json.h"
 
 typedef struct cli_rnp_t {
+  private:
+    rnp_cfg cfg_{};
+
+  public:
     rnp_ffi_t ffi{};
-    rnp_cfg   cfg{};
     FILE *    resfp{};      /* where to put result messages, defaults to stdout */
     FILE *    passfp{};     /* file pointer for password input */
     FILE *    userio_in{};  /* file pointer for user's inputs */
     FILE *    userio_out{}; /* file pointer for user's outputs */
     int       pswdtries{};  /* number of password tries, -1 for unlimited */
+
+    bool init(const rnp_cfg &cfg);
+    void end();
+
+    const std::string &
+    defkey()
+    {
+        return cfg_.get_str(CFG_KR_DEF_KEY);
+    }
+
+    void set_defkey();
+
+    const std::string &
+    pubpath()
+    {
+        return cfg_.get_str(CFG_KR_PUB_PATH);
+    }
+
+    const std::string &
+    secpath()
+    {
+        return cfg_.get_str(CFG_KR_SEC_PATH);
+    }
+
+    const std::string &
+    pubformat()
+    {
+        return cfg_.get_str(CFG_KR_PUB_FORMAT);
+    }
+
+    const std::string &
+    secformat()
+    {
+        return cfg_.get_str(CFG_KR_SEC_FORMAT);
+    }
+
+    rnp_cfg &
+    cfg()
+    {
+        return cfg_;
+    }
 } cli_rnp_t;
 
 typedef enum cli_search_flags_t {
@@ -65,12 +109,6 @@ typedef enum cli_search_flags_t {
  */
 bool cli_cfg_set_keystore_info(rnp_cfg &cfg);
 
-rnp_cfg &         cli_rnp_cfg(cli_rnp_t &rnp);
-const std::string cli_rnp_defkey(cli_rnp_t *rnp);
-const std::string cli_rnp_pubpath(cli_rnp_t *rnp);
-const std::string cli_rnp_secpath(cli_rnp_t *rnp);
-const std::string cli_rnp_pubformat(cli_rnp_t *rnp);
-const std::string cli_rnp_secformat(cli_rnp_t *rnp);
 /**
  * @brief Create input object from the specifier, which may represent:
  *        - path
@@ -87,12 +125,8 @@ rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t &        rnp,
                                          const std::string &spec,
                                          bool *             is_path);
 
-bool cli_rnp_init(cli_rnp_t *, const rnp_cfg &);
-bool cli_rnp_baseinit(cli_rnp_t *);
-void cli_rnp_end(cli_rnp_t *);
 bool cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret);
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
-void cli_rnp_set_default_key(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
 bool cli_rnp_set_generate_params(rnp_cfg &cfg);

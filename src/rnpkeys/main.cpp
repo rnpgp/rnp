@@ -137,7 +137,7 @@ rnpkeys_main(int argc, char **argv)
     }
 
 end:
-    cli_rnp_end(&rnp);
+    rnp.end();
 #if !defined(RNP_RUN_TESTS) && defined(_WIN32)
     if (args_are_substituted) {
         rnp_win_clear_args(argc, argv);

@@ -1166,9 +1166,9 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
     cfg.set_str(CFG_KR_SEC_PATH, "");
     cfg.set_str(CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
     cfg.set_str(CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
-    assert_true(cli_rnp_init(&rnp, cfg));
+    assert_true(rnp.init(cfg));
 
-    rnp_cfg &rnpcfg = cli_rnp_cfg(rnp);
+    rnp_cfg &rnpcfg = rnp.cfg();
     /* setup cfg for verification */
     rnpcfg.set_str(CFG_INFILE, "data/test_stream_verification/verify_encrypted_no_key.pgp");
     rnpcfg.set_str(CFG_OUTFILE, "output.dat");
@@ -1207,7 +1207,7 @@ TEST_F(rnp_tests, test_stream_verify_no_key)
     assert_int_equal(file_size("output.dat"), -1);
 
     /* cleanup */
-    cli_rnp_end(&rnp);
+    rnp.end();
 }
 
 static bool
@@ -1275,16 +1275,16 @@ TEST_F(rnp_tests, test_y2k38)
     cfg.set_str(CFG_KR_PUB_FORMAT, RNP_KEYSTORE_GPG);
     cfg.set_str(CFG_KR_SEC_FORMAT, RNP_KEYSTORE_GPG);
     cfg.set_str(CFG_IO_RESS, "stderr.dat");
-    assert_true(cli_rnp_init(&rnp, cfg));
+    assert_true(rnp.init(cfg));
 
-    rnp_cfg &rnpcfg = cli_rnp_cfg(rnp);
+    rnp_cfg &rnpcfg = rnp.cfg();
     /* verify */
     rnpcfg.set_str(CFG_INFILE, "data/test_messages/future.pgp");
     rnpcfg.set_bool(CFG_OVERWRITE, true);
     assert_true(cli_rnp_process_file(&rnp));
 
     /* clean up and flush the file */
-    cli_rnp_end(&rnp);
+    rnp.end();
 
     /* check the file for presense of correct dates */
     auto        output = file_to_str("stderr.dat");
