@@ -38,6 +38,8 @@ Upcoming supported platforms:
 
 == link:docs/c-usage.adoc[Using the RNP C API in your projects]
 
+== link:docs/signing-keys.adoc[PGP keys used for signing source code]
+
 == Versioning
 
 RNP follows the http://semver.org/[semantic versioning] syntax.
