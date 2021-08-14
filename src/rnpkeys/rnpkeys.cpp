@@ -698,7 +698,7 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
         goto end;
     }
     /* TODO: at some point we should check for error here */
-    (void) cli_rnp_load_keyrings(rnp, true);
+    (void) rnp->load_keyrings(true);
     ret = true;
 end:
     if (!ret) {

@@ -39,6 +39,7 @@
 typedef struct cli_rnp_t {
   private:
     rnp_cfg cfg_{};
+    bool    load_keyring(bool secret);
 
   public:
     rnp_ffi_t ffi{};
@@ -50,6 +51,8 @@ typedef struct cli_rnp_t {
 
     bool init(const rnp_cfg &cfg);
     void end();
+
+    bool load_keyrings(bool loadsecret = false);
 
     const std::string &
     defkey()
@@ -125,7 +128,6 @@ rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t &        rnp,
                                          const std::string &spec,
                                          bool *             is_path);
 
-bool cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret);
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);

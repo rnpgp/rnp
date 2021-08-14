@@ -40,7 +40,7 @@ test_issue_1030(const char *keystore)
     cli_set_default_rsa_key_desc(rnp.cfg(), "SHA256");
     assert_true(cli_rnp_generate_key(&rnp, userid));
 
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
