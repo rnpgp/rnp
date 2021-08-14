@@ -599,7 +599,7 @@ def gpg_sign_cleartext(src, dst, signer):
 
 
 def gpg_agent_clear_cache():
-    run_proc(GPGCONF, ['--display-charset', CONSOLE_ENCODING, '--homedir', GPGHOME, '--kill', 'gpg-agent'])
+    run_proc(GPGCONF, ['--homedir', GPGHOME, '--kill', 'gpg-agent'])
 
 '''
     Things to try here later on:
