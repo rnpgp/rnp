@@ -43,7 +43,7 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     assert_true(cli_rnp_generate_key(&rnp, NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     size_t keycount = 0;
     assert_rnp_success(rnp_get_public_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);

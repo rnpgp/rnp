@@ -47,7 +47,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
                                    "326ef111425d14a5"};
 
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, "data/keyrings/1/", NULL));
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
 
     for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
         rnp_key_handle_t handle = NULL;

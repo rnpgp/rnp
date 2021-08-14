@@ -551,76 +551,77 @@ cli_rnp_t::end()
 }
 
 bool
-cli_rnp_load_keyrings(cli_rnp_t *rnp, bool loadsecret)
+cli_rnp_t::load_keyring(bool secret)
 {
+    const char *path = secret ? secpath().c_str() : pubpath().c_str();
+    bool        dir = secret && (secformat() == RNP_KEYSTORE_G10);
+    if (dir && !rnp_dir_exists(path)) {
+        ERR_MSG("warning: keyring directory at '%s' doesn't exist.", path);
+        return true;
+    }
+    if (!dir && !rnp_file_exists(path)) {
+        ERR_MSG("warning: keyring at path '%s' doesn't exist.", path);
+        return true;
+    }
+
     rnp_input_t keyin = NULL;
-    size_t      keycount = 0;
-    bool        res = false;
-
-    if (rnp_unload_keys(rnp->ffi, RNP_KEY_UNLOAD_PUBLIC)) {
-        ERR_MSG("failed to clear public keyring");
-        goto done;
+    if (rnp_input_from_path(&keyin, path)) {
+        ERR_MSG("warning: failed to open keyring at path '%s' for reading.", path);
+        return true;
     }
 
-    if (rnp_input_from_path(&keyin, rnp->pubpath().c_str())) {
-        ERR_MSG("wrong pubring path");
-        goto done;
+    const char * format = secret ? secformat().c_str() : pubformat().c_str();
+    uint32_t     flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
+    rnp_result_t ret = rnp_load_keys(ffi, format, keyin, flags);
+    if (ret) {
+        ERR_MSG("error: failed to load keyring from '%s'", path);
     }
-
-    if (rnp_load_keys(rnp->ffi, rnp->pubformat().c_str(), keyin, RNP_LOAD_SAVE_PUBLIC_KEYS)) {
-        ERR_MSG("cannot read pub keyring");
-        goto done;
-    }
-
     rnp_input_destroy(keyin);
-    keyin = NULL;
 
-    if (rnp_get_public_key_count(rnp->ffi, &keycount)) {
-        goto done;
+    if (ret) {
+        return false;
     }
 
-    if (keycount < 1) {
-        ERR_MSG("pub keyring '%s' is empty", rnp->pubpath().c_str());
-        goto done;
+    size_t keycount = 0;
+    if (secret) {
+        (void) rnp_get_secret_key_count(ffi, &keycount);
+    } else {
+        (void) rnp_get_public_key_count(ffi, &keycount);
+    }
+    if (!keycount) {
+        ERR_MSG("warning: no keys were loaded from the keyring '%s'.", path);
+    }
+    return true;
+}
+
+bool
+cli_rnp_t::load_keyrings(bool loadsecret)
+{
+    /* Read public keys */
+    if (rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC)) {
+        ERR_MSG("failed to clear public keyring");
+        return false;
+    }
+
+    if (!load_keyring(false)) {
+        return false;
     }
 
     /* Only read secret keys if we need to */
     if (loadsecret) {
-        if (rnp_unload_keys(rnp->ffi, RNP_KEY_UNLOAD_SECRET)) {
+        if (rnp_unload_keys(ffi, RNP_KEY_UNLOAD_SECRET)) {
             ERR_MSG("failed to clear secret keyring");
-            goto done;
+            return false;
         }
 
-        if (rnp_input_from_path(&keyin, rnp->secpath().c_str())) {
-            ERR_MSG("wrong secring path");
-            goto done;
-        }
-
-        if (rnp_load_keys(
-              rnp->ffi, rnp->secformat().c_str(), keyin, RNP_LOAD_SAVE_SECRET_KEYS)) {
-            ERR_MSG("cannot read sec keyring");
-            goto done;
-        }
-
-        rnp_input_destroy(keyin);
-        keyin = NULL;
-
-        if (rnp_get_secret_key_count(rnp->ffi, &keycount)) {
-            goto done;
-        }
-
-        if (keycount < 1) {
-            ERR_MSG("sec keyring '%s' is empty", rnp->secpath().c_str());
-            goto done;
+        if (!load_keyring(true)) {
+            return false;
         }
     }
-    if (rnp->defkey().empty()) {
-        rnp->set_defkey();
+    if (defkey().empty()) {
+        set_defkey();
     }
-    res = true;
-done:
-    rnp_input_destroy(keyin);
-    return res;
+    return true;
 }
 
 void
