@@ -62,7 +62,7 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
         goto done;
     }
 
-    if (!cli_rnp_load_keyrings(&rnp, true)) {
+    if (!rnp.load_keyrings(true)) {
         goto done;
     }
     if (rnp_get_public_key_count(rnp.ffi, &keycount) || (keycount != 2)) {
@@ -141,7 +141,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 /* Setup password input and rnp structure */
                 assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
                 /* Load keyring */
-                assert_true(cli_rnp_load_keyrings(&rnp, true));
+                assert_true(rnp.load_keyrings(true));
                 size_t seccount = 0;
                 assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
                 assert_true(seccount > 0);
@@ -246,7 +246,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             /* Set up rnp and encrypt the dataa */
             assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
             /* Load keyring */
-            assert_true(cli_rnp_load_keyrings(&rnp, false));
+            assert_true(rnp.load_keyrings(false));
             size_t seccount = 0;
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount == 0);
@@ -271,7 +271,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testEncryption)
             /* Set up rnp again and decrypt the file */
             assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, pipefd));
             /* Load the keyrings */
-            assert_true(cli_rnp_load_keyrings(&rnp, true));
+            assert_true(rnp.load_keyrings(true));
             assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &seccount));
             assert_true(seccount > 0);
             /* Setup the decryption context and decrypt */
@@ -331,7 +331,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         /* Load and check key */
         assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
         /* Loading the keyrings */
-        assert_true(cli_rnp_load_keyrings(&rnp, true));
+        assert_true(rnp.load_keyrings(true));
         /* Some minor checks */
         size_t keycount = 0;
         assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
@@ -373,7 +373,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifyUserIdOption)
         /* Initialize the basic RNP structure. */
         assert_true(setup_cli_rnp_common(&rnp, keystore, NULL, NULL));
         /* Load the newly generated rnp key*/
-        assert_true(cli_rnp_load_keyrings(&rnp, true));
+        assert_true(rnp.load_keyrings(true));
         size_t keycount = 0;
         assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
         assert_true(keycount > 0);
@@ -410,7 +410,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(path_rnp_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     size_t keycount = 0;
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
@@ -447,7 +447,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(path_rnp_file_exists(newhome.c_str(), "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     keycount = 0;
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
@@ -486,7 +486,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     assert_false(path_rnp_file_exists(".rnp/secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     size_t keycount = 0;
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);
@@ -519,7 +519,7 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyKBXHomeDirOption)
     assert_false(path_rnp_file_exists(newhome, "pubring.gpg", NULL));
     assert_false(path_rnp_file_exists(newhome, "secring.gpg", NULL));
     /* Loading keyrings and checking whether they have correct key */
-    assert_true(cli_rnp_load_keyrings(&rnp, true));
+    assert_true(rnp.load_keyrings(true));
     keycount = 0;
     assert_rnp_success(rnp_get_secret_key_count(rnp.ffi, &keycount));
     assert_int_equal(keycount, 2);

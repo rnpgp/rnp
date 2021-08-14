@@ -754,7 +754,7 @@ rnp_main(int argc, char **argv)
     }
 
     disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
-    if (!disable_ks && !cli_rnp_load_keyrings(&rnp, rnp.cfg().get_bool(CFG_NEEDSSECKEY))) {
+    if (!disable_ks && !rnp.load_keyrings(rnp.cfg().get_bool(CFG_NEEDSSECKEY))) {
         ERR_MSG("fatal: failed to load keys");
         goto finish;
     }
