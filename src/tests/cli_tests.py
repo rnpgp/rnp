@@ -1967,21 +1967,28 @@ class Misc(unittest.TestCase):
         return
 
     def test_pubring_loading(self):
+        NO_PUBRING = r'(?s)^.*warning: keyring at path \'.*/pubring.gpg\' doesn\'t exist.*$'
+
         test_dir = tempfile.mkdtemp(prefix='rnpctmp')
         test_data = data_path('test_messages/message.txt')
         output = path.join(test_dir, 'output')
         params = ['--symmetric', '--password', 'pass', '--homedir', test_dir, test_data, '--output', output]
-        
         ret, _, err = run_proc(RNP, ['--encrypt'] + params)
-        if not (ret == 2 and 'wrong pubring path' in err):
+        if not (ret == 1 and re.match(NO_PUBRING, err)):
             raise_err("encrypt w/o pubring didn't fail", err)
+        if not ('No userid or default key for operation' in err and 'Failed to build recipients key list' in err):
+            raise_err("encrypt w/o pubring unexpected output", err)
 
         ret, _, err = run_proc(RNP, ['--sign'] + params)
-        if not (ret == 2 and 'wrong pubring path' in err):
+        if not (ret == 1 and re.match(NO_PUBRING, err)):
+            raise_err("sign w/o pubring didn't fail", err)
+        if not ('No userid or default key for operation' in err and 'Failed to build signing keys list' in err):
             raise_err("sign w/o pubring didn't fail", err)
 
         ret, _, err = run_proc(RNP, ['--clearsign'] + params)
-        if not (ret == 2 and 'wrong pubring path' in err):
+        if not (ret == 1 and re.match(NO_PUBRING, err)):
+            raise_err("clearsign w/o pubring didn't fail", err)
+        if not ('No userid or default key for operation' in err and 'Failed to build signing keys list' in err):
             raise_err("clearsign w/o pubring didn't fail", err)
 
         ret, _, err = run_proc(RNP, params)
@@ -2098,6 +2105,122 @@ class Misc(unittest.TestCase):
             raise_err("Message verification failed")
         if out != 'Message to sign':
             raise_err('wrong verification output', out)
+
+    def test_empty_keyrings(self):
+        NO_KEYRING = r'(?s)^.*' \
+        r'warning: keyring at path \'.*/\.rnp/pubring.gpg\' doesn\'t exist.*' \
+        r'warning: keyring at path \'.*/\.rnp/secring.gpg\' doesn\'t exist.*$'
+        EMPTY_KEYRING = r'(?s)^.*' \
+        r'warning: no keys were loaded from the keyring \'.*/\.rnp/pubring.gpg\'.*' \
+        r'warning: no keys were loaded from the keyring \'.*/\.rnp/secring.gpg\'.*$'
+        PUB_IMPORT= r'(?s)^.*pub\s+255/EdDSA 0451409669ffde3c .* \[SC\].*$'
+        EMPTY_SECRING = r'(?s)^.*' \
+        r'warning: no keys were loaded from the keyring \'.*/\.rnp/secring.gpg\'.*$'
+        SEC_IMPORT= r'(?s)^.*sec\s+255/EdDSA 0451409669ffde3c .* \[SC\].*$'
+
+        os.rename(RNPDIR, RNPDIR + '-old')
+        home = os.environ['HOME']
+        os.environ['HOME'] = WORKDIR
+        try:
+            if os.path.isdir(RNPDIR):
+                raise_err('.rnp directory should not exists')
+            src, enc, dec = reg_workfiles('source', '.txt', '.txt.pgp', '.dec')
+            random_text(src, 2000)
+            # Run symmetric encryption/decryption without .rnp home directory
+            ret, out, err = run_proc(RNP, ['-c', src, '--password', 'password'])
+            if ret != 0:
+                raise_err('Symmetric encryption failed')
+            if re.match(NO_KEYRING, err):
+                raise_err('Invalid encryption output')
+            ret, out, err = run_proc(RNP, ['-d', enc, '--password', 'password', '--output', dec])
+            if ret != 0:
+                raise_err('Symmetric decryption failed')
+            if not re.match(NO_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong decryption output', err)
+            compare_files(src, dec, 'Decrypted data differs')
+            remove_files(enc, dec)
+            # Import key without .rnp home directory
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-pub.asc')])
+            if ret != 0:
+                raise_err('Public key import failed')
+            if not re.match(NO_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(PUB_IMPORT, out):
+                raise_err('wrong key import output', out)
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-sec.asc')])
+            if ret != 0:
+                raise_err('Secret key import failed')
+            if re.match(NO_KEYRING, err) or not re.match(EMPTY_SECRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(SEC_IMPORT, out):
+                raise_err('wrong secret key import output', out)
+            # Run with empty .rnp home directory
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.mkdir(RNPDIR, 0o700)
+            ret, out, err = run_proc(RNP, ['-c', src, '--password', 'password'])
+            if ret != 0:
+                raise_err('Symmetric encryption failed')
+            if re.match(NO_KEYRING, err):
+                raise_err('Invalid encryption output')
+            ret, out, err = run_proc(RNP, ['-d', enc, '--password', 'password', '--output', dec])
+            if ret != 0:
+                raise_err('Symmetric decryption failed')
+            if not re.match(NO_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong decryption output', err)
+            compare_files(src, dec, 'Decrypted data differs')
+            remove_files(enc, dec)
+            # Import key with empty .rnp home directory
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-pub.asc')])
+            if ret != 0:
+                raise_err('Public key import failed')
+            if not re.match(NO_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(PUB_IMPORT, out):
+                raise_err('wrong key import output', out)
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-sec.asc')])
+            if ret != 0:
+                raise_err('Secret key import failed')
+            if re.match(NO_KEYRING, err) or not re.match(EMPTY_SECRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(SEC_IMPORT, out):
+                raise_err('wrong secret key import output', out)
+            # Run with .rnp home directory with empty keyrings
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.mkdir(RNPDIR, 0o700)
+            random_text(path.join(RNPDIR, 'pubring.gpg'), 0)
+            random_text(path.join(RNPDIR, 'secring.gpg'), 0)
+            ret, out, err = run_proc(RNP, ['-c', src, '--password', 'password'])
+            if ret != 0:
+                raise_err('Symmetric encryption failed')
+            if re.match(EMPTY_KEYRING, err):
+                raise_err('Invalid encryption output')
+            ret, out, err = run_proc(RNP, ['-d', enc, '--password', 'password', '--output', dec])
+            if ret != 0:
+                raise_err('Symmetric decryption failed')
+            if not re.match(EMPTY_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong decryption output', err)
+            compare_files(src, dec, 'Decrypted data differs')
+            remove_files(enc, dec)
+            # Import key with empty keyrings in .rnp home directory
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-pub.asc')])
+            if ret != 0:
+                raise_err('Public key import failed')
+            if not re.match(EMPTY_KEYRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(PUB_IMPORT, out):
+                raise_err('wrong key import output', out)
+            ret, out, err = run_proc(RNPK, ['--import', data_path('test_key_validity/alice-sec.asc')])
+            if ret != 0:
+                raise_err('Secret key import failed')
+            if re.match(EMPTY_KEYRING, err) or not re.match(EMPTY_SECRING, err) or not WORKDIR in err:
+                raise_err('wrong key import output', err)
+            if not re.match(SEC_IMPORT, out):
+                raise_err('wrong secret key import output', out)
+        finally:
+            os.environ['HOME'] = home
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.rename(RNPDIR + '-old', RNPDIR)
+            clear_workfiles()
 
 class Encryption(unittest.TestCase):
     '''
