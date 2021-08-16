@@ -160,7 +160,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/cipher_botan.cpp
   )
   if(ENABLE_SM2)
-    list(APPEND CRYPTO_SOURCES crypto/sm2)
+    list(APPEND CRYPTO_SOURCES crypto/sm2.cpp)
   endif()
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
