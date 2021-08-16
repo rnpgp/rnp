@@ -128,7 +128,7 @@ TEST_F(rnp_tests, test_rnpcfg_get_expiration)
     assert_int_equal(get_expiration(exp.c_str(), &raw_expiry), 0);
     assert_int_equal(raw_expiry, rawtime - basetime);
     assert_int_equal(get_expiration("2100-01-01", &raw_expiry), 0);
-    assert_int_equal(get_expiration("2024-02-29", &raw_expiry), 0);
+    assert_int_equal(get_expiration("2124-02-29", &raw_expiry), 0);
     /* date in a past */
     assert_int_not_equal(get_expiration("2000-02-29", &raw_expiry), 0);
     if ((sizeof(time_t) > 4)) {
