@@ -2373,17 +2373,16 @@ class Compression(unittest.TestCase):
         clear_workfiles()
 
     def test_rnp_compression(self):
-        levels = [None, 0, 2, 4, 6, 9]
-        algosrnp = [None, 'zip', 'zlib', 'bzip2']
-        sizes = [20, 1000, 5000, 20000, 150000, 1000000]
+        runs = 30
+        levels = list_upto([None, 0, 2, 4, 6, 9], runs)
+        algosrnp = list_upto([None, 'zip', 'zlib', 'bzip2'], runs)
+        sizes = list_upto([20, 1000, 5000, 15000, 250000], runs)
 
-        for size in sizes:
-            for algo in [0, 1, 2]:
-                for level in levels:
-                    z = [algosrnp[algo], level]
-                    gpg_to_rnp_encryption(size, None, z)
-                    file_encryption_rnp_to_gpg(size, z)
-                    rnp_signing_gpg_to_rnp(size, z)
+        for level, algo, size in zip(levels, algosrnp, sizes):
+            z = [algo, level]
+            gpg_to_rnp_encryption(size, None, z)
+            file_encryption_rnp_to_gpg(size, z)
+            rnp_signing_gpg_to_rnp(size, z)
 
 class SignDefault(unittest.TestCase):
     '''
