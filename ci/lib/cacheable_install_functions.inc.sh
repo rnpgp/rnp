@@ -210,6 +210,10 @@ install_gpg() {
         _install_gpg component-git-ref 2501a48 f73605e      d9c4183   909133b   3df0cd3 0e2e53c  c6702d7
         # _install_gpg component-git-ref 7e45b50 c66594d      cf88dca   57cf9d6   4243085 6e8ad31  d4e5979
         ;;
+      "2.3.1")
+        #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+        _install_gpg component-version 1.6  1.42         1.9.3     2.5.5     1.6.0   1.1.1    2.3.1
+        ;;
       *)
         >&2 echo "\$GPG_VERSION is set to invalid value: ${GPG_VERSION}"
         exit 1
