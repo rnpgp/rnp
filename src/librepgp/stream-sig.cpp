@@ -1712,7 +1712,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         if (version < PGP_V4) {
             RNP_LOG("Warning! v3 EdDSA signature.");
         }
-        /* FALLTHROUGH */
+        [[fallthrough]];
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
