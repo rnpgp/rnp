@@ -287,7 +287,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
         break;
     case CMD_CLEARSIGN:
         cfg.set_bool(CFG_CLEARTEXT, true);
-    /* FALLTHROUGH */
+        [[fallthrough]];
     case CMD_SIGN:
         cfg.set_bool(CFG_NEEDSSECKEY, true);
         cfg.set_bool(CFG_SIGN_NEEDED, true);
@@ -304,7 +304,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
     case CMD_VERIFY:
         /* single verify will discard output, decrypt will not */
         cfg.set_bool(CFG_NO_OUTPUT, true);
-    /* FALLTHROUGH */
+        [[fallthrough]];
     case CMD_VERIFY_CAT:
         newcmd = CMD_PROCESS;
         break;
