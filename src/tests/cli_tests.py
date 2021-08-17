@@ -1570,7 +1570,7 @@ class Misc(unittest.TestCase):
 
     def test_encryption_s2k(self):
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
-        random_text(src, 64000)
+        random_text(src, 1000)
 
         ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
                    'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
@@ -1597,7 +1597,7 @@ class Misc(unittest.TestCase):
             compare_files(src, dec, 'rnp decrypted data differs')
             remove_files(dst, dec)
 
-        for i in range(0, 80):
+        for i in range(0, 20):
             rnp_encryption_s2k_gpg(ciphers[i % len(ciphers)], hashes[
                                 i % len(hashes)], s2kmodes[i % len(s2kmodes)])
 
