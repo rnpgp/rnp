@@ -28,6 +28,8 @@ RNPDIR = ''
 GPGHOME = None
 PASSWORD = 'password'
 RMWORKDIR = True
+GPG_AEAD = False
+GPG_NO_OLD = False
 TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
@@ -483,11 +485,11 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
     if armor: params[2:2] = ['--armor']
+    if GPG_NO_OLD: params[2:2] = ['--allow-old-cipher-algos']
 
     ret, out, err = run_proc(GPG, params)
     if ret != 0:
         raise_err('gpg encryption failed for cipher ' + cipher, err)
-
 
 def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
     src = path_for_gpg(src)
@@ -496,6 +498,7 @@ def gpg_symencrypt_file(src, dst, cipher=None, z=None, armor=False, aead=None):
               '--passphrase', PASSWORD, '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
+    if GPG_NO_OLD: params[3:3] = ['--allow-old-cipher-algos']
     if armor: params[2:2] = ['--armor']
     if aead != None:
         if len(aead) > 0 and aead[0] != None:
@@ -796,12 +799,25 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
     gpg_verify_cleartext(asc, KEY_SIGN_GPG)
     clear_workfiles()
 
-def gpg_supports_aead():
-    ret, out, err = run_proc(GPG, ["--version"])
-    if re.match(r'(?s)^.*AEAD:\s+EAX,\s+OCB.*', out):
-        return True
-    else:
-        return False
+def gpg_check_features():
+    global GPG_AEAD, GPG_NO_OLD
+    _, out, _ = run_proc(GPG, ["--version"])
+    # AEAD
+    GPG_AEAD = re.match(r'(?s)^.*AEAD:\s+EAX,\s+OCB.*', out)
+    # Version 2.3.0-beta1598 and up drops support of 64-bit block algos
+    match = re.match(r'(?s)^.*gpg \(GnuPG\) ([0-9]+)\.([0-9]+)\.([0-9]+)(-beta([0-9]+))?.*$', out)
+    if not match:
+        raise_err('Failed to parse GnuPG version.')
+    # Version < 2.3.0
+    if (int(match.group(1)) < 2) or ((int(match.group(1)) == 2) and ((int(match.group(2)) < 3))):
+        GPG_NO_OLD = False
+        return
+    # Version > 2.3.0
+    if (int(match.group(1)) > 2) or (int(match.group(2)) > 3) or (int(match.group(3)) > 0):
+        GPG_NO_OLD = True
+        return
+    # Version 2.3.0 release or beta
+    GPG_NO_OLD = not match.group(5) or (int(match.group(5)) >= 1598)
 
 def setup(loglvl):
     # Setting up directories.
@@ -826,6 +842,7 @@ def setup(loglvl):
     GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
+    gpg_check_features()
     shutil.rmtree(GPGDIR, ignore_errors=True)
     os.mkdir(GPGDIR, 0o700)
 
@@ -1590,6 +1607,9 @@ class Misc(unittest.TestCase):
                     params.insert(9, '--s2k-count')
                     params.insert(10, str(iterations))
 
+            if GPG_NO_OLD:
+                params.insert(3, '--allow-old-cipher-algos')
+
             ret, _, err = run_proc(GPG, params)
             if ret != 0:
                 raise_err('gpg symmetric encryption failed', err)
@@ -2292,12 +2312,10 @@ class Encryption(unittest.TestCase):
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18,
                             24, 30, 40, 50, 56], Encryption.RUNS)
 
-        usegpg = gpg_supports_aead()
-
         # Encrypt and decrypt cleartext using the AEAD
         for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
                                                AEAD_M, AEAD_B, Encryption.Z_R):
-            rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], usegpg)
+            rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
 
     def test_encryption_multiple_recipients(self):
         USERIDS = ['key1@rnp', 'key2@rnp', 'key3@rnp']
@@ -2313,7 +2331,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if gpg_supports_aead():
+        if GPG_AEAD:
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
         else:
             AEADS = list_upto([None], Encryption.RUNS)
@@ -2375,7 +2393,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if gpg_supports_aead():
+        if GPG_AEAD:
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
         else:
             AEADS = list_upto([None], Encryption.RUNS)
