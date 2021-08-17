@@ -37,6 +37,8 @@ jobs:
             GPG_VERSION: stable
           - BUILD_MODE: normal
             GPG_VERSION: beta
+          - BUILD_MODE: normal
+            GPG_VERSION: 2.3.1
           - BUILD_MODE: sanitize
             GPG_VERSION: stable
 
