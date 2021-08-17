@@ -2115,11 +2115,11 @@ class Encryption(unittest.TestCase):
     # Ciphers list tro try during encryption. None will use default
     CIPHERS = [None, 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
                'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
-    SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 150000, 1000000]
+    SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 250000]
     # Compression parameters to try during encryption(s)
     Z = [[None, 0], ['zip'], ['zlib'], ['bzip2'], [None, 1], [None, 9]]
     # Number of test runs - each run picks next encryption algo and size, wrapping on array
-    RUNS = 60
+    RUNS = 20
 
     @classmethod
     def setUpClass(cls):
