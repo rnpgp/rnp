@@ -351,6 +351,19 @@ _0_::
 _Non-zero_::
   Failure.
 
+== EXAMPLES
+
+The following examples demonstrate method of usage of the _rnpkeys_ command.
+
+=== EXAMPLE 1: IMPORT EXISTING KEYS FROM THE GNUPG
+
+Following oneliner may be used to import all public keys from the GnuPG:
+
+*gpg* *-a* *--export* | *rnpkeys* *--import* _-_
+
+To import all secret keys the following command should be used (please note, that you'll be asked for secret key password(s)):
+
+*gpg* *-a* *--export-secret-keys* | *rnpkeys* *--import* _-_
 
 == BUGS
 
