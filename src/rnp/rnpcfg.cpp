@@ -187,8 +187,7 @@ rnp_cfg::add_str(const std::string &key, const std::string &val)
         RNP_LOG("expected list val for \"%s\"", key.c_str());
         throw std::invalid_argument("type");
     }
-    rnp_cfg_list_val *list = dynamic_cast<rnp_cfg_list_val *>(vals_[key]);
-    list->val().push_back(val);
+    (dynamic_cast<rnp_cfg_list_val &>(*vals_[key])).val().push_back(val);
 }
 
 bool
@@ -203,7 +202,7 @@ rnp_cfg::get_str(const std::string &key) const
     if (!has(key) || (vals_.at(key)->type() != RNP_CFG_VAL_STRING)) {
         return empty_str_;
     }
-    return (dynamic_cast<const rnp_cfg_str_val *>(vals_.at(key)))->val();
+    return (dynamic_cast<const rnp_cfg_str_val &>(*vals_.at(key))).val();
 }
 
 const char *
@@ -212,7 +211,7 @@ rnp_cfg::get_cstr(const std::string &key) const
     if (!has(key) || (vals_.at(key)->type() != RNP_CFG_VAL_STRING)) {
         return NULL;
     }
-    return (dynamic_cast<const rnp_cfg_str_val *>(vals_.at(key)))->val().c_str();
+    return (dynamic_cast<const rnp_cfg_str_val &>(*vals_.at(key))).val().c_str();
 }
 
 int
@@ -224,11 +223,11 @@ rnp_cfg::get_int(const std::string &key, int def) const
     const rnp_cfg_val *val = vals_.at(key);
     switch (val->type()) {
     case RNP_CFG_VAL_INT:
-        return (dynamic_cast<const rnp_cfg_int_val *>(val))->val();
+        return (dynamic_cast<const rnp_cfg_int_val &>(*val)).val();
     case RNP_CFG_VAL_BOOL:
-        return (dynamic_cast<const rnp_cfg_bool_val *>(val))->val();
+        return (dynamic_cast<const rnp_cfg_bool_val &>(*val)).val();
     case RNP_CFG_VAL_STRING:
-        return atoi((dynamic_cast<const rnp_cfg_str_val *>(val))->val().c_str());
+        return atoi((dynamic_cast<const rnp_cfg_str_val &>(*val)).val().c_str());
     default:
         return def;
     }
@@ -243,11 +242,11 @@ rnp_cfg::get_bool(const std::string &key) const
     const rnp_cfg_val *val = vals_.at(key);
     switch (val->type()) {
     case RNP_CFG_VAL_INT:
-        return (dynamic_cast<const rnp_cfg_int_val *>(val))->val();
+        return (dynamic_cast<const rnp_cfg_int_val &>(*val)).val();
     case RNP_CFG_VAL_BOOL:
-        return (dynamic_cast<const rnp_cfg_bool_val *>(val))->val();
+        return (dynamic_cast<const rnp_cfg_bool_val &>(*val)).val();
     case RNP_CFG_VAL_STRING: {
-        const std::string &str = (dynamic_cast<const rnp_cfg_str_val *>(val))->val();
+        const std::string &str = (dynamic_cast<const rnp_cfg_str_val &>(*val)).val();
         return !strcasecmp(str.c_str(), "true") || (atoi(str.c_str()) > 0);
     }
     default:
@@ -261,8 +260,7 @@ rnp_cfg::get_count(const std::string &key) const
     if (!has(key) || (vals_.at(key)->type() != RNP_CFG_VAL_LIST)) {
         return 0;
     }
-    const rnp_cfg_list_val *val = dynamic_cast<const rnp_cfg_list_val *>(vals_.at(key));
-    return val->val().size();
+    return (dynamic_cast<const rnp_cfg_list_val &>(*vals_.at(key))).val().size();
 }
 
 const std::string &
@@ -272,8 +270,7 @@ rnp_cfg::get_str(const std::string &key, size_t idx) const
         RNP_LOG("idx is out of bounds for \"%s\"", key.c_str());
         throw std::invalid_argument("idx");
     }
-    const rnp_cfg_list_val *val = dynamic_cast<const rnp_cfg_list_val *>(vals_.at(key));
-    return val->val().at(idx);
+    return (dynamic_cast<const rnp_cfg_list_val &>(*vals_.at(key))).val().at(idx);
 }
 
 std::vector<std::string>
@@ -287,8 +284,7 @@ rnp_cfg::get_list(const std::string &key) const
         RNP_LOG("no list at the key \"%s\"", key.c_str());
         throw std::invalid_argument("key");
     }
-    const rnp_cfg_list_val *val = dynamic_cast<const rnp_cfg_list_val *>(vals_.at(key));
-    return val->val();
+    return (dynamic_cast<const rnp_cfg_list_val &>(*vals_.at(key))).val();
 }
 
 int
@@ -324,16 +320,16 @@ rnp_cfg::copy(const rnp_cfg &src)
         rnp_cfg_val *val = NULL;
         switch (it.second->type()) {
         case RNP_CFG_VAL_INT:
-            val = new rnp_cfg_int_val(*(dynamic_cast<rnp_cfg_int_val *>(it.second)));
+            val = new rnp_cfg_int_val(dynamic_cast<const rnp_cfg_int_val &>(*it.second));
             break;
         case RNP_CFG_VAL_BOOL:
-            val = new rnp_cfg_bool_val(*(dynamic_cast<rnp_cfg_bool_val *>(it.second)));
+            val = new rnp_cfg_bool_val(dynamic_cast<const rnp_cfg_bool_val &>(*it.second));
             break;
         case RNP_CFG_VAL_STRING:
-            val = new rnp_cfg_str_val(*(dynamic_cast<rnp_cfg_str_val *>(it.second)));
+            val = new rnp_cfg_str_val(dynamic_cast<const rnp_cfg_str_val &>(*it.second));
             break;
         case RNP_CFG_VAL_LIST:
-            val = new rnp_cfg_list_val(*(dynamic_cast<rnp_cfg_list_val *>(it.second)));
+            val = new rnp_cfg_list_val(dynamic_cast<const rnp_cfg_list_val &>(*it.second));
             break;
         default:
             continue;
