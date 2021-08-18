@@ -133,7 +133,7 @@ Cipher_Botan::set_ad(const uint8_t *ad, size_t ad_length)
 {
     assert(m_cipher->authenticated());
     try {
-        dynamic_cast<Botan::AEAD_Mode *>(&*m_cipher)->set_associated_data(ad, ad_length);
+        dynamic_cast<Botan::AEAD_Mode &>(*m_cipher).set_associated_data(ad, ad_length);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to set AAD: %s", e.what());
         return false;
