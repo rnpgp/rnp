@@ -68,7 +68,7 @@ signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
         RNP_LOG("failed to init mem src");
         goto finish;
     }
-    if (!stream_read_pkt_len(&memsrc, &len)) {
+    if (!stream_read_pkt_len(&memsrc, &len) || (len > 0xffff)) {
         RNP_LOG("wrong pkt len");
         goto finish;
     }
