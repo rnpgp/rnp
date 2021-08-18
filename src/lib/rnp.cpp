@@ -4027,6 +4027,7 @@ report_signature_removal(rnp_ffi_t             ffi,
     sig->ffi = ffi;
     sig->key = &key;
     sig->sig = &keysig;
+    sig->own_sig = false;
     uint32_t action = remove ? RNP_KEY_SIGNATURE_REMOVE : RNP_KEY_SIGNATURE_KEEP;
     sigcb(ffi, app_ctx, sig, &action);
     switch (action) {
