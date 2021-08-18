@@ -32,7 +32,7 @@
 #### FFI
 
 * Added function `rnp_key_valid_till64()` to correctly handle keys which expire after the year 2038.
-* Added RNP_FEATURE_* defines to be used instead of raw strings.
+* Added `RNP_FEATURE_*` defines to be used instead of raw strings.
 
 #### Security
 
@@ -281,7 +281,7 @@
 
 #### FFI
 
-* Fixed rnp_op_add_signature for G10 keys
+* Fixed `rnp_op_add_signature` for G10 keys
 
 
 ### 0.9.1 [2018-07-12]
@@ -292,7 +292,7 @@
 #### CLI
 
 * Added support for keyid/fpr usage with (some) spaces and 0x prefix in
-  operations (--sign, etc).
+  operations (`--sign`, etc).
 
 #### FFI
 
