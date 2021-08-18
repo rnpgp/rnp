@@ -288,11 +288,12 @@ cli_rnp_set_generate_params(rnp_cfg &cfg)
         if (!input) {
             return false;
         }
-        if (!rnpkeys_ask_generate_params(cfg, input)) {
-            return false;
-        }
-        if (input && (input != stdin)) {
+        res = rnpkeys_ask_generate_params(cfg, input);
+        if (input != stdin) {
             fclose(input);
+        }
+        if (!res) {
+            return false;
         }
     }
 
