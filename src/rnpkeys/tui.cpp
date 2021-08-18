@@ -49,41 +49,31 @@
  *
 -------------------------------------------------------------------------------- */
 static bool
-rnp_secure_get_long_from_fd(FILE *fp, long *result, bool allow_empty)
+rnp_secure_get_long_from_fd(FILE *fp, long &result, bool allow_empty = true)
 {
-    char  buff[BUFSIZ];
-    char *end_ptr;
-    long  num_long;
-    bool  ret = false;
-
-    if (!result) {
-        goto end;
-    }
-
-    if (fgets(buff, sizeof(buff), fp) == NULL) {
+    char buff[BUFSIZ];
+    if (!fgets(buff, sizeof(buff), fp)) {
         RNP_LOG("EOF or read error");
-        goto end;
-    } else {
-        errno = 0;
-        num_long = strtol(buff, &end_ptr, 10);
-
-        if (ERANGE == errno) {
-            RNP_LOG("Number out of range");
-            goto end;
-        } else if (end_ptr == buff) {
-            ret = allow_empty;
-            goto end;
-        } else if ('\n' != *end_ptr && '\0' != *end_ptr) {
-            RNP_LOG("Unexpected end of line");
-            goto end;
-        }
+        return false;
     }
 
-    *result = num_long;
-    ret = true;
+    errno = 0;
+    char *end_ptr = NULL;
+    long  num_long = strtol(buff, &end_ptr, 10);
+    if (ERANGE == errno) {
+        RNP_LOG("Number out of range");
+        return false;
+    }
+    if (end_ptr == buff) {
+        return allow_empty;
+    }
+    if ('\n' != *end_ptr && '\0' != *end_ptr) {
+        RNP_LOG("Unexpected end of line");
+        return false;
+    }
 
-end:
-    return ret;
+    result = num_long;
+    return true;
 }
 
 static bool
@@ -138,8 +128,7 @@ ask_curve_name(FILE *input_fp)
         }
         printf("(default %s)> ", DEFAULT_CURVE);
         long val = 0;
-        ok = rnp_secure_get_long_from_fd(input_fp, &val, true) && (val > 0) &&
-             (val <= (long) ccount);
+        ok = rnp_secure_get_long_from_fd(input_fp, val) && (val > 0) && (val <= (long) ccount);
         if (ok) {
             result = curves[val - 1];
         }
@@ -157,7 +146,7 @@ ask_rsa_bitlen(FILE *input_fp)
         result = DEFAULT_RSA_NUMBITS;
         printf("Please provide bit length of the key (between 1024 and 4096):\n(default %d)> ",
                DEFAULT_RSA_NUMBITS);
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result, true) ||
+    } while (!rnp_secure_get_long_from_fd(input_fp, result) ||
              !is_rsa_keysize_supported(result));
     return result;
 }
@@ -165,21 +154,23 @@ ask_rsa_bitlen(FILE *input_fp)
 static long
 ask_dsa_bitlen(FILE *input_fp)
 {
-    long result = 0;
     do {
-        result = DSA_DEFAULT_P_BITLEN;
         printf(
           "Please provide bit length of the DSA key (between %d and %d):\n(default %d) > ",
           DSA_MIN_P_BITLEN,
           DSA_MAX_P_BITLEN,
           DSA_DEFAULT_P_BITLEN);
-    } while (!rnp_secure_get_long_from_fd(input_fp, &result, true) ||
-             (result < DSA_MIN_P_BITLEN) || (result > DSA_MAX_P_BITLEN));
-
-    // round up to multiple of 1024
-    result = ((result + 63) / 64) * 64;
-    printf("Bitlen of the key will be %lu\n", result);
-    return result;
+        long result = DSA_DEFAULT_P_BITLEN;
+        if (!rnp_secure_get_long_from_fd(input_fp, result)) {
+            continue;
+        }
+        if ((result >= DSA_MIN_P_BITLEN) && (result <= DSA_MAX_P_BITLEN)) {
+            // round up to multiple of 64
+            result = ((result + 63) / 64) * 64;
+            printf("Bitlen of the key will be %lu\n", result);
+            return result;
+        }
+    } while (1);
 }
 
 static bool
@@ -195,7 +186,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
                "\t(22) EDDSA + X25519\n"
                "\t(99) SM2\n"
                "> ");
-        if (!rnp_secure_get_long_from_fd(input_fp, &option, false)) {
+        if (!rnp_secure_get_long_from_fd(input_fp, option, false)) {
             option = 0;
             continue;
         }
