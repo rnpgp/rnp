@@ -34,8 +34,9 @@ There are some special cases for _INPUT_FILE_ :
 
 Depending on the input, output may be written:
 
-* to the specified file with a removed or added file extension (_.pgp_, _.asc_, _.sig_); or
-* to _stdout_.
+* if *--output* option is given output is written to the path specified (or to the *stdout* if *-* is used)
+* to the _INPUT_FILE_ with a removed or added file extension (_.pgp_, _.asc_, _.sig_); or
+* to the _stdout_ if input was read from the _stdin_.
 
 Without the *--armor* option, output will be in binary.
 
