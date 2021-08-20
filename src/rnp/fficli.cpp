@@ -1735,6 +1735,25 @@ cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_p
     return input;
 }
 
+rnp_output_t
+cli_rnp_output_to_specifier(cli_rnp_t &rnp, const std::string &spec, bool discard)
+{
+    rnp_output_t output = NULL;
+    rnp_result_t res = RNP_ERROR_GENERIC;
+    std::string  path = spec;
+    if (discard) {
+        res = rnp_output_to_null(&output);
+    } else if (spec.empty() || (spec == "-")) {
+        res = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
+    } else if (!rnp_get_output_filename(spec, path, rnp)) {
+        ERR_MSG("Operation failed: file '%s' already exists.", spec.c_str());
+        res = RNP_ERROR_BAD_PARAMETERS;
+    } else {
+        res = rnp_output_to_file(&output, path.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
+    }
+    return res ? NULL : output;
+}
+
 bool
 cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
 {
@@ -2041,7 +2060,7 @@ cli_rnp_init_io(const std::string &op,
                 cli_rnp_t *        rnp)
 {
     const std::string &in = rnp->cfg().get_str(CFG_INFILE);
-    bool               is_pathin = !in.empty() && (in != "-");
+    bool               is_pathin = true;
     if (input) {
         *input = cli_rnp_input_from_specifier(*rnp, in, &is_pathin);
         if (!*input) {
@@ -2053,33 +2072,22 @@ cli_rnp_init_io(const std::string &op,
         return true;
     }
     std::string out = rnp->cfg().get_str(CFG_OUTFILE);
-    bool        is_stdout = out.empty() || (out == "-");
     bool discard = (op == "verify") && out.empty() && rnp->cfg().get_bool(CFG_NO_OUTPUT);
 
-    if (is_stdout && is_pathin && !discard) {
+    if (out.empty() && is_pathin && !discard) {
         std::string ext = output_extension(rnp->cfg(), op);
         if (!ext.empty()) {
             out = in + ext;
-            is_stdout = false;
         }
     }
 
-    rnp_result_t res = RNP_ERROR_GENERIC;
-    if (discard) {
-        res = rnp_output_to_null(output);
-    } else if (is_stdout) {
-        res = rnp_output_to_callback(output, stdout_writer, NULL, NULL);
-    } else if (!rnp_get_output_filename(out, out, *rnp)) {
-        ERR_MSG("Operation failed: file '%s' already exists.", out.c_str());
-        res = RNP_ERROR_BAD_PARAMETERS;
-    } else {
-        res = rnp_output_to_file(output, out.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
-    }
-
-    if (res && input) {
+    *output = cli_rnp_output_to_specifier(*rnp, out, discard);
+    if (!output) {
         rnp_input_destroy(*input);
+        *input = NULL;
+        return false;
     }
-    return !res;
+    return true;
 }
 
 bool
