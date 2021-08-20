@@ -16,6 +16,13 @@
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
 : "${RECOMMENDED_JSONC_VERSION:=0.12.1}"
 
+if [[ "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
+  : "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
+else
+  : "${MINIMUM_AUTOMAKE_VERSION:=1.16.1}"
+fi
+: "${RECOMMENDED_AUTOMAKE_VERSION:=1.16.4}"
+
 : "${VERBOSE:=1}"
 
 
@@ -43,6 +50,7 @@ macos_install() {
   # homebrew fails to update python 3.9.1 to 3.9.1.1 due to unlinking failure
   rm /usr/local/bin/2to3 || true
   brew bundle
+  ensure_automake
 }
 
 freebsd_install() {
@@ -74,6 +82,7 @@ freebsd_install() {
   echo "disable-ipv6" >> ~/.gnupg/dirmngr.conf
   dirmngr </dev/null
   dirmngr --daemon
+  ensure_automake
 }
 
 openbsd_install() {
@@ -106,6 +115,7 @@ linux_install_fedora() {
     cmake
   yum_install_dynamic_build_dependencies_if_needed
 
+  ensure_automake
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
@@ -207,6 +217,7 @@ linux_install_centos7() {
 
   yum_install_dynamic_build_dependencies_if_needed
 
+  ensure_automake
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
@@ -219,6 +230,7 @@ linux_install_centos8() {
 
   yum_install_dynamic_build_dependencies_if_needed
 
+  ensure_automake
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
@@ -377,14 +389,47 @@ build_and_install_python() {
   popd
 }
 
+# Make sure automake is at least 1.16.3+ as required by GnuPG 2.3.
+# If not, build automake from source.
+ensure_automake() {
+
+  local automake_version
+  automake_version=$({
+    command -v automake >/dev/null && command automake --version
+    } | head -n1 | cut -f4 -d' '
+  )
+
+  local need_to_build_automake=
+
+  if ! is_version_at_least automake "${MINIMUM_AUTOMAKE_VERSION}" echo "${automake_version}"; then
+    >&2 echo "automake version lower than ${MINIMUM_AUTOMAKE_VERSION}."
+    need_to_build_automake=1
+  fi
+
+  if [[ "${need_to_build_automake}" != 1 ]]; then
+    >&2 echo "automake rebuild is NOT needed."
+    return
+  fi
+
+  >&2 echo "automake rebuild is needed."
+
+  pushd "$(mktemp -d)" || return 1
+
+  build_and_install_automake
+
+  command -v automake
+
+  popd
+}
+
 build_and_install_automake() {
   # automake
   automake_build=${LOCAL_BUILDS}/automake
   mkdir -p "${automake_build}"
-  pushd ${automake_build}
-  curl -L -o automake.tar.xz https://ftp.gnu.org/gnu/automake/automake-1.16.1.tar.xz
+  pushd "${automake_build}"
+  curl -L -o automake.tar.xz https://ftp.gnu.org/gnu/automake/automake-${RECOMMENDED_AUTOMAKE_VERSION}.tar.xz
   tar -xf automake.tar.xz --strip 1
-  ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j${MAKE_PARALLEL} && ${SUDO} make install
+  ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && ${SUDO} make install
   popd
 }
 
@@ -394,6 +439,8 @@ linux_install_ubuntu() {
   "${SUDO}" apt-get update
   "${SUDO}" apt-get -y install ruby-dev g++-8 cmake libbz2-dev zlib1g-dev build-essential gettext \
     ruby-bundler libncurses-dev
+
+  ensure_automake
 }
 
 declare util_dependencies_deb=(
@@ -443,7 +490,7 @@ linux_install_debian() {
     "${build_dependencies_deb[@]}" \
     "$@"
 
-  build_and_install_automake
+  ensure_automake
   build_and_install_cmake
 }
 
@@ -541,7 +588,6 @@ declare ruby_build_dependencies_yum=(
   sqlite-devel
   which # for rbenv-doctor
 )
-
 
 ensure_ruby() {
   if is_version_at_least ruby "${MINIMUM_RUBY_VERSION}" command ruby -e 'puts RUBY_VERSION'; then
