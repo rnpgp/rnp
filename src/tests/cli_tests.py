@@ -2106,6 +2106,45 @@ class Misc(unittest.TestCase):
         if out != 'Message to sign':
             raise_err('wrong verification output', out)
 
+    def test_output_to_specifier(self):
+        src, enc, encasc, dec = reg_workfiles('source', '.txt', '.txt.pgp', '.txt.asc', '.dec')
+        with open(src, 'w+') as f:
+            f.write('Hello world')
+        # Encrypt file and make sure result is stored with .pgp extension
+        ret, out, _ = run_proc(RNP, ['-c', src, '--password', 'password'])
+        self.assertEqual(ret, 0, 'encryption failed')
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', enc, '--output', dec, '--password', 'password'])
+        self.assertEqual(ret, 0, 'decryption failed')
+        self.assertEqual(file_text(src), file_text(dec), 'Decrypted data differs')
+        remove_files(enc, dec)
+        # Encrypt file with armor and make sure result is stored with .asc extension
+        ret, _, _ = run_proc(RNP, ['-c', src, '--armor', '--password', 'password'])
+        self.assertEqual(ret, 0, 'encryption failed')
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', encasc, '--output', '-', '--password', 'password'])
+        self.assertEqual(ret, 0, 'decryption failed')
+        self.assertEqual(file_text(src), out, 'Decrypted data differs')
+        remove_files(encasc)
+        # Encrypt file and write result to the stdout
+        ret, out, _ = run_proc(RNP, ['-c', src, '--armor', '--output', '-', '--password', 'password'])
+        self.assertEqual(ret, 0, 'encryption failed')
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', '--output', dec, '--password', 'password', '-'], out)
+        self.assertEqual(ret, 0, 'decryption failed')
+        self.assertEqual(file_text(src), file_text(dec), 'Decrypted data differs')
+        remove_files(dec)
+        # Encrypt file and write armored result to the stdout
+        ret, out, _ = run_proc(RNP, ['-c', src, '--armor','--output', '-', '--password', 'password'])
+        self.assertEqual(ret, 0, 'encryption failed')
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', '--output', '-', '--password', 'password', '-'], out)
+        self.assertEqual(ret, 0, 'decryption failed')
+        self.assertEqual(file_text(src), out, 'Decrypted data differs')
+        # Encrypt stdin and write result to the stdout
+        srctxt = file_text(src)
+        ret, out, _ = run_proc(RNP, ['-c', '--armor', '--password', 'password'], srctxt)
+        self.assertEqual(ret, 0, 'encryption failed')
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', '--password', 'password'], out)
+        self.assertEqual(ret, 0, 'decryption failed')
+        self.assertEqual(out, srctxt, 'Decrypted data differs')
+
     def test_empty_keyrings(self):
         NO_KEYRING = r'(?s)^.*' \
         r'warning: keyring at path \'.*/\.rnp/pubring.gpg\' doesn\'t exist.*' \
