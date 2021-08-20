@@ -342,6 +342,12 @@ would take _NUMBER_ of milliseconds on the current system. +
 For example, setting it to _2000_ would mean that each secret key
 decryption operation would take around 2 seconds (on the current machine).
 
+*--notty*::
+Disable use of tty. +
++
+By default RNP would detect whether TTY is attached and use it for user prompts. +
++
+This option overrides default behaviour so user input may be passed in batch mode.
 
 == EXIT STATUS
 

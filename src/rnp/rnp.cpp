@@ -83,6 +83,7 @@ static const char *usage = "-h, --help OR\n"
                            "\t[--aead[=EAX, OCB]] AND/OR\n"
                            "\t[--aead-chunk-bits=0..56] AND/OR\n"
                            "\t[--coredumps] AND/OR\n"
+                           "\t[--notty] AND/OR\n"
                            "\t[--homedir=<homedir>] AND/OR\n"
                            "\t[-f, --keyfile=<path to key] AND/OR\n"
                            "\t[--keyring=<keyring>] AND/OR\n"
@@ -142,6 +143,7 @@ enum optdefs {
     OPT_GRIPS,
     OPT_MPIS,
     OPT_RAW,
+    OPT_NOTTY,
 
     /* debug */
     OPT_DEBUG
@@ -210,6 +212,7 @@ static struct option options[] = {
   {"grips", no_argument, NULL, OPT_GRIPS},
   {"mpi", no_argument, NULL, OPT_MPIS},
   {"raw", no_argument, NULL, OPT_RAW},
+  {"notty", no_argument, NULL, OPT_NOTTY},
 
   {NULL, 0, NULL, 0},
 };
@@ -548,6 +551,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_RAW:
         cfg.set_bool(CFG_RAW, true);
+        return true;
+    case OPT_NOTTY:
+        cfg.set_bool(CFG_NOTTY, true);
         return true;
     case OPT_DEBUG:
         return rnp_enable_debug(arg);
