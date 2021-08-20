@@ -128,6 +128,20 @@ rnp_input_t cli_rnp_input_from_specifier(cli_rnp_t &        rnp,
                                          const std::string &spec,
                                          bool *             is_path);
 
+/**
+ * @brief Create output object from the specifier, which may represent:
+ *        - path
+ *        - stdout (if `-` or empty string is passed)
+ *
+ * @param rnp initialized CLI rnp object
+ * @param spec specifier
+ * @param discard just discard output
+ * @return rnp_output_t  or NULL if operation failed.
+ */
+rnp_output_t cli_rnp_output_to_specifier(cli_rnp_t &        rnp,
+                                         const std::string &spec,
+                                         bool               discard = false);
+
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
