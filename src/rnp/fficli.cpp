@@ -455,19 +455,23 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
 bool
 cli_rnp_t::init(const rnp_cfg &cfg)
 {
-    bool coredumps = true;
+    cfg_.copy(cfg);
 
     /* Configure user's io streams. */
-    userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
-    userio_in = (userio_in ? userio_in : stdin);
-    userio_out = (isatty(fileno(stdout)) ? stdout : fopen("/dev/tty", "a+"));
-    userio_out = (userio_out ? userio_out : stdout);
-
-    cfg_.copy(cfg);
+    if (!cfg_.get_bool(CFG_NOTTY)) {
+        userio_in = (isatty(fileno(stdin)) ? stdin : fopen("/dev/tty", "r"));
+        userio_in = (userio_in ? userio_in : stdin);
+        userio_out = (isatty(fileno(stdout)) ? stdout : fopen("/dev/tty", "a+"));
+        userio_out = (userio_out ? userio_out : stdout);
+    } else {
+        userio_in = stdin;
+        userio_out = stdout;
+    }
 
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
      */
+    bool coredumps = true;
     if (!cfg_.get_bool(CFG_COREDUMPS)) {
 #ifdef HAVE_SYS_RESOURCE_H
         coredumps = !disable_core_dumps();
