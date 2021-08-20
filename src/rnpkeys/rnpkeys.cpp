@@ -70,6 +70,7 @@ const char *usage = "-h, --help OR\n"
                     "\t[--pass-fd=<fd>] OR\n"
                     "\t[--password=<password>] AND/OR\n"
                     "\t[--permissive] AND/OR\n"
+                    "\t[--notty] AND/OR\n"
                     "\t[--output=file] file OR\n"
                     "\t[--keystore-format=<format>] AND/OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
@@ -125,6 +126,7 @@ struct option options[] = {
   {"rev-type", required_argument, NULL, OPT_REV_TYPE},
   {"rev-reason", required_argument, NULL, OPT_REV_REASON},
   {"permissive", no_argument, NULL, OPT_PERMISSIVE},
+  {"notty", no_argument, NULL, OPT_NOTTY},
   {NULL, 0, NULL, 0},
 };
 
@@ -610,6 +612,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_PERMISSIVE:
         cfg.set_bool(CFG_PERMISSIVE, true);
+        return true;
+    case OPT_NOTTY:
+        cfg.set_bool(CFG_NOTTY, true);
         return true;
     default:
         *cmd = CMD_HELP;

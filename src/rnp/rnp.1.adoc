@@ -303,6 +303,13 @@ RNP automatically detects the keystore format. +
 +
 This option allows the auto-detection behavior to be overridden.
 
+*--notty*::
+Disable use of tty. +
++
+By default RNP would detect whether TTY is attached and use it for user prompts. +
++
+This option overrides default behaviour so user input may be passed in batch mode.
+
 *--debug* _FILENAME.CPP_::
 Enable debug output for the source file specified. For development use only.
 

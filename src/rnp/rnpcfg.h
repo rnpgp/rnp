@@ -86,6 +86,7 @@
 #define CFG_REV_TYPE "rev-type"     /* revocation reason code */
 #define CFG_REV_REASON "rev-reason" /* revocation reason human-readable string */
 #define CFG_PERMISSIVE "permissive" /* ignore bad packets during key import */
+#define CFG_NOTTY "notty" /* disable tty usage and do input/output via stdin/stdout */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"

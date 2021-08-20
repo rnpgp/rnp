@@ -50,6 +50,7 @@ typedef enum {
     OPT_REV_TYPE,
     OPT_REV_REASON,
     OPT_PERMISSIVE,
+    OPT_NOTTY,
 
     /* debug */
     OPT_DEBUG
