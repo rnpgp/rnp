@@ -1766,27 +1766,21 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
     std::vector<rnp_key_handle_t> keys;
 
     if (!cli_rnp_keys_matching_string(rnp, keys, filter, flags)) {
-        fprintf(rnp->userio_out, "Key(s) matching '%s' not found.\n", filter);
+        ERR_MSG("Key(s) matching '%s' not found.", filter);
         return false;
     }
 
-    rnp_output_t       output = NULL;
-    rnp_output_t       armor = NULL;
-    const std::string &file = rnp->cfg().get_str(CFG_OUTFILE);
-    rnp_result_t       ret;
-    uint32_t           base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
-    bool               result = false;
+    rnp_output_t output = NULL;
+    rnp_output_t armor = NULL;
+    uint32_t     base_flags = secret ? RNP_KEY_EXPORT_SECRET : RNP_KEY_EXPORT_PUBLIC;
+    bool         result = false;
 
-    if (!file.empty()) {
-        uint32_t flags = rnp->cfg().get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
-        ret = rnp_output_to_file(&output, file.c_str(), flags);
-    } else {
-        ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
-    }
-    if (ret) {
+    output = cli_rnp_output_to_specifier(*rnp, rnp->cfg().get_str(CFG_OUTFILE));
+    if (!output) {
         goto done;
     }
 
+    /* We need single armored stream for all of the keys */
     if (rnp_output_to_armor(output, &armor, secret ? "secret key" : "public key")) {
         goto done;
     }
