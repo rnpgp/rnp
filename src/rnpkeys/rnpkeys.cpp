@@ -63,6 +63,7 @@ const char *usage = "-h, --help OR\n"
                     "\t[--expert] AND/OR\n"
                     "\t[--with-sigs] AND/OR\n"
                     "\t[--force] AND/OR\n"
+                    "\t[--overwrite] AND/OR\n"
                     "\t[--secret] AND/OR\n"
                     "\t[--hash=<hash alg>] AND/OR\n"
                     "\t[--homedir=<homedir>] AND/OR\n"
@@ -121,6 +122,7 @@ struct option options[] = {
   {"cipher", required_argument, NULL, OPT_CIPHER},
   {"expert", no_argument, NULL, OPT_EXPERT},
   {"output", required_argument, NULL, OPT_OUTPUT},
+  {"overwrite", no_argument, NULL, OPT_OVERWRITE},
   {"force", no_argument, NULL, OPT_FORCE},
   {"secret", no_argument, NULL, OPT_SECRET},
   {"rev-type", required_argument, NULL, OPT_REV_TYPE},
@@ -575,6 +577,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             return false;
         }
         cfg.set_str(CFG_OUTFILE, arg);
+        return true;
+    case OPT_OVERWRITE:
+        cfg.set_bool(CFG_OVERWRITE, true);
         return true;
     case OPT_FORCE:
         cfg.set_bool(CFG_FORCE, true);
