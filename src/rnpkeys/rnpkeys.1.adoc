@@ -239,7 +239,11 @@ The default homedir is _~/.rnp_ .
 *--output* _PATH_::
 Write data processing related output to the file specified. +
 +
-Combine it with *--force* to overwrite file if it already exists.
+Combine it with *--overwrite* to overwrite file if it already exists.
+
+*--overwrite*::
+Overwrite output file if it already exists. +
++
 
 *--userid* _USERID_::
 Use the specified _userid_ during key generation and in some
@@ -300,7 +304,7 @@ Print signature information when listing keys via the *-l* command.
 *--force*::
 Force actions to happen without prompting the user. +
 +
-This applies to cases such as output file overwrite, secret key removal, and revoking an already revoked key.
+This applies to cases such as secret key removal, revoking an already revoked key and so on.
 
 *--permissive*::
 Skip malformed or unknown keys/signatures during key import. +

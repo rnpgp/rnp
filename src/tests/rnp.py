@@ -76,7 +76,7 @@ class Rnp(object):
         params = self.common_params
         params += ["--output", output]
         params += ["--userid", self.userid]
-        params += ["--force"]
+        params += ["--overwrite"]
         params += ["--export-key"]
         if secure:
             params += ["--secret"]
