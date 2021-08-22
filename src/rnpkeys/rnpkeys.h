@@ -41,6 +41,7 @@ typedef enum {
     OPT_FORMAT,
     OPT_EXPERT,
     OPT_OUTPUT,
+    OPT_OVERWRITE,
     OPT_FORCE,
     OPT_SECRET,
     OPT_S2K_ITER,
