@@ -1317,6 +1317,104 @@ class Keystore(unittest.TestCase):
         os.remove('alice-revocation.pgp')
         clear_keyrings()
 
+    def test_export_keys(self):
+        PUB_KEY = r'(?s)^.*' \
+        r'-----BEGIN PGP PUBLIC KEY BLOCK-----.*' \
+        r'-----END PGP PUBLIC KEY BLOCK-----.*$'        
+        PUB_KEY_PKTS = r'(?s)^.*' \
+        r'Public key packet.*' \
+        r'keyid: 0x0451409669ffde3c.*' \
+        r'Public subkey packet.*' \
+        r'keyid: 0xdd23ceb7febeff17.*$'
+        SEC_KEY = r'(?s)^.*' \
+        r'-----BEGIN PGP PRIVATE KEY BLOCK-----.*' \
+        r'-----END PGP PRIVATE KEY BLOCK-----.*$'
+        SEC_KEY_PKTS = r'(?s)^.*' \
+        r'Secret key packet.*' \
+        r'keyid: 0x0451409669ffde3c.*' \
+        r'Secret subkey packet.*' \
+        r'keyid: 0xdd23ceb7febeff17.*$'
+        KEY_OVERWRITE = r'(?s)^.*' \
+        r'File \'.*alice-key.pub.asc\' already exists.*' \
+        r'Would you like to overwrite it\? \(y/N\).*' \
+        r'Please enter the new filename:.*$'
+
+        clear_keyrings()
+        # Import Alice's public key
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        self.assertEqual(ret, 0)
+        # Attempt to export wrong key
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'boris'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Key\(s\) matching \'boris\' not found\.$')
+        # Export it to the stdout
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice'])
+        self.assertEqual(ret, 0)
+        self.assertTrue(re.match(PUB_KEY, out))
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', '-'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, PUB_KEY)
+        # Export it to the file
+        kpub, ksec, kren = reg_workfiles('alice-key', '.pub.asc', '.sec.asc', '.pub.ren-asc')
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub])
+        self.assertEqual(ret, 0)
+        self.assertRegex(file_text(kpub), PUB_KEY)
+        # Try to export again to the same file without additional parameters
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--notty'], '\n\n')
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(out, KEY_OVERWRITE)
+        self.assertRegex(err, r'(?s)^.*Operation failed: file \'.*alice-key.pub.asc\' already exists.*$')
+        # Try to export with --force parameter
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--force', '--notty'], '\n\n')
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(out, KEY_OVERWRITE)
+        self.assertRegex(err, r'(?s)^.*Operation failed: file \'.*alice-key.pub.asc\' already exists.*$')
+        # Export with --overwrite parameter
+        with open(kpub, 'w+') as f:
+            f.truncate(10)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--overwrite'])
+        self.assertEqual(ret, 0)
+        # Re-import it, making sure file was correctly overwriten
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', kpub])
+        self.assertEqual(ret, 0)
+        # Enter 'y' in ovewrite prompt
+        with open(kpub, 'w+') as f:
+            f.truncate(10)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--notty'], 'y\n')
+        self.assertEqual(ret, 0)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', kpub])
+        self.assertEqual(ret, 0)
+        # Enter new filename in overwrite prompt
+        with open(kpub, 'w+') as f:
+            f.truncate(10)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--notty'], 'n\n' + kren + '\n')
+        self.assertEqual(ret, 0)
+        self.assertEqual(os.path.getsize(kpub), 10)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', kren])
+        self.assertEqual(ret, 0)
+        # Attempt to export secret key
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', '--secret', 'alice'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Key\(s\) matching \'alice\' not found\.$')
+        # Import Alice's secret key and subkey
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+        self.assertEqual(ret, 0)
+        # Make sure secret key is not exported when public is requested
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', ksec])
+        self.assertEqual(ret, 0)
+        self.assertRegex(file_text(ksec), PUB_KEY)
+        ret, out, _ = run_proc(RNP, ['--list-packets', ksec])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, PUB_KEY_PKTS)
+        # Make sure secret key is correctly exported
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', '--secret', 'alice', '--output', ksec, '--overwrite'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(file_text(ksec), SEC_KEY)
+        ret, out, _ = run_proc(RNP, ['--list-packets', ksec])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, SEC_KEY_PKTS)
+        clear_keyrings()
+
     def test_userid_escape(self):
         clear_keyrings()
         msgs = []
