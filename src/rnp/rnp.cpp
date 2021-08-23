@@ -427,12 +427,14 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             ERR_MSG("No hash algorithm argument provided");
             return false;
         }
-        bool supported = false;
-        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, arg, &supported) || !supported) {
+        bool               supported = false;
+        const std::string &alg = cli_rnp_alg_to_ffi(arg);
+        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, alg.c_str(), &supported) ||
+            !supported) {
             ERR_MSG("Unsupported hash algorithm: %s", arg);
             return false;
         }
-        cfg.set_str(CFG_HASH, arg);
+        cfg.set_str(CFG_HASH, alg);
         return true;
     }
     case OPT_PASSWDFD:
@@ -489,12 +491,14 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             ERR_MSG("No encryption algorithm argument provided");
             return false;
         }
-        bool supported = false;
-        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, arg, &supported) || !supported) {
-            ERR_MSG("Warning, unsupported encryption algorithm: %s", arg);
-            arg = DEFAULT_SYMM_ALG;
+        bool               supported = false;
+        const std::string &alg = cli_rnp_alg_to_ffi(arg);
+        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, alg.c_str(), &supported) ||
+            !supported) {
+            ERR_MSG("Unsupported encryption algorithm: %s", arg);
+            return false;
         }
-        cfg.set_str(CFG_CIPHER, arg);
+        cfg.set_str(CFG_CIPHER, alg);
         return true;
     }
     case OPT_NUMTRIES:
