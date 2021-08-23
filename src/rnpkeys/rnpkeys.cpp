@@ -494,12 +494,14 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             ERR_MSG("No hash algorithm argument provided");
             return false;
         }
-        bool supported = false;
-        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, arg, &supported) || !supported) {
+        bool               supported = false;
+        const std::string &alg = cli_rnp_alg_to_ffi(arg);
+        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, alg.c_str(), &supported) ||
+            !supported) {
             ERR_MSG("Unsupported hash algorithm: %s", arg);
             return false;
         }
-        cfg.set_str(CFG_HASH, arg);
+        cfg.set_str(CFG_HASH, alg);
         return true;
     }
     case OPT_S2K_ITER: {
@@ -561,12 +563,14 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_str(CFG_KEYFORMAT, arg);
         return true;
     case OPT_CIPHER: {
-        bool supported = false;
-        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, arg, &supported) || !supported) {
+        bool               supported = false;
+        const std::string &alg = cli_rnp_alg_to_ffi(arg);
+        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, alg.c_str(), &supported) ||
+            !supported) {
             ERR_MSG("Unsupported symmetric algorithm: %s", arg);
             return false;
         }
-        cfg.set_str(CFG_CIPHER, arg);
+        cfg.set_str(CFG_CIPHER, alg);
         return true;
     }
     case OPT_DEBUG:
