@@ -1821,19 +1821,12 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
         clear_key_handles(keys);
         return false;
     }
-    const std::string &file = rnp->cfg().get_str(CFG_OUTFILE);
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
-    rnp_output_t       output = NULL;
-    rnp_output_t       armored = NULL;
-    bool               result = false;
+    rnp_output_t output = NULL;
+    rnp_output_t armored = NULL;
+    bool         result = false;
 
-    if (!file.empty()) {
-        uint32_t flags = rnp->cfg().get_bool(CFG_FORCE) ? RNP_OUTPUT_FILE_OVERWRITE : 0;
-        ret = rnp_output_to_file(&output, file.c_str(), flags);
-    } else {
-        ret = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
-    }
-    if (ret) {
+    output = cli_rnp_output_to_specifier(*rnp, rnp->cfg().get_str(CFG_OUTFILE));
+    if (!output) {
         goto done;
     }
 
