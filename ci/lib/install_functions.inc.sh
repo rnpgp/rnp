@@ -674,21 +674,45 @@ is_version_at_least() {
     installed_version_major="${installed_version%%.*}"
     installed_version_minor="${installed_version#*.}"
     installed_version_minor="${installed_version_minor%%.*}"
+    installed_version_minor="${installed_version_minor:-0}"
+    installed_version_patch="${installed_version#${installed_version_major}.}"
+    installed_version_patch="${installed_version_patch#${installed_version_minor}}"
+    installed_version_patch="${installed_version_patch#.}"
+    installed_version_patch="${installed_version_patch%%.*}"
+    installed_version_patch="${installed_version_patch:-0}"
 
     local need_version_major
     need_version_major="${version_constraint%%.*}"
     need_version_minor="${version_constraint#*.}"
     need_version_minor="${need_version_minor%%.*}"
+    need_version_minor="${need_version_minor:-0}"
+    need_version_patch="${version_constraint##*.}"
+    need_version_patch="${version_constraint#${need_version_major}.}"
+    need_version_patch="${need_version_patch#${need_version_minor}}"
+    need_version_patch="${need_version_patch#.}"
+    need_version_patch="${need_version_patch%%.*}"
+    need_version_patch="${need_version_patch:-0}"
+
+    >&2 echo "
+    -> installed_version_major=${installed_version_major}
+    -> installed_version_minor=${installed_version_minor}
+    -> installed_version_patch=${installed_version_patch}
+    -> need_version_major=${need_version_major}
+    -> need_version_minor=${need_version_minor}
+    -> need_version_patch=${need_version_patch}"
 
     # Naive semver comparison
     if [[ "${installed_version_major}" -lt "${need_version_major}" ]] || \
-       [[ "${installed_version_major}" = "${need_version_major}" && "${installed_version_minor}" -lt "${need_version_minor}" ]]; then
+       [[ "${installed_version_major}" = "${need_version_major}" && "${installed_version_minor}" -lt "${need_version_minor}" ]] || \
+       [[ "${installed_version_major}.${installed_version_minor}" = "${need_version_major}.${need_version_minor}" && "${installed_version_patch}" -lt "${need_version_patch}" ]]; then
       need_to_build=1
     fi
   fi
 
   if [[ 1 = "${need_to_build}" ]]; then
     >&2 echo "Warning: Need to build ${bin_name} since version constraint ${version_constraint} not met."
+  else
+    >&2 echo "No need to build ${bin_name} since version constraint ${version_constraint} is met."
   fi
 
   return "${need_to_build}"
