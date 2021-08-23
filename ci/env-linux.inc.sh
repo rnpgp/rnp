@@ -60,6 +60,9 @@ post_build_tool_install_set_env() {
 
       # use rh-ruby25 if installed
       if rpm --quiet -q rh-ruby25 && [[ "$PATH" != */opt/rh/rh-ruby25/root/usr/bin* ]]; then
+        # TODO: Modify rh-ruby25's enable script to be more lenient towards
+        # missing MANPATH.
+        export MANPATH="${MANPATH:-}"
         . /opt/rh/rh-ruby25/enable
         PATH=$HOME/bin:$PATH
         export PATH

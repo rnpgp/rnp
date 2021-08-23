@@ -417,6 +417,22 @@ ensure_automake() {
 
   build_and_install_automake
 
+  # Disable automake116 from Ribose's repository as that may be too old.
+  case "${DIST}" in
+    centos)
+      if [[ -r /opt/ribose/ribose-automake116/disable ]]; then
+        >&2 echo "ribose-automake116 will be disabled."
+        . /opt/ribose/ribose-automake116/disable
+      fi
+
+      if rpm --quiet -q ribose-automake116; then
+        >&2 echo "ribose-automake116 is installed.  Removing."
+        # "${SUDO}" "${YUM}" remove -y ribose-automake116
+        "${SUDO}" rpm -e ribose-automake116
+      fi
+      ;;
+  esac
+
   command -v automake
 
   popd
