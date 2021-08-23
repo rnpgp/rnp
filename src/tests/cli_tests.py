@@ -2384,6 +2384,54 @@ class Misc(unittest.TestCase):
             os.rename(RNPDIR + '-old', RNPDIR)
             clear_workfiles()
 
+    def test_alg_aliases(self):
+        src, enc = reg_workfiles('source', '.txt', '.txt.pgp')
+        with open(src, 'w+') as f:
+            f.write('Hello world')
+        # Encrypt file but forget to pass cipher name
+        ret, _, err = run_proc(RNP, ['-c', src, '--password', 'password', '--cipher'])
+        self.assertNotEqual(ret, 0)
+        # Encrypt file using the unknown symmetric algorithm
+        ret, _, err = run_proc(RNP, ['-c', src, '--cipher', 'bad', '--password', 'password'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported encryption algorithm: bad.*$')
+        # Encrypt file but forget to pass hash algorithm name
+        ret, _, err = run_proc(RNP, ['-c', src, '--password', 'password', '--hash'])
+        self.assertNotEqual(ret, 0)
+        # Encrypt file using the unknown hash algorithm
+        ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'bad', '--password', 'password'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported hash algorithm: bad.*$')
+        # Encrypt file using the AES algorithm instead of AES-128
+        ret, _, err = run_proc(RNP, ['-c', src, '--cipher', 'AES', '--password', 'password'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Warning, unsupported encryption algorithm: AES.*$')
+        self.assertNotRegex(err, r'(?s)^.*Unsupported encryption algorithm: AES.*$')
+        # Make sure AES-128 was used
+        ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 7 \(AES-128\).*$')
+        remove_files(enc)
+        # Encrypt file using the 3DES instead of tripledes
+        ret, _, err = run_proc(RNP, ['-c', src, '--cipher', '3DES', '--password', 'password'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Warning, unsupported encryption algorithm: 3DES.*$')
+        self.assertNotRegex(err, r'(?s)^.*Unsupported encryption algorithm: 3DES.*$')
+        # Make sure 3DES was used
+        ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 2 \(TripleDES\).*$')
+        remove_files(enc)
+        # Use ripemd-160 hash instead of RIPEMD160
+        ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'ripemd-160', '--password', 'password'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Unsupported hash algorithm: ripemd-160.*$')
+        # Make sure RIPEMD160 was used
+        ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*s2k hash algorithm: 3 \(RIPEMD160\).*$')
+        remove_files(enc)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:

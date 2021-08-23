@@ -35,6 +35,7 @@
 #include <string>
 #include <vector>
 #include <iterator>
+#include <cassert>
 #include <ctype.h>
 #ifdef _MSC_VER
 #include "uniwin.h"
@@ -764,6 +765,27 @@ cli_rnp_escape_string(const std::string &src)
         result.append(escape_map[0x20]);
     }
     return result;
+}
+
+static const std::string alg_aliases[] = {
+  "3DES",         "TRIPLEDES",   "3-DES",        "TRIPLEDES",   "CAST-5",       "CAST5",
+  "AES",          "AES128",      "AES-128",      "AES128",      "AES-192",      "AES192",
+  "AES-256",      "AES256",      "CAMELLIA-128", "CAMELLIA128", "CAMELLIA-192", "CAMELLIA192",
+  "CAMELLIA-256", "CAMELLIA256", "SHA",          "SHA1",        "SHA-1",        "SHA1",
+  "SHA-224",      "SHA224",      "SHA-256",      "SHA256",      "SHA-384",      "SHA384",
+  "SHA-512",      "SHA512",      "RIPEMD-160",   "RIPEMD160"};
+
+const std::string
+cli_rnp_alg_to_ffi(const std::string alg)
+{
+    size_t count = sizeof(alg_aliases) / sizeof(alg_aliases[0]);
+    assert((count % 2) == 0);
+    for (size_t idx = 0; idx < count; idx += 2) {
+        if (rnp_casecmp(alg, alg_aliases[idx])) {
+            return alg_aliases[idx + 1];
+        }
+    }
+    return alg;
 }
 
 #ifndef RNP_USE_STD_REGEX
