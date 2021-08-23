@@ -196,6 +196,16 @@ bool        cli_rnp_protect_file(cli_rnp_t *rnp);
 bool        cli_rnp_process_file(cli_rnp_t *rnp);
 std::string cli_rnp_escape_string(const std::string &src);
 
+/**
+ * @brief Convert algorithm name representation to one used by FFI.
+ *        I.e. aes-128 to AES128, 3DES to TRIPLEDES, SHA-1 to SHA1 and so on.
+ *
+ * @param alg algorithm string
+ * @return string with FFI algorithm's name. In case alias is not found the source string will
+ * be returned.
+ */
+const std::string cli_rnp_alg_to_ffi(const std::string alg);
+
 void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
