@@ -7884,10 +7884,6 @@ key_iter_next_key(rnp_identifier_iterator_t it)
     }
     // we've gone through both rings
     it->store = NULL;
-    if (it->keyp) {
-        delete it->keyp;
-        it->keyp = NULL;
-    }
     return false;
 }
 
@@ -7927,7 +7923,7 @@ key_iter_first_key(rnp_identifier_iterator_t it)
         it->store = NULL;
         return false;
     }
-    it->keyp = new std::list<pgp_key_t>::iterator(it->store->keys.begin());
+    *it->keyp = it->store->keys.begin();
     it->uididx = 0;
     return true;
 }
@@ -8014,6 +8010,8 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     obj->ffi = ffi;
+    obj->keyp = new std::list<pgp_key_t>::iterator();
+    obj->uididx = 0;
     // parse identifier type
     obj->type = PGP_KEY_SEARCH_UNKNOWN;
     ARRAY_LOOKUP_BY_STRCASE(identifier_type_map, string, type, identifier_type, obj->type);
