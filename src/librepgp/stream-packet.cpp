@@ -564,7 +564,7 @@ pgp_packet_body_t::get(pgp_key_id_t &val) noexcept
 bool
 pgp_packet_body_t::get(pgp_mpi_t &val) noexcept
 {
-    uint16_t bits;
+    uint16_t bits = 0;
     if (!get(bits)) {
         return false;
     }
@@ -582,12 +582,10 @@ pgp_packet_body_t::get(pgp_mpi_t &val) noexcept
         return false;
     }
     /* check the mpi bit count */
-    unsigned hbits = bits & 7 ? bits & 7 : 8;
-    if ((((unsigned) val.mpi[0] >> hbits) != 0) ||
-        !((unsigned) val.mpi[0] & (1U << (hbits - 1)))) {
-        RNP_LOG("Warning! Wrong mpi bit count: got %" PRIu16 ", but high byte is %" PRIu8,
-                bits,
-                val.mpi[0]);
+    size_t mbits = mpi_bits(&val);
+    if (mbits != bits) {
+        RNP_LOG(
+          "Warning! Wrong mpi bit count: got %" PRIu16 ", but actual is %zu", bits, mbits);
     }
     val.len = len;
     return true;
