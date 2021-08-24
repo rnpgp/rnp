@@ -50,11 +50,8 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 }
 
 rnp_result_t
-eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits)
+eddsa_generate(rng_t *rng, pgp_ec_key_t *key)
 {
-    if (numbits != 255) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
     rnp_result_t ret = ec_generate(rng, key, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
         key->curve = PGP_CURVE_ED25519;
