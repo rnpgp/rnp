@@ -139,7 +139,7 @@ hexdump(FILE *fp, const char *header, const uint8_t *src, size_t length)
     size_t i;
     char   line[LINELEN + 1];
 
-    (void) fprintf(fp, "%s%s", (header) ? header : "", (header) ? "" : "");
+    (void) fprintf(fp, "%s", header ? header : "");
     (void) fprintf(fp, " (%zu byte%s):\n", length, (length == 1) ? "" : "s");
     for (i = 0; i < length; i++) {
         if (i % LINELEN == 0) {
