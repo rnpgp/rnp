@@ -1042,6 +1042,9 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
     *it = res.sigid;
     if (uid == PGP_UID_NONE) {
         auto it = std::find(keysigs_.begin(), keysigs_.end(), oldid);
+        if (it == keysigs_.end()) {
+            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        }
         *it = res.sigid;
     } else {
         uids_[uid].replace_sig(oldid, res.sigid);
