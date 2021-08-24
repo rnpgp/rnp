@@ -340,7 +340,7 @@ end:
         tcsetattr(fileno(in), TCSAFLUSH, &saved_flags);
     }
 #endif
-    if (in != userio_in) {
+    if (in && (in != userio_in)) {
         fclose(in);
     }
     return ok;
