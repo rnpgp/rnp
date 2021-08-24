@@ -98,15 +98,11 @@ done:
 }
 
 rnp_result_t
-eddsa_generate(rng_t *rng, pgp_ec_key_t *key, size_t numbits)
+eddsa_generate(rng_t *rng, pgp_ec_key_t *key)
 {
     botan_privkey_t eddsa = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     uint8_t         key_bits[64];
-
-    if (numbits != 255) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
 
     if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng_handle(rng)) != 0) {
         goto end;
