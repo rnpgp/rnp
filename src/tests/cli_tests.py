@@ -2267,6 +2267,12 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', '--password', 'password'], out)
         self.assertEqual(ret, 0, 'decryption failed')
         self.assertEqual(out, srctxt, 'Decrypted data differs')
+        # Encrypt stdin and attempt to write to non-existing dir
+        ret, _, err = run_proc(RNP, ['-c', '--armor', '--password', 'password', '--output', 'nonexisting/output.pgp'], srctxt)
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*init_file_dest.*failed to create file.*output.pgp.*Error 2.*$')
+        self.assertNotRegex(err, r'(?s)^.*failed to initialize encryption.*$')
+        self.assertRegex(err, r'(?s)^.*failed to open source or create output.*$')
 
     def test_empty_keyrings(self):
         NO_KEYRING = r'(?s)^.*' \
