@@ -7109,11 +7109,10 @@ add_json_key_usage(json_object *jso, uint8_t key_flags)
     for (size_t i = 0; i < ARRAY_SIZE(key_usage_map); i++) {
         if (key_usage_map[i].mask & key_flags) {
             json_object *jsostr = json_object_new_string(key_usage_map[i].string);
-            if (!jsostr) {
+            if (!jsostr || json_object_array_add(jsoarr, jsostr)) {
                 json_object_put(jsoarr);
                 return false;
             }
-            json_object_array_add(jsoarr, jsostr);
         }
     }
     if (json_object_array_length(jsoarr)) {
@@ -7134,11 +7133,10 @@ add_json_key_flags(json_object *jso, uint8_t key_flags)
     for (size_t i = 0; i < ARRAY_SIZE(key_flags_map); i++) {
         if (key_flags_map[i].mask & key_flags) {
             json_object *jsostr = json_object_new_string(key_flags_map[i].string);
-            if (!jsostr) {
+            if (!jsostr || json_object_array_add(jsoarr, jsostr)) {
                 json_object_put(jsoarr);
                 return false;
             }
-            json_object_array_add(jsoarr, jsostr);
         }
     }
     if (json_object_array_length(jsoarr)) {
