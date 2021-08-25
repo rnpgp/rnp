@@ -2438,6 +2438,36 @@ class Misc(unittest.TestCase):
         self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*s2k hash algorithm: 3 \(RIPEMD160\).*$')
         remove_files(enc)
 
+    def test_core_dumps(self):
+        CORE_DUMP = r'(?s)^.*warning: core dumps may be enabled, sensitive data may be leaked to disk.*$'
+        NO_CORE_DUMP = r'(?s)^.*warning: --coredumps doesn\'t make sense on windows systems.*$'
+        # Check rnpkeys for the message
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, CORE_DUMP)
+        # Check rnp for the message
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--armor', '--password', 'password', '-c'], 'message')
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, CORE_DUMP)
+        # Enable coredumps for rnpkeys
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys', '--coredumps'])
+        self.assertEqual(ret, 0)
+        if is_windows():
+            self.assertNotRegex(err, CORE_DUMP)
+            self.assertRegex(err, NO_CORE_DUMP)
+        else:
+            self.assertRegex(err, CORE_DUMP)
+            self.assertNotRegex(err, NO_CORE_DUMP)
+        # Enable coredumps for rnp
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--armor', '--password', 'password', '-c', '--coredumps'], 'message')
+        self.assertEqual(ret, 0)
+        if is_windows():
+            self.assertNotRegex(err, CORE_DUMP)
+            self.assertRegex(err, NO_CORE_DUMP)
+        else:
+            self.assertRegex(err, CORE_DUMP)
+            self.assertNotRegex(err, NO_CORE_DUMP)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
