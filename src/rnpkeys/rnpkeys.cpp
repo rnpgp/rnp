@@ -430,6 +430,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
 {
     switch (val) {
     case OPT_COREDUMPS:
+#ifdef _WIN32
+        ERR_MSG("warning: --coredumps doesn't make sense on windows systems.");
+#endif
         cfg.set_bool(CFG_COREDUMPS, true);
         return true;
     case CMD_GENERATE_KEY:
