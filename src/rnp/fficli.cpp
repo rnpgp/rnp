@@ -24,6 +24,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
@@ -46,7 +47,9 @@
 
 #ifndef _WIN32
 #include <termios.h>
+#ifdef HAVE_SYS_RESOURCE_H
 #include <sys/resource.h>
+#endif
 #endif
 
 #include "config.h"
@@ -469,6 +472,7 @@ cli_rnp_t::init(const rnp_cfg &cfg)
         userio_out = stdout;
     }
 
+#ifndef _WIN32
     /* If system resource constraints are in effect then attempt to
      * disable core dumps.
      */
@@ -482,6 +486,7 @@ cli_rnp_t::init(const rnp_cfg &cfg)
     if (coredumps) {
         ERR_MSG("warning: core dumps may be enabled, sensitive data may be leaked to disk");
     }
+#endif
 
     /* Configure the results stream. */
     // TODO: UTF8?

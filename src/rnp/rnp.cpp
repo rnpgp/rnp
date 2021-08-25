@@ -375,6 +375,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return setcmd(cfg, val, arg);
     /* options */
     case OPT_COREDUMPS:
+#ifdef _WIN32
+        ERR_MSG("warning: --coredumps doesn't make sense on windows systems.");
+#endif
         cfg.set_bool(CFG_COREDUMPS, true);
         return true;
     case OPT_KEY_STORE_FORMAT:
