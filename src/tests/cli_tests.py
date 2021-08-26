@@ -2468,6 +2468,17 @@ class Misc(unittest.TestCase):
             self.assertRegex(err, CORE_DUMP)
             self.assertNotRegex(err, NO_CORE_DUMP)
 
+    def test_wrong_mpi_bit_count(self):
+        WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'        
+        # Make sure message is not displayed on normal keys
+        ret, _, err = run_proc(RNP, ['--list-packets', data_path('keyrings/1/pubring.gpg')])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, WRONG_MPI_BITS)
+        # Make sure message is displayed on wrong mpi
+        ret, _, err = run_proc(RNP, ['--list-packets', data_path('test_key_edge_cases/alice-wrong-mpi-bit-count.pgp')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, WRONG_MPI_BITS)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
