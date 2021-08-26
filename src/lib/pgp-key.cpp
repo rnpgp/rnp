@@ -1039,6 +1039,9 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
     auto &res = sigs_map_.emplace(std::make_pair(newsig.get_id(), newsig)).first->second;
     res.uid = uid;
     auto it = std::find(sigs_.begin(), sigs_.end(), oldid);
+    if (it == sigs_.end()) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     *it = res.sigid;
     if (uid == PGP_UID_NONE) {
         auto it = std::find(keysigs_.begin(), keysigs_.end(), oldid);
