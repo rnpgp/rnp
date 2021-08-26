@@ -2100,12 +2100,11 @@ cli_rnp_init_io(const std::string &op,
     }
 
     *output = cli_rnp_output_to_specifier(*rnp, out, discard);
-    if (!*output) {
+    if (!*output && input) {
         rnp_input_destroy(*input);
         *input = NULL;
-        return false;
     }
-    return true;
+    return *output;
 }
 
 bool
