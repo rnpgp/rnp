@@ -1227,6 +1227,15 @@ RNP_API rnp_result_t rnp_signature_get_hash_alg(rnp_signature_handle_t sig, char
  */
 RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint32_t *create);
 
+/** Get the signature expiration time as number of seconds after creation time
+ *
+ * @param sig signature handle.
+ * @param expires on success result will be stored here. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
+                                                  uint32_t *             expires);
+
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will
  *        be stored to result.
