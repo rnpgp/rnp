@@ -2273,6 +2273,13 @@ class Misc(unittest.TestCase):
         self.assertRegex(err, r'(?s)^.*init_file_dest.*failed to create file.*output.pgp.*Error 2.*$')
         self.assertNotRegex(err, r'(?s)^.*failed to initialize encryption.*$')
         self.assertRegex(err, r'(?s)^.*failed to open source or create output.*$')
+        # Sign stdin and then verify it using non-existing directory for output
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--armor', '--password', 'password', '-s'], srctxt)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP MESSAGE.*END PGP MESSAGE.*$')
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '-v', '--output', 'nonexisting/output.pgp'], out)
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*init_file_dest.*failed to create file.*output.pgp.*Error 2.*$')
 
     def test_empty_keyrings(self):
         NO_KEYRING = r'(?s)^.*' \
