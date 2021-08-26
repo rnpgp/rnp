@@ -771,6 +771,9 @@ TEST_F(rnp_tests, test_ffi_sig_validity)
     assert_string_equal(sigtype, "certification (generic)");
     rnp_buffer_destroy(sigtype);
     assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_EXPIRED);
+    uint32_t expires = 0;
+    assert_rnp_success(rnp_signature_get_expiration(sig, &expires));
+    assert_int_equal(expires, 86400);
     rnp_signature_handle_destroy(sig);
     rnp_uid_handle_destroy(uid);
     rnp_key_handle_destroy(key);
