@@ -582,12 +582,12 @@ pgp_packet_body_t::get(pgp_mpi_t &val) noexcept
         return false;
     }
     /* check the mpi bit count */
+    val.len = len;
     size_t mbits = mpi_bits(&val);
     if (mbits != bits) {
         RNP_LOG(
           "Warning! Wrong mpi bit count: got %" PRIu16 ", but actual is %zu", bits, mbits);
     }
-    val.len = len;
     return true;
 }
 
