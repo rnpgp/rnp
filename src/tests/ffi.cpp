@@ -35,8 +35,6 @@
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
 #include <json.h>
-#include <vector>
-#include <string>
 #include "file-utils.h"
 #include <librepgp/stream-ctx.h>
 #include "pgp-key.h"
@@ -4510,6 +4508,15 @@ TEST_F(rnp_tests, test_ffi_version)
     assert_true(rnp_version_for(1, 0, 1) > rnp_version_for(1, 0, 0));
     assert_true(rnp_version_for(1, 1, 0) > rnp_version_for(1, 0, 1023));
     assert_true(rnp_version_for(2, 0, 0) > rnp_version_for(1, 1023, 1023));
+}
+
+TEST_F(rnp_tests, test_ffi_backend_version)
+{
+    assert_non_null(rnp_backend_string());
+    assert_non_null(rnp_backend_version());
+
+    assert_true(strlen(rnp_backend_string()) > 0 && strlen(rnp_backend_string()) < 255);
+    assert_true(strlen(rnp_backend_version()) > 0 && strlen(rnp_backend_version()) < 255);
 }
 
 static void
