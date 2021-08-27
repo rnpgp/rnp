@@ -339,6 +339,8 @@ void test_ffi_remove_signature(void **state);
 
 void test_ffi_remove_signatures(void **state);
 
+void test_ffi_backend_version(void **state);
+
 void test_ffi_remove_uid(void **state);
 
 void test_rnp_mkstemp(void **state);

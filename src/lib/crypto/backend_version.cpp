@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ribose Inc.
+ * Copyright (c) 2021 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,39 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_CRYPTO_COMMON_H_
-#define RNP_CRYPTO_COMMON_H_
-
-/* base */
-#include "mpi.h"
-#include "rng.h"
-/* asymmetric crypto */
-#include "rsa.h"
-#include "dsa.h"
-#include "elgamal.h"
-#include "ec.h"
-#include "ecdh.h"
-#include "ecdsa.h"
-#include "sm2.h"
-#include "eddsa.h"
-/* symmetric crypto */
-#include "symmetric.h"
-/* hash */
-#include "hash.h"
-/* s2k */
-#include "s2k.h"
-/* backend name and version */
 #include "backend_version.h"
 
-#endif // RNP_CRYPTO_COMMON_H_
+#if defined(CRYPTO_BACKEND_BOTAN)
+#include <botan/version.h>
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+#include <openssl/opensslv.h>
+#include <openssl/crypto.h>
+#endif
+
+namespace rnp {
+
+const char *
+backend_string()
+{
+#if defined(CRYPTO_BACKEND_BOTAN)
+    return "Botan";
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+    return "OpenSSL";
+#else
+#error "Unknown backend"
+#endif
+}
+
+const char *
+backend_version()
+{
+#if defined(CRYPTO_BACKEND_BOTAN)
+    return Botan::short_version_cstr();
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+    return OpenSSL_version(OPENSSL_VERSION);
+#else
+#error "Unknown backend"
+#endif
+}
+
+} // namespace rnp

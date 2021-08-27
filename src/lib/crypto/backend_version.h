@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2018 Ribose Inc.
+ * Copyright (c) 2021 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,28 +24,17 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_CRYPTO_COMMON_H_
-#define RNP_CRYPTO_COMMON_H_
+#ifndef CRYPTO_BACKEND_VERSION_H_
+#define CRYPTO_BACKEND_VERSION_H_
 
-/* base */
-#include "mpi.h"
-#include "rng.h"
-/* asymmetric crypto */
-#include "rsa.h"
-#include "dsa.h"
-#include "elgamal.h"
-#include "ec.h"
-#include "ecdh.h"
-#include "ecdsa.h"
-#include "sm2.h"
-#include "eddsa.h"
-/* symmetric crypto */
-#include "symmetric.h"
-/* hash */
-#include "hash.h"
-/* s2k */
-#include "s2k.h"
-/* backend name and version */
-#include "backend_version.h"
+#include "config.h"
 
-#endif // RNP_CRYPTO_COMMON_H_
+namespace rnp {
+
+const char *backend_string();
+
+const char *backend_version();
+
+} // namespace rnp
+
+#endif // CRYPTO_BACKEND_VERSION_H_
