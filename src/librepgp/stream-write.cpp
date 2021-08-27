@@ -48,7 +48,6 @@
 #include "stream-packet.h"
 #include "stream-armor.h"
 #include "stream-sig.h"
-#include "list.h"
 #include "pgp-key.h"
 #include "fingerprint.h"
 #include "types.h"
