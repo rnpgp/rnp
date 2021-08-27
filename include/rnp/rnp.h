@@ -2733,6 +2733,21 @@ RNP_API rnp_result_t rnp_output_pipe(rnp_input_t input, rnp_output_t output);
  */
 RNP_API rnp_result_t rnp_output_armor_set_line_length(rnp_output_t output, size_t llen);
 
+/**
+ * @brief Return cryptographic backend library name.
+ *
+ * @return Backend name string. Currently supported
+ * backends are "Botan" and "OpenSSL".
+ */
+RNP_API const char *rnp_backend_string();
+
+/**
+ * @brief Return cryptographic backend library version.
+ *
+ * @return Version string.
+ */
+RNP_API const char *rnp_backend_version();
+
 #if defined(__cplusplus)
 }
 

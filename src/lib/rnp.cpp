@@ -8191,3 +8191,15 @@ try {
     return armored_dst_set_line_length(&output->dst, llen);
 }
 FFI_GUARD
+
+const char *
+rnp_backend_string()
+{
+    return rnp::backend_string();
+}
+
+const char *
+rnp_backend_version()
+{
+    return rnp::backend_version();
+}
