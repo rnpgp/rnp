@@ -34,7 +34,6 @@
 
 #include <repgp/repgp_def.h>
 #include "types.h"
-#include "list.h"
 
 /**
  * Output size (in bytes) of biggest supported hash algo

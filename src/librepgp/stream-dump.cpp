@@ -46,7 +46,6 @@
 #include "crypto/s2k.h"
 #include "fingerprint.h"
 #include "pgp-key.h"
-#include "list.h"
 #include "crypto.h"
 #include "json_utils.h"
 #include <algorithm>
