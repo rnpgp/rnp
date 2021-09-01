@@ -26,7 +26,7 @@
 
 #include "../rnp_tests.h"
 #include "../support.h"
-#include "librekey/key_store_g10.h"
+#include "librekey/g10_sexp.hpp"
 
 TEST_F(rnp_tests, test_sxp_depth)
 {
@@ -48,20 +48,21 @@ TEST_F(rnp_tests, test_sxp_depth)
         std::string data(mksxp(1));
         bytes = &data[0];
         len = data.size();
-        assert_true(parse_sexp(&sxp, &bytes, &len));
-        destroy_s_exp(&sxp);
+        s_exp_t sexp;
+        assert_true(sexp.parse(&bytes, &len));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH));
         bytes = &data[0];
         len = data.size();
-        assert_true(parse_sexp(&sxp, &bytes, &len));
-        destroy_s_exp(&sxp);
+        s_exp_t sexp;
+        assert_true(sexp.parse(&bytes, &len));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH + 1));
         bytes = &data[0];
         len = data.size();
-        assert_false(parse_sexp(&sxp, &bytes, &len));
+        s_exp_t sexp;
+        assert_false(sexp.parse(&bytes, &len));
     }
 }
