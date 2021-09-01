@@ -39,6 +39,7 @@
 #include "crypto/mem.h"
 #include "crypto/cipher.hpp"
 #include "pgp-key.h"
+#include "g10_sexp.hpp"
 
 #define G10_CBC_IV_SIZE 16
 
@@ -57,13 +58,9 @@ typedef struct format_info {
     size_t            iv_size;
 } format_info;
 
-static bool    g10_calculated_hash(const pgp_key_pkt_t *key,
-                                   const char *         protected_at,
-                                   uint8_t *            checksum);
-pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
-                                  size_t               data_len,
-                                  const pgp_key_pkt_t *pubkey,
-                                  const char *         password);
+static bool g10_calculated_hash(const pgp_key_pkt_t &key,
+                                const char *         protected_at,
+                                uint8_t *            checksum);
 
 static const format_info formats[] = {{PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_CBC,
@@ -153,80 +150,35 @@ parse_format(const char *format, size_t format_len)
 }
 
 void
-destroy_s_exp(s_exp_t *s_exp)
+s_exp_t::add(std::unique_ptr<s_exp_element_t> sptr)
 {
-    if (s_exp == NULL) {
-        return;
-    }
-
-    for (list_item *li = list_front(s_exp->sub_elements); li; li = list_next(li)) {
-        sub_element_t *sub_el = (sub_element_t *) li;
-        if (sub_el->is_block) {
-            free(sub_el->block.bytes);
-            sub_el->block.bytes = NULL;
-            sub_el->block.len = 0;
-        } else {
-            destroy_s_exp(&sub_el->s_exp);
-        }
-    }
-    list_destroy(&s_exp->sub_elements);
+    elements_.push_back(std::move(sptr));
 }
 
-static bool
-add_block_to_sexp(s_exp_t *s_exp, const uint8_t *bytes, size_t len)
+void
+s_exp_t::add(const std::string &str)
 {
-    sub_element_t *sub_el = NULL;
-
-    for (list_item *li = list_front(s_exp->sub_elements); li; li = list_next(li)) {
-        sub_el = (sub_element_t *) li;
-        if (sub_el->is_block) {
-            continue;
-        }
-
-        if (len == sub_el->block.len && !memcmp(sub_el->block.bytes, bytes, len)) {
-            // do not duplicate blocks
-            return true;
-        }
-    }
-
-    sub_el = (sub_element_t *) list_append(&s_exp->sub_elements, NULL, sizeof(*sub_el));
-    if (!sub_el) {
-        RNP_LOG("alloc failed");
-        return false;
-    }
-
-    sub_el->is_block = true;
-    sub_el->block.len = len;
-    sub_el->block.bytes = (uint8_t *) malloc(len);
-    if (sub_el->block.bytes == NULL) {
-        RNP_LOG("can't allocate block memory");
-        return false;
-    }
-
-    memcpy(sub_el->block.bytes, bytes, sub_el->block.len);
-    return true;
+    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(str)));
 }
 
-static bool
-add_string_block_to_sexp(s_exp_t *s_exp, const char *s)
+void
+s_exp_t::add(const uint8_t *data, size_t size)
 {
-    return add_block_to_sexp(s_exp, (uint8_t *) s, strlen(s));
+    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(data, size)));
 }
 
-static bool
-add_sub_sexp_to_sexp(s_exp_t *s_exp, s_exp_t **sub_s_exp)
+void
+s_exp_t::add(unsigned u)
 {
-    sub_element_t *sub_el;
+    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(u)));
+}
 
-    sub_el = (sub_element_t *) list_append(&s_exp->sub_elements, NULL, sizeof(*sub_el));
-    if (!sub_el) {
-        return false;
-    }
-
-    sub_el->is_block = false;
-    *sub_s_exp = &sub_el->s_exp;
-
-    return true;
+s_exp_t &
+s_exp_t::add_sub()
+{
+    s_exp_t *res = new s_exp_t();
+    add(std::unique_ptr<s_exp_t>(res));
+    return *res;
 }
 
 /*
@@ -240,13 +192,12 @@ add_sub_sexp_to_sexp(s_exp_t *s_exp, s_exp_t **sub_s_exp)
  *     - a
  *
  */
+
 bool
-parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth)
+s_exp_t::parse(const char **r_bytes, size_t *r_length, size_t depth)
 {
     size_t      length = *r_length;
     const char *bytes = *r_bytes;
-
-    s_exp_t new_s_exp = {0};
 
     if (!bytes || !length) {
         RNP_LOG("empty s-exp");
@@ -268,25 +219,16 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth)
     do {
         if (!length) { // unexpected end
             RNP_LOG("s-exp finished before ')'");
-            destroy_s_exp(&new_s_exp);
             return false;
         }
 
         if (*bytes == '(') {
-            s_exp_t *new_sub_s_exp;
-
-            if (!add_sub_sexp_to_sexp(&new_s_exp, &new_sub_s_exp)) {
+            s_exp_t &newsexp = add_sub();
+            if (!newsexp.parse(&bytes, &length, depth + 1)) {
                 return false;
             }
-
-            if (!parse_sexp(new_sub_s_exp, &bytes, &length, depth + 1)) {
-                destroy_s_exp(&new_s_exp);
-                return false;
-            }
-
             if (!length) {
                 RNP_LOG("No space for closing ) left.");
-                destroy_s_exp(&new_s_exp);
                 return false;
             }
             continue;
@@ -309,13 +251,11 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth)
 
         if (!chars) {
             RNP_LOG("s-exp contains empty len");
-            destroy_s_exp(&new_s_exp);
             return false;
         }
 
         if (*bytes != ':') { // doesn't contain :
             RNP_LOG("s-exp doesn't contain ':'");
-            destroy_s_exp(&new_s_exp);
             return false;
         }
 
@@ -324,251 +264,190 @@ parse_sexp(s_exp_t *s_exp, const char **r_bytes, size_t *r_length, size_t depth)
 
         if (!len || len >= length) {
             RNP_LOG("zero or too large len, len: %zu, length: %zu", len, length);
-            destroy_s_exp(&new_s_exp);
             return false;
         }
 
-        if (!add_block_to_sexp(&new_s_exp, (uint8_t *) bytes, len)) {
-            destroy_s_exp(&new_s_exp);
-            return false;
-        }
-
+        add((uint8_t *) bytes, len);
         bytes += len;
         length -= len;
     } while (*bytes != ')');
 
     bytes++;
     length--;
-
-    *s_exp = new_s_exp;
     *r_bytes = bytes;
     *r_length = length;
-
     return true;
+}
+
+void
+s_exp_t::clear()
+{
+    elements_.clear();
 }
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
 
-static unsigned
-block_to_unsigned(s_exp_block_t *block)
+s_exp_block_t::s_exp_block_t(const pgp_mpi_t &mpi) : s_exp_element_t(true)
 {
-    char s[sizeof(STR(UINT_MAX)) + 1] = {0};
-    if (!block->len || block->len >= sizeof(s)) {
-        return UINT_MAX;
-    }
+    size_t len = mpi_bytes(&mpi);
+    size_t idx;
+    for (idx = 0; (idx < len) && !mpi.mpi[idx]; idx++)
+        ;
 
-    memcpy(s, block->bytes, block->len);
-    return (unsigned int) atoi(s);
+    if (idx >= len) {
+        bytes_ = {0};
+        return;
+    }
+    if (mpi.mpi[idx] & 0x80) {
+        bytes_ = std::vector<uint8_t>(len - idx + 1);
+        bytes_[0] = 0;
+        memcpy(bytes_.data() + 1, mpi.mpi + idx, len - idx);
+        return;
+    }
+    bytes_ = std::vector<uint8_t>(mpi.mpi + idx, mpi.mpi + len);
 }
 
-static bool
-add_unsigned_block_to_sexp(s_exp_t *s_exp, unsigned u)
+s_exp_block_t::s_exp_block_t(unsigned u) : s_exp_element_t(true)
 {
     char s[sizeof(STR(UINT_MAX)) + 1];
     snprintf(s, sizeof(s), "%u", u);
-    return add_block_to_sexp(s_exp, (uint8_t *) s, strlen(s));
+    bytes_ = std::vector<uint8_t>((uint8_t *) s, (uint8_t *) (s + strlen(s)));
 }
 
-static size_t
-sub_element_count(s_exp_t *s_exp)
+unsigned
+s_exp_block_t::as_unsigned() const noexcept
 {
-    return list_length(s_exp->sub_elements);
-}
-
-static sub_element_t *
-sub_element_at(s_exp_t *s_exp, size_t idx)
-{
-    size_t     i = 0;
-    list_item *item = NULL;
-
-    if (!s_exp || (sub_element_count(s_exp) < idx)) {
-        return NULL;
+    char s[sizeof(STR(UINT_MAX)) + 1] = {0};
+    if (bytes_.empty() || bytes_.size() >= sizeof(s)) {
+        return UINT_MAX;
     }
 
-    for (item = list_front(s_exp->sub_elements); item && (i < idx); item = list_next(item)) {
-        i++;
-    }
-
-    return (sub_element_t *) item;
+    memcpy(s, bytes_.data(), bytes_.size());
+    return (unsigned) atoi(s);
 }
 
-static s_exp_t *
-lookup_variable(s_exp_t *s_exp, const char *name)
+s_exp_t *
+s_exp_t::lookup_var(const std::string &name) noexcept
 {
-    size_t name_len = strlen(name);
-
-    for (list_item *li = list_front(s_exp->sub_elements); li; li = list_next(li)) {
-        sub_element_t *name_el = NULL;
-        sub_element_t *sub_el = (sub_element_t *) li;
-
-        if (sub_el->is_block) {
+    for (auto &ptr : elements_) {
+        if (ptr->is_block()) {
             continue;
         }
-
-        name_el = sub_element_at(&sub_el->s_exp, 0);
-        if (sub_element_count(&sub_el->s_exp) < 2 || !name_el || !name_el->is_block) {
+        s_exp_t &sub_el = dynamic_cast<s_exp_t &>(*ptr.get());
+        if ((sub_el.size() < 2) || !sub_el.at(0).is_block()) {
             RNP_LOG("Expected sub-s-exp with 2 first blocks");
             return NULL;
         }
-
-        if (name_len != name_el->block.len) {
+        s_exp_block_t &name_el = dynamic_cast<s_exp_block_t &>(sub_el.at(0));
+        if (name_el.bytes().size() != name.size()) {
             continue;
         }
-
-        if (!strncmp(name, (const char *) name_el->block.bytes, name_len)) {
-            return &sub_el->s_exp;
+        if (!memcmp(name_el.bytes().data(), name.data(), name.size())) {
+            return &sub_el;
         }
     }
-    RNP_LOG("Haven't got variable '%s'", name);
+    RNP_LOG("Haven't got variable '%s'", name.c_str());
     return NULL;
 }
 
-static s_exp_block_t *
-lookup_variable_data(s_exp_t *s_exp, const char *name)
+s_exp_block_t *
+s_exp_t::lookup_var_data(const std::string &name) noexcept
 {
-    s_exp_t *      var = lookup_variable(s_exp, name);
-    sub_element_t *data = NULL;
-
+    s_exp_t *var = lookup_var(name);
     if (!var) {
         return NULL;
     }
 
-    data = sub_element_at(var, 1);
-    if (!data->is_block) {
+    if (!var->at(1).is_block()) {
         RNP_LOG("Expected block value");
         return NULL;
     }
 
-    return &data->block;
+    return dynamic_cast<s_exp_block_t *>(&var->at(1));
 }
 
-static bool
-read_mpi(s_exp_t *s_exp, const char *name, pgp_mpi_t *val)
+bool
+s_exp_t::read_mpi(const std::string &name, pgp_mpi_t &val) noexcept
 {
-    s_exp_block_t *data = lookup_variable_data(s_exp, name);
-
+    s_exp_block_t *data = lookup_var_data(name);
     if (!data) {
         return false;
     }
 
     /* strip leading zero */
-    if ((data->len > 1) && !data->bytes[0] && (data->bytes[1] & 0x80)) {
-        return mem2mpi(val, data->bytes + 1, data->len - 1);
+    const auto &bytes = data->bytes();
+    if ((bytes.size() > 1) && !bytes[0] && (bytes[1] & 0x80)) {
+        return mem2mpi(&val, bytes.data() + 1, bytes.size() - 1);
     }
-
-    return mem2mpi(val, data->bytes, data->len);
+    return mem2mpi(&val, bytes.data(), bytes.size());
 }
 
-static bool
-read_curve(s_exp_t *s_exp, const char *name, pgp_ec_key_t *key)
+bool
+s_exp_t::read_curve(const std::string &name, pgp_ec_key_t &key) noexcept
 {
-    s_exp_block_t *data = lookup_variable_data(s_exp, name);
-
+    s_exp_block_t *data = lookup_var_data(name);
     if (!data) {
         return false;
     }
 
+    const auto &bytes = data->bytes();
     for (size_t i = 0; i < ARRAY_SIZE(g10_curve_aliases); i++) {
-        if (strlen(g10_curve_aliases[i].string) != data->len) {
+        if (strlen(g10_curve_aliases[i].string) != bytes.size()) {
             continue;
         }
-        if (!memcmp(g10_curve_aliases[i].string, data->bytes, data->len)) {
-            key->curve = (pgp_curve_t) g10_curve_aliases[i].type;
+        if (!memcmp(g10_curve_aliases[i].string, bytes.data(), bytes.size())) {
+            key.curve = (pgp_curve_t) g10_curve_aliases[i].type;
             return true;
         }
     }
-
-    RNP_LOG("Unknown curve: %.*s", (int) data->len, data->bytes);
+    RNP_LOG("Unknown curve: %.*s", (int) bytes.size(), (char *) bytes.data());
     return false;
 }
 
-static bool
-write_mpi(s_exp_t *s_exp, const char *name, const pgp_mpi_t *val)
+void
+s_exp_t::add_mpi(const std::string &name, const pgp_mpi_t &val)
 {
-    uint8_t  buf[PGP_MPINT_SIZE + 1] = {0};
-    size_t   len;
-    size_t   idx;
-    s_exp_t *sub_s_exp;
-
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, name)) {
-        return false;
-    }
-
-    len = mpi_bytes(val);
-    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
-        ;
-
-    if (idx >= len) {
-        return add_block_to_sexp(sub_s_exp, buf, 1);
-    }
-
-    if (val->mpi[idx] & 0x80) {
-        memcpy(buf + 1, val->mpi + idx, len - idx);
-        return add_block_to_sexp(sub_s_exp, buf, len - idx + 1);
-    }
-
-    return add_block_to_sexp(sub_s_exp, val->mpi + idx, len - idx);
+    s_exp_t &sub_s_exp = add_sub();
+    sub_s_exp.add(name);
+    sub_s_exp.add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(val)));
 }
 
-static bool
-write_curve(s_exp_t *s_exp, const char *name, const pgp_ec_key_t *key)
+void
+s_exp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
 {
     const char *curve = NULL;
-    s_exp_t *   sub_s_exp;
-
-    ARRAY_LOOKUP_BY_ID(g10_curve_names, type, string, key->curve, curve);
+    ARRAY_LOOKUP_BY_ID(g10_curve_names, type, string, key.curve, curve);
     if (!curve) {
         RNP_LOG("unknown curve");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-        return false;
+    s_exp_t *psub_s_exp = &add_sub();
+    psub_s_exp->add(name);
+    psub_s_exp->add(curve);
+
+    if ((key.curve != PGP_CURVE_ED25519) && (key.curve != PGP_CURVE_25519)) {
+        return;
     }
 
-    if (!add_string_block_to_sexp(sub_s_exp, name)) {
-        return false;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, curve)) {
-        return false;
-    }
-
-    if ((key->curve == PGP_CURVE_ED25519) || (key->curve == PGP_CURVE_25519)) {
-        if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp)) {
-            return false;
-        }
-
-        if (!add_string_block_to_sexp(sub_s_exp, "flags")) {
-            return false;
-        }
-
-        if (!add_string_block_to_sexp(
-              sub_s_exp, key->curve == PGP_CURVE_ED25519 ? "eddsa" : "djb-tweak")) {
-            return false;
-        }
-    }
-
-    return true;
+    psub_s_exp = &add_sub();
+    psub_s_exp->add("flags");
+    psub_s_exp->add((key.curve == PGP_CURVE_ED25519) ? "eddsa" : "djb-tweak");
 }
 
 static bool
-parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_pubkey(pgp_key_pkt_t &pubkey, s_exp_t &s_exp, pgp_pubkey_alg_t alg)
 {
-    pubkey->version = PGP_V4;
-    pubkey->alg = alg;
-    pubkey->material.alg = alg;
+    pubkey.version = PGP_V4;
+    pubkey.alg = alg;
+    pubkey.material.alg = alg;
     switch (alg) {
     case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "p", &pubkey->material.dsa.p) ||
-            !read_mpi(s_exp, "q", &pubkey->material.dsa.q) ||
-            !read_mpi(s_exp, "g", &pubkey->material.dsa.g) ||
-            !read_mpi(s_exp, "y", &pubkey->material.dsa.y)) {
+        if (!s_exp.read_mpi("p", pubkey.material.dsa.p) ||
+            !s_exp.read_mpi("q", pubkey.material.dsa.q) ||
+            !s_exp.read_mpi("g", pubkey.material.dsa.g) ||
+            !s_exp.read_mpi("y", pubkey.material.dsa.y)) {
             return false;
         }
         break;
@@ -576,31 +455,31 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!read_mpi(s_exp, "n", &pubkey->material.rsa.n) ||
-            !read_mpi(s_exp, "e", &pubkey->material.rsa.e)) {
+        if (!s_exp.read_mpi("n", pubkey.material.rsa.n) ||
+            !s_exp.read_mpi("e", pubkey.material.rsa.e)) {
             return false;
         }
         break;
 
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!read_mpi(s_exp, "p", &pubkey->material.eg.p) ||
-            !read_mpi(s_exp, "g", &pubkey->material.eg.g) ||
-            !read_mpi(s_exp, "y", &pubkey->material.eg.y)) {
+        if (!s_exp.read_mpi("p", pubkey.material.eg.p) ||
+            !s_exp.read_mpi("g", pubkey.material.eg.g) ||
+            !s_exp.read_mpi("y", pubkey.material.eg.y)) {
             return false;
         }
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-        if (!read_curve(s_exp, "curve", &pubkey->material.ec) ||
-            !read_mpi(s_exp, "q", &pubkey->material.ec.p)) {
+        if (!s_exp.read_curve("curve", pubkey.material.ec) ||
+            !s_exp.read_mpi("q", pubkey.material.ec.p)) {
             return false;
         }
-        if (pubkey->material.ec.curve == PGP_CURVE_ED25519) {
+        if (pubkey.material.ec.curve == PGP_CURVE_ED25519) {
             /* need to adjust it here since 'ecc' key type defaults to ECDSA */
-            pubkey->alg = PGP_PKA_EDDSA;
-            pubkey->material.alg = PGP_PKA_EDDSA;
+            pubkey.alg = PGP_PKA_EDDSA;
+            pubkey.material.alg = PGP_PKA_EDDSA;
         }
         break;
     default:
@@ -612,36 +491,34 @@ parse_pubkey(pgp_key_pkt_t *pubkey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
 }
 
 static bool
-parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
+parse_seckey(pgp_key_pkt_t &seckey, s_exp_t &s_exp, pgp_pubkey_alg_t alg)
 {
     switch (alg) {
     case PGP_PKA_DSA:
-        if (!read_mpi(s_exp, "x", &seckey->material.dsa.x)) {
+        if (!s_exp.read_mpi("x", seckey.material.dsa.x)) {
             return false;
         }
         break;
-
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        if (!read_mpi(s_exp, "d", &seckey->material.rsa.d) ||
-            !read_mpi(s_exp, "p", &seckey->material.rsa.p) ||
-            !read_mpi(s_exp, "q", &seckey->material.rsa.q) ||
-            !read_mpi(s_exp, "u", &seckey->material.rsa.u)) {
+        if (!s_exp.read_mpi("d", seckey.material.rsa.d) ||
+            !s_exp.read_mpi("p", seckey.material.rsa.p) ||
+            !s_exp.read_mpi("q", seckey.material.rsa.q) ||
+            !s_exp.read_mpi("u", seckey.material.rsa.u)) {
             return false;
         }
         break;
-
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        if (!read_mpi(s_exp, "x", &seckey->material.eg.x)) {
+        if (!s_exp.read_mpi("x", seckey.material.eg.x)) {
             return false;
         }
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-        if (!read_mpi(s_exp, "d", &seckey->material.ec.x)) {
+        if (!s_exp.read_mpi("d", seckey.material.ec.x)) {
             return false;
         }
         break;
@@ -650,16 +527,15 @@ parse_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, pgp_pubkey_alg_t alg)
         return false;
     }
 
-    seckey->material.secret = true;
+    seckey.material.secret = true;
     return true;
 }
 
 static bool
-decrypt_protected_section(const uint8_t *      encrypted_data,
-                          size_t               encrypted_data_len,
-                          const pgp_key_pkt_t *seckey,
-                          const char *         password,
-                          s_exp_t *            r_s_exp)
+decrypt_protected_section(const std::vector<uint8_t> &encrypted_data,
+                          const pgp_key_pkt_t &       seckey,
+                          const std::string &         password,
+                          s_exp_t &                   r_s_exp)
 {
     const format_info *     info = NULL;
     unsigned                keysize = 0;
@@ -675,51 +551,51 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
     size_t      s_exp_len;
 
     // sanity checks
-    const pgp_key_protection_t *prot = &seckey->sec_protection;
-    keysize = pgp_key_size(prot->symm_alg);
+    const pgp_key_protection_t &prot = seckey.sec_protection;
+    keysize = pgp_key_size(prot.symm_alg);
     if (!keysize) {
         RNP_LOG("parse_seckey: unknown symmetric algo");
         goto done;
     }
     // find the protection format in our table
-    info = find_format(prot->symm_alg, prot->cipher_mode, prot->s2k.hash_alg);
+    info = find_format(prot.symm_alg, prot.cipher_mode, prot.s2k.hash_alg);
     if (!info) {
         RNP_LOG("Unsupported format, alg: %d, chiper_mode: %d, hash: %d",
-                prot->symm_alg,
-                prot->cipher_mode,
-                prot->s2k.hash_alg);
+                prot.symm_alg,
+                prot.cipher_mode,
+                prot.s2k.hash_alg);
         goto done;
     }
 
     // derive the key
-    if (pgp_s2k_iterated(prot->s2k.hash_alg,
+    if (pgp_s2k_iterated(prot.s2k.hash_alg,
                          derived_key,
                          keysize,
-                         password,
-                         prot->s2k.salt,
-                         prot->s2k.iterations)) {
+                         password.c_str(),
+                         prot.s2k.salt,
+                         prot.s2k.iterations)) {
         RNP_LOG("pgp_s2k_iterated failed");
         goto done;
     }
-    RNP_DHEX("input iv", prot->iv, G10_CBC_IV_SIZE);
+    RNP_DHEX("input iv", prot.iv, G10_CBC_IV_SIZE);
     RNP_DHEX("key", derived_key, keysize);
-    RNP_DHEX("encrypted", encrypted_data, encrypted_data_len);
+    RNP_DHEX("encrypted", encrypted_data.data(), encrypted_data.size());
 
     // decrypt
-    decrypted_data = (uint8_t *) malloc(encrypted_data_len);
+    decrypted_data = (uint8_t *) malloc(encrypted_data.size());
     if (decrypted_data == NULL) {
         RNP_LOG("can't allocate memory");
         goto done;
     }
     dec = Cipher::decryption(info->cipher, info->cipher_mode, 0, true);
-    if (!dec || !dec->set_key(derived_key, keysize) || !dec->set_iv(prot->iv, info->iv_size)) {
+    if (!dec || !dec->set_key(derived_key, keysize) || !dec->set_iv(prot.iv, info->iv_size)) {
         goto done;
     }
     if (!dec->finish(decrypted_data,
-                     encrypted_data_len,
+                     encrypted_data.size(),
                      &output_written,
-                     encrypted_data,
-                     encrypted_data_len,
+                     encrypted_data.data(),
+                     encrypted_data.size(),
                      &input_consumed)) {
         goto done;
     }
@@ -729,19 +605,17 @@ decrypt_protected_section(const uint8_t *      encrypted_data,
     RNP_DHEX("decrypted data", decrypted_data, decrypted_data_len);
 
     // parse and validate the decrypted s-exp
-    if (!parse_sexp(r_s_exp, &decrypted_bytes, &s_exp_len)) {
+    if (!r_s_exp.parse(&decrypted_bytes, &s_exp_len)) {
         goto done;
     }
-    if (!sub_element_count(r_s_exp) || sub_element_at(r_s_exp, 0)->is_block) {
+    if (!r_s_exp.size() || r_s_exp.at(0).is_block()) {
         RNP_LOG("Hasn't got sub s-exp with key data.");
         goto done;
     }
-
     ret = true;
-
 done:
     if (!ret) {
-        destroy_s_exp(r_s_exp);
+        r_s_exp.clear();
     }
     secure_clear(decrypted_data, decrypted_data_len);
     free(decrypted_data);
@@ -749,194 +623,176 @@ done:
 }
 
 static bool
-parse_protected_seckey(pgp_key_pkt_t *seckey, s_exp_t *s_exp, const char *password)
+parse_protected_seckey(pgp_key_pkt_t &seckey, s_exp_t &s_exp, const char *password)
 {
-    const format_info *   format;
-    bool                  ret = false;
-    s_exp_t               decrypted_s_exp = {0};
-    s_exp_t *             alg = NULL;
-    s_exp_t *             params = NULL;
-    s_exp_block_t *       protected_at_data = NULL;
-    sub_element_t *       sub_el = NULL;
-    pgp_key_protection_t *prot;
-
     // find and validate the protected section
-    s_exp_t *protected_key = lookup_variable(s_exp, "protected");
+    s_exp_t *protected_key = s_exp.lookup_var("protected");
     if (!protected_key) {
         RNP_LOG("missing protected section");
-        goto done;
+        return false;
     }
-    if (sub_element_count(protected_key) != 4 || !sub_element_at(protected_key, 1)->is_block ||
-        sub_element_at(protected_key, 2)->is_block ||
-        !sub_element_at(protected_key, 3)->is_block) {
+    if (protected_key->size() != 4 || !protected_key->at(1).is_block() ||
+        protected_key->at(2).is_block() || !protected_key->at(3).is_block()) {
         RNP_LOG("Wrong protected format, expected: (protected mode (parms) "
                 "encrypted_octet_string)\n");
-        goto done;
+        return false;
     }
 
     // lookup the protection format
-    sub_el = sub_element_at(protected_key, 1);
-    format = parse_format((const char *) sub_el->block.bytes, sub_el->block.len);
-    if (format == NULL) {
+    auto &             fmt_bt = (dynamic_cast<s_exp_block_t &>(protected_key->at(1))).bytes();
+    const format_info *format = parse_format((const char *) fmt_bt.data(), fmt_bt.size());
+    if (!format) {
         RNP_LOG("Unsupported protected mode: '%.*s'\n",
-                (int) sub_el->block.len,
-                sub_el->block.bytes);
-        goto done;
+                (int) fmt_bt.size(),
+                (const char *) fmt_bt.data());
+        return false;
     }
 
     // fill in some fields based on the lookup above
-    prot = &seckey->sec_protection;
-    prot->symm_alg = format->cipher;
-    prot->cipher_mode = format->cipher_mode;
-    prot->s2k.hash_alg = format->hash_alg;
+    pgp_key_protection_t &prot = seckey.sec_protection;
+    prot.symm_alg = format->cipher;
+    prot.cipher_mode = format->cipher_mode;
+    prot.s2k.hash_alg = format->hash_alg;
 
     // locate and validate the protection parameters
-    params = &sub_element_at(protected_key, 2)->s_exp;
-    if (sub_element_count(params) != 2 || sub_element_at(params, 0)->is_block ||
-        !sub_element_at(params, 1)->is_block) {
+    s_exp_t &params = dynamic_cast<s_exp_t &>(protected_key->at(2));
+    if (params.size() != 2 || params.at(0).is_block() || !params.at(1).is_block()) {
         RNP_LOG("Wrong params format, expected: ((hash salt no_of_iterations) iv)\n");
-        goto done;
+        return false;
     }
 
     // locate and validate the (hash salt no_of_iterations) exp
-    alg = &sub_element_at(params, 0)->s_exp;
-    if (sub_element_count(alg) != 3 || !sub_element_at(alg, 0)->is_block ||
-        !sub_element_at(alg, 1)->is_block || !sub_element_at(alg, 2)->is_block) {
+    s_exp_t &alg = dynamic_cast<s_exp_t &>(params.at(0));
+    if (alg.size() != 3 || !alg.at(0).is_block() || !alg.at(1).is_block() ||
+        !alg.at(2).is_block()) {
         RNP_LOG("Wrong params sub-level format, expected: (hash salt no_of_iterations)\n");
-        goto done;
+        return false;
     }
-    sub_el = sub_element_at(alg, 0);
-    if ((sub_el->block.len != 4) || memcmp("sha1", sub_el->block.bytes, 4)) {
+    auto &hash_bt = (dynamic_cast<s_exp_block_t &>(alg.at(0))).bytes();
+    if ((hash_bt.size() != 4) || memcmp("sha1", hash_bt.data(), 4)) {
         RNP_LOG("Wrong hashing algorithm, should be sha1 but %.*s\n",
-                (int) sub_el->block.len,
-                sub_el->block.bytes);
-        goto done;
+                (int) hash_bt.size(),
+                (const char *) hash_bt.data());
+        return false;
     }
 
     // fill in some constant values
-    prot->s2k.hash_alg = PGP_HASH_SHA1;
-    prot->s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
-    prot->s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
+    prot.s2k.hash_alg = PGP_HASH_SHA1;
+    prot.s2k.usage = PGP_S2KU_ENCRYPTED_AND_HASHED;
+    prot.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
 
     // check salt size
-    sub_el = sub_element_at(alg, 1);
-    if (sub_el->block.len != PGP_SALT_SIZE) {
-        RNP_LOG(
-          "Wrong salt size, should be %d but %d\n", PGP_SALT_SIZE, (int) sub_el->block.len);
-        goto done;
+    auto &salt_bt = (dynamic_cast<s_exp_block_t &>(alg.at(1))).bytes();
+    if (salt_bt.size() != PGP_SALT_SIZE) {
+        RNP_LOG("Wrong salt size, should be %d but %d\n", PGP_SALT_SIZE, (int) salt_bt.size());
+        return false;
     }
 
     // salt
-    memcpy(prot->s2k.salt, sub_el->block.bytes, sub_el->block.len);
+    memcpy(prot.s2k.salt, salt_bt.data(), salt_bt.size());
     // s2k iterations
-    sub_el = sub_element_at(alg, 2);
-    prot->s2k.iterations = block_to_unsigned(&sub_el->block);
-    if (prot->s2k.iterations == UINT_MAX) {
-        RNP_LOG(
-          "Wrong numbers of iteration, %.*s\n", (int) sub_el->block.len, sub_el->block.bytes);
-        goto done;
+    auto &iter = dynamic_cast<s_exp_block_t &>(alg.at(2));
+    prot.s2k.iterations = iter.as_unsigned();
+    if (prot.s2k.iterations == UINT_MAX) {
+        RNP_LOG("Wrong numbers of iteration, %.*s\n",
+                (int) iter.bytes().size(),
+                (const char *) iter.bytes().data());
+        return false;
     }
 
     // iv
-    sub_el = sub_element_at(params, 1);
-    if (sub_el->block.len != format->iv_size) {
-        RNP_LOG("Wrong nonce size, should be %zu but %d\n",
-                format->iv_size,
-                (int) sub_el->block.len);
-        goto done;
+    auto &iv_bt = (dynamic_cast<s_exp_block_t &>(params.at(1))).bytes();
+    if (iv_bt.size() != format->iv_size) {
+        RNP_LOG("Wrong nonce size, should be %zu but %zu\n", format->iv_size, iv_bt.size());
+        return false;
     }
-    memcpy(prot->iv, sub_el->block.bytes, sub_el->block.len);
+    memcpy(prot.iv, iv_bt.data(), iv_bt.size());
 
     // we're all done if no password was provided (decryption not requested)
     if (!password) {
-        seckey->material.secret = false;
-        ret = true;
-        goto done;
+        seckey.material.secret = false;
+        return true;
     }
 
     // password was provided, so decrypt
-    sub_el = sub_element_at(protected_key, 3);
-    if (!decrypt_protected_section(
-          sub_el->block.bytes, sub_el->block.len, seckey, password, &decrypted_s_exp)) {
-        goto done;
+    auto &  enc_bt = (dynamic_cast<s_exp_block_t &>(protected_key->at(3))).bytes();
+    s_exp_t decrypted_s_exp;
+    if (!decrypt_protected_section(enc_bt, seckey, password, decrypted_s_exp)) {
+        return false;
     }
     // see if we have a protected-at section
-    protected_at_data = lookup_variable_data(s_exp, "protected-at");
-    char protected_at[G10_PROTECTED_AT_SIZE];
+    char           protected_at[G10_PROTECTED_AT_SIZE] = {0};
+    s_exp_block_t *protected_at_data = s_exp.lookup_var_data("protected-at");
     if (protected_at_data) {
-        if (protected_at_data->len != G10_PROTECTED_AT_SIZE) {
+        if (protected_at_data->bytes().size() != G10_PROTECTED_AT_SIZE) {
             RNP_LOG("protected-at has wrong length: %zu, expected, %d\n",
-                    protected_at_data->len,
+                    protected_at_data->bytes().size(),
                     G10_PROTECTED_AT_SIZE);
-            goto done;
+            return false;
         }
-        memcpy(protected_at, protected_at_data->bytes, protected_at_data->len);
+        memcpy(
+          protected_at, protected_at_data->bytes().data(), protected_at_data->bytes().size());
     }
     // parse MPIs
-    if (!parse_seckey(seckey, &sub_element_at(&decrypted_s_exp, 0)->s_exp, seckey->alg)) {
+    if (!parse_seckey(seckey, dynamic_cast<s_exp_t &>(decrypted_s_exp.at(0)), seckey.alg)) {
         RNP_LOG("failed to parse seckey");
-        goto done;
+        return false;
     }
     // check hash, if present
-    if (sub_element_count(&decrypted_s_exp) > 1) {
-        sub_el = sub_element_at(&decrypted_s_exp, 1);
-        if (sub_el->is_block || sub_element_count(&sub_el->s_exp) < 3 ||
-            !sub_element_at(&sub_el->s_exp, 0)->is_block ||
-            !sub_element_at(&sub_el->s_exp, 1)->is_block ||
-            !sub_element_at(&sub_el->s_exp, 2)->is_block ||
-            (sub_element_at(&sub_el->s_exp, 0)->block.len != 4) ||
-            memcmp("hash", sub_element_at(&sub_el->s_exp, 0)->block.bytes, 4)) {
+    if (decrypted_s_exp.size() > 1) {
+        if (decrypted_s_exp.at(1).is_block()) {
+            RNP_LOG("Wrong hash block type.");
+            return false;
+        }
+        auto &sub_el = dynamic_cast<s_exp_t &>(decrypted_s_exp.at(1));
+        if (sub_el.size() < 3 || !sub_el.at(0).is_block() || !sub_el.at(1).is_block() ||
+            !sub_el.at(2).is_block()) {
+            RNP_LOG("Wrong hash block structure.");
+            return false;
+        }
+
+        auto &hkey = (dynamic_cast<s_exp_block_t &>(sub_el.at(0))).bytes();
+        if ((hkey.size() != 4) || memcmp("hash", hkey.data(), 4)) {
             RNP_LOG("Has got wrong hash block at encrypted key data.");
-            goto done;
+            return false;
         }
-
-        if ((sub_element_at(&sub_el->s_exp, 1)->block.len != 4) ||
-            memcmp("sha1", sub_element_at(&sub_el->s_exp, 1)->block.bytes, 4)) {
+        auto &halg = (dynamic_cast<s_exp_block_t &>(sub_el.at(1))).bytes();
+        if ((halg.size() != 4) || memcmp("sha1", halg.data(), 4)) {
             RNP_LOG("Supported only sha1 hash at encrypted private key.");
-            goto done;
+            return false;
         }
-
         uint8_t checkhash[G10_SHA1_HASH_SIZE];
         if (!g10_calculated_hash(seckey, protected_at, checkhash)) {
             RNP_LOG("failed to calculate hash");
-            goto done;
+            return false;
         }
-
-        sub_el = sub_element_at(&sub_el->s_exp, 2);
-        if (sub_el->block.len != G10_SHA1_HASH_SIZE ||
-            memcmp(checkhash, sub_el->block.bytes, G10_SHA1_HASH_SIZE) != 0) {
+        auto &hval = (dynamic_cast<s_exp_block_t &>(sub_el.at(2))).bytes();
+        if (hval.size() != G10_SHA1_HASH_SIZE ||
+            memcmp(checkhash, hval.data(), G10_SHA1_HASH_SIZE)) {
             RNP_DHEX("Expected hash", checkhash, G10_SHA1_HASH_SIZE);
-            RNP_DHEX("Has hash", sub_el->block.bytes, sub_el->block.len);
+            RNP_DHEX("Has hash", hval.data(), hval.size());
             RNP_LOG("Incorrect hash at encrypted private key.");
-            goto done;
+            return false;
         }
     }
-    seckey->material.secret = true;
-    ret = true;
-
-done:
-    destroy_s_exp(&decrypted_s_exp);
-    return ret;
+    seckey.material.secret = true;
+    return true;
 }
 
 static bool
-g10_parse_seckey(pgp_key_pkt_t *seckey,
+g10_parse_seckey(pgp_key_pkt_t &seckey,
                  const uint8_t *data,
                  size_t         data_len,
                  const char *   password)
 {
-    s_exp_t          s_exp = {0};
-    bool             ret = false;
-    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
-    s_exp_t *        algorithm_s_exp = NULL;
-    s_exp_block_t *  block = NULL;
-    bool             is_protected = false;
+    s_exp_t s_exp;
 
     RNP_DHEX("S-exp", (const uint8_t *) data, data_len);
 
     const char *bytes = (const char *) data;
-    if (!parse_sexp(&s_exp, &bytes, &data_len)) {
-        goto done;
+    if (!s_exp.parse(&bytes, &data_len)) {
+        RNP_LOG("Failed to parse s-exp.");
+        return false;
     }
 
     /* expected format:
@@ -948,67 +804,69 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
      *  )
      */
 
-    if (sub_element_count(&s_exp) != 2 || !sub_element_at(&s_exp, 0)->is_block ||
-        sub_element_at(&s_exp, 1)->is_block) {
+    if (s_exp.size() != 2 || !s_exp.at(0).is_block() || s_exp.at(1).is_block()) {
         RNP_LOG("Wrong format, expected: (<type> (...))");
-        goto done;
+        return false;
     }
 
-    block = &sub_element_at(&s_exp, 0)->block;
-    if ((block->len == 11) && !memcmp("private-key", block->bytes, block->len)) {
+    bool  is_protected = false;
+    auto &name = (dynamic_cast<s_exp_block_t &>(s_exp.at(0))).bytes();
+    if ((name.size() == 11) && !memcmp("private-key", name.data(), name.size())) {
         is_protected = false;
-    } else if ((block->len == 21) &&
-               !memcmp("protected-private-key", block->bytes, block->len)) {
+    } else if ((name.size() == 21) &&
+               !memcmp("protected-private-key", name.data(), name.size())) {
         is_protected = true;
     } else {
-        RNP_LOG("Unsupported top-level block: '%.*s'", (int) block->len, block->bytes);
-        goto done;
+        RNP_LOG("Unsupported top-level block: '%.*s'",
+                (int) name.size(),
+                (const char *) name.data());
+        return false;
     }
 
-    algorithm_s_exp = &sub_element_at(&s_exp, 1)->s_exp;
-
-    if (sub_element_count(algorithm_s_exp) < 2) {
-        RNP_LOG("Wrong count of algorithm-level elements: %d, should great than 1",
-                (int) sub_element_count(algorithm_s_exp));
-        goto done;
+    s_exp_t &alg_s_exp = dynamic_cast<s_exp_t &>(s_exp.at(1));
+    if (alg_s_exp.size() < 2) {
+        RNP_LOG("Wrong count of algorithm-level elements: %zu", alg_s_exp.size());
+        return false;
     }
 
-    if (!sub_element_at(algorithm_s_exp, 0)->is_block) {
+    if (!alg_s_exp.at(0).is_block()) {
         RNP_LOG("Expected block with algorithm name, but has s-exp");
-        goto done;
+        return false;
     }
 
-    block = &sub_element_at(algorithm_s_exp, 0)->block;
-    alg = PGP_PKA_NOTHING;
+    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
+    auto &           alg_bt = (dynamic_cast<s_exp_block_t &>(alg_s_exp.at(0))).bytes();
     for (size_t i = 0; i < ARRAY_SIZE(g10_alg_aliases); i++) {
-        if (strlen(g10_alg_aliases[i].string) != block->len) {
+        if (strlen(g10_alg_aliases[i].string) != alg_bt.size()) {
             continue;
         }
-        if (!memcmp(g10_alg_aliases[i].string, block->bytes, block->len)) {
+        if (!memcmp(g10_alg_aliases[i].string, alg_bt.data(), alg_bt.size())) {
             alg = (pgp_pubkey_alg_t) g10_alg_aliases[i].type;
             break;
         }
     }
 
     if (alg == PGP_PKA_NOTHING) {
-        RNP_LOG("Unsupported algorithm: '%.*s'", (int) block->len, block->bytes);
-        goto done;
+        RNP_LOG(
+          "Unsupported algorithm: '%.*s'", (int) alg_bt.size(), (const char *) alg_bt.data());
+        return false;
     }
 
-    if (!parse_pubkey(seckey, algorithm_s_exp, alg)) {
+    bool ret = false;
+    if (!parse_pubkey(seckey, alg_s_exp, alg)) {
         RNP_LOG("failed to parse pubkey");
         goto done;
     }
 
     if (is_protected) {
-        if (!parse_protected_seckey(seckey, algorithm_s_exp, password)) {
+        if (!parse_protected_seckey(seckey, alg_s_exp, password)) {
             goto done;
         }
     } else {
-        seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-        seckey->sec_protection.symm_alg = PGP_SA_PLAINTEXT;
-        seckey->sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
-        if (!parse_seckey(seckey, algorithm_s_exp, alg)) {
+        seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
+        seckey.sec_protection.symm_alg = PGP_SA_PLAINTEXT;
+        seckey.sec_protection.s2k.hash_alg = PGP_HASH_UNKNOWN;
+        if (!parse_seckey(seckey, alg_s_exp, alg)) {
             RNP_LOG("failed to parse seckey");
             goto done;
         }
@@ -1017,17 +875,15 @@ g10_parse_seckey(pgp_key_pkt_t *seckey,
     if (rnp_get_debug(__FILE__)) {
         pgp_key_grip_t grip;
         char           grips[PGP_KEY_GRIP_SIZE * 3];
-        if (rnp_key_store_get_key_grip(&seckey->material, grip)) {
+        if (rnp_key_store_get_key_grip(&seckey.material, grip)) {
             RNP_LOG("loaded G10 key with GRIP: %s\n",
                     rnp_strhexdump_upper(grips, grip.data(), grip.size(), ""));
         }
     }
     ret = true;
-
 done:
-    destroy_s_exp(&s_exp);
     if (!ret) {
-        *seckey = pgp_key_pkt_t();
+        seckey = pgp_key_pkt_t();
     }
     return ret;
 }
@@ -1042,12 +898,12 @@ g10_decrypt_seckey(const uint8_t *      data,
         return NULL;
     }
 
-    pgp_key_pkt_t *seckey = pubkey ? new pgp_key_pkt_t(*pubkey, false) : new pgp_key_pkt_t();
-    if (!g10_parse_seckey(seckey, data, data_len, password)) {
-        delete seckey;
+    auto seckey = std::unique_ptr<pgp_key_pkt_t>(pubkey ? new pgp_key_pkt_t(*pubkey, false) :
+                                                          new pgp_key_pkt_t());
+    if (!g10_parse_seckey(*seckey, data, data_len, password)) {
         return NULL;
     }
-    return seckey;
+    return seckey.release();
 }
 
 static bool
@@ -1102,7 +958,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
 
     /* parse secret key: fills material and sec_protection only */
     if (!g10_parse_seckey(
-          &seckey, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, NULL)) {
+          seckey, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, NULL)) {
         goto done;
     }
 
@@ -1157,16 +1013,14 @@ done:
 
 #define MAX_SIZE_T_LEN ((3 * sizeof(size_t) * CHAR_BIT / 8) + 2)
 
-static bool
-write_block(s_exp_block_t *block, pgp_dest_t *dst)
+bool
+s_exp_block_t::write(pgp_dest_t &dst) const noexcept
 {
     char   blen[MAX_SIZE_T_LEN + 1] = {0};
-    size_t len;
-
-    len = snprintf(blen, sizeof(blen), "%zu:", block->len);
-    dst_write(dst, blen, len);
-    dst_write(dst, block->bytes, block->len);
-    return dst->werr == RNP_SUCCESS;
+    size_t len = snprintf(blen, sizeof(blen), "%zu:", bytes_.size());
+    dst_write(&dst, blen, len);
+    dst_write(&dst, bytes_.data(), bytes_.size());
+    return dst.werr == RNP_SUCCESS;
 }
 
 /*
@@ -1174,269 +1028,242 @@ write_block(s_exp_block_t *block, pgp_dest_t *dst)
  *
  * Supported format: (1:a2:ab(3:asd1:a))
  */
-static bool
-write_sexp(s_exp_t *s_exp, pgp_dest_t *dst)
+bool
+s_exp_t::write(pgp_dest_t &dst) const noexcept
 {
-    dst_write(dst, "(", 1);
-    if (dst->werr != RNP_SUCCESS) {
+    dst_write(&dst, "(", 1);
+    if (dst.werr) {
         return false;
     }
 
-    for (list_item *item = list_front(s_exp->sub_elements); item; item = list_next(item)) {
-        sub_element_t *sub_el = (sub_element_t *) item;
-
-        if (sub_el->is_block) {
-            if (!write_block(&sub_el->block, dst)) {
-                return false;
-            }
-        } else {
-            if (!write_sexp(&sub_el->s_exp, dst)) {
-                return false;
-            }
+    for (auto &ptr : elements_) {
+        if (!ptr->write(dst)) {
+            return false;
         }
     }
 
-    dst_write(dst, ")", 1);
-    return dst->werr == RNP_SUCCESS;
+    dst_write(&dst, ")", 1);
+    return !dst.werr;
 }
 
-static bool
-write_pubkey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
+void
+s_exp_t::add_pubkey(const pgp_key_pkt_t &key)
 {
-    const pgp_key_material_t *kmaterial = &key->material;
-    switch (key->alg) {
+    switch (key.alg) {
     case PGP_PKA_DSA:
-        if (!add_string_block_to_sexp(s_exp, "dsa")) {
-            return false;
-        }
-        if (!write_mpi(s_exp, "p", &kmaterial->dsa.p) ||
-            !write_mpi(s_exp, "q", &kmaterial->dsa.q) ||
-            !write_mpi(s_exp, "g", &kmaterial->dsa.g) ||
-            !write_mpi(s_exp, "y", &kmaterial->dsa.y)) {
-            return false;
-        }
+        add("dsa");
+        add_mpi("p", key.material.dsa.p);
+        add_mpi("q", key.material.dsa.q);
+        add_mpi("g", key.material.dsa.g);
+        add_mpi("y", key.material.dsa.y);
         break;
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!add_string_block_to_sexp(s_exp, "rsa")) {
-            return false;
-        }
-        if (!write_mpi(s_exp, "n", &kmaterial->rsa.n) ||
-            !write_mpi(s_exp, "e", &kmaterial->rsa.e)) {
-            return false;
-        }
+        add("rsa");
+        add_mpi("n", key.material.rsa.n);
+        add_mpi("e", key.material.rsa.e);
         break;
     case PGP_PKA_ELGAMAL:
-        if (!add_string_block_to_sexp(s_exp, "elg")) {
-            return false;
-        }
-        if (!write_mpi(s_exp, "p", &kmaterial->eg.p) ||
-            !write_mpi(s_exp, "g", &kmaterial->eg.g) ||
-            !write_mpi(s_exp, "y", &kmaterial->eg.y)) {
-            return false;
-        }
+        add("elg");
+        add_mpi("p", key.material.eg.p);
+        add_mpi("g", key.material.eg.g);
+        add_mpi("y", key.material.eg.y);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA:
-        if (!add_string_block_to_sexp(s_exp, "ecc")) {
-            return false;
-        }
-        if (!write_curve(s_exp, "curve", &kmaterial->ec) ||
-            !write_mpi(s_exp, "q", &kmaterial->ec.p)) {
-            return false;
-        }
+        add("ecc");
+        add_curve("curve", key.material.ec);
+        add_mpi("q", key.material.ec.p);
         break;
     default:
-        RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
-        return false;
+        RNP_LOG("Unsupported public key algorithm: %d", (int) key.alg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-
-    return true;
 }
 
-static bool
-write_seckey(s_exp_t *s_exp, const pgp_key_pkt_t *key)
+void
+s_exp_t::add_seckey(const pgp_key_pkt_t &key)
 {
-    switch (key->alg) {
+    switch (key.alg) {
     case PGP_PKA_DSA:
-        if (!write_mpi(s_exp, "x", &key->material.dsa.x)) {
-            return false;
-        }
+        add_mpi("x", key.material.dsa.x);
         break;
     case PGP_PKA_RSA_SIGN_ONLY:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA:
-        if (!write_mpi(s_exp, "d", &key->material.rsa.d) ||
-            !write_mpi(s_exp, "p", &key->material.rsa.p) ||
-            !write_mpi(s_exp, "q", &key->material.rsa.q) ||
-            !write_mpi(s_exp, "u", &key->material.rsa.u)) {
-            return false;
-        }
+        add_mpi("d", key.material.rsa.d);
+        add_mpi("p", key.material.rsa.p);
+        add_mpi("q", key.material.rsa.q);
+        add_mpi("u", key.material.rsa.u);
         break;
     case PGP_PKA_ELGAMAL:
-        if (!write_mpi(s_exp, "x", &key->material.eg.x)) {
-            return false;
-        }
+        add_mpi("x", key.material.eg.x);
         break;
     case PGP_PKA_ECDSA:
     case PGP_PKA_ECDH:
     case PGP_PKA_EDDSA: {
-        if (!write_mpi(s_exp, "d", &key->material.ec.x)) {
-            return false;
-        }
+        add_mpi("d", key.material.ec.x);
         break;
     }
     default:
-        RNP_LOG("Unsupported public key algorithm: %d", (int) key->alg);
-        return false;
+        RNP_LOG("Unsupported public key algorithm: %d", (int) key.alg);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-
-    return true;
 }
 
-static bool
-write_protected_seckey(s_exp_t *s_exp, pgp_key_pkt_t *seckey, const char *password)
+rnp::secure_vector<uint8_t>
+s_exp_t::write_padded(size_t padblock) const
 {
-    bool                    ret = false;
-    const format_info *     format;
-    s_exp_t                 raw_s_exp = {0};
-    s_exp_t *               sub_s_exp, *sub_sub_s_exp, *sub_sub_sub_s_exp;
-    pgp_dest_t              raw = {0};
-    uint8_t *               encrypted_data = NULL;
-    std::unique_ptr<Cipher> enc;
-    unsigned                keysize;
-    uint8_t                 checksum[G10_SHA1_HASH_SIZE];
-    uint8_t                 derived_key[PGP_MAX_KEY_SIZE];
-    pgp_key_protection_t *  prot = &seckey->sec_protection;
-    size_t                  encrypted_data_len = 0;
-    size_t                  output_written, input_consumed;
-
-    if (prot->s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
-        return false;
+    pgp_dest_t raw = {0};
+    if (init_mem_dest(&raw, NULL, 0)) {
+        RNP_LOG("mem dst alloc failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
-    format = find_format(prot->symm_alg, prot->cipher_mode, prot->s2k.hash_alg);
-    if (format == NULL) {
-        return false;
+    mem_dest_secure_memory(&raw, true);
+
+    try {
+        if (!write(raw)) {
+            RNP_LOG("failed to serialize s_exp");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        }
+
+        // add padding!
+        size_t padding = padblock - raw.writeb % padblock;
+        for (size_t i = 0; i < padding; i++) {
+            dst_write(&raw, "X", 1);
+        }
+        if (raw.werr) {
+            RNP_LOG("failed to write padding");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        }
+
+        uint8_t *                   mem = (uint8_t *) mem_dest_get_memory(&raw);
+        rnp::secure_vector<uint8_t> res(mem, mem + raw.writeb);
+        dst_close(&raw, true);
+        return res;
+    } catch (const std::exception &e) {
+        dst_close(&raw, true);
+        throw;
+    }
+}
+
+void
+s_exp_t::add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password)
+{
+    pgp_key_protection_t &prot = seckey.sec_protection;
+    if (prot.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
+        RNP_LOG("Bad s2k specifier: %d", (int) prot.s2k.specifier);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    const format_info *format =
+      find_format(prot.symm_alg, prot.cipher_mode, prot.s2k.hash_alg);
+    if (!format) {
+        RNP_LOG("Unknown protection format.");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
     // randomize IV and salt
     rng_t rng = {0};
-    if (!rng_init(&rng, RNG_SYSTEM) || !rng_get_data(&rng, &prot->iv[0], sizeof(prot->iv)) ||
-        !rng_get_data(&rng, &prot->s2k.salt[0], sizeof(prot->s2k.salt))) {
+    if (!rng_init(&rng, RNG_SYSTEM) || !rng_get_data(&rng, prot.iv, sizeof(prot.iv)) ||
+        !rng_get_data(&rng, prot.s2k.salt, sizeof(prot.s2k.salt))) {
         rng_destroy(&rng);
         RNP_LOG("iv generation failed");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_RNG);
     }
     rng_destroy(&rng);
 
-    if (init_mem_dest(&raw, NULL, 0)) {
-        RNP_LOG("mem dst alloc failed");
-        return false;
-    }
+    // write seckey
+    s_exp_t  raw_s_exp;
+    s_exp_t *psub_s_exp = &raw_s_exp.add_sub();
+    psub_s_exp->add_seckey(seckey);
 
-    if (!add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp) || !write_seckey(sub_s_exp, seckey)) {
-        RNP_LOG("failed to write seckey");
-        goto done;
-    }
-
-    // calculated hash
+    // calculate hash
     time_t now;
     time(&now);
-    char protected_at[G10_PROTECTED_AT_SIZE + 1];
+    char    protected_at[G10_PROTECTED_AT_SIZE + 1];
+    uint8_t checksum[G10_SHA1_HASH_SIZE];
     // TODO: how critical is it if we have a skewed timestamp here due to y2k38 problem?
     strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
-
-    if (!g10_calculated_hash(seckey, protected_at, checksum) ||
-        !add_sub_sexp_to_sexp(&raw_s_exp, &sub_s_exp) ||
-        !add_string_block_to_sexp(sub_s_exp, "hash") ||
-        !add_string_block_to_sexp(sub_s_exp, "sha1") ||
-        !add_block_to_sexp(sub_s_exp, checksum, sizeof(checksum)) ||
-        !write_sexp(&raw_s_exp, &raw)) {
-        goto done;
+    if (!g10_calculated_hash(seckey, protected_at, checksum)) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    keysize = pgp_key_size(prot->symm_alg);
-    if (keysize == 0) {
-        goto done;
+    psub_s_exp = &raw_s_exp.add_sub();
+    psub_s_exp->add("hash");
+    psub_s_exp->add("sha1");
+    psub_s_exp->add(checksum, sizeof(checksum));
+
+    /* write raw secret key to the memory */
+    rnp::secure_vector<uint8_t> rawkey = raw_s_exp.write_padded(format->cipher_block_size);
+
+    /* derive encrypting key */
+    unsigned keysize = pgp_key_size(prot.symm_alg);
+    if (!keysize) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
+    rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> derived_key;
     if (pgp_s2k_iterated(format->hash_alg,
-                         derived_key,
+                         derived_key.data(),
                          keysize,
-                         (const char *) password,
-                         prot->s2k.salt,
-                         prot->s2k.iterations)) {
-        goto done;
+                         password.c_str(),
+                         prot.s2k.salt,
+                         prot.s2k.iterations)) {
+        RNP_LOG("s2k key derivation failed");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    // add padding!
-    for (int i = (int) (format->cipher_block_size - raw.writeb % format->cipher_block_size);
-         i > 0;
-         i--) {
-        dst_write(&raw, "X", 1);
-        if (raw.werr != RNP_SUCCESS) {
-            goto done;
-        }
+    RNP_DHEX("input iv", prot.iv, G10_CBC_IV_SIZE);
+    RNP_DHEX("key", derived_key.data(), keysize);
+    RNP_DHEX("raw data", (uint8_t *) rawkey.data(), rawkey.size());
+
+    /* encrypt raw key */
+    std::unique_ptr<Cipher> enc(
+      Cipher::encryption(format->cipher, format->cipher_mode, 0, true));
+    if (!enc || !enc->set_key(derived_key.data(), keysize) ||
+        !enc->set_iv(prot.iv, format->iv_size)) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    encrypted_data_len = raw.writeb;
-    encrypted_data = (uint8_t *) malloc(encrypted_data_len);
-    if (!encrypted_data) {
-        goto done;
-    }
+    size_t               output_written, input_consumed;
+    std::vector<uint8_t> enckey(rawkey.size());
 
-    RNP_DHEX("input iv", prot->iv, G10_CBC_IV_SIZE);
-    RNP_DHEX("key", derived_key, keysize);
-    RNP_DHEX("raw data", (uint8_t *) mem_dest_get_memory(&raw), raw.writeb);
-
-    enc = Cipher::encryption(format->cipher, format->cipher_mode, 0, true);
-    if (!enc || !enc->set_key(derived_key, keysize) ||
-        !enc->set_iv(prot->iv, format->iv_size)) {
-        goto done;
-    }
-    if (!enc->finish(encrypted_data,
-                     encrypted_data_len,
+    if (!enc->finish(enckey.data(),
+                     enckey.size(),
                      &output_written,
-                     (const uint8_t *) mem_dest_get_memory(&raw),
-                     raw.writeb,
+                     rawkey.data(),
+                     rawkey.size(),
                      &input_consumed)) {
-        goto done;
+        RNP_LOG("Encryption failed");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    if (!add_sub_sexp_to_sexp(s_exp, &sub_s_exp) ||
-        !add_string_block_to_sexp(sub_s_exp, "protected") ||
-        !add_string_block_to_sexp(sub_s_exp, format->g10_type) ||
-        !add_sub_sexp_to_sexp(sub_s_exp, &sub_sub_s_exp) ||
-        !add_sub_sexp_to_sexp(sub_sub_s_exp, &sub_sub_sub_s_exp) ||
-        !add_string_block_to_sexp(sub_sub_sub_s_exp, "sha1") ||
-        !add_block_to_sexp(sub_sub_sub_s_exp, prot->s2k.salt, PGP_SALT_SIZE) ||
-        !add_unsigned_block_to_sexp(sub_sub_sub_s_exp, prot->s2k.iterations) ||
-        !add_block_to_sexp(sub_sub_s_exp, prot->iv, format->iv_size) ||
-        !add_block_to_sexp(sub_s_exp, encrypted_data, encrypted_data_len) ||
-        !add_sub_sexp_to_sexp(s_exp, &sub_s_exp) ||
-        !add_string_block_to_sexp(sub_s_exp, "protected-at") ||
-        !add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
-        goto done;
-    }
-    ret = true;
-
-done:
-    secure_clear(derived_key, sizeof(derived_key));
-    free(encrypted_data);
-    destroy_s_exp(&raw_s_exp);
-    dst_close(&raw, true);
-    return ret;
+    /* build s_exp with encrypted key */
+    psub_s_exp = &add_sub();
+    psub_s_exp->add("protected");
+    psub_s_exp->add(format->g10_type);
+    /* protection params: s2k, iv */
+    s_exp_t *psub_sub_s_exp = &psub_s_exp->add_sub();
+    /* s2k params: hash, salt, iterations */
+    s_exp_t *psub_sub_sub_s_exp = &psub_sub_s_exp->add_sub();
+    psub_sub_sub_s_exp->add("sha1");
+    psub_sub_sub_s_exp->add(prot.s2k.salt, PGP_SALT_SIZE);
+    psub_sub_sub_s_exp->add(prot.s2k.iterations);
+    psub_sub_s_exp->add(prot.iv, format->iv_size);
+    /* encrypted key data itself */
+    psub_s_exp->add(enckey.data(), enckey.size());
+    /* protected-at */
+    psub_s_exp = &add_sub();
+    psub_s_exp->add("protected-at");
+    psub_s_exp->add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
 }
 
 bool
 g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password)
 {
-    s_exp_t  s_exp = {0};
-    s_exp_t *sub_s_exp = NULL;
-    bool     is_protected = true;
-    bool     ret = false;
+    bool is_protected = true;
 
     switch (seckey->sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
@@ -1451,93 +1278,77 @@ g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password)
         break;
     default:
         RNP_LOG("unsupported s2k usage");
-        goto done;
+        return false;
     }
-    if (!add_string_block_to_sexp(&s_exp,
-                                  is_protected ? "protected-private-key" : "private-key") ||
-        !add_sub_sexp_to_sexp(&s_exp, &sub_s_exp) || !write_pubkey(sub_s_exp, seckey)) {
-        goto done;
-    }
-    if (is_protected) {
-        if (!write_protected_seckey(sub_s_exp, seckey, password)) {
-            goto done;
+
+    try {
+        s_exp_t s_exp;
+        s_exp.add(is_protected ? "protected-private-key" : "private-key");
+        s_exp_t &pkey = s_exp.add_sub();
+        pkey.add_pubkey(*seckey);
+
+        if (is_protected) {
+            pkey.add_protected_seckey(*seckey, password);
+        } else {
+            pkey.add_seckey(*seckey);
         }
-    } else {
-        if (!write_seckey(sub_s_exp, seckey)) {
-            goto done;
-        }
+        return s_exp.write(*dst) && !dst->werr;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to write g10 key: %s", e.what());
+        return false;
     }
-    if (!write_sexp(&s_exp, dst)) {
-        goto done;
-    }
-    ret = !dst->werr;
-done:
-    destroy_s_exp(&s_exp);
-    return ret;
 }
 
 static bool
-g10_calculated_hash(const pgp_key_pkt_t *key, const char *protected_at, uint8_t *checksum)
+g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t *checksum)
 {
-    s_exp_t    s_exp = {0};
-    s_exp_t *  sub_s_exp;
     pgp_dest_t memdst = {};
-    pgp_hash_t hash = {0};
+    try {
+        /* populate s_exp */
+        s_exp_t s_exp;
+        s_exp.add_pubkey(key);
+        s_exp.add_seckey(key);
+        s_exp_t &s_sub_exp = s_exp.add_sub();
+        s_sub_exp.add("protected-at");
+        s_sub_exp.add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
+        /* write it to memdst */
+        if (init_mem_dest(&memdst, NULL, 0)) {
+            return false;
+        }
+        mem_dest_secure_memory(&memdst, true);
+        if (!s_exp.write(memdst)) {
+            RNP_LOG("Failed to write s_exp");
+            dst_close(&memdst, true);
+            return false;
+        }
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to build s_exp: %s", e.what());
+        return false;
+    }
 
+    pgp_hash_t hash = {0};
     if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
+        RNP_LOG("Failed to create hash.");
         goto error;
     }
 
     if (hash._output_len != G10_SHA1_HASH_SIZE) {
         RNP_LOG(
           "wrong hash size %zu, should be %d bytes", hash._output_len, G10_SHA1_HASH_SIZE);
+        pgp_hash_finish(&hash, NULL);
         goto error;
     }
-
-    if (!write_pubkey(&s_exp, key)) {
-        RNP_LOG("failed to write pubkey");
-        goto error;
-    }
-
-    if (!write_seckey(&s_exp, key)) {
-        RNP_LOG("failed to write seckey");
-        goto error;
-    }
-
-    if (!add_sub_sexp_to_sexp(&s_exp, &sub_s_exp)) {
-        goto error;
-    }
-
-    if (!add_string_block_to_sexp(sub_s_exp, "protected-at")) {
-        goto error;
-    }
-
-    if (!add_block_to_sexp(sub_s_exp, (uint8_t *) protected_at, G10_PROTECTED_AT_SIZE)) {
-        goto error;
-    }
-
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        goto error;
-    }
-
-    if (!write_sexp(&s_exp, &memdst)) {
-        goto error;
-    }
-    destroy_s_exp(&s_exp);
 
     RNP_DHEX("data for hashing", (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
-
     pgp_hash_add(&hash, mem_dest_get_memory(&memdst), memdst.writeb);
     dst_close(&memdst, true);
 
     if (!pgp_hash_finish(&hash, checksum)) {
         goto error;
     }
-
     return true;
 error:
     dst_close(&memdst, true);
-    destroy_s_exp(&s_exp);
     return false;
 }
 
