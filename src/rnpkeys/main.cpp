@@ -82,7 +82,7 @@ rnpkeys_main(int argc, char **argv)
         } else {
             switch (ch) {
             case 'V':
-                print_praise();
+                cli_rnp_print_praise();
                 ret = EXIT_SUCCESS;
                 goto end;
             case 'g':
