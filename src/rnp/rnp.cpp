@@ -209,19 +209,11 @@ static struct option options[] = {
   {NULL, 0, NULL, 0},
 };
 
-static void
-print_praise(void)
-{
-    ERR_MSG("%s\nAll bug reports, praise and chocolate, please, to:\n%s",
-            PACKAGE_STRING,
-            PACKAGE_BUGREPORT);
-}
-
 /* print a usage message */
 static void
 print_usage(const char *usagemsg)
 {
-    print_praise();
+    cli_rnp_print_praise();
     ERR_MSG("%s", usagemsg);
 }
 
@@ -248,7 +240,7 @@ rnp_cmd(cli_rnp_t *rnp)
         ret = cli_rnp_armor_file(rnp);
         break;
     case CMD_VERSION:
-        print_praise();
+        cli_rnp_print_praise();
         ret = true;
         break;
     default:
@@ -676,7 +668,7 @@ rnp_main(int argc, char **argv)
         ret = EXIT_SUCCESS;
         goto finish;
     case CMD_VERSION:
-        print_praise();
+        cli_rnp_print_praise();
         ret = EXIT_SUCCESS;
         goto finish;
     default:;
