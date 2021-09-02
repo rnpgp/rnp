@@ -340,19 +340,11 @@ import(cli_rnp_t *rnp, const std::string &spec, int cmd)
     return res;
 }
 
-void
-print_praise(void)
-{
-    ERR_MSG("%s\nAll bug reports, praise and chocolate, please, to:\n%s",
-            PACKAGE_STRING,
-            PACKAGE_BUGREPORT);
-}
-
 /* print a usage message */
 void
 print_usage(const char *usagemsg)
 {
-    print_praise();
+    cli_rnp_print_praise();
     ERR_MSG("%s", usagemsg);
 }
 
@@ -426,7 +418,7 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         return rnp->edit_key(f);
     }
     case CMD_VERSION:
-        print_praise();
+        cli_rnp_print_praise();
         return true;
     case CMD_HELP:
     default:
