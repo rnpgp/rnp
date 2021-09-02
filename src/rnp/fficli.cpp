@@ -2856,3 +2856,13 @@ done:
     rnp_op_verify_destroy(verify);
     return res;
 }
+
+void
+cli_rnp_print_praise(void)
+{
+    printf("%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
+           PACKAGE_STRING,
+           PACKAGE_BUGREPORT);
+    printf("Backend: %s\n", rnp_backend_string());
+    printf("Backend version: %s\n", rnp_backend_version());
+}
