@@ -2860,9 +2860,44 @@ done:
 void
 cli_rnp_print_praise(void)
 {
-    printf("%s\nAll bug reports, praise and chocolate, please, to:\n%s\n",
-           PACKAGE_STRING,
-           PACKAGE_BUGREPORT);
+    printf("%s\n%s\n", PACKAGE_STRING, PACKAGE_BUGREPORT);
     printf("Backend: %s\n", rnp_backend_string());
     printf("Backend version: %s\n", rnp_backend_version());
+    printf("Supported algorithms:\n");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_PK_ALG, "Public key");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_SYMM_ALG, "Encryption");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_AEAD_ALG, "AEAD");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_PROT_MODE, "Key protection");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_HASH_ALG, "Hash");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_COMP_ALG, "Compression");
+    cli_rnp_print_feature(stdout, RNP_FEATURE_CURVE, "Curves");
+    printf("Please report security issues at (https://www.rnpgp.org/feedback) and\n"
+           "general bugs at https://github.com/rnpgp/rnp/issues.\n");
+}
+
+void
+cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type)
+{
+    char * result = NULL;
+    size_t count;
+    if (rnp_supported_features(type, &result) != RNP_SUCCESS) {
+        ERR_MSG("Failed to list supported features: %s", type);
+        return;
+    }
+    json_object *jso = json_tokener_parse(result);
+    if (!jso) {
+        ERR_MSG("Failed to parse JSON with features: %s", type);
+        goto done;
+    }
+    fprintf(fp, "%s: ", printed_type);
+    count = json_object_array_length(jso);
+    for (size_t idx = 0; idx < count; idx++) {
+        json_object *val = json_object_array_get_idx(jso, idx);
+        fprintf(fp, " %s%s", json_object_get_string(val), idx < count - 1 ? "," : "");
+    }
+    fputs("\n", fp);
+    fflush(fp);
+    json_object_put(jso);
+done:
+    rnp_buffer_destroy(result);
 }
