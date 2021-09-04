@@ -206,6 +206,7 @@ bool        cli_rnp_protect_file(cli_rnp_t *rnp);
 bool        cli_rnp_process_file(cli_rnp_t *rnp);
 std::string cli_rnp_escape_string(const std::string &src);
 void        cli_rnp_print_praise(void);
+void        cli_rnp_print_feature(FILE *fp, const char *type, const char *printed_type);
 /**
  * @brief Convert algorithm name representation to one used by FFI.
  *        I.e. aes-128 to AES128, 3DES to TRIPLEDES, SHA-1 to SHA1 and so on.
