@@ -350,6 +350,13 @@ void *mem_dest_get_memory(pgp_dest_t *dst);
  **/
 void *mem_dest_own_memory(pgp_dest_t *dst);
 
+/** @brief mark memory dest as secure, so it will be deallocated securely
+ *  @param dst pre-allocated and initialized memory dest
+ *  @param secure whether memory should be considered as secure or not
+ *  @return void
+ **/
+void mem_dest_secure_memory(pgp_dest_t *dst, bool secure);
+
 /** @brief init null destination which silently discards all the output
  *  @param dst pre-allocated dest structure
  *  @return RNP_SUCCESS or error code
