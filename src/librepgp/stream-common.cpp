@@ -47,6 +47,7 @@
 #include "stream-common.h"
 #include "types.h"
 #include "file-utils.h"
+#include "crypto/mem.h"
 #include <algorithm>
 
 bool
@@ -486,6 +487,7 @@ typedef struct pgp_dest_mem_param_t {
     void *   memory;
     bool     free;
     bool     discard_overflow;
+    bool     secure;
 } pgp_dest_mem_param_t;
 
 static bool
@@ -977,10 +979,7 @@ init_stdout_dest(pgp_dest_t *dst)
 static rnp_result_t
 mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    size_t                alloc;
-    void *                newalloc;
     pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
-
     if (!param) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -1000,15 +999,20 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         /* round up to the page boundary and do it exponentially */
-        alloc = ((dst->writeb + len) * 2 + 4095) / 4096 * 4096;
+        size_t alloc = ((dst->writeb + len) * 2 + 4095) / 4096 * 4096;
         if ((param->maxalloc > 0) && (alloc > param->maxalloc)) {
             alloc = param->maxalloc;
         }
 
-        if ((newalloc = realloc(param->memory, alloc)) == NULL) {
+        void *newalloc = param->secure ? calloc(1, alloc) : realloc(param->memory, alloc);
+        if (!newalloc) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-
+        if (param->secure) {
+            memcpy(newalloc, param->memory, dst->writeb);
+            secure_clear(param->memory, dst->writeb);
+            free(param->memory);
+        }
         param->memory = newalloc;
         param->allocated = alloc;
     }
@@ -1021,14 +1025,18 @@ static void
 mem_dst_close(pgp_dest_t *dst, bool discard)
 {
     pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
-
-    if (param) {
-        if (param->free) {
-            free(param->memory);
-        }
-        free(param);
-        dst->param = NULL;
+    if (!param) {
+        return;
     }
+
+    if (param->free) {
+        if (param->secure) {
+            secure_clear(param->memory, param->allocated);
+        }
+        free(param->memory);
+    }
+    free(param);
+    dst->param = NULL;
 }
 
 rnp_result_t
@@ -1046,6 +1054,7 @@ init_mem_dest(pgp_dest_t *dst, void *mem, unsigned len)
     param->allocated = mem ? len : 0;
     param->memory = mem;
     param->free = !mem;
+    param->secure = false;
 
     dst->write = mem_dst_write;
     dst->close = mem_dst_close;
@@ -1127,6 +1136,19 @@ mem_dest_own_memory(pgp_dest_t *dst)
         memcpy(res, param->memory, dst->writeb);
     }
     return res;
+}
+
+void
+mem_dest_secure_memory(pgp_dest_t *dst, bool secure)
+{
+    if (!dst || (dst->type != PGP_STREAM_MEMORY)) {
+        RNP_LOG("wrong function call");
+        return;
+    }
+    pgp_dest_mem_param_t *param = (pgp_dest_mem_param_t *) dst->param;
+    if (param) {
+        param->secure = secure;
+    }
 }
 
 static rnp_result_t
