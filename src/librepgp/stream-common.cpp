@@ -603,10 +603,8 @@ file_to_mem_src(pgp_source_t *src, const char *filename)
 }
 
 const void *
-mem_src_get_memory(pgp_source_t *src)
+mem_src_get_memory(pgp_source_t *src, bool own)
 {
-    pgp_source_mem_param_t *param;
-
     if (src->type != PGP_STREAM_MEMORY) {
         RNP_LOG("wrong function call");
         return NULL;
@@ -616,7 +614,10 @@ mem_src_get_memory(pgp_source_t *src)
         return NULL;
     }
 
-    param = (pgp_source_mem_param_t *) src->param;
+    pgp_source_mem_param_t *param = (pgp_source_mem_param_t *) src->param;
+    if (own) {
+        param->free = false;
+    }
     return param->memory;
 }
 

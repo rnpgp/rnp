@@ -227,9 +227,10 @@ rnp_result_t file_to_mem_src(pgp_source_t *src, const char *filename);
 
 /** @brief get memory from the memory source
  *  @param src initialized memory source
+ *  @param own transfer ownership of the memory
  *  @return pointer to the memory or NULL if it is not a memory source
  **/
-const void *mem_src_get_memory(pgp_source_t *src);
+const void *mem_src_get_memory(pgp_source_t *src, bool own = false);
 
 typedef struct pgp_dest_t {
     pgp_dest_write_func_t * write;
