@@ -78,9 +78,8 @@ pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t 
 pgp_key_t *
 rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    list key_list = (list) userdata;
-    for (list_item *item = list_front(key_list); item; item = list_next(item)) {
-        pgp_key_t *key = *(pgp_key_t **) item;
+    std::vector<pgp_key_t *> *key_list = (std::vector<pgp_key_t *> *) userdata;
+    for (auto key : *key_list) {
         if (rnp_key_matches_search(key, &ctx->search) && (key->is_secret() == ctx->secret)) {
             return key;
         }

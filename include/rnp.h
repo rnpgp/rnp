@@ -35,7 +35,6 @@
 #include "types.h"
 #include "pass-provider.h"
 #include "key-provider.h"
-#include "list.h"
 #include "crypto/rng.h"
 #include <rnp/rnp_def.h>
 #include "utils.h"
