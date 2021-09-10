@@ -40,75 +40,8 @@
 #include <list>
 #include <map>
 #include <unordered_map>
-
-typedef enum {
-    KBX_EMPTY_BLOB = 0,
-    KBX_HEADER_BLOB = 1,
-    KBX_PGP_BLOB = 2,
-    KBX_X509_BLOB = 3
-} kbx_blob_type;
-
-typedef struct {
-    uint32_t      length;
-    kbx_blob_type type;
-
-    uint8_t *image;
-} kbx_blob_t;
-
-typedef struct {
-    kbx_blob_t blob;
-    uint8_t    version;
-    uint16_t   flags;
-    uint32_t   file_created_at;
-    uint32_t   last_maintenance_run;
-} kbx_header_blob_t;
-
-typedef struct {
-    uint8_t  fp[PGP_FINGERPRINT_SIZE];
-    uint32_t keyid_offset;
-    uint16_t flags;
-} kbx_pgp_key_t;
-
-typedef struct {
-    uint32_t offset;
-    uint32_t length;
-    uint16_t flags;
-    uint8_t  validity;
-} kbx_pgp_uid_t;
-
-typedef struct {
-    uint32_t expired;
-} kbx_pgp_sig_t;
-
-typedef struct {
-    kbx_blob_t blob;
-    uint8_t    version;
-    uint16_t   flags;
-    uint32_t   keyblock_offset;
-    uint32_t   keyblock_length;
-
-    uint16_t nkeys;
-    uint16_t keys_len;
-    list     keys; // list of kbx_pgp_key_t
-
-    uint16_t sn_size;
-    uint8_t *sn;
-
-    uint16_t nuids;
-    uint16_t uids_len;
-    list     uids; // list of kbx_pgp_uid_t
-
-    uint16_t nsigs;
-    uint16_t sigs_len;
-    list     sigs; // list of kbx_pgp_sig_t
-
-    uint8_t ownertrust;
-    uint8_t all_Validity;
-
-    uint32_t recheck_after;
-    uint32_t latest_timestamp;
-    uint32_t blob_created_at;
-} kbx_pgp_blob_t;
+#include <memory>
+#include "librekey/kbx_blob.hpp"
 
 /* Key import status. Order of elements is important. */
 typedef enum pgp_key_import_status_t {
@@ -133,10 +66,9 @@ typedef struct rnp_key_store_t {
     bool                   disable_validation =
       false; /* do not automatically validate keys, added to this key store */
 
-    std::list<pgp_key_t> keys;
-    pgp_key_fp_map_t     keybyfp;
-
-    list blobs = NULL; // list of kbx_blob_t
+    std::list<pgp_key_t>                     keys;
+    pgp_key_fp_map_t                         keybyfp;
+    std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
     ~rnp_key_store_t();
     rnp_key_store_t() : path(""), format(PGP_KEY_STORE_UNKNOWN){};
