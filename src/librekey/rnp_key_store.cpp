@@ -53,6 +53,7 @@
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
 #include "key_store_g10.h"
+#include "kbx_blob.hpp"
 
 #include "pgp-key.h"
 #include "fingerprint.h"
@@ -222,15 +223,7 @@ rnp_key_store_clear(rnp_key_store_t *keyring)
 {
     keyring->keybyfp.clear();
     keyring->keys.clear();
-    for (list_item *item = list_front(keyring->blobs); item; item = list_next(item)) {
-        kbx_blob_t *blob = *((kbx_blob_t **) item);
-        if (blob->type == KBX_PGP_BLOB) {
-            kbx_pgp_blob_t *pgpblob = (kbx_pgp_blob_t *) blob;
-            free_kbx_pgp_blob(pgpblob);
-        }
-        free(blob);
-    }
-    list_destroy(&keyring->blobs);
+    keyring->blobs.clear();
 }
 
 size_t
