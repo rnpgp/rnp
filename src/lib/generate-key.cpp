@@ -75,12 +75,12 @@ load_generated_g10_key(pgp_key_t *    dst,
                        pgp_key_t *    primary_key,
                        pgp_key_t *    pubkey)
 {
-    bool               ok = false;
-    pgp_dest_t         memdst = {};
-    pgp_source_t       memsrc = {};
-    rnp_key_store_t *  key_store = NULL;
-    list               key_ptrs = NULL; /* holds primary and pubkey, when used */
-    pgp_key_provider_t prov = {};
+    bool                     ok = false;
+    pgp_dest_t               memdst = {};
+    pgp_source_t             memsrc = {};
+    rnp_key_store_t *        key_store = NULL;
+    std::vector<pgp_key_t *> key_ptrs; /* holds primary and pubkey, when used */
+    pgp_key_provider_t       prov = {};
 
     // this should generally be zeroed
     assert(dst->type() == 0);
@@ -109,16 +109,19 @@ load_generated_g10_key(pgp_key_t *    dst,
     }
 
     // if this is a subkey, add the primary in first
-    if (primary_key && !list_append(&key_ptrs, &primary_key, sizeof(primary_key))) {
-        goto end;
-    }
-    // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
-    if (!list_append(&key_ptrs, &pubkey, sizeof(pubkey))) {
+    try {
+        if (primary_key) {
+            key_ptrs.push_back(primary_key);
+        }
+        // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
+        key_ptrs.push_back(pubkey);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         goto end;
     }
 
     prov.callback = rnp_key_provider_key_ptr_list;
-    prov.userdata = key_ptrs;
+    prov.userdata = &key_ptrs;
 
     if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
         goto end;
@@ -143,7 +146,6 @@ end:
     delete key_store;
     src_close(&memsrc);
     dst_close(&memdst, true);
-    list_destroy(&key_ptrs);
     return ok;
 }
 
