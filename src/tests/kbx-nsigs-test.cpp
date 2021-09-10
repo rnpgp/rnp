@@ -26,6 +26,7 @@
 
 #include <rnp/rnp.h>
 #include <librekey/key_store_kbx.h>
+#include <librekey/kbx_blob.hpp>
 #include "rnp_tests.h"
 
 #define BLOB_HEADER_SIZE 0x5
@@ -37,12 +38,6 @@ ru8(uint8_t *p)
     return (uint8_t) p[0];
 }
 
-static uint16_t
-ru16(uint8_t *p)
-{
-    return (uint16_t)(((uint8_t) p[0] << 8) | (uint8_t) p[1]);
-}
-
 static uint32_t
 ru32(uint8_t *p)
 {
@@ -52,184 +47,20 @@ ru32(uint8_t *p)
 
 // This is rnp_key_store_kbx_parse_header_blob() adjusted for test
 static void
-test_parse_header_blob(kbx_header_blob_t *first_blob)
+test_parse_header_blob(kbx_header_blob_t &first_blob)
 {
-    uint8_t *image = first_blob->blob.image;
-
-    image += BLOB_HEADER_SIZE;
-
-    assert_int_equal(first_blob->blob.length, BLOB_FIRST_SIZE);
-
-    first_blob->version = ru8(image);
-    image += 1;
-
-    assert_int_equal(first_blob->version, 1);
-
-    first_blob->flags = ru16(image);
-    image += 2;
-
-    // blob should contains a magic KBXf
-    assert_memory_equal(image, "KBXf", 4);
-
-    image += 3;
-
-    // RFU
-    image += 4;
-
-    first_blob->file_created_at = ru32(image);
-    image += 4;
-
-    first_blob->file_created_at = ru32(image + 15);
-    image += 4;
-
-    // RFU
-    image += 4;
-
-    // RFU
-    image += 4;
+    assert_int_equal(first_blob.length(), BLOB_FIRST_SIZE);
+    assert_true(first_blob.parse());
 }
 
 // This is rnp_key_store_kbx_parse_pgp_blob() adjusted for test
 static void
-test_parse_pgp_blob(kbx_pgp_blob_t *pgp_blob)
+test_parse_pgp_blob(kbx_pgp_blob_t &pgp_blob)
 {
-    int      i;
-    uint8_t *image = pgp_blob->blob.image;
-
-    image += BLOB_HEADER_SIZE;
-
-    pgp_blob->version = ru8(image);
-    image += 1;
-
-    assert_int_equal(pgp_blob->version, 1);
-
-    pgp_blob->flags = ru16(image);
-    image += 2;
-
-    pgp_blob->keyblock_offset = ru32(image);
-    image += 4;
-
-    pgp_blob->keyblock_length = ru32(image);
-    image += 4;
-
-    assert_false(pgp_blob->keyblock_offset > pgp_blob->blob.length ||
-                 pgp_blob->blob.length <
-                   (pgp_blob->keyblock_offset + pgp_blob->keyblock_length));
-
-    pgp_blob->nkeys = ru16(image);
-    image += 2;
-
-    assert_false(pgp_blob->nkeys < 1);
-
-    pgp_blob->keys_len = ru16(image);
-    image += 2;
-
-    assert_false(pgp_blob->keys_len < 28);
-
-    for (i = 0; i < pgp_blob->nkeys; i++) {
-        kbx_pgp_key_t nkey = {};
-
-        // copy fingerprint
-        memcpy(nkey.fp, image, 20);
-        image += 20;
-
-        nkey.keyid_offset = ru32(image);
-        image += 4;
-
-        nkey.flags = ru16(image);
-        image += 2;
-
-        // RFU
-        image += 2;
-
-        // skip padding bytes if it existed
-        image += (pgp_blob->keys_len - 28);
-
-        assert_non_null(list_append(&pgp_blob->keys, &nkey, sizeof(nkey)));
-    }
-
-    pgp_blob->sn_size = ru16(image);
-    image += 2;
-
-    assert_false(pgp_blob->sn_size > pgp_blob->blob.length - (image - pgp_blob->blob.image));
-
-    if (pgp_blob->sn_size > 0) {
-        pgp_blob->sn = (uint8_t *) malloc(pgp_blob->sn_size);
-        assert_non_null(pgp_blob->sn);
-
-        memcpy(pgp_blob->sn, image, pgp_blob->sn_size);
-        image += pgp_blob->sn_size;
-    }
-
-    pgp_blob->nuids = ru16(image);
-    image += 2;
-
-    pgp_blob->uids_len = ru16(image);
-    image += 2;
-
-    assert_false(pgp_blob->uids_len < 12);
-
-    for (i = 0; i < pgp_blob->nuids; i++) {
-        kbx_pgp_uid_t nuid = {};
-
-        nuid.offset = ru32(image);
-        image += 4;
-
-        nuid.length = ru32(image);
-        image += 4;
-
-        nuid.flags = ru16(image);
-        image += 2;
-
-        nuid.validity = ru8(image);
-        image += 1;
-
-        // RFU
-        image += 1;
-
-        // skip padding bytes if it existed
-        image += (pgp_blob->uids_len - 12);
-
-        assert_non_null(list_append(&pgp_blob->uids, &nuid, sizeof(nuid)));
-    }
-
-    pgp_blob->nsigs = ru16(image);
-    image += 2;
-
-    pgp_blob->sigs_len = ru16(image);
-    image += 2;
-
-    assert_false(pgp_blob->sigs_len < 4);
-
-    for (i = 0; i < pgp_blob->nsigs; i++) {
-        kbx_pgp_sig_t nsig = {};
-
-        nsig.expired = ru32(image);
-        image += 4;
-
-        // skip padding bytes if it existed
-        image += (pgp_blob->sigs_len - 4);
-
-        assert_non_null(list_append(&pgp_blob->sigs, &nsig, sizeof(nsig)));
-    }
-
-    pgp_blob->ownertrust = ru8(image);
-    image += 1;
-
-    pgp_blob->all_Validity = ru8(image);
-    image += 1;
-
-    // RFU
-    image += 2;
-
-    pgp_blob->recheck_after = ru32(image);
-    image += 4;
-
-    pgp_blob->latest_timestamp = ru32(image);
-    image += 4;
-
-    pgp_blob->blob_created_at = ru32(image);
-    image += 4;
+    assert_true(pgp_blob.parse());
+    assert_false(pgp_blob.keyblock_offset() > pgp_blob.length() ||
+                 pgp_blob.length() <
+                   (pgp_blob.keyblock_offset() + pgp_blob.keyblock_length()));
 }
 
 // This test ensures that NSIGS field of keybox PGP blob contains the total number of
@@ -277,13 +108,11 @@ TEST_F(rnp_tests, test_kbx_nsigs)
         assert_true(has_bytes >= BLOB_HEADER_SIZE);
         uint32_t blob_length = ru32(buf);
         assert_true(has_bytes >= blob_length);
-        kbx_blob_type type = (kbx_blob_type) ru8(buf + 4);
+        kbx_blob_type_t type = (kbx_blob_type_t) ru8(buf + 4);
         assert_int_equal(type, KBX_HEADER_BLOB);
-        kbx_header_blob_t header_blob = {};
-        header_blob.blob.image = buf;
-        header_blob.blob.length = blob_length;
-        header_blob.blob.type = type;
-        test_parse_header_blob(&header_blob);
+        std::vector<uint8_t> data(buf, buf + blob_length);
+        kbx_header_blob_t    header_blob(data);
+        test_parse_header_blob(header_blob);
         has_bytes -= blob_length;
         buf += blob_length;
     }
@@ -291,16 +120,13 @@ TEST_F(rnp_tests, test_kbx_nsigs)
         assert_true(has_bytes >= BLOB_HEADER_SIZE);
         uint32_t blob_length = ru32(buf);
         assert_true(has_bytes >= blob_length);
-        kbx_blob_type type = (kbx_blob_type) ru8(buf + 4);
+        kbx_blob_type_t type = (kbx_blob_type_t) ru8(buf + 4);
         assert_int_equal(type, KBX_PGP_BLOB);
-        kbx_pgp_blob_t pgp_blob = {};
-        pgp_blob.blob.image = buf;
-        pgp_blob.blob.length = blob_length;
-        pgp_blob.blob.type = type;
-        test_parse_pgp_blob(&pgp_blob);
-        assert_int_equal(pgp_blob.nkeys, 2); // key and subkey
-        assert_int_equal(pgp_blob.nsigs, 2); // key and subkey signatures
-        free_kbx_pgp_blob(&pgp_blob);
+        std::vector<uint8_t> data(buf, buf + blob_length);
+        kbx_pgp_blob_t       pgp_blob(data);
+        test_parse_pgp_blob(pgp_blob);
+        assert_int_equal(pgp_blob.nkeys(), 2); // key and subkey
+        assert_int_equal(pgp_blob.nsigs(), 2); // key and subkey signatures
         has_bytes -= blob_length;
         buf += blob_length;
     }
