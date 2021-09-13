@@ -40,7 +40,10 @@
 #include "pgp-key.h"
 #include <librepgp/stream-sig.h>
 
-#define BLOB_SIZE_LIMIT (5 * 1024 * 1024) // same limit with GnuPG 2.1
+/* same limit with GnuPG 2.1 */
+#define BLOB_SIZE_LIMIT (5 * 1024 * 1024)
+/* limit the number of keys/sigs/uids in the blob */
+#define BLOB_OBJ_LIMIT 0x8000
 
 #define BLOB_HEADER_SIZE 0x5
 #define BLOB_FIRST_SIZE 0x20
@@ -166,6 +169,10 @@ kbx_pgp_blob_t::parse()
         RNP_LOG("PGP blob should contains at least 1 key");
         return false;
     }
+    if (nkeys > BLOB_OBJ_LIMIT) {
+        RNP_LOG("Too many keys in the PGP blob");
+        return false;
+    }
 
     /* Size of the single key record */
     size_t keys_len = ru16(idx);
@@ -221,6 +228,11 @@ kbx_pgp_blob_t::parse()
         return false;
     }
     size_t nuids = ru16(idx);
+    if (nuids > BLOB_OBJ_LIMIT) {
+        RNP_LOG("Too many uids in the PGP blob");
+        return false;
+    }
+
     size_t uids_len = ru16(idx + 2);
     idx += 4;
 
@@ -261,6 +273,11 @@ kbx_pgp_blob_t::parse()
     }
 
     size_t nsigs = ru16(idx);
+    if (nsigs > BLOB_OBJ_LIMIT) {
+        RNP_LOG("Too many sigs in the PGP blob");
+        return false;
+    }
+
     size_t sigs_len = ru16(idx + 2);
     idx += 4;
 
