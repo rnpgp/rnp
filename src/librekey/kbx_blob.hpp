@@ -73,10 +73,10 @@ class kbx_blob_t {
 
 class kbx_header_blob_t : public kbx_blob_t {
   protected:
-    uint8_t  version_;
-    uint16_t flags_;
-    uint32_t file_created_at_;
-    uint32_t last_maintenance_run_;
+    uint8_t  version_{};
+    uint16_t flags_{};
+    uint32_t file_created_at_{};
+    uint32_t last_maintenance_run_{};
 
   public:
     kbx_header_blob_t(std::vector<uint8_t> &data) : kbx_blob_t(data){};
@@ -108,22 +108,22 @@ typedef struct {
 
 class kbx_pgp_blob_t : public kbx_blob_t {
   protected:
-    uint8_t  version_;
-    uint16_t flags_;
-    uint32_t keyblock_offset_;
-    uint32_t keyblock_length_;
+    uint8_t  version_{};
+    uint16_t flags_{};
+    uint32_t keyblock_offset_{};
+    uint32_t keyblock_length_{};
 
-    std::vector<uint8_t>       sn_;
-    std::vector<kbx_pgp_key_t> keys_;
-    std::vector<kbx_pgp_uid_t> uids_;
-    std::vector<kbx_pgp_sig_t> sigs_;
+    std::vector<uint8_t>       sn_{};
+    std::vector<kbx_pgp_key_t> keys_{};
+    std::vector<kbx_pgp_uid_t> uids_{};
+    std::vector<kbx_pgp_sig_t> sigs_{};
 
-    uint8_t ownertrust_;
-    uint8_t all_validity_;
+    uint8_t ownertrust_{};
+    uint8_t all_validity_{};
 
-    uint32_t recheck_after_;
-    uint32_t latest_timestamp_;
-    uint32_t blob_created_at_;
+    uint32_t recheck_after_{};
+    uint32_t latest_timestamp_{};
+    uint32_t blob_created_at_{};
 
   public:
     kbx_pgp_blob_t(std::vector<uint8_t> &data) : kbx_blob_t(data){};
