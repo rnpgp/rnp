@@ -399,6 +399,10 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
                     (int) BLOB_SIZE_LIMIT);
             return false;
         }
+        if (blob_length < BLOB_HEADER_SIZE) {
+            RNP_LOG("Too small blob header size");
+            return false;
+        }
         if (has_bytes < blob_length) {
             RNP_LOG("Blob have size %zu bytes but file contains only %zu bytes",
                     blob_length,
