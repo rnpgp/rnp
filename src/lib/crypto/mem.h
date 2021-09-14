@@ -41,8 +41,60 @@ namespace rnp {
 
 #if defined(CRYPTO_BACKEND_BOTAN)
 template <typename T> using secure_vector = Botan::secure_vector<T>;
+#elif defined(CRYPTO_BACKEND_OPENSSL)
+template <typename T> class ossl_allocator {
+  public:
+    static_assert(std::is_integral<T>::value, "T must be integer type");
+
+    typedef T           value_type;
+    typedef std::size_t size_type;
+
+    ossl_allocator() noexcept = default;
+    ossl_allocator(const ossl_allocator &) noexcept = default;
+    ossl_allocator &operator=(const ossl_allocator &) noexcept = default;
+    ~ossl_allocator() noexcept = default;
+
+    template <typename U> ossl_allocator(const ossl_allocator<U> &) noexcept
+    {
+    }
+
+    T *
+    allocate(std::size_t n)
+    {
+        if (!n) {
+            return nullptr;
+        }
+
+        /* attempt to use OpenSSL secure alloc */
+        T *ptr = static_cast<T *>(OPENSSL_secure_zalloc(n * sizeof(T)));
+        if (ptr) {
+            return ptr;
+        }
+        /* fallback to std::alloc if failed */
+        ptr = static_cast<T *>(std::calloc(n, sizeof(T)));
+        if (!ptr)
+            throw std::bad_alloc();
+        return ptr;
+    }
+
+    void
+    deallocate(T *p, std::size_t n)
+    {
+        if (!p) {
+            return;
+        }
+        if (CRYPTO_secure_allocated(p)) {
+            OPENSSL_secure_clear_free(p, n * sizeof(T));
+            return;
+        }
+        OPENSSL_cleanse(p, n * sizeof(T));
+        std::free(p);
+    }
+};
+
+template <typename T> using secure_vector = std::vector<T, ossl_allocator<T> >;
 #else
-template <typename T> using secure_vector = std::vector<T>;
+#error Unsupported backend.
 #endif
 
 template <typename T, std::size_t N> struct secure_array {
