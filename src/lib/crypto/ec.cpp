@@ -63,6 +63,10 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
         key->x.mpi[31 - i] = keyle[i];
     }
     key->x.len = 32;
+    /* botan doesn't tweak secret key bits, so we should do that here */
+    if (!x25519_tweak_bits(*key)) {
+        goto end;
+    }
 
     if (botan_pubkey_x25519_get_pubkey(pu_key, &key->p.mpi[1])) {
         goto end;

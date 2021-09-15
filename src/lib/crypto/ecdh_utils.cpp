@@ -142,3 +142,16 @@ ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id)
 
     return false;
 }
+
+bool
+x25519_tweak_bits(pgp_ec_key_t &key)
+{
+    if (key.x.len != 32) {
+        return false;
+    }
+    /* MPI is big-endian, while raw x25519 key is little-endian */
+    key.x.mpi[31] &= 248; // zero 3 low bits
+    key.x.mpi[0] &= 127;  // zero high bit
+    key.x.mpi[0] |= 64;   // set high - 1 bit
+    return true;
+}
