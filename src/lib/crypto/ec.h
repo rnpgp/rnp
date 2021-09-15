@@ -152,4 +152,13 @@ rnp_result_t ec_generate(rng_t *                rng,
  */
 rnp_result_t x25519_generate(rng_t *rng, pgp_ec_key_t *key);
 
+/**
+ * @brief Set least significant/most significant bits of the 25519 secret key as per
+ *        specification.
+ *
+ * @param key secret key.
+ * @return true on success or false otherwise.
+ */
+bool x25519_tweak_bits(pgp_ec_key_t &key);
+
 #endif

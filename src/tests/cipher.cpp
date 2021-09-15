@@ -196,6 +196,11 @@ TEST_F(rnp_tests, rnp_test_x25519)
     key_desc.ecc.curve = PGP_CURVE_25519;
 
     assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    /* check for length and correctly tweaked bits */
+    assert_int_equal(seckey.material.ec.x.len, 32);
+    assert_int_equal(seckey.material.ec.x.mpi[31] & 7, 0);
+    assert_int_equal(seckey.material.ec.x.mpi[0] & 128, 0);
+    assert_int_equal(seckey.material.ec.x.mpi[0] & 64, 64);
     assert_rnp_success(pgp_fingerprint(fp, seckey));
     assert_rnp_success(
       ecdh_encrypt_pkcs5(&global_rng, &enc, in, sizeof(in), &seckey.material.ec, fp));
