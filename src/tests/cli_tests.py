@@ -294,7 +294,6 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     if ret != 0:
         raise_err('rsa key generation failed', err)
 
-
 def rnp_params_insert_z(params, pos, z):
     if z:
         if len(z) > 0 and z[0] != None:
@@ -2774,6 +2773,43 @@ class Encryption(unittest.TestCase):
             rnp_decrypt_file(dst, dec, multiple_pass_attempts)
             compare_files(src, dec, 'rnp decrypted data differs')
             remove_files(dec)
+        # Cleanup
+        clear_workfiles()
+
+    def test_encryption_x25519(self):
+        # Generate
+        pipe = pswd_pipe(PASSWORD)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid',
+                                      'eddsa_25519', '--generate-key', '--expert'], '22\n')
+        os.close(pipe)
+        self.assertEqual(ret, 0)
+        # Export
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export', '--secret', 'eddsa_25519'])
+        self.assertEqual(ret, 0)
+        # Import key with GPG
+        ret, out, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import'], out)
+        self.assertEqual(ret, 0)
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
+        # Generate random file of required size
+        random_text(src, 1000)
+        # Encrypt and sign with RNP
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '-es', '-r', 'eddsa_25519', '-u', 
+                                     'eddsa_25519', '--password', PASSWORD, src, '--output', dst, '--armor'])
+        # Decrypt and verify with RNP
+        rnp_decrypt_file(dst, dec, 'password')
+        self.assertEqual(file_text(src), file_text(dec))
+        remove_files(dec)
+        # Decrypt and verify with GPG
+        gpg_decrypt_file(dst, dec, 'password')
+        self.assertEqual(file_text(src), file_text(dec))
+        remove_files(dst, dec)
+        # Encrypt and sign with GnuPG
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--always-trust', '-r', 'eddsa_25519',
+                             '-u', 'eddsa_25519', '--output', dst, '-es', src])
+        self.assertEqual(ret, 0)
+        # Decrypt and verify with RNP
+        rnp_decrypt_file(dst, dec, 'password')
+        self.assertEqual(file_text(src), file_text(dec))
         # Cleanup
         clear_workfiles()
 
