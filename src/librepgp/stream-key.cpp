@@ -1016,8 +1016,9 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         for (size_t idx = 0; idx < len; idx++) {
             sum += mpis[idx];
         }
-        if (sum != read_uint16(mpis + len)) {
-            RNP_LOG("wrong key checksum");
+        uint16_t expsum = read_uint16(mpis + len);
+        if (sum != expsum) {
+            RNP_LOG("Wrong key checksum, got 0x%X instead of 0x%X.", (int) sum, (int) expsum);
             return RNP_ERROR_DECRYPT_FAILED;
         }
         break;
