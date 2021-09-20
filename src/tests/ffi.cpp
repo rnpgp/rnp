@@ -5839,6 +5839,15 @@ TEST_F(rnp_tests, test_ffi_malformed_keys_import)
     assert_true(secret);
     assert_rnp_success(rnp_key_handle_destroy(key));
 
+    /* import unprotected secret key with wrong crc */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_false(
+      import_sec_keys(ffi, "data/test_key_edge_cases/key-25519-tweaked-wrong-crc.asc"));
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+
     /* cleanup */
     rnp_ffi_destroy(ffi);
 }
