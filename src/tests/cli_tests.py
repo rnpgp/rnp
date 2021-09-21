@@ -2778,29 +2778,40 @@ class Encryption(unittest.TestCase):
 
     def test_encryption_x25519(self):
         # Make sure that we support import and decryption using both tweaked and non-tweaked keys
-        ret, _, out = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_edge_cases/key-25519-non-tweaked-sec.asc')])
+        KEY_IMPORT = r'(?s)^.*' \
+        r'sec.*255/EdDSA.*3176fc1486aa2528.*' \
+        r'uid.*eddsa-25519-non-tweaked.*' \
+        r'ssb.*255/ECDH.*950ee0cd34613dba.*$'
+        BITS_MSG = r'(?s)^.*Warning: bits of 25519 secret key are not tweaked.*$'
+
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_edge_cases/key-25519-non-tweaked-sec.asc')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
+        self.assertRegex(out, KEY_IMPORT)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'eddsa-25519-non-tweaked', '--force'])
+        self.assertRegex(err, BITS_MSG)
+        self.assertRegex(err, r'(?s)^.*Signature\(s\) verified successfully.*$')
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'eddsa-25519-non-tweaked', '--force'])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_edge_cases/key-25519-tweaked-sec.asc')])
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_edge_cases/key-25519-tweaked-sec.asc')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
+        self.assertRegex(out, KEY_IMPORT)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'eddsa-25519-non-tweaked', '--force'])
+        self.assertNotRegex(err, BITS_MSG)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'eddsa-25519-non-tweaked', '--force'])
         self.assertEqual(ret, 0)
         # Due to issue in GnuPG it reports successfull import of non-tweaked secret key in batch mode
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_edge_cases/key-25519-non-tweaked-sec.asc')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertNotEqual(ret, 0)
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         # Make sure GPG imports tweaked key and successfully decrypts message
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_edge_cases/key-25519-tweaked-sec.asc')])
         self.assertEqual(ret, 0)
-        ret, _, out = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
         # Generate
         pipe = pswd_pipe(PASSWORD)

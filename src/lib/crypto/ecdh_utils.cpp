@@ -155,3 +155,12 @@ x25519_tweak_bits(pgp_ec_key_t &key)
     key.x.mpi[0] |= 64;   // set high - 1 bit
     return true;
 }
+
+bool
+x25519_bits_tweaked(pgp_ec_key_t &key)
+{
+    if (key.x.len != 32) {
+        return false;
+    }
+    return !(key.x.mpi[31] & 7) && (key.x.mpi[0] < 128) && (key.x.mpi[0] >= 64);
+}
