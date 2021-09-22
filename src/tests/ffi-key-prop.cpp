@@ -159,3 +159,93 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_key_25519_tweaked_bits)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* try public key */
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-25519-non-tweaked.asc"));
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "950EE0CD34613DBA", &sub));
+    bool tweaked = true;
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(NULL, &tweaked));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(sub, NULL));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_rnp_failure(rnp_key_25519_bits_tweak(NULL));
+    assert_rnp_failure(rnp_key_25519_bits_tweak(sub));
+    rnp_key_handle_destroy(sub);
+    /* load secret key */
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/key-25519-non-tweaked-sec.asc"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "950EE0CD34613DBA", &sub));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(NULL, &tweaked));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(sub, NULL));
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_false(tweaked);
+    /* protect key and try again */
+    assert_rnp_success(rnp_key_protect(sub, "password", NULL, NULL, NULL, 100000));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    tweaked = true;
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_false(tweaked);
+    assert_rnp_success(rnp_key_lock(sub));
+    assert_rnp_failure(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    /* now let's tweak it */
+    assert_rnp_failure(rnp_key_25519_bits_tweak(NULL));
+    assert_rnp_failure(rnp_key_25519_bits_tweak(sub));
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    assert_rnp_failure(rnp_key_25519_bits_tweak(sub));
+    assert_rnp_success(rnp_key_unprotect(sub, "password"));
+    assert_rnp_success(rnp_key_25519_bits_tweak(sub));
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_true(tweaked);
+    /* export unprotected key */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "3176FC1486AA2528", &key));
+    auto clearsecdata = export_key(key, true, true);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_key_protect(sub, "password", NULL, NULL, NULL, 100000));
+    rnp_key_handle_destroy(sub);
+    /* make sure it is exported and saved tweaked and protected */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "3176FC1486AA2528", &key));
+    auto secdata = export_key(key, true, true);
+    rnp_key_handle_destroy(key);
+    reload_keyrings(&ffi);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "950EE0CD34613DBA", &sub));
+    bool prot = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &prot));
+    assert_true(prot);
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    tweaked = false;
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_true(tweaked);
+    rnp_key_handle_destroy(sub);
+    rnp_ffi_destroy(ffi);
+    /* import cleartext exported key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, clearsecdata.data(), clearsecdata.size()));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "950EE0CD34613DBA", &sub));
+    prot = true;
+    assert_rnp_success(rnp_key_is_protected(sub, &prot));
+    assert_false(prot);
+    tweaked = false;
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_true(tweaked);
+    rnp_key_handle_destroy(sub);
+    rnp_ffi_destroy(ffi);
+    /* import exported key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, secdata.data(), secdata.size()));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "950EE0CD34613DBA", &sub));
+    prot = false;
+    assert_rnp_success(rnp_key_is_protected(sub, &prot));
+    assert_true(prot);
+    assert_rnp_success(rnp_key_unlock(sub, "password"));
+    tweaked = false;
+    assert_rnp_success(rnp_key_25519_bits_tweaked(sub, &tweaked));
+    assert_true(tweaked);
+    rnp_key_handle_destroy(sub);
+    rnp_ffi_destroy(ffi);
+}
