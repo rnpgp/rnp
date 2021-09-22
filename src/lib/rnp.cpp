@@ -3955,6 +3955,45 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_25519_bits_tweaked(rnp_key_handle_t key, bool *result)
+try {
+    if (!key || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *seckey = get_key_require_secret(key);
+    if (!seckey || seckey->is_locked() || (seckey->alg() != PGP_PKA_ECDH) ||
+        (seckey->curve() != PGP_CURVE_25519)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = x25519_bits_tweaked(seckey->material().ec);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_25519_bits_tweak(rnp_key_handle_t key)
+try {
+    if (!key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *seckey = get_key_require_secret(key);
+    if (!seckey || seckey->is_protected() || (seckey->alg() != PGP_PKA_ECDH) ||
+        (seckey->curve() != PGP_CURVE_25519)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!x25519_tweak_bits(seckey->pkt().material.ec)) {
+        FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
+        return RNP_ERROR_BAD_STATE;
+    }
+    if (!seckey->write_sec_rawpkt(seckey->pkt(), "")) {
+        FFI_LOG(key->ffi, "Failed to update rawpkt.");
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_remove(rnp_key_handle_t key, uint32_t flags)
 try {
     if (!key || !key->ffi) {

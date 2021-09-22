@@ -168,6 +168,6 @@ bool x25519_tweak_bits(pgp_ec_key_t &key);
  * @param key secret key.
  * @return true if bits are set correctly, and false otherwise.
  */
-bool x25519_bits_tweaked(pgp_ec_key_t &key);
+bool x25519_bits_tweaked(const pgp_ec_key_t &key);
 
 #endif

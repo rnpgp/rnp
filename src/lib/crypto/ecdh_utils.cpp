@@ -157,7 +157,7 @@ x25519_tweak_bits(pgp_ec_key_t &key)
 }
 
 bool
-x25519_bits_tweaked(pgp_ec_key_t &key)
+x25519_bits_tweaked(const pgp_ec_key_t &key)
 {
     if (key.x.len != 32) {
         return false;
