@@ -171,9 +171,6 @@ struct pgp_key_t {
     void          validate_primary(rnp_key_store_t &keyring);
     void          merge_validity(const pgp_validity_t &src);
     uint64_t      valid_till_common(bool expiry) const;
-    /** @brief helper function: write secret key data to the rawpkt, encrypting with password
-     */
-    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password);
     bool write_sec_pgp(pgp_dest_t &dst, pgp_key_pkt_t &seckey, const std::string &password);
 
   public:
@@ -286,6 +283,8 @@ struct pgp_key_t {
     pgp_rawpacket_t &      rawpkt();
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
+    /** @brief write secret key data to the rawpkt, optionally encrypting with password */
+    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password);
 
     /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
      *signing/decryption. Note: Key locking does not apply to unprotected keys.
