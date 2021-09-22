@@ -957,6 +957,34 @@ RNP_API rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
                                     const char *     code,
                                     const char *     reason);
 
+/**
+ * @brief Check whether Curve25519 secret key's bits are correctly set, i.e. 3 least
+ *        significant bits are zero and key is exactly 255 bits in size. See RFC 7748, section
+ *        5 for the details. RNP interpreted RFC requirements in the way that Curve25519 secret
+ *        key is random 32-byte string, which bits are correctly tweaked afterwards within
+ *        secret key operation. However, for compatibility reasons, it would be more correct to
+ *        store/transfer secret key with bits already tweaked.
+ *
+ *        Note: this operation requires unlocked secret key, so make sure to call
+ *        rnp_key_lock() afterwards.
+ *
+ * @param key key handle, cannot be NULL. Must be ECDH Curve25519 unlocked secret key.
+ * @param result resulting value will be stored here, cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_25519_bits_tweaked(rnp_key_handle_t key, bool *result);
+
+/**
+ * @brief Make sure Curve25519 secret key's least significant and most significant bits are
+ *        correctly set, see rnp_key_25519_bits_tweaked() documentation for the details.
+ *        Note: this operation requires unprotected secret key since it would modify secret
+ *        key's data, so make sure to call rnp_key_protect() afterwards.
+ *
+ * @param key key handle, cannot be NULL. Must be ECDH Curve25519 unprotected secret key.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_25519_bits_tweak(rnp_key_handle_t key);
+
 /** remove a key from keyring(s)
  *  Note: you need to call rnp_save_keys() to write updated keyring(s) out.
  *        Other handles of the same key should not be used after this call.
