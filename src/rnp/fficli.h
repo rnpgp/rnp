@@ -36,10 +36,16 @@
 #include "rnpcfg.h"
 #include "json.h"
 
-typedef struct cli_rnp_t {
+class cli_rnp_t {
   private:
     rnp_cfg cfg_{};
     bool    load_keyring(bool secret);
+    bool    is_cv25519_subkey(rnp_key_handle_t handle);
+    bool    get_protection(rnp_key_handle_t handle,
+                           std::string &    hash,
+                           std::string &    cipher,
+                           size_t &         iterations);
+    bool    check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked);
 
   public:
     rnp_ffi_t ffi{};
@@ -91,7 +97,11 @@ typedef struct cli_rnp_t {
     {
         return cfg_;
     }
-} cli_rnp_t;
+
+    bool fix_cv25519_subkey(const std::string &key, bool checkonly = false);
+
+    bool edit_key(const std::string &key);
+};
 
 typedef enum cli_search_flags_t {
     CLI_SEARCH_SECRET = 1 << 0,     /* search secret keys only */
