@@ -23,6 +23,7 @@ typedef enum {
     CMD_EXPORT_REV,
     CMD_REVOKE_KEY,
     CMD_REMOVE_KEY,
+    CMD_EDIT_KEY,
     CMD_VERSION,
     CMD_HELP,
 
@@ -52,6 +53,8 @@ typedef enum {
     OPT_REV_REASON,
     OPT_PERMISSIVE,
     OPT_NOTTY,
+    OPT_FIX_25519_BITS,
+    OPT_CHK_25519_BITS,
 
     /* debug */
     OPT_DEBUG

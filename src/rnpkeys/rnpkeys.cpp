@@ -56,6 +56,7 @@ const char *usage = "-h, --help OR\n"
                     "\t--import, --import-keys, --import-sigs [options] OR\n"
                     "\t--list-keys [options] OR\n"
                     "\t--remove-key [options] OR\n"
+                    "\t--edit-key [options] OR\n"
                     "\t--version\n"
                     "where options are:\n"
                     "\t[--cipher=<cipher name>] AND/OR\n"
@@ -77,6 +78,8 @@ const char *usage = "-h, --help OR\n"
                     "\t[--userid=<userid>] AND/OR\n"
                     "\t[--expiration=<expiration>] AND/OR\n"
                     "\t[--rev-type, --rev-reason] AND/OR\n"
+                    "\t[--check-cv25519-bits] AND/OR\n"
+                    "\t[--fix-cv25519-bits] AND/OR\n"
                     "\t[--verbose]\n";
 
 struct option options[] = {
@@ -96,6 +99,7 @@ struct option options[] = {
   {"export-revocation", no_argument, NULL, CMD_EXPORT_REV},
   {"revoke-key", no_argument, NULL, CMD_REVOKE_KEY},
   {"remove-key", no_argument, NULL, CMD_REMOVE_KEY},
+  {"edit-key", no_argument, NULL, CMD_EDIT_KEY},
   /* debugging commands */
   {"help", no_argument, NULL, CMD_HELP},
   {"version", no_argument, NULL, CMD_VERSION},
@@ -129,6 +133,8 @@ struct option options[] = {
   {"rev-reason", required_argument, NULL, OPT_REV_REASON},
   {"permissive", no_argument, NULL, OPT_PERMISSIVE},
   {"notty", no_argument, NULL, OPT_NOTTY},
+  {"fix-cv25519-bits", no_argument, NULL, OPT_FIX_25519_BITS},
+  {"check-cv25519-bits", no_argument, NULL, OPT_CHK_25519_BITS},
   {NULL, 0, NULL, 0},
 };
 
@@ -414,6 +420,13 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
         }
         return cli_rnp_remove_key(rnp, f);
     }
+    case CMD_EDIT_KEY: {
+        if (!f) {
+            ERR_MSG("You need to specify a key or subkey to edit.");
+            return false;
+        }
+        return rnp->edit_key(f);
+    }
     case CMD_VERSION:
         print_praise();
         return true;
@@ -447,6 +460,7 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case CMD_EXPORT_REV:
     case CMD_REVOKE_KEY:
     case CMD_REMOVE_KEY:
+    case CMD_EDIT_KEY:
     case CMD_IMPORT:
     case CMD_IMPORT_KEYS:
     case CMD_IMPORT_SIGS:
@@ -627,6 +641,12 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_NOTTY:
         cfg.set_bool(CFG_NOTTY, true);
+        return true;
+    case OPT_FIX_25519_BITS:
+        cfg.set_bool(CFG_FIX_25519_BITS, true);
+        return true;
+    case OPT_CHK_25519_BITS:
+        cfg.set_bool(CFG_CHK_25519_BITS, true);
         return true;
     default:
         *cmd = CMD_HELP;
