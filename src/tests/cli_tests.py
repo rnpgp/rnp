@@ -2501,6 +2501,25 @@ class Misc(unittest.TestCase):
             self.assertRegex(err, CORE_DUMP)
             self.assertNotRegex(err, NO_CORE_DUMP)
 
+    def test_backend_version(self):
+        BOTAN_BACKEND_VERSION = r'(?s)^.*.' \
+        'Backend: Botan.*' \
+        'Backend version: ([a-zA-z\.0-9]+).*$'
+        OPENSSL_BACKEND_VERSION = r'(?s)^.*' \
+        'Backend: OpenSSL.*' \
+        'Backend version: ([a-zA-z\.0-9]+).*$'
+        ret, out, err = run_proc(RNP, ['--version'])
+        self.assertEqual(ret, 0)
+        match = re.match(BOTAN_BACKEND_VERSION, out);
+        backend_prog = 'botan'
+        if not match:
+            match = re.match(OPENSSL_BACKEND_VERSION, out);
+            backend_prog = 'openssl'
+        self.assertTrue(match)
+        ret, out, err = run_proc(backend_prog, ['version'])
+        self.assertEqual(ret, 0)
+        self.assertIn(match.group(1), out)
+
     def test_wrong_mpi_bit_count(self):
         WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'
         # Make sure message is not displayed on normal keys
