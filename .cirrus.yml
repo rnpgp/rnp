@@ -16,7 +16,10 @@ task:
   user_setup_script: |
     # workaround 'pkg: repository meta has wrong version 2'
     env ASSUME_ALWAYS_YES=yes pkg bootstrap -f
-    pkg install -y sudo
+    # FreeBSD 12.2 has sudo 1.9.3.p, while current 1.9.8 has bug which prevents CI to run:
+    # sudo: (null): option "passprompt_override" does not take a value
+    # sudo: error initializing audit plugin sudoers_audit
+    #pkg install -y sudo
     # Use bash for the CI scripts
     pkg install -y bash
     # add rnpuser
