@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -25,34 +25,16 @@
  */
 
 #include <rnp/rnp.h>
-#include "stdio.h"
+#include "rnp_tests.h"
+#include "support.h"
+#include <librepgp/stream-write.h>
 
-#ifdef RNP_RUN_TESTS
-int verify_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
-int
-verify_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#else
-int
-LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
-#endif
+extern "C" int verify_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
+
+#define DATA_PATH "data/test_fuzz_verify/"
+
+TEST_F(rnp_tests, test_fuzz_verify)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_output_t output = NULL;
-    rnp_result_t ret;
-
-    ret = rnp_ffi_create(&ffi, "GPG", "GPG");
-    ret = rnp_input_from_memory(&input, data, size, false);
-    ret = rnp_output_to_null(&output);
-
-    rnp_op_verify_t op = NULL;
-    ret = rnp_op_verify_create(&op, ffi, input, output);
-    ret = rnp_op_verify_execute(op);
-    ret = rnp_op_verify_destroy(op);
-
-    rnp_input_destroy(input);
-    rnp_output_destroy(output);
-    rnp_ffi_destroy(ffi);
-
-    return 0;
+    auto data = file_to_vec(DATA_PATH "timeout-25b8c9d824c8eb492c827689795748298a2b0a46");
+    assert_int_equal(verify_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
