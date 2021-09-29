@@ -1878,6 +1878,8 @@ get_aead_src_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
     return src_read_eq(src, hdr->iv, hdr->ivlen);
 }
 
+#define MAX_RECIPIENTS 16384
+
 static rnp_result_t
 encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 {
@@ -1886,6 +1888,10 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     try {
         bool stop = false;
         while (!stop) {
+            if (param->pubencs.size() + param->symencs.size() > MAX_RECIPIENTS) {
+                RNP_LOG("Too many recipients of the encrypted message. Aborting.");
+                return RNP_ERROR_BAD_STATE;
+            }
             uint8_t ptag;
             if (!src_peek_eq(param->pkt.readsrc, &ptag, 1)) {
                 RNP_LOG("failed to read packet header");
