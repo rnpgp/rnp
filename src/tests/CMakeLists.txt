@@ -82,6 +82,7 @@ add_executable(rnp_tests
   ../fuzzing/keyimport.c
   ../fuzzing/dump.c
   ../fuzzing/verify_detached.c
+  ../fuzzing/verify.c
   cipher.cpp
   cipher_cxx.cpp
   cli.cpp
@@ -125,6 +126,7 @@ add_executable(rnp_tests
   fuzz_keyimport.cpp
   fuzz_dump.cpp
   fuzz_verify_detached.cpp
+  fuzz_verify.cpp
 )
 if(MSVC)
   find_package(WindowsSDK)
