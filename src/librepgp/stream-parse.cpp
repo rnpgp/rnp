@@ -895,6 +895,8 @@ signed_src_close(pgp_source_t *src)
     src->param = NULL;
 }
 
+#define MAX_SIGNATURES 16384
+
 static rnp_result_t
 signed_read_single_signature(pgp_source_signed_param_t *param,
                              pgp_source_t *             readsrc,
@@ -909,6 +911,11 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
     int ptype = get_packet_type(ptag);
     if (ptype != PGP_PKT_SIGNATURE) {
         RNP_LOG("unexpected packet %d", ptype);
+        return RNP_ERROR_BAD_FORMAT;
+    }
+
+    if (param->siginfos.size() >= MAX_SIGNATURES) {
+        RNP_LOG("Too many signatures in the stream.");
         return RNP_ERROR_BAD_FORMAT;
     }
 
@@ -2245,6 +2252,11 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
         ptype = get_packet_type(ptag);
 
         if (ptype == PGP_PKT_ONE_PASS_SIG) {
+            if (param->onepasses.size() >= MAX_SIGNATURES) {
+                RNP_LOG("Too many one-pass signatures.");
+                errcode = RNP_ERROR_BAD_FORMAT;
+                goto finish;
+            }
             pgp_one_pass_sig_t onepass;
             try {
                 errcode = onepass.parse(*readsrc);

@@ -41,4 +41,7 @@ TEST_F(rnp_tests, test_fuzz_verify_detached)
 
     data = file_to_vec(DATA_PATH "outofmemory-23094cb781b2cf6d1749ebac8bd0576e51440498-z");
     assert_int_equal(verify_detached_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "outofmemory-dea88a4aa4ab5fec1291446db702ee893d5559cf");
+    assert_int_equal(verify_detached_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
