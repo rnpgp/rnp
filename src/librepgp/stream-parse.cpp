@@ -1131,6 +1131,7 @@ cleartext_parse_headers(pgp_source_t *src)
             for (const auto &token : tokens) {
                 if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
                     RNP_LOG("unknown halg: %s", token.c_str());
+                    continue;
                 }
                 add_hash_for_sig(param, PGP_SIG_TEXT, halg);
             }
@@ -1262,8 +1263,8 @@ cleartext_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 
         /* if line is larger then 4k then just dump it out */
         if ((bg == srcb) && !param->clr_eod) {
-            /* if last char is \r then do not dump it */
-            if ((en > bg) && (*(en - 1) == CH_CR)) {
+            /* if last char is \r, and it's not the end of stream, then do not dump it */
+            if ((en > bg) && (*(en - 1) == CH_CR) && (read > 1)) {
                 en--;
             }
             cleartext_process_line(src, bg, en - bg, false);
