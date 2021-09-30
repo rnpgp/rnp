@@ -43,7 +43,7 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (secret && mpi_bytes(&key->x) != 32) {
+    if (secret && mpi_bytes(&key->x) > 32) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     return RNP_SUCCESS;

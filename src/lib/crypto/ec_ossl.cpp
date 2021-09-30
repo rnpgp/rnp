@@ -166,12 +166,12 @@ ec_load_raw_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, int nid)
         return evpkey;
     }
 
-    if (keyx->len != 32) {
-        RNP_LOG("Invalid 25519 secret key");
-        return NULL;
-    }
     EVP_PKEY *evpkey = NULL;
     if (nid == EVP_PKEY_X25519) {
+        if (keyx->len != 32) {
+            RNP_LOG("Invalid 25519 secret key");
+            return NULL;
+        }
         /* need to reverse byte order since in mpi we have big-endian */
         rnp::secure_array<uint8_t, 32> prkey;
         for (int i = 0; i < 32; i++) {
@@ -179,7 +179,14 @@ ec_load_raw_key(const pgp_mpi_t &keyp, const pgp_mpi_t *keyx, int nid)
         }
         evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), keyx->len);
     } else {
-        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, keyx->mpi, keyx->len);
+        if (keyx->len > 32) {
+            RNP_LOG("Invalid Ed25519 secret key");
+            return NULL;
+        }
+        /* keyx->len may be smaller then 32 as high byte is random and could become 0 */
+        rnp::secure_array<uint8_t, 32> prkey{};
+        memcpy(prkey.data() + 32 - keyx->len, keyx->mpi, keyx->len);
+        evpkey = EVP_PKEY_new_raw_private_key(nid, NULL, prkey.data(), 32);
     }
     if (!evpkey) {
         RNP_LOG("Failed to load private key: %lu", ERR_peek_last_error());
