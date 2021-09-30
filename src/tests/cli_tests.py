@@ -2476,7 +2476,7 @@ class Misc(unittest.TestCase):
             self.assertNotRegex(err, NO_CORE_DUMP)
 
     def test_wrong_mpi_bit_count(self):
-        WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'        
+        WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'
         # Make sure message is not displayed on normal keys
         ret, _, err = run_proc(RNP, ['--list-packets', data_path('keyrings/1/pubring.gpg')])
         self.assertEqual(ret, 0)
@@ -2485,6 +2485,42 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--list-packets', data_path('test_key_edge_cases/alice-wrong-mpi-bit-count.pgp')])
         self.assertEqual(ret, 0)
         self.assertRegex(err, WRONG_MPI_BITS)
+
+    def test_eddsa_small_x(self):
+        os.rename(RNPDIR, RNPDIR + '-old')
+        home = os.environ['HOME']
+        os.environ['HOME'] = WORKDIR
+        try:
+            if os.path.isdir(RNPDIR):
+                raise_err('.rnp directory should not exists')
+            src, sig, ver = reg_workfiles('source', '.txt', '.txt.pgp', '.dec')
+            random_text(src, 2000)
+            # load just public key and verify pre-signed message
+            ret, _, _ = run_proc(RNPK, ['--import', data_path('test_key_edge_cases/key-eddsa-small-x-pub.asc')])
+            self.assertEqual(ret, 0)
+            ret, _, err = run_proc(RNP, ['--verify', data_path('test_messages/message.txt.sign-small-eddsa-x')])
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Good signature made .*using EdDSA key 7bc55b9bdce36e18.*$')
+            # load secret key and sign message
+            ret, out, _ = run_proc(RNPK, ['--import', data_path('test_key_edge_cases/key-eddsa-small-x-sec.asc')])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out, r'(?s)^.*sec.*255/EdDSA.*7bc55b9bdce36e18.*eddsa_small_x.*ssb.*c6c35ea115368a0b.*$')
+            ret, _, _ = run_proc(RNP, ['--password', PASSWORD, '--sign', src, '--output', sig])
+            self.assertEqual(ret, 0)
+            # verify back
+            ret, _, err = run_proc(RNP, ['--verify', sig, '--output', ver])
+            self.assertEqual(ret, 0)
+            self.assertEqual(file_text(src), file_text(ver))
+            self.assertRegex(err, r'(?s)^.*Good signature made .*using EdDSA key 7bc55b9bdce36e18.*$')
+            # verify back with GnuPG
+            os.remove(ver)
+            gpg_import_pubring(data_path('test_key_edge_cases/key-eddsa-small-x-pub.asc'))
+            gpg_verify_file(sig, ver, 'eddsa_small_x')
+        finally:
+            os.environ['HOME'] = home
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.rename(RNPDIR + '-old', RNPDIR)
+            clear_workfiles()
 
 class Encryption(unittest.TestCase):
     '''
