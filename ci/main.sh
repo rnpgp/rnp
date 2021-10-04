@@ -18,9 +18,9 @@ prepare_build_prerequisites() {
   CMAKE=cmake
 
   case "${OS}-${CPU}" in
-#    linux-i386)                                       #  For i386/Debian (the only 32 bit run) python3 is already installed by  
+#    linux-i386)                                       #  For i386/Debian (the only 32 bit run) python3 is already installed by
 #      build_and_install_python                        #  linux_install @ install_functions.inc.sh called from install_cacheable_dependencies.sh
-#      ;;                                              #  If there is a distribution that does not have python3 pre-apckeges (highly unlikely) 
+#      ;;                                              #  If there is a distribution that does not have python3 pre-apckeges (highly unlikely)
     linux-*)                                           #  it shall be implemented like ensure_cmake
       ensure_cmake
       ;;
@@ -36,11 +36,11 @@ prepare_test_env() {
 
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
-    export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
+    export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:${BOTAN_INSTALL}/bin:$PATH"
 
     if [[ "${CC}" = "clang" ]]; then
   # clang paths shall have higher priority
-  # we rely on GHA workflow and env-msys.inc.sh that set LDFLAGS, CFLAGS, CXXFLAGS at least to null strings 
+  # we rely on GHA workflow and env-msys.inc.sh that set LDFLAGS, CFLAGS, CXXFLAGS at least to null strings
       export PATH="/clang64/bin:$PATH"
       export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
   # clang 'wants' regex explicit as opposed to gcc that links to glibc by default
@@ -93,7 +93,7 @@ main() {
   pushd "${LOCAL_BUILDS}/rnp-build"
 
   cmakeopts=(
-    -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs. 
+    -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs.
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"

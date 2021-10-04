@@ -153,6 +153,7 @@ declare util_depedencies_yum=(
   sudo # NOTE: Needed to avoid "sudo: command not found"
   wget
   git
+  botan
 )
 
 declare basic_build_dependencies_yum=(
@@ -480,6 +481,7 @@ declare util_dependencies_deb=(
   wget
   git
   software-properties-common
+  botan
 )
 
 declare basic_build_dependencies_deb=(
