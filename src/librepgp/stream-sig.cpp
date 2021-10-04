@@ -1504,12 +1504,18 @@ pgp_signature_t::parse_v3(pgp_packet_body_t &pkt)
     return RNP_SUCCESS;
 }
 
+#define MAX_SUBPACKETS 64
+
 bool
 pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
 {
     bool res = true;
 
     while (len > 0) {
+        if (subpkts.size() >= MAX_SUBPACKETS) {
+            RNP_LOG("too many signature subpackets");
+            return false;
+        }
         if (len < 2) {
             RNP_LOG("got single byte %d", (int) *buf);
             return false;
@@ -1536,8 +1542,8 @@ pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
         }
 
         if (splen < 1) {
-            RNP_LOG("got subpacket with 0 length, skipping");
-            continue;
+            RNP_LOG("got subpacket with 0 length");
+            return false;
         }
 
         /* subpacket data */
