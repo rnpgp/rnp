@@ -36,7 +36,7 @@ prepare_test_env() {
 
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
-    export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
+    export PATH="${BOTAN_INSTALL}/bin:${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
   fi
 }
 

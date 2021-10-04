@@ -43,8 +43,8 @@ install_botan() {
 
     [[ -z "$CPU" ]] || cpuparam=(--cpu="$CPU" --disable-cc-tests)
 
-    local build_target=shared
-    is_use_static_dependencies && build_target=static
+    local build_target="shared,cli"
+    is_use_static_dependencies && build_target="static,cli"
 
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer -fPIC" \
       ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
