@@ -80,6 +80,7 @@ add_executable(rnp_tests
   ../fuzzing/keyring_g10.cpp
   ../fuzzing/keyring_kbx.c
   ../fuzzing/keyimport.c
+  ../fuzzing/sigimport.c
   ../fuzzing/dump.c
   ../fuzzing/verify_detached.c
   ../fuzzing/verify.c
@@ -124,6 +125,7 @@ add_executable(rnp_tests
   fuzz_keyring_g10.cpp
   fuzz_keyring_kbx.cpp
   fuzz_keyimport.cpp
+  fuzz_sigimport.cpp
   fuzz_dump.cpp
   fuzz_verify_detached.cpp
   fuzz_verify.cpp
