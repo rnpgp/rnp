@@ -53,7 +53,7 @@ class GpgRsaKeyFormatter(KeyFormatter):
         Subkey-Length: {1}
         Subkey-Usage: encrypt
         Name-Real: Test Testovich
-        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Preferences: aes256 aes512 sha256 sha384 sha512 sha1 zlib
         Name-Email: {2}"""
 
     def __init__(self):
@@ -71,7 +71,7 @@ class GpgDsaKeyFormatter(KeyFormatter):
         Subkey-Length: {1}
         Subkey-Usage: encrypt
         Name-Real: Test Testovich
-        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Preferences: aes256 aes512 sha256 sha384 sha512 sha1 zlib
         Name-Email: {2}
         """
 
