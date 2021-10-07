@@ -27,11 +27,13 @@ jobs:
       matrix:
         env:
           - BUILD_MODE: normal
-            CRYPTO_BACKEND: openssl
             RNP_TESTS: rnp_tests
           - BUILD_MODE: sanitize
-            CRYPTO_BACKEND: openssl
             RNP_TESTS: rnp_tests
+          - BUILD_MODE: normal
+            RNP_TESTS: cli_tests
+          - BUILD_MODE: sanitize
+            RNP_TESTS: cli_tests          
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -69,13 +71,6 @@ jobs:
       - name: tests
         run: |
           set -x
+          export CRYPTO_BACKEND=openssl
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
-      - name: Run chosen CLI tests
-        # Run some predefined, proven to work cli_tests.
-        run: |
-          set -ex
-          export RNP_TESTS_RNP_PATH="${RNP_INSTALL}/bin/rnp"
-          export RNP_TESTS_RNPKEYS_PATH="${RNP_INSTALL}/bin/rnpkeys"
-          export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib64:$LD_LIBRARY_PATH"
-          python3 src/tests/cli_tests.py -v -d Misc.test_eddsa_small_x
