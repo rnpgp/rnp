@@ -34,6 +34,11 @@ TESTS_SUCCEEDED = []
 TESTS_FAILED = []
 TEST_WORKFILES = []
 
+# Supported features
+RNP_TWOFISH = True
+RNP_BRAINPOOL = True
+RNP_AEAD = True
+
 if sys.version_info >= (3,):
     unichr = chr
 
@@ -818,6 +823,15 @@ def gpg_check_features():
     # Version 2.3.0 release or beta
     GPG_NO_OLD = not match.group(5) or (int(match.group(5)) >= 1598)
 
+def rnp_check_features():
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD
+    # Todo: improve this once automatic backend check will be available
+    if "CRYPTO_BACKEND" in os.environ and os.environ["CRYPTO_BACKEND"] == "openssl":
+        print('Detected OpenSSL backend.')
+        RNP_TWOFISH = False
+        RNP_BRAINPOOL = False
+        RNP_AEAD = False
+
 def setup(loglvl):
     # Setting up directories.
     global RMWORKDIR, WORKDIR, RNPDIR, RNP, RNPK, GPG, GPGDIR, GPGHOME, GPGCONF
@@ -842,6 +856,7 @@ def setup(loglvl):
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
     gpg_check_features()
+    rnp_check_features()
     shutil.rmtree(GPGDIR, ignore_errors=True)
     os.mkdir(GPGDIR, 0o700)
 
@@ -1777,10 +1792,16 @@ class Misc(unittest.TestCase):
 
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
                                     '--list-keys'])
-        compare_file(path + 'test_stream_key_load_keys', out, 'g10 keyring key listing failed')
+        if RNP_BRAINPOOL:
+            self.assertEqual(file_text(path + 'test_stream_key_load_keys'), out, 'g10 keyring key listing failed')
+        else:
+            self.assertEqual(file_text(path + 'test_stream_key_load_keys_no_bp'), out, 'g10 keyring key listing failed')
         _, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
                                     '-l', '--with-sigs'])
-        compare_file(path + 'test_stream_key_load_sigs', out, 'g10 keyring sig listing failed')
+        if RNP_BRAINPOOL:
+            self.assertEqual(file_text(path + 'test_stream_key_load_sigs'), out, 'g10 keyring sig listing failed')
+        else:
+            self.assertEqual(file_text(path + 'test_stream_key_load_sigs_no_bp'), out, 'g10 keyring sig listing failed')
         # Below are disabled until we have some kind of sorting which doesn't depend on
         # readdir order
         #_, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'),
@@ -1807,14 +1828,18 @@ class Misc(unittest.TestCase):
         compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
     def test_rnpkeys_g10_list_order(self):
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path(
-            'test_stream_key_load/g10'), '--list-keys'])
-        compare_file(data_path('test_cli_rnpkeys/g10_list_keys'), out, 'g10 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', data_path(
-            'test_stream_key_load/g10'), '--secret', '--list-keys'])
-        compare_file(data_path('test_cli_rnpkeys/g10_list_keys_sec'), out,
-                     'g10 secret key listing failed')
-        return
+        ret, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--list-keys'])
+        self.assertEqual(ret, 0)
+        if RNP_BRAINPOOL:
+            self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys')), out, 'g10 key listing failed')
+        else:
+            self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys_no_bp')), out, 'g10 key listing failed')
+        ret, out, _ = run_proc(RNPK, ['--homedir', data_path('test_stream_key_load/g10'), '--secret', '--list-keys'])
+        self.assertEqual(ret, 0)
+        if RNP_BRAINPOOL:
+            self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys_sec')), out, 'g10 secret key listing failed')
+        else:
+            self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys_sec_no_bp')), out, 'g10 secret key listing failed')
 
     def test_rnpkeys_g10_def_key(self):
         RE_SIG = r'(?s)^.*' \
