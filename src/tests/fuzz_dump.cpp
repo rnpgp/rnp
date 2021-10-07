@@ -39,4 +39,9 @@ TEST_F(rnp_tests, test_fuzz_dump)
     time_t start = time(NULL);
     assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
     assert_true(time(NULL) - start <= 1800);
+
+    data = file_to_vec(DATA_PATH "timeout-7e498daecad7ee646371a466d4a317c59fe7db89");
+    start = time(NULL);
+    assert_int_equal(dump_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+    assert_true(time(NULL) - start <= 30);
 }
