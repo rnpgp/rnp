@@ -1711,6 +1711,9 @@ class Misc(unittest.TestCase):
         hashes = ['SHA1', 'RIPEMD160', 'SHA256', 'SHA384', 'SHA512', 'SHA224']
         s2kmodes = [0, 1, 3]
 
+        if not RNP_TWOFISH:
+            ciphers.remove('TWOFISH')
+
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
             params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, 
                       '--s2k-digest-algo', hash_alg, '--batch', '--passphrase', PASSWORD,
@@ -2660,6 +2663,8 @@ class Encryption(unittest.TestCase):
         rnp_genkey_rsa('dummy2@rnp', 1024)
         gpg_import_pubring()
         gpg_import_secring()
+        if not RNP_TWOFISH:
+            Encryption.CIPHERS.remove('TWOFISH')
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
@@ -2693,8 +2698,13 @@ class Encryption(unittest.TestCase):
             rnp_sym_encryption_rnp_to_gpg(size, cipher, z)
 
     def test_sym_encryption__rnp_aead(self):
-        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128',
-                            'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        if not RNP_AEAD:
+            print('AEAD is not available for RNP - skipping.')
+            return
+        CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+        if not RNP_TWOFISH:
+            CIPHERS.remove('TWOFISH')
+        AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
         AEAD_M = list_upto([None, 'eax', 'ocb'], Encryption.RUNS)
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18,
                             24, 30, 40, 50, 56], Encryption.RUNS)
@@ -2718,7 +2728,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if GPG_AEAD:
+        if GPG_AEAD and RNP_AEAD:
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
         else:
             AEADS = list_upto([None], Encryption.RUNS)
@@ -2767,8 +2777,10 @@ class Encryption(unittest.TestCase):
         USERIDS = ['enc-sign1@rnp', 'enc-sign2@rnp', 'enc-sign3@rnp']
         KEYPASS = ['encsign1pass', 'encsign2pass', 'encsign3pass']
         PASSWORDS = ['password1', 'password2', 'password3']
-        AEAD_C = list_upto(['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128',
-                            'CAMELLIA192', 'CAMELLIA256'], Encryption.RUNS)
+        CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+        if not RNP_TWOFISH:
+            CIPHERS.remove('TWOFISH')
+        AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
             rnp_genkey_rsa(uid, 1024, pswd)
@@ -2780,7 +2792,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if GPG_AEAD:
+        if GPG_AEAD and RNP_AEAD:
             AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
         else:
             AEADS = list_upto([None], Encryption.RUNS)
@@ -3144,7 +3156,7 @@ class EncryptElgamal(Encrypt):
         Subkey-Usage: encrypt
         Name-Real: Test Testovich
         Expire-Date: 1y
-        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Preferences: aes256 sha256 sha384 sha512 sha1 zlib
         Name-Email: {2}
         """
 
@@ -3196,7 +3208,7 @@ class EncryptEcdh(Encrypt):
         Subkey-Curve: {0}
         Name-Real: Test Testovich
         Expire-Date: 1y
-        Preferences: twofish sha256 sha384 sha512 sha1 zlib
+        Preferences: aes256 sha256 sha384 sha512 sha1 zlib
         Name-Email: {1}"""
 
     RNP_GENERATE_ECDH_ECDSA_PATTERN = "19\n{0}\n"
