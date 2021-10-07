@@ -1224,7 +1224,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     /* do not allow endless recursion */
     if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
-        dst_printf(dst, ":too many OpenPGP packet layers, stopping.");
+        dst_printf(dst, ":too many OpenPGP packet layers, stopping.\n");
         ret = RNP_SUCCESS;
         goto finish;
     }
@@ -1299,15 +1299,18 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         case PGP_PKT_SE_DATA:
         case PGP_PKT_SE_IP_DATA:
         case PGP_PKT_AEAD_ENCRYPTED:
+            ctx->stream_pkts++;
             ret = stream_dump_encrypted(src, dst, hdr.tag);
             break;
         case PGP_PKT_ONE_PASS_SIG:
             ret = stream_dump_one_pass(src, dst);
             break;
         case PGP_PKT_COMPRESSED:
+            ctx->stream_pkts++;
             ret = stream_dump_compressed(ctx, src, dst);
             break;
         case PGP_PKT_LITDATA:
+            ctx->stream_pkts++;
             ret = stream_dump_literal(src, dst);
             break;
         case PGP_PKT_MARKER:
@@ -1325,6 +1328,13 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         if (ret) {
             RNP_LOG("failed to process packet");
+            goto finish;
+        }
+
+        if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
+            RNP_LOG("Too many OpenPGP stream packets during the dump.");
+            dst_printf(dst, ":too many OpenPGP stream packets, stopping.\n");
+            ret = RNP_SUCCESS;
             goto finish;
         }
     }
@@ -1368,6 +1378,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     ctx->layers = 0;
+    ctx->stream_pkts = 0;
     /* check whether source is cleartext - then skip till the signature */
     if (is_cleartext_source(src)) {
         dst_printf(dst, ":cleartext signed data\n");
@@ -1399,11 +1410,9 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         goto finish;
     }
     indent = true;
-
     indent_dest_set(&wrdst, 0);
 
     ret = stream_dump_packets_raw(ctx, src, &wrdst);
-
 finish:
     if (armored) {
         src_close(&armorsrc);
@@ -2385,15 +2394,18 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         case PGP_PKT_SE_DATA:
         case PGP_PKT_SE_IP_DATA:
         case PGP_PKT_AEAD_ENCRYPTED:
+            ctx->stream_pkts++;
             ret = stream_dump_encrypted_json(src, pkt, hdr.tag);
             break;
         case PGP_PKT_ONE_PASS_SIG:
             ret = stream_dump_one_pass_json(src, pkt);
             break;
         case PGP_PKT_COMPRESSED:
+            ctx->stream_pkts++;
             ret = stream_dump_compressed_json(ctx, src, pkt);
             break;
         case PGP_PKT_LITDATA:
+            ctx->stream_pkts++;
             ret = stream_dump_literal_json(src, pkt);
             break;
         case PGP_PKT_MARKER:
@@ -2416,6 +2428,12 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
+        if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
+            RNP_LOG("Too many OpenPGP stream packets during the dump.");
+            ret = RNP_SUCCESS;
+            goto done;
+        }
+
         pkt = NULL;
     }
 done:
