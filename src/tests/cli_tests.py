@@ -293,8 +293,8 @@ def clear_workfiles():
 
 def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     pipe = pswd_pipe(pswd)
-    ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd',
-                                  str(pipe), '--userid', userid, '--generate-key'])
+    ret, _, err = run_proc(RNPK, ['--numbits', str(bits), '--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                  '--notty', '--s2k-iterations', '50000', '--userid', userid, '--generate-key'])
     os.close(pipe)
     if ret != 0:
         raise_err('rsa key generation failed', err)
@@ -934,7 +934,7 @@ class Keystore(unittest.TestCase):
         # Open pipe for password
         pipe = pswd_pipe(PASSWORD)
         params = params + ['--homedir', RNPDIR, '--pass-fd', str(pipe), 
-                           '--userid', userid, '--generate-key']
+                           '--userid', userid, '--s2k-iterations', '50000', '--generate-key']
         # Run key generation
         ret, out, err = run_proc(RNPK, params)
         os.close(pipe)
@@ -2800,7 +2800,7 @@ class Encryption(unittest.TestCase):
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
-        random_text(src, 128000)
+        random_text(src, 65500)
 
         for i in range(0, Encryption.RUNS):
             signers = USERIDS[:SIGNERS[i]]
