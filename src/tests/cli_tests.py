@@ -2735,13 +2735,15 @@ class Encryption(unittest.TestCase):
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
-        random_text(src, 128000)
+        random_text(src, 65500)
 
         for kpswd, aead in zip(KEYPSWD, AEADS):
             keynum, pswdnum = kpswd
             if (keynum == 0) and (pswdnum == 0):
                 continue
-
+            # For CFB mode there is ~5% probability that GnuPG will attempt to decrypt 
+            # message's SESK with a wrong password, see T3795 on dev.gnupg.org
+            skipgpg = not aead and ((pswdnum > 1) or ((pswdnum > 0) and (keynum > 0)))
             uids = USERIDS[:keynum] if keynum else None
             pswds = PASSWORDS[:pswdnum] if pswdnum else None
 
@@ -2749,23 +2751,20 @@ class Encryption(unittest.TestCase):
 
             # Decrypt file with each of the keys, we have different password for each key
             for pswd in KEYPASS[:keynum]:
-                gpg_decrypt_file(dst, dec, pswd)
-                gpg_agent_clear_cache()
-                remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
-
-            # GPG decrypts only with first password, see T3795
-            if (not aead) and pswdnum:
-                gpg_decrypt_file(dst, dec, PASSWORDS[0])
-                gpg_agent_clear_cache
-                remove_files(dec)
-
-            # Decrypt file with each of the passwords
-            for pswd in PASSWORDS[:pswdnum]:
-                if aead:
+                if not skipgpg:
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
+                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                remove_files(dec)
+
+            # Decrypt file with each of the passwords (with gpg only first password is checked)
+            if skipgpg:
+                gpg_decrypt_file(dst, dec, PASSWORDS[0])
+                gpg_agent_clear_cache()
+                remove_files(dec)
+
+            for pswd in PASSWORDS[:pswdnum]:
                 rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
                 remove_files(dec)
 
@@ -2811,25 +2810,32 @@ class Encryption(unittest.TestCase):
             aead = AEADS[i]
             z = ZS[i]
             cipher = AEAD_C[i]
+            # For CFB mode there is ~5% probability that GnuPG will attempt to decrypt 
+            # message's SESK with a wrong password, see T3795 on dev.gnupg.org
+            skipgpg = not aead and ((pswdnum > 1) or ((pswdnum > 0) and (keynum > 0)))
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
                                       signpswd, aead, cipher, z)
             # Decrypt file with each of the keys, we have different password for each key
+
+
             for pswd in KEYPASS[:keynum]:
-                gpg_decrypt_file(dst, dec, pswd)
-                gpg_agent_clear_cache()
-                remove_files(dec)
+                if not skipgpg:
+                    gpg_decrypt_file(dst, dec, pswd)
+                    gpg_agent_clear_cache()
+                    remove_files(dec)
                 rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
+                remove_files(dec)
 
             # GPG decrypts only with first password, see T3795
-            if (not aead) and pswdnum:
+            if skipgpg and pswdnum:
                 gpg_decrypt_file(dst, dec, PASSWORDS[0])
                 gpg_agent_clear_cache
                 remove_files(dec)
 
             # Decrypt file with each of the passwords
             for pswd in PASSWORDS[:pswdnum]:
-                if aead:
+                if not skipgpg:
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
