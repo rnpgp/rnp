@@ -400,8 +400,14 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
+    /* OpenSSL doesn't care whether p < q */
+    if (BN_cmp(p, q) > 0) {
+        const bignum_t *tmp = p;
+        p = q;
+        q = tmp;
+    }
     /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse of q
-     * mod p */
+     * mod p, and doesn't care of p < q */
     bnctx = BN_CTX_new();
     u = BN_new();
     nq = BN_new();
@@ -409,9 +415,9 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
-    BN_with_flags(nq, RSA_get0_q(rsa), BN_FLG_CONSTTIME);
+    BN_with_flags(nq, q, BN_FLG_CONSTTIME);
     /* calculate inverse of p mod q */
-    if (!BN_mod_inverse(u, RSA_get0_p(rsa), nq, bnctx)) {
+    if (!BN_mod_inverse(u, p, nq, bnctx)) {
         bn_free(nq);
         RNP_LOG("Failed to calculate u");
         ret = RNP_ERROR_BAD_STATE;
