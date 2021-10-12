@@ -12,6 +12,8 @@ set -eux
 : "${DIST:=}"
 : "${DIST_VERSION:=}"
 
+: "${SKIP_TESTS:=0}"
+
 prepare_build_prerequisites() {
   CMAKE=cmake
 
@@ -69,7 +71,9 @@ build_tests() {
 }
 
 main() {
-  prepare_test_env
+  if [[ ${SKIP_TESTS} = 0 ]]; then
+    prepare_test_env
+  fi
   prepare_build_prerequisites
 
   export rnpsrc="$PWD"
@@ -83,7 +87,7 @@ main() {
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
   )
-
+  [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
   [[ "${BUILD_MODE}" = "sanitize" ]] && cmakeopts+=(-DENABLE_SANITIZERS=yes)
   [ -v "GTEST_SOURCES" ] && cmakeopts+=(-DGTEST_SOURCES="${GTEST_SOURCES}")
@@ -97,8 +101,13 @@ main() {
   build_rnp "${rnpsrc}"
   make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
 
-  prepare_tests
-  build_tests
+  echo "SKIP_TESTS=${SKIP_TESTS} cmakeopts=${cmakeopts[@]}"
+
+  if [[ ${SKIP_TESTS} = 0 ]]; then
+    echo "TESTS NOT SKIPPED"
+    prepare_tests
+    build_tests
+  fi
 }
 
 main "$@"
