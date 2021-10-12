@@ -259,6 +259,7 @@ install_static_noncacheable_build_dependencies_if_needed() {
 
 install_static_cacheable_build_dependencies_if_needed() {
   if is_use_static_dependencies || [[ "$#" -gt 0 ]]; then
+    USE_STATIC_DEPENDENCIES=true
     install_static_cacheable_build_dependencies "$@"
   fi
 }

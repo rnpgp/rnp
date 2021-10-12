@@ -42,8 +42,10 @@ install_botan() {
 
     [[ -z "$CPU" ]] || cpuparam=(--cpu="$CPU" --disable-cc-tests)
 
+    local build_target=$([ $USE_STATIC_DEPENDENCIES ] && echo "static" || echo "shared")
+
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer" \
-      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets=shared \
+      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets=${build_target} \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
@@ -80,7 +82,11 @@ install_jsonc() {
     autoreconf -ivf
     local cpuparam=()
     [[ -z "$CPU" ]] || cpuparam=(--build="$CPU")
-    env CFLAGS="-fPIC -fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} --prefix="${JSONC_INSTALL}"
+    local build_type_args=(
+        "--enable-$([ $USE_STATIC_DEPENDENCIES ] && echo 'static' || echo 'shared')"
+        "--disable-$([ $USE_STATIC_DEPENDENCIES ] && echo 'shared' || echo 'static')"
+    )
+    env CFLAGS="-fPIC -fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} ${build_type_args[@]} --prefix="${JSONC_INSTALL}"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
   fi
