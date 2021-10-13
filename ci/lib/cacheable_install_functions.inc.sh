@@ -84,8 +84,8 @@ install_jsonc() {
     local cpuparam=()
     [[ -z "$CPU" ]] || cpuparam=(--build="$CPU")
     local build_type_args=(
-        "--enable-$([ $USE_STATIC_DEPENDENCIES ] && echo 'static' || echo 'shared')"
-        "--disable-$([ $USE_STATIC_DEPENDENCIES ] && echo 'shared' || echo 'static')"
+        "--enable-$(is_use_static_dependencies && echo 'static' || echo 'shared')"
+        "--disable-$(is_use_static_dependencies && echo 'shared' || echo 'static')"
     )
     env CFLAGS="-fPIC -fno-omit-frame-pointer -Wno-implicit-fallthrough -g" ./configure ${cpuparam+"${cpuparam[@]}"} "${build_type_args[@]}" --prefix="${JSONC_INSTALL}"
     ${MAKE} -j"${MAKE_PARALLEL}" install
