@@ -1,3 +1,5 @@
+#!/usr/bin/env sh
+
 export PATH=/usr/local/bin:$PATH
 export MAKE=gmake
 export SUDO=sudo
