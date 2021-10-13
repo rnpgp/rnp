@@ -35,6 +35,7 @@ jobs:
       image: ${{ matrix.env.IMAGE }}
     timeout-minutes: 120
     strategy:
+      fail-fast: false
       matrix:
 # I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2 
 #       give error about OCI container [https://github.com/actions/checkout/issues/334]
@@ -43,7 +44,6 @@ jobs:
           - CPU: i386
             IMAGE: "i386/debian:9"
     env: ${{ matrix.env }}
-    continue-on-error: false
     steps:
       - name: Install prerequisites
         run: |

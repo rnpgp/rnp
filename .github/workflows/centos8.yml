@@ -31,6 +31,7 @@ jobs:
       image: centos:8
     timeout-minutes: 70
     strategy:
+      fail-fast: false
       matrix:
         env:
           - BUILD_MODE: normal
@@ -57,7 +58,6 @@ jobs:
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
     env: ${{ matrix.env }}
-    continue-on-error: true
     steps:
       - run: |
           yum -y install git
