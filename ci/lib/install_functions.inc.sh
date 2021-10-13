@@ -240,9 +240,10 @@ linux_install_centos8() {
 
 is_use_static_dependencies() {
   [[ -n "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ no  != "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ off != "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ 0   != "${USE_STATIC_DEPENDENCIES}" ]]
+    [[ no    != "${USE_STATIC_DEPENDENCIES}" ]] && \
+    [[ off   != "${USE_STATIC_DEPENDENCIES}" ]] && \
+    [[ false != "${USE_STATIC_DEPENDENCIES}" ]] && \
+    [[ 0     != "${USE_STATIC_DEPENDENCIES}" ]]
 }
 
 yum_install_dynamic_build_dependencies_if_needed() {
@@ -259,6 +260,7 @@ install_static_noncacheable_build_dependencies_if_needed() {
 
 install_static_cacheable_build_dependencies_if_needed() {
   if is_use_static_dependencies || [[ "$#" -gt 0 ]]; then
+    USE_STATIC_DEPENDENCIES=true
     install_static_cacheable_build_dependencies "$@"
   fi
 }
