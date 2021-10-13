@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 : "${LOCAL_BUILDS:=$HOME/local-builds}"
 : "${LOCAL_INSTALLS:=$HOME/local-installs}"
 : "${BOTAN_INSTALL:=$LOCAL_INSTALLS/botan-install}"
