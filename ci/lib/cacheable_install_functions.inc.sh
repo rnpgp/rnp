@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090
 # shellcheck disable=SC1091
+# shellcheck disable=SC2164
 #
 # All of the following functions install things into the
 # CACHE_DIR, so they could be safely skipped in case of a
@@ -104,6 +105,7 @@ _install_gpg() {
   local GNUPG_VERSION=$8
 
   local gpg_build="$PWD"
+  # shellcheck disable=SC2153
   local gpg_install="${GPG_INSTALL}"
   mkdir -p "${gpg_build}" "${gpg_install}"
   git clone --depth 1 https://github.com/rnpgp/gpg-build-scripts
@@ -202,10 +204,12 @@ install_gpg() {
   # gpg - for msys/windows we use shipped gpg2 version
   local gpg_build=${LOCAL_BUILDS}/gpg
 
+  # shellcheck disable=SC2153
   if [[ ! -e "${GPG_INSTALL}/bin/gpg" ]]; then
     mkdir -p "${gpg_build}"
     pushd "${gpg_build}"
 
+    # shellcheck disable=SC2153
     case "${GPG_VERSION}" in
       stable)
         #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg

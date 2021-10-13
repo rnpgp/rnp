@@ -1,3 +1,6 @@
+#!/usr/bin/env bash
+# shellcheck disable=SC2086,SC2129
+
 set -euxo pipefail
 # execute this script in a separate, early step
 
