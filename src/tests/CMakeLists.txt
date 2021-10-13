@@ -199,7 +199,7 @@ if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN
   if (DEFINED ENV{RUBY_RNP_INSTALL})
     set(_sourcedir "$ENV{RUBY_RNP_INSTALL}")
   endif()
-  set(_ruby_rnp_ver "master")
+  set(_ruby_rnp_ver "main")
   if (DEFINED ENV{RUBY_RNP_VERSION})
     set(_ruby_rnp_ver "$ENV{RUBY_RNP_VERSION}")
   endif()

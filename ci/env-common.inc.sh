@@ -5,7 +5,7 @@
 : "${GPG_INSTALL:=$LOCAL_INSTALLS/gpg-install}"
 : "${RNP_INSTALL:=$LOCAL_INSTALLS/rnp-install}"
 : "${RUBY_RNP_INSTALL:=$LOCAL_INSTALLS/ruby-rnp}"
-: "${RUBY_RNP_VERSION:=master}"
+: "${RUBY_RNP_VERSION:=main}"
 : "${CPU:=}"
 : "${SUDO:=}"
 
