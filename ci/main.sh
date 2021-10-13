@@ -21,8 +21,7 @@ prepare_build_prerequisites() {
 #    linux-i386)                                       #  For i386/Debian (the only 32 bit run) python3 is already installed by  
 #      build_and_install_python                        #  linux_install @ install_functions.inc.sh called from install_cacheable_dependencies.sh
 #      ;;                                              #  If there is a distribution that does not have python3 pre-apckeges (highly unlikely) 
-    linux-*)                                           #  it shall be implemented like ensure_cmake 
-      PREFIX=/usr
+    linux-*)                                           #  it shall be implemented like ensure_cmake
       ensure_cmake
       ;;
   esac
@@ -100,8 +99,6 @@ main() {
   fi
   build_rnp "${rnpsrc}"
   make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
-
-  echo "SKIP_TESTS=${SKIP_TESTS} cmakeopts=${cmakeopts[@]}"
 
   if [[ ${SKIP_TESTS} = 0 ]]; then
     echo "TESTS NOT SKIPPED"

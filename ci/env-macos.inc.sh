@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 export PATH=/usr/local/bin:$PATH
 brew_prefix=$(brew --prefix)
 : "${CXXFLAGS:=}"

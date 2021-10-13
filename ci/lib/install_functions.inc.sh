@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck disable=SC1090
 # shellcheck disable=SC1091
+# shellcheck disable=SC2164
 
 : "${GPG_VERSION:=stable}"
 : "${BUILD_SHARED_LIBS:=off}"
@@ -385,7 +386,7 @@ install_prebuilt_cmake() {
 build_and_install_python() {
   python_build=${LOCAL_BUILDS}/python
   mkdir -p "${python_build}"
-  pushd ${python_build}
+  pushd "${python_build}"
   curl -L -o python.tar.xz https://www.python.org/ftp/python/"${RECOMMENDED_PYTHON_VERSION}"/Python-"${RECOMMENDED_PYTHON_VERSION}".tar.xz
   tar -xf python.tar.xz --strip 1
   ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && "${SUDO}" make install
@@ -820,6 +821,7 @@ build_example_pkgconfig() {
   local rnpsrc="$PWD"
   pushd "$(mktemp -d)" || return 1
 
+  # shellcheck disable=SC2046
   gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
   ./generate
   readelf -d generate
