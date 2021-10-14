@@ -1,6 +1,4 @@
-import logging
 import copy
-import os
 from cli_common import run_proc
 
 class GnuPG(object):
@@ -17,7 +15,6 @@ class GnuPG(object):
 
     @property
     def common_params(self):
-        import copy
         return copy.copy(self.__common_params)
 
     @property

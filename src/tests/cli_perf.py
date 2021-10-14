@@ -6,7 +6,6 @@ import shutil
 import inspect
 import os
 import logging
-from os import path
 from timeit import default_timer as perf_timer
 from argparse import ArgumentParser
 from cli_common import (
@@ -52,8 +51,8 @@ def setup(workdir):
     logging.debug('Setting up test in {} ...'.format(WORKDIR))
 
     # Creating working directory and populating it with test files
-    RNPDIR = path.join(WORKDIR, '.rnp')
-    GPGDIR = path.join(WORKDIR, '.gpg')
+    RNPDIR = os.path.join(WORKDIR, '.rnp')
+    GPGDIR = os.path.join(WORKDIR, '.gpg')
     os.mkdir(RNPDIR, 0o700)
     os.mkdir(GPGDIR, 0o700)
 
@@ -62,25 +61,25 @@ def setup(workdir):
     params = ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid', 'performance@rnp',
               '--generate-key']
     # Run key generation
-    ret, out, err = run_proc(RNPK, params)
+    run_proc(RNPK, params)
     os.close(pipe)
 
+
     # Importing keys to GnuPG so it can build trustdb and so on
-    ret, out, err = run_proc(GPG, ['--batch', '--passphrase', '', '--homedir', GPGDIR,
-                                   '--import', path.join(RNPDIR, 'pubring.gpg'),
-                                   path.join(RNPDIR, 'secring.gpg')])
+    run_proc(GPG, ['--batch', '--passphrase', '', '--homedir', GPGDIR, '--import',
+                   os.path.join(RNPDIR, 'pubring.gpg'), os.path.join(RNPDIR, 'secring.gpg')])
 
     # Generating small file for tests
     SMALLSIZE = 3312
     st = 'lorem ipsum dol ' * (SMALLSIZE//16+1)
-    with open(path.join(WORKDIR, SMALLFILE), 'w+') as small_file:
+    with open(os.path.join(WORKDIR, SMALLFILE), 'w+') as small_file:
         small_file.write(st)
 
     # Generating large file for tests
     print('Generating large file of size {}'.format(size_to_readable(LARGESIZE)))
 
     st = '0123456789ABCDEF' * (1024//16)
-    with open(path.join(WORKDIR, LARGEFILE), 'w') as fd:
+    with open(os.path.join(WORKDIR, LARGEFILE), 'w') as fd:
         for i in range(0, LARGESIZE // 1024):
             fd.write(st)
 
@@ -168,9 +167,9 @@ def get_file_params(filetype):
         infile, outfile, iterations, fsize = (LARGEFILE, LARGEFILE + '.gpg',
                                               LARGE_ITERATIONS, LARGESIZE)
 
-    infile = path.join(WORKDIR, infile)
-    rnpout = path.join(WORKDIR, outfile + '.rnp')
-    gpgout = path.join(WORKDIR, outfile + '.gpg')
+    infile = os.path.join(WORKDIR, infile)
+    rnpout = os.path.join(WORKDIR, outfile + '.rnp')
+    gpgout = os.path.join(WORKDIR, outfile + '.gpg')
     return (infile, rnpout, gpgout, iterations, fsize)
 
 
@@ -313,5 +312,5 @@ if __name__ == '__main__':
 
     try:
         shutil.rmtree(WORKDIR)
-    except:
+    except Exception:
         logging.info(("Cleanup failed"))
