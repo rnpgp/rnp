@@ -1,15 +1,14 @@
 #!/usr/bin/env python
 
-import itertools
 import logging
 import os
+import os.path
 import re
 import shutil
 import sys
 import tempfile
 import time
 import unittest
-from os import path
 from platform import architecture
 
 import cli_common
@@ -229,7 +228,7 @@ def clear_keyrings():
     while os.path.isdir(GPGDIR):
         try:
             shutil.rmtree(GPGDIR)
-        except:
+        except Exception:
             time.sleep(0.1)
     os.mkdir(GPGDIR, 0o700)
 
@@ -265,14 +264,14 @@ def remove_files(*args):
     try:
         for fpath in args:
             os.remove(fpath)
-    except:
+    except Exception:
         pass
 
 def reg_workfiles(mainname, *exts):
     global TEST_WORKFILES
     res = []
     for ext in exts:
-        fpath = path.join(WORKDIR, mainname + ext)
+        fpath = os.path.join(WORKDIR, mainname + ext)
         if fpath in TEST_WORKFILES:
             logging.warn('Warning! Path {} is already in TEST_WORKFILES'.format(fpath))
         else:
@@ -322,7 +321,7 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
             params[2:2] = ['-r', escape_regex(userid)]
     # Passwords to encrypt to. None or [] disables password encryption.
     if passwords:
-        if recipients == None:
+        if recipients is None:
             params[2:2] = ['-c']
         pipe = pswd_pipe('\n'.join(passwords))
         params[2:2] = ['--pass-fd', str(pipe)]
@@ -450,7 +449,7 @@ def rnp_verify_cleartext(src, signer=None):
 
 def gpg_import_pubring(kpath=None):
     if not kpath:
-        kpath = path.join(RNPDIR, 'pubring.gpg')
+        kpath = os.path.join(RNPDIR, 'pubring.gpg')
     ret, _, err = run_proc(
         GPG, ['--display-charset', CONSOLE_ENCODING, '--batch', '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
@@ -459,7 +458,7 @@ def gpg_import_pubring(kpath=None):
 
 def gpg_import_secring(kpath=None, password = PASSWORD):
     if not kpath:
-        kpath = path.join(RNPDIR, 'secring.gpg')
+        kpath = os.path.join(RNPDIR, 'secring.gpg')
     ret, _, err = run_proc(
         GPG, ['--display-charset', CONSOLE_ENCODING, '--batch', '--passphrase', password, '--homedir', GPGHOME, '--import', kpath])
     if ret != 0:
@@ -843,7 +842,7 @@ def setup(loglvl):
     logging.info('Running in ' + WORKDIR)
 
     cli_common.WORKDIR = WORKDIR
-    RNPDIR = path.join(WORKDIR, '.rnp')
+    RNPDIR = os.path.join(WORKDIR, '.rnp')
     RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
     shutil.rmtree(RNPDIR, ignore_errors=True)
@@ -851,7 +850,7 @@ def setup(loglvl):
 
     os.environ["RNP_LOG_CONSOLE"] = "1"
 
-    GPGDIR = path.join(WORKDIR, '.gpg')
+    GPGDIR = os.path.join(WORKDIR, '.gpg')
     GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
@@ -941,7 +940,7 @@ class Keystore(unittest.TestCase):
         if ret != 0:
             raise_err('key generation failed', err)
         # Check packets using the gpg
-        match = check_packets(path.join(RNPDIR, 'pubring.gpg'), RE_RSA_KEY)
+        match = check_packets(os.path.join(RNPDIR, 'pubring.gpg'), RE_RSA_KEY)
         if not match:
             raise_err('generated key check failed')
         keybits = int(match.group(1))
@@ -965,8 +964,8 @@ class Keystore(unittest.TestCase):
         # Import key to the gnupg
         ret, out, err = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
                                        GPGHOME, '--import',
-                                       path_for_gpg(path.join(RNPDIR, 'pubring.gpg')),
-                                       path_for_gpg(path.join(RNPDIR, 'secring.gpg'))])
+                                       path_for_gpg(os.path.join(RNPDIR, 'pubring.gpg')),
+                                       path_for_gpg(os.path.join(RNPDIR, 'secring.gpg'))])
         if ret != 0:
             raise_err('gpg key import failed', err)
         # Cleanup and return
@@ -1034,7 +1033,7 @@ class Keystore(unittest.TestCase):
             GPG, ['--batch', '--homedir', GPGHOME, '--armor', '--export', keyfp])
         if ret != 0:
             raise_err('gpg : public key export failed', err)
-        pubpath = path.join(RNPDIR, keyfp + '-pub.asc')
+        pubpath = os.path.join(RNPDIR, keyfp + '-pub.asc')
         with open(pubpath, 'w+') as f:
             f.write(out)
         # Exporting generated secret key
@@ -1042,7 +1041,7 @@ class Keystore(unittest.TestCase):
             GPG, ['--batch', '--homedir', GPGHOME, '--armor', '--export-secret-key', keyfp])
         if ret != 0:
             raise_err('gpg : secret key export failed', err)
-        secpath = path.join(RNPDIR, keyfp + '-sec.asc')
+        secpath = os.path.join(RNPDIR, keyfp + '-sec.asc')
         with open(secpath, 'w+') as f:
             f.write(out)
         # Importing public key to rnp
@@ -1072,7 +1071,7 @@ class Keystore(unittest.TestCase):
         # Export key
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'rsakey@rnp'])
         if ret != 0: raise_err('key export failed', err)
-        pubpath = path.join(RNPDIR, 'rnpkey-pub.asc')
+        pubpath = os.path.join(RNPDIR, 'rnpkey-pub.asc')
         with open(pubpath, 'w+') as f:
             f.write(out)
         # Import key with GPG
@@ -1113,7 +1112,7 @@ class Keystore(unittest.TestCase):
         if ret != 0:
             raise_err('key generation failed', err)
         # Check packets using the gpg
-        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        params = ['--homedir', RNPDIR, '--list-packets', os.path.join(RNPDIR, 'secring.gpg')]
         ret, out, err = run_proc(RNP, params)
         match = re.match(RE_RNP_ENCRYPTED_KEY, out)
         if not match:
@@ -1129,7 +1128,7 @@ class Keystore(unittest.TestCase):
         if ret != 0:
             raise_err('key generation failed', err)
         # Check packets using the gpg
-        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        params = ['--homedir', RNPDIR, '--list-packets', os.path.join(RNPDIR, 'secring.gpg')]
         ret, out, err = run_proc(RNP, params)
         match = re.match(RE_RNP_ENCRYPTED_KEY, out)
         if not match:
@@ -1145,7 +1144,7 @@ class Keystore(unittest.TestCase):
         if ret != 0:
             raise_err('key generation failed', err)
         # Check packets using the gpg
-        params = ['--homedir', RNPDIR, '--list-packets', path.join(RNPDIR, 'secring.gpg')]
+        params = ['--homedir', RNPDIR, '--list-packets', os.path.join(RNPDIR, 'secring.gpg')]
         ret, out, err = run_proc(RNP, params)
         match = re.match(RE_RNP_ENCRYPTED_KEY, out)
         if match:
@@ -1263,7 +1262,7 @@ class Keystore(unittest.TestCase):
                                         '--output', 'no-revocation.pgp', '--force'])
         os.close(pipe)
         self.assertNotEqual(ret, 0, 'Failed to fail to export revocation')
-        self.assertFalse(path.isfile('no-revocation.pgp'), 'Failed to fail to export revocation')
+        self.assertFalse(os.path.isfile('no-revocation.pgp'), 'Failed to fail to export revocation')
         self.assertRegex(err, r'(?s)^.*Ambiguous input: too many keys found for \'rnp\'.*', 'Wrong revocation export output')
         # Finally successfully export revocation
         pipe = pswd_pipe(PASSWORD)
@@ -1271,7 +1270,7 @@ class Keystore(unittest.TestCase):
                                         '--output', 'alice-revocation.pgp', '--overwrite'])
         os.close(pipe)
         self.assertEqual(ret, 0)
-        self.assertTrue(path.isfile('alice-revocation.pgp'))
+        self.assertTrue(os.path.isfile('alice-revocation.pgp'))
         # Check revocation contents
         ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', 'alice-revocation.pgp'])
         self.assertEqual(ret, 0)
@@ -1297,21 +1296,21 @@ class Keystore(unittest.TestCase):
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '0451409669FFDE3C', '--pass-fd', str(pipe), '--output', 'alice-revocation.pgp', '--notty'], '\n\n')
         os.close(pipe)
         self.assertNotEqual(ret, 0, 'Revocation was overwritten without --overwrite')
-        self.assertTrue(path.isfile('alice-revocation.pgp'), 'Revocation was overwritten without --overwrite')
+        self.assertTrue(os.path.isfile('alice-revocation.pgp'), 'Revocation was overwritten without --overwrite')
         self.assertEqual(10, os.stat('alice-revocation.pgp').st_size, 'Revocation was overwritten without --overwrite')
         # Make sure file will be overwritten with --overwrite parameter
         pipe = pswd_pipe(PASSWORD)
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', '0451409669FFDE3C', '--pass-fd', str(pipe), '--output', 'alice-revocation.pgp', '--overwrite'])
         os.close(pipe)
         self.assertEqual(ret, 0)
-        self.assertTrue(os.stat('alice-revocation.pgp').st_size > 10)
+        self.assertGreater(os.stat('alice-revocation.pgp').st_size, 10)
         # Create revocation with wrong code - 'no longer valid' (which is usable only for userid)
         pipe = pswd_pipe(PASSWORD)
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-rev', 'alice', '--rev-type', 'no longer valid',
                                         '--pass-fd', str(pipe), '--output', 'no-revocation.pgp', '--force'])
         os.close(pipe)
         self.assertNotEqual(ret, 0, 'Failed to use wrong revocation reason')
-        self.assertFalse(path.isfile('no-revocation.pgp'))
+        self.assertFalse(os.path.isfile('no-revocation.pgp'))
         self.assertRegex(err, r'(?s)^.*Wrong key revocation code: 32.*', 'Wrong revocation export output')
         # Create revocation without rev-code parameter
         pipe = pswd_pipe(PASSWORD)
@@ -1319,7 +1318,7 @@ class Keystore(unittest.TestCase):
                                         '--output', 'no-revocation.pgp', '--force', '--rev-type'])
         os.close(pipe)
         self.assertNotEqual(ret, 0, 'Failed to use rev-type without parameter')
-        self.assertFalse(path.isfile('no-revocation.pgp'), 'Failed to use rev-type without parameter')
+        self.assertFalse(os.path.isfile('no-revocation.pgp'), 'Failed to use rev-type without parameter')
         # Create another revocation with custom code/reason
         revcodes = {"0" : "0 (No reason)", "1" : "1 (Superseded)", "2" : "2 (Compromised)", 
                     "3" : "3 (Retired)", "no" : "0 (No reason)", "superseded" : "1 (Superseded)", 
@@ -1331,7 +1330,7 @@ class Keystore(unittest.TestCase):
                                             '--output', 'alice-revocation.pgp', '--overwrite', '--rev-type', revcode, '--rev-reason', revreason])
             os.close(pipe)
             self.assertEqual(ret, 0, 'Failed to export revocation with code ' + revcode)
-            self.assertTrue(path.isfile('alice-revocation.pgp'), 'Failed to export revocation with code ' + revcode)
+            self.assertTrue(os.path.isfile('alice-revocation.pgp'), 'Failed to export revocation with code ' + revcode)
             # Check revocation contents
             ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', 'alice-revocation.pgp'])
             self.assertEqual(ret, 0, 'Failed to list exported revocation packets')
@@ -1927,7 +1926,7 @@ class Misc(unittest.TestCase):
         # Export key
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export', 'Alice'])
         if ret != 0: raise_err('key export failed', err)
-        pubpath = path.join(RNPDIR, 'Alice-export-test.asc')
+        pubpath = os.path.join(RNPDIR, 'Alice-export-test.asc')
         with open(pubpath, 'w+') as f:
             f.write(out)
         # List exported key packets
@@ -2121,7 +2120,7 @@ class Misc(unittest.TestCase):
 
         test_dir = tempfile.mkdtemp(prefix='rnpctmp')
         test_data = data_path('test_messages/message.txt')
-        output = path.join(test_dir, 'output')
+        output = os.path.join(test_dir, 'output')
         params = ['--symmetric', '--password', 'pass', '--homedir', test_dir, test_data, '--output', output]
         ret, _, err = run_proc(RNP, ['--encrypt'] + params)
         if not (ret == 1 and re.match(NO_PUBRING, err)):
@@ -2148,11 +2147,11 @@ class Misc(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_homedir_accessibility(self):
-        ret, _, _ = run_proc(RNPK, ['--homedir', path.join(RNPDIR, 'non-existing'), '--generate', '--password=none'])
+        ret, _, _ = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'non-existing'), '--generate', '--password=none'])
         if ret == 0:
             raise_err("failed to check for homedir accessibility")
-        os.mkdir(path.join(RNPDIR, 'existing'), 0o700)
-        ret, _, _ = run_proc(RNPK, ['--homedir', path.join(RNPDIR, 'existing'), '--generate', '--password=none'])
+        os.mkdir(os.path.join(RNPDIR, 'existing'), 0o700)
+        ret, _, _ = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'existing'), '--generate', '--password=none'])
         if ret != 0:
             raise_err("failed to use writeable and existing homedir")
 
@@ -2389,8 +2388,8 @@ class Misc(unittest.TestCase):
             # Run with .rnp home directory with empty keyrings
             shutil.rmtree(RNPDIR, ignore_errors=True)
             os.mkdir(RNPDIR, 0o700)
-            random_text(path.join(RNPDIR, 'pubring.gpg'), 0)
-            random_text(path.join(RNPDIR, 'secring.gpg'), 0)
+            random_text(os.path.join(RNPDIR, 'pubring.gpg'), 0)
+            random_text(os.path.join(RNPDIR, 'secring.gpg'), 0)
             ret, out, err = run_proc(RNP, ['-c', src, '--password', 'password'])
             if ret != 0:
                 raise_err('Symmetric encryption failed')
@@ -2587,7 +2586,7 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*Cv25519 key bits are set correctly and do not require fixing.*$')
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', path.join(RNPDIR, 'secring.gpg')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', os.path.join(RNPDIR, 'secring.gpg')])
         self.assertEqual(ret, 0)
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
@@ -2612,7 +2611,7 @@ class Misc(unittest.TestCase):
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', 'password', '--edit-key', '--fix-cv25519-bits', '950ee0cd34613dba'])
         self.assertEqual(ret, 0)
         # Make sure key is protected with the same options
-        ret, out, _ = run_proc(RNP, ['--list-packets', path.join(RNPDIR, 'secring.gpg')])
+        ret, out, _ = run_proc(RNP, ['--list-packets', os.path.join(RNPDIR, 'secring.gpg')])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*Secret subkey packet.*254.*AES-256.*3.*SHA256.*58720256.*0x950ee0cd34613dba.*$')
         # Make sure bits are correctly tweaked and key may be used to decrypt and imported to GnuPG
@@ -2621,7 +2620,7 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*Cv25519 key bits are set correctly and do not require fixing.*$')
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', 'password', '-d', data_path('test_messages/message.txt.enc-sign-25519')])
         self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--batch', '--passphrase', 'password', '--import', path.join(RNPDIR, 'secring.gpg')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--batch', '--passphrase', 'password', '--import', os.path.join(RNPDIR, 'secring.gpg')])
         self.assertEqual(ret, 0)
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--pinentry-mode=loopback', '--batch', '--passphrase', 'password',
                                    '--trust-model', 'always', '-d', data_path('test_messages/message.txt.enc-sign-25519')])
@@ -3121,7 +3120,6 @@ class SignDefault(unittest.TestCase):
 
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     def _encrypt_decrypt(self, e1, e2):
-        key_id = "".join(self.id().split('.')[1:3])
         keyfile, input, enc_out, dec_out = reg_workfiles(self.test_id, '.gpg',
                                                          '.in', '.enc', '.dec')
         random_text(input, 0x1337)
@@ -3443,6 +3441,13 @@ class EncryptSignRSA(Encrypt, Sign):
     def test_rnp_decrypt_sign_2048(self): self.do_rnp_decrypt_sign(2048)
     def test_rnp_decrypt_sign_4096(self): self.do_rnp_decrypt_sign(4096)
 
+    def setUp(self):
+        Encrypt.setUp(self)
+
+    @classmethod
+    def tearDownClass(cls):
+        Encrypt.tearDownClass()
+
 def test_suites(tests):
     if hasattr(tests, '__iter__'):
         for x in tests:
@@ -3489,5 +3494,5 @@ if __name__ == '__main__':
             else:
                 shutil.rmtree(RNPDIR)
                 shutil.rmtree(GPGDIR)
-        except:
+        except Exception:
             pass

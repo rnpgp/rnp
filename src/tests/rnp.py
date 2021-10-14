@@ -3,7 +3,6 @@ from cli_common import (
     run_proc
 )
 import os
-import logging
 import copy
 
 class Rnp(object):
