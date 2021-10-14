@@ -2233,10 +2233,10 @@ rnp_op_add_signature(rnp_ffi_t                 ffi,
     pgp_key_t *signkey = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
     if (signkey && !signkey->is_secret()) {
-        pgp_key_request_ctx_t ctx = {.op = PGP_OP_SIGN, .secret = true};
-        ctx.search.type = PGP_KEY_SEARCH_GRIP;
-        ctx.search.by.grip = signkey->grip();
-        signkey = pgp_request_key(&key->ffi->key_provider, &ctx);
+        pgp_key_request_ctx_t keyctx = {.op = PGP_OP_SIGN, .secret = true};
+        keyctx.search.type = PGP_KEY_SEARCH_GRIP;
+        keyctx.search.by.grip = signkey->grip();
+        signkey = pgp_request_key(&key->ffi->key_provider, &keyctx);
     }
     if (!signkey) {
         return RNP_ERROR_NO_SUITABLE_KEY;
