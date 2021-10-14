@@ -1,0 +1,32 @@
+path_classifiers:
+  test:
+    # Report alerts for Python tests.
+    - exclude: src/tests/*.py
+extraction:
+  cpp:
+    prepare:
+      packages:
+        - libjson-c-dev
+    after_prepare:
+      - pwd
+      - mkdir botan_build
+      - mkdir botan_install
+      - export BOTAN_INSTALL=$(pwd)/botan_install
+      - git clone --depth 1 --branch 2.17.3 https://github.com/randombit/botan botan_build
+      - pushd botan_build
+      - export BOTAN_MODULES=$(<${LGTM_SRC}/ci/botan-modules tr '\n' ',')
+      - ./configure.py --prefix=${BOTAN_INSTALL} --with-debug-info --cxxflags="-fno-omit-frame-pointer" --without-documentation --without-openssl --build-targets=shared --minimized-build --enable-modules="$BOTAN_MODULES"
+      - make -j2 install
+      - popd
+      - "mkdir cmake314"
+      - "wget --quiet -O - https://cmake.org/files/v3.14/cmake-3.14.7-Linux-x86_64.tar.gz | tar --strip-components=1 -xz -C cmake314"
+      - "export PATH=$(pwd)/cmake314/bin:${PATH}"
+    index:
+      build_command:
+        - pwd
+        - mkdir rnp-build; pushd rnp-build
+        - cmake $LGTM_SRC -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off -DDOWNLOAD_RUBYRNP=Off
+        - make -j2
+  python:
+    python_setup:
+      version: "3"
