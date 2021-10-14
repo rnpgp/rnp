@@ -4,9 +4,7 @@ import random
 import string
 import logging
 import os
-import platform
 import re
-from os import path
 from subprocess import Popen, PIPE
 
 RNP_ROOT = None
@@ -15,7 +13,7 @@ CONSOLE_ENCODING = 'UTF-8'
 
 class CLIError(Exception):
     def __init__(self, message, log = None):
-        super(Exception, self).__init__(message)
+        super(CLIError, self).__init__(message)
         self.log = log
 
     def __str__(self):
@@ -84,10 +82,10 @@ def find_utility(name, exitifnone = True):
 def rnp_file_path(relpath, check = True):
     global RNP_ROOT
     if not RNP_ROOT:
-        pypath = path.dirname(__file__)
-        RNP_ROOT = path.realpath(path.join(pypath, '../..'))
+        pypath = os.path.dirname(__file__)
+        RNP_ROOT = os.path.realpath(os.path.join(pypath, '../..'))
 
-    fpath = path.realpath(path.join(RNP_ROOT, relpath))
+    fpath = os.path.realpath(os.path.join(RNP_ROOT, relpath))
 
     if check and not os.path.isfile(fpath):
         raise NameError('rnp: file ' + relpath + ' not found')
