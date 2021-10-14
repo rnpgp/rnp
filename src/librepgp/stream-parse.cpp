@@ -2595,8 +2595,8 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
 
     /* finalizing the input. Signatures are checked on this step */
     if (res == RNP_SUCCESS) {
-        for (auto &src : ctx.sources) {
-            fres = src_finish(&src);
+        for (auto &ctxsrc : ctx.sources) {
+            fres = src_finish(&ctxsrc);
             if (fres) {
                 res = fres;
             }

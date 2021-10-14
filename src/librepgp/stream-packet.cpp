@@ -884,10 +884,10 @@ void
 pgp_packet_body_t::write(pgp_dest_t &dst, bool hdr) noexcept
 {
     if (hdr) {
-        uint8_t hdr[6] = {
+        uint8_t hdrbt[6] = {
           (uint8_t)(tag_ | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT), 0, 0, 0, 0, 0};
-        size_t hlen = 1 + write_packet_len(&hdr[1], data_.size());
-        dst_write(&dst, hdr, hlen);
+        size_t hlen = 1 + write_packet_len(&hdrbt[1], data_.size());
+        dst_write(&dst, hdrbt, hlen);
     }
     dst_write(&dst, data_.data(), data_.size());
 }
