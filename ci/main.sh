@@ -89,10 +89,10 @@ main() {
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
   [[ "${BUILD_MODE}" = "sanitize" ]] && cmakeopts+=(-DENABLE_SANITIZERS=yes)
-  [ -v "GTEST_SOURCES" ] && cmakeopts+=(-DGTEST_SOURCES="${GTEST_SOURCES}")
-  [ -v "DOWNLOAD_GTEST" ] && cmakeopts+=(-DDOWNLOAD_GTEST="${DOWNLOAD_GTEST}")
-  [ -v "DOWNLOAD_RUBYRNP" ] && cmakeopts+=(-DDOWNLOAD_RUBYRNP="${DOWNLOAD_RUBYRNP}")
-  [ -v "CRYPTO_BACKEND" ] && cmakeopts+=(-DCRYPTO_BACKEND="${CRYPTO_BACKEND}")
+  [ -n "${GTEST_SOURCES:-}" ] && cmakeopts+=(-DGTEST_SOURCES="${GTEST_SOURCES}")
+  [ -n "${DOWNLOAD_GTEST:-}" ] && cmakeopts+=(-DDOWNLOAD_GTEST="${DOWNLOAD_GTEST}")
+  [ -n "${DOWNLOAD_RUBYRNP:-}" ] && cmakeopts+=(-DDOWNLOAD_RUBYRNP="${DOWNLOAD_RUBYRNP}")
+  [ -n "${CRYPTO_BACKEND:-}" ] && cmakeopts+=(-DCRYPTO_BACKEND="${CRYPTO_BACKEND}")
 
   if [[ "${OS}" = "msys" ]]; then
     cmakeopts+=(-G "MSYS Makefiles")
