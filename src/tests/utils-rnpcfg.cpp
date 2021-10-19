@@ -122,9 +122,17 @@ TEST_F(rnp_tests, test_rnpcfg_get_expiration)
     timeinfo->tm_min = 0;
     timeinfo->tm_sec = 0;
     rawtime = mktime(timeinfo);
-    auto exp =
-      fmt("%d-%02d-%02d", timeinfo->tm_year + 1900, timeinfo->tm_mon + 1, timeinfo->tm_mday);
+    auto     year = timeinfo->tm_year + 1900;
+    auto     mon = timeinfo->tm_mon + 1;
+    auto     day = timeinfo->tm_mday;
+    auto     exp = fmt("%d-%02d-%02d", year, mon, day);
     uint32_t raw_expiry = 0;
+    assert_int_equal(get_expiration(exp.c_str(), &raw_expiry), 0);
+    assert_int_equal(raw_expiry, rawtime - basetime);
+    exp = fmt("%d/%02d/%02d", year, mon, day);
+    assert_int_equal(get_expiration(exp.c_str(), &raw_expiry), 0);
+    assert_int_equal(raw_expiry, rawtime - basetime);
+    exp = fmt("%d.%02d.%02d", year, mon, day);
     assert_int_equal(get_expiration(exp.c_str(), &raw_expiry), 0);
     assert_int_equal(raw_expiry, rawtime - basetime);
     assert_int_equal(get_expiration("2100-01-01", &raw_expiry), 0);
