@@ -41,7 +41,7 @@
 
 #include "rnpcfg.h"
 #include "defaults.h"
-#include "logging.h"
+#include "utils.h"
 #include "time-utils.h"
 #include <rnp/rnp.h>
 
@@ -385,24 +385,14 @@ days_in_month(int year, int month)
     }
 }
 
-/**
- * @brief Grabs date from the string in %Y-%m-%d format
- *
- * @param s [in] NULL-terminated string with the date
- * @param t [out] On successful return result will be placed here
- * @return true on success or false otherwise
- */
-
-/** @brief
+/** @brief Grabs date from the string in %Y-%m-%d format (using "-", "/", "." as a separator)
  *
  *  @param s [in] NULL-terminated string with the date
- *  @param t [out] UNIX timestamp of
- * successfully parsed date
+ *  @param t [out] UNIX timestamp of successfully parsed date
  *  @return 0 when parsed successfully
  *          1 when s doesn't match the regex
- * -1 when
- * s matches the regex but the date is not acceptable
- *          -2 failure
+ *         -1 when s matches the regex but the date is not acceptable
+ *         -2 failure
  */
 static int
 grabdate(const char *s, uint64_t *t)
@@ -413,38 +403,36 @@ grabdate(const char *s, uint64_t *t)
     tm.tm_hour = 0;
     tm.tm_min = 0;
     tm.tm_sec = 0;
+    const char *reg = "^([0-9]{4})[-/\\.]([0-9]{2})[-/\\.]([0-9]{2})$";
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     static int     compiled;
-    regmatch_t     matches[10];
 
     if (!compiled) {
         compiled = 1;
-        if (regcomp(&r,
-                    "^([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])$",
-                    REG_EXTENDED) != 0) {
+        if (regcomp(&r, reg, REG_EXTENDED)) {
             RNP_LOG("failed to compile regexp");
             return -2;
         }
     }
-    if (regexec(&r, s, 10, matches, 0) != 0) {
+    regmatch_t matches[4];
+    if (regexec(&r, s, ARRAY_SIZE(matches), matches, 0)) {
         return 1;
     }
-    int year = (int) strtol(&s[(int) matches[1].rm_so], NULL, 10);
-    int mon = (int) strtol(&s[(int) matches[2].rm_so], NULL, 10);
-    int mday = (int) strtol(&s[(int) matches[3].rm_so], NULL, 10);
+    int year = strtol(&s[matches[1].rm_so], NULL, 10);
+    int mon = strtol(&s[matches[2].rm_so], NULL, 10);
+    int mday = strtol(&s[matches[3].rm_so], NULL, 10);
 #else
-    static std::regex re("^([0-9][0-9][0-9][0-9])[-/]([0-9][0-9])[-/]([0-9][0-9])$",
-                         std::regex_constants::ECMAScript);
+    static std::regex re(reg, std::regex_constants::extended);
     std::smatch       result;
-    std::string       input = s;
+    const std::string input = s;
 
     if (!std::regex_search(input, result, re)) {
         return 1;
     }
-    int year = (int) strtol(result[1].str().c_str(), NULL, 10);
-    int mon = (int) strtol(result[2].str().c_str(), NULL, 10);
-    int mday = (int) strtol(result[3].str().c_str(), NULL, 10);
+    int year = std::stoi(result[1].str());
+    int mon = std::stoi(result[2].str());
+    int mday = std::stoi(result[3].str());
 #endif
     if (year < 1970 || mon < 1 || mon > 12 || !mday || (mday > days_in_month(year, mon))) {
         return -1;
@@ -490,26 +478,26 @@ get_expiration(const char *s, uint32_t *res)
     } else if (grabdate_result < 0) {
         return -2;
     }
+    const char *reg = "^([0-9]+)([hdwmy]?)$";
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     static int     compiled;
-    regmatch_t     matches[10];
+    regmatch_t     matches[3];
 
     if (!compiled) {
         compiled = 1;
-        if (regcomp(&r, "^([0-9]+)([hdwmy]?)$", REG_EXTENDED | REG_ICASE) != 0) {
+        if (regcomp(&r, reg, REG_EXTENDED | REG_ICASE)) {
             RNP_LOG("failed to compile regexp");
             return -2;
         }
     }
-    if (regexec(&r, s, 10, matches, 0) != 0) {
+    if (regexec(&r, s, ARRAY_SIZE(matches), matches, 0)) {
         return -2;
     }
     auto delta_str = &s[(int) matches[1].rm_so];
     char mult = s[(int) matches[2].rm_so];
 #else
-    static std::regex re("^([0-9]+)([hdwmy]?)$",
-                         std::regex_constants::ECMAScript | std::regex_constants::icase);
+    static std::regex re(reg, std::regex_constants::extended | std::regex_constants::icase);
     std::smatch       result;
     std::string       input = s;
 
@@ -552,11 +540,10 @@ get_expiration(const char *s, uint32_t *res)
 int64_t
 get_creation(const char *s)
 {
-    uint64_t t;
-
     if (!s || !strlen(s)) {
         return time(NULL);
     }
+    uint64_t t;
     if (!grabdate(s, &t)) {
         return t;
     }
