@@ -76,7 +76,7 @@ rnpkeys_main(int argc, char **argv)
     }
 #endif
 
-    while ((ch = getopt_long(argc, argv, "Vglo:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "Vgl", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
             if (!setoption(cfg, &cmd, options[optindex].val, optarg)) {
@@ -94,12 +94,6 @@ rnpkeys_main(int argc, char **argv)
                 break;
             case 'l':
                 cmd = CMD_LIST_KEYS;
-                break;
-            case 'o':
-                if (!parse_option(cfg, &cmd, optarg)) {
-                    ERR_MSG("Bad parse_option");
-                    goto end;
-                }
                 break;
             case '?':
                 print_usage(usage);
