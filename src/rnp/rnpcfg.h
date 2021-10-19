@@ -120,6 +120,15 @@ class rnp_cfg {
     std::unordered_map<std::string, rnp_cfg_val *> vals_;
     std::string                                    empty_str_;
 
+    /** @brief Parse date from the string in %Y-%m-%d format (using "-", "/", "." as a
+     * separator)
+     *
+     *  @param s string with the date
+     *  @param t UNIX timestamp of successfully parsed date
+     *  @return true when parsed successfully or false otherwise
+     */
+    bool parse_date(const std::string &s, uint64_t &t) const;
+
   public:
     /** @brief load default settings */
     void load_defaults();
@@ -158,6 +167,21 @@ class rnp_cfg {
     int get_pswdtries() const;
     /** @brief get hash algorithm */
     const std::string get_hashalg() const;
+
+    /** @brief Get expiration time from the cfg variable, as value relative to the current
+     * time. As per OpenPGP standard it should fit in 32 bit value, otherwise error is
+     * returned.
+     *
+     *  Expiration may be specified in different formats:
+     *  - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
+     *  - 2017-07-12 : as the exact date
+     *  - 60000 : number of seconds
+     *
+     *  @param seconds On successfull return result will be placed here
+     *  @return true on success or false otherwise
+     */
+    bool get_expiration(const std::string &key, uint32_t &seconds) const;
+
     /** @brief Get signature creation time from the config.
      *  Creation time may be specified in different formats:
      *  - 2017-07-12 : as the exact date
@@ -177,23 +201,5 @@ class rnp_cfg {
     /** @brief destructor */
     ~rnp_cfg();
 };
-
-/* rnp CLI helper functions */
-
-/** @brief Get signature validity expiration time from the user input
- *
- *  Signature expiration may be specified in different formats:
- *  - 10d : 10 days (you can use [h]ours, d[ays], [w]eeks, [m]onthes)
- *  - 2017-07-12 : as the exact date when signature becomes invalid
- *  - 60000 : number of seconds
- *
- *  @param s [in] NULL-terminated string with the date
- *  @param t [out] On successfull return result will be placed here
- *  @return 0 on success
- *          -1 on parse error
- *          -2 if a date in the past was specified
- *          -3 overflow
- */
-int get_expiration(const char *s, uint32_t *t);
 
 #endif
