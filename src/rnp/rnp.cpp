@@ -51,12 +51,6 @@
 #include "fficli.h"
 #include "logging.h"
 
-#ifndef RNP_USE_STD_REGEX
-#include <regex.h>
-#else
-#include <regex>
-#endif
-
 static const char *rnp_prog_name = NULL;
 
 static const char *usage = "-h, --help OR\n"
@@ -571,65 +565,6 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     return false;
 }
 
-/* we have -o option=value -- parse, and process */
-static bool
-parse_option(rnp_cfg &cfg, const char *s)
-{
-#ifndef RNP_USE_STD_REGEX
-    static regex_t opt;
-    struct option *op;
-    static int     compiled;
-    regmatch_t     matches[10];
-    char           option[128];
-    char           value[128];
-
-    if (!compiled) {
-        compiled = 1;
-        if (regcomp(&opt, "([^=]{1,128})(=(.*))?", REG_EXTENDED) != 0) {
-            ERR_MSG("Can't compile regex");
-            return 0;
-        }
-    }
-    if (regexec(&opt, s, 10, matches, 0) == 0) {
-        snprintf(option,
-                 sizeof(option),
-                 "%.*s",
-                 (int) (matches[1].rm_eo - matches[1].rm_so),
-                 &s[matches[1].rm_so]);
-        if (matches[2].rm_so > 0) {
-            snprintf(value,
-                     sizeof(value),
-                     "%.*s",
-                     (int) (matches[3].rm_eo - matches[3].rm_so),
-                     &s[matches[3].rm_so]);
-        } else {
-            value[0] = 0x0;
-        }
-        for (op = options; op->name; op++) {
-            if (strcmp(op->name, option) == 0)
-                return setoption(cfg, op->val, value);
-        }
-    }
-#else
-    static std::regex re("([^=]{1,128})(=(.*))?", std::regex_constants::extended);
-    std::string       input = s;
-    std::smatch       result;
-
-    if (std::regex_match(input, result, re)) {
-        std::string option = result[1];
-        std::string value;
-        if (result.size() >= 4) {
-            value = result[3];
-        }
-        for (struct option *op = options; op->name; op++) {
-            if (strcmp(op->name, option.c_str()) == 0)
-                return setoption(cfg, op->val, value.c_str());
-        }
-    }
-#endif
-    return 0;
-}
-
 #ifndef RNP_RUN_TESTS
 int
 main(int argc, char **argv)
@@ -667,7 +602,7 @@ rnp_main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdeco:r:su:vz:f:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdecr:su:vz:f:", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(cfg, options[optindex].val, optarg)) {
@@ -693,12 +628,6 @@ rnp_main(int argc, char **argv)
                 break;
             case 'v':
                 cmd = CMD_VERIFY;
-                break;
-            case 'o':
-                if (!parse_option(cfg, optarg)) {
-                    ERR_MSG("Bad option");
-                    goto finish;
-                }
                 break;
             case 'r':
                 if (strlen(optarg) < 1) {
