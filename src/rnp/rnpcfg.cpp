@@ -310,6 +310,29 @@ rnp_cfg::get_hashalg() const
     return DEFAULT_HASH_ALG;
 }
 
+static int grabdate(const char *s, uint64_t *t);
+
+uint64_t
+rnp_cfg::get_sig_creation() const
+{
+    if (!has(CFG_CREATION)) {
+        return time(NULL);
+    }
+    const std::string &cr = get_str(CFG_CREATION);
+    /* Check if string is date */
+    uint64_t t;
+    if (!grabdate(cr.c_str(), &t)) {
+        return t;
+    }
+    /* Check if string is UNIX timestamp */
+    for (auto c : cr) {
+        if (!isdigit(c)) {
+            return time(NULL);
+        }
+    }
+    return std::stoll(cr);
+}
+
 void
 rnp_cfg::copy(const rnp_cfg &src)
 {
@@ -535,17 +558,4 @@ get_expiration(const char *s, uint32_t *res)
     }
     *res = delta;
     return 0;
-}
-
-int64_t
-get_creation(const char *s)
-{
-    if (!s || !strlen(s)) {
-        return time(NULL);
-    }
-    uint64_t t;
-    if (!grabdate(s, &t)) {
-        return t;
-    }
-    return (uint64_t) strtoll(s, NULL, 10);
 }
