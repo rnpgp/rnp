@@ -4771,7 +4771,6 @@ try {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        rnp_strlwr(identifier_type);
         json_object_object_del(jsosub, "primary");
 
         pgp_key_search_t locator = {(pgp_key_search_type_t) 0};
