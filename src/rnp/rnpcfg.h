@@ -158,6 +158,14 @@ class rnp_cfg {
     int get_pswdtries() const;
     /** @brief get hash algorithm */
     const std::string get_hashalg() const;
+    /** @brief Get signature creation time from the config.
+     *  Creation time may be specified in different formats:
+     *  - 2017-07-12 : as the exact date
+     *  - 1499334073 : timestamp
+     *
+     *  @return timestamp of the signature creation.
+     */
+    uint64_t get_sig_creation() const;
     /** @brief copy or override a configuration.
      *  @param src vals will be overridden (if key exist) or copied (if not) from this object
      */
@@ -187,16 +195,5 @@ class rnp_cfg {
  *          -3 overflow
  */
 int get_expiration(const char *s, uint32_t *t);
-
-/** @brief Get signature validity start time from the user input
- *
- *  Signature validity may be specified in different formats:
- *  - 2017-07-12 : as the exact date when signature becomes invalid
- *  - 1499334073 : timestamp
- *
- *  @param s [in] NULL-terminated string with the date
- *  @return timestamp of the validity start
- */
-int64_t get_creation(const char *s);
 
 #endif

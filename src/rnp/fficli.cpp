@@ -2444,7 +2444,7 @@ cli_rnp_sign(const rnp_cfg &cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t
     if (rnp_op_sign_set_hash(op, cfg.get_hashalg().c_str())) {
         goto done;
     }
-    rnp_op_sign_set_creation_time(op, get_creation(cfg.get_cstr(CFG_CREATION)));
+    rnp_op_sign_set_creation_time(op, cfg.get_sig_creation());
     {
         uint32_t expiration = 0;
         if (!get_expiration(cfg.get_cstr(CFG_EXPIRATION), &expiration)) {
@@ -2558,7 +2558,7 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
 
     /* adding signatures if encrypt-and-sign is used */
     if (cfg.get_bool(CFG_SIGN_NEEDED)) {
-        rnp_op_encrypt_set_creation_time(op, get_creation(cfg.get_cstr(CFG_CREATION)));
+        rnp_op_encrypt_set_creation_time(op, cfg.get_sig_creation());
         uint32_t expiration;
         if (!get_expiration(cfg.get_cstr(CFG_EXPIRATION), &expiration)) {
             rnp_op_encrypt_set_expiration_time(op, expiration);
