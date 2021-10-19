@@ -310,7 +310,87 @@ rnp_cfg::get_hashalg() const
     return DEFAULT_HASH_ALG;
 }
 
-static int grabdate(const char *s, uint64_t *t);
+bool
+rnp_cfg::get_expiration(const std::string &key, uint32_t &seconds) const
+{
+    if (!has(key)) {
+        return false;
+    }
+    const std::string &val = get_str(key);
+    uint64_t           delta;
+    uint64_t           t;
+    if (parse_date(val, t)) {
+        uint64_t now = time(NULL);
+        if (t > now) {
+            delta = t - now;
+            if (delta > UINT32_MAX) {
+                RNP_LOG("Expiration time exceeds 32-bit value");
+                return false;
+            }
+            seconds = delta;
+            return true;
+        }
+        return false;
+    }
+    const char *reg = "^([0-9]+)([hdwmy]?)$";
+#ifndef RNP_USE_STD_REGEX
+    static regex_t r;
+    static int     compiled;
+    regmatch_t     matches[3];
+
+    if (!compiled) {
+        compiled = 1;
+        if (regcomp(&r, reg, REG_EXTENDED | REG_ICASE)) {
+            RNP_LOG("failed to compile regexp");
+            return false;
+        }
+    }
+    if (regexec(&r, val.c_str(), ARRAY_SIZE(matches), matches, 0)) {
+        return false;
+    }
+    auto delta_str = &val.c_str()[matches[1].rm_so];
+    char mult = val.c_str()[matches[2].rm_so];
+#else
+    static std::regex re(reg, std::regex_constants::extended | std::regex_constants::icase);
+    std::smatch       result;
+
+    if (!std::regex_search(val, result, re)) {
+        return false;
+    }
+    std::string delta_stdstr = result[1].str();
+    const char *delta_str = delta_stdstr.c_str();
+    char        mult = result[2].str()[0];
+#endif
+    errno = 0;
+    delta = strtoul(delta_str, NULL, 10);
+    if (errno || delta > UINT_MAX) {
+        RNP_LOG("Invalid expiration '%s'.", delta_str);
+        return false;
+    }
+    switch (std::tolower(mult)) {
+    case 'h':
+        delta *= 60 * 60;
+        break;
+    case 'd':
+        delta *= 60 * 60 * 24;
+        break;
+    case 'w':
+        delta *= 60 * 60 * 24 * 7;
+        break;
+    case 'm':
+        delta *= 60 * 60 * 24 * 31;
+        break;
+    case 'y':
+        delta *= 60 * 60 * 24 * 365;
+        break;
+    }
+    if (delta > UINT32_MAX) {
+        RNP_LOG("Expiration value exceed 32 bit.");
+        return false;
+    }
+    seconds = delta;
+    return true;
+}
 
 uint64_t
 rnp_cfg::get_sig_creation() const
@@ -321,7 +401,7 @@ rnp_cfg::get_sig_creation() const
     const std::string &cr = get_str(CFG_CREATION);
     /* Check if string is date */
     uint64_t t;
-    if (!grabdate(cr.c_str(), &t)) {
+    if (parse_date(cr, t)) {
         return t;
     }
     /* Check if string is UNIX timestamp */
@@ -408,17 +488,8 @@ days_in_month(int year, int month)
     }
 }
 
-/** @brief Grabs date from the string in %Y-%m-%d format (using "-", "/", "." as a separator)
- *
- *  @param s [in] NULL-terminated string with the date
- *  @param t [out] UNIX timestamp of successfully parsed date
- *  @return 0 when parsed successfully
- *          1 when s doesn't match the regex
- *         -1 when s matches the regex but the date is not acceptable
- *         -2 failure
- */
-static int
-grabdate(const char *s, uint64_t *t)
+bool
+rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
 {
     /* fill time zone information */
     const time_t now = time(NULL);
@@ -435,12 +506,12 @@ grabdate(const char *s, uint64_t *t)
         compiled = 1;
         if (regcomp(&r, reg, REG_EXTENDED)) {
             RNP_LOG("failed to compile regexp");
-            return -2;
+            return false;
         }
     }
     regmatch_t matches[4];
-    if (regexec(&r, s, ARRAY_SIZE(matches), matches, 0)) {
-        return 1;
+    if (regexec(&r, s.c_str(), ARRAY_SIZE(matches), matches, 0)) {
+        return false;
     }
     int year = strtol(&s[matches[1].rm_so], NULL, 10);
     int mon = strtol(&s[matches[2].rm_so], NULL, 10);
@@ -448,17 +519,17 @@ grabdate(const char *s, uint64_t *t)
 #else
     static std::regex re(reg, std::regex_constants::extended);
     std::smatch       result;
-    const std::string input = s;
 
-    if (!std::regex_search(input, result, re)) {
-        return 1;
+    if (!std::regex_search(s, result, re)) {
+        return false;
     }
     int year = std::stoi(result[1].str());
     int mon = std::stoi(result[2].str());
     int mday = std::stoi(result[3].str());
 #endif
     if (year < 1970 || mon < 1 || mon > 12 || !mday || (mday > days_in_month(year, mon))) {
-        return -1;
+        RNP_LOG("invalid date: %s.", s.c_str());
+        return false;
     }
     tm.tm_year = year - 1900;
     tm.tm_mon = mon - 1;
@@ -472,90 +543,8 @@ grabdate(const char *s, uint64_t *t)
          * timestamp */
         RNP_LOG("Warning: date %s is beyond of 32-bit time_t, so timestamp was reduced to "
                 "maximum supported value.",
-                s);
+                s.c_str());
     }
-    *t = built_time;
-    return 0;
-}
-
-int
-get_expiration(const char *s, uint32_t *res)
-{
-    if (!s || !strlen(s)) {
-        return -1;
-    }
-    uint64_t delta;
-    uint64_t t;
-    int      grabdate_result = grabdate(s, &t);
-    if (!grabdate_result) {
-        uint64_t now = time(NULL);
-        if (t > now) {
-            delta = t - now;
-            if (delta > UINT32_MAX) {
-                return -3;
-            }
-            *res = delta;
-            return 0;
-        }
-        return -2;
-    } else if (grabdate_result < 0) {
-        return -2;
-    }
-    const char *reg = "^([0-9]+)([hdwmy]?)$";
-#ifndef RNP_USE_STD_REGEX
-    static regex_t r;
-    static int     compiled;
-    regmatch_t     matches[3];
-
-    if (!compiled) {
-        compiled = 1;
-        if (regcomp(&r, reg, REG_EXTENDED | REG_ICASE)) {
-            RNP_LOG("failed to compile regexp");
-            return -2;
-        }
-    }
-    if (regexec(&r, s, ARRAY_SIZE(matches), matches, 0)) {
-        return -2;
-    }
-    auto delta_str = &s[(int) matches[1].rm_so];
-    char mult = s[(int) matches[2].rm_so];
-#else
-    static std::regex re(reg, std::regex_constants::extended | std::regex_constants::icase);
-    std::smatch       result;
-    std::string       input = s;
-
-    if (!std::regex_search(input, result, re)) {
-        return -2;
-    }
-    std::string delta_stdstr = result[1].str();
-    const char *delta_str = delta_stdstr.c_str();
-    char        mult = result[2].str()[0];
-#endif
-    errno = 0;
-    delta = (uint64_t) strtoul(delta_str, NULL, 10);
-    if (errno || delta > UINT_MAX) {
-        return -3;
-    }
-    switch (std::tolower(mult)) {
-    case 'h':
-        delta *= 60 * 60;
-        break;
-    case 'd':
-        delta *= 60 * 60 * 24;
-        break;
-    case 'w':
-        delta *= 60 * 60 * 24 * 7;
-        break;
-    case 'm':
-        delta *= 60 * 60 * 24 * 31;
-        break;
-    case 'y':
-        delta *= 60 * 60 * 24 * 365;
-        break;
-    }
-    if (delta > UINT32_MAX) {
-        return -4;
-    }
-    *res = delta;
-    return 0;
+    t = built_time;
+    return true;
 }
