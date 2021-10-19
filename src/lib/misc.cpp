@@ -256,17 +256,6 @@ rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *
     return dest;
 }
 
-char *
-rnp_strlwr(char *s)
-{
-    char *p = s;
-    while (*p) {
-        *p = tolower((unsigned char) *p);
-        p++;
-    }
-    return s;
-}
-
 /* Shortcut function to add field checking it for null to avoid allocation failure.
    Please note that it deallocates val on failure. */
 bool

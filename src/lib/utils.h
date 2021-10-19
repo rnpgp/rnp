@@ -97,8 +97,6 @@ int rnp_strcasecmp(const char *, const char *);
 
 char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
 
-char *rnp_strlwr(char *s);
-
 /* debugging helpers*/
 void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
