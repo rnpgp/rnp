@@ -100,8 +100,6 @@ char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const 
 /* debugging helpers*/
 void hexdump(FILE *, const char *, const uint8_t *, size_t);
 
-const char *pgp_str_from_map(int, pgp_map_t *);
-
 /* debugging, reflection and information */
 bool rnp_set_debug(const char *);
 bool rnp_get_debug(const char *);

@@ -177,13 +177,13 @@ pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_pr
     return pgp_request_key(prov, &ctx);
 }
 
-static pgp_map_t ss_rr_code_map[] = {
+static const id_str_pair ss_rr_code_map[] = {
   {PGP_REVOCATION_NO_REASON, "No reason specified"},
   {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},
   {PGP_REVOCATION_COMPROMISED, "Key material has been compromised"},
   {PGP_REVOCATION_RETIRED, "Key is retired and no longer used"},
   {PGP_REVOCATION_NO_LONGER_VALID, "User ID information is no longer valid"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
 pgp_key_t *
@@ -887,7 +887,7 @@ pgp_revoke_t::pgp_revoke_t(pgp_subsig_t &sig)
         reason = sig.sig.revocation_reason();
     }
     if (reason.empty()) {
-        reason = pgp_str_from_map(code, ss_rr_code_map);
+        reason = id_str_pair::lookup(ss_rr_code_map, code);
     }
 }
 
