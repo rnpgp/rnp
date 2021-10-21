@@ -792,14 +792,13 @@ rnp_version_commit_timestamp()
 rnp_result_t
 rnp_enable_debug(const char *file)
 try {
-    return rnp_set_debug(file) ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
 rnp_result_t
 rnp_disable_debug()
 try {
-    rnp_clear_debug();
     return RNP_SUCCESS;
 }
 FFI_GUARD

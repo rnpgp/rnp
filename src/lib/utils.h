@@ -31,27 +31,8 @@
 #include <limits.h>
 #include "logging.h"
 
-#define RNP_DLOG(...)                    \
-    if (rnp_get_debug(__FILE__)) {       \
-        RNP_LOG_FD(stderr, __VA_ARGS__); \
-    }
-
-#define RNP_DHEX(msg, mem, len)         \
-    if (rnp_get_debug(__FILE__)) {      \
-        hexdump(stderr, msg, mem, len); \
-    }
-
 /* number of elements in an array */
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
-#define CHECK(exp, val, err)                          \
-    do {                                              \
-        if ((exp) != (val)) {                         \
-            RNP_LOG("ERROR: (" #exp ")!=(" #val ")"); \
-            ret = (err);                              \
-            goto end;                                 \
-        }                                             \
-    } while (false)
 
 /*
  * @params
@@ -96,14 +77,6 @@
 int rnp_strcasecmp(const char *, const char *);
 
 char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
-
-/* debugging helpers*/
-void hexdump(FILE *, const char *, const uint8_t *, size_t);
-
-/* debugging, reflection and information */
-bool rnp_set_debug(const char *);
-bool rnp_get_debug(const char *);
-void rnp_clear_debug();
 
 /* Portable way to convert bits to bytes */
 
