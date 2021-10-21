@@ -50,7 +50,7 @@
 #include "json_utils.h"
 #include <algorithm>
 
-static pgp_map_t packet_tag_map[] = {
+static const id_str_pair packet_tag_map[] = {
   {PGP_PKT_RESERVED, "Reserved"},
   {PGP_PKT_PK_SESSION_KEY, "Public-Key Encrypted Session Key"},
   {PGP_PKT_SIGNATURE, "Signature"},
@@ -72,11 +72,10 @@ static pgp_map_t packet_tag_map[] = {
   {PGP_PKT_SE_IP_DATA, "Symmetric Encrypted and Integrity Protected Data"},
   {PGP_PKT_MDC, "Modification Detection Code"},
   {PGP_PKT_AEAD_ENCRYPTED, "AEAD Encrypted Data Packet"},
-
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t sig_type_map[] = {
+static const id_str_pair sig_type_map[] = {
   {PGP_SIG_BINARY, "Signature of a binary document"},
   {PGP_SIG_TEXT, "Signature of a canonical text document"},
   {PGP_SIG_STANDALONE, "Standalone signature"},
@@ -92,10 +91,10 @@ static pgp_map_t sig_type_map[] = {
   {PGP_SIG_REV_CERT, "Certification revocation signature"},
   {PGP_SIG_TIMESTAMP, "Timestamp signature"},
   {PGP_SIG_3RD_PARTY, "Third-Party Confirmation signature"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t sig_subpkt_type_map[] = {
+static const id_str_pair sig_subpkt_type_map[] = {
   {PGP_SIG_SUBPKT_CREATION_TIME, "signature creation time"},
   {PGP_SIG_SUBPKT_EXPIRATION_TIME, "signature expiration time"},
   {PGP_SIG_SUBPKT_EXPORT_CERT, "exportable certification"},
@@ -121,10 +120,10 @@ static pgp_map_t sig_subpkt_type_map[] = {
   {PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, "embedded signature"},
   {PGP_SIG_SUBPKT_ISSUER_FPR, "issuer fingerprint"},
   {PGP_SIG_SUBPKT_PREFERRED_AEAD, "preferred AEAD algorithms"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t key_type_map[] = {
+static const id_str_pair key_type_map[] = {
   {PGP_PKT_SECRET_KEY, "Secret key"},
   {PGP_PKT_PUBLIC_KEY, "Public key"},
   {PGP_PKT_SECRET_SUBKEY, "Secret subkey"},
@@ -132,7 +131,7 @@ static pgp_map_t key_type_map[] = {
   {0x00, NULL},
 };
 
-static pgp_map_t pubkey_alg_map[] = {
+static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
   {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA (Encrypt-Only)"},
   {PGP_PKA_RSA_SIGN_ONLY, "RSA (Sign-Only)"},
@@ -144,10 +143,10 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_RESERVED_DH, "Reserved for DH (X9.42)"},
   {PGP_PKA_EDDSA, "EdDSA"},
   {PGP_PKA_SM2, "SM2"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t symm_alg_map[] = {
+static const id_str_pair symm_alg_map[] = {
   {PGP_SA_PLAINTEXT, "Plaintext"},
   {PGP_SA_IDEA, "IDEA"},
   {PGP_SA_TRIPLEDES, "TripleDES"},
@@ -161,10 +160,10 @@ static pgp_map_t symm_alg_map[] = {
   {PGP_SA_CAMELLIA_192, "Camellia-192"},
   {PGP_SA_CAMELLIA_256, "Camellia-256"},
   {PGP_SA_SM4, "SM4"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t hash_alg_map[] = {
+static const id_str_pair hash_alg_map[] = {
   {PGP_HASH_MD5, "MD5"},
   {PGP_HASH_SHA1, "SHA1"},
   {PGP_HASH_RIPEMD, "RIPEMD160"},
@@ -175,25 +174,25 @@ static pgp_map_t hash_alg_map[] = {
   {PGP_HASH_SM3, "SM3"},
   {PGP_HASH_SHA3_256, "SHA3-256"},
   {PGP_HASH_SHA3_512, "SHA3-512"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t z_alg_map[] = {
+static const id_str_pair z_alg_map[] = {
   {PGP_C_NONE, "Uncompressed"},
   {PGP_C_ZIP, "ZIP"},
   {PGP_C_ZLIB, "ZLib"},
   {PGP_C_BZIP2, "BZip2"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t aead_alg_map[] = {
+static const id_str_pair aead_alg_map[] = {
   {PGP_AEAD_NONE, "None"},
   {PGP_AEAD_EAX, "EAX"},
   {PGP_AEAD_OCB, "OCB"},
-  {0x00, NULL}, /* this is the end-of-array marker */
+  {0x00, NULL},
 };
 
-static pgp_map_t revoc_reason_map[] = {
+static const id_str_pair revoc_reason_map[] = {
   {PGP_REVOCATION_NO_REASON, "No reason"},
   {PGP_REVOCATION_SUPERSEDED, "Superseded"},
   {PGP_REVOCATION_COMPROMISED, "Compromised"},
@@ -324,7 +323,7 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
 static void
 dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
 {
-    const char *palg_name = pgp_str_from_map(palg, pubkey_alg_map);
+    const char *palg_name = id_str_pair::lookup(pubkey_alg_map, palg, "Unknown");
     if (!name) {
         name = "public key algorithm";
     }
@@ -335,7 +334,7 @@ dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
 static void
 dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
 {
-    const char *halg_name = pgp_str_from_map(halg, hash_alg_map);
+    const char *halg_name = id_str_pair::lookup(hash_alg_map, halg, "Unknown");
     if (!name) {
         name = "hash algorithm";
     }
@@ -346,7 +345,7 @@ dst_print_halg(pgp_dest_t *dst, const char *name, pgp_hash_alg_t halg)
 static void
 dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
 {
-    const char *salg_name = pgp_str_from_map(salg, symm_alg_map);
+    const char *salg_name = id_str_pair::lookup(symm_alg_map, salg, "Unknown");
     if (!name) {
         name = "symmetric algorithm";
     }
@@ -357,7 +356,7 @@ dst_print_salg(pgp_dest_t *dst, const char *name, pgp_symm_alg_t salg)
 static void
 dst_print_aalg(pgp_dest_t *dst, const char *name, pgp_aead_alg_t aalg)
 {
-    const char *aalg_name = pgp_str_from_map(aalg, aead_alg_map);
+    const char *aalg_name = id_str_pair::lookup(aead_alg_map, aalg, "Unknown");
     if (!name) {
         name = "aead algorithm";
     }
@@ -368,7 +367,7 @@ dst_print_aalg(pgp_dest_t *dst, const char *name, pgp_aead_alg_t aalg)
 static void
 dst_print_zalg(pgp_dest_t *dst, const char *name, pgp_compression_type_t zalg)
 {
-    const char *zalg_name = pgp_str_from_map(zalg, z_alg_map);
+    const char *zalg_name = id_str_pair::lookup(z_alg_map, zalg, "Unknown");
     if (!name) {
         name = "compression algorithm";
     }
@@ -385,7 +384,8 @@ dst_print_raw(pgp_dest_t *dst, const char *name, const void *data, size_t len)
 }
 
 static void
-dst_print_algs(pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, pgp_map_t map[])
+dst_print_algs(
+  pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, const id_str_pair map[])
 {
     if (!name) {
         name = "algorithms";
@@ -393,7 +393,8 @@ dst_print_algs(pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, pg
 
     dst_printf(dst, "%s: ", name);
     for (size_t i = 0; i < algc; i++) {
-        dst_printf(dst, "%s%s", pgp_str_from_map(algs[i], map), i + 1 < algc ? ", " : "");
+        dst_printf(
+          dst, "%s%s", id_str_pair::lookup(map, algs[i], "Unknown"), i + 1 < algc ? ", " : "");
     }
     dst_printf(dst, " (");
     for (size_t i = 0; i < algc; i++) {
@@ -405,7 +406,7 @@ dst_print_algs(pgp_dest_t *dst, const char *name, uint8_t *algs, size_t algc, pg
 static void
 dst_print_sig_type(pgp_dest_t *dst, const char *name, pgp_sig_type_t sigtype)
 {
-    const char *sig_name = pgp_str_from_map(sigtype, sig_type_map);
+    const char *sig_name = id_str_pair::lookup(sig_type_map, sigtype, "Unknown");
     if (!name) {
         name = "signature type";
     }
@@ -531,7 +532,7 @@ static void         stream_dump_signature_pkt(rnp_dump_ctx_t * ctx,
 static void
 signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_subpkt_t &subpkt)
 {
-    const char *sname = pgp_str_from_map(subpkt.type, sig_subpkt_type_map);
+    const char *sname = id_str_pair::lookup(sig_subpkt_type_map, subpkt.type, "Unknown");
 
     switch (subpkt.type) {
     case PGP_SIG_SUBPKT_CREATION_TIME:
@@ -625,7 +626,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
         break;
     case PGP_SIG_SUBPKT_REVOCATION_REASON: {
         int         code = subpkt.fields.revocation_reason.code;
-        const char *reason = pgp_str_from_map(code, revoc_reason_map);
+        const char *reason = id_str_pair::lookup(revoc_reason_map, code, "Unknown");
         dst_printf(dst, "%s: %d (%s)\n", sname, code, reason);
         dst_print_raw(dst,
                       "message",
@@ -798,7 +799,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         return ret;
     }
 
-    dst_printf(dst, "%s packet\n", pgp_str_from_map(key.tag, key_type_map));
+    dst_printf(dst, "%s packet\n", id_str_pair::lookup(key_type_map, key.tag, "Unknown"));
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) key.version);
@@ -1424,7 +1425,7 @@ finish:
 }
 
 static bool
-obj_add_intstr_json(json_object *obj, const char *name, int val, pgp_map_t map[])
+obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pair map[])
 {
     if (!obj_add_field_json(obj, name, json_object_new_int(val))) {
         return false;
@@ -1433,7 +1434,7 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, pgp_map_t map[]
         return true;
     }
     char        namestr[64] = {0};
-    const char *str = pgp_str_from_map(val, map);
+    const char *str = id_str_pair::lookup(map, val, "Unknown");
     snprintf(namestr, sizeof(namestr), "%s.str", name);
     return obj_add_field_json(obj, namestr, json_object_new_string(str));
 }
@@ -1455,7 +1456,7 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool 
 
 static bool
 subpacket_obj_add_algs(
-  json_object *obj, const char *name, uint8_t *algs, size_t len, pgp_map_t map[])
+  json_object *obj, const char *name, uint8_t *algs, size_t len, const id_str_pair map[])
 {
     json_object *jso_algs = json_object_new_array();
     if (!jso_algs || !obj_add_field_json(obj, name, jso_algs)) {
@@ -1478,8 +1479,9 @@ subpacket_obj_add_algs(
         return false;
     }
     for (size_t i = 0; i < len; i++) {
-        if (!array_add_element_json(jso_algs,
-                                    json_object_new_string(pgp_str_from_map(algs[i], map)))) {
+        if (!array_add_element_json(
+              jso_algs,
+              json_object_new_string(id_str_pair::lookup(map, algs[i], "Unknown")))) {
             return false;
         }
     }

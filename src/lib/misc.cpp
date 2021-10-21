@@ -92,44 +92,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #define vsnprintf _vsnprintf
 #endif
 
-/**
- * Searches the given map for the given type.
- * Returns a human-readable descriptive string if found,
- * returns NULL if not found
- *
- * It is the responsibility of the calling function to handle the
- * error case sensibly (i.e. don't just print out the return string.
- *
- */
-static const char *
-str_from_map_or_null(int type, pgp_map_t *map)
-{
-    pgp_map_t *row;
-
-    for (row = map; row->string != NULL; row++) {
-        if (row->type == type) {
-            return row->string;
-        }
-    }
-    return NULL;
-}
-
-/**
- * \ingroup Core_Print
- *
- * Searches the given map for the given type.
- * Returns a readable string if found, "Unknown" if not.
- */
-
-const char *
-pgp_str_from_map(int type, pgp_map_t *map)
-{
-    const char *str;
-
-    str = str_from_map_or_null(type, map);
-    return (str) ? str : "Unknown";
-}
-
 #define LINELEN 16
 
 /* show hexadecimal/ascii dump */
@@ -310,4 +272,41 @@ array_add_element_json(json_object *obj, json_object *val)
         return false;
     }
     return true;
+}
+
+const char *
+id_str_pair::lookup(const id_str_pair pair[], int id, const char *notfound)
+{
+    while (pair && pair->str) {
+        if (pair->id == id) {
+            return pair->str;
+        }
+        pair++;
+    }
+    return notfound;
+}
+
+int
+id_str_pair::lookup(const id_str_pair pair[], const char *str, int notfound)
+{
+    while (pair && pair->str) {
+        if (!rnp_strcasecmp(str, pair->str)) {
+            return pair->id;
+        }
+        pair++;
+    }
+    return notfound;
+}
+
+int
+id_str_pair::lookup(const id_str_pair pair[], const std::vector<uint8_t> &bytes, int notfound)
+{
+    while (pair && pair->str) {
+        if ((strlen(pair->str) == bytes.size()) &&
+            !memcmp(pair->str, bytes.data(), bytes.size())) {
+            return pair->id;
+        }
+        pair++;
+    }
+    return notfound;
 }
