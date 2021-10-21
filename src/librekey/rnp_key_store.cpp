@@ -83,7 +83,6 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
         errno = 0;
         while (!((dirname = rnp_readdir_name(dir)).empty())) {
             std::string path = key_store->path + '/' + dirname;
-            RNP_DLOG("Loading G10 key from file '%s'", path.c_str());
 
             if (init_file_src(&src, path.c_str())) {
                 RNP_LOG("failed to read file %s", path.c_str());
@@ -325,7 +324,6 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         }
     }
 
-    RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !oldkey->validated()) {
         oldkey->validate_subkey(primary);
@@ -378,7 +376,6 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
         }
     }
 
-    RNP_DLOG("keyc %lu", (long unsigned) rnp_key_store_get_key_count(keyring));
     /* validate all added keys if not disabled or already validated */
     if (!keyring->disable_validation && !added_key->validated()) {
         added_key->revalidate(*keyring);
@@ -598,7 +595,6 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
                             const pgp_key_id_t &keyid,
                             pgp_key_t *         after)
 {
-    RNP_DLOG("searching keyring %p", keyring);
     if (!keyring) {
         return NULL;
     }

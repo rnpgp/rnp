@@ -190,13 +190,5 @@ pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec
     const double  bytes_for_target = bytes_per_usec * desired_usec;
     const uint8_t iters = pgp_s2k_encode_iterations(bytes_for_target);
 
-    RNP_DLOG(
-      "PGP S2K hash %d tuned bytes/usec=%f desired_usec=%f bytes_for_target=%f iters %d",
-      alg,
-      bytes_per_usec,
-      desired_usec,
-      bytes_for_target,
-      iters);
-
     return pgp_s2k_decode_iterations((iters > MIN_ITERS) ? iters : MIN_ITERS);
 }

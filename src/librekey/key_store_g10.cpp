@@ -589,9 +589,6 @@ decrypt_protected_section(const std::vector<uint8_t> &encrypted_data,
         RNP_LOG("pgp_s2k_iterated failed");
         goto done;
     }
-    RNP_DHEX("input iv", prot.iv, G10_CBC_IV_SIZE);
-    RNP_DHEX("key", derived_key, keysize);
-    RNP_DHEX("encrypted", encrypted_data.data(), encrypted_data.size());
 
     // decrypt
     decrypted_data = (uint8_t *) malloc(encrypted_data.size());
@@ -614,7 +611,6 @@ decrypt_protected_section(const std::vector<uint8_t> &encrypted_data,
     decrypted_data_len = output_written;
     s_exp_len = decrypted_data_len;
     decrypted_bytes = (const char *) decrypted_data;
-    RNP_DHEX("decrypted data", decrypted_data, decrypted_data_len);
 
     // parse and validate the decrypted s-exp
     if (!r_s_exp.parse(&decrypted_bytes, &s_exp_len)) {
@@ -781,8 +777,6 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, s_exp_t &s_exp, const char *passwo
         auto &hval = (dynamic_cast<s_exp_block_t &>(sub_el.at(2))).bytes();
         if (hval.size() != G10_SHA1_HASH_SIZE ||
             memcmp(checkhash, hval.data(), G10_SHA1_HASH_SIZE)) {
-            RNP_DHEX("Expected hash", checkhash, G10_SHA1_HASH_SIZE);
-            RNP_DHEX("Has hash", hval.data(), hval.size());
             RNP_LOG("Incorrect hash at encrypted private key.");
             return false;
         }
@@ -797,10 +791,7 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
                  size_t         data_len,
                  const char *   password)
 {
-    s_exp_t s_exp;
-
-    RNP_DHEX("S-exp", (const uint8_t *) data, data_len);
-
+    s_exp_t     s_exp;
     const char *bytes = (const char *) data;
     if (!s_exp.parse(&bytes, &data_len)) {
         RNP_LOG("Failed to parse s-exp.");
@@ -872,15 +863,6 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
         if (!parse_seckey(seckey, alg_s_exp, alg)) {
             RNP_LOG("failed to parse seckey");
             goto done;
-        }
-    }
-
-    if (rnp_get_debug(__FILE__)) {
-        pgp_key_grip_t grip;
-        char           grips[PGP_KEY_GRIP_SIZE * 3];
-        if (rnp_key_store_get_key_grip(&seckey.material, grip)) {
-            RNP_LOG("loaded G10 key with GRIP: %s\n",
-                    rnp_strhexdump_upper(grips, grip.data(), grip.size(), ""));
         }
     }
     ret = true;
@@ -1218,10 +1200,6 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    RNP_DHEX("input iv", prot.iv, G10_CBC_IV_SIZE);
-    RNP_DHEX("key", derived_key.data(), keysize);
-    RNP_DHEX("raw data", (uint8_t *) rawkey.data(), rawkey.size());
-
     /* encrypt raw key */
     std::unique_ptr<Cipher> enc(
       Cipher::encryption(format->cipher, format->cipher_mode, 0, true));
@@ -1342,7 +1320,6 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
         goto error;
     }
 
-    RNP_DHEX("data for hashing", (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
     pgp_hash_add(&hash, mem_dest_get_memory(&memdst), memdst.writeb);
     dst_close(&memdst, true);
 

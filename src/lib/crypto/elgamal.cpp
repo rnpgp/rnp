@@ -309,7 +309,6 @@ start:
         goto end;
     }
     if (bn_num_bytes(*y) < BITS_TO_BYTES(keybits)) {
-        RNP_DLOG("Generated ElGamal key has too few bits - retrying");
         botan_privkey_destroy(key_priv);
         goto start;
     }
