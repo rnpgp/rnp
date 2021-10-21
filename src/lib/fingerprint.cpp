@@ -54,7 +54,6 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
         (void) mpi_hash(&key.material.rsa.n, &hash);
         (void) mpi_hash(&key.material.rsa.e, &hash);
         fp.length = pgp_hash_finish(&hash, fp.fingerprint);
-        RNP_DHEX("v2/v3 fingerprint", fp.fingerprint, fp.length);
         return RNP_SUCCESS;
     }
 
@@ -67,7 +66,6 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
             return RNP_ERROR_GENERIC;
         }
         fp.length = pgp_hash_finish(&hash, fp.fingerprint);
-        RNP_DHEX("sha1 fingerprint", fp.fingerprint, fp.length);
         return RNP_SUCCESS;
     }
 

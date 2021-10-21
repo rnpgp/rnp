@@ -470,9 +470,6 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     /* set chunk index for nonce */
     nlen = pgp_cipher_aead_nonce(param->aead_hdr.aalg, param->aead_hdr.iv, nonce, idx);
 
-    RNP_DHEX("authenticated data: ", param->aead_ad, param->aead_adlen);
-    RNP_DHEX("nonce: ", nonce, nlen);
-
     /* start cipher */
     return pgp_cipher_aead_start(&param->decrypt, nonce, nlen);
 }
@@ -545,8 +542,6 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             src_skip(param->pkt.readsrc, tagread - taglen);
         }
 
-        RNP_DHEX("tag: ", param->cache + read + tagread - 2 * taglen, taglen);
-
         res = pgp_cipher_aead_finish(
           &param->decrypt, param->cache, param->cache, read + tagread - taglen);
         if (!res) {
@@ -555,8 +550,6 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
         param->cachelen = read + tagread - 2 * taglen;
         param->chunkin += param->cachelen;
-
-        RNP_DHEX("decrypted data: ", param->cache, param->cachelen);
     }
 
     size_t chunkidx = param->chunkidx;
@@ -575,9 +568,6 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
 
         size_t off = read + tagread - taglen;
-
-        RNP_DHEX("tag: ", param->cache + off, taglen);
-
         res = pgp_cipher_aead_finish(
           &param->decrypt, param->cache + off, param->cache + off, taglen);
         if (!res) {
@@ -1513,7 +1503,6 @@ encrypted_sesk_set_ad(pgp_crypt_t *crypt, pgp_sk_sesskey_t *skey)
     ad_data[2] = skey->alg;
     ad_data[3] = skey->aalg;
 
-    RNP_DHEX("sesk ad: ", ad_data, 4);
     return pgp_cipher_aead_set_ad(crypt, ad_data, 4);
 }
 #endif
@@ -1530,7 +1519,6 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         if (!keysize || !pgp_s2k_derive_key(&skey.s2k, password, keybuf.data(), keysize)) {
             continue;
         }
-        RNP_DHEX("derived key: ", keybuf.data(), keysize);
         pgp_crypt_t    crypt;
         pgp_symm_alg_t alg;
 
@@ -1587,17 +1575,10 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
             /* calculate nonce */
             noncelen = pgp_cipher_aead_nonce(skey.aalg, skey.iv, nonce, 0);
 
-            RNP_DHEX("nonce: ", nonce, noncelen);
-            RNP_DHEX("encrypted key: ", skey.enckey, skey.enckeylen);
-
             /* start cipher, decrypt key and verify tag */
             keyavail = pgp_cipher_aead_start(&crypt, nonce, noncelen);
             bool decres = keyavail && pgp_cipher_aead_finish(
                                         &crypt, keybuf.data(), skey.enckey, skey.enckeylen);
-
-            if (decres) {
-                RNP_DHEX("decrypted key: ", keybuf.data(), pgp_key_size(param->aead_hdr.ealg));
-            }
 
             pgp_cipher_aead_destroy(&crypt);
 
