@@ -563,32 +563,6 @@ keygen_merge_defaults(rnp_keygen_primary_desc_t *primary_desc,
     }
 }
 
-static void
-print_keygen_crypto(const rnp_keygen_crypto_params_t *crypto)
-{
-    printf("key_alg: %s (%d)\n", pgp_show_pka(crypto->key_alg), crypto->key_alg);
-    if (crypto->key_alg == PGP_PKA_RSA) {
-        printf("bits: %u\n", crypto->rsa.modulus_bit_len);
-    } else {
-        printf("curve: %d\n", crypto->ecc.curve);
-    }
-    printf("hash_alg: %s (%d)\n", pgp_show_hash_alg(crypto->hash_alg), crypto->hash_alg);
-}
-
-static void
-print_keygen_primary(const rnp_keygen_primary_desc_t *desc)
-{
-    printf("Keygen (primary)\n");
-    print_keygen_crypto(&desc->crypto);
-}
-
-static void
-print_keygen_subkey(const rnp_keygen_subkey_desc_t *desc)
-{
-    printf("Keygen (subkey)\n");
-    print_keygen_crypto(&desc->crypto);
-}
-
 bool
 pgp_generate_keypair(rng_t *                    rng,
                      rnp_keygen_primary_desc_t *primary_desc,
@@ -601,11 +575,6 @@ pgp_generate_keypair(rng_t *                    rng,
                      pgp_key_store_format_t     secformat)
 {
     bool ok = false;
-
-    if (rnp_get_debug(__FILE__)) {
-        print_keygen_primary(primary_desc);
-        print_keygen_subkey(subkey_desc);
-    }
 
     // validate args
     if (!primary_desc || !subkey_desc || !primary_sec || !primary_pub || !subkey_sec ||

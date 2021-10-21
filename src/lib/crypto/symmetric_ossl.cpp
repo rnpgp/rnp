@@ -335,7 +335,6 @@ pgp_block_size(pgp_symm_alg_t alg)
     case PGP_SA_CAST5:
     case PGP_SA_BLOWFISH:
         return 8;
-
     case PGP_SA_AES_128:
     case PGP_SA_AES_192:
     case PGP_SA_AES_256:
@@ -345,9 +344,7 @@ pgp_block_size(pgp_symm_alg_t alg)
     case PGP_SA_CAMELLIA_256:
     case PGP_SA_SM4:
         return 16;
-
     default:
-        RNP_DLOG("Unknown PGP symmetric alg %d", (int) alg);
         return 0;
     }
 }
@@ -368,17 +365,14 @@ pgp_key_size(pgp_symm_alg_t alg)
     case PGP_SA_CAMELLIA_128:
     case PGP_SA_SM4:
         return 16;
-
     case PGP_SA_TRIPLEDES:
     case PGP_SA_AES_192:
     case PGP_SA_CAMELLIA_192:
         return 24;
-
     case PGP_SA_TWOFISH:
     case PGP_SA_AES_256:
     case PGP_SA_CAMELLIA_256:
         return 32;
-
     default:
         return 0;
     }

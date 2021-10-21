@@ -165,16 +165,17 @@ RNP_API uint32_t rnp_version_patch(uint32_t version);
  **/
 RNP_API uint64_t rnp_version_commit_timestamp();
 
-/** Enable debugging for the specified source file. Use 'all' or NULL as parameter to
- *  enable debug for all sources.
- *  Note: this must be only used during development since may print out confidential data.
+/** @brief This function is deprecated and should not be used anymore. It would just silently
+ *         return RNP_SUCCESS.
  *
  * @param file name of the sourcer file. Use 'all' to enable debug for all code.
+ *
  */
 RNP_API rnp_result_t rnp_enable_debug(const char *file);
 
 /**
- * @brief Disable previously enabled debug for all files.
+ * @brief This function is deprecated and should not be used anymore. It would just silently
+ *        return RNP_SUCCESS.
  *
  */
 RNP_API rnp_result_t rnp_disable_debug();
