@@ -43,7 +43,7 @@ static const uint8_t DEFAULT_HASH_ALGS[] = {
 static const uint8_t DEFAULT_COMPRESS_ALGS[] = {
   PGP_C_ZLIB, PGP_C_BZIP2, PGP_C_ZIP, PGP_C_NONE};
 
-static pgp_map_t pubkey_alg_map[] = {
+static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RSA, "RSA (Encrypt or Sign)"},
   {PGP_PKA_RSA_ENCRYPT_ONLY, "RSA Encrypt-Only"},
   {PGP_PKA_RSA_SIGN_ONLY, "RSA Sign-Only"},
@@ -66,8 +66,7 @@ static pgp_map_t pubkey_alg_map[] = {
   {PGP_PKA_PRIVATE08, "Private/Experimental"},
   {PGP_PKA_PRIVATE09, "Private/Experimental"},
   {PGP_PKA_PRIVATE10, "Private/Experimental"},
-  {0x00, NULL}, /* this is the end-of-array marker */
-};
+  {0, NULL}};
 
 static bool
 load_generated_g10_key(pgp_key_t *    dst,
@@ -312,7 +311,7 @@ set_default_user_prefs(pgp_user_prefs_t &prefs)
 static const char *
 pgp_show_pka(pgp_pubkey_alg_t pka)
 {
-    return pgp_str_from_map(pka, pubkey_alg_map);
+    return id_str_pair::lookup(pubkey_alg_map, pka);
 }
 
 static void
@@ -329,7 +328,7 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         snprintf((char *) desc.cert.userid,
                  sizeof(desc.cert.userid),
                  "%s %d-bit key <%s@localhost>",
-                 pgp_show_pka(desc.crypto.key_alg),
+                 id_str_pair::lookup(pubkey_alg_map, desc.crypto.key_alg),
                  get_numbits(&desc.crypto),
                  getenv_logname());
     }

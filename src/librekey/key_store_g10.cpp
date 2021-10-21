@@ -81,49 +81,65 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE}};
 
-static const pgp_map_t g10_alg_aliases[] = {{PGP_PKA_RSA, "rsa"},
-                                            {PGP_PKA_RSA, "openpgp-rsa"},
-                                            {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
-                                            {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
-                                            {PGP_PKA_ELGAMAL, "elg"},
-                                            {PGP_PKA_ELGAMAL, "elgamal"},
-                                            {PGP_PKA_ELGAMAL, "openpgp-elg"},
-                                            {PGP_PKA_ELGAMAL, "openpgp-elg-sig"},
-                                            {PGP_PKA_DSA, "dsa"},
-                                            {PGP_PKA_DSA, "openpgp-dsa"},
-                                            {PGP_PKA_ECDSA, "ecc"},
-                                            {PGP_PKA_ECDSA, "ecdsa"},
-                                            {PGP_PKA_ECDH, "ecdh"},
-                                            {PGP_PKA_EDDSA, "eddsa"}};
+static const id_str_pair g10_alg_aliases[] = {
+  {PGP_PKA_RSA, "rsa"},
+  {PGP_PKA_RSA, "openpgp-rsa"},
+  {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
+  {PGP_PKA_RSA, "oid.1.2.840.113549.1.1.1"},
+  {PGP_PKA_ELGAMAL, "elg"},
+  {PGP_PKA_ELGAMAL, "elgamal"},
+  {PGP_PKA_ELGAMAL, "openpgp-elg"},
+  {PGP_PKA_ELGAMAL, "openpgp-elg-sig"},
+  {PGP_PKA_DSA, "dsa"},
+  {PGP_PKA_DSA, "openpgp-dsa"},
+  {PGP_PKA_ECDSA, "ecc"},
+  {PGP_PKA_ECDSA, "ecdsa"},
+  {PGP_PKA_ECDH, "ecdh"},
+  {PGP_PKA_EDDSA, "eddsa"},
+  {0, NULL},
+};
 
-static const pgp_map_t g10_curve_aliases[] = {
-  {PGP_CURVE_NIST_P_256, "NIST P-256"},   {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
-  {PGP_CURVE_NIST_P_256, "prime256v1"},   {PGP_CURVE_NIST_P_256, "secp256r1"},
+static const id_str_pair g10_curve_aliases[] = {
+  {PGP_CURVE_NIST_P_256, "NIST P-256"},
+  {PGP_CURVE_NIST_P_256, "1.2.840.10045.3.1.7"},
+  {PGP_CURVE_NIST_P_256, "prime256v1"},
+  {PGP_CURVE_NIST_P_256, "secp256r1"},
   {PGP_CURVE_NIST_P_256, "nistp256"},
+  {PGP_CURVE_NIST_P_384, "NIST P-384"},
+  {PGP_CURVE_NIST_P_384, "secp384r1"},
+  {PGP_CURVE_NIST_P_384, "1.3.132.0.34"},
+  {PGP_CURVE_NIST_P_384, "nistp384"},
+  {PGP_CURVE_NIST_P_521, "NIST P-521"},
+  {PGP_CURVE_NIST_P_521, "secp521r1"},
+  {PGP_CURVE_NIST_P_521, "1.3.132.0.35"},
+  {PGP_CURVE_NIST_P_521, "nistp521"},
+  {PGP_CURVE_25519, "Curve25519"},
+  {PGP_CURVE_25519, "1.3.6.1.4.1.3029.1.5.1"},
+  {PGP_CURVE_ED25519, "Ed25519"},
+  {PGP_CURVE_ED25519, "1.3.6.1.4.1.11591.15.1"},
+  {PGP_CURVE_BP256, "brainpoolP256r1"},
+  {PGP_CURVE_BP256, "1.3.36.3.3.2.8.1.1.7"},
+  {PGP_CURVE_BP384, "brainpoolP384r1"},
+  {PGP_CURVE_BP384, "1.3.36.3.3.2.8.1.1.11"},
+  {PGP_CURVE_BP512, "brainpoolP512r1"},
+  {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"},
+  {PGP_CURVE_P256K1, "secp256k1"},
+  {PGP_CURVE_P256K1, "1.3.132.0.10"},
+  {0, NULL},
+};
 
-  {PGP_CURVE_NIST_P_384, "NIST P-384"},   {PGP_CURVE_NIST_P_384, "secp384r1"},
-  {PGP_CURVE_NIST_P_384, "1.3.132.0.34"}, {PGP_CURVE_NIST_P_384, "nistp384"},
-
-  {PGP_CURVE_NIST_P_521, "NIST P-521"},   {PGP_CURVE_NIST_P_521, "secp521r1"},
-  {PGP_CURVE_NIST_P_521, "1.3.132.0.35"}, {PGP_CURVE_NIST_P_521, "nistp521"},
-
-  {PGP_CURVE_25519, "Curve25519"},        {PGP_CURVE_25519, "1.3.6.1.4.1.3029.1.5.1"},
-  {PGP_CURVE_ED25519, "Ed25519"},         {PGP_CURVE_ED25519, "1.3.6.1.4.1.11591.15.1"},
-
-  {PGP_CURVE_BP256, "brainpoolP256r1"},   {PGP_CURVE_BP256, "1.3.36.3.3.2.8.1.1.7"},
-  {PGP_CURVE_BP384, "brainpoolP384r1"},   {PGP_CURVE_BP384, "1.3.36.3.3.2.8.1.1.11"},
-  {PGP_CURVE_BP512, "brainpoolP512r1"},   {PGP_CURVE_BP512, "1.3.36.3.3.2.8.1.1.13"},
-  {PGP_CURVE_P256K1, "secp256k1"},        {PGP_CURVE_P256K1, "1.3.132.0.10"}};
-
-static const pgp_map_t g10_curve_names[] = {{PGP_CURVE_NIST_P_256, "NIST P-256"},
-                                            {PGP_CURVE_NIST_P_384, "NIST P-384"},
-                                            {PGP_CURVE_NIST_P_521, "NIST P-521"},
-                                            {PGP_CURVE_ED25519, "Ed25519"},
-                                            {PGP_CURVE_25519, "Curve25519"},
-                                            {PGP_CURVE_BP256, "brainpoolP256r1"},
-                                            {PGP_CURVE_BP384, "brainpoolP384r1"},
-                                            {PGP_CURVE_BP512, "brainpoolP512r1"},
-                                            {PGP_CURVE_P256K1, "secp256k1"}};
+static const id_str_pair g10_curve_names[] = {
+  {PGP_CURVE_NIST_P_256, "NIST P-256"},
+  {PGP_CURVE_NIST_P_384, "NIST P-384"},
+  {PGP_CURVE_NIST_P_521, "NIST P-521"},
+  {PGP_CURVE_ED25519, "Ed25519"},
+  {PGP_CURVE_25519, "Curve25519"},
+  {PGP_CURVE_BP256, "brainpoolP256r1"},
+  {PGP_CURVE_BP384, "brainpoolP384r1"},
+  {PGP_CURVE_BP512, "brainpoolP512r1"},
+  {PGP_CURVE_P256K1, "secp256k1"},
+  {0, NULL},
+};
 
 static const format_info *
 find_format(pgp_symm_alg_t cipher, pgp_cipher_mode_t mode, pgp_hash_alg_t hash_alg)
@@ -392,14 +408,11 @@ s_exp_t::read_curve(const std::string &name, pgp_ec_key_t &key) noexcept
     }
 
     const auto &bytes = data->bytes();
-    for (size_t i = 0; i < ARRAY_SIZE(g10_curve_aliases); i++) {
-        if (strlen(g10_curve_aliases[i].string) != bytes.size()) {
-            continue;
-        }
-        if (!memcmp(g10_curve_aliases[i].string, bytes.data(), bytes.size())) {
-            key.curve = (pgp_curve_t) g10_curve_aliases[i].type;
-            return true;
-        }
+    pgp_curve_t curve = static_cast<pgp_curve_t>(
+      id_str_pair::lookup(g10_curve_aliases, data->bytes(), PGP_CURVE_UNKNOWN));
+    if (curve != PGP_CURVE_UNKNOWN) {
+        key.curve = curve;
+        return true;
     }
     RNP_LOG("Unknown curve: %.*s", (int) bytes.size(), (char *) bytes.data());
     return false;
@@ -416,8 +429,7 @@ s_exp_t::add_mpi(const std::string &name, const pgp_mpi_t &val)
 void
 s_exp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
 {
-    const char *curve = NULL;
-    ARRAY_LOOKUP_BY_ID(g10_curve_names, type, string, key.curve, curve);
+    const char *curve = id_str_pair::lookup(g10_curve_names, key.curve, NULL);
     if (!curve) {
         RNP_LOG("unknown curve");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -834,18 +846,9 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
         return false;
     }
 
-    pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
     auto &           alg_bt = (dynamic_cast<s_exp_block_t &>(alg_s_exp.at(0))).bytes();
-    for (size_t i = 0; i < ARRAY_SIZE(g10_alg_aliases); i++) {
-        if (strlen(g10_alg_aliases[i].string) != alg_bt.size()) {
-            continue;
-        }
-        if (!memcmp(g10_alg_aliases[i].string, alg_bt.data(), alg_bt.size())) {
-            alg = (pgp_pubkey_alg_t) g10_alg_aliases[i].type;
-            break;
-        }
-    }
-
+    pgp_pubkey_alg_t alg = static_cast<pgp_pubkey_alg_t>(
+      id_str_pair::lookup(g10_alg_aliases, alg_bt, PGP_PKA_NOTHING));
     if (alg == PGP_PKA_NOTHING) {
         RNP_LOG(
           "Unsupported algorithm: '%.*s'", (int) alg_bt.size(), (const char *) alg_bt.data());

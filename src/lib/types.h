@@ -73,12 +73,28 @@
 /* Maximum supported password length */
 #define MAX_PASSWORD_LENGTH 256
 
-/** pgp_map_t
- */
-typedef struct {
-    int         type;
-    const char *string;
-} pgp_map_t;
+class id_str_pair {
+  public:
+    int         id;
+    const char *str;
+
+    /**
+     * @brief Lookup constant pair array for the specified id or string value.
+     *        Note: array must be finished with NULL string to stop the lookup.
+     *
+     * @param pair pointer to the const array with pairs.
+     * @param id identifier to search for
+     * @param notfound value to return if identifier is not found.
+     * @return string, representing the identifier.
+     */
+    static const char *lookup(const id_str_pair pair[],
+                              int               id,
+                              const char *      notfound = "unknown");
+    static int         lookup(const id_str_pair pair[], const char *str, int notfound = 0);
+    static int         lookup(const id_str_pair           pair[],
+                              const std::vector<uint8_t> &bytes,
+                              int                         notfound = 0);
+};
 
 typedef struct {
     uint8_t     mask;
