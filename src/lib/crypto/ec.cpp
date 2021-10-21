@@ -26,16 +26,18 @@
 
 #include <botan/ffi.h>
 #include <string.h>
+#include <cassert>
 #include "ec.h"
 #include "types.h"
 #include "utils.h"
 #include "mem.h"
 #include "bn.h"
 
-static pgp_map_t ec_algo_to_botan[] = {
+static id_str_pair ec_algo_to_botan[] = {
   {PGP_PKA_ECDH, "ECDH"},
   {PGP_PKA_ECDSA, "ECDSA"},
   {PGP_PKA_SM2, "SM2_Sig"},
+  {0, NULL},
 };
 
 rnp_result_t
@@ -105,6 +107,8 @@ ec_generate(rng_t *                rng,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    const char *ec_algo = id_str_pair::lookup(ec_algo_to_botan, alg_id, NULL);
+    assert(ec_algo);
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
     if (!ec_desc) {
         ret = RNP_ERROR_BAD_PARAMETERS;
@@ -113,10 +117,7 @@ ec_generate(rng_t *                rng,
     filed_byte_size = BITS_TO_BYTES(ec_desc->bitlen);
 
     // at this point it must succeed
-    if (botan_privkey_create(&pr_key,
-                             pgp_str_from_map(alg_id, ec_algo_to_botan),
-                             ec_desc->botan_name,
-                             rng_handle(rng))) {
+    if (botan_privkey_create(&pr_key, ec_algo, ec_desc->botan_name, rng_handle(rng))) {
         goto end;
     }
 

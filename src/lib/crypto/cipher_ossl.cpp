@@ -29,13 +29,17 @@
 #include "types.h"
 #include <openssl/err.h>
 
-static const pgp_map_t cipher_mode_map[] = {{PGP_CIPHER_MODE_CBC, "CBC"},
-                                            {PGP_CIPHER_MODE_OCB, "OCB"}};
+static const id_str_pair cipher_mode_map[] = {
+  {PGP_CIPHER_MODE_CBC, "CBC"},
+  {PGP_CIPHER_MODE_OCB, "OCB"},
+  {0, NULL},
+};
 
-static const pgp_map_t cipher_map[] = {
+static const id_str_pair cipher_map[] = {
   {PGP_SA_AES_128, "AES-128"},
   {PGP_SA_AES_256, "AES-256"},
   {PGP_SA_IDEA, "IDEA"},
+  {0, NULL},
 };
 
 EVP_CIPHER_CTX *
@@ -76,11 +80,8 @@ Cipher_OpenSSL::create(const std::string &name,
 static std::string
 make_name(pgp_symm_alg_t cipher, pgp_cipher_mode_t mode)
 {
-    const char *cipher_string = NULL;
-    ARRAY_LOOKUP_BY_ID(cipher_map, type, string, cipher, cipher_string);
-    const char *mode_string = NULL;
-    ARRAY_LOOKUP_BY_ID(cipher_mode_map, type, string, mode, mode_string);
-
+    const char *cipher_string = id_str_pair::lookup(cipher_map, cipher, NULL);
+    const char *mode_string = id_str_pair::lookup(cipher_mode_map, mode, NULL);
     if (!cipher_string || !mode_string) {
         return "";
     }
