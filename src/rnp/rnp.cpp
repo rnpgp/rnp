@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2021 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -51,41 +51,47 @@
 #include "fficli.h"
 #include "logging.h"
 
-static const char *rnp_prog_name = NULL;
-
-static const char *usage = "-h, --help OR\n"
-                           "\t--encrypt [--output=file] [options] files... OR\n"
-                           "\t-c, --symmetric [--output=file] [options] files...OR\n"
-                           "\t--decrypt [--output=file] [options] files... OR\n"
-                           "\t--sign [--detach] [--hash=alg] [--output=file]\n"
-                           "\t\t[options] files... OR\n"
-                           "\t--verify [options] files... OR\n"
-                           "\t--cat [--output=file] [options] files... OR\n"
-                           "\t--clearsign [--output=file] [options] files... OR\n"
-                           "\t--list-packets [options] OR\n"
-                           "\t--dearmor [--output=file] file OR\n"
-                           "\t--enarmor=<msg|pubkey|seckey|sign> OR\n"
-                           "\t--list-packets [--json] [--grips] [--mpi] [--raw] OR\n"
-                           "\t\t[--output=file] file OR\n"
-                           "\t--version\n"
-                           "where options are:\n"
-                           "\t[-r, --recipient] AND/OR\n"
-                           "\t[--passwords] AND/OR\n"
-                           "\t[--armor] AND/OR\n"
-                           "\t[--cipher=<ciphername>] AND/OR\n"
-                           "\t[--zip, --zlib, --bzip, -z 0..9] AND/OR\n"
-                           "\t[--aead[=EAX, OCB]] AND/OR\n"
-                           "\t[--aead-chunk-bits=0..56] AND/OR\n"
-                           "\t[--coredumps] AND/OR\n"
-                           "\t[--notty] AND/OR\n"
-                           "\t[--homedir=<homedir>] AND/OR\n"
-                           "\t[-f, --keyfile=<path to key] AND/OR\n"
-                           "\t[--keyring=<keyring>] AND/OR\n"
-                           "\t[--keystore-format=<format>] AND/OR\n"
-                           "\t[--numtries=<attempts>] AND/OR\n"
-                           "\t[-u, --userid=<userid>] AND/OR\n"
-                           "\t[--maxmemalloc=<number of bytes>] AND/OR\n"
-                           "\t[--verbose]\n";
+static const char *usage =
+  "Sign, verify, encrypt, decrypt, investigate OpenPGP data.\n"
+  "Usage: rnp --command [options] [files]\n"
+  "Commands:\n"
+  "  -h, --help           This help message.\n"
+  "  -V, --version        Print RNP version information.\n"
+  "  -e, --encrypt        Encrypt data using the public key(s).\n"
+  "    -r, --recipient    Specify recipient's key via uid/keyid/fingerprint.\n"
+  "    --cipher name      Specify symmetric cipher, used for encryption.\n"
+  "    --aead[=EAX, OCB]  Use AEAD for encryption.\n"
+  "    -z 0..9            Set the compression level.\n"
+  "    --[zip,zlib,bzip]  Use the corresponding compression algorithm.\n"
+  "    --armor            Apply ASCII armor to the encryption/signing output.\n"
+  "  -c, --symmetric      Encrypt data using the password(s).\n"
+  "    --passwords num    Encrypt to the specified number of passwords.\n"
+  "  -s, --sign           Sign data. May be combined with encryption.\n"
+  "    --detach           Produce detached signature.\n"
+  "    -u, --userid       Specify signing key(s) via uid/keyid/fingerprint.\n"
+  "    --hash             Specify hash algorithm, used during signing.\n"
+  "  --clearsign          Cleartext-sign data.\n"
+  "  -d, --decrypt        Decrypt and output data, verifying signatures.\n"
+  "  -v, --verify         Verify signatures, without outputting data.\n"
+  "  --dearmor            Strip ASCII armor from the data, outputting binary.\n"
+  "  --enarmor            Add ASCII armor to the data.\n"
+  "  --list-packets       List OpenPGP packets from the input.\n"
+  "    --json             Use JSON output instead of human-readable.\n"
+  "    --grips            Dump key fingerprints and grips.\n"
+  "    --mpi              Dump MPI values from packets.\n"
+  "    --raw              Dump raw packet contents as well.\n"
+  "\n"
+  "Other options:\n"
+  "  --homedir path       Override home directory (default is ~/.rnp/).\n"
+  "  -f, --keyfile        Load key(s) only from the file specified.\n"
+  "  --output [file, -]   Write data to the specified file or stdout.\n"
+  "  --overwrite          Overwrite output file without a prompt.\n"
+  "  --password           Password used during operation.\n"
+  "  --pass-fd num        Read password(s) from the file descriptor.\n"
+  "  --notty              Do not output anything to the TTY.\n"
+  "\n"
+  "See man page for a detailed listing and explanation.\n"
+  "\n";
 
 enum optdefs {
     /* Commands as they are get via CLI */
@@ -224,7 +230,7 @@ static void
 print_usage(const char *usagemsg)
 {
     print_praise();
-    ERR_MSG("Usage: %s %s", rnp_prog_name, usagemsg);
+    ERR_MSG("%s", usagemsg);
 }
 
 /* do a command once for a specified config */
@@ -580,8 +586,6 @@ rnp_main(int argc, char **argv)
     int       ret = EXIT_ERROR;
     int       ch;
     bool      disable_ks = false;
-
-    rnp_prog_name = argv[0];
 
     if (argc < 2) {
         print_usage(usage);
