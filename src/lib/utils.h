@@ -27,7 +27,6 @@
 #define RNP_UTILS_H_
 
 #include <stdio.h>
-#include "types.h"
 #include <limits.h>
 #include "logging.h"
 
