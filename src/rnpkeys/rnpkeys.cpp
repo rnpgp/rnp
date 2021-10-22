@@ -589,7 +589,8 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     }
     case OPT_DEBUG:
-        return !rnp_enable_debug(arg);
+        ERR_MSG("Option --debug is deprecated, ignoring.");
+        return true;
     case OPT_OUTPUT:
         if (!arg) {
             ERR_MSG("No output filename argument provided");

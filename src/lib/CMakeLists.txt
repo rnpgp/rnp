@@ -256,9 +256,11 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
 endforeach()
 
 generate_export_header(librnp
-  BASE_NAME rnp/rnp
+  BASE_NAME rnp
   EXPORT_MACRO_NAME RNP_API
+  EXPORT_FILE_NAME rnp/rnp_export.h
   STATIC_DEFINE RNP_STATIC
+  INCLUDE_GUARD_NAME RNP_EXPORT
 )
 
 # This has precedence and can cause some confusion when the binary

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2020 Ribose Inc.
+ * Copyright (c) 2017-2021 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -165,20 +165,22 @@ RNP_API uint32_t rnp_version_patch(uint32_t version);
  **/
 RNP_API uint64_t rnp_version_commit_timestamp();
 
+#ifndef RNP_NO_DEPRECATED
 /** @brief This function is deprecated and should not be used anymore. It would just silently
  *         return RNP_SUCCESS.
  *
  * @param file name of the sourcer file. Use 'all' to enable debug for all code.
  *
  */
-RNP_API rnp_result_t rnp_enable_debug(const char *file);
+RNP_API RNP_DEPRECATED rnp_result_t rnp_enable_debug(const char *file);
 
 /**
  * @brief This function is deprecated and should not be used anymore. It would just silently
  *        return RNP_SUCCESS.
  *
  */
-RNP_API rnp_result_t rnp_disable_debug();
+RNP_API RNP_DEPRECATED rnp_result_t rnp_disable_debug();
+#endif
 
 /*
  * Opaque structures
