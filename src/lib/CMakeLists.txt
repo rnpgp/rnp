@@ -121,6 +121,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     crypto/eddsa_ossl.cpp
     crypto/dl_ossl.cpp
     crypto/elgamal_ossl.cpp
+    crypto/hash_common.cpp
     crypto/hash_ossl.cpp
     crypto/hash_crc24.cpp
     crypto/mpi.cpp
@@ -148,6 +149,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     crypto/ecdsa.cpp
     crypto/eddsa.cpp
     crypto/elgamal.cpp
+    crypto/hash_common.cpp
     crypto/hash.cpp
     crypto/mpi.cpp
     crypto/rng.cpp

@@ -34,11 +34,79 @@
 
 #include <repgp/repgp_def.h>
 #include "types.h"
+#include "config.h"
 
 /**
  * Output size (in bytes) of biggest supported hash algo
  */
 #define PGP_MAX_HASH_SIZE (64)
+
+namespace rnp {
+class Hash {
+  protected:
+    void *         handle_;
+    size_t         size_;
+    pgp_hash_alg_t alg_;
+
+  public:
+    pgp_hash_alg_t alg() const;
+    size_t         size() const;
+
+    Hash() : handle_(NULL), size_(0), alg_(PGP_HASH_UNKNOWN){};
+    Hash(pgp_hash_alg_t alg);
+    Hash(Hash &&src);
+
+    virtual void   add(const void *buf, size_t len);
+    virtual void   add(uint32_t val);
+    virtual void   add(const pgp_mpi_t &mpi);
+    virtual size_t finish(uint8_t *digest = NULL);
+    virtual void   clone(Hash &dst) const;
+
+    Hash &operator=(const Hash &src);
+    Hash &operator=(Hash &&src);
+
+    virtual ~Hash();
+
+    /* Hash algorithm by string representation from cleartext-signed text */
+    static pgp_hash_alg_t alg(const char *name);
+    /* Hash algorithm representation for cleartext-signed text */
+    static const char *name(pgp_hash_alg_t alg);
+    /* Hash algorithm representation for the backend functions */
+    static const char *name_backend(pgp_hash_alg_t alg);
+    /* Size of the hash algorithm output or 0 if algorithm is unknown */
+    static size_t size(pgp_hash_alg_t alg);
+};
+
+#if defined(CRYPTO_BACKEND_BOTAN)
+class CRC24 : public Hash {
+  public:
+    CRC24();
+};
+#endif
+#if defined(CRYPTO_BACKEND_OPENSSL)
+class CRC24 {
+    uint32_t state_;
+
+  public:
+    CRC24();
+
+    void   add(const void *buf, size_t len);
+    size_t finish(uint8_t *crc);
+};
+#endif
+
+class HashList {
+    std::vector<Hash> hashes_;
+
+  public:
+    void               add_alg(pgp_hash_alg_t alg);
+    const Hash *       get(pgp_hash_alg_t alg) const;
+    void               add(const void *buf, size_t len);
+    bool               empty() const;
+    std::vector<Hash> &hashes();
+};
+
+} // namespace rnp
 
 /** pgp_hash_t */
 typedef struct pgp_hash_t {
