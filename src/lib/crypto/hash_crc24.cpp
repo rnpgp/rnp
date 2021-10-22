@@ -250,6 +250,34 @@ crc24_final(uint32_t crc)
     return (BSWAP32(crc) >> 8);
 }
 
+namespace rnp {
+
+CRC24::CRC24()
+{
+    state_ = CRC24_FAST_INIT;
+}
+
+void
+CRC24::add(const void *buf, size_t len)
+{
+    state_ = crc24_update(state_, static_cast<const uint8_t *>(buf), len);
+}
+
+size_t
+CRC24::finish(uint8_t *crc)
+{
+    uint32_t crc_fin = crc24_final(state_);
+    state_ = 0;
+    if (crc) {
+        crc[0] = (crc_fin >> 16) & 0xff;
+        crc[1] = (crc_fin >> 8) & 0xff;
+        crc[2] = crc_fin & 0xff;
+    }
+    return 3;
+}
+
+}; // namespace rnp
+
 bool
 pgp_crc24_create(pgp_hash_t *hash)
 {

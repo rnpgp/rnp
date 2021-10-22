@@ -27,6 +27,8 @@
 #ifndef HASH_CRC24_H
 #define HASH_CRC24_H
 
+#include "hash.h"
+
 bool   pgp_crc24_create(pgp_hash_t *hash);
 bool   pgp_crc24_copy(pgp_hash_t *dst, const pgp_hash_t *src);
 int    pgp_crc24_add(pgp_hash_t *hash, const void *buf, size_t len);
