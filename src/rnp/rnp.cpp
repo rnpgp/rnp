@@ -555,7 +555,8 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         cfg.set_bool(CFG_NOTTY, true);
         return true;
     case OPT_DEBUG:
-        return rnp_enable_debug(arg);
+        ERR_MSG("Option --debug is deprecated, ignoring.");
+        return true;
     default:
         return setcmd(cfg, CMD_HELP, arg);
     }
