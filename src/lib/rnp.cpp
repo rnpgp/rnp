@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2020, Ribose Inc.
+ * Copyright (c) 2017-2021, Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -789,19 +789,23 @@ rnp_version_commit_timestamp()
     return RNP_VERSION_COMMIT_TIMESTAMP;
 }
 
+#ifndef RNP_NO_DEPRECATED
 rnp_result_t
 rnp_enable_debug(const char *file)
 try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+#endif
 
+#ifndef RNP_NO_DEPRECATED
 rnp_result_t
 rnp_disable_debug()
 try {
     return RNP_SUCCESS;
 }
 FFI_GUARD
+#endif
 
 rnp_result_t
 rnp_get_default_homedir(char **homedir)
