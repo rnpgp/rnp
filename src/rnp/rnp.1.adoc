@@ -72,8 +72,8 @@ Specify one or more recipients.
 *--cipher*:::
 Select a specific cipher.
 
-*-z*, *--zip*, *--bzip*:::
-Select a compression algorithm.
+*-z 0..9*, *--zlib*, *--zip*, *--bzip*:::
+Select a compression algorithm and level.
 
 *--armor*:::
 Output ASCII data instead of binary via the *--armor* option. If the input file is _file.ext_, and *--output* is not specified, then the data will be written (depending on *--armor* option) to _file.ext.pgp_ or _file.ext.asc_. +
@@ -134,7 +134,7 @@ Output, if not overridden with this option, will be written to the file with str
 Depending on encryption options, you may be asked for the password of one of your secret keys, or for the encryption password. These options override that behavior such that you can input the password through automated means.
 
 *-v*, *--verify*::
-Verify signature(s) without writing embedded data out, if any. +
+Verify signature(s) without writing embedded data out, if any (unless option _--output_ is specified). +
 +
 To verify the detached signature of a file _file.ext_, the detached signature file in the file name pattern of _file.ext.sig_ or _file.ext.asc_ must exist. +
 +
