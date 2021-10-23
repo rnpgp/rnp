@@ -209,7 +209,7 @@ Revoked keys cannot be used further. +
 Additional options:
 
 *--rev-type*:::
-Specifies type of key revocation.
+Specifies type of key revocation, see *options* section for the available values.
 
 *--rev-reason*:::
 Specifies reason for key revocation.
