@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2021, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -39,41 +39,48 @@
 #include <stdarg.h>
 #include "rnpkeys.h"
 
-extern const char *rnp_keys_progname;
-
-const char *usage = "-h, --help OR\n"
-                    "\t--export-key [options] OR\n"
-                    "\t--export-rev [options] OR\n"
-                    "\t--revoke-key [options] OR\n"
-                    "\t--generate-key [options] OR\n"
-                    "\t--import, --import-keys, --import-sigs [options] OR\n"
-                    "\t--list-keys [options] OR\n"
-                    "\t--remove-key [options] OR\n"
-                    "\t--edit-key [options] OR\n"
-                    "\t--version\n"
-                    "where options are:\n"
-                    "\t[--cipher=<cipher name>] AND/OR\n"
-                    "\t[--coredumps] AND/OR\n"
-                    "\t[--expert] AND/OR\n"
-                    "\t[--with-sigs] AND/OR\n"
-                    "\t[--force] AND/OR\n"
-                    "\t[--overwrite] AND/OR\n"
-                    "\t[--secret] AND/OR\n"
-                    "\t[--hash=<hash alg>] AND/OR\n"
-                    "\t[--homedir=<homedir>] AND/OR\n"
-                    "\t[--keyring=<keyring>] AND/OR\n"
-                    "\t[--pass-fd=<fd>] OR\n"
-                    "\t[--password=<password>] AND/OR\n"
-                    "\t[--permissive] AND/OR\n"
-                    "\t[--notty] AND/OR\n"
-                    "\t[--output=file] file OR\n"
-                    "\t[--keystore-format=<format>] AND/OR\n"
-                    "\t[--userid=<userid>] AND/OR\n"
-                    "\t[--expiration=<expiration>] AND/OR\n"
-                    "\t[--rev-type, --rev-reason] AND/OR\n"
-                    "\t[--check-cv25519-bits] AND/OR\n"
-                    "\t[--fix-cv25519-bits] AND/OR\n"
-                    "\t[--verbose]\n";
+const char *usage =
+  "Manipulate OpenPGP keys and keyrings.\n"
+  "Usage: rnpkeys --command [options] [files]\n"
+  "Commands:\n"
+  "  -h, --help             This help message.\n"
+  "  -V, --version          Print RNP version information.\n"
+  "  -g, --generate-key     Generate a new keypair (default is RSA).\n"
+  "    --userid             Specify key's userid.\n"
+  "    --expert             Select key type, size, and additional parameters.\n"
+  "    --numbits            Override default key size (2048).\n"
+  "    --expiration         Set key and subkey expiration time.\n"
+  "    --cipher             Set cipher used to encrypt a secret key.\n"
+  "    --hash               Set hash which is used for key derivation.\n"
+  "  -l, --list-keys        List keys in the keyrings.\n"
+  "    --secret             List secret keys instead of public ones.\n"
+  "    --with-sigs          List signatures as well.\n"
+  "  --import               Import keys or signatures.\n"
+  "  --import-keys          Import keys.\n"
+  "  --import-sigs          Import signatures.\n"
+  "    --permissive         Skip erroring keys/sigs instead of failing.\n"
+  "  --export-key           Export a key.\n"
+  "    --secret             Export a secret key instead of a public.\n"
+  "  --export-rev           Export a key's revocation.\n"
+  "    --rev-type           Set revocation type.\n"
+  "    --rev-reason         Human-readable reason for revocation.\n"
+  "  --revoke-key           Revoke a key specified.\n"
+  "  --remove-key           Remove a key specified.\n"
+  "  --edit-key             Edit key properties.\n"
+  "    --check-cv25519-bits Check whether Cv25519 subkey bits are correct.\n"
+  "    --fix-cv25519-bits   Fix Cv25519 subkey bits.\n"
+  "\n"
+  "Other options:\n"
+  "  --homedir              Override home directory (default is ~/.rnp/).\n"
+  "  --password             Password, which should be used during operation.\n"
+  "  --pass-fd              Read password(s) from the file descriptor.\n"
+  "  --force                Force operation (like secret key removal).\n"
+  "  --output [file, -]     Write data to the specified file or stdout.\n"
+  "  --overwrite            Overwrite output file without a prompt.\n"
+  "  --notty                Do not write anything to the TTY.\n"
+  "\n"
+  "See man page for a detailed listing and explanation.\n"
+  "\n";
 
 struct option options[] = {
   /* key-management commands */
@@ -348,7 +355,7 @@ void
 print_usage(const char *usagemsg)
 {
     print_praise();
-    ERR_MSG("Usage: %s %s", rnp_keys_progname, usagemsg);
+    ERR_MSG("%s", usagemsg);
 }
 
 /* do a command once for a specified file 'f' */
