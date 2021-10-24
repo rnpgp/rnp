@@ -137,7 +137,6 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
     /* write g10 key store to the directory */
     if (key_store->format == PGP_KEY_STORE_G10) {
         char path[MAXPATHLEN];
-        char grips[PGP_FINGERPRINT_HEX_SIZE];
 
         struct stat path_stat;
         if (rnp_stat(key_store->path.c_str(), &path_stat) != -1) {
@@ -157,11 +156,9 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         }
 
         for (auto &key : key_store->keys) {
-            snprintf(path,
-                     sizeof(path),
-                     "%s/%s.key",
-                     key_store->path.c_str(),
-                     rnp_strhexdump_upper(grips, key.grip().data(), key.grip().size(), ""));
+            char grip[PGP_FINGERPRINT_HEX_SIZE] = {0};
+            rnp::hex_encode(key.grip().data(), key.grip().size(), grip, sizeof(grip));
+            snprintf(path, sizeof(path), "%s/%s.key", key_store->path.c_str(), grip);
 
             if (init_tmpfile_dest(&keydst, path, true)) {
                 RNP_LOG("failed to create file");

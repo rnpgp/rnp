@@ -76,8 +76,6 @@
 
 int rnp_strcasecmp(const char *, const char *);
 
-char *rnp_strhexdump_upper(char *dest, const uint8_t *src, size_t length, const char *sep);
-
 /* Portable way to convert bits to bytes */
 
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
