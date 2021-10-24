@@ -252,4 +252,13 @@ bool aead_ocb_enabled();
 bool twofish_enabled();
 bool brainpool_enabled();
 
+inline size_t
+rnp_round_up(size_t n, size_t align_to)
+{
+    if (n % align_to) {
+        n += align_to - (n % align_to);
+    }
+    return n;
+}
+
 #endif /* SUPPORT_H_ */
