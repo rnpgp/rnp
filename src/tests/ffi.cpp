@@ -36,6 +36,7 @@
 #include "librepgp/stream-sig.h"
 #include <json.h>
 #include "file-utils.h"
+#include "str-utils.h"
 #include <librepgp/stream-ctx.h>
 #include "pgp-key.h"
 #include "ffi-priv-types.h"
@@ -3562,64 +3563,54 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     jso = json_tokener_parse(json);
     assert_non_null(jso);
     // validate some properties
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "type")), "ECDSA"), 0);
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "type")), "ECDSA"));
     assert_int_equal(json_object_get_int(get_json_obj(jso, "length")), 256);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"), 0);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "keyid")), "0E33FD46FF10F19C"),
-      0);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "fingerprint")),
-                                    "B6B5E497A177551ECB8862200E33FD46FF10F19C"),
-                     0);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
-                                    "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"),
-                     0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "keyid")),
+                                 "0E33FD46FF10F19C"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "fingerprint")),
+                                 "B6B5E497A177551ECB8862200E33FD46FF10F19C"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "grip")),
+                                 "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
     // usage
     assert_int_equal(json_object_array_length(get_json_obj(jso, "usage")), 2);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
-                                      get_json_obj(jso, "usage"), 0)),
-                                    "sign"),
-                     0);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
-                                      get_json_obj(jso, "usage"), 1)),
-                                    "certify"),
-                     0);
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 0)),
+      "sign"));
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 1)),
+      "certify"));
     // primary key grip
     assert_null(get_json_obj(jso, "primary key grip"));
     // subkey grips
     assert_int_equal(json_object_array_length(get_json_obj(jso, "subkey grips")), 1);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
-                                      get_json_obj(jso, "subkey grips"), 0)),
-                                    "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
-                     0);
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "subkey grips"), 0)),
+      "FFFA72FC225214DC712D0127172EE13E88AF93B4"));
     // public key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
-                     "04B0C6F2F585C1EEDF805C4492CB683839D5EAE6246420780F063D558"
-                     "A33F607876BE6F818A665722F8204653CC4DCFAD4F4765521AC8A6E9F"
-                     "793CEBAE8600BEEF"),
-      0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
+                       "04B0C6F2F585C1EEDF805C4492CB683839D5EAE6246420780F063D558"
+                       "A33F607876BE6F818A665722F8204653CC4DCFAD4F4765521AC8A6E9F"
+                       "793CEBAE8600BEEF"));
     // secret key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
-                     "46DE93CA439735F36B9CF228F10D8586DA824D88BBF4E24566D5312D061802C8"),
-      0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
+                       "46DE93CA439735F36B9CF228F10D8586DA824D88BBF4E24566D5312D061802C8"));
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
                      false);
     // userids
     assert_int_equal(json_object_array_length(get_json_obj(jso, "userids")), 1);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
-                                      get_json_obj(jso, "userids"), 0)),
-                                    "test0"),
-                     0);
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "userids"), 0)),
+      "test0"));
     // signatures
     assert_int_equal(json_object_array_length(get_json_obj(jso, "signatures")), 1);
     json_object *jsosig = json_object_array_get_idx(get_json_obj(jso, "signatures"), 0);
@@ -3642,55 +3633,45 @@ TEST_F(rnp_tests, test_ffi_key_to_json)
     jso = json_tokener_parse(json);
     assert_non_null(jso);
     // validate some properties
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "type")), "ECDH"),
-                     0);
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "type")), "ECDH"));
     assert_int_equal(json_object_get_int(get_json_obj(jso, "length")), 256);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"), 0);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "keyid")), "074131BC8D16C5C9"),
-      0);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "fingerprint")),
-                                    "481E6A41B10ECD71A477DB02074131BC8D16C5C9"),
-                     0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "curve")), "NIST P-256"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "keyid")),
+                                 "074131BC8D16C5C9"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "fingerprint")),
+                                 "481E6A41B10ECD71A477DB02074131BC8D16C5C9"));
     // ECDH-specific
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "kdf hash")), "SHA256"), 0);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "key wrap cipher")), "AES128"),
-      0);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "grip")),
-                                    "FFFA72FC225214DC712D0127172EE13E88AF93B4"),
-                     0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "kdf hash")), "SHA256"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "key wrap cipher")),
+                                 "AES128"));
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "grip")),
+                                 "FFFA72FC225214DC712D0127172EE13E88AF93B4"));
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "revoked")), false);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "creation time")), 1511313500);
     assert_int_equal(json_object_get_int64(get_json_obj(jso, "expiration")), 0);
     // usage
     assert_int_equal(json_object_array_length(get_json_obj(jso, "usage")), 1);
-    assert_int_equal(rnp_strcasecmp(json_object_get_string(json_object_array_get_idx(
-                                      get_json_obj(jso, "usage"), 0)),
-                                    "encrypt"),
-                     0);
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(json_object_array_get_idx(get_json_obj(jso, "usage"), 0)),
+      "encrypt"));
     // primary key grip
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "primary key grip")),
-                     "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"),
-      0);
+    assert_true(rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "primary key grip")),
+                                 "20A48B3C61525DCDF8B3B9D82C6BBCF4D8BFB5E5"));
     // subkey grips
     assert_null(get_json_obj(jso, "subkey grips"));
     // public key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "public key.present")), true);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
-                     "04E2746BA4D180011B17A6909EABDBF2F3733674FBE00B20A3B857C2597233651544150B"
-                     "896BCE7DCDF47C49FC1E12D5AD86384D26336A48A18845940A3F65F502"),
-      0);
+    assert_true(rnp::str_case_eq(
+      json_object_get_string(get_json_obj(jso, "public key.mpis.point")),
+      "04E2746BA4D180011B17A6909EABDBF2F3733674FBE00B20A3B857C2597233651544150B"
+      "896BCE7DCDF47C49FC1E12D5AD86384D26336A48A18845940A3F65F502"));
     // secret key
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.present")), true);
-    assert_int_equal(
-      rnp_strcasecmp(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
-                     "DF8BEB7272117AD7AFE2B7E882453113059787FBC785C82F78624EE7EF2117FB"),
-      0);
+    assert_true(
+      rnp::str_case_eq(json_object_get_string(get_json_obj(jso, "secret key.mpis.x")),
+                       "DF8BEB7272117AD7AFE2B7E882453113059787FBC785C82F78624EE7EF2117FB"));
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.locked")), false);
     assert_int_equal(json_object_get_boolean(get_json_obj(jso, "secret key.protected")),
                      false);
@@ -3826,7 +3807,7 @@ TEST_F(rnp_tests, test_ffi_key_iter)
                 ident = NULL;
                 assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
                 if (ident) {
-                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    assert_true(rnp::str_case_eq(expected[i], ident));
                     i++;
                 }
             } while (ident);
@@ -3854,7 +3835,7 @@ TEST_F(rnp_tests, test_ffi_key_iter)
                 ident = NULL;
                 assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
                 if (ident) {
-                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    assert_true(rnp::str_case_eq(expected[i], ident));
                     i++;
                 }
             } while (ident);
@@ -3877,7 +3858,7 @@ TEST_F(rnp_tests, test_ffi_key_iter)
                 ident = NULL;
                 assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
                 if (ident) {
-                    assert_int_equal(0, rnp_strcasecmp(expected[i], ident));
+                    assert_true(rnp::str_case_eq(expected[i], ident));
                     i++;
                 }
             } while (ident);

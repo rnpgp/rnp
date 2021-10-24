@@ -28,6 +28,7 @@
 #include "ec.h"
 #include "types.h"
 #include "utils.h"
+#include "str-utils.h"
 
 /**
  * EC Curves definition used by implementation
@@ -281,7 +282,7 @@ pgp_curve_t
 find_curve_by_name(const char *name)
 {
     for (size_t i = 1; i < PGP_CURVE_MAX; i++) {
-        if (!rnp_strcasecmp(ec_curves[i].pgp_name, name)) {
+        if (rnp::str_case_eq(ec_curves[i].pgp_name, name)) {
             return ec_curves[i].rnp_curve_id;
         }
     }

@@ -55,6 +55,7 @@
 #include <sys/stat.h>
 #include <stdexcept>
 #include "utils.h"
+#include "str-utils.h"
 #include "json_utils.h"
 #include "version.h"
 #include "ffi-priv-types.h"
@@ -350,7 +351,7 @@ str_to_revocation_type(const char *str, pgp_revocation_type_t *code)
 {
     pgp_revocation_type_t rev = static_cast<pgp_revocation_type_t>(
       id_str_pair::lookup(revocation_code_map, str, PGP_REVOCATION_NO_REASON));
-    if ((rev == PGP_REVOCATION_NO_REASON) && rnp_strcasecmp(str, "no")) {
+    if ((rev == PGP_REVOCATION_NO_REASON) && !rnp::str_case_eq(str, "no")) {
         return false;
     }
     *code = rev;
@@ -990,25 +991,25 @@ try {
     if (!type || !name || !supported) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
+    if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
         pgp_symm_alg_t alg = PGP_SA_UNKNOWN;
         *supported = str_to_cipher(name, &alg);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_AEAD_ALG)) {
         pgp_aead_alg_t alg = PGP_AEAD_UNKNOWN;
         *supported = str_to_aead_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_PROT_MODE)) {
         // for now we support only CFB for key encryption
-        *supported = rnp_strcasecmp(name, "CFB") == 0;
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PK_ALG)) {
+        *supported = rnp::str_case_eq(name, "CFB");
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_PK_ALG)) {
         pgp_pubkey_alg_t alg = PGP_PKA_NOTHING;
         *supported = str_to_pubkey_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_HASH_ALG)) {
         pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
         *supported = str_to_hash_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_COMP_ALG)) {
         pgp_compression_type_t alg = PGP_C_UNKNOWN;
         *supported = str_to_compression_alg(name, &alg);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         pgp_curve_t curve = PGP_CURVE_UNKNOWN;
         *supported = curve_str_to_type(name, &curve);
     } else {
@@ -1047,7 +1048,7 @@ try {
 
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
-    if (!rnp_strcasecmp(type, RNP_FEATURE_SYMM_ALG)) {
+    if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
         ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_AES_256);
 #if defined(ENABLE_TWOFISH)
         ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_TWOFISH, PGP_SA_TWOFISH);
@@ -1057,30 +1058,30 @@ try {
 #if defined(ENABLE_SM2)
         ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_SM4, PGP_SA_SM4);
 #endif
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_AEAD_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_AEAD_ALG)) {
 #if defined(ENABLE_AEAD)
         ret = json_array_add_id_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_OCB);
 #else
         ret = json_array_add_id_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_NONE);
 #endif
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PROT_MODE)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_PROT_MODE)) {
         ret = json_array_add_id_str(
           features, cipher_mode_map, PGP_CIPHER_MODE_CFB, PGP_CIPHER_MODE_CFB);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_PK_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_PK_ALG)) {
         // workaround to avoid duplicates, maybe there is a better solution
         (void) json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_RSA, PGP_PKA_RSA);
         ret = json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_EDDSA);
 #if defined(ENABLE_SM2)
         ret = json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_SM2, PGP_PKA_SM2);
 #endif
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_HASH_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_HASH_ALG)) {
         ret = json_array_add_id_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SHA3_512);
 #if defined(ENABLE_SM2)
         ret = json_array_add_id_str(features, hash_alg_map, PGP_HASH_SM3, PGP_HASH_SM3);
 #endif
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_COMP_ALG)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_COMP_ALG)) {
         ret = json_array_add_id_str(features, compress_alg_map, PGP_C_NONE, PGP_C_BZIP2);
-    } else if (!rnp_strcasecmp(type, RNP_FEATURE_CURVE)) {
+    } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
             const ec_curve_desc_t *desc = get_curve_desc(curve);
@@ -4236,7 +4237,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
             return false;
         }
         try {
-            if (!rnp_strcasecmp(key, "hashes")) {
+            if (rnp::str_case_eq(key, "hashes")) {
                 int length = json_object_array_length(value);
                 for (int i = 0; i < length; i++) {
                     json_object *item = json_object_array_get_idx(value, i);
@@ -4249,7 +4250,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
                     }
                     prefs.add_hash_alg(hash_alg);
                 }
-            } else if (!rnp_strcasecmp(key, "ciphers")) {
+            } else if (rnp::str_case_eq(key, "ciphers")) {
                 int length = json_object_array_length(value);
                 for (int i = 0; i < length; i++) {
                     json_object *item = json_object_array_get_idx(value, i);
@@ -4262,7 +4263,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
                     }
                     prefs.add_symm_alg(symm_alg);
                 }
-            } else if (!rnp_strcasecmp(key, "compression")) {
+            } else if (rnp::str_case_eq(key, "compression")) {
                 int length = json_object_array_length(value);
                 for (int i = 0; i < length; i++) {
                     json_object *item = json_object_array_get_idx(value, i);
@@ -4275,7 +4276,7 @@ parse_preferences(json_object *jso, pgp_user_prefs_t &prefs)
                     }
                     prefs.add_z_alg(z_alg);
                 }
-            } else if (!rnp_strcasecmp(key, "key server")) {
+            } else if (rnp::str_case_eq(key, "key server")) {
                 prefs.key_server = json_object_get_string(value);
             }
         } catch (const std::exception &e) {
@@ -4311,11 +4312,11 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
             return false;
         }
         // TODO: make sure there are no duplicate keys in the JSON
-        if (!rnp_strcasecmp(key, "type")) {
+        if (rnp::str_case_eq(key, "type")) {
             if (!str_to_pubkey_alg(json_object_get_string(value), &crypto->key_alg)) {
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "length")) {
+        } else if (rnp::str_case_eq(key, "length")) {
             int length = json_object_get_int(value);
             switch (crypto->key_alg) {
             case PGP_PKA_RSA:
@@ -4330,14 +4331,14 @@ parse_keygen_crypto(json_object *jso, rnp_keygen_crypto_params_t *crypto)
             default:
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "curve")) {
+        } else if (rnp::str_case_eq(key, "curve")) {
             if (!pk_alg_allows_custom_curve(crypto->key_alg)) {
                 return false;
             }
             if (!curve_str_to_type(json_object_get_string(value), &crypto->ecc.curve)) {
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "hash")) {
+        } else if (rnp::str_case_eq(key, "hash")) {
             if (!str_to_hash_alg(json_object_get_string(value), &crypto->hash_alg)) {
                 return false;
             }
@@ -4374,17 +4375,17 @@ parse_protection(json_object *jso, rnp_key_protection_params_t *protection)
             return false;
         }
         // TODO: make sure there are no duplicate keys in the JSON
-        if (!rnp_strcasecmp(key, "cipher")) {
+        if (rnp::str_case_eq(key, "cipher")) {
             if (!str_to_cipher(json_object_get_string(value), &protection->symm_alg)) {
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "mode")) {
+        } else if (rnp::str_case_eq(key, "mode")) {
             if (!str_to_cipher_mode(json_object_get_string(value), &protection->cipher_mode)) {
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "iterations")) {
+        } else if (rnp::str_case_eq(key, "iterations")) {
             protection->iterations = json_object_get_int(value);
-        } else if (!rnp_strcasecmp(key, "hash")) {
+        } else if (rnp::str_case_eq(key, "hash")) {
             if (!str_to_hash_alg(json_object_get_string(value), &protection->hash_alg)) {
                 return false;
             }
@@ -4415,7 +4416,7 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
         if (!json_object_object_get_ex(jso, key, &value)) {
             continue;
         }
-        if (!rnp_strcasecmp(key, "userid")) {
+        if (rnp::str_case_eq(key, "userid")) {
             if (!json_object_is_type(value, json_type_string)) {
                 return false;
             }
@@ -4425,7 +4426,7 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
                 return false;
             }
             memcpy(cert->userid, userid, userid_len + 1);
-        } else if (!rnp_strcasecmp(key, "usage")) {
+        } else if (rnp::str_case_eq(key, "usage")) {
             switch (json_object_get_type(value)) {
             case json_type_array: {
                 int length = json_object_array_length(value);
@@ -4453,12 +4454,12 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
             default:
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "expiration")) {
+        } else if (rnp::str_case_eq(key, "expiration")) {
             if (!json_object_is_type(value, json_type_int)) {
                 return false;
             }
             cert->key_expiration = json_object_get_int(value);
-        } else if (!rnp_strcasecmp(key, "preferences")) {
+        } else if (rnp::str_case_eq(key, "preferences")) {
             if (!json_object_is_type(value, json_type_object)) {
                 return false;
             }
@@ -4468,7 +4469,7 @@ parse_keygen_primary(json_object *jso, rnp_action_keygen_t *desc)
             if (json_object_object_length(value) != 0) {
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "protection")) {
+        } else if (rnp::str_case_eq(key, "protection")) {
             if (!json_object_is_type(value, json_type_object)) {
                 return false;
             }
@@ -4501,7 +4502,7 @@ parse_keygen_sub(json_object *jso, rnp_action_keygen_t *desc)
         if (!json_object_object_get_ex(jso, key, &value)) {
             continue;
         }
-        if (!rnp_strcasecmp(key, "usage")) {
+        if (rnp::str_case_eq(key, "usage")) {
             switch (json_object_get_type(value)) {
             case json_type_array: {
                 int length = json_object_array_length(value);
@@ -4528,12 +4529,12 @@ parse_keygen_sub(json_object *jso, rnp_action_keygen_t *desc)
             default:
                 return false;
             }
-        } else if (!rnp_strcasecmp(key, "expiration")) {
+        } else if (rnp::str_case_eq(key, "expiration")) {
             if (!json_object_is_type(value, json_type_int)) {
                 return false;
             }
             binding->key_expiration = json_object_get_int(value);
-        } else if (!rnp_strcasecmp(key, "protection")) {
+        } else if (rnp::str_case_eq(key, "protection")) {
             if (!json_object_is_type(value, json_type_object)) {
                 return false;
             }
@@ -4641,9 +4642,9 @@ try {
         {
             json_object **dest = NULL;
 
-            if (rnp_strcasecmp(key, "primary") == 0) {
+            if (rnp::str_case_eq(key, "primary")) {
                 dest = &jsoprimary;
-            } else if (rnp_strcasecmp(key, "sub") == 0) {
+            } else if (rnp::str_case_eq(key, "sub")) {
                 dest = &jsosub;
             } else {
                 // unrecognized key in the object
