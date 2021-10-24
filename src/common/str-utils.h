@@ -27,8 +27,11 @@
 #ifndef RNP_STR_UTILS_H_
 #define RNP_STR_UTILS_H_
 
-char *rnp_strip_eol(char *s);
-bool  rnp_is_blank_line(const char *line, size_t len);
+namespace rnp {
+char *strip_eol(char *s);
+bool  is_blank_line(const char *line, size_t len);
+bool  str_case_eq(const char *s1, const char *s2);
+} // namespace rnp
 #ifdef _WIN32
 #include <string>
 std::wstring wstr_from_utf8(const char *s);

@@ -661,7 +661,7 @@ armor_parse_headers(pgp_source_t *src)
             header[hdrlen] = '\0';
         } else if (hdrlen) {
             src_skip(param->readsrc, hdrlen);
-            if (rnp_is_blank_line(header, hdrlen)) {
+            if (rnp::is_blank_line(header, hdrlen)) {
                 return src_skip_eol(param->readsrc);
             }
         } else {
