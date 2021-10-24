@@ -6904,8 +6904,9 @@ try {
     }
     bool ok = false;
     if (password) {
-        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = RNP_CONST_TO_VOID_PTR(password)};
+        pgp_password_provider_t prov = {
+          .callback = rnp_password_provider_string,
+          .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
         ok = key->unlock(prov);
     } else {
         ok = key->unlock(handle->ffi->pass_provider);
@@ -6997,8 +6998,9 @@ try {
     }
     bool ok = false;
     if (password) {
-        pgp_password_provider_t prov = {.callback = rnp_password_provider_string,
-                                        .userdata = RNP_CONST_TO_VOID_PTR(password)};
+        pgp_password_provider_t prov = {
+          .callback = rnp_password_provider_string,
+          .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
         ok = key->unprotect(prov);
     } else {
         ok = key->unprotect(handle->ffi->pass_provider);

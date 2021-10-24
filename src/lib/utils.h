@@ -70,10 +70,6 @@
         }                                                                       \
     } while (0)
 
-#ifndef RNP_CONST_TO_VOID_PTR
-#define RNP_CONST_TO_VOID_PTR(a) (reinterpret_cast<void *>(const_cast<char *>(a)))
-#endif
-
 int rnp_strcasecmp(const char *, const char *);
 
 /* Portable way to convert bits to bytes */
