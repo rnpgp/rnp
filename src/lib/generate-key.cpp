@@ -308,12 +308,6 @@ set_default_user_prefs(pgp_user_prefs_t &prefs)
     }
 }
 
-static const char *
-pgp_show_pka(pgp_pubkey_alg_t pka)
-{
-    return id_str_pair::lookup(pubkey_alg_map, pka);
-}
-
 static void
 keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
 {
