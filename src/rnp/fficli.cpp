@@ -221,7 +221,7 @@ cli_rnp_get_confirmation(const cli_rnp_t *rnp, const char *msg, ...)
             return false;
         }
 
-        rnp_strip_eol(reply);
+        rnp::strip_eol(reply);
 
         if (strlen(reply) > 0) {
             if (toupper(reply[0]) == 'Y') {
@@ -257,7 +257,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
         if (!fgets(newpath, maxlen, rnp.userio_in)) {
             return false;
         }
-        rnp_strip_eol(newpath);
+        rnp::strip_eol(newpath);
     } else {
         strncpy(newpath, path.c_str(), maxlen - 1);
         newpath[maxlen - 1] = '\0';
@@ -282,7 +282,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
             return false;
         }
 
-        rnp_strip_eol(newpath);
+        rnp::strip_eol(newpath);
         if (!strlen(newpath)) {
             return false;
         }
@@ -336,7 +336,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
         goto end;
     }
 
-    rnp_strip_eol(buffer);
+    rnp::strip_eol(buffer);
     ok = true;
 end:
 #ifndef _WIN32
@@ -431,7 +431,7 @@ ffi_pass_callback_file(rnp_ffi_t        ffi,
     if (!fgets(buf, buf_len, fp)) {
         return false;
     }
-    rnp_strip_eol(buf);
+    rnp::strip_eol(buf);
     return true;
 }
 
