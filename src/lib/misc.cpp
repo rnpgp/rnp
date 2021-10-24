@@ -83,6 +83,7 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include "crypto.h"
 #include "crypto/mem.h"
 #include "utils.h"
+#include "str-utils.h"
 #include "json_utils.h"
 
 #ifdef _WIN32
@@ -91,17 +92,6 @@ __RCSID("$NetBSD: misc.c,v 1.41 2012/03/05 02:20:18 christos Exp $");
 #include <codecvt>
 #define vsnprintf _vsnprintf
 #endif
-
-/* portable replacement for strcasecmp(3) */
-int
-rnp_strcasecmp(const char *s1, const char *s2)
-{
-    int n;
-
-    for (; (n = tolower((uint8_t) *s1) - tolower((uint8_t) *s2)) == 0 && *s1; s1++, s2++) {
-    }
-    return n;
-}
 
 /* Shortcut function to add field checking it for null to avoid allocation failure.
    Please note that it deallocates val on failure. */
@@ -175,7 +165,7 @@ int
 id_str_pair::lookup(const id_str_pair pair[], const char *str, int notfound)
 {
     while (pair && pair->str) {
-        if (!rnp_strcasecmp(str, pair->str)) {
+        if (rnp::str_case_eq(str, pair->str)) {
             return pair->id;
         }
         pair++;

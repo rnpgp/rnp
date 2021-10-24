@@ -79,6 +79,7 @@
 #include "hash.h"
 #include "types.h"
 #include "utils.h"
+#include "str-utils.h"
 #include "defaults.h"
 
 static const struct hash_alg_map_t {
@@ -138,7 +139,7 @@ pgp_str_to_hash_alg(const char *hash)
         return DEFAULT_PGP_HASH_ALG;
     }
     for (size_t i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
-        if (!rnp_strcasecmp(hash, hash_alg_map[i].name)) {
+        if (rnp::str_case_eq(hash, hash_alg_map[i].name)) {
             return hash_alg_map[i].type;
         }
     }

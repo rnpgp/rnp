@@ -1103,7 +1103,7 @@ cleartext_parse_headers(pgp_source_t *src)
             break;
         }
 
-        if (rnp_is_blank_line(hdr, hdrlen)) {
+        if (rnp::is_blank_line(hdr, hdrlen)) {
             src_skip(param->readsrc, hdrlen);
             break;
         }
