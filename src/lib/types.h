@@ -96,11 +96,6 @@ class id_str_pair {
                               int                         notfound = 0);
 };
 
-typedef struct {
-    uint8_t     mask;
-    const char *string;
-} pgp_bit_map_t;
-
 /** pgp_fingerprint_t */
 typedef struct pgp_fingerprint_t {
     uint8_t  fingerprint[PGP_FINGERPRINT_SIZE];
