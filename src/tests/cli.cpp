@@ -662,6 +662,8 @@ key_generate(const char *homedir, const char *userid, const char *expiration)
                        expiration,
                        "--userid",
                        userid,
+                       "--s2k-iterations",
+                       "65536",
                        "--numbits",
                        "1024",
                        NULL);
@@ -688,6 +690,8 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
         tm2100.tm_mday = 1;
         tm2100.tm_mon = 0;
         tm2100.tm_year = 200;
+        /* line below is required to correctly handle DST changes */
+        tm2100.tm_isdst = -1;
         expected_diff_beyond2038_absolute = mktime(&tm2100) - basetime;
     }
     struct tm *timeinfo = localtime(&rawtime);
