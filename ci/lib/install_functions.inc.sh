@@ -126,6 +126,7 @@ yum_prepare_repos() {
 linux_install_fedora() {
   yum_prepare_repos
   yum_install_build_dependencies \
+    botan \
     cmake
   yum_install_dynamic_build_dependencies_if_needed
 
@@ -153,7 +154,7 @@ declare util_depedencies_yum=(
   sudo # NOTE: Needed to avoid "sudo: command not found"
   wget
   git
-  botan
+  # botan # CentOS 8 removed it from its default repos
 )
 
 declare basic_build_dependencies_yum=(
@@ -226,6 +227,7 @@ yum_install_build_dependencies() {
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl
   yum_install_build_dependencies \
+    botan \
     cmake3 \
     rh-ruby25 rh-ruby25-ruby-devel \
     llvm-toolset-7.0
@@ -480,7 +482,7 @@ declare util_dependencies_deb=(
   sudo
   wget
   git
-  botan
+  # botan # Debian 9 does not have botan in default repos?
 )
 
 declare basic_build_dependencies_deb=(
