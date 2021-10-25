@@ -56,7 +56,7 @@
 #include <stdexcept>
 #include "utils.h"
 #include "str-utils.h"
-#include "json_utils.h"
+#include "json-utils.h"
 #include "version.h"
 #include "ffi-priv-types.h"
 #include "file-utils.h"
