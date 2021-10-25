@@ -47,7 +47,7 @@
 #include "fingerprint.h"
 #include "pgp-key.h"
 #include "crypto.h"
-#include "json_utils.h"
+#include "json-utils.h"
 #include <algorithm>
 
 static const id_str_pair packet_tag_map[] = {
