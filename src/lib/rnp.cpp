@@ -214,13 +214,19 @@ static const id_str_pair s2k_type_map[] = {
   {PGP_S2KS_ITERATED_AND_SALTED, "Iterated and salted"},
   {0, NULL}};
 
-static const pgp_bit_map_t key_usage_map[] = {{PGP_KF_SIGN, "sign"},
-                                              {PGP_KF_CERTIFY, "certify"},
-                                              {PGP_KF_ENCRYPT, "encrypt"},
-                                              {PGP_KF_AUTH, "authenticate"}};
+static const id_str_pair key_usage_map[] = {
+  {PGP_KF_SIGN, "sign"},
+  {PGP_KF_CERTIFY, "certify"},
+  {PGP_KF_ENCRYPT, "encrypt"},
+  {PGP_KF_AUTH, "authenticate"},
+  {0, NULL},
+};
 
-static const pgp_bit_map_t key_flags_map[] = {{PGP_KF_SPLIT, "split"},
-                                              {PGP_KF_SHARED, "shared"}};
+static const id_str_pair key_flags_map[] = {
+  {PGP_KF_SPLIT, "split"},
+  {PGP_KF_SHARED, "shared"},
+  {0, NULL},
+};
 
 static const id_str_pair identifier_type_map[] = {{PGP_KEY_SEARCH_USERID, "userid"},
                                                   {PGP_KEY_SEARCH_KEYID, "keyid"},
@@ -391,8 +397,7 @@ str_to_pubkey_alg(const char *str, pgp_pubkey_alg_t *pub_alg)
 static bool
 str_to_key_flag(const char *str, uint8_t *flag)
 {
-    uint8_t _flag = 0;
-    ARRAY_LOOKUP_BY_STRCASE(key_usage_map, string, mask, str, _flag);
+    uint8_t _flag = id_str_pair::lookup(key_usage_map, str);
     if (!_flag) {
         return false;
     }
@@ -7153,8 +7158,8 @@ add_json_key_usage(json_object *jso, uint8_t key_flags)
         return false;
     }
     for (size_t i = 0; i < ARRAY_SIZE(key_usage_map); i++) {
-        if (key_usage_map[i].mask & key_flags) {
-            json_object *jsostr = json_object_new_string(key_usage_map[i].string);
+        if (key_usage_map[i].id & key_flags) {
+            json_object *jsostr = json_object_new_string(key_usage_map[i].str);
             if (!jsostr || json_object_array_add(jsoarr, jsostr)) {
                 json_object_put(jsoarr);
                 return false;
@@ -7177,8 +7182,8 @@ add_json_key_flags(json_object *jso, uint8_t key_flags)
         return false;
     }
     for (size_t i = 0; i < ARRAY_SIZE(key_flags_map); i++) {
-        if (key_flags_map[i].mask & key_flags) {
-            json_object *jsostr = json_object_new_string(key_flags_map[i].string);
+        if (key_flags_map[i].id & key_flags) {
+            json_object *jsostr = json_object_new_string(key_flags_map[i].str);
             if (!jsostr || json_object_array_add(jsoarr, jsostr)) {
                 json_object_put(jsoarr);
                 return false;
