@@ -534,6 +534,8 @@ rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
     tm.tm_year = year - 1900;
     tm.tm_mon = mon - 1;
     tm.tm_mday = mday;
+    /* line below is required to correctly handle DST changes */
+    tm.tm_isdst = -1;
 
     struct tm check_tm = tm;
     time_t    built_time = rnp_mktime(&tm);
