@@ -195,7 +195,7 @@ add_library(librnp-obj OBJECT
   key-provider.cpp
   logging.cpp
   json-utils.cpp
-  misc.cpp
+  utils.cpp
   pass-provider.cpp
   pgp-key.cpp
   rnp.cpp
