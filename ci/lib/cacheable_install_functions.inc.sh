@@ -22,7 +22,7 @@ install_botan() {
       rm -rf "${botan_build}"
     fi
 
-    git clone --depth 1 --branch 2.17.3 https://github.com/randombit/botan "${botan_build}"
+    git clone --depth 1 --branch "${RECOMMENDED_BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
     local osparam=()
