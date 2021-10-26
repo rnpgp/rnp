@@ -2516,9 +2516,11 @@ class Misc(unittest.TestCase):
             match = re.match(OPENSSL_BACKEND_VERSION, out);
             backend_prog = 'openssl'
         self.assertTrue(match)
-        ret, out, err = run_proc(backend_prog, ['version'])
-        self.assertEqual(ret, 0)
-        self.assertIn(match.group(1), out)
+        # check that botan or openssl executable binary exists in $PATH
+        if shutil.which(backend_prog) is not None:
+            ret, out, err = run_proc(backend_prog, ['version'])
+            self.assertEqual(ret, 0)
+            self.assertIn(match.group(1), out)
 
     def test_wrong_mpi_bit_count(self):
         WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'
