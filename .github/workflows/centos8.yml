@@ -74,6 +74,7 @@ jobs:
         run: |
           . ci/gha/setup-env.inc.sh
           exec su rnpuser -c ci/install_noncacheable_dependencies.sh
+          yum -y install botan
       - name: Cache
         id: cache
         uses: actions/cache@v2
