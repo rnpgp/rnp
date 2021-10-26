@@ -47,6 +47,7 @@ jobs:
         run: |
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
+          sudo apt-get -y install botan
       - name: Cache
         id: cache
         uses: actions/cache@v2
