@@ -498,7 +498,6 @@ declare basic_build_dependencies_deb=(
   autoconf
   automake
   build-essential
-  cmake
   curl
   libtool
 )
@@ -519,6 +518,7 @@ declare build_dependencies_deb=(
   gettext
   libbz2-dev
   libncurses5-dev
+  libssl-dev
   python3
   python3-venv
   ruby-dev
