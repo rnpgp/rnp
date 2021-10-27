@@ -126,7 +126,6 @@ yum_prepare_repos() {
 linux_install_fedora() {
   yum_prepare_repos
   yum_install_build_dependencies \
-    botan \
     cmake
   yum_install_dynamic_build_dependencies_if_needed
 
@@ -154,7 +153,6 @@ declare util_depedencies_yum=(
   sudo # NOTE: Needed to avoid "sudo: command not found"
   wget
   git
-  # botan # CentOS 8 removed it from its default repos
 )
 
 declare basic_build_dependencies_yum=(
@@ -171,21 +169,22 @@ declare basic_build_dependencies_yum=(
 )
 
 declare build_dependencies_yum=(
-  ncurses-devel
-  bzip2-devel
-  zlib-devel
-  byacc
-  gettext-devel
   bison
-  ribose-automake116
+  botan2
+  byacc
+  bzip2-devel
+  gettext-devel
+  ncurses-devel
   python3
+  ribose-automake116
   ruby-devel
+  zlib-devel
 )
 
 declare dynamic_build_dependencies_yum=(
   botan2-devel
   json-c12-devel
-  python2-devel # TODO: needed?
+  # python2-devel # TODO: needed?
 )
 
 
@@ -227,7 +226,6 @@ yum_install_build_dependencies() {
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl
   yum_install_build_dependencies \
-    botan \
     cmake3 \
     rh-ruby25 rh-ruby25-ruby-devel \
     llvm-toolset-7.0
@@ -472,39 +470,66 @@ build_and_install_automake() {
 # asciidoctor is installed with install_asciidoctor
 linux_install_ubuntu() {
   "${SUDO}" apt-get update
-  "${SUDO}" apt-get -y install ruby-dev g++-8 cmake libbz2-dev zlib1g-dev build-essential gettext \
-    ruby-bundler libncurses-dev
+  apt_install \
+    "${util_dependencies_ubuntu[@]}" \
+    "${basic_build_dependencies_ubuntu[@]}" \
+    "${build_dependencies_ubuntu[@]}" \
+    "$@"
 
   ensure_automake
 }
+
+declare util_dependencies_ubuntu=()
 
 declare util_dependencies_deb=(
   sudo
   wget
   git
-  # botan # Debian 9 does not have botan in default repos?
+)
+
+declare basic_build_dependencies_ubuntu=(
+  build-essential
+  cmake
 )
 
 declare basic_build_dependencies_deb=(
   autoconf
   automake
-  make
   build-essential
   cmake
+  curl
   libtool
 )
 
-declare build_dependencies_deb=(
-  bison
-  byacc
-  curl
+declare build_dependencies_ubuntu=(
+  botan # botan-2-12
   gettext
   libbz2-dev
-  libncurses5-dev
-  libssl-dev
+  libncurses-dev
   python3
   python3-venv
   ruby-dev
+  zlib1g-dev
+)
+
+declare build_dependencies_deb=(
+  # botan # Debian 9 does not have botan in default repos?
+  gettext
+  libbz2-dev
+  libncurses5-dev
+  python3
+  python3-venv
+  ruby-dev
+  zlib1g-dev
+)
+
+declare ruby_build_dependencies_ubuntu=(
+  bison
+  curl
+  libbz2-dev
+  libssl-dev
+  ruby-bundler
+  rubygems
   zlib1g-dev
 )
 
@@ -650,6 +675,9 @@ ensure_ruby() {
       ;;
     debian)
       apt_install "${ruby_build_dependencies_deb[@]}"
+      ;;
+    ubuntu)
+      apt_install "${ruby_build_dependencies_ubuntu[@]}"
       ;;
     *)
       # TODO: handle ubuntu?
