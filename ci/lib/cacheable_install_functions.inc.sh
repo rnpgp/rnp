@@ -22,7 +22,7 @@ install_botan() {
       rm -rf "${botan_build}"
     fi
 
-    git clone --depth 1 --branch "${RECOMMENDED_BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
+    git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
     local osparam=()
@@ -78,7 +78,7 @@ install_jsonc() {
 
     mkdir -p "${jsonc_build}"
     pushd "${jsonc_build}"
-    wget https://s3.amazonaws.com/json-c_releases/releases/json-c-"${RECOMMENDED_JSONC_VERSION}".tar.gz -O json-c.tar.gz
+    wget https://s3.amazonaws.com/json-c_releases/releases/json-c-"${JSONC_VERSION}".tar.gz -O json-c.tar.gz
     tar xzf json-c.tar.gz --strip 1
 
     autoreconf -ivf
