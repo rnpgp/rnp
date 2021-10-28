@@ -10,13 +10,21 @@
 : "${DIST:=}"
 : "${DIST_VERSION:=}"
 : "${DIST_VERSION_ID:=}"
-: "${MINIMUM_RUBY_VERSION:=2.5.0}"
-: "${RECOMMENDED_RUBY_VERSION:=2.5.8}"
+
 : "${MINIMUM_CMAKE_VERSION:=3.20.0}"
+: "${MINIMUM_RUBY_VERSION:=2.5.0}"
+
+: "${RECOMMENDED_BOTAN_VERSION:=2.18.2}"
+: "${RECOMMENDED_JSONC_VERSION:=0.12.1}"
 : "${RECOMMENDED_CMAKE_VERSION:=3.20.5}"
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
-: "${RECOMMENDED_JSONC_VERSION:=0.12.1}"
-: "${RECOMMENDED_BOTAN_VERSION:=2.18.2}"
+: "${RECOMMENDED_RUBY_VERSION:=2.5.8}"
+
+: "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
+: "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
+: "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
+: "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
+: "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
 
 if [[ "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
   : "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
@@ -24,6 +32,8 @@ else
   : "${MINIMUM_AUTOMAKE_VERSION:=1.16.1}"
 fi
 : "${RECOMMENDED_AUTOMAKE_VERSION:=1.16.4}"
+
+: "${AUTOMAKE_VERSION:=${RECOMMENDED_AUTOMAKE_VERSION}}"
 
 : "${VERBOSE:=1}"
 
@@ -357,7 +367,7 @@ build_and_install_cmake() {
   local cmake_build=${LOCAL_BUILDS}/cmake
   mkdir -p "${cmake_build}"
   pushd "${cmake_build}"
-  wget https://github.com/Kitware/CMake/releases/download/v"${RECOMMENDED_CMAKE_VERSION}"/cmake-"${RECOMMENDED_CMAKE_VERSION}".tar.gz -O cmake.tar.gz
+  wget https://github.com/Kitware/CMake/releases/download/v"${CMAKE_VERSION}"/cmake-"${CMAKE_VERSION}".tar.gz -O cmake.tar.gz
   tar xzf cmake.tar.gz --strip 1
 
   PREFIX="${PREFIX:-/usr}"
@@ -375,7 +385,7 @@ install_prebuilt_cmake() {
   pushd "${cmake_build}"
   curl -L -o \
     cmake.sh \
-    https://github.com/Kitware/CMake/releases/download/v"${RECOMMENDED_CMAKE_VERSION}"/cmake-"${RECOMMENDED_CMAKE_VERSION}"-"${arch}".sh
+    https://github.com/Kitware/CMake/releases/download/v"${CMAKE_VERSION}"/cmake-"${CMAKE_VERSION}"-"${arch}".sh
 
   PREFIX="${PREFIX:-/usr}"
   mkdir -p "${PREFIX}"
@@ -388,7 +398,7 @@ build_and_install_python() {
   python_build=${LOCAL_BUILDS}/python
   mkdir -p "${python_build}"
   pushd "${python_build}"
-  curl -L -o python.tar.xz https://www.python.org/ftp/python/"${RECOMMENDED_PYTHON_VERSION}"/Python-"${RECOMMENDED_PYTHON_VERSION}".tar.xz
+  curl -L -o python.tar.xz https://www.python.org/ftp/python/"${PYTHON_VERSION}"/Python-"${PYTHON_VERSION}".tar.xz
   tar -xf python.tar.xz --strip 1
   ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && "${SUDO}" make install
   ${SUDO} ln -sf /usr/bin/python3 /usr/bin/python
@@ -449,7 +459,7 @@ build_and_install_automake() {
   automake_build=${LOCAL_BUILDS}/automake
   mkdir -p "${automake_build}"
   pushd "${automake_build}"
-  curl -L -o automake.tar.xz https://ftp.gnu.org/gnu/automake/automake-${RECOMMENDED_AUTOMAKE_VERSION}.tar.xz
+  curl -L -o automake.tar.xz https://ftp.gnu.org/gnu/automake/automake-${AUTOMAKE_VERSION}.tar.xz
   tar -xf automake.tar.xz --strip 1
   ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && ${SUDO} make install
   popd
@@ -629,8 +639,8 @@ ensure_ruby() {
     centos|fedora)
       yum_install "${ruby_build_dependencies_yum[@]}"
       setup_rbenv
-      rbenv install -v "${RECOMMENDED_RUBY_VERSION}"
-      rbenv global "${RECOMMENDED_RUBY_VERSION}"
+      rbenv install -v "${RUBY_VERSION}"
+      rbenv global "${RUBY_VERSION}"
       rbenv rehash
       sudo chown -R "$(whoami)" "$(rbenv prefix)"
       ;;
