@@ -170,7 +170,6 @@ declare basic_build_dependencies_yum=(
 
 declare build_dependencies_yum=(
   bison
-  botan2
   byacc
   bzip2-devel
   gettext-devel
@@ -182,6 +181,7 @@ declare build_dependencies_yum=(
 )
 
 declare dynamic_build_dependencies_yum=(
+  botan2
   botan2-devel
   json-c12-devel
   # python2-devel # TODO: needed?
@@ -189,7 +189,7 @@ declare dynamic_build_dependencies_yum=(
 
 
 apt_install() {
-  local apt_command=(apt -y -q install "$@")
+  local apt_command=(apt-get -y -q install "$@")
   if command -v sudo >/dev/null; then
     sudo "${apt_command[@]}"
   else
@@ -476,7 +476,19 @@ linux_install_ubuntu() {
     "${build_dependencies_ubuntu[@]}" \
     "$@"
 
+  ubuntu_install_dynamic_build_dependencies_if_needed
   ensure_automake
+}
+
+ubuntu_install_dynamic_build_dependencies_if_needed() {
+  if ! is_use_static_dependencies; then
+    ubuntu_install_dynamic_build_dependencies
+  fi
+}
+
+ubuntu_install_dynamic_build_dependencies() {
+  apt_install \
+    "${dynamic_build_dependencies_ubuntu[@]}"
 }
 
 declare util_dependencies_ubuntu=()
@@ -501,7 +513,6 @@ declare basic_build_dependencies_deb=(
 )
 
 declare build_dependencies_ubuntu=(
-  botan # botan-2-12
   gettext
   libbz2-dev
   libncurses-dev
@@ -509,6 +520,11 @@ declare build_dependencies_ubuntu=(
   python3-venv
   ruby-dev
   zlib1g-dev
+)
+
+declare dynamic_build_dependencies_ubuntu=(
+  botan
+  libbotan-2-dev
 )
 
 declare build_dependencies_deb=(
