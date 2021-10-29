@@ -69,7 +69,7 @@ compute_kek(uint8_t *              kek,
         goto end;
     }
 
-    snprintf(kdf_name, sizeof(kdf_name), "SP800-56A(%s)", pgp_hash_name_botan(hash_alg));
+    snprintf(kdf_name, sizeof(kdf_name), "SP800-56A(%s)", rnp::Hash::name_backend(hash_alg));
     ret = !botan_kdf(
       kdf_name, kek, kek_len, s.data(), s_len, NULL, 0, other_info, other_info_size);
 end:

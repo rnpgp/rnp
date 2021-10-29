@@ -601,7 +601,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         hash_min = dsa_get_min_hash(mpi_bits(&pubkey->material.dsa.q));
     }
 
-    if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {
+    if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
         return hash_min;
     }
     return hash;

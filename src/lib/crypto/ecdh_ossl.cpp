@@ -67,7 +67,7 @@ ecdh_derive_kek(uint8_t *                x,
 
     // Serialize other info, see 13.5 of RFC 4880 bis
     uint8_t      other_info[MAX_SP800_56A_OTHER_INFO];
-    const size_t hash_len = pgp_digest_length(key.kdf_hash_alg);
+    const size_t hash_len = rnp::Hash::size(key.kdf_hash_alg);
     if (!hash_len) {
         // must not assert here as kdf/hash algs are not checked during key parsing
         RNP_LOG("Unsupported key wrap hash algorithm.");

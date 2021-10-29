@@ -84,14 +84,13 @@ rnp_result_t
 sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_field)
 {
     uint8_t *            digest_buf = NULL;
-    size_t               digest_len = 0;
     rnp_result_t         result = RNP_ERROR_GENERIC;
     botan_pubkey_t       sm2_key = NULL;
     int                  rc;
     const pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
 
-    const char *hash_algo = pgp_hash_name_botan(hash_alg);
-    digest_len = pgp_digest_length(hash_alg);
+    const char *hash_algo = rnp::Hash::name_backend(hash_alg);
+    size_t      digest_len = rnp::Hash::size(hash_alg);
 
     digest_buf = (uint8_t *) malloc(digest_len);
 
@@ -175,7 +174,7 @@ sm2_sign(rng_t *             rng,
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    if (hash_len != pgp_digest_length(hash_alg)) {
+    if (hash_len != rnp::Hash::size(hash_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -235,7 +234,7 @@ sm2_verify(const pgp_ec_signature_t *sig,
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    if (hash_len != pgp_digest_length(hash_alg)) {
+    if (hash_len != rnp::Hash::size(hash_alg)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -298,7 +297,7 @@ sm2_encrypt(rng_t *              rng,
         return RNP_ERROR_GENERIC;
     }
     point_len = BITS_TO_BYTES(curve->bitlen);
-    hash_alg_len = pgp_digest_length(hash_algo);
+    hash_alg_len = rnp::Hash::size(hash_algo);
     if (!hash_alg_len) {
         RNP_LOG("Unknown hash algorithm for SM2 encryption");
         goto done;
@@ -324,7 +323,7 @@ sm2_encrypt(rng_t *              rng,
     it's an all in one scheme, only the hash (used for the integrity
     check) is specified.
     */
-    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, pgp_hash_name_botan(hash_algo), 0) != 0) {
+    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, rnp::Hash::name_backend(hash_algo), 0)) {
         goto done;
     }
 
@@ -366,7 +365,7 @@ sm2_decrypt(uint8_t *                  out,
     }
 
     hash_id = in->m.mpi[in_len - 1];
-    hash_name = pgp_hash_name_botan((pgp_hash_alg_t) hash_id);
+    hash_name = rnp::Hash::name_backend((pgp_hash_alg_t) hash_id);
     if (!hash_name) {
         RNP_LOG("Unknown hash used in SM2 ciphertext");
         goto done;

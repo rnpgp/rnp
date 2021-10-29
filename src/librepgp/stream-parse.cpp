@@ -1119,7 +1119,7 @@ cleartext_parse_headers(pgp_source_t *src)
             tokenize(remainder, delimiters, tokens);
 
             for (const auto &token : tokens) {
-                if ((halg = pgp_str_to_hash_alg(token.c_str())) == PGP_HASH_UNKNOWN) {
+                if ((halg = rnp::Hash::alg(token.c_str())) == PGP_HASH_UNKNOWN) {
                     RNP_LOG("unknown halg: %s", token.c_str());
                     continue;
                 }

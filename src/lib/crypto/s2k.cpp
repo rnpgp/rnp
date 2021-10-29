@@ -87,7 +87,8 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
                  size_t         iterations)
 {
     char s2k_algo_str[128];
-    snprintf(s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", pgp_hash_name_botan(alg));
+    snprintf(
+      s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", rnp::Hash::name_backend(alg));
 
     return botan_pwdhash(s2k_algo_str,
                          iterations,
