@@ -81,25 +81,21 @@ sm2_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 }
 
 rnp_result_t
-sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_field)
+sm2_compute_za(const pgp_ec_key_t &key, rnp::Hash &hash, const char *ident_field)
 {
-    uint8_t *            digest_buf = NULL;
-    rnp_result_t         result = RNP_ERROR_GENERIC;
-    botan_pubkey_t       sm2_key = NULL;
-    int                  rc;
-    const pgp_hash_alg_t hash_alg = pgp_hash_alg_type(hash);
+    rnp_result_t   result = RNP_ERROR_GENERIC;
+    botan_pubkey_t sm2_key = NULL;
+    int            rc;
 
-    const char *hash_algo = rnp::Hash::name_backend(hash_alg);
-    size_t      digest_len = rnp::Hash::size(hash_alg);
+    const char *hash_algo = rnp::Hash::name_backend(hash.alg());
+    size_t      digest_len = hash.size();
 
-    digest_buf = (uint8_t *) malloc(digest_len);
-
-    if (digest_buf == NULL) {
-        result = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+    uint8_t *digest_buf = (uint8_t *) malloc(digest_len);
+    if (!digest_buf) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    if (!sm2_load_public_key(&sm2_key, key)) {
+    if (!sm2_load_public_key(&sm2_key, &key)) {
         RNP_LOG("Failed to load SM2 key");
         goto done;
     }
@@ -110,18 +106,21 @@ sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_fiel
     rc = botan_pubkey_sm2_compute_za(digest_buf, &digest_len, ident_field, hash_algo, sm2_key);
 
     if (rc != 0) {
-        printf("compute_za failed %d\n", rc);
+        RNP_LOG("compute_za failed %d", rc);
         goto done;
     }
 
-    pgp_hash_add(hash, digest_buf, digest_len);
+    try {
+        hash.add(digest_buf, digest_len);
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to update hash: %s", e.what());
+        goto done;
+    }
 
     result = RNP_SUCCESS;
-
 done:
     free(digest_buf);
     botan_pubkey_destroy(sm2_key);
-
     return result;
 }
 

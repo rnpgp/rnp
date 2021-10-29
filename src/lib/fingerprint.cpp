@@ -40,33 +40,33 @@
 rnp_result_t
 pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
 {
-    pgp_hash_t hash = {0};
-
     if ((key.version == PGP_V2) || (key.version == PGP_V3)) {
         if (!is_rsa_key_alg(key.alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        if (!pgp_hash_create(&hash, PGP_HASH_MD5)) {
-            RNP_LOG("bad md5 alloc");
-            return RNP_ERROR_NOT_SUPPORTED;
+        try {
+            rnp::Hash hash(PGP_HASH_MD5);
+            hash.add(key.material.rsa.n);
+            hash.add(key.material.rsa.e);
+            fp.length = hash.finish(fp.fingerprint);
+            return RNP_SUCCESS;
+        } catch (const std::exception &e) {
+            RNP_LOG("Failed to calculate v3 fingerprint: %s", e.what());
+            return RNP_ERROR_BAD_STATE;
         }
-        (void) mpi_hash(&key.material.rsa.n, &hash);
-        (void) mpi_hash(&key.material.rsa.e, &hash);
-        fp.length = pgp_hash_finish(&hash, fp.fingerprint);
-        return RNP_SUCCESS;
     }
 
     if (key.version == PGP_V4) {
-        if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-            RNP_LOG("bad sha1 alloc");
-            return RNP_ERROR_NOT_SUPPORTED;
+        try {
+            rnp::Hash hash(PGP_HASH_SHA1);
+            signature_hash_key(key, hash);
+            fp.length = hash.finish(fp.fingerprint);
+            return RNP_SUCCESS;
+        } catch (const std::exception &e) {
+            RNP_LOG("Failed to calculate v4 fingerprint: %s", e.what());
+            return RNP_ERROR_BAD_STATE;
         }
-        if (!signature_hash_key(&key, &hash)) {
-            return RNP_ERROR_GENERIC;
-        }
-        fp.length = pgp_hash_finish(&hash, fp.fingerprint);
-        return RNP_SUCCESS;
     }
 
     RNP_LOG("unsupported key version");
