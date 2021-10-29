@@ -101,8 +101,8 @@ main(int argc, char **argv)
     pgp_hash_t hash = {};
     pgp_hash_t hashcp = {};
 
-    if (!signature_fill_hashed_data(binding) ||
-        !signature_hash_binding(binding, &tpkey.key, &subkey->subkey, &hash) ||
+    binding->fill_hashed_data();
+    if (!signature_hash_binding(binding, &tpkey.key, &subkey->subkey, &hash) ||
         !pgp_hash_copy(&hashcp, &hash)) {
         RNP_LOG("failed to hash signature");
         return 1;
