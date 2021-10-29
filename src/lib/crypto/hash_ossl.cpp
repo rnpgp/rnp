@@ -163,62 +163,10 @@ Hash::name_backend(pgp_hash_alg_t alg)
 }
 } // namespace rnp
 
-static const struct hash_alg_map_t {
-    pgp_hash_alg_t type;
-    const char *   name;
-    const char *   ossl_name;
-    size_t         digest_size;
-} hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "md5", 16},
-                    {PGP_HASH_SHA1, "SHA1", "sha1", 20},
-                    {PGP_HASH_RIPEMD, "RIPEMD160", "ripemd160", 20},
-                    {PGP_HASH_SHA256, "SHA256", "sha256", 32},
-                    {PGP_HASH_SHA384, "SHA384", "sha384", 48},
-                    {PGP_HASH_SHA512, "SHA512", "sha512", 64},
-                    {PGP_HASH_SHA224, "SHA224", "sha224", 28},
-                    {PGP_HASH_SM3, "SM3", "sm3", 32},
-                    {PGP_HASH_SHA3_256, "SHA3-256", "sha3-256", 32},
-                    {PGP_HASH_SHA3_512, "SHA3-512", "sha3-512", 64}};
-
-const char *
-pgp_show_hash_alg(uint8_t hash)
-{
-    const char *ret = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, name, hash, ret);
-    return ret;
-}
-
-const char *
-pgp_hash_name_openssl(pgp_hash_alg_t hash)
-{
-    const char *ret = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, ossl_name, hash, ret);
-    return ret;
-}
-
-const char *
-pgp_hash_name(const pgp_hash_t *hash)
-{
-    return pgp_show_hash_alg(hash->_alg);
-}
-
-pgp_hash_alg_t
-pgp_str_to_hash_alg(const char *hash)
-{
-    if (hash == NULL) {
-        return DEFAULT_PGP_HASH_ALG;
-    }
-    for (size_t i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
-        if (rnp::str_case_eq(hash, hash_alg_map[i].name)) {
-            return hash_alg_map[i].type;
-        }
-    }
-    return PGP_HASH_UNKNOWN;
-}
-
 bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
-    const char *hash_name = pgp_hash_name_openssl(alg);
+    const char *hash_name = rnp::Hash::name_backend(alg);
     if (!hash_name) {
         return false;
     }
@@ -333,14 +281,6 @@ pgp_hash_alg_t
 pgp_hash_alg_type(const pgp_hash_t *hash)
 {
     return hash->_alg;
-}
-
-size_t
-pgp_digest_length(pgp_hash_alg_t alg)
-{
-    size_t val = 0;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, digest_size, alg, val);
-    return val;
 }
 
 bool

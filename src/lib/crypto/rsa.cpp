@@ -243,7 +243,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
-             pgp_hash_name_botan(hash_alg));
+             rnp::Hash::name_backend(hash_alg));
 
     if (botan_pk_op_verify_create(&verify_op, rsa_key, padding_name, 0) != 0) {
         goto done;
@@ -290,7 +290,7 @@ rsa_sign_pkcs1(rng_t *              rng,
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
-             pgp_hash_name_botan(hash_alg));
+             rnp::Hash::name_backend(hash_alg));
 
     if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
         goto done;
