@@ -2705,8 +2705,7 @@ class Encryption(unittest.TestCase):
             CIPHERS.remove('TWOFISH')
         AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
         AEAD_M = list_upto([None, 'eax', 'ocb'], Encryption.RUNS)
-        AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 18,
-                            24, 30, 40, 50, 56], Encryption.RUNS)
+        AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
 
         # Encrypt and decrypt cleartext using the AEAD
         for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
