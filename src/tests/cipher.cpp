@@ -74,23 +74,24 @@ TEST_F(rnp_tests, hash_test_success)
 #if !defined(ENABLE_SM2)
         if (hash_algs[i] == PGP_HASH_SM3) {
             assert_false(pgp_hash_create(&hash, hash_algs[i]));
-            size_t hash_size = pgp_digest_length(hash_algs[i]);
+            size_t hash_size = rnp::Hash::size(hash_algs[i]);
             assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
             continue;
         }
 #endif
         assert_true(pgp_hash_create(&hash, hash_algs[i]));
-        size_t hash_size = pgp_digest_length(hash_algs[i]);
+        size_t hash_size = rnp::Hash::size(hash_algs[i]);
         assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
 
         pgp_hash_add(&hash, test_input, 1);
         pgp_hash_add(&hash, test_input + 1, sizeof(test_input) - 1);
         pgp_hash_finish(&hash, hash_output);
 
-        assert_int_equal(
-          0,
-          test_value_equal(
-            pgp_hash_name(&hash), hash_alg_expected_outputs[i], hash_output, hash_size));
+        assert_int_equal(0,
+                         test_value_equal(rnp::Hash::name(pgp_hash_alg_type(&hash)),
+                                          hash_alg_expected_outputs[i],
+                                          hash_output,
+                                          hash_size));
     }
 }
 
@@ -437,7 +438,7 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
     pgp_ec_signature_t sig;
 
     pgp_hash_alg_t hash_alg = PGP_HASH_SM3;
-    const size_t   hash_len = pgp_digest_length(hash_alg);
+    const size_t   hash_len = rnp::Hash::size(hash_alg);
 
     uint8_t digest[PGP_MAX_HASH_SIZE];
 
@@ -494,7 +495,7 @@ TEST_F(rnp_tests, sm2_sha256_signature_test)
     pgp_ec_signature_t sig;
 
     pgp_hash_alg_t hash_alg = PGP_HASH_SHA256;
-    const size_t   hash_len = pgp_digest_length(hash_alg);
+    const size_t   hash_len = rnp::Hash::size(hash_alg);
 
     uint8_t digest[PGP_MAX_HASH_SIZE];
 
@@ -581,12 +582,12 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
         printf("p: %zu q: %zu h: %s\n",
                key_desc.dsa.p_bitlen,
                key_desc.dsa.q_bitlen,
-               pgp_show_hash_alg(key_desc.hash_alg));
+               rnp::Hash::name(key_desc.hash_alg));
         fflush(stdout);
 
         pgp_dsa_key_t *key1 = &seckey.material.dsa;
 
-        size_t h_size = pgp_digest_length(keys[i].h);
+        size_t h_size = rnp::Hash::size(keys[i].h);
         assert_int_equal(dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
         assert_int_equal(dsa_verify(&sig, message, h_size, key1), RNP_SUCCESS);
     }
@@ -619,13 +620,13 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     printf("p: %zu q: %zu h: %s\n",
            key_desc.dsa.p_bitlen,
            key_desc.dsa.q_bitlen,
-           pgp_show_hash_alg(key_desc.hash_alg));
+           rnp::Hash::name(key_desc.hash_alg));
     assert_true(pgp_generate_seckey(&key_desc, &sec_key2, true));
 
     pgp_dsa_key_t *key1 = &sec_key1.material.dsa;
     pgp_dsa_key_t *key2 = &sec_key2.material.dsa;
 
-    size_t h_size = pgp_digest_length(key.h);
+    size_t h_size = rnp::Hash::size(key.h);
     assert_int_equal(dsa_sign(&global_rng, &sig, message, h_size, key1), RNP_SUCCESS);
     // wrong key used
     assert_int_equal(dsa_verify(&sig, message, h_size, key2), RNP_ERROR_SIGNATURE_INVALID);

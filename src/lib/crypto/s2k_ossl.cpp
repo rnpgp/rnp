@@ -44,7 +44,7 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
         RNP_LOG("Iterated S2K mus be salted as well.");
         return 1;
     }
-    size_t hash_len = pgp_digest_length(alg);
+    size_t hash_len = rnp::Hash::size(alg);
     if (!hash_len) {
         RNP_LOG("Unknown digest: %d", (int) alg);
         return 1;

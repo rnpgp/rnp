@@ -1375,7 +1375,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
 
         for (const auto &hash : param->hashes) {
-            hname = pgp_hash_name(&hash);
+            hname = rnp::Hash::name(pgp_hash_alg_type(&hash));
             dst_write(param->writedst, hname, strlen(hname));
             if (&hash != &param->hashes.back()) {
                 dst_write(param->writedst, ST_COMMA, 1);

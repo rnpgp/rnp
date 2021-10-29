@@ -115,35 +115,13 @@ typedef struct pgp_hash_t {
     pgp_hash_alg_t _alg; /* algorithm */
 } pgp_hash_t;
 
-#ifdef CRYPTO_BACKEND_OPENSSL
-const char *pgp_hash_name_openssl(pgp_hash_alg_t hash);
-#endif
-#ifdef CRYPTO_BACKEND_BOTAN
-const char *pgp_hash_name_botan(const pgp_hash_alg_t alg);
-#endif
-
 bool   pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg);
 bool   pgp_hash_create_crc24(pgp_hash_t *hash);
 bool   pgp_hash_copy(pgp_hash_t *dst, const pgp_hash_t *src);
 int    pgp_hash_add(pgp_hash_t *hash, const void *buf, size_t len);
 size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
 
-const char *pgp_hash_name(const pgp_hash_t *hash);
-
 pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t *hash);
-
-pgp_hash_alg_t pgp_str_to_hash_alg(const char *);
-
-const char *pgp_show_hash_alg(uint8_t);
-
-/* @brief   Returns output size of an digest algorithm
- *
- * @param   hash alg
- *
- * @return  size of the digest produced by the algorithm or 0
- *          is not known
- **/
-size_t pgp_digest_length(pgp_hash_alg_t alg);
 
 /*
  * @brief Add hash for the corresponding algorithm to the list

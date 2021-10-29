@@ -183,7 +183,7 @@ rsa_setup_context(EVP_PKEY_CTX *ctx, pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN)
     if (hash_alg == PGP_HASH_UNKNOWN) {
         return true;
     }
-    const char *hash_name = pgp_hash_name_openssl(hash_alg);
+    const char *hash_name = rnp::Hash::name_backend(hash_alg);
     if (!hash_name) {
         RNP_LOG("Unknown hash: %d", (int) hash_alg);
         return false;
