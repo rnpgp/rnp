@@ -593,7 +593,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     pgp_password_provider_t pprov = {.callback = string_copy_password_callback,
                                      .userdata = (void *) "password"};
     key->unlock(pprov);
-    assert_true(signature_calculate_direct(&key->pkt(), &sig, &key->pkt()));
+    assert_true(signature_calculate_direct(key->pkt(), sig, key->pkt()));
     key->add_sig(sig, PGP_UID_NONE);
     key->revalidate(*secring);
 
@@ -656,7 +656,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     sig.set_keyid(key->keyid());
 
     key->unlock(pprov);
-    assert_true(signature_calculate_direct(&key->pkt(), &sig, &key->pkt()));
+    assert_true(signature_calculate_direct(key->pkt(), sig, key->pkt()));
     key->add_sig(sig, PGP_UID_NONE);
     key->revalidate(*secring);
     assert_int_equal(key->expiration(), 6);

@@ -1094,12 +1094,9 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
         sig->set_keyid(signer->key->keyid());
         sig->set_creation(signer->sigcreate ? signer->sigcreate : time(NULL));
         sig->set_expiration(signer->sigexpire);
+        sig->fill_hashed_data();
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature fields: %s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    if (!signature_fill_hashed_data(sig)) {
-        RNP_LOG("failed to fill the signature data");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 

@@ -163,18 +163,18 @@ rnp_result_t encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t 
 
 void forget_secret_key_fields(pgp_key_material_t *key);
 
-bool signature_calculate_certification(const pgp_key_pkt_t *   key,
-                                       const pgp_userid_pkt_t *uid,
-                                       pgp_signature_t *       sig,
-                                       const pgp_key_pkt_t *   signer);
+bool signature_calculate_certification(const pgp_key_pkt_t &   key,
+                                       const pgp_userid_pkt_t &uid,
+                                       pgp_signature_t &       sig,
+                                       const pgp_key_pkt_t &   signer);
 
-bool signature_calculate_direct(const pgp_key_pkt_t *key,
-                                pgp_signature_t *    sig,
-                                const pgp_key_pkt_t *signer);
+bool signature_calculate_direct(const pgp_key_pkt_t &key,
+                                pgp_signature_t &    sig,
+                                const pgp_key_pkt_t &signer);
 
-bool signature_calculate_binding(const pgp_key_pkt_t *key,
-                                 const pgp_key_pkt_t *sub,
-                                 pgp_signature_t *    sig,
+bool signature_calculate_binding(const pgp_key_pkt_t &key,
+                                 const pgp_key_pkt_t &sub,
+                                 pgp_signature_t &    sig,
                                  bool                 subsign);
 
 #endif
