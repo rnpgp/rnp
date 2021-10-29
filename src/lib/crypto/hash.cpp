@@ -201,70 +201,6 @@ Hash::name_backend(pgp_hash_alg_t alg)
 }
 } // namespace rnp
 
-static const struct hash_alg_map_t {
-    pgp_hash_alg_t type;
-    const char *   name;
-    const char *   botan_name;
-    size_t         digest_size;
-} hash_alg_map[] = {{PGP_HASH_MD5, "MD5", "MD5", 16},
-                    {PGP_HASH_SHA1, "SHA1", "SHA-1", 20},
-                    {PGP_HASH_RIPEMD, "RIPEMD160", "RIPEMD-160", 20},
-                    {PGP_HASH_SHA256, "SHA256", "SHA-256", 32},
-                    {PGP_HASH_SHA384, "SHA384", "SHA-384", 48},
-                    {PGP_HASH_SHA512, "SHA512", "SHA-512", 64},
-                    {PGP_HASH_SHA224, "SHA224", "SHA-224", 28},
-                    {PGP_HASH_SM3, "SM3", "SM3", 32},
-                    {PGP_HASH_SHA3_256, "SHA3-256", "SHA-3(256)", 32},
-                    {PGP_HASH_SHA3_512, "SHA3-512", "SHA-3(512)", 64}};
-/**
- * \ingroup Core_Print
- *
- * returns description of the Hash Algorithm type
- * \param hash Hash Algorithm type
- * \return string or "Unknown"
- */
-const char *
-pgp_show_hash_alg(uint8_t hash)
-{
-    const char *ret = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, name, hash, ret);
-    return ret;
-}
-
-const char *
-pgp_hash_name_botan(pgp_hash_alg_t hash)
-{
-    const char *ret = NULL;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, botan_name, hash, ret);
-    return ret;
-}
-
-const char *
-pgp_hash_name(const pgp_hash_t *hash)
-{
-    return pgp_show_hash_alg(hash->_alg);
-}
-
-/**
-\ingroup Core_Hashes
-\brief Returns hash enum corresponding to given string
-\param hash Text name of hash algorithm i.e. "SHA1"
-\returns Corresponding enum i.e. PGP_HASH_SHA1
-*/
-pgp_hash_alg_t
-pgp_str_to_hash_alg(const char *hash)
-{
-    if (hash == NULL) {
-        return DEFAULT_PGP_HASH_ALG;
-    }
-    for (size_t i = 0; i < ARRAY_SIZE(hash_alg_map); i++) {
-        if (rnp::str_case_eq(hash, hash_alg_map[i].name)) {
-            return hash_alg_map[i].type;
-        }
-    }
-    return PGP_HASH_UNKNOWN;
-}
-
 static bool
 botan_hash_create(pgp_hash_t *hash, const char *hash_name)
 {
@@ -302,7 +238,7 @@ botan_hash_create(pgp_hash_t *hash, const char *hash_name)
 bool
 pgp_hash_create(pgp_hash_t *hash, pgp_hash_alg_t alg)
 {
-    if (!botan_hash_create(hash, pgp_hash_name_botan(alg))) {
+    if (!botan_hash_create(hash, rnp::Hash::name_backend(alg))) {
         return false;
     }
 
@@ -398,14 +334,6 @@ pgp_hash_alg_t
 pgp_hash_alg_type(const pgp_hash_t *hash)
 {
     return hash->_alg;
-}
-
-size_t
-pgp_digest_length(pgp_hash_alg_t alg)
-{
-    size_t val = 0;
-    ARRAY_LOOKUP_BY_ID(hash_alg_map, type, digest_size, alg, val);
-    return val;
 }
 
 bool
