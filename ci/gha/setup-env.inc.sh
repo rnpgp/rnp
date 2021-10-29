@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# shellcheck disable=SC2086,SC2129
+# shellcheck disable=SC2086,SC2129,SC2034
 
 set -euxo pipefail
 # execute this script in a separate, early step
 
-echo "LOCAL_BUILDS=$GITHUB_WORKSPACE/builds" >> $GITHUB_ENV
+LOCAL_BUILDS="${GITHUB_WORKSPACE}/builds"
 
 # To install and cache our dependencies we need an absolute path
 # that does not change, is writable, and resides within
@@ -13,16 +13,48 @@ echo "LOCAL_BUILDS=$GITHUB_WORKSPACE/builds" >> $GITHUB_ENV
 # so it does not remain constant.
 # This causes problems with, for example, pkgconfig files
 # referencing paths that no longer exist.
-mkdir -p installs
-ln -s "$GITHUB_WORKSPACE/installs" /tmp/rnp-local-installs
-echo "CACHE_DIR=installs" >> $GITHUB_ENV
-echo "LOCAL_INSTALLS=/tmp/rnp-local-installs" >> $GITHUB_ENV
+CACHE_DIR="installs"
+mkdir -p "${CACHE_DIR}"
 
-# When building packages, dependencies with non-standard installation paths must 
+if [[ "${RUNNER_OS}" = "Windows" ]]
+then
+  rnp_local_installs="${RUNNER_TEMP}/rnp-local-installs"
+else
+  rnp_local_installs=/tmp/rnp-local-installs
+fi
+
+ln -s "$GITHUB_WORKSPACE/installs" "${rnp_local_installs}"
+LOCAL_INSTALLS="${rnp_local_installs}"
+
+# When building packages, dependencies with non-standard installation paths must
 # be found by the (DEB) package builder.
-echo "BOTAN_INSTALL=/tmp/rnp-local-installs/botan-install" >> $GITHUB_ENV
-echo "JSONC_INSTALL=/tmp/rnp-local-installs/jsonc-install" >> $GITHUB_ENV
-echo "GPG_INSTALL=/tmp/rnp-local-installs/gpg-install" >> $GITHUB_ENV
+BOTAN_INSTALL="${rnp_local_installs}/botan-install"
+JSONC_INSTALL="${rnp_local_installs}/jsonc-install"
+GPG_INSTALL="${rnp_local_installs}/gpg-install"
 
 # set this explicitly since we don't want to cache the rnp installation
-echo "RNP_INSTALL=$GITHUB_WORKSPACE/rnp-install" >> $GITHUB_ENV
+RNP_INSTALL="${GITHUB_WORKSPACE}/rnp-install"
+
+for var in \
+  LOCAL_BUILDS \
+  CACHE_DIR \
+  LOCAL_INSTALLS \
+  BOTAN_INSTALL \
+  JSONC_INSTALL \
+  GPG_INSTALL \
+  RNP_INSTALL
+do
+  val="${!var}"
+
+  # Replace all backslashes with forward slashes, for cmake, so the following
+  # error would not come up:
+  #
+  # Invalid character escape '\a'.
+  #
+  if [[ "${RUNNER_OS}" = "Windows" ]]
+  then
+    val="${val//\\/\/}"
+  fi
+
+  echo "${var}=${val}" >> "$GITHUB_ENV"
+done

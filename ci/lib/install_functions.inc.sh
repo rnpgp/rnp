@@ -19,12 +19,20 @@
 : "${RECOMMENDED_CMAKE_VERSION:=3.20.5}"
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
 : "${RECOMMENDED_RUBY_VERSION:=2.5.8}"
+: "${RECOMMENDED_BOTAN_VERSION_MSYS:=${RECOMMENDED_BOTAN_VERSION}-1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
+# if [[ "${OS}" = msys ]]; then
+#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION_MSYS}}"
+# else
+#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
+# fi
 : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
 : "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
 : "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
 : "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
+
+
 
 if [[ "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
   : "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
@@ -598,12 +606,18 @@ msys_install() {
 
   pacman --noconfirm -S --needed "${packages[@]}"
 
-  # any version starting with 2.14 up to 2.17.3 caused the application to hang
-  # as described in https://github.com/randombit/botan/issues/2582
-  # fixed with https://github.com/msys2/MINGW-packages/pull/7640/files
-  botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
-  pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
-  pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
+  # if is_use_static_dependencies
+  # then
+  #   :
+  # else
+  #   # any version starting with 2.14 up to 2.17.3 caused the application to
+  #   # hang
+  #   # as described in https://github.com/randombit/botan/issues/2582
+  #   # fixed with https://github.com/msys2/MINGW-packages/pull/7640/files
+  #   botan_pkg="mingw-w64-x86_64-libbotan-${RECOMMENDED_BOTAN_VERSION_MSYS}-any.pkg.tar.zst"
+  #   pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
+  #   pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
+  # fi
 
   # msys includes ruby 2.6.1 while we need lower version
   #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
