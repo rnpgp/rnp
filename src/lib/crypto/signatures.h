@@ -31,14 +31,12 @@
 #include "crypto/hash.h"
 
 /**
- * Initialize a signature computation.
+ * @brief Initialize a signature computation.
  * @param key the key that will be used to sign or verify
  * @param hash_alg the digest algo to be used
- * @param hash digest context that will be initialized
+ * @param hash digest object that will be initialized
  */
-rnp_result_t signature_init(const pgp_key_material_t *key,
-                            pgp_hash_alg_t            hash_alg,
-                            pgp_hash_t *              hash);
+void signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp::Hash &hash);
 
 /**
  * @brief Calculate signature with pre-populated hash
@@ -55,6 +53,19 @@ rnp_result_t signature_calculate(pgp_signature_t *         sig,
                                  rng_t *                   rng);
 
 /**
+ * @brief Calculate signature with pre-populated hash
+ * @param sig signature to calculate
+ * @param seckey signing secret key material
+ * @param hash pre-populated with signed data hash context. It is finalized and destroyed
+ *             during the execution. Signature fields and trailer are hashed in this function.
+ * @param rng random number generator
+ */
+void signature_calculate(pgp_signature_t &         sig,
+                         const pgp_key_material_t &seckey,
+                         rnp::Hash &               hash,
+                         rng_t &                   rng);
+
+/**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
  *        between the hash and signature material. Expiration time and other fields are not
  *        checked for validity.
@@ -67,5 +78,19 @@ rnp_result_t signature_calculate(pgp_signature_t *         sig,
 rnp_result_t signature_validate(const pgp_signature_t *   sig,
                                 const pgp_key_material_t *key,
                                 pgp_hash_t *              hash);
+
+/**
+ * @brief Validate a signature with pre-populated hash. This method just checks correspondence
+ *        between the hash and signature material. Expiration time and other fields are not
+ *        checked for validity.
+ * @param sig signature to validate
+ * @param key public key material of the verifying key
+ * @param hash pre-populated with signed data hash context. It is finalized
+ *             during the execution. Signature fields and trailer are hashed in this function.
+ * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
+ */
+rnp_result_t signature_validate(const pgp_signature_t &   sig,
+                                const pgp_key_material_t &key,
+                                rnp::Hash &               hash);
 
 #endif
