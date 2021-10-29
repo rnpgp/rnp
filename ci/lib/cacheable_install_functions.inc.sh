@@ -28,9 +28,18 @@ install_botan() {
     local osparam=()
     local cpuparam=()
     local run=run
+    local extra_cflags=
     case "${OS}" in
       msys)
-        osparam=(--os=mingw)
+        osparam=(--cc=gcc --os=mingw)
+        run=python
+        # Just get rid of all newlines!
+        BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
+        BOTAN_MODULES="${BOTAN_MODULES//$'\r'/}"
+        BOTAN_MODULES="${BOTAN_MODULES//$'\n'/}"
+
+        # Deal with "error: ignoring '#pragma comment"
+        extra_cflags="-Wno-error=unknown-pragmas"
         ;;
       linux)
         case "${DIST_VERSION}" in
@@ -46,7 +55,7 @@ install_botan() {
     local build_target="shared,cli"
     is_use_static_dependencies && build_target="static,cli"
 
-    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer -fPIC" \
+    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer -fPIC ${extra_cflags}" \
       ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install

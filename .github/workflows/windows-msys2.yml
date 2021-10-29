@@ -47,11 +47,28 @@ jobs:
       - uses: msys2/setup-msys2@v2
         with:
           path-type: inherit
-      - name: install
+      - name: Setup environment
         shell: msys2 {0}
         run: |
+          . ci/gha/setup-env.inc.sh
           bash ci/install_noncacheable_dependencies.sh
-          bash ci/install_cacheable_dependencies.sh
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: msys2 {0}
+        env:
+          USE_STATIC_DEPENDENCIES: "yes"
+        run: |
+          set -x
+          # As we need the 'botan' binary during the tests, and there seem to
+          # be no botan binaries available for download, we opt to build
+          # 'botan' from source so we get both dev headers and the binary.
+          ci/install_cacheable_dependencies.sh botan
       - name: download googletest
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
         #  Failed to get the hash for HEAD:
@@ -73,6 +90,6 @@ jobs:
           set -euxo pipefail
           wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
           7z x Dependencies_x64_Release.zip
-          ./Dependencies -exports $HOME/local-installs/rnp-install/bin/librnp*.dll > exports
+          ./Dependencies -exports "${RNP_INSTALL}"/bin/librnp*.dll > exports
           grep -qv dst_close exports
           grep -qw rnp_version_string exports
