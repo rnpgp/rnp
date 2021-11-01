@@ -209,7 +209,7 @@ jobs:
           ! ctest -N | grep 'ruby' > /dev/null
           ! ls -la src/tests/ | grep 'ruby' > /dev/null
 
-version-cmake-up-to-date:
+  version-cmake-up-to-date:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 10
