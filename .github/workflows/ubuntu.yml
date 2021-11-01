@@ -20,14 +20,24 @@ env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   USE_STATIC_DEPENDENCIES: yes
-  CC:   clang
-  CXX:  clang++
 
 jobs:
   tests:
+    strategy:
+      matrix:
+        cc: [""]
+        cxx: [""]
+        include:
+          - cc: clang
+            cxx: clang++
+          - cc: gcc
+            cxx: g++
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-#    timeout-minutes: 50
+    env:
+      CC: ${{ matrix.cc }}
+      CXX: ${{ matrix.cxx }}
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v2
         with:
