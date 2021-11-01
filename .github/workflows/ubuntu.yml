@@ -20,6 +20,8 @@ env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   USE_STATIC_DEPENDENCIES: yes
+  CC:   clang
+  CXX:  clang++
 
 jobs:
   tests:
