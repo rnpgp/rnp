@@ -25,13 +25,11 @@ jobs:
   tests:
     strategy:
       matrix:
-        cc: [""]
-        cxx: [""]
+        cc: ["gcc"]
+        cxx: ["g++"]
         include:
           - cc: clang
             cxx: clang++
-          - cc: gcc
-            cxx: g++
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     env:
