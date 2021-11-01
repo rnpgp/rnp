@@ -182,7 +182,7 @@ jobs:
      DOWNLOAD_RUBYRNP: Off
      RNP_TESTS: rnp_tests.hash_test_success
    timeout-minutes: 50
-    steps:
+   steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
