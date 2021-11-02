@@ -96,6 +96,7 @@ jobs:
           set -euxo pipefail
           nm --defined-only -g $RNP_INSTALL/lib64/librnp*.so > exports
           grep -qv dst_close exports
+          grep -qv Botan exports
           grep -qw rnp_version_string exports
   pkgconfig-cmake-target:
     runs-on: ubuntu-latest

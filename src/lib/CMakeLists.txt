@@ -244,6 +244,18 @@ set_target_properties(librnp
 
 if (BUILD_SHARED_LIBS)
   add_library(librnp-static STATIC $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+  # Limit symbols export only to rnp_* functions.
+  if (APPLE)
+    # Check for Apple OSs and use -export_symbols_list
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/librnp.symbols" "_rnp_*\n")
+    target_link_options(librnp PRIVATE -Wl,-exported_symbols_list "${CMAKE_CURRENT_BINARY_DIR}/librnp.symbols")
+    set_target_properties(librnp PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/librnp.symbols")
+  elseif(NOT WIN32)
+    # Use --version-script otherwise
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/librnp.vsc" "{\nglobal: rnp_*;\nlocal: *;\n};\n")
+    target_link_options(librnp PRIVATE -Wl,-O1 -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/librnp.vsc)
+    set_target_properties(librnp PROPERTIES LINK_DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/librnp.vsc")
+  endif()
 else()
   add_library(librnp-static ALIAS librnp)
 endif()
