@@ -634,6 +634,12 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     assert_int_equal(dsa_verify(&sig, message, h_size, key1), RNP_ERROR_SIGNATURE_INVALID);
 }
 
+// platforms known to not have a robust response can compile with
+// -DS2K_MINIMUM_TUNING_RATIO=2 (or whatever they need)
+#ifndef S2K_MINIMUM_TUNING_RATIO
+#define S2K_MINIMUM_TUNING_RATIO 6
+#endif
+
 TEST_F(rnp_tests, s2k_iteration_tuning)
 {
     pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
@@ -647,9 +653,10 @@ TEST_F(rnp_tests, s2k_iteration_tuning)
     const size_t iters_100 = pgp_s2k_compute_iters(hash_alg, 100, TRIAL_MSEC);
     const size_t iters_10 = pgp_s2k_compute_iters(hash_alg, 10, TRIAL_MSEC);
 
-    // fprintf(stderr, "%d %d\n", iters_10, iters_100);
+    double ratio = static_cast<double>(iters_100) / iters_10;
+    printf("s2k iteration tuning ratio: %g, (%zu:%zu)\n", ratio, iters_10, iters_100);
     // Test roughly linear cost, often skeyed by clock idle
-    assert_greater_than(static_cast<double>(iters_100) / iters_10, 6);
+    assert_greater_than(ratio, S2K_MINIMUM_TUNING_RATIO);
 
     // Should not crash for unknown hash algorithm
     assert_int_equal(pgp_s2k_compute_iters(PGP_HASH_UNKNOWN, 1000, TRIAL_MSEC), 0);
