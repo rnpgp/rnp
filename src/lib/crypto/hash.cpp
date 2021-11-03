@@ -337,45 +337,6 @@ pgp_hash_alg_type(const pgp_hash_t *hash)
 }
 
 bool
-pgp_hash_list_add(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg)
-{
-    pgp_hash_t hash = {0};
-    if (!pgp_hash_list_get(hashes, alg)) {
-        if (!pgp_hash_create(&hash, alg)) {
-            RNP_LOG("failed to initialize hash algorithm %d", (int) alg);
-            return false;
-        }
-        try {
-            hashes.push_back(hash);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            pgp_hash_finish(&hash, NULL);
-            return false;
-        }
-    }
-    return true;
-}
-
-const pgp_hash_t *
-pgp_hash_list_get(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg)
-{
-    for (auto &hash : hashes) {
-        if (pgp_hash_alg_type(&hash) == alg) {
-            return &hash;
-        }
-    }
-    return NULL;
-}
-
-void
-pgp_hash_list_update(std::vector<pgp_hash_t> &hashes, const void *buf, size_t len)
-{
-    for (auto &hash : hashes) {
-        pgp_hash_add(&hash, buf, len);
-    }
-}
-
-bool
 pgp_hash_uint32(pgp_hash_t *hash, uint32_t n)
 {
     uint8_t ibuf[4];
