@@ -87,24 +87,22 @@ ecdh_derive_kek(uint8_t *                x,
         return RNP_ERROR_NOT_SUPPORTED;
     }
     size_t have = 0;
-    for (size_t i = 1; i <= reps; i++) {
-        pgp_hash_t hash = {};
-        if (!pgp_hash_create(&hash, key.kdf_hash_alg)) {
-            RNP_LOG("Failed to create hash.");
-            return RNP_ERROR_GENERIC;
+    try {
+        for (size_t i = 1; i <= reps; i++) {
+            rnp::Hash hash(key.kdf_hash_alg);
+            hash.add(i);
+            hash.add(x, xlen);
+            hash.add(other_info, other_len);
+            hash.finish(dgst.data());
+            size_t bytes = std::min(hash_len, kek_len - have);
+            memcpy(kek + have, dgst.data(), bytes);
+            have += bytes;
         }
-        if (!pgp_hash_uint32(&hash, i) || pgp_hash_add(&hash, x, xlen) ||
-            pgp_hash_add(&hash, other_info, other_len)) {
-            RNP_LOG("Failed to hash.");
-            pgp_hash_finish(&hash, NULL);
-            return RNP_ERROR_GENERIC;
-        }
-        pgp_hash_finish(&hash, dgst.data());
-        size_t bytes = std::min(hash_len, kek_len - have);
-        memcpy(kek + have, dgst.data(), bytes);
-        have += bytes;
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to derive kek: %s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-    return RNP_SUCCESS;
 }
 
 static rnp_result_t
