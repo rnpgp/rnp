@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <time.h>
 #include <inttypes.h>
+#include <cassert>
 
 #include "key_store_pgp.h"
 #include "key_store_kbx.h"
@@ -510,7 +511,6 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     uint8_t *             p;
     uint8_t               checksum[20];
     uint32_t              pt;
-    pgp_hash_t            hash = {0};
     bool                  result = false;
     std::vector<uint32_t> subkey_sig_expirations;
     uint32_t              expiration = 0;
@@ -680,19 +680,13 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     STORE32BE(p, pt);
 
     // checksum
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        RNP_LOG("bad sha1 alloc");
-        goto finish;
-    }
-
-    if (hash._output_len != 20) {
-        RNP_LOG("wrong hash size %zu, should be 20 bytes", hash._output_len);
-        goto finish;
-    }
-
-    pgp_hash_add(&hash, (uint8_t *) mem_dest_get_memory(&memdst), memdst.writeb);
-
-    if (!pgp_hash_finish(&hash, checksum)) {
+    try {
+        rnp::Hash hash(PGP_HASH_SHA1);
+        assert(hash.size() == 20);
+        hash.add(mem_dest_get_memory(&memdst), memdst.writeb);
+        hash.finish(checksum);
+    } catch (const std::exception &e) {
+        RNP_LOG("Hashing failed: %s", e.what());
         goto finish;
     }
 

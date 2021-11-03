@@ -1302,34 +1302,16 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
             dst_close(&memdst, true);
             return false;
         }
+        rnp::Hash hash(PGP_HASH_SHA1);
+        hash.add(mem_dest_get_memory(&memdst), memdst.writeb);
+        hash.finish(checksum);
+        dst_close(&memdst, true);
+        return true;
     } catch (const std::exception &e) {
         RNP_LOG("Failed to build s_exp: %s", e.what());
+        dst_close(&memdst, true);
         return false;
     }
-
-    pgp_hash_t hash = {0};
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        RNP_LOG("Failed to create hash.");
-        goto error;
-    }
-
-    if (hash._output_len != G10_SHA1_HASH_SIZE) {
-        RNP_LOG(
-          "wrong hash size %zu, should be %d bytes", hash._output_len, G10_SHA1_HASH_SIZE);
-        pgp_hash_finish(&hash, NULL);
-        goto error;
-    }
-
-    pgp_hash_add(&hash, mem_dest_get_memory(&memdst), memdst.writeb);
-    dst_close(&memdst, true);
-
-    if (!pgp_hash_finish(&hash, checksum)) {
-        goto error;
-    }
-    return true;
-error:
-    dst_close(&memdst, true);
-    return false;
 }
 
 bool
