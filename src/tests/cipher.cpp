@@ -39,8 +39,7 @@ extern rng_t global_rng;
 
 TEST_F(rnp_tests, hash_test_success)
 {
-    pgp_hash_t hash = {0};
-    uint8_t    hash_output[PGP_MAX_HASH_SIZE];
+    uint8_t hash_output[PGP_MAX_HASH_SIZE];
 
     const pgp_hash_alg_t hash_algs[] = {PGP_HASH_MD5,
                                         PGP_HASH_SHA1,
@@ -73,22 +72,22 @@ TEST_F(rnp_tests, hash_test_success)
     for (int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i) {
 #if !defined(ENABLE_SM2)
         if (hash_algs[i] == PGP_HASH_SM3) {
-            assert_false(pgp_hash_create(&hash, hash_algs[i]));
+            assert_throw({ rnp::Hash hash(hash_algs[i]); });
             size_t hash_size = rnp::Hash::size(hash_algs[i]);
             assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
             continue;
         }
 #endif
-        assert_true(pgp_hash_create(&hash, hash_algs[i]));
-        size_t hash_size = rnp::Hash::size(hash_algs[i]);
+        rnp::Hash hash(hash_algs[i]);
+        size_t    hash_size = rnp::Hash::size(hash_algs[i]);
         assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
 
-        pgp_hash_add(&hash, test_input, 1);
-        pgp_hash_add(&hash, test_input + 1, sizeof(test_input) - 1);
-        pgp_hash_finish(&hash, hash_output);
+        hash.add(test_input, 1);
+        hash.add(test_input + 1, sizeof(test_input) - 1);
+        hash.finish(hash_output);
 
         assert_int_equal(0,
-                         test_value_equal(rnp::Hash::name(pgp_hash_alg_type(&hash)),
+                         test_value_equal(rnp::Hash::name(hash_algs[i]),
                                           hash_alg_expected_outputs[i],
                                           hash_output,
                                           hash_size));

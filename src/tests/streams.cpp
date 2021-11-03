@@ -43,27 +43,23 @@
 #include "time-utils.h"
 
 static bool
-stream_hash_file(pgp_hash_t *hash, const char *path)
+stream_hash_file(rnp::Hash &hash, const char *path)
 {
-    uint8_t      readbuf[1024];
     pgp_source_t src;
-    bool         res = false;
-
     if (init_file_src(&src, path)) {
         return false;
     }
 
+    bool res = false;
     do {
-        size_t read = 0;
+        uint8_t readbuf[1024];
+        size_t  read = 0;
         if (!src_read(&src, readbuf, sizeof(readbuf), &read)) {
             goto finish;
         } else if (read == 0) {
             break;
         }
-
-        if (pgp_hash_add(hash, readbuf, read)) {
-            goto finish;
-        }
+        hash.add(readbuf, read);
     } while (1);
 
     res = true;
@@ -341,10 +337,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     rnp_key_store_t *pubring;
     rnp_key_store_t *secring;
     pgp_signature_t  sig;
-    pgp_hash_t       hash_orig;
-    pgp_hash_t       hash_forged;
-    pgp_hash_t       hash;
-    pgp_hash_alg_t   halg;
     pgp_source_t     sigsrc;
     pgp_key_t *      key = NULL;
     rng_t            rng;
@@ -359,22 +351,23 @@ TEST_F(rnp_tests, test_stream_signatures)
     assert_rnp_success(sig.parse(sigsrc));
     src_close(&sigsrc);
     /* hash signed file */
-    halg = sig.halg;
-    assert_true(pgp_hash_create(&hash_orig, halg));
-    assert_true(stream_hash_file(&hash_orig, "data/test_stream_signatures/source.txt"));
+    pgp_hash_alg_t halg = sig.halg;
+    rnp::Hash      hash_orig(halg);
+    assert_true(stream_hash_file(hash_orig, "data/test_stream_signatures/source.txt"));
     /* hash forged file */
-    assert_true(pgp_hash_create(&hash_forged, halg));
+    rnp::Hash hash_forged(halg);
     assert_true(
-      stream_hash_file(&hash_forged, "data/test_stream_signatures/source_forged.txt"));
+      stream_hash_file(hash_forged, "data/test_stream_signatures/source_forged.txt"));
     /* find signing key */
     assert_non_null(key = rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
     /* validate signature and fields */
-    assert_true(pgp_hash_copy(&hash, &hash_orig));
+    rnp::Hash hash;
+    hash = hash_orig;
     assert_int_equal(sig.creation(), 1522241943);
-    assert_rnp_success(signature_validate(&sig, &key->material(), &hash));
+    assert_rnp_success(signature_validate(sig, key->material(), hash));
     /* check forged file */
-    assert_true(pgp_hash_copy(&hash, &hash_forged));
-    assert_rnp_failure(signature_validate(&sig, &key->material(), &hash));
+    hash = hash_forged;
+    assert_rnp_failure(signature_validate(sig, key->material(), hash));
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -396,27 +389,25 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.set_expiration(expire);
     sig.fill_hashed_data();
     /* try to sign without decrypting of the secret key */
-    assert_true(pgp_hash_copy(&hash, &hash_orig));
-    assert_rnp_failure(signature_calculate(&sig, &key->material(), &hash, &rng));
+    hash = hash_orig;
+    assert_throw(signature_calculate(sig, key->material(), hash, rng));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
                                          .userdata = (void *) "password"};
     assert_true(key->unlock(pswd_prov));
-    assert_true(pgp_hash_copy(&hash, &hash_orig));
-    assert_rnp_success(signature_calculate(&sig, &key->material(), &hash, &rng));
+    hash = hash_orig;
+    signature_calculate(sig, key->material(), hash, rng);
     /* now verify signature */
-    assert_true(pgp_hash_copy(&hash, &hash_orig));
+    hash = hash_orig;
     /* validate signature and fields */
     assert_int_equal(sig.creation(), create);
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == key->fp());
-    assert_rnp_success(signature_validate(&sig, &key->material(), &hash));
+    assert_rnp_success(signature_validate(sig, key->material(), hash));
     /* cleanup */
     delete pubring;
     delete secring;
-    pgp_hash_finish(&hash_orig, NULL);
-    pgp_hash_finish(&hash_forged, NULL);
     rng_destroy(&rng);
 }
 
