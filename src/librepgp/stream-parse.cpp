@@ -125,11 +125,11 @@ typedef struct pgp_source_signed_param_t {
     std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
     std::list<pgp_signature_t>        sigs;       /* list of signatures */
     std::vector<pgp_signature_info_t> siginfos;   /* signature validation info */
-    std::vector<pgp_hash_t>           hashes;     /* hash contexts */
-    std::vector<pgp_hash_t>           txt_hashes; /* hash contexts for text-mode sigs */
+    rnp::HashList                     hashes;     /* hash contexts */
+    rnp::HashList                     txt_hashes; /* hash contexts for text-mode sigs */
 
     pgp_source_signed_param_t() = default;
-    ~pgp_source_signed_param_t();
+    ~pgp_source_signed_param_t() = default;
 } pgp_source_signed_param_t;
 
 typedef struct pgp_source_compressed_param_t {
@@ -749,41 +749,44 @@ encrypted_src_close(pgp_source_t *src)
     src->param = NULL;
 }
 
-static bool
+static void
 add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_hash_alg_t halg)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
     if (!param->cleartext && (stype == PGP_SIG_TEXT)) {
-        return pgp_hash_list_add(param->txt_hashes, halg);
+        param->txt_hashes.add_alg(halg);
     }
-    return pgp_hash_list_add(param->hashes, halg);
+    param->hashes.add_alg(halg);
 }
 
-static const pgp_hash_t *
+static const rnp::Hash *
 get_hash_for_sig(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
     if (!param->cleartext && (sinfo->sig->type() == PGP_SIG_TEXT)) {
-        return pgp_hash_list_get(param->txt_hashes, sinfo->sig->halg);
+        return param->txt_hashes.get(sinfo->sig->halg);
     }
-    return pgp_hash_list_get(param->hashes, sinfo->sig->halg);
+    return param->hashes.get(sinfo->sig->halg);
 }
 
 static void
 signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
 {
-    pgp_hash_t shash = {};
-
     /* Get the hash context and clone it. */
-    const pgp_hash_t *hash = get_hash_for_sig(param, sinfo);
-    if (!hash || !pgp_hash_copy(&shash, hash)) {
-        RNP_LOG("failed to clone hash context");
-        sinfo->valid = false;
+    const rnp::Hash *hash = get_hash_for_sig(param, sinfo);
+    if (!hash) {
+        RNP_LOG("faile to get hash context.");
         return;
     }
-
-    /* fill the signature info */
-    signature_check(sinfo, &shash);
+    try {
+        rnp::Hash shash;
+        hash->clone(shash);
+        /* fill the signature info */
+        signature_check(*sinfo, shash);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        sinfo->valid = false;
+    }
 }
 
 static long
@@ -811,7 +814,11 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         signed_src_update(src, &last, 1);
     }
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    pgp_hash_list_update(param->hashes, buf, len);
+    try {
+        param->hashes.add(buf, len);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+    }
     /* update text-mode sig hashes */
     if (param->txt_hashes.empty()) {
         return;
@@ -826,7 +833,11 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         if (*ch != CH_LF) {
             if (*ch != CH_CR && param->stripped_crs > 0) {
                 while (param->stripped_crs--) {
-                    pgp_hash_list_update(param->txt_hashes, ST_CR, 1);
+                    try {
+                        param->txt_hashes.add(ST_CR, 1);
+                    } catch (const std::exception &e) {
+                        RNP_LOG("%s", e.what());
+                    }
                 }
                 param->stripped_crs = 0;
             }
@@ -848,12 +859,19 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         if (ch > linebeg) {
             long stripped_len = stripped_line_len(linebeg, ch);
             if (stripped_len > 0) {
-                pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
+                try {
+                    param->txt_hashes.add(linebeg, stripped_len);
+                } catch (const std::exception &e) {
+                    RNP_LOG("%s", e.what());
+                }
             }
         }
         /* dump EOL */
-        pgp_hash_list_update(param->txt_hashes, ST_CRLF, 2);
-
+        try {
+            param->txt_hashes.add(ST_CRLF, 2);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+        }
         ch++;
         linebeg = ch;
     }
@@ -864,7 +882,11 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
             param->stripped_crs = end - linebeg - stripped_len;
         }
         if (stripped_len > 0) {
-            pgp_hash_list_update(param->txt_hashes, linebeg, stripped_len);
+            try {
+                param->txt_hashes.add(linebeg, stripped_len);
+            } catch (const std::exception &e) {
+                RNP_LOG("%s", e.what());
+            }
         }
     }
 }
@@ -1113,25 +1135,30 @@ cleartext_parse_headers(pgp_source_t *src)
             break;
         }
 
-        if ((hdrlen >= 6) && !strncmp(hdr, ST_HEADER_HASH, 6)) {
-            hval = hdr + 6;
+        try {
+            if ((hdrlen >= 6) && !strncmp(hdr, ST_HEADER_HASH, 6)) {
+                hval = hdr + 6;
 
-            std::string remainder = hval;
+                std::string remainder = hval;
 
-            const std::string        delimiters = ", \t";
-            std::vector<std::string> tokens;
+                const std::string        delimiters = ", \t";
+                std::vector<std::string> tokens;
 
-            tokenize(remainder, delimiters, tokens);
+                tokenize(remainder, delimiters, tokens);
 
-            for (const auto &token : tokens) {
-                if ((halg = rnp::Hash::alg(token.c_str())) == PGP_HASH_UNKNOWN) {
-                    RNP_LOG("unknown halg: %s", token.c_str());
-                    continue;
+                for (const auto &token : tokens) {
+                    if ((halg = rnp::Hash::alg(token.c_str())) == PGP_HASH_UNKNOWN) {
+                        RNP_LOG("unknown halg: %s", token.c_str());
+                        continue;
+                    }
+                    add_hash_for_sig(param, PGP_SIG_TEXT, halg);
                 }
-                add_hash_for_sig(param, PGP_SIG_TEXT, halg);
+            } else {
+                RNP_LOG("unknown header '%s'", hdr);
             }
-        } else {
-            RNP_LOG("unknown header '%s'", hdr);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return false;
         }
 
         src_skip(param->readsrc, hdrlen);
@@ -2167,16 +2194,6 @@ init_cleartext_signed_src(pgp_source_t *src)
     return RNP_SUCCESS;
 }
 
-pgp_source_signed_param_t::~pgp_source_signed_param_t()
-{
-    for (auto &hash : hashes) {
-        pgp_hash_finish(&hash, NULL);
-    }
-    for (auto &hash : txt_hashes) {
-        pgp_hash_finish(&hash, NULL);
-    }
-}
-
 #define MAX_SIG_ERRORS 65536
 
 static rnp_result_t
@@ -2274,10 +2291,13 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
             }
 
             /* adding hash context */
-            if (!add_hash_for_sig(param, onepass.type, onepass.halg)) {
-                RNP_LOG("Failed to create hash %d for onepass %d.",
+            try {
+                add_hash_for_sig(param, onepass.type, onepass.halg);
+            } catch (const std::exception &e) {
+                RNP_LOG("Failed to create hash %d for onepass %d : %s.",
                         (int) onepass.halg,
-                        (int) onepass.type);
+                        (int) onepass.type,
+                        e.what());
                 errcode = RNP_ERROR_BAD_PARAMETERS;
                 goto finish;
             }
@@ -2292,11 +2312,17 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
                 sigerrors++;
             }
             /* adding hash context */
-            if (sig && !add_hash_for_sig(param, sig->type(), sig->halg)) {
-                RNP_LOG(
-                  "Failed to create hash %d for sig %d.", (int) sig->halg, (int) sig->type());
-                errcode = RNP_ERROR_BAD_PARAMETERS;
-                goto finish;
+            if (sig) {
+                try {
+                    add_hash_for_sig(param, sig->type(), sig->halg);
+                } catch (const std::exception &e) {
+                    RNP_LOG("Failed to create hash %d for sig %d : %s.",
+                            (int) sig->halg,
+                            (int) sig->type(),
+                            e.what());
+                    errcode = RNP_ERROR_BAD_PARAMETERS;
+                    goto finish;
+                }
             }
         } else {
             break;

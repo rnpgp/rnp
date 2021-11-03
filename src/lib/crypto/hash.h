@@ -124,36 +124,6 @@ size_t pgp_hash_finish(pgp_hash_t *hash, uint8_t *output);
 pgp_hash_alg_t pgp_hash_alg_type(const pgp_hash_t *hash);
 
 /*
- * @brief Add hash for the corresponding algorithm to the list
- *
- * @param hashes non-NULL pointer to the list structure
- * @param alg hash algorithm
- *
- * @return true if hash was added successfully or already exists in the list.
- *         false will be returned if memory allocation failed, or alg is not supported, or
- *         on other error
- **/
-bool pgp_hash_list_add(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg);
-
-/* @brief Get hash structure for the corresponding algorithm
- *
- * @param hashes List of pgp_hash_t structures
- * @param alg Hash algorithm
- *
- * @return pointer to the pgp_hash_t structure or NULL if list doesn't contain alg
- **/
-const pgp_hash_t *pgp_hash_list_get(std::vector<pgp_hash_t> &hashes, pgp_hash_alg_t alg);
-
-/*
- * @brief Update list of hashes with the data
- *
- * @param hashes List of pgp_hash_t structures
- * @param buf buffer with data
- * @param len number of bytes in the buffer
- **/
-void pgp_hash_list_update(std::vector<pgp_hash_t> &hashes, const void *buf, size_t len);
-
-/*
  * @brief Hashes 4 bytes stored as big endian
  *
  * @param hash Initialized hash ctx
