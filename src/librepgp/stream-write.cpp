@@ -89,7 +89,7 @@ typedef struct pgp_dest_encrypted_param_t {
     bool                    has_mdc; /* encrypted with mdc, i.e. tag 18 */
     bool                    aead;    /* we use AEAD encryption */
     pgp_crypt_t             encrypt; /* encrypting crypto */
-    pgp_hash_t              mdc;     /* mdc SHA1 hash */
+    rnp::Hash               mdc;     /* mdc SHA1 hash */
     pgp_aead_alg_t          aalg;    /* AEAD algorithm used */
     uint8_t                 iv[PGP_AEAD_MAX_NONCE_LEN]; /* iv for AEAD mode */
     uint8_t                 ad[PGP_AEAD_MAX_AD_LEN];    /* additional data for AEAD mode */
@@ -297,7 +297,12 @@ encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     if (param->has_mdc) {
-        pgp_hash_add(&param->mdc, buf, len);
+        try {
+            param->mdc.add(buf, len);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
     }
 
     while (len > 0) {
@@ -474,8 +479,13 @@ encrypted_dst_finish(pgp_dest_t *dst)
         uint8_t mdcbuf[MDC_V1_SIZE];
         mdcbuf[0] = MDC_PKT_TAG;
         mdcbuf[1] = MDC_V1_SIZE - 2;
-        pgp_hash_add(&param->mdc, mdcbuf, 2);
-        pgp_hash_finish(&param->mdc, &mdcbuf[2]);
+        try {
+            param->mdc.add(mdcbuf, 2);
+            param->mdc.finish(&mdcbuf[2]);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
         pgp_cipher_cfb_encrypt(&param->encrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
         dst_write(param->pkt.writedst, mdcbuf, MDC_V1_SIZE);
     }
@@ -497,11 +507,10 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
         pgp_cipher_aead_destroy(&param->encrypt);
 #endif
     } else {
-        pgp_hash_finish(&param->mdc, NULL);
         pgp_cipher_cfb_finish(&param->encrypt);
     }
     close_streamed_packet(&param->pkt, discard);
-    free(param);
+    delete param;
     dst->param = NULL;
 }
 
@@ -746,8 +755,10 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         /* initializing the mdc */
         dst_write(param->pkt.writedst, &mdcver, 1);
 
-        if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-            RNP_LOG("cannot create sha1 hash");
+        try {
+            param->mdc = rnp::Hash(PGP_HASH_SHA1);
+        } catch (const std::exception &e) {
+            RNP_LOG("cannot create sha1 hash: %s", e.what());
             return RNP_ERROR_GENERIC;
         }
     }
@@ -767,7 +778,12 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     enchdr[blsize + 1] = enchdr[blsize - 1];
 
     if (param->has_mdc) {
-        pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+        try {
+            param->mdc.add(enchdr, blsize + 2);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
     }
 
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
@@ -866,11 +882,16 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         }
     }
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    param = (pgp_dest_encrypted_param_t *) dst->param;
+    try {
+        param = new pgp_dest_encrypted_param_t();
+        dst->param = param;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     param->has_mdc = true;
     param->aead = handler->ctx->aalg != PGP_AEAD_NONE;
     param->aalg = handler->ctx->aalg;

@@ -910,18 +910,13 @@ pgp_signature_t::~pgp_signature_t()
 pgp_sig_id_t
 pgp_signature_t::get_id() const
 {
-    pgp_hash_t hash = {};
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        RNP_LOG("bad sha1 alloc");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    pgp_hash_add(&hash, hashed_data, hashed_len);
-    pgp_hash_add(&hash, material_buf, material_len);
+    rnp::Hash hash(PGP_HASH_SHA1);
+    hash.add(hashed_data, hashed_len);
+    hash.add(material_buf, material_len);
     pgp_sig_id_t res;
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
                   "pgp_sig_id_t size mismatch");
-    pgp_hash_finish(&hash, res.data());
+    hash.finish(res.data());
     return res;
 }
 

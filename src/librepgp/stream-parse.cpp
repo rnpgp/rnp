@@ -92,7 +92,7 @@ typedef struct pgp_source_encrypted_param_t {
     bool                          aead;           /* AEAD encrypted data packet, tag 20 */
     bool                          aead_validated; /* we read and validated last chunk */
     pgp_crypt_t                   decrypt;        /* decrypting crypto */
-    pgp_hash_t                    mdc;            /* mdc SHA1 hash */
+    rnp::Hash                     mdc;            /* mdc SHA1 hash */
     size_t                        chunklen;       /* size of AEAD chunk in bytes */
     size_t                        chunkin;  /* number of bytes read from the current chunk */
     size_t                        chunkidx; /* index of the current chunk */
@@ -666,25 +666,30 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
     pgp_cipher_cfb_decrypt(&param->decrypt, (uint8_t *) buf, (uint8_t *) buf, read);
 
     if (param->has_mdc) {
-        pgp_hash_add(&param->mdc, buf, read);
+        try {
+            param->mdc.add(buf, read);
 
-        if (parsemdc) {
-            pgp_cipher_cfb_decrypt(&param->decrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
-            pgp_cipher_cfb_finish(&param->decrypt);
-            pgp_hash_add(&param->mdc, mdcbuf, 2);
-            uint8_t hash[PGP_SHA1_HASH_SIZE] = {0};
-            pgp_hash_finish(&param->mdc, hash);
+            if (parsemdc) {
+                pgp_cipher_cfb_decrypt(&param->decrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
+                pgp_cipher_cfb_finish(&param->decrypt);
+                param->mdc.add(mdcbuf, 2);
+                uint8_t hash[PGP_SHA1_HASH_SIZE] = {0};
+                param->mdc.finish(hash);
 
-            if ((mdcbuf[0] != MDC_PKT_TAG) || (mdcbuf[1] != MDC_V1_SIZE - 2)) {
-                RNP_LOG("mdc header check failed");
-                return false;
+                if ((mdcbuf[0] != MDC_PKT_TAG) || (mdcbuf[1] != MDC_V1_SIZE - 2)) {
+                    RNP_LOG("mdc header check failed");
+                    return false;
+                }
+
+                if (memcmp(&mdcbuf[2], hash, PGP_SHA1_HASH_SIZE) != 0) {
+                    RNP_LOG("mdc hash check failed");
+                    return false;
+                }
+                param->mdc_validated = true;
             }
-
-            if (memcmp(&mdcbuf[2], hash, PGP_SHA1_HASH_SIZE) != 0) {
-                RNP_LOG("mdc hash check failed");
-                return false;
-            }
-            param->mdc_validated = true;
+        } catch (const std::exception &e) {
+            RNP_LOG("mdc update failed: %s", e.what());
+            return false;
         }
     }
     *readres = read;
@@ -1329,14 +1334,14 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
         return true;
     }
 
-    if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-        RNP_LOG("cannot create sha1 hash");
+    try {
+        param->mdc = rnp::Hash(PGP_HASH_SHA1);
+        param->mdc.add(dechdr, blsize + 2);
+    } catch (const std::exception &e) {
+        RNP_LOG("cannot create sha1 hash: %s", e.what());
         goto error;
     }
-
-    pgp_hash_add(&param->mdc, dechdr, blsize + 2);
     return true;
-
 error:
     pgp_cipher_cfb_finish(&crypt);
     return false;

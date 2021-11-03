@@ -50,6 +50,7 @@
 #include "../librekey/key_store_pgp.h"
 #include <set>
 #include <algorithm>
+#include <cassert>
 
 /**
  * @brief Add signatures from src to dst, skipping the duplicates.
@@ -1002,15 +1003,17 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             return RNP_ERROR_BAD_FORMAT;
         }
         /* calculate and check sha1 hash of the cleartext */
-        pgp_hash_t hash;
-        uint8_t    hval[PGP_MAX_HASH_SIZE];
-
-        if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-            return RNP_ERROR_BAD_STATE;
-        }
-        len -= PGP_SHA1_HASH_SIZE;
-        pgp_hash_add(&hash, mpis, len);
-        if (pgp_hash_finish(&hash, hval) != PGP_SHA1_HASH_SIZE) {
+        uint8_t hval[PGP_SHA1_HASH_SIZE];
+        try {
+            rnp::Hash hash(PGP_HASH_SHA1);
+            assert(hash.size() == sizeof(hval));
+            len -= PGP_SHA1_HASH_SIZE;
+            hash.add(mpis, len);
+            if (hash.finish(hval) != PGP_SHA1_HASH_SIZE) {
+                return RNP_ERROR_BAD_STATE;
+            }
+        } catch (const std::exception &e) {
+            RNP_LOG("hash calculation failed: %s", e.what());
             return RNP_ERROR_BAD_STATE;
         }
         if (memcmp(hval, mpis + len, PGP_SHA1_HASH_SIZE)) {
@@ -1196,14 +1199,11 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     }
 
     /* add sha1 hash */
-    pgp_hash_t hash;
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        RNP_LOG("failed to create sha1 hash");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-    pgp_hash_add(&hash, body.data(), body.size());
-    uint8_t hval[PGP_MAX_HASH_SIZE];
-    if (pgp_hash_finish(&hash, hval) != PGP_SHA1_HASH_SIZE) {
+    rnp::Hash hash(PGP_HASH_SHA1);
+    hash.add(body.data(), body.size());
+    uint8_t hval[PGP_SHA1_HASH_SIZE];
+    assert(sizeof(hval) == hash.size());
+    if (hash.finish(hval) != PGP_SHA1_HASH_SIZE) {
         RNP_LOG("failed to finish hash");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
