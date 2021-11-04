@@ -30,12 +30,6 @@
 #include "utils.h"
 
 rnp_result_t
-sm2_compute_za(const pgp_ec_key_t *key, pgp_hash_t *hash, const char *ident_field)
-{
-    return RNP_ERROR_NOT_IMPLEMENTED;
-}
-
-rnp_result_t
 sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
