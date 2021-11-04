@@ -64,7 +64,7 @@ typedef struct pgp_source_armored_param_t {
     bool     eofb64;     /* end of base64 stream reached */
     uint8_t  readcrc[3]; /* crc-24 from the armored data */
     bool     has_crc;    /* message contains CRC line */
-    pgp_hash_t crc_ctx;  /* CTX used to calculate CRC */
+    rnp::CRC24 crc_ctx;  /* CTX used to calculate CRC */
 } pgp_source_armored_param_t;
 
 typedef struct pgp_dest_armored_param_t {
@@ -75,7 +75,7 @@ typedef struct pgp_dest_armored_param_t {
     unsigned          llen;    /* length of the base64 line, defaults to 76 as per RFC */
     uint8_t           tail[2]; /* bytes which didn't fit into 3-byte boundary */
     unsigned          tailc;   /* number of bytes in tail */
-    pgp_hash_t        crc_ctx; /* CTX used to calculate CRC */
+    rnp::CRC24        crc_ctx; /* CTX used to calculate CRC */
 } pgp_dest_armored_param_t;
 
 /*
@@ -249,7 +249,12 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         if (param->restlen - param->restpos >= len) {
             memcpy(bufptr, &param->rest[param->restpos], len);
             param->restpos += len;
-            pgp_hash_add(&param->crc_ctx, bufptr, len);
+            try {
+                param->crc_ctx.add(bufptr, len);
+            } catch (const std::exception &e) {
+                RNP_LOG("%s", e.what());
+                return false;
+            }
             *readres = len;
             return true;
         } else {
@@ -363,7 +368,12 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         *bptr++ = b24 & 0xff;
     }
 
-    pgp_hash_add(&param->crc_ctx, buf, bufptr - (uint8_t *) buf);
+    try {
+        param->crc_ctx.add(buf, bufptr - (uint8_t *) buf);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
 
     if (param->eofb64) {
         if ((dend - dptr + eqcount) % 4 != 0) {
@@ -381,9 +391,11 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 
         uint8_t crc_fin[5];
         /* Calculate CRC after reading whole input stream */
-        pgp_hash_add(&param->crc_ctx, param->rest, bptr - param->rest);
-        if (!pgp_hash_finish(&param->crc_ctx, crc_fin)) {
-            RNP_LOG("Can't finalize RNP ctx");
+        try {
+            param->crc_ctx.add(param->rest, bptr - param->rest);
+            param->crc_ctx.finish(crc_fin);
+        } catch (const std::exception &e) {
+            RNP_LOG("Can't finalize RNP ctx: %s", e.what());
             return false;
         }
 
@@ -405,7 +417,12 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         read = left > param->restlen ? param->restlen : left;
         memcpy(bufptr, param->rest, read);
         if (!param->eofb64) {
-            pgp_hash_add(&param->crc_ctx, bufptr, read);
+            try {
+                param->crc_ctx.add(bufptr, read);
+            } catch (const std::exception &e) {
+                RNP_LOG("%s", e.what());
+                return false;
+            }
         }
         left -= read;
         param->restpos += read;
@@ -421,13 +438,12 @@ armored_src_close(pgp_source_t *src)
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
 
     if (param) {
-        (void) pgp_hash_finish(&param->crc_ctx, NULL);
         free(param->armorhdr);
         free(param->version);
         free(param->comment);
         free(param->hash);
         free(param->charset);
-        free(param);
+        delete param;
         src->param = NULL;
     }
 }
@@ -708,18 +724,18 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
     rnp_result_t                errcode = RNP_ERROR_GENERIC;
     pgp_source_armored_param_t *param;
 
-    if (!init_src_common(src, sizeof(*param))) {
+    if (!init_src_common(src, 0)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    try {
+        param = new pgp_source_armored_param_t();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    param = (pgp_source_armored_param_t *) src->param;
     param->readsrc = readsrc;
-
-    if (!pgp_hash_create_crc24(&param->crc_ctx)) {
-        RNP_LOG("Internal error");
-        return RNP_ERROR_GENERIC;
-    }
-
+    src->param = param;
     src->read = armored_src_read;
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
@@ -844,7 +860,12 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     /* update crc */
-    pgp_hash_add(&param->crc_ctx, buf, len);
+    try {
+        param->crc_ctx.add(buf, len);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_BAD_STATE;
+    }
 
     /* processing tail if any */
     if (len + param->tailc < 3) {
@@ -953,7 +974,11 @@ armored_dst_finish(pgp_dest_t *dst)
     buf[0] = CH_EQ;
 
     // At this point crc_ctx is initialized, so call can't fail
-    (void) pgp_hash_finish(&param->crc_ctx, crcbuf);
+    try {
+        param->crc_ctx.finish(crcbuf);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+    }
     armored_encode3(&buf[1], crcbuf);
     dst_write(param->writedst, buf, 5);
     armor_write_eol(param);
@@ -974,10 +999,8 @@ armored_dst_close(pgp_dest_t *dst, bool discard)
     if (!param) {
         return;
     }
-
     /* dst_close may be called without dst_finish on error */
-    (void) pgp_hash_finish(&param->crc_ctx, NULL);
-    free(param);
+    delete param;
     dst->param = NULL;
 }
 
@@ -988,21 +1011,23 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     pgp_dest_armored_param_t *param;
     rnp_result_t              ret = RNP_SUCCESS;
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    param = (pgp_dest_armored_param_t *) dst->param;
+    try {
+        param = new pgp_dest_armored_param_t();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    dst->param = param;
     dst->write = armored_dst_write;
     dst->finish = armored_dst_finish;
     dst->close = armored_dst_close;
     dst->type = PGP_STREAM_ARMORED;
     dst->writeb = 0;
     dst->clen = 0;
-
-    if (!pgp_hash_create_crc24(&param->crc_ctx)) {
-        RNP_LOG("Internal error");
-        return RNP_ERROR_GENERIC;
-    }
 
     param->writedst = writedst;
     param->type = msgtype;
