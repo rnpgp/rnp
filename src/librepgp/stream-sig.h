@@ -417,18 +417,6 @@ void signature_hash_direct(const pgp_signature_t &sig,
  *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
  *         during the signature validation (out of memory, wrong parameters, etc).
  */
-rnp_result_t signature_check(pgp_signature_info_t *sinfo, pgp_hash_t *hash);
-
-/**
- * @brief Check signature, including the expiration time, key validity and so on.
- *
- * @param sinfo populated signature info structure. Method will set flags valid, no_signer,
- *              expired.
- * @param hash populated hash
- * @return RNP_SUCCESS if all checks were passed, RNP_ERROR_SIGNATURE_INVALID for invalid sig,
- *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
- *         during the signature validation (out of memory, wrong parameters, etc).
- */
 rnp_result_t signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash);
 
 rnp_result_t signature_check_certification(pgp_signature_info_t &  sinfo,
