@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
-#include "hash_crc24.h"
+#include "hash.h"
 
 static const uint32_t T0[256] = {
   0x00000000, 0x00FB4C86, 0x000DD58A, 0x00F6990C, 0x00E1E693, 0x001AAA15, 0x00EC3319,
@@ -277,54 +277,3 @@ CRC24::finish(uint8_t *crc)
 }
 
 }; // namespace rnp
-
-bool
-pgp_crc24_create(pgp_hash_t *hash)
-{
-    try {
-        hash->handle = new uint32_t(CRC24_FAST_INIT);
-    } catch (const std::exception &e) {
-        RNP_LOG("Allocation failed: %s", e.what());
-        return false;
-    }
-    hash->_alg = PGP_HASH_UNKNOWN;
-    hash->_output_len = 3;
-    return true;
-}
-
-bool
-pgp_crc24_copy(pgp_hash_t *dst, const pgp_hash_t *src)
-{
-    try {
-        dst->handle = new uint32_t(*static_cast<uint32_t *>(src->handle));
-    } catch (const std::exception &e) {
-        RNP_LOG("Allocation failed: %s", e.what());
-        return false;
-    }
-    dst->_alg = PGP_HASH_UNKNOWN;
-    dst->_output_len = 3;
-    return true;
-}
-
-int
-pgp_crc24_add(pgp_hash_t *hash, const void *buf, size_t len)
-{
-    uint32_t *state = static_cast<uint32_t *>(hash->handle);
-    *state = crc24_update(*state, static_cast<const uint8_t *>(buf), len);
-    return 0;
-}
-
-size_t
-pgp_crc24_finish(pgp_hash_t *hash, uint8_t *output)
-{
-    uint32_t crc_fin = crc24_final(*static_cast<uint32_t *>(hash->handle));
-    delete static_cast<uint32_t *>(hash->handle);
-    hash->handle = NULL;
-    hash->_output_len = 0;
-    if (output) {
-        output[0] = (crc_fin >> 16) & 0xff;
-        output[1] = (crc_fin >> 8) & 0xff;
-        output[2] = crc_fin & 0xff;
-    }
-    return 3;
-}

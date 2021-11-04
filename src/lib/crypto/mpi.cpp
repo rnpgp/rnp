@@ -112,32 +112,6 @@ mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
             !memcmp(val1->mpi + idx1, val2->mpi + idx2, val1->len - idx1));
 }
 
-/* hashes 32-bit length + mpi body (paddded with 0 if high order byte is >= 0x80) */
-bool
-mpi_hash(const pgp_mpi_t *val, pgp_hash_t *hash)
-{
-    size_t  len;
-    size_t  idx;
-    uint8_t padbyte = 0;
-    bool    res = true;
-
-    len = mpi_bytes(val);
-    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
-        ;
-
-    if (idx >= len) {
-        return pgp_hash_uint32(hash, 0);
-    }
-
-    res = pgp_hash_uint32(hash, len - idx);
-    if (val->mpi[idx] & 0x80) {
-        res &= pgp_hash_add(hash, &padbyte, 1);
-    }
-    res &= pgp_hash_add(hash, val->mpi + idx, len - idx);
-
-    return res;
-}
-
 void
 mpi_forget(pgp_mpi_t *val)
 {
