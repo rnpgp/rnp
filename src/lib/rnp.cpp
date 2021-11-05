@@ -106,9 +106,7 @@ find_key(rnp_ffi_t               ffi,
         break;
     }
     if (!key && ffi->getkeycb && try_key_provider) {
-        char        identifier[1 + MAX(MAX(MAX(PGP_KEY_ID_SIZE * 2, PGP_KEY_GRIP_SIZE),
-                                    PGP_FINGERPRINT_SIZE * 2),
-                                MAX_ID_LENGTH)];
+        char        identifier[RNP_LOCATOR_MAX_SIZE];
         const char *identifier_type = NULL;
 
         if (locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
