@@ -88,10 +88,6 @@ STORE64BE(uint8_t x[8], uint64_t y)
     x[7] = (uint8_t)(y >> 0) & 0xff;
 }
 
-#ifndef MAX
-#define MAX(a, b) (((a) > (b)) ? (a) : (b))
-#endif
-
 inline char *
 getenv_logname(void)
 {
