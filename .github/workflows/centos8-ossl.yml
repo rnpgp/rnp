@@ -107,4 +107,3 @@ jobs:
           export CRYPTO_BACKEND=openssl
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
-
