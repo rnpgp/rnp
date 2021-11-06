@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/centos8.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -36,27 +38,50 @@ jobs:
         env:
           - BUILD_MODE: normal
             GPG_VERSION: stable
+            CC: gcc
+            CXX: g++
           - BUILD_MODE: normal
             GPG_VERSION: beta
+            CC: gcc
+            CXX: g++
           - BUILD_MODE: normal
             GPG_VERSION: 2.3.1
-          - BUILD_MODE: sanitize
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: normal
             GPG_VERSION: stable
-
-          # TODO: fix build error:
-          # libcommon.a(libcommon_a-iobuf.o):(.bss+0x8): multiple definition of `iobuf_debug_mode'
-          # t-iobuf.o:(.bss+0x0): first defined here
-          # clang-11: error: linker command failed with exit code 1 (use -v to see invocation)
-          #
-          # - BUILD_MODE: sanitize
-          #   GPG_VERSION: beta
-
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: normal
+            GPG_VERSION: beta
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: normal
+            GPG_VERSION: 2.3.1
+            CC: clang
+            CXX: clang++
+# Coverage can only been tested with the GNU compiler.
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: cli_tests
+            CC: gcc
+            CXX: g++
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
+            CC: gcc
+            CXX: g++
+# Sanitize is only tested with the clang compiler 
+# see env-common.inc.sh
+          - BUILD_MODE: sanitize
+            GPG_VERSION: stable
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: sanitize
+            GPG_VERSION: beta
+            CC: clang
+            CXX: clang++
+
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -79,7 +104,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -99,18 +124,34 @@ jobs:
           grep -qw rnp_version_string exports
   pkgconfig-cmake-target:
     runs-on: ubuntu-latest
-    # TODO: re-enable when the following can pass
-    if: "${{ false && !contains(github.event.head_commit.message, 'skip ci') }}"
+    if: "${{ !contains(github.event.head_commit.message, 'skip ci') }}"
     container:
       image: centos:8
-    timeout-minutes: 10
+    timeout-minutes: 30
     strategy:
+      fail-fast: false
+# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries
+# https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
       matrix:
         env:
           - BUILD_SHARED_LIBS: yes
+            CC: gcc
+            CXX: g++
+            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
           - BUILD_SHARED_LIBS: no
+            CC: gcc
+            CXX: g++
+            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
+          - BUILD_SHARED_LIBS: yes
+            CC: clang
+            CXX: clang++
+            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
+          - BUILD_SHARED_LIBS: no
+            CC: clang
+            CXX: clang++
+            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
     env: ${{ matrix.env }}
-    continue-on-error: true
+    name:  pkgconfig-cmake-target BUILD_SHARED_LIBS=${{ matrix.env.BUILD_SHARED_LIBS }}, ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
     steps:
       - run: |
           yum -y install git
@@ -139,3 +180,4 @@ jobs:
           set -euxo pipefail
           yum install -y rpm-build
           cpack -G RPM
+
