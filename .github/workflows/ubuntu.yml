@@ -64,7 +64,6 @@ jobs:
           set -x
           cd ${LOCAL_BUILDS}/rnp-build
           cpack -G DEB -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
-
   cmake-offline-googletest-src:
     strategy:
       matrix:
@@ -107,8 +106,7 @@ jobs:
           ci/run.sh
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
-          
+          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]          
   cmake-offline-googletest:
     strategy:
       matrix:
@@ -160,8 +158,7 @@ jobs:
           ci/run.sh
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
-          
+          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]          
   cmake-disable-rubyrnp:
     strategy:
       matrix:
@@ -204,7 +201,6 @@ jobs:
            ls -la "${RNP_INSTALL}/lib/"librnp*.so
            ! ctest -N | grep 'ruby' > /dev/null
            ! ls -la src/tests/ | grep 'ruby' > /dev/null
-
   version-cmake-up-to-date:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"

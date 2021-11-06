@@ -54,8 +54,7 @@ jobs:
       - name: Install prerequisites
         run: |
           apt update
-          apt -y install git sudo
-      
+          apt -y install git sudo      
 # I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2 
 #       give error about OCI container [https://github.com/actions/checkout/issues/334]
 #                                      [https://github.com/actions/runner/issues/1011]
@@ -69,21 +68,18 @@ jobs:
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
         shell: bash
-
 #      - name: Cache 
 #        id: cache
 #        uses: actions/cache@v2
 #        with:
 #          path: ${{github.workspace}}/${{ env.CACHE_DIR }}
 #          key: ${{runner.os}}-${{ matrix.env.CPU }}-${{ matrix.env.IMAGE }}-v1
-
       - name: Setup cacheable dependencies
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -euxo pipefail
           ci/install_cacheable_dependencies.sh
         shell: bash
-
       - name: Add rnpuser
         # it's only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
         run: |
@@ -91,14 +87,12 @@ jobs:
            printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
            printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
            echo "SUDO=sudo" >> $GITHUB_ENV
-
       - name: Build and Test
         run: |
           set -x
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
         shell: bash
-
       - name: Package
         run: |
           set -x

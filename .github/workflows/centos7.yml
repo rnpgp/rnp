@@ -74,7 +74,6 @@ jobs:
             RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
-
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -154,12 +153,9 @@ jobs:
           export USE_STATIC_DEPENDENCIES=no
           ci/install_noncacheable_dependencies.sh
           ci/install_cacheable_dependencies.sh
-
           . ci/env.inc.sh
-
           # build+install
           build_and_install /usr
-
           # check for install issues
           check_build
           build_example_pkgconfig
@@ -168,4 +164,3 @@ jobs:
           set -euxo pipefail
           yum install -y rpm-build
           cpack -G RPM
-

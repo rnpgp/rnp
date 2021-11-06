@@ -81,7 +81,6 @@ jobs:
             GPG_VERSION: beta
             CC: clang
             CXX: clang++
-
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -161,18 +160,14 @@ jobs:
           fetch-depth: 1
       - name: Test
         run: |
-
           # cmake
           set -euxo pipefail
           export USE_STATIC_DEPENDENCIES=no
           ci/install_noncacheable_dependencies.sh
           ci/install_cacheable_dependencies.sh
-
           . ci/env.inc.sh
-
           # build+install
           build_and_install /usr
-
           # check for install issues
           check_build
           build_example_pkgconfig
@@ -181,4 +176,3 @@ jobs:
           set -euxo pipefail
           yum install -y rpm-build
           cpack -G RPM
-
