@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/windows.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -22,11 +24,21 @@ env:
 
 jobs:
   tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - CC: gcc
+            CXX: g++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+#          - CC: clang
+#            CXX: clang++
+#            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
     runs-on: windows-latest
+    name: ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
+    env:  ${{ matrix.env }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
-    env:
-      GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
     steps:
       - uses: actions/checkout@v2
         with:
@@ -54,7 +66,14 @@ jobs:
           popd
       - name: tests
         shell: msys2 {0}
-        run: bash ci/main.sh
+        run: |
+          set -euxo pipefail
+          #ln -s /clang64/lib/libomp.dll.a /clang64/lib/libomp.a 
+          # ls -l /mingw64/lib
+          #echo "--- ls -l /clang64/lib ---"
+          #ls -l /clang64/lib
+
+          bash ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
@@ -63,3 +82,4 @@ jobs:
           ./Dependencies -exports $HOME/local-installs/rnp-install/bin/librnp*.dll > exports
           grep -qv dst_close exports
           grep -qw rnp_version_string exports
+

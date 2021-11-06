@@ -37,6 +37,14 @@ prepare_test_env() {
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
     export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
+# clang wants openmp and openmp installs to /clang64  (Why ???)
+# https://packages.msys2.org/package/mingw-w64-x86_64-openmp?repo=mingw64
+    if [[ "${CC-gcc}" = "clang" ]]; then
+      export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
+      export PATH="/clang64/bin:$PATH"
+      export LIBRARY_PATH="/clang64/lib:LIBRARY_PATH"
+
+    fi
   fi
 }
 
