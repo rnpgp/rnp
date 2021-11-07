@@ -29,6 +29,7 @@
 #include <algorithm>
 #include <openssl/evp.h>
 #include "s2k.h"
+#include "mem.h"
 #include "logging.h"
 
 int
@@ -43,62 +44,53 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
         RNP_LOG("Iterated S2K mus be salted as well.");
         return 1;
     }
-    size_t hash_len = pgp_digest_length(alg);
+    size_t hash_len = rnp::Hash::size(alg);
     if (!hash_len) {
         RNP_LOG("Unknown digest: %d", (int) alg);
         return 1;
     }
-    size_t               pswd_len = strlen(password);
-    size_t               salt_len = salt ? PGP_SALT_SIZE : 0;
-    std::vector<uint8_t> data(salt_len + pswd_len);
-    if (salt_len) {
-        memcpy(data.data(), salt, PGP_SALT_SIZE);
-    }
-    memcpy(data.data() + salt_len, password, pswd_len);
-    size_t zeroes = 0;
-    int    res = 1;
+    try {
+        size_t pswd_len = strlen(password);
+        size_t salt_len = salt ? PGP_SALT_SIZE : 0;
 
-    while (output_len) {
-        /* create hash context */
-        pgp_hash_t hash;
-        if (!pgp_hash_create(&hash, alg)) {
-            RNP_LOG("Failed to create hash for alg %d", (int) alg);
-            goto done;
+        rnp::secure_vector<uint8_t> data(salt_len + pswd_len);
+        if (salt_len) {
+            memcpy(data.data(), salt, PGP_SALT_SIZE);
         }
-        /* add leading zeroes */
-        for (size_t z = 0; z < zeroes; z++) {
-            uint8_t zero = 0;
-            if (pgp_hash_add(&hash, &zero, 1) != 0) {
-                RNP_LOG("Hashing failed.");
-                goto done;
+        memcpy(data.data() + salt_len, password, pswd_len);
+        size_t zeroes = 0;
+
+        while (output_len) {
+            /* create hash context */
+            rnp::Hash hash(alg);
+            /* add leading zeroes */
+            for (size_t z = 0; z < zeroes; z++) {
+                uint8_t zero = 0;
+                hash.add(&zero, 1);
             }
-        }
-        if (!data.empty()) {
-            /* if iteration is 1 then still hash the whole data chunk */
-            size_t left = std::max(data.size(), iterations);
-            while (left) {
-                size_t to_hash = std::min(left, data.size());
-                if (pgp_hash_add(&hash, data.data(), to_hash) != 0) {
-                    RNP_LOG("Hashing failed.");
-                    goto done;
+            if (!data.empty()) {
+                /* if iteration is 1 then still hash the whole data chunk */
+                size_t left = std::max(data.size(), iterations);
+                while (left) {
+                    size_t to_hash = std::min(left, data.size());
+                    hash.add(data.data(), to_hash);
+                    left -= to_hash;
                 }
-                left -= to_hash;
             }
+            rnp::secure_vector<uint8_t> dgst(hash_len);
+            size_t                      out_cpy = std::min(dgst.size(), output_len);
+            if (hash.finish(dgst.data()) != dgst.size()) {
+                RNP_LOG("Unexpected digest size.");
+                return 1;
+            }
+            memcpy(out, dgst.data(), out_cpy);
+            output_len -= out_cpy;
+            out += out_cpy;
+            zeroes++;
         }
-        std::vector<uint8_t> dgst(hash_len);
-        size_t               out_cpy = std::min(dgst.size(), output_len);
-        if (pgp_hash_finish(&hash, dgst.data()) != dgst.size()) {
-            RNP_LOG("Unexpected digest size.");
-            goto done;
-        }
-        memcpy(out, dgst.data(), out_cpy);
-        OPENSSL_cleanse(dgst.data(), dgst.size());
-        output_len -= out_cpy;
-        out += out_cpy;
-        zeroes++;
+        return 0;
+    } catch (const std::exception &e) {
+        RNP_LOG("s2k failed: %s", e.what());
+        return 1;
     }
-    res = 0;
-done:
-    OPENSSL_cleanse(data.data(), data.size());
-    return res;
 }

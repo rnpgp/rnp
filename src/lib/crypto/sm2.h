@@ -34,6 +34,10 @@ typedef struct pgp_sm2_encrypted_t {
     pgp_mpi_t m;
 } pgp_sm2_encrypted_t;
 
+namespace rnp {
+class Hash;
+}
+
 #if defined(ENABLE_SM2)
 rnp_result_t sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
 
@@ -42,8 +46,8 @@ rnp_result_t sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
  *
  * If ident_field is null, uses the default value
  */
-rnp_result_t sm2_compute_za(const pgp_ec_key_t *key,
-                            pgp_hash_t *        hash,
+rnp_result_t sm2_compute_za(const pgp_ec_key_t &key,
+                            rnp::Hash &         hash,
                             const char *        ident_field = NULL);
 
 rnp_result_t sm2_sign(rng_t *             rng,

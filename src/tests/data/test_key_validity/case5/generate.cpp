@@ -41,12 +41,12 @@ load_transferable_key(pgp_transferable_key_t *key, const char *fname)
     return res;
 }
 
-bool calculate_primary_binding(const pgp_key_pkt_t *key,
-                               const pgp_key_pkt_t *subkey,
+bool calculate_primary_binding(const pgp_key_pkt_t &key,
+                               const pgp_key_pkt_t &subkey,
                                pgp_hash_alg_t       halg,
-                               pgp_signature_t *    sig,
-                               pgp_hash_t *         hash,
-                               rng_t *              rng);
+                               pgp_signature_t &    sig,
+                               rnp::Hash &          hash,
+                               rng_t &              rng);
 
 int
 main(int argc, char **argv)
@@ -98,11 +98,12 @@ main(int argc, char **argv)
     binding->palg = tskey.key.alg;
     binding->set_keyfp(keyfp);
 
-    pgp_hash_t hash = {};
-    pgp_hash_t hashcp = {};
+    /* This requires transition to rnp::Hash once will be used */
+    rnp::Hash hash;
+    rnp::Hash hashcp;
 
-    if (!signature_fill_hashed_data(binding) ||
-        !signature_hash_binding(binding, &tpkey.key, &subkey->subkey, &hash) ||
+    binding->fill_hashed_data();
+    if (!signature_hash_binding(binding, &tpkey.key, &subkey->subkey, &hash) ||
         !pgp_hash_copy(&hashcp, &hash)) {
         RNP_LOG("failed to hash signature");
         return 1;

@@ -682,154 +682,137 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
     return NULL;
 }
 
-static bool
-grip_hash_mpi(pgp_hash_t *hash, const pgp_mpi_t *val, const char name, bool lzero)
+static void
+grip_hash_mpi(rnp::Hash &hash, const pgp_mpi_t &val, const char name, bool lzero = true)
 {
-    size_t len;
-    size_t idx;
-    char   buf[20] = {0};
-
-    len = mpi_bytes(val);
-    for (idx = 0; (idx < len) && (val->mpi[idx] == 0); idx++)
+    size_t len = mpi_bytes(&val);
+    size_t idx = 0;
+    for (idx = 0; (idx < len) && !val.mpi[idx]; idx++)
         ;
 
     if (name) {
         size_t hlen = idx >= len ? 0 : len - idx;
-        if ((len > idx) && lzero && (val->mpi[idx] & 0x80)) {
+        if ((len > idx) && lzero && (val.mpi[idx] & 0x80)) {
             hlen++;
         }
 
+        char buf[20] = {0};
         snprintf(buf, sizeof(buf), "(1:%c%zu:", name, hlen);
-        pgp_hash_add(hash, buf, strlen(buf));
+        hash.add(buf, strlen(buf));
     }
 
     if (idx < len) {
-        /* gcrypt prepends mpis with zero if hihger bit is set */
-        if (lzero && (val->mpi[idx] & 0x80)) {
-            buf[0] = '\0';
-            pgp_hash_add(hash, buf, 1);
+        /* gcrypt prepends mpis with zero if higher bit is set */
+        if (lzero && (val.mpi[idx] & 0x80)) {
+            uint8_t zero = 0;
+            hash.add(&zero, 1);
         }
-        pgp_hash_add(hash, val->mpi + idx, len - idx);
+        hash.add(val.mpi + idx, len - idx);
     }
-
     if (name) {
-        pgp_hash_add(hash, ")", 1);
+        hash.add(")", 1);
     }
-
-    return true;
 }
 
-static bool
-grip_hash_ecc_hex(pgp_hash_t *hash, const char *hex, char name)
+static void
+grip_hash_ecc_hex(rnp::Hash &hash, const char *hex, char name)
 {
     pgp_mpi_t mpi = {};
     mpi.len = rnp::hex_decode(hex, mpi.mpi, sizeof(mpi.mpi));
     if (!mpi.len) {
         RNP_LOG("wrong hex mpi");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
     /* libgcrypt doesn't add leading zero when hashes ecc mpis */
-    return grip_hash_mpi(hash, &mpi, name, false);
+    return grip_hash_mpi(hash, mpi, name, false);
 }
 
-static bool
-grip_hash_ec(pgp_hash_t *hash, const pgp_ec_key_t *key)
+static void
+grip_hash_ec(rnp::Hash &hash, const pgp_ec_key_t &key)
 {
-    const ec_curve_desc_t *desc = get_curve_desc(key->curve);
-    pgp_mpi_t              g = {};
-    size_t                 len = 0;
-    bool                   res = false;
-
+    const ec_curve_desc_t *desc = get_curve_desc(key.curve);
     if (!desc) {
-        RNP_LOG("unknown curve %d", (int) key->curve);
-        return false;
+        RNP_LOG("unknown curve %d", (int) key.curve);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
     /* build uncompressed point from gx and gy */
+    pgp_mpi_t g = {};
     g.mpi[0] = 0x04;
     g.len = 1;
-    len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
+    size_t len = rnp::hex_decode(desc->gx, g.mpi + g.len, sizeof(g.mpi) - g.len);
     if (!len) {
         RNP_LOG("wrong x mpi");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     g.len += len;
     len = rnp::hex_decode(desc->gy, g.mpi + g.len, sizeof(g.mpi) - g.len);
     if (!len) {
         RNP_LOG("wrong y mpi");
-        return false;
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     g.len += len;
 
     /* p, a, b, g, n, q */
-    res = grip_hash_ecc_hex(hash, desc->p, 'p') && grip_hash_ecc_hex(hash, desc->a, 'a') &&
-          grip_hash_ecc_hex(hash, desc->b, 'b') && grip_hash_mpi(hash, &g, 'g', false) &&
-          grip_hash_ecc_hex(hash, desc->n, 'n');
+    grip_hash_ecc_hex(hash, desc->p, 'p');
+    grip_hash_ecc_hex(hash, desc->a, 'a');
+    grip_hash_ecc_hex(hash, desc->b, 'b');
+    grip_hash_mpi(hash, g, 'g', false);
+    grip_hash_ecc_hex(hash, desc->n, 'n');
 
-    if ((key->curve == PGP_CURVE_ED25519) || (key->curve == PGP_CURVE_25519)) {
+    if ((key.curve == PGP_CURVE_ED25519) || (key.curve == PGP_CURVE_25519)) {
         if (g.len < 1) {
             RNP_LOG("wrong 25519 p");
-            return false;
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
         }
-        g.len = key->p.len - 1;
-        memcpy(g.mpi, key->p.mpi + 1, g.len);
-        res &= grip_hash_mpi(hash, &g, 'q', false);
+        g.len = key.p.len - 1;
+        memcpy(g.mpi, key.p.mpi + 1, g.len);
+        grip_hash_mpi(hash, g, 'q', false);
     } else {
-        res &= grip_hash_mpi(hash, &key->p, 'q', false);
+        grip_hash_mpi(hash, key.p, 'q', false);
     }
-    return res;
 }
 
 /* keygrip is subjectKeyHash from pkcs#15 for RSA. */
 bool
 rnp_key_store_get_key_grip(const pgp_key_material_t *key, pgp_key_grip_t &grip)
 {
-    pgp_hash_t hash = {0};
-
-    if (!pgp_hash_create(&hash, PGP_HASH_SHA1)) {
-        RNP_LOG("bad sha1 alloc");
-        return false;
-    }
-
-    switch (key->alg) {
-    case PGP_PKA_RSA:
-    case PGP_PKA_RSA_SIGN_ONLY:
-    case PGP_PKA_RSA_ENCRYPT_ONLY:
-        grip_hash_mpi(&hash, &key->rsa.n, '\0', true);
-        break;
-
-    case PGP_PKA_DSA:
-        grip_hash_mpi(&hash, &key->dsa.p, 'p', true);
-        grip_hash_mpi(&hash, &key->dsa.q, 'q', true);
-        grip_hash_mpi(&hash, &key->dsa.g, 'g', true);
-        grip_hash_mpi(&hash, &key->dsa.y, 'y', true);
-        break;
-
-    case PGP_PKA_ELGAMAL:
-    case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        grip_hash_mpi(&hash, &key->eg.p, 'p', true);
-        grip_hash_mpi(&hash, &key->eg.g, 'g', true);
-        grip_hash_mpi(&hash, &key->eg.y, 'y', true);
-        break;
-
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
-    case PGP_PKA_SM2:
-        if (!grip_hash_ec(&hash, &key->ec)) {
-            pgp_hash_finish(&hash, grip.data());
+    try {
+        rnp::Hash hash(PGP_HASH_SHA1);
+        switch (key->alg) {
+        case PGP_PKA_RSA:
+        case PGP_PKA_RSA_SIGN_ONLY:
+        case PGP_PKA_RSA_ENCRYPT_ONLY:
+            grip_hash_mpi(hash, key->rsa.n, '\0');
+            break;
+        case PGP_PKA_DSA:
+            grip_hash_mpi(hash, key->dsa.p, 'p');
+            grip_hash_mpi(hash, key->dsa.q, 'q');
+            grip_hash_mpi(hash, key->dsa.g, 'g');
+            grip_hash_mpi(hash, key->dsa.y, 'y');
+            break;
+        case PGP_PKA_ELGAMAL:
+        case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
+            grip_hash_mpi(hash, key->eg.p, 'p');
+            grip_hash_mpi(hash, key->eg.g, 'g');
+            grip_hash_mpi(hash, key->eg.y, 'y');
+            break;
+        case PGP_PKA_ECDH:
+        case PGP_PKA_ECDSA:
+        case PGP_PKA_EDDSA:
+        case PGP_PKA_SM2:
+            grip_hash_ec(hash, key->ec);
+            break;
+        default:
+            RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
             return false;
         }
-        break;
-
-    default:
-        RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
-        pgp_hash_finish(&hash, grip.data());
+        return hash.finish(grip.data()) == grip.size();
+    } catch (const std::exception &e) {
+        RNP_LOG("Grip calculation failed: %s", e.what());
         return false;
     }
-
-    return pgp_hash_finish(&hash, grip.data()) == grip.size();
 }
 
 pgp_key_t *

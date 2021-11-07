@@ -89,7 +89,7 @@ typedef struct pgp_dest_encrypted_param_t {
     bool                    has_mdc; /* encrypted with mdc, i.e. tag 18 */
     bool                    aead;    /* we use AEAD encryption */
     pgp_crypt_t             encrypt; /* encrypting crypto */
-    pgp_hash_t              mdc;     /* mdc SHA1 hash */
+    rnp::Hash               mdc;     /* mdc SHA1 hash */
     pgp_aead_alg_t          aalg;    /* AEAD algorithm used */
     uint8_t                 iv[PGP_AEAD_MAX_NONCE_LEN]; /* iv for AEAD mode */
     uint8_t                 ad[PGP_AEAD_MAX_AD_LEN];    /* additional data for AEAD mode */
@@ -114,13 +114,13 @@ typedef struct pgp_dest_signed_param_t {
     rnp_ctx_t *              ctx;      /* rnp operation context with additional parameters */
     pgp_password_provider_t *password_provider;   /* password provider from write handler */
     std::vector<pgp_dest_signer_info_t> siginfos; /* list of  pgp_dest_signer_info_t */
-    std::vector<pgp_hash_t> hashes;    /* hashes to pass raw data through and then sign */
-    bool                    clr_start; /* we are on the start of the line */
-    uint8_t                 clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
-    size_t                  clr_buflen;          /* number of bytes in buffer */
+    rnp::HashList hashes;              /* hashes to pass raw data through and then sign */
+    bool          clr_start;           /* we are on the start of the line */
+    uint8_t       clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
+    size_t        clr_buflen;          /* number of bytes in buffer */
 
     pgp_dest_signed_param_t() = default;
-    ~pgp_dest_signed_param_t();
+    ~pgp_dest_signed_param_t() = default;
 } pgp_dest_signed_param_t;
 
 typedef struct pgp_dest_partial_param_t {
@@ -297,7 +297,12 @@ encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
     }
 
     if (param->has_mdc) {
-        pgp_hash_add(&param->mdc, buf, len);
+        try {
+            param->mdc.add(buf, len);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
     }
 
     while (len > 0) {
@@ -474,8 +479,13 @@ encrypted_dst_finish(pgp_dest_t *dst)
         uint8_t mdcbuf[MDC_V1_SIZE];
         mdcbuf[0] = MDC_PKT_TAG;
         mdcbuf[1] = MDC_V1_SIZE - 2;
-        pgp_hash_add(&param->mdc, mdcbuf, 2);
-        pgp_hash_finish(&param->mdc, &mdcbuf[2]);
+        try {
+            param->mdc.add(mdcbuf, 2);
+            param->mdc.finish(&mdcbuf[2]);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
         pgp_cipher_cfb_encrypt(&param->encrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
         dst_write(param->pkt.writedst, mdcbuf, MDC_V1_SIZE);
     }
@@ -497,11 +507,10 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
         pgp_cipher_aead_destroy(&param->encrypt);
 #endif
     } else {
-        pgp_hash_finish(&param->mdc, NULL);
         pgp_cipher_cfb_finish(&param->encrypt);
     }
     close_streamed_packet(&param->pkt, discard);
-    free(param);
+    delete param;
     dst->param = NULL;
 }
 
@@ -746,8 +755,10 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         /* initializing the mdc */
         dst_write(param->pkt.writedst, &mdcver, 1);
 
-        if (!pgp_hash_create(&param->mdc, PGP_HASH_SHA1)) {
-            RNP_LOG("cannot create sha1 hash");
+        try {
+            param->mdc = rnp::Hash(PGP_HASH_SHA1);
+        } catch (const std::exception &e) {
+            RNP_LOG("cannot create sha1 hash: %s", e.what());
             return RNP_ERROR_GENERIC;
         }
     }
@@ -767,7 +778,12 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     enchdr[blsize + 1] = enchdr[blsize - 1];
 
     if (param->has_mdc) {
-        pgp_hash_add(&param->mdc, enchdr, blsize + 2);
+        try {
+            param->mdc.add(enchdr, blsize + 2);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
     }
 
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
@@ -866,11 +882,16 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         }
     }
 
-    if (!init_dst_common(dst, sizeof(*param))) {
+    if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    param = (pgp_dest_encrypted_param_t *) dst->param;
+    try {
+        param = new pgp_dest_encrypted_param_t();
+        dst->param = param;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
     param->has_mdc = true;
     param->aead = handler->ctx->aalg != PGP_AEAD_NONE;
     param->aalg = handler->ctx->aalg;
@@ -972,29 +993,33 @@ cleartext_dst_writeline(pgp_dest_signed_param_t *param,
     /* output data */
     dst_write(param->writedst, buf, len);
 
-    if (eol) {
-        bool hashcrlf = false;
-        ptr = buf + len - 1;
+    try {
+        if (eol) {
+            bool hashcrlf = false;
+            ptr = buf + len - 1;
 
-        /* skipping trailing characters - space, tab, carriage return, line feed */
-        while ((ptr >= buf) && ((*ptr == CH_SPACE) || (*ptr == CH_TAB) || (*ptr == CH_CR) ||
-                                (*ptr == CH_LF))) {
-            if (*ptr == CH_LF) {
-                hashcrlf = true;
+            /* skipping trailing characters - space, tab, carriage return, line feed */
+            while ((ptr >= buf) && ((*ptr == CH_SPACE) || (*ptr == CH_TAB) ||
+                                    (*ptr == CH_CR) || (*ptr == CH_LF))) {
+                if (*ptr == CH_LF) {
+                    hashcrlf = true;
+                }
+                ptr--;
             }
-            ptr--;
-        }
 
-        /* hashing line body and \r\n */
-        pgp_hash_list_update(param->hashes, buf, ptr + 1 - buf);
-        if (hashcrlf) {
-            pgp_hash_list_update(param->hashes, ST_CRLF, 2);
+            /* hashing line body and \r\n */
+            param->hashes.add(buf, ptr + 1 - buf);
+            if (hashcrlf) {
+                param->hashes.add(ST_CRLF, 2);
+            }
+            param->clr_start = hashcrlf;
+        } else if (len > 0) {
+            /* hashing just line's data */
+            param->hashes.add(buf, len);
+            param->clr_start = false;
         }
-        param->clr_start = hashcrlf;
-    } else if (len > 0) {
-        /* hashing just line's data */
-        pgp_hash_list_update(param->hashes, buf, len);
-        param->clr_start = false;
+    } catch (const std::exception &e) {
+        RNP_LOG("failed to hash data: %s", e.what());
     }
 }
 
@@ -1083,46 +1108,47 @@ signed_fill_signature(pgp_dest_signed_param_t *param,
                       pgp_signature_t *        sig,
                       pgp_dest_signer_info_t * signer)
 {
-    const pgp_key_pkt_t *deckey = NULL;
-    pgp_hash_t           hash;
-    pgp_password_ctx_t   ctx = {.op = PGP_OP_SIGN, .key = signer->key};
-    rnp_result_t         ret = RNP_ERROR_GENERIC;
-
     /* fill signature fields */
     try {
         sig->set_keyfp(signer->key->fp());
         sig->set_keyid(signer->key->keyid());
         sig->set_creation(signer->sigcreate ? signer->sigcreate : time(NULL));
         sig->set_expiration(signer->sigexpire);
+        sig->fill_hashed_data();
     } catch (const std::exception &e) {
         RNP_LOG("failed to setup signature fields: %s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!signature_fill_hashed_data(sig)) {
-        RNP_LOG("failed to fill the signature data");
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
 
-    if (!pgp_hash_copy(&hash, pgp_hash_list_get(param->hashes, sig->halg))) {
-        RNP_LOG("failed to obtain hash");
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    /* decrypt the secret key if needed */
-    if (signer->key->encrypted()) {
-        deckey = pgp_decrypt_seckey(signer->key, param->password_provider, &ctx);
-        if (!deckey) {
-            RNP_LOG("wrong secret key password");
-            pgp_hash_finish(&hash, NULL);
-            return RNP_ERROR_BAD_PASSWORD;
+    rnp_result_t         ret = RNP_ERROR_GENERIC;
+    const pgp_key_pkt_t *deckey = NULL;
+    try {
+        const rnp::Hash *listh = param->hashes.get(sig->halg);
+        if (!listh) {
+            RNP_LOG("failed to obtain hash");
+            return RNP_ERROR_BAD_PARAMETERS;
         }
-    } else {
-        deckey = &signer->key->pkt();
+        rnp::Hash hash;
+        listh->clone(hash);
+
+        /* decrypt the secret key if needed */
+        if (signer->key->encrypted()) {
+            pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = signer->key};
+            deckey = pgp_decrypt_seckey(signer->key, param->password_provider, &ctx);
+            if (!deckey) {
+                RNP_LOG("wrong secret key password");
+                return RNP_ERROR_BAD_PASSWORD;
+            }
+        } else {
+            deckey = &signer->key->pkt();
+        }
+
+        /* calculate the signature */
+        signature_calculate(*sig, deckey->material, hash, *rnp_ctx_rng_handle(param->ctx));
+        ret = RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
     }
-
-    /* calculate the signature */
-    ret = signature_calculate(sig, &deckey->material, &hash, rnp_ctx_rng_handle(param->ctx));
-
     /* destroy decrypted secret key */
     if (signer->key->encrypted()) {
         delete deckey;
@@ -1242,7 +1268,7 @@ static void
 signed_dst_update(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
-    pgp_hash_list_update(param->hashes, buf, len);
+    param->hashes.add(buf, len);
 }
 
 static rnp_result_t
@@ -1262,7 +1288,10 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
 
     /* Add hash to the list */
     sinfo.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
-    if (!pgp_hash_list_add(param->hashes, sinfo.halg)) {
+    try {
+        param->hashes.add_alg(sinfo.halg);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -1308,19 +1337,11 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
     }
 }
 
-pgp_dest_signed_param_t::~pgp_dest_signed_param_t()
-{
-    for (auto &hash : hashes) {
-        pgp_hash_finish(&hash, NULL);
-    }
-}
-
 static rnp_result_t
 init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_signed_param_t *param;
     rnp_result_t             ret = RNP_ERROR_GENERIC;
-    const char *             hname;
 
     if (!handler->key_provider) {
         RNP_LOG("no key provider");
@@ -1374,10 +1395,10 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         dst_write(param->writedst, ST_CRLF, strlen(ST_CRLF));
         dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
 
-        for (const auto &hash : param->hashes) {
-            hname = pgp_hash_name(&hash);
+        for (const auto &hash : param->hashes.hashes()) {
+            auto hname = rnp::Hash::name(hash.alg());
             dst_write(param->writedst, hname, strlen(hname));
-            if (&hash != &param->hashes.back()) {
+            if (&hash != &param->hashes.hashes().back()) {
                 dst_write(param->writedst, ST_COMMA, 1);
             }
         }

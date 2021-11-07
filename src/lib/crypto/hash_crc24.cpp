@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
-#include "hash_crc24.h"
+#include "hash.h"
 
 static const uint32_t T0[256] = {
   0x00000000, 0x00FB4C86, 0x000DD58A, 0x00F6990C, 0x00E1E693, 0x001AAA15, 0x00EC3319,
@@ -250,53 +250,30 @@ crc24_final(uint32_t crc)
     return (BSWAP32(crc) >> 8);
 }
 
-bool
-pgp_crc24_create(pgp_hash_t *hash)
+namespace rnp {
+
+CRC24::CRC24()
 {
-    try {
-        hash->handle = new uint32_t(CRC24_FAST_INIT);
-    } catch (const std::exception &e) {
-        RNP_LOG("Allocation failed: %s", e.what());
-        return false;
-    }
-    hash->_alg = PGP_HASH_UNKNOWN;
-    hash->_output_len = 3;
-    return true;
+    state_ = CRC24_FAST_INIT;
 }
 
-bool
-pgp_crc24_copy(pgp_hash_t *dst, const pgp_hash_t *src)
+void
+CRC24::add(const void *buf, size_t len)
 {
-    try {
-        dst->handle = new uint32_t(*static_cast<uint32_t *>(src->handle));
-    } catch (const std::exception &e) {
-        RNP_LOG("Allocation failed: %s", e.what());
-        return false;
-    }
-    dst->_alg = PGP_HASH_UNKNOWN;
-    dst->_output_len = 3;
-    return true;
-}
-
-int
-pgp_crc24_add(pgp_hash_t *hash, const void *buf, size_t len)
-{
-    uint32_t *state = static_cast<uint32_t *>(hash->handle);
-    *state = crc24_update(*state, static_cast<const uint8_t *>(buf), len);
-    return 0;
+    state_ = crc24_update(state_, static_cast<const uint8_t *>(buf), len);
 }
 
 size_t
-pgp_crc24_finish(pgp_hash_t *hash, uint8_t *output)
+CRC24::finish(uint8_t *crc)
 {
-    uint32_t crc_fin = crc24_final(*static_cast<uint32_t *>(hash->handle));
-    delete static_cast<uint32_t *>(hash->handle);
-    hash->handle = NULL;
-    hash->_output_len = 0;
-    if (output) {
-        output[0] = (crc_fin >> 16) & 0xff;
-        output[1] = (crc_fin >> 8) & 0xff;
-        output[2] = crc_fin & 0xff;
+    uint32_t crc_fin = crc24_final(state_);
+    state_ = 0;
+    if (crc) {
+        crc[0] = (crc_fin >> 16) & 0xff;
+        crc[1] = (crc_fin >> 8) & 0xff;
+        crc[2] = crc_fin & 0xff;
     }
     return 3;
 }
+
+}; // namespace rnp

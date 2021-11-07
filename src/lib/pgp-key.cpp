@@ -432,13 +432,13 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                 goto done;
             }
             if (!signature_calculate_certification(
-                  &key->pkt(), &key->get_uid(sig.uid).pkt, &newsig, &seckey->pkt())) {
+                  key->pkt(), key->get_uid(sig.uid).pkt, newsig, seckey->pkt())) {
                 RNP_LOG("failed to calculate signature");
                 goto done;
             }
         } else {
             /* direct-key signature case */
-            if (!signature_calculate_direct(&key->pkt(), &newsig, &seckey->pkt())) {
+            if (!signature_calculate_direct(key->pkt(), newsig, seckey->pkt())) {
                 RNP_LOG("failed to calculate signature");
                 goto done;
             }
@@ -518,7 +518,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
     if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
         goto done;
     }
-    if (!signature_calculate_binding(&primsec->pkt(), &secsub->pkt(), &newsig, subsign)) {
+    if (!signature_calculate_binding(primsec->pkt(), secsub->pkt(), newsig, subsign)) {
         RNP_LOG("failed to calculate signature");
         goto done;
     }
@@ -601,7 +601,7 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
         hash_min = dsa_get_min_hash(mpi_bits(&pubkey->material.dsa.q));
     }
 
-    if (pgp_digest_length(hash) < pgp_digest_length(hash_min)) {
+    if (rnp::Hash::size(hash) < rnp::Hash::size(hash_min)) {
         return hash_min;
     }
     return hash;
@@ -2010,7 +2010,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
             RNP_LOG("Userid not found");
             return;
         }
-        signature_check_certification(&sinfo, &key.pkt(), &key.get_uid(sig.uid).pkt);
+        signature_check_certification(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -2018,18 +2018,18 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
             RNP_LOG("Invalid subkey binding's signer.");
             return;
         }
-        signature_check_binding(&sinfo, &this->pkt(), &key);
+        signature_check_binding(sinfo, pkt(), key);
         break;
     case PGP_SIG_DIRECT:
     case PGP_SIG_REV_KEY:
-        signature_check_direct(&sinfo, &key.pkt());
+        signature_check_direct(sinfo, key.pkt());
         break;
     case PGP_SIG_REV_SUBKEY:
         if (!is_signer(sig)) {
             RNP_LOG("Invalid subkey revocation's signer.");
             return;
         }
-        signature_check_subkey_revocation(&sinfo, &this->pkt(), &key.pkt());
+        signature_check_subkey_revocation(sinfo, pkt(), key.pkt());
         break;
     default:
         RNP_LOG("Unsupported key signature type: %d", (int) stype);
