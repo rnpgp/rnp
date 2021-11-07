@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - 'release/**'
+      - maxirmx-clang
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
@@ -24,6 +25,7 @@ env:
 
 jobs:
   tests:
+    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -31,11 +33,15 @@ jobs:
           - CC: gcc
             CXX: g++
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
-#          - CC: clang
-#            CXX: clang++
-#            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+          - CC: clang
+            CXX: clang++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+ # Note re clang setup 
+ # https://github.com/randombit/botan/issues/1191:  "botan-2 is c++11 till the end of the times" 
+ # It may cause ABI problems with clang (but not with gcc) if extra library is required and it is not loaded from clang 64 repo,  
+ # but comes from mingw64. If so try '-std=c++11'
     runs-on: windows-latest
-    name: ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
+    name: msys2 ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
     env:  ${{ matrix.env }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
@@ -66,15 +72,9 @@ jobs:
           popd
       - name: tests
         shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          #ln -s /clang64/lib/libomp.dll.a /clang64/lib/libomp.a 
-          # ls -l /mingw64/lib
-          #echo "--- ls -l /clang64/lib ---"
-          #ls -l /clang64/lib
-
-          bash ci/main.sh
-      - shell: msys2 {0}
+        run: bash ci/main.sh
+      - name: test with dependencies
+        shell: msys2 {0}
         run: |
           set -euxo pipefail
           wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
