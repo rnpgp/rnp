@@ -550,8 +550,6 @@ linux_install() {
 msys_install() {
   local packages=(
     tar
-    zlib-devel
-    libbz2-devel
     git
     automake
     autoconf
@@ -561,17 +559,23 @@ msys_install() {
     make
     pkg-config
     mingw64/mingw-w64-x86_64-cmake
-    mingw64/mingw-w64-x86_64-gcc
-    mingw64/mingw-w64-x86_64-json-c
     mingw64/mingw-w64-x86_64-python3
   )
 
   if [ "${CC-gcc}" = "gcc" ]; then
-   packages+=(mingw64/mingw-w64-x86_64-gcc)
+    packages+=(mingw64/mingw-w64-x86_64-gcc
+               mingw64/mingw-w64-x86_64-json-c
+               zlib-devel
+               libbz2-devel
+    )
   else
-  # clang 'wants' openmp 
-  # https://packages.msys2.org/package/mingw-w64-x86_64-openmp?repo=mingw64
-   packages+=(mingw-w64-x86_64-clang  mingw-w64-clang-x86_64-openmp mingw-w64-clang-x86_64-libbotan)
+   packages+=(clang64/mingw-w64-clang-x86_64-clang 
+              clang64/mingw-w64-clang-x86_64-openmp
+              clang64/mingw-w64-clang-x86_64-libc++
+              clang64/mingw-w64-clang-x86_64-libbotan
+              clang64/mingw-w64-clang-x86_64-libssp
+              clang64/mingw-w64-clang-x86_64-json-c
+   ) 
   fi
 
   pacman --noconfirm -S --needed "${packages[@]}"
