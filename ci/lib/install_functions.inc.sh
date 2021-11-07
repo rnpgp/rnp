@@ -557,16 +557,14 @@ msys_install() {
     automake-wrapper
     gnupg2
     make
-    pkg-config
+    pkg-config 
     mingw64/mingw-w64-x86_64-cmake
     mingw64/mingw-w64-x86_64-python3
   )
 
   if [ "${CC-gcc}" = "gcc" ]; then
-    packages+=(mingw64/mingw-w64-x86_64-gcc
+    packages+=(mingw64/mingw-w64-x86_64-gcc 
                mingw64/mingw-w64-x86_64-json-c
-               zlib-devel
-               libbz2-devel
     )
   else
    packages+=(clang64/mingw-w64-clang-x86_64-clang 
@@ -575,6 +573,7 @@ msys_install() {
               clang64/mingw-w64-clang-x86_64-libbotan
               clang64/mingw-w64-clang-x86_64-libssp
               clang64/mingw-w64-clang-x86_64-json-c
+              clang64/mingw-w64-clang-x86_64-libsystre
    ) 
   fi
 
@@ -737,7 +736,9 @@ is_version_at_least() {
     installed_version_minor="${installed_version#*.}"
     installed_version_minor="${installed_version_minor%%.*}"
     installed_version_minor="${installed_version_minor:-0}"
+  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version#${installed_version_major}.}"
+  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version_patch#${installed_version_minor}}"
     installed_version_patch="${installed_version_patch#.}"
     installed_version_patch="${installed_version_patch%%.*}"
@@ -749,7 +750,9 @@ is_version_at_least() {
     need_version_minor="${need_version_minor%%.*}"
     need_version_minor="${need_version_minor:-0}"
     need_version_patch="${version_constraint##*.}"
+  # shellcheck disable=SC2295  
     need_version_patch="${version_constraint#${need_version_major}.}"
+  # shellcheck disable=SC2295  
     need_version_patch="${need_version_patch#${need_version_minor}}"
     need_version_patch="${need_version_patch#.}"
     need_version_patch="${need_version_patch%%.*}"
