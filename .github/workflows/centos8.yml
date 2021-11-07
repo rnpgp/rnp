@@ -60,7 +60,7 @@ jobs:
             GPG_VERSION: 2.3.1
             CC: clang
             CXX: clang++
-# Coverage can only been tested with the GNU compiler.
+# Coverage can only been tested with the GNU compiler
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: cli_tests
@@ -141,14 +141,15 @@ jobs:
             CC: gcc
             CXX: g++
             CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
-          - BUILD_SHARED_LIBS: yes
-            CC: clang
-            CXX: clang++
-            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
-          - BUILD_SHARED_LIBS: no
-            CC: clang
-            CXX: clang++
-            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
+# We think do not need it but it is here if we start thinking that we need it
+#          - BUILD_SHARED_LIBS: yes
+#            CC: clang
+#            CXX: clang++
+#            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
+#          - BUILD_SHARED_LIBS: no
+#            CC: clang
+#            CXX: clang++
+#            CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0
     env: ${{ matrix.env }}
     name:  pkgconfig-cmake-target BUILD_SHARED_LIBS=${{ matrix.env.BUILD_SHARED_LIBS }}, ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
     steps:

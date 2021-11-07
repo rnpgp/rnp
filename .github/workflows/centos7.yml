@@ -131,12 +131,13 @@ jobs:
           - BUILD_SHARED_LIBS: no
             CC: gcc
             CXX: g++
-          - BUILD_SHARED_LIBS: yes
-            CC: clang
-            CXX: clang++
-          - BUILD_SHARED_LIBS: no
-            CC: clang
-            CXX: clang++
+# We think do not need it but it is here if we start thinking that we need it
+#          - BUILD_SHARED_LIBS: yes
+#            CC: clang
+#            CXX: clang++
+#          - BUILD_SHARED_LIBS: no
+#            CC: clang
+#            CXX: clang++
     env: ${{ matrix.env }}
     name:  pkgconfig-cmake-target BUILD_SHARED_LIBS=${{ matrix.env.BUILD_SHARED_LIBS }}, ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
     steps:
