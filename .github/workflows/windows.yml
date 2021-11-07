@@ -5,7 +5,6 @@ on:
     branches:
       - master
       - 'release/**'
-      - maxirmx-clang
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
@@ -25,7 +24,6 @@ env:
 
 jobs:
   tests:
-    continue-on-error: true
     strategy:
       fail-fast: false
       matrix:
@@ -38,7 +36,7 @@ jobs:
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
  # Note re clang setup 
  # https://github.com/randombit/botan/issues/1191:  "botan-2 is c++11 till the end of the times" 
- # It may cause ABI problems with clang (but not with gcc) if extra library is required and it is not loaded from clang 64 repo,  
+ # It may cause ABI problems with clang (but not with gcc) if extra library is required and it is not loaded from clang64 repo,  
  # but comes from mingw64. If so try '-std=c++11'
     runs-on: windows-latest
     name: msys2 ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
@@ -73,7 +71,7 @@ jobs:
       - name: tests
         shell: msys2 {0}
         run: bash ci/main.sh
-      - name: test with dependencies
+      - name: dependencies
         shell: msys2 {0}
         run: |
           set -euxo pipefail
