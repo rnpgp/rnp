@@ -32,18 +32,18 @@ prepare_build_prerequisites() {
 prepare_test_env() {
   prepare_build_tool_env
 
-  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:${LD_LIBRARY_PATH-}"
 
-  # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
+  # update dll search path for windows
     export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:$PATH"
-# clang wants openmp and openmp installs to /clang64  (Why ???)
-# https://packages.msys2.org/package/mingw-w64-x86_64-openmp?repo=mingw64
     if [[ "${CC-gcc}" = "clang" ]]; then
-      export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
+  # clang paths shall have higher priority
       export PATH="/clang64/bin:$PATH"
-      export LIBRARY_PATH="/clang64/lib:LIBRARY_PATH"
-
+      export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
+      export LIBRARY_PATH="/clang64/lib:${LIBRARY_PATH-}"
+      export C_INCLUDE_PATH="/clang64/include:${C_INCLUDE_PATH-}"
+      export CPP_INCLUDE_PATH="/clang64/include:${CPP_INCLUDE_PATH-}"
     fi
   fi
 }
