@@ -44,6 +44,9 @@ prepare_test_env() {
       export LIBRARY_PATH="/clang64/lib:${LIBRARY_PATH-}"
       export C_INCLUDE_PATH="/clang64/include:${C_INCLUDE_PATH-}"
       export CPP_INCLUDE_PATH="/clang64/include:${CPP_INCLUDE_PATH-}"
+
+  # clang 'wants' it explicit as opposed to gcc that links to glibc by default
+      export LDFLAGS="${LDFLAGS-} -lregex"
     fi
   fi
 }
