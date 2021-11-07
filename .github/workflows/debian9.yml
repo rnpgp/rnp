@@ -54,6 +54,7 @@ jobs:
       - name: Install prerequisites
         run: |
           apt update
+          apt -y install git sudo
           apt -y install git sudo      
 # I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2 
 #       give error about OCI container [https://github.com/actions/checkout/issues/334]
