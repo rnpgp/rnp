@@ -53,6 +53,20 @@ strip_eol(char *s)
 }
 
 bool
+strip_eol(std::string &s)
+{
+    size_t len = s.size();
+    while (len && ((s[len - 1] == '\n') || (s[len - 1] == '\r'))) {
+        len--;
+    }
+    if (len == s.size()) {
+        return false;
+    }
+    s.resize(len);
+    return true;
+}
+
+bool
 is_blank_line(const char *line, size_t len)
 {
     for (size_t i = 0; i < len && line[i]; i++) {
