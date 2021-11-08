@@ -164,14 +164,14 @@ static void
 copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
 {
     typedef struct pgp_dest_file_param_t {
-        int  fd;
-        int  errcode;
-        bool overwrite;
-        char path[PATH_MAX];
+        int         fd;
+        int         errcode;
+        bool        overwrite;
+        std::string path;
     } pgp_dest_file_param_t;
 
     pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
-    strncpy(buf, param->path, buflen);
+    strncpy(buf, param->path.c_str(), buflen);
 }
 
 TEST_F(rnp_tests, test_stream_file)
