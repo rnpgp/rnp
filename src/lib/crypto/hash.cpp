@@ -132,6 +132,13 @@ Hash::clone(Hash &dst) const
     dst.handle_ = copy.release();
 }
 
+Hash::~Hash()
+{
+    if (handle_) {
+        delete static_cast<Botan::HashFunction *>(handle_);
+    }
+}
+
 CRC24::CRC24()
 {
     auto hash_fn = Botan::HashFunction::create("CRC24");
