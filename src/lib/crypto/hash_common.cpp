@@ -150,11 +150,6 @@ Hash::operator=(Hash &&src)
     return *this;
 }
 
-Hash::~Hash()
-{
-    finish();
-}
-
 void
 HashList::add_alg(pgp_hash_alg_t alg)
 {
