@@ -108,7 +108,7 @@ jobs:
           ci/run.sh
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]          
+          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
   cmake-offline-googletest:
     strategy:
       matrix:
@@ -161,7 +161,7 @@ jobs:
           ci/run.sh
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]          
+          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
   cmake-disable-rubyrnp:
     strategy:
       matrix:
