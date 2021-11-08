@@ -700,6 +700,7 @@ is_version_at_least() {
   installed_version="$("$@")"
 
   # shellcheck disable=SC2181
+  # shellcheck disable=SC2295
   if [[ $? -ne 0 ]]; then
     need_to_build=1
   else
