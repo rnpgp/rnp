@@ -239,6 +239,30 @@ cli_rnp_get_confirmation(const cli_rnp_t *rnp, const char *msg, ...)
     return false;
 }
 
+static bool
+rnp_ask_filename(const std::string &msg, std::string &res, cli_rnp_t &rnp)
+{
+    fprintf(rnp.userio_out, "%s", msg.c_str());
+    fflush(rnp.userio_out);
+    char        fname[128] = {0};
+    std::string path;
+    do {
+        if (!fgets(fname, sizeof(fname), rnp.userio_in)) {
+            return false;
+        }
+        path = path + std::string(fname);
+        if (rnp::strip_eol(path)) {
+            res = path;
+            return true;
+        }
+        if (path.size() >= 2048) {
+            fprintf(rnp.userio_out, "%s", "Too long filename, aborting.");
+            fflush(rnp.userio_out);
+            return false;
+        }
+    } while (1);
+}
+
 /** @brief checks whether file exists already and asks user for the new filename
  *  @param path output file name with path. May be an empty string, then user is asked for it.
  *  @param res resulting output path will be stored here.
@@ -249,41 +273,31 @@ cli_rnp_get_confirmation(const cli_rnp_t *rnp, const char *msg, ...)
 static bool
 rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rnp)
 {
-    const size_t maxlen = PATH_MAX;
-    char         newpath[maxlen] = {0};
-    if (path.empty()) {
-        fprintf(rnp.userio_out, "Please enter the output filename: ");
-        fflush(rnp.userio_out);
-        if (!fgets(newpath, maxlen, rnp.userio_in)) {
-            return false;
-        }
-        rnp::strip_eol(newpath);
-    } else {
-        strncpy(newpath, path.c_str(), maxlen - 1);
-        newpath[maxlen - 1] = '\0';
+    std::string newpath = path;
+    if (newpath.empty() &&
+        !rnp_ask_filename("Please enter the output filename: ", newpath, rnp)) {
+        return false;
     }
 
     while (true) {
-        if (!rnp_file_exists(newpath)) {
+        if (!rnp_file_exists(newpath.c_str())) {
             res = newpath;
             return true;
         }
         if (rnp.cfg().get_bool(CFG_OVERWRITE) ||
             cli_rnp_get_confirmation(
-              &rnp, "File '%s' already exists. Would you like to overwrite it?", newpath)) {
-            rnp_unlink(newpath);
+              &rnp,
+              "File '%s' already exists. Would you like to overwrite it?",
+              newpath.c_str())) {
+            rnp_unlink(newpath.c_str());
             res = newpath;
             return true;
         }
 
-        fprintf(rnp.userio_out, "Please enter the new filename: ");
-        fflush(rnp.userio_out);
-        if (!fgets(newpath, maxlen, rnp.userio_in)) {
+        if (!rnp_ask_filename("Please enter the new filename: ", newpath, rnp)) {
             return false;
         }
-
-        rnp::strip_eol(newpath);
-        if (!strlen(newpath)) {
+        if (newpath.empty()) {
             return false;
         }
     }
