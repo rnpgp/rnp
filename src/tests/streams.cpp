@@ -182,7 +182,7 @@ TEST_F(rnp_tests, test_stream_file)
     const char * filedata = "dummy message to be stored in the file";
     const int    iterations = 10000;
     const int    filedatalen = strlen(filedata);
-    char         tmpname[PATH_MAX] = {0};
+    char         tmpname[128] = {0};
     uint8_t      tmpbuf[1024] = {0};
     pgp_dest_t   dst = {};
     pgp_source_t src = {};
