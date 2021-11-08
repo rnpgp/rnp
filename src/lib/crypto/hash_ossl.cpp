@@ -155,6 +155,13 @@ Hash::clone(Hash &dst) const
     dst.handle_ = hash_fn;
 }
 
+Hash::~Hash()
+{
+    if (handle_) {
+        EVP_MD_CTX_free(static_cast<EVP_MD_CTX *>(handle_));
+    }
+}
+
 const char *
 Hash::name_backend(pgp_hash_alg_t alg)
 {
