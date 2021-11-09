@@ -67,7 +67,7 @@ jobs:
             CC: clang
             CXX: clang++
     env: ${{ matrix.env }}
-    name: centos8 openssl tests ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.CC }}, ${{ matrix.env.BUILD_MODE }} ${{ matrix.env.RNP_TESTS }}
+    name: centos8 openssl tests ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.CC }}, ${{ matrix.env.BUILD_MODE }}, ${{ matrix.env.RNP_TESTS }}
     steps:
       - run: |
           yum -y install git

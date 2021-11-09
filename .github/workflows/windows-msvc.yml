@@ -8,6 +8,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/windows.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
