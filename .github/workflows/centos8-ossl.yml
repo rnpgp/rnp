@@ -1,21 +1,11 @@
 name: centos8-openssl
 
 on:
+  pull_request:
   push:
     branches:
       - master
       - 'release/**'
-    paths-ignore:
-      - 'docs/**'
-      - '**.adoc'
-      - '**.md'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/centos8-ossl.yml'
-  pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.adoc'
-      - '**.md'
 
 env:
   CORES: 2
@@ -33,40 +23,17 @@ jobs:
       image: centos:8
     timeout-minutes: 70
     strategy:
+      fail-fast: false
       matrix:
         env:
           - BUILD_MODE: normal
             RNP_TESTS: rnp_tests
-            CC: gcc
-            CXX: g++
           - BUILD_MODE: sanitize
             RNP_TESTS: rnp_tests
-            CC: gcc
-            CXX: g++
           - BUILD_MODE: normal
             RNP_TESTS: cli_tests
-            CC: gcc
-            CXX: g++
           - BUILD_MODE: sanitize
             RNP_TESTS: cli_tests          
-            CC: gcc
-            CXX: g++
-          - BUILD_MODE: normal
-            RNP_TESTS: rnp_tests
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: sanitize
-            RNP_TESTS: rnp_tests
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: normal
-            RNP_TESTS: cli_tests
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: sanitize
-            RNP_TESTS: cli_tests          
-            CC: clang
-            CXX: clang++
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -89,7 +56,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -107,4 +74,3 @@ jobs:
           export CRYPTO_BACKEND=openssl
           chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
-
