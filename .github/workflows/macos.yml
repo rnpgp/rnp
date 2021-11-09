@@ -37,7 +37,6 @@ jobs:
             CXX: clang++
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     name: ${{ matrix.os }} tests ${{ matrix.env.CC }}
-    runs-on: ${{ matrix.os }}
     env: ${{ matrix.env }}
     timeout-minutes: 250
     steps:
