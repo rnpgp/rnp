@@ -727,7 +727,9 @@ is_version_at_least() {
   local installed_version installed_version_major installed_version_minor #version_patch
   installed_version="$("$@")"
 
-  # shellcheck disable=SC2181 
+
+  # shellcheck disable=SC2181
+  # shellcheck disable=SC2295
   if [[ $? -ne 0 ]]; then
     need_to_build=1
   else
@@ -735,9 +737,7 @@ is_version_at_least() {
     installed_version_minor="${installed_version#*.}"
     installed_version_minor="${installed_version_minor%%.*}"
     installed_version_minor="${installed_version_minor:-0}"
-  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version#${installed_version_major}.}"
-  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version_patch#${installed_version_minor}}"
     installed_version_patch="${installed_version_patch#.}"
     installed_version_patch="${installed_version_patch%%.*}"
@@ -749,9 +749,7 @@ is_version_at_least() {
     need_version_minor="${need_version_minor%%.*}"
     need_version_minor="${need_version_minor:-0}"
     need_version_patch="${version_constraint##*.}"
-  # shellcheck disable=SC2295  
     need_version_patch="${version_constraint#${need_version_major}.}"
-  # shellcheck disable=SC2295  
     need_version_patch="${need_version_patch#${need_version_minor}}"
     need_version_patch="${need_version_patch#.}"
     need_version_patch="${need_version_patch%%.*}"

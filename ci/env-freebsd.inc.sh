@@ -6,4 +6,3 @@ export SUDO=sudo
 
 : "${CORES:=$(sysctl -n hw.ncpu)}"
 export CORES
-
