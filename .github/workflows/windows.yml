@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/windows.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -22,11 +24,25 @@ env:
 
 jobs:
   tests:
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - CC: gcc
+            CXX: g++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+          - CC: clang
+            CXX: clang++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+ # Note re clang setup 
+ # https://github.com/randombit/botan/issues/1191:  "botan-2 is c++11 till the end of the times" 
+ # It may cause ABI problems with clang (but not with gcc) if extra library is required and it is not loaded from clang64 repo,  
+ # but comes from mingw64. If so try '-std=c++11'
     runs-on: windows-latest
+    name: msys2 ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
+    env:  ${{ matrix.env }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
-    env:
-      GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
     steps:
       - uses: actions/checkout@v2
         with:
@@ -55,7 +71,8 @@ jobs:
       - name: tests
         shell: msys2 {0}
         run: bash ci/main.sh
-      - shell: msys2 {0}
+      - name: dependencies
+        shell: msys2 {0}
         run: |
           set -euxo pipefail
           wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
@@ -63,3 +80,4 @@ jobs:
           ./Dependencies -exports $HOME/local-installs/rnp-install/bin/librnp*.dll > exports
           grep -qv dst_close exports
           grep -qw rnp_version_string exports
+
