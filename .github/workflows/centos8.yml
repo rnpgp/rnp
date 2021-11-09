@@ -36,8 +36,6 @@ jobs:
       fail-fast: false
       matrix:
         env:
-      matrix:
-        env:
           - BUILD_MODE: normal
             GPG_VERSION: stable
             CC: gcc
