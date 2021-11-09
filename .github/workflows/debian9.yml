@@ -62,7 +62,7 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v1
         with:
-          fetch-depth: 1
+          fetch-depth: 10
 
       - name: Setup noncacheable dependencies
         run: |
