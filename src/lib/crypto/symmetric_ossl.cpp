@@ -42,7 +42,7 @@ pgp_sa_to_openssl_string(pgp_symm_alg_t alg)
     case PGP_SA_IDEA:
         return "idea-ecb";
     case PGP_SA_TRIPLEDES:
-        return "des-ede3-ecb";
+        return "des-ede3";
     case PGP_SA_CAST5:
         return "cast5-ecb";
     case PGP_SA_BLOWFISH:
