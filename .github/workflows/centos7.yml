@@ -74,7 +74,7 @@ jobs:
             RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
-    name: centos7 ${{ matrix.env.BUILD_MODE }}, ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.RNP_TESTS }}, ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
+    name: centos7 tests ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.CC }}, ${{ matrix.env.BUILD_MODE }} ${{ matrix.env.RNP_TESTS }}
     env: ${{ matrix.env }}
     steps:
       - run: |
