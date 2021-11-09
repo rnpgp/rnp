@@ -155,19 +155,18 @@ declare util_depedencies_yum=(
   git
 )
 
-
 declare basic_build_dependencies_yum=(
-# cmake3 # XXX: Fedora 22+ only has cmake
-   clang
-   gcc
-   gcc-c++
-   make
-   autoconf
-   automake
-   libtool
-   bzip2
-   gzip
- )
+  # cmake3 # XXX: Fedora 22+ only has cmake
+  clang
+  gcc
+  gcc-c++
+  make
+  autoconf
+  automake
+  libtool
+  bzip2
+  gzip
+)
 
 declare build_dependencies_yum=(
   ncurses-devel
@@ -236,7 +235,6 @@ linux_install_centos7() {
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
-
 }
 
 linux_install_centos8() {
@@ -250,7 +248,6 @@ linux_install_centos8() {
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
-
 }
 
 is_use_static_dependencies() {
@@ -482,7 +479,6 @@ declare util_dependencies_deb=(
   sudo
   wget
   git
-  software-properties-common
 )
 
 declare basic_build_dependencies_deb=(
@@ -526,17 +522,6 @@ linux_install_debian() {
     "${build_dependencies_deb[@]}" \
     "$@"
 
-  if [ "${CC-gcc}" = "clang" ]; then
-# Add apt.llvm.org repository and install clang
-# We may use https://packages.debian.org/stretch/clang-3.8 as well but this package gets to
-# /usr/lib/clang... and requires update-alternatives which would be very ugly considering CC/CXX environment
-# coming from yaml already   
-    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
-    ${SUDO} apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
-    ${SUDO} apt-get install -y clang 
-  fi
-
-
   ensure_automake
   build_and_install_cmake
 }
@@ -550,6 +535,8 @@ linux_install() {
 msys_install() {
   local packages=(
     tar
+    zlib-devel
+    libbz2-devel
     git
     automake
     autoconf
@@ -557,36 +544,21 @@ msys_install() {
     automake-wrapper
     gnupg2
     make
-    pkg-config 
+    pkg-config
     mingw64/mingw-w64-x86_64-cmake
+    mingw64/mingw-w64-x86_64-gcc
+    mingw64/mingw-w64-x86_64-json-c
     mingw64/mingw-w64-x86_64-python3
   )
 
-  if [ "${CC-gcc}" = "gcc" ]; then
-    packages+=(mingw64/mingw-w64-x86_64-gcc 
-               mingw64/mingw-w64-x86_64-json-c
-    )
-  else
-   packages+=(clang64/mingw-w64-clang-x86_64-clang 
-              clang64/mingw-w64-clang-x86_64-openmp
-              clang64/mingw-w64-clang-x86_64-libc++
-              clang64/mingw-w64-clang-x86_64-libbotan
-              clang64/mingw-w64-clang-x86_64-libssp
-              clang64/mingw-w64-clang-x86_64-json-c
-              clang64/mingw-w64-clang-x86_64-libsystre
-   ) 
-  fi
-
   pacman --noconfirm -S --needed "${packages[@]}"
 
-  if [ "${CC-gcc}" = "gcc" ]; then
   # any version starting with 2.14 up to 2.17.3 caused the application to hang
   # as described in https://github.com/randombit/botan/issues/2582
   # fixed with https://github.com/msys2/MINGW-packages/pull/7640/files
-    botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
-    pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
-    pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
-  fi
+  botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
+  pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
+  pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
 
   # msys includes ruby 2.6.1 while we need lower version
   #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
@@ -727,7 +699,6 @@ is_version_at_least() {
   local installed_version installed_version_major installed_version_minor #version_patch
   installed_version="$("$@")"
 
-
   # shellcheck disable=SC2181
   # shellcheck disable=SC2295
   if [[ $? -ne 0 ]]; then
@@ -810,8 +781,7 @@ build_and_install() {
   if [[ $# -gt 0 ]]; then
     shift
   fi
-  
-  post_build_tool_install_set_env              
+
   build_rnp "$@"
   make_install VERBOSE="${VERBOSE}"
 }
@@ -864,7 +834,7 @@ build_example_pkgconfig() {
   pushd "$(mktemp -d)" || return 1
 
   # shellcheck disable=SC2046
-  ${CC-gcc} "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
+  gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
   ./generate
   readelf -d generate
   if is_true_cmake_bool "${BUILD_SHARED_LIBS}"; then
