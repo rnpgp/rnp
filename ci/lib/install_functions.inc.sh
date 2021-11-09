@@ -479,6 +479,7 @@ declare util_dependencies_deb=(
   sudo
   wget
   git
+  software-properties-common
 )
 
 declare basic_build_dependencies_deb=(
