@@ -9,8 +9,6 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
-      - '.github/workflows/*.yml'
-      - '!.github/workflows/centos7.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -38,42 +36,19 @@ jobs:
       matrix:
         env:
           - BUILD_MODE: normal
-            GPG_VERSION: stable          
-            CC: gcc
-            CXX: g++
+            GPG_VERSION: stable
           - BUILD_MODE: normal
             GPG_VERSION: beta
-            CC: gcc
-            CXX: g++
-          - BUILD_MODE: normal
-            GPG_VERSION: stable          
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: normal
-            GPG_VERSION: beta
-            CC: clang
-            CXX: clang++
-# Sanitize can only been tested with the clang compiler (why ???)
-# see env-common.inc.sh
           - BUILD_MODE: sanitize
             GPG_VERSION: stable
-            CC: clang
-            CXX: clang++
           - BUILD_MODE: sanitize
             GPG_VERSION: beta
-            CC: clang
-            CXX: clang++
-# Coverage can only been tested with the GNU compiler.
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: cli_tests
-            CC: gcc
-            CXX: g++
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
-            CC: gcc
-            CXX: g++
     env: ${{ matrix.env }}
     steps:
       - run: |
@@ -97,7 +72,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
@@ -121,26 +96,14 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
       image: centos:7
-    timeout-minutes: 30
+    timeout-minutes: 10
     strategy:
-      fail-fast: false
       matrix:
         env:
           - BUILD_SHARED_LIBS: yes
-            CC: gcc
-            CXX: g++
           - BUILD_SHARED_LIBS: no
-            CC: gcc
-            CXX: g++
-# We think do not need it but it is here if we start thinking that we need it
-#          - BUILD_SHARED_LIBS: yes
-#            CC: clang
-#            CXX: clang++
-#          - BUILD_SHARED_LIBS: no
-#            CC: clang
-#            CXX: clang++
     env: ${{ matrix.env }}
-    name:  pkgconfig-cmake-target BUILD_SHARED_LIBS=${{ matrix.env.BUILD_SHARED_LIBS }}, ${{ matrix.env.CC }}, ${{ matrix.env.CXX }}
+    continue-on-error: true
     steps:
       - run: |
           yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
@@ -154,9 +117,12 @@ jobs:
           export USE_STATIC_DEPENDENCIES=no
           ci/install_noncacheable_dependencies.sh
           ci/install_cacheable_dependencies.sh
+
           . ci/env.inc.sh
+
           # build+install
           build_and_install /usr
+
           # check for install issues
           check_build
           build_example_pkgconfig
