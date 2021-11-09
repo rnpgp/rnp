@@ -546,8 +546,6 @@ linux_install() {
 msys_install() {
   local packages=(
     tar
-    zlib-devel
-    libbz2-devel
     git
     automake
     autoconf
@@ -557,19 +555,34 @@ msys_install() {
     make
     pkg-config
     mingw64/mingw-w64-x86_64-cmake
-    mingw64/mingw-w64-x86_64-gcc
-    mingw64/mingw-w64-x86_64-json-c
     mingw64/mingw-w64-x86_64-python3
   )
 
+  if [ "${CC}" = "gcc" ]; then
+    packages+=(mingw64/mingw-w64-x86_64-gcc 
+               mingw64/mingw-w64-x86_64-json-c
+    )
+  else
+   packages+=(clang64/mingw-w64-clang-x86_64-clang 
+              clang64/mingw-w64-clang-x86_64-openmp
+              clang64/mingw-w64-clang-x86_64-libc++
+              clang64/mingw-w64-clang-x86_64-libbotan
+              clang64/mingw-w64-clang-x86_64-libssp
+              clang64/mingw-w64-clang-x86_64-json-c
+              clang64/mingw-w64-clang-x86_64-libsystre
+   ) 
+  fi
+
   pacman --noconfirm -S --needed "${packages[@]}"
 
+  if [ "${CC-gcc}" = "gcc" ]; then
   # any version starting with 2.14 up to 2.17.3 caused the application to hang
   # as described in https://github.com/randombit/botan/issues/2582
   # fixed with https://github.com/msys2/MINGW-packages/pull/7640/files
-  botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
-  pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
-  pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
+    botan_pkg="mingw-w64-x86_64-libbotan-2.17.3-2-any.pkg.tar.zst"
+    pacman --noconfirm -U https://repo.msys2.org/mingw/x86_64/${botan_pkg} || \
+    pacman --noconfirm -U https://sourceforge.net/projects/msys2/files/REPOS/MINGW/x86_64/${botan_pkg}
+  fi
 
   # msys includes ruby 2.6.1 while we need lower version
   #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
