@@ -736,9 +736,7 @@ is_version_at_least() {
     installed_version_minor="${installed_version#*.}"
     installed_version_minor="${installed_version_minor%%.*}"
     installed_version_minor="${installed_version_minor:-0}"
-  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version#${installed_version_major}.}"
-  # shellcheck disable=SC2295  
     installed_version_patch="${installed_version_patch#${installed_version_minor}}"
     installed_version_patch="${installed_version_patch#.}"
     installed_version_patch="${installed_version_patch%%.*}"
@@ -750,9 +748,7 @@ is_version_at_least() {
     need_version_minor="${need_version_minor%%.*}"
     need_version_minor="${need_version_minor:-0}"
     need_version_patch="${version_constraint##*.}"
-  # shellcheck disable=SC2295  
     need_version_patch="${version_constraint#${need_version_major}.}"
-  # shellcheck disable=SC2295  
     need_version_patch="${need_version_patch#${need_version_minor}}"
     need_version_patch="${need_version_patch#.}"
     need_version_patch="${need_version_patch%%.*}"
