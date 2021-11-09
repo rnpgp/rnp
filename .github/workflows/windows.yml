@@ -40,7 +40,7 @@ jobs:
     runs-on: windows-latest
     name: msys2 tests ${{ matrix.env.CC }}
     env:  ${{ matrix.env }}    
-steps:
+  steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
