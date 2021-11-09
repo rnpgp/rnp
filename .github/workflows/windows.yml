@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/windows.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -25,9 +27,20 @@ jobs:
     runs-on: windows-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
-    env:
-      GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
-    steps:
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - CC: gcc
+            CXX: g++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+          - CC: clang
+            CXX: clang++
+            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+    runs-on: windows-latest
+    name: msys2 tests ${{ matrix.env.CC }}
+    env:  ${{ matrix.env }}    
+steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
