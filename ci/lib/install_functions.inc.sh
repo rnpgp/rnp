@@ -522,6 +522,16 @@ linux_install_debian() {
     "${build_dependencies_deb[@]}" \
     "$@"
 
+  if [ "${CC-gcc}" = "clang" ]; then
+# Add apt.llvm.org repository and install clang
+# We may use https://packages.debian.org/stretch/clang-3.8 as well but this package gets installed to
+# /usr/lib/clang... and requires update-alternatives which would be very ugly considering CC/CXX environment
+# settings coming from yaml already   
+    wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
+    ${SUDO} apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
+    ${SUDO} apt-get install -y clang 
+  fi
+
   ensure_automake
   build_and_install_cmake
 }
