@@ -37,6 +37,7 @@ endif()
 if (CRYPTO_BACKEND_OPENSSL)
   include(FindOpenSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
+  include(FindOpenSSLFeatures)
 endif()
 
 # generate a config.h
@@ -74,13 +75,13 @@ if(CRYPTO_BACKEND_BOTAN)
       # base
       BIGINT FFI HEX_CODEC PGP_S2K
       # symmetric ciphers
-      BLOCK_CIPHER AES BLOWFISH CAMELLIA CAST_128 DES IDEA RIPEMD_160
+      BLOCK_CIPHER AES BLOWFISH CAMELLIA CAST_128 DES IDEA
       # cipher modes
       MODE_CBC MODE_CFB
       # RNG
       AUTO_RNG AUTO_SEEDING_RNG HMAC HMAC_DRBG
       # hash
-      CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3
+      CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3 RIPEMD_160
       # public-key core
       DL_GROUP DL_PUBLIC_KEY_FAMILY ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO
       # public-key algs
@@ -107,6 +108,37 @@ if(CRYPTO_BACKEND_BOTAN)
     endif()
   endforeach()
   set(CMAKE_REQUIRED_INCLUDES)
+endif()
+if(CRYPTO_BACKEND_OPENSSL)
+  # check OpenSSL features
+  set(_openssl_required_features
+    # symmetric ciphers
+    AES-128-ECB AES-192-ECB AES-256-ECB AES-128-CBC AES-192-CBC AES-256-CBC
+    BF-ECB CAMELLIA-128-ECB CAMELLIA-192-ECB CAMELLIA-256-ECB CAST5-ECB
+    DES-EDE3 IDEA-ECB IDEA-CBC
+    # hashes
+    MD5 SHA1 SHA224 SHA256 SHA384 SHA512 SHA3-256 SHA3-512 RIPEMD160
+    # curves
+    PRIME256V1 SECP384R1 SECP521R1 SECP256K1
+    # public key
+    RSAENCRYPTION DSAENCRYPTION DHKEYAGREEMENT ID-ECPUBLICKEY X25519 ED25519
+  )
+  # SM2 algorithms suite
+  if (ENABLE_SM2)
+    list(APPEND _openssl_required_features SM2 SM3 SM4-ECB)
+  endif()
+  # Brainpool curves
+  if (ENABLE_BRAINPOOL)
+    list(APPEND _openssl_required_features BRAINPOOLP256R1 BRAINPOOLP384R1 BRAINPOOLP512R1)
+  endif()
+  foreach(feature ${_openssl_required_features})
+    message(STATUS "Looking for OpenSSL feature ${feature}")
+    OpenSSLHasFeature("${feature}" _openssl_has_${feature})
+    if (NOT _openssl_has_${feature})
+      message(FATAL_ERROR "A required OpenSSL feature is missing: ${feature}")
+    endif()
+    message(STATUS "Looking for OpenSSL feature ${feature} - found")
+  endforeach()
 endif()
 
 if(CRYPTO_BACKEND_OPENSSL)
