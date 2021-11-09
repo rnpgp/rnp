@@ -443,10 +443,6 @@ $RECYCLE.BIN/
 *.msm
 *.msp
 
-# VS 
-CMakeSettings.json
-.vs/*
-
 # Windows shortcuts
 *.lnk
 
