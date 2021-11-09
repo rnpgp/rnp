@@ -158,7 +158,7 @@ _install_gpg() {
 
   local common_args=(
       --force-autogen
-#      --verbose		commnted out to speed up recurring CI builds
+#      --verbose		commented out to speed up recurring CI builds
 #      --trace                  uncomment if you are debugging CI
       --build-dir "${gpg_build}"
       --configure-opts "${configure_opts[*]}"
@@ -180,6 +180,11 @@ _install_gpg() {
   # Workaround to correctly build pinentry on the latest GHA on macOS. Most likely there is a better solution.
   export CFLAGS="-D_XOPEN_SOURCE_EXTENDED"
   export CXXFLAGS="-D_XOPEN_SOURCE_EXTENDED"
+
+  # Always build gnugpg with gcc, even if we are testing clang
+  # ref https://github.com/rnpgp/rnp/issues/1669
+  export CC="gcc"
+  export CXX="g++"
 
   for component in libgpg-error:$LIBGPG_ERROR_VERSION \
                    libgcrypt:$LIBGCRYPT_VERSION \
