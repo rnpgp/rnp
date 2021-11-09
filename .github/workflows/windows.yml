@@ -37,7 +37,6 @@ jobs:
           - CC: clang
             CXX: clang++
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
-    runs-on: windows-latest
     name: msys2 tests ${{ matrix.env.CC }}
     env:  ${{ matrix.env }}    
     steps:
