@@ -9,6 +9,8 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/debian9.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -37,19 +39,26 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-# I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2 
-#       give error about OCI container [https://github.com/actions/checkout/issues/334]
-#                                      [https://github.com/actions/runner/issues/1011]
         env:
-          - CPU: i386
+          - CC: gcc
+            CXX: g++
+            CPU: i386
+            IMAGE: "i386/debian:9"
+          - CC: clang
+            CXX: clang++
+            CPU: i386
             IMAGE: "i386/debian:9"
     env: ${{ matrix.env }}
+    name: ${{ matrix.env.IMAGE }} tests ${{ matrix.env.CC }}
     steps:
       - name: Install prerequisites
         run: |
           apt update
           apt -y install git sudo
       
+# I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2
+#       give error about OCI container [https://github.com/actions/checkout/issues/334]
+#                                      [https://github.com/actions/runner/issues/1011]
       - name: Check out repository
         uses: actions/checkout@v1
         with:
