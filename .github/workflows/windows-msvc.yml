@@ -9,7 +9,7 @@ on:
       - '**.adoc'
       - '**.md'
       - '.github/workflows/*.yml'
-      - '!.github/workflows/windows.yml'
+      - '!.github/workflows/windows-msvc.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
