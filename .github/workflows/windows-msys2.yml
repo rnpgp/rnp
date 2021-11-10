@@ -24,12 +24,14 @@ env:
 
 jobs:
   tests:
-    runs-on: windows-latest
+    name: ${{ matrix.os }} msys2 [CC ${{ matrix.env.CC }}; GnuPG stable]
+    runs-on: ${{ matrix.os }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
     strategy:
       fail-fast: false
       matrix:
+        os: [windows-latest]
         env:
           - CC: gcc
             CXX: g++
@@ -37,8 +39,7 @@ jobs:
           - CC: clang
             CXX: clang++
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
-    name: msys2 tests ${{ matrix.env.CC }}
-    env:  ${{ matrix.env }}    
+    env:  ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v2
         with:
@@ -53,7 +54,7 @@ jobs:
           bash ci/install_cacheable_dependencies.sh
       - name: download googletest
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
-        #  Failed to get the hash for HEAD:  
+        #  Failed to get the hash for HEAD:
         #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
         shell: msys2 {0}
         run: |

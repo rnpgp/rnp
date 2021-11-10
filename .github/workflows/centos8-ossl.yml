@@ -29,7 +29,7 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
-      image: centos:8
+      image: ${{ matrix.env.IMAGE }}
     timeout-minutes: 70
     strategy:
       matrix:
@@ -38,36 +38,44 @@ jobs:
             RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
+            IMAGE: centos:8
           - BUILD_MODE: sanitize
             RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
+            IMAGE: centos:8
           - BUILD_MODE: normal
             RNP_TESTS: cli_tests
             CC: gcc
             CXX: g++
+            IMAGE: centos:8
           - BUILD_MODE: sanitize
             RNP_TESTS: cli_tests
             CC: gcc
             CXX: g++
+            IMAGE: centos:8
           - BUILD_MODE: normal
             RNP_TESTS: rnp_tests
             CC: clang
             CXX: clang++
+            IMAGE: centos:8
           - BUILD_MODE: sanitize
             RNP_TESTS: rnp_tests
             CC: clang
             CXX: clang++
+            IMAGE: centos:8
           - BUILD_MODE: normal
             RNP_TESTS: cli_tests
             CC: clang
             CXX: clang++
+            IMAGE: centos:8
           - BUILD_MODE: sanitize
             RNP_TESTS: cli_tests
             CC: clang
             CXX: clang++
+            IMAGE: centos:8
     env: ${{ matrix.env }}
-    name: centos8 openssl tests ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.CC }}, ${{ matrix.env.BUILD_MODE }}, ${{ matrix.env.RNP_TESTS }}
+    name: ${{ matrix.env.IMAGE }} OpenSSL [test type ${{ matrix.env.RNP_TESTS }}; mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
     steps:
       - run: |
           yum -y install git
