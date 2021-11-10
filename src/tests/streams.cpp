@@ -164,14 +164,14 @@ static void
 copy_tmp_path(char *buf, size_t buflen, pgp_dest_t *dst)
 {
     typedef struct pgp_dest_file_param_t {
-        int  fd;
-        int  errcode;
-        bool overwrite;
-        char path[PATH_MAX];
+        int         fd;
+        int         errcode;
+        bool        overwrite;
+        std::string path;
     } pgp_dest_file_param_t;
 
     pgp_dest_file_param_t *param = (pgp_dest_file_param_t *) dst->param;
-    strncpy(buf, param->path, buflen);
+    strncpy(buf, param->path.c_str(), buflen);
 }
 
 TEST_F(rnp_tests, test_stream_file)
@@ -182,7 +182,7 @@ TEST_F(rnp_tests, test_stream_file)
     const char * filedata = "dummy message to be stored in the file";
     const int    iterations = 10000;
     const int    filedatalen = strlen(filedata);
-    char         tmpname[PATH_MAX] = {0};
+    char         tmpname[128] = {0};
     uint8_t      tmpbuf[1024] = {0};
     pgp_dest_t   dst = {};
     pgp_source_t src = {};

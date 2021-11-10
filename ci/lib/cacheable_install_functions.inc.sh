@@ -181,7 +181,7 @@ _install_gpg() {
   export CFLAGS="-D_XOPEN_SOURCE_EXTENDED"
   export CXXFLAGS="-D_XOPEN_SOURCE_EXTENDED"
 
-  # Always build gnugpg with gcc, even if we are testing clang
+  # Always build GnuPG with gcc, even if we are testing clang
   # ref https://github.com/rnpgp/rnp/issues/1669
   export CC="gcc"
   export CXX="g++"

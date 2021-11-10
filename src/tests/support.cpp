@@ -206,17 +206,19 @@ get_tmp()
 static bool
 is_tmp_path(const char *path)
 {
-    char rlpath[PATH_MAX] = {0};
-    char rltmp[PATH_MAX] = {0};
-    if (!realpath(path, rlpath)) {
-        strncpy(rlpath, path, sizeof(rlpath));
-        rlpath[sizeof(rlpath) - 1] = '\0';
+    char *rlpath = realpath(path, NULL);
+    if (!rlpath) {
+        rlpath = strdup(path);
     }
     const char *tmp = get_tmp();
-    if (!realpath(tmp, rltmp)) {
-        strncpy(rltmp, tmp, sizeof(rltmp));
+    char *      rltmp = realpath(tmp, NULL);
+    if (!rltmp) {
+        rltmp = strdup(tmp);
     }
-    return strncmp(rlpath, rltmp, strlen(rltmp)) == 0;
+    bool res = rlpath && rltmp && !strncmp(rlpath, rltmp, strlen(rltmp));
+    free(rlpath);
+    free(rltmp);
+    return res;
 }
 
 /* Recursively remove a directory.

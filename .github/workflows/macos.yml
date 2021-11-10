@@ -61,3 +61,10 @@ jobs:
       - name: tests
         run: |
           ci/run.sh
+      - name: symbol-visibility
+        run: |
+          set -euxo pipefail
+          nm --extern-only --defined-only --demangle $RNP_INSTALL/lib/librnp.dylib > exports
+          [ $(grep -c dst_close exports) == "0" ]
+          [ $(grep -c Botan exports) == "0" ]
+          [ $(grep -c _rnp_version_string_full exports) == "1" ]

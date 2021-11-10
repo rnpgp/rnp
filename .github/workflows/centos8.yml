@@ -120,8 +120,9 @@ jobs:
         run: |
           set -euxo pipefail
           nm --defined-only -g $RNP_INSTALL/lib64/librnp*.so > exports
-          grep -qv dst_close exports
-          grep -qw rnp_version_string exports
+          [ $(grep -c dst_close exports) == "0" ]
+          [ $(grep -c Botan exports) == "0" ]
+          [ $(grep -c rnp_version_string_full exports) == "1" ]
   pkgconfig-cmake-target:
     runs-on: ubuntu-latest
     # TODO: re-enable when the following can pass
