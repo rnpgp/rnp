@@ -16,6 +16,7 @@ on:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
+
 env:
   CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
@@ -32,6 +33,7 @@ jobs:
       image: ${{ matrix.env.IMAGE }}
     timeout-minutes: 70
     strategy:
+      fail-fast: false
       matrix:
         env:
           - BUILD_MODE: normal
