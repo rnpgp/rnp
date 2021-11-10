@@ -527,10 +527,10 @@ linux_install_debian() {
 # Add apt.llvm.org repository and install clang
 # We may use https://packages.debian.org/stretch/clang-3.8 as well but this package gets installed to
 # /usr/lib/clang... and requires update-alternatives which would be very ugly considering CC/CXX environment
-# settings coming from yaml already   
+# settings coming from yaml already
     wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key|sudo apt-key add -
     ${SUDO} apt-add-repository "deb http://apt.llvm.org/stretch/ llvm-toolchain-stretch main"
-    ${SUDO} apt-get install -y clang 
+    ${SUDO} apt-get install -y clang
   fi
 
   ensure_automake
@@ -559,18 +559,18 @@ msys_install() {
   )
 
   if [ "${CC}" = "gcc" ]; then
-    packages+=(mingw64/mingw-w64-x86_64-gcc 
+    packages+=(mingw64/mingw-w64-x86_64-gcc
                mingw64/mingw-w64-x86_64-json-c
     )
   else
-   packages+=(clang64/mingw-w64-clang-x86_64-clang 
-              clang64/mingw-w64-clang-x86_64-openmp
-              clang64/mingw-w64-clang-x86_64-libc++
-              clang64/mingw-w64-clang-x86_64-libbotan
-              clang64/mingw-w64-clang-x86_64-libssp
-              clang64/mingw-w64-clang-x86_64-json-c
-              clang64/mingw-w64-clang-x86_64-libsystre
-   ) 
+    packages+=(clang64/mingw-w64-clang-x86_64-clang
+               clang64/mingw-w64-clang-x86_64-openmp
+               clang64/mingw-w64-clang-x86_64-libc++
+               clang64/mingw-w64-clang-x86_64-libbotan
+               clang64/mingw-w64-clang-x86_64-libssp
+               clang64/mingw-w64-clang-x86_64-json-c
+               clang64/mingw-w64-clang-x86_64-libsystre
+    )
   fi
 
   pacman --noconfirm -S --needed "${packages[@]}"
