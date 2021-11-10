@@ -25,6 +25,7 @@ env:
 
 jobs:
   tests:
+    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; GnuPG stable]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -36,7 +37,6 @@ jobs:
           - CC: clang
             CXX: clang++
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    name: ${{ matrix.os }} tests ${{ matrix.env.CC }}
     env: ${{ matrix.env }}
     timeout-minutes: 250
     steps:
