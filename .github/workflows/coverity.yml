@@ -1,4 +1,4 @@
-name: coverity-scan
+name: coverity
 
 on:
   schedule:

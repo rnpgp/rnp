@@ -31,6 +31,7 @@ env:
 
 jobs:
   tests:
+    name: ${{ matrix.env.IMAGE }} [CC ${{ matrix.env.CC }}; GnuPG stable]
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
@@ -49,13 +50,12 @@ jobs:
             CPU: i386
             IMAGE: "i386/debian:9"
     env: ${{ matrix.env }}
-    name: ${{ matrix.env.IMAGE }} tests ${{ matrix.env.CC }}
     steps:
       - name: Install prerequisites
         run: |
           apt update
           apt -y install git sudo
-      
+
 # I386: actions/checkout@V2,  actions/cache@V2 actions/cache@V2
 #       give error about OCI container [https://github.com/actions/checkout/issues/334]
 #                                      [https://github.com/actions/runner/issues/1011]
@@ -70,7 +70,7 @@ jobs:
           ci/install_noncacheable_dependencies.sh
         shell: bash
 
-#      - name: Cache 
+#      - name: Cache
 #        id: cache
 #        uses: actions/cache@v2
 #        with:
