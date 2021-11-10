@@ -25,17 +25,19 @@ env:
 
 jobs:
   tests:
+    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; GnuPG stable]
+    runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
+        os: [ubuntu-latest]
         env:
           - CC: gcc
             CXX: g++
           - CC: clang
             CXX: clang++
-    runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    name: ubuntu ${{ matrix.env.CC }} tests
-    env: ${{ matrix.env }}    
+    env: ${{ matrix.env }}
     timeout-minutes: 50
     steps:
       - uses: actions/checkout@v2

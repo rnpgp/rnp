@@ -18,7 +18,7 @@ on:
 
 jobs:
   build_and_test:
-    name: msvc-${{ matrix.arch }}
+    name: ${{ matrix.os }} msvc [arch ${{ matrix.arch }}]
     runs-on: ${{ matrix.os }}
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:

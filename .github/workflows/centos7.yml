@@ -31,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
-      image: centos:7
+      image: ${{ matrix.env.IMAGE }}
     timeout-minutes: 70
     strategy:
       fail-fast: false
@@ -41,40 +41,48 @@ jobs:
             GPG_VERSION: stable
             CC: gcc
             CXX: g++
+            IMAGE: centos:7
           - BUILD_MODE: normal
             GPG_VERSION: beta
             CC: gcc
             CXX: g++
+            IMAGE: centos:7
           - BUILD_MODE: normal
             GPG_VERSION: stable
             CC: clang
             CXX: clang++
+            IMAGE: centos:7
           - BUILD_MODE: normal
             GPG_VERSION: beta
             CC: clang
             CXX: clang++
+            IMAGE: centos:7
 # Sanitize is only been tested with the clang compiler
 # see env-common.inc.sh
           - BUILD_MODE: sanitize
             GPG_VERSION: stable
             CC: clang
             CXX: clang++
+            IMAGE: centos:7
           - BUILD_MODE: sanitize
             GPG_VERSION: beta
             CC: clang
             CXX: clang++
+            IMAGE: centos:7
 # Coverage can only been tested with the GNU compiler
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: cli_tests
             CC: gcc
             CXX: g++
+            IMAGE: centos:7
           - BUILD_MODE: coverage
             GPG_VERSION: beta
             RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
-    name: centos7 tests ${{ matrix.env.GPG_VERSION }}, ${{ matrix.env.CC }}, ${{ matrix.env.BUILD_MODE }} ${{ matrix.env.RNP_TESTS }}
+            IMAGE: centos:7
+    name: ${{ matrix.env.IMAGE }} Botan [mode ${{ matrix.env.BUILD_MODE }}; test type ${{ matrix.env.RNP_TESTS }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
     env: ${{ matrix.env }}
     steps:
       - run: |

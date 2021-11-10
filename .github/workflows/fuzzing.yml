@@ -1,4 +1,4 @@
-name: CIFuzz
+name: fuzzing
 
 on:
   pull_request:
@@ -8,7 +8,7 @@ on:
       - '**.md'
 
 jobs:
-  Fuzzing:
+  fuzzing:
     runs-on: ubuntu-latest
     steps:
     - name: Build Fuzzers
