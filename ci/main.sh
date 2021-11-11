@@ -37,18 +37,6 @@ prepare_test_env() {
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
     export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:${BOTAN_INSTALL}/bin:$PATH"
-
-    if [[ "${CC}" = "clang" ]]; then
-  # clang paths shall have higher priority
-  # we rely on GHA workflow and env-msys.inc.sh that set LDFLAGS, CFLAGS, CXXFLAGS at least to null strings
-      export PATH="/clang64/bin:$PATH"
-      export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
-  # clang 'wants' regex explicit as opposed to gcc that links to glibc by default
-      export LDFLAGS="-L/clang64/lib ${LDFLAGS} -lregex"
-      export CFLAGS="-I/clang64/include ${CFLAGS}"
-      export CXXFlAGS="-I/clang64/include ${CXXFLAGS}"
-    fi
-
   fi
 }
 
