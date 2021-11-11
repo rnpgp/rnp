@@ -25,7 +25,6 @@ install_botan() {
     git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
-    local osparam=()
     local cpuparam=()
     local run=run
     # Position independent code is a default for shared libraries at any xNIX platform
@@ -33,7 +32,8 @@ install_botan() {
     local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
-        osparam=(--cc=gcc --os=mingw)
+        # MinGW declares itself as 'Windows'
+        # There is no need to set osparam --os=mingw
         run=python
         # Just get rid of all newlines!
         BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
@@ -43,6 +43,9 @@ install_botan() {
         # Deal with "error: ignoring '#pragma comment"
         extra_cflags="-Wno-error=unknown-pragmas"
         # Drop -fPIC
+        # Expecting implicit --cc-bin=g++/clang++ due to environment variable CXX
+        # Expecting implicit --cxxflags=-I/clang64/include  due to environment variable CXXFLAGS
+        # Expecting implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
         ;;
       linux)
         case "${DIST_VERSION}" in
@@ -58,8 +61,8 @@ install_botan() {
     local build_target="shared,cli"
     is_use_static_dependencies && build_target="static,cli"
 
-    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
-      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
+    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
+      ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
