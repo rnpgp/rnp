@@ -43,10 +43,9 @@ install_botan() {
         # Deal with "error: ignoring '#pragma comment"
         extra_cflags="-Wno-error=unknown-pragmas"
         # Drop -fPIC
-
-        # Expected implicit --cc-bin=g++/clang++ due to environment variable CXX
-        # Expected implicit --cxxflags=-I/clang64/include  due to environment variable CXXFLAGS
-        # Expected implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
+        # Expecting implicit --cc-bin=g++/clang++ due to environment variable CXX
+        # Expecting implicit --cxxflags=-I/clang64/include  due to environment variable CXXFLAGS
+        # Expecting implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
         ;;
       linux)
         case "${DIST_VERSION}" in
