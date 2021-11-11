@@ -34,9 +34,9 @@ jobs:
       matrix:
         os: [windows-latest]
         env:
-          - CC: gcc
-            CXX: g++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+#          - CC: gcc
+#            CXX: g++
+#            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
           - CC: clang
             CXX: clang++
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
