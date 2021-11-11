@@ -11,7 +11,7 @@ if [[ "${CC}" = "clang" ]]; then
 # clang paths shall have higher priority
   LDFLAGS="-L/clang64/lib ${LDFLAGS}"
   CFLAGS="-I/clang64/include ${CFLAGS}"
-  CXXFLAGS="-I/clang64/include ${CXXFLAGS}"
+  CXXFLAGS="-isystem=/clang64/include -I/clang64/include ${CXXFLAGS}"
 fi
 
 export CFLAGS="${CFLAGS}"
