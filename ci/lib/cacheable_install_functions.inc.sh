@@ -26,15 +26,14 @@ install_botan() {
     pushd "${botan_build}"
 
     local osparam=()
-    local cpuparam=()
     local run=run
     # Position independent code is a default for shared libraries at any xNIX platform
     # but it makes no sense and is not supported for Windows
     local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
-#        osparam=(--cc=${CC} --os=mingw)
-        osparam=(--os=mingw)
+        # MinGW declares itself as 'Windows'
+        # There is no need to set osparam --os=mingw
         run=python
         # Just get rid of all newlines!
         BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
@@ -42,8 +41,12 @@ install_botan() {
         BOTAN_MODULES="${BOTAN_MODULES//$'\n'/}"
 
         # Deal with "error: ignoring '#pragma comment"
-        extra_cflags="-Wno-error=unknown-pragmas ${CXXFLAGS}"
+        extra_cflags="-Wno-error=unknown-pragmas"
         # Drop -fPIC
+
+        # Expected implicit --cc-bin=g++/clang++ due to environment variable CXX
+        # Expected implicit --cxxflags=-isystem=<runner root>/clang64/include -I/clang64/include  due to environment variable CXXFLAGS
+        # Expected implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
         ;;
       linux)
         case "${DIST_VERSION}" in
@@ -60,7 +63,7 @@ install_botan() {
     is_use_static_dependencies && build_target="static,cli"
 
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
-      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
+      ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd

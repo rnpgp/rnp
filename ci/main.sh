@@ -39,8 +39,6 @@ prepare_test_env() {
     export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:${BOTAN_INSTALL}/bin:$PATH"
 
     if [[ "${CC}" = "clang" ]]; then
-# ?      export PATH="/clang64/bin:$PATH"
-# ?     export LD_LIBRARY_PATH="/clang64/lib:$LD_LIBRARY_PATH"
   # clang 'wants' regex explicit as opposed to gcc that links to glibc by default
       export LDFLAGS="${LDFLAGS} -lregex"
     fi
