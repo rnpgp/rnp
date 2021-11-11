@@ -3,5 +3,5 @@
 set -exu
 
 . ci/env.inc.sh
-
+echo " --> install_cacheable_dependencies.sh"
 install_static_cacheable_build_dependencies_if_needed "$@"
