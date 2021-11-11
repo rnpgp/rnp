@@ -33,7 +33,8 @@ install_botan() {
     local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
-        osparam=(--cc=${CC} --os=mingw)
+#        osparam=(--cc=${CC} --os=mingw)
+        osparam=(--os=mingw)
         run=python
         # Just get rid of all newlines!
         BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
@@ -41,7 +42,7 @@ install_botan() {
         BOTAN_MODULES="${BOTAN_MODULES//$'\n'/}"
 
         # Deal with "error: ignoring '#pragma comment"
-        extra_cflags="-Wno-error=unknown-pragmas"
+        extra_cflags="-Wno-error=unknown-pragmas ${CXXFLAGS}"
         # Drop -fPIC
         ;;
       linux)
