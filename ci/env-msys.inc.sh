@@ -14,7 +14,7 @@ if [[ "${CC}" = "clang" ]]; then
 
   CFLAGS="-I/clang64/include ${CFLAGS}"
   CXXFLAGS="-isystem=/clang64/include -I/clang64/include ${CXXFLAGS}"
-  LDFLAGS="-L/clang64/lib ${LDFLAGS}"
+  LDFLAGS="-L/clang64/lib ${LDFLAGS} -lomp"
 fi
 
 export CFLAGS="${CFLAGS}"

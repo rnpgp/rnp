@@ -59,9 +59,6 @@ install_botan() {
     local build_target="shared,cli"
     is_use_static_dependencies && build_target="static,cli"
 
-echo "Extra flags = ${CXXFLAGS}"
-echo "Extra flags = ${extra_cflags}"
-
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
       ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
