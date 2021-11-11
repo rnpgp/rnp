@@ -28,7 +28,9 @@ install_botan() {
     local osparam=()
     local cpuparam=()
     local run=run
-    local extra_cflags=
+    # Position independent code is a default for shared libraries at any xNIX platform
+    # but it makes no sense and is not supported for Windows
+    local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
         osparam=(--cc=gcc --os=mingw)
@@ -40,6 +42,7 @@ install_botan() {
 
         # Deal with "error: ignoring '#pragma comment"
         extra_cflags="-Wno-error=unknown-pragmas"
+        # Drop -fPIC
         ;;
       linux)
         case "${DIST_VERSION}" in
@@ -55,7 +58,7 @@ install_botan() {
     local build_target="shared,cli"
     is_use_static_dependencies && build_target="static,cli"
 
-    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer -fPIC ${extra_cflags}" \
+    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
       ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
