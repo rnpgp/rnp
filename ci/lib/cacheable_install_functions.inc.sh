@@ -33,7 +33,7 @@ install_botan() {
     local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
-        osparam=(--cc=gcc --os=mingw)
+        osparam=(--cc=${CC} --os=mingw)
         run=python
         # Just get rid of all newlines!
         BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
@@ -58,7 +58,7 @@ install_botan() {
     local build_target="shared,cli"
     is_use_static_dependencies && build_target="static,cli"
 
-    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
+    "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
       ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
