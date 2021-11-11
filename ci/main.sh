@@ -37,12 +37,6 @@ prepare_test_env() {
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
     export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:${BOTAN_INSTALL}/bin:$PATH"
-
-    if [[ "${CC}" = "clang" ]]; then
-  # clang 'wants' regex explicit as opposed to gcc that links to glibc by default
-      export LDFLAGS="${LDFLAGS} -lregex"
-    fi
-
   fi
 }
 
@@ -71,7 +65,9 @@ build_tests() {
       ;;
   esac
 
+ls D:/a/rnp/rnp/builds/rnp-build/src/tests
   "${run}" ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
+ls D:/a/rnp/rnp/builds/rnp-build/src/tests
   popd
 }
 
