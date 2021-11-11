@@ -26,6 +26,13 @@ if (BUILD_TESTING_GENERATORS)
   add_subdirectory(data/test_key_validity)
 endif()
 
+  if (WIN32)
+    list(APPEND _env "PATH=$<TARGET_LINKER_FILE_DIR:librnp>\;$ENV{PATH}")
+  else()
+    list(APPEND _env "LD_LIBRARY_PATH=$<TARGET_LINKER_FILE_DIR:librnp>:$ENV{LD_LIBRARY_PATH}")
+  endif()
+
+
 # fixture to copy the test data directory
 add_test(
   NAME setupTestData
@@ -218,11 +225,6 @@ if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN
     TEST_COMMAND ""
   )
   set(_env "CI=false")
-  if (WIN32)
-    list(APPEND _env "PATH=$<TARGET_LINKER_FILE_DIR:librnp>\;$ENV{PATH}")
-  else()
-    list(APPEND _env "LD_LIBRARY_PATH=$<TARGET_LINKER_FILE_DIR:librnp>:$ENV{LD_LIBRARY_PATH}")
-  endif()
   add_test(
     NAME ruby-rnp
     WORKING_DIRECTORY "${_sourcedir}"

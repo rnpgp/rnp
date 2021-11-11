@@ -65,9 +65,7 @@ build_tests() {
       ;;
   esac
 
-ls D:/a/rnp/rnp/builds/rnp-build/src/tests
   "${run}" ctest -j"${CTEST_PARALLEL}" -R "$RNP_TESTS" --output-on-failure
-ls D:/a/rnp/rnp/builds/rnp-build/src/tests
   popd
 }
 
