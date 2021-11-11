@@ -25,7 +25,6 @@ install_botan() {
     git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
-    local osparam=()
     local run=run
     # Position independent code is a default for shared libraries at any xNIX platform
     # but it makes no sense and is not supported for Windows
@@ -45,7 +44,7 @@ install_botan() {
         # Drop -fPIC
 
         # Expected implicit --cc-bin=g++/clang++ due to environment variable CXX
-        # Expected implicit --cxxflags=-isystem=<runner root>/clang64/include -I/clang64/include  due to environment variable CXXFLAGS
+        # Expected implicit --cxxflags=-I/clang64/include  due to environment variable CXXFLAGS
         # Expected implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
         ;;
       linux)
