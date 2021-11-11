@@ -6,6 +6,14 @@
 : "${CFLAGS:=}"
 : "${CXXFLAGS:=}"
 : "${LDFLAGS:=}"
+
+if [[ "${CC}" = "clang" ]]; then
+# clang paths shall have higher priority
+  LDFLAGS="-L/clang64/lib ${LDFLAGS}"
+  CFLAGS="-I/clang64/include ${CFLAGS}"
+  CXXFlAGS="-I/clang64/include ${CXXFLAGS}"
+fi
+
 export CFLAGS="${CFLAGS}"
 export CXXFLAGS="${CXXFLAGS}"
 export LDFLAGS="${LDFLAGS}"
