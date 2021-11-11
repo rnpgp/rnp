@@ -25,6 +25,7 @@ install_botan() {
     git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
+    local cpuparam=()
     local run=run
     # Position independent code is a default for shared libraries at any xNIX platform
     # but it makes no sense and is not supported for Windows
