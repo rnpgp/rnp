@@ -69,7 +69,7 @@ jobs:
           # As we need the 'botan' binary during the tests, and there seem to
           # be no botan binaries available for download, we opt to build
           # 'botan' from source so we get both dev headers and the binary.
-          ci/install_cacheable_dependencies.sh botan
+          ci/install_cacheable_dependencies.sh
       - name: download googletest
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
         #  Failed to get the hash for HEAD:

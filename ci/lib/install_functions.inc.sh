@@ -872,8 +872,7 @@ build_rnp() {
 }
 
 make_install() {
-make -j"${MAKE_PARALLEL}" rnp_tests
-#  make -j"${MAKE_PARALLEL}" install "$@"
+  make -j"${MAKE_PARALLEL}" install "$@"
 }
 
 is_true_cmake_bool() {
