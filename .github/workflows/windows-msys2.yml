@@ -49,8 +49,11 @@ jobs:
           path-type: inherit
       - name: Setup environment
         shell: msys2 {0}
+#  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
+#  Environment setup is required only if some dependencies shall be built locally
+#  If it becomes a case for mingw environment setup shall be reconsidered
+#          . ci/gha/setup-env.inc.sh
         run: |
-          . ci/gha/setup-env.inc.sh
           bash ci/install_noncacheable_dependencies.sh
 # Since all dependencies are available as binary packages no extra steps or cache are required 
 # The code below kept here for potential need to build some dependencies locally
