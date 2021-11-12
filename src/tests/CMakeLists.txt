@@ -184,12 +184,18 @@ target_compile_definitions(rnp_tests
     RNP_RUN_TESTS
     RNP_STATIC
 )
-gtest_discover_tests(rnp_tests
-  PROPERTIES
-    FIXTURES_REQUIRED testdata
-    TIMEOUT 3000
-    ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
+add_custom_target(TEST_LDD
+                   COMMAND ldd D:/a/rnp/rnp/builds/rnp-build/src/tests/rnp_tests.exe
+                   DEPENDS rnp_tests
 )
+
+
+#gtest_discover_tests(rnp_tests
+#  PROPERTIES
+#    FIXTURES_REQUIRED testdata
+#    TIMEOUT 3000
+#    ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
+#)
 
 # ruby-rnp
 # cruby does not currently play nice with ASaN et al.
