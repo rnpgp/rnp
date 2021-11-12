@@ -12,8 +12,6 @@
 # cache hits.
 
 install_botan() {
-
-  #pacman -Rs mingw-w64-x86_64-libbotan || echo "No botan" 
   # botan
   local botan_build=${LOCAL_BUILDS}/botan
   if [[ ! -e "${BOTAN_INSTALL}/lib/libbotan-2.so" ]] && \
@@ -35,7 +33,6 @@ install_botan() {
     local extra_cflags="-fPIC"
     case "${OS}" in
       msys)
-        # MinGW declares itself as 'Windows'
         osparam=(--os=mingw)
         run=python
         # Just get rid of all newlines!

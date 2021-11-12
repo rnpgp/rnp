@@ -100,7 +100,7 @@ main() {
     cmakeopts+=(-G "MSYS Makefiles")
   fi
   build_rnp "${rnpsrc}"
-  make_install # VERBOSE=1  -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
+  make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
 
   if [[ ${SKIP_TESTS} = 0 ]]; then
     echo "TESTS NOT SKIPPED"

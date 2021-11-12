@@ -184,7 +184,6 @@ target_compile_definitions(rnp_tests
     RNP_RUN_TESTS
     RNP_STATIC
 )
-
 gtest_discover_tests(rnp_tests
   PROPERTIES
     FIXTURES_REQUIRED testdata
