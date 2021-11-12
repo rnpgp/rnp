@@ -10,7 +10,7 @@ on:
       - '**.adoc'
       - '**.md'
       - '.github/workflows/*.yml'
-      - '!.github/workflows/windows.yml'
+      - '!.github/workflows/windows-msys2.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
@@ -49,26 +49,28 @@ jobs:
           path-type: inherit
       - name: Setup environment
         shell: msys2 {0}
+#  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
+#  Environment setup is required only if some dependencies shall be built locally
+#  If it becomes a case for mingw environment setup shall be reconsidered
+#          . ci/gha/setup-env.inc.sh
         run: |
-          . ci/gha/setup-env.inc.sh
           bash ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
-        uses: actions/cache@v2
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: msys2 {0}
-        env:
-          USE_STATIC_DEPENDENCIES: "yes"
-        run: |
-          set -x
-          # As we need the 'botan' binary during the tests, and there seem to
-          # be no botan binaries available for download, we opt to build
-          # 'botan' from source so we get both dev headers and the binary.
-          ci/install_cacheable_dependencies.sh botan
+# Since all dependencies are available as binary packages no extra steps or cache are required 
+# The code below kept here for potential need to build some dependencies locally
+#      - name: Cache
+#        id: cache
+#        uses: actions/cache@v2
+#        with:
+#          path: ${{ env.CACHE_DIR }}
+#          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+#      - name: Build cache
+#        if: steps.cache.outputs.cache-hit != 'true'
+#        shell: msys2 {0}
+#        env:
+#          USE_STATIC_DEPENDENCIES: "yes"
+#        run: |
+#          set -x
+#          ci/install_cacheable_dependencies.sh
       - name: download googletest
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
         #  Failed to get the hash for HEAD:
