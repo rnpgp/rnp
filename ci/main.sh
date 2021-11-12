@@ -86,6 +86,7 @@ main() {
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
+    -DCMAKE_LIBRARY_PATH="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
   )
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
@@ -99,7 +100,7 @@ main() {
     cmakeopts+=(-G "MSYS Makefiles")
   fi
   build_rnp "${rnpsrc}"
-  make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
+  make_install VERBOSE=1 # -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
 
   if [[ ${SKIP_TESTS} = 0 ]]; then
     echo "TESTS NOT SKIPPED"
