@@ -3,15 +3,15 @@ name: windows-msys2
 on:
   push:
     branches:
-      - antonsviridenko-1594-print-backend-info
       - master
       - 'release/**'
+      - antonsviridenko-1594-print-backend-info
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
       - '**.md'
       - '.github/workflows/*.yml'
-      - '!.github/workflows/windows.yml'
+      - '!.github/workflows/windows-msys2.yml'
   pull_request:
     paths-ignore:
       - 'docs/**'
