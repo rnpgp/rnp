@@ -50,8 +50,8 @@ jobs:
           path-type: inherit
       - name: Setup environment
         shell: msys2 {0}
-#          . ci/gha/setup-env.inc.sh
         run: |
+          . ci/gha/setup-env.inc.sh
           bash ci/install_noncacheable_dependencies.sh
 # Since all dependencies are available as binary packages no extra steps and cache are required 
 # The code below kept here for potential need to build some dependencies locally

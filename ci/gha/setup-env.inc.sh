@@ -16,7 +16,11 @@ LOCAL_BUILDS="${GITHUB_WORKSPACE}/builds"
 CACHE_DIR="installs"
 mkdir -p "${CACHE_DIR}"
 
-if [[ "${RUNNER_OS}" = "Windows" ]]
+# MinGW reports itself as Windows.
+# However, rnp_local_installs must point to msys temp, not windows host temp
+# This is required to be consistent with downstream ci and cmake scripts which
+# 'think' that they are running in linux environment.  
+if [[ "${RUNNER_OS}" = "Windows" && ! ("${CC}" = "gcc" || "${CC}" = "clang") ]]
 then
   rnp_local_installs="${RUNNER_TEMP}/rnp-local-installs"
 else
