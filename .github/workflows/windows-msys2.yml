@@ -37,9 +37,9 @@ jobs:
           - CC: gcc
             CXX: g++
             GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
-          - CC: clang
-            CXX: clang++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+#          - CC: clang
+#            CXX: clang++
+#            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
     env:  ${{ matrix.env }}
     steps:
       - uses: actions/checkout@v2
