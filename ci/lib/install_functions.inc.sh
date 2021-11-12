@@ -864,8 +864,7 @@ build_and_install() {
   fi
 
   build_rnp "$@"
-make -j"${MAKE_PARALLEL}" rnp_tests
-#  make_install VERBOSE="${VERBOSE}"
+  make_install VERBOSE="${VERBOSE}"
 }
 
 build_rnp() {
@@ -873,7 +872,8 @@ build_rnp() {
 }
 
 make_install() {
-  make -j"${MAKE_PARALLEL}" install "$@"
+make -j"${MAKE_PARALLEL}" rnp_tests
+#  make -j"${MAKE_PARALLEL}" install "$@"
 }
 
 is_true_cmake_bool() {
