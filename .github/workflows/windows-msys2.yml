@@ -52,7 +52,7 @@ jobs:
         run: |
           . ci/gha/setup-env.inc.sh
           bash ci/install_noncacheable_dependencies.sh
-# Since all dependencies are available as binary packages no extra steps and cache are required 
+# Since all dependencies are available as binary packages no extra steps or cache are required 
 # The code below kept here for potential need to build some dependencies locally
 #      - name: Cache
 #        id: cache
