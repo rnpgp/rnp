@@ -185,17 +185,9 @@ target_compile_definitions(rnp_tests
     RNP_STATIC
 )
 
-
-# 
-add_test(
-  NAME ldd_rr
-  COMMAND ldd D:/a/rnp/rnp/builds/rnp-build/src/tests/rnp_tests.exe
-)
-set_tests_properties(ldd_rr PROPERTIES FIXTURES_SETUP ldd_rr_rr)
-
 gtest_discover_tests(rnp_tests
   PROPERTIES
-    FIXTURES_REQUIRED testdata ldd_rr_rr
+    FIXTURES_REQUIRED testdata
     TIMEOUT 3000
     ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
 )

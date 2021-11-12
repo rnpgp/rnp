@@ -864,7 +864,8 @@ build_and_install() {
   fi
 
   build_rnp "$@"
-  make_install VERBOSE="${VERBOSE}"
+make -j"${MAKE_PARALLEL}" rnp_tests
+#  make_install VERBOSE="${VERBOSE}"
 }
 
 build_rnp() {
