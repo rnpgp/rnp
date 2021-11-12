@@ -64,7 +64,7 @@ install_botan() {
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
       ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
-    ${MAKE} -j"${MAKE_PARALLEL}" install
+#    ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
   fi
 }
