@@ -27,6 +27,7 @@ install_botan() {
     git clone --depth 1 --branch "${BOTAN_VERSION}" https://github.com/randombit/botan "${botan_build}"
     pushd "${botan_build}"
 
+    local osparam=()
     local cpuparam=()
     local run=run
     # Position independent code is a default for shared libraries at any xNIX platform
@@ -35,7 +36,7 @@ install_botan() {
     case "${OS}" in
       msys)
         # MinGW declares itself as 'Windows'
-        # There is no need to set osparam --os=mingw
+        osparam=(--os=mingw)
         run=python
         # Just get rid of all newlines!
         BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
@@ -64,7 +65,7 @@ install_botan() {
     is_use_static_dependencies && build_target="static,cli"
 
     "${run}" ./configure.py --prefix="${BOTAN_INSTALL}" --with-debug-info --extra-cxxflags="-fno-omit-frame-pointer ${extra_cflags}" \
-      ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
+      ${osparam+"${osparam[@]}"} ${cpuparam+"${cpuparam[@]}"} --without-documentation --without-openssl --build-targets="${build_target}" \
       --minimized-build --enable-modules="$BOTAN_MODULES"
     ${MAKE} -j"${MAKE_PARALLEL}" install
     popd
