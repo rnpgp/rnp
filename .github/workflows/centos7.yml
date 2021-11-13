@@ -23,8 +23,10 @@ env:
   LANG: en_US.UTF-8
   LC_ALL: en_US.UTF-8
   LC_LANG: en_US.UTF-8
-  USE_STATIC_DEPENDENCIES: yes
+  USE_DYNAMIC_BUILD_DEPS: yes
   BOTAN_VERSION: 2.17.3 # NOTE: 2.18.x may need newer GCC versions to build
+  VCPKG_ROOT: /opt/vcpkg
+  VCPKG_TRIPLET: x64-linux
   DOWNLOAD_RUBYRNP: Off
 
 jobs:
@@ -98,26 +100,27 @@ jobs:
           yum -y -q install sudo
           echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
           echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+          chown -R rnpuser:rnpuser $PWD
       - name: Setup environment
         run: |
           . ci/gha/setup-env.inc.sh
           exec su rnpuser -c ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
+
+      - run: |
+          echo 'set(VCPKG_SYSTEM_LIBRARIES "openssl liblzma")' >> ${{ env.VCPKG_ROOT }}/triplets/x64-linux.cmake
+
+      - id: vcpkg-cache
         uses: actions/cache@v2
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ci/install_cacheable_dependencies.sh
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ env.IMAGE }}-${{ hashFiles('vcpkg.txt') }}-${{ env.VCPKG_TRIPLET }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet ${{ env.VCPKG_TRIPLET }} --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
       - name: tests
         run: |
           set -x
-          chown -R rnpuser:rnpuser $PWD
           exec su rnpuser -c ci/run.sh
       - name: symbol-visibility
         run: |
@@ -149,10 +152,20 @@ jobs:
       - name: Test
         run: |
           set -euxo pipefail
-          export USE_STATIC_DEPENDENCIES=no
+          export USE_DYNAMIC_BUILD_DEPS=no
           ci/install_noncacheable_dependencies.sh
-          ci/install_cacheable_dependencies.sh
 
+      - id: vcpkg-cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ env.IMAGE }}-${{ hashFiles('vcpkg.txt') }}-${{ env.VCPKG_TRIPLET }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet ${{ env.VCPKG_TRIPLET }} --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
+      - name: Build
+        run: |
           . ci/env.inc.sh
 
           # build+install

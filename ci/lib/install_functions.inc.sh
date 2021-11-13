@@ -5,7 +5,7 @@
 
 : "${GPG_VERSION:=stable}"
 : "${BUILD_SHARED_LIBS:=off}"
-: "${USE_STATIC_DEPENDENCIES:=}"
+: "${USE_DYNAMIC_BUILD_DEPS:=}"
 : "${OS:=}"
 : "${DIST:=}"
 : "${DIST_VERSION:=}"
@@ -14,23 +14,14 @@
 : "${MINIMUM_CMAKE_VERSION:=3.20.0}"
 : "${MINIMUM_RUBY_VERSION:=2.5.0}"
 
-: "${RECOMMENDED_BOTAN_VERSION:=2.18.2}"
-: "${RECOMMENDED_JSONC_VERSION:=0.12.1}"
 : "${RECOMMENDED_CMAKE_VERSION:=3.20.5}"
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
 : "${RECOMMENDED_RUBY_VERSION:=2.5.8}"
-: "${RECOMMENDED_BOTAN_VERSION_MSYS:=${RECOMMENDED_BOTAN_VERSION}-1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
-# if [[ "${OS}" = msys ]]; then
-#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION_MSYS}}"
-# else
-#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
-# fi
-: "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
-: "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
 : "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
 : "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
+
 
 
 
@@ -56,12 +47,12 @@ else
   SUDO="${SUDO:-run}"
 fi
 
+MAKE=${MAKE:-make}
+
 # Simply run its arguments.
 run() {
   "$@"
 }
-
-. ci/lib/cacheable_install_functions.inc.sh
 
 macos_install() {
   brew update-reset
@@ -161,6 +152,11 @@ declare util_depedencies_yum=(
   sudo # NOTE: Needed to avoid "sudo: command not found"
   wget
   git
+  # vcpkg
+  curl
+  zip
+  unzip
+  tar
 )
 
 declare basic_build_dependencies_yum=(
@@ -244,6 +240,7 @@ linux_install_centos7() {
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
+  install_vcpkg_if_needed
 }
 
 linux_install_centos8() {
@@ -257,55 +254,21 @@ linux_install_centos8() {
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
+  install_vcpkg_if_needed
 }
 
-is_use_static_dependencies() {
-  [[ -n "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ no    != "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ off   != "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ false != "${USE_STATIC_DEPENDENCIES}" ]] && \
-    [[ 0     != "${USE_STATIC_DEPENDENCIES}" ]]
+is_use_dynamic_dependencies() {
+  [[ -n "${USE_DYNAMIC_BUILD_DEPS}" ]] && \
+    [[ no    != "${USE_DYNAMIC_BUILD_DEPS}" ]] && \
+    [[ off   != "${USE_DYNAMIC_BUILD_DEPS}" ]] && \
+    [[ false != "${USE_DYNAMIC_BUILD_DEPS}" ]] && \
+    [[ 0     != "${USE_DYNAMIC_BUILD_DEPS}" ]]
 }
 
 yum_install_dynamic_build_dependencies_if_needed() {
-  if ! is_use_static_dependencies; then
+  if ! is_use_dynamic_dependencies; then
     yum_install_dynamic_build_dependencies
   fi
-}
-
-install_static_noncacheable_build_dependencies_if_needed() {
-  if is_use_static_dependencies; then
-    install_static_noncacheable_build_dependencies "$@"
-  fi
-}
-
-install_static_cacheable_build_dependencies_if_needed() {
-  if is_use_static_dependencies || [[ "$#" -gt 0 ]]; then
-    USE_STATIC_DEPENDENCIES=true
-    install_static_cacheable_build_dependencies "$@"
-  fi
-}
-
-install_static_cacheable_build_dependencies() {
-  prepare_build_tool_env
-
-  mkdir -p "$LOCAL_BUILDS"
-
-  local default=(botan jsonc gpg)
-  local items=("${@:-${default[@]}}")
-  for item in "${items[@]}"; do
-    install_"$item"
-  done
-}
-
-install_static_noncacheable_build_dependencies() {
-  mkdir -p "$LOCAL_BUILDS"
-
-  local default=(bundler asciidoctor)
-  local items=("${@:-${default[@]}}")
-  for item in "${items[@]}"; do
-    install_"$item"
-  done
 }
 
 rubygem_install_build_dependencies() {
@@ -489,7 +452,7 @@ linux_install_ubuntu() {
 }
 
 ubuntu_install_dynamic_build_dependencies_if_needed() {
-  if ! is_use_static_dependencies; then
+  if ! is_use_dynamic_dependencies; then
     ubuntu_install_dynamic_build_dependencies
   fi
 }
@@ -968,4 +931,14 @@ EOF
   ./mytest
   popd
   popd
+}
+
+install_vcpkg_if_needed() {
+  if ! command -v vcpkg &> /dev/null; then
+    VCPKG_ROOT="${VCPKG_ROOT:-/opt/vcpkg}"
+    ${SUDO} mkdir -p "${VCPKG_ROOT}"
+    ${SUDO} chmod 777 "${VCPKG_ROOT}"
+    git clone https://github.com/Microsoft/vcpkg.git "${VCPKG_ROOT}"
+    "${VCPKG_ROOT}"/bootstrap-vcpkg.sh
+  fi
 }

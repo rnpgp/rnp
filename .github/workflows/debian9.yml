@@ -33,7 +33,7 @@ jobs:
   tests:
     name: ${{ matrix.env.IMAGE }} [CC ${{ matrix.env.CC }}; GnuPG stable]
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    if: false
     container:
       image: ${{ matrix.env.IMAGE }}
     timeout-minutes: 120

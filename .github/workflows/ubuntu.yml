@@ -21,12 +21,14 @@ env:
   CORES: 2
   BUILD_MODE: normal
   GPG_VERSION: stable
-  USE_STATIC_DEPENDENCIES: yes
+  VCPKG_ROOT: '/usr/local/share/vcpkg'
 
 jobs:
   tests:
-    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; GnuPG stable]
+    name: ${{ matrix.triplet }} ${{ matrix.build_type }} ${{ matrix.env.CC }}; GnuPG stable
     runs-on: ${{ matrix.os }}
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 50
     strategy:
       fail-fast: false
       matrix:
@@ -36,37 +38,41 @@ jobs:
             CXX: g++
           - CC: clang
             CXX: clang++
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
+        triplet: [x64-linux, x64-linux-dynamic]
+        build_type: [Release, Debug]
     env: ${{ matrix.env }}
-    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: Setup environment
+
+      - run: . ci/gha/setup-env.inc.sh
+      - run: ci/install_noncacheable_dependencies.sh
+
+      - if: matrix.triplet == 'x64-linux-dynamic'
         run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
+          cp ${{ env.VCPKG_ROOT }}/triplets/x64-linux.cmake ${{ env.VCPKG_ROOT }}/triplets/x64-linux-dynamic.cmake
+          sed -i -- 's/static/dynamic/g' ${{ env.VCPKG_ROOT }}/triplets/x64-linux-dynamic.cmake
+
+      - id: vcpkg-cache
         uses: actions/cache@v2
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: tests
-        run: |
-          set -x
-          ci/run.sh
-      - name: Package
-        run: |
-          set -x
-          cd ${LOCAL_BUILDS}/rnp-build
-          cpack -G DEB -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.triplet }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet ${{ matrix.triplet }} --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
+      - run: ci/run.sh
+        env:
+          BUILD_TYPE: ${{ matrix.build_type }}
+          VCPKG_TRIPLET: ${{ matrix.triplet }}
+
+      - run: ci/build_package_deb.sh
+        env:
+          BUILD_TYPE: ${{ matrix.build_type }}
+          VCPKG_TRIPLET: ${{ matrix.triplet }}
+
   cmake-offline-googletest-src:
     env:
       GTEST_SOURCES: /usr/src/googletest
@@ -78,22 +84,20 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-          sudo apt-get -y install googletest
-      - name: Cache
-        id: cache
+
+      - run: . ci/gha/setup-env.inc.sh
+      - run: ci/install_noncacheable_dependencies.sh
+      - run: sudo apt-get -y install googletest
+
+      - id: vcpkg-cache
         uses: actions/cache@v2
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.triplet }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet x64-linux --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
       - name: tests
         run: |
           set -x
@@ -101,6 +105,8 @@ jobs:
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
+        env:
+          VCPKG_TRIPLET: x64-linux
   cmake-offline-googletest:
     env:
       DOWNLOAD_GTEST: Off
@@ -112,23 +118,20 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-          sudo apt-get -y install googletest
-      - name: Cache
-        id: cache
+
+      - run: . ci/gha/setup-env.inc.sh
+      - run: ci/install_noncacheable_dependencies.sh
+      - run: sudo apt-get -y install googletest
+
+      - id: vcpkg-cache
         uses: actions/cache@v2
         with:
-          path: |
-            ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.triplet }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet x64-linux --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
       - name: Build googletest
         run: |
           set -x
@@ -137,6 +140,7 @@ jobs:
           cmake /usr/src/googletest
           sudo make -j2 install
           popd
+
       - name: tests
         run: |
           set -x
@@ -144,6 +148,8 @@ jobs:
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
+        env:
+          VCPKG_TRIPLET: x64-linux
   cmake-disable-rubyrnp:
     env:
       DOWNLOAD_RUBYRNP: Off
@@ -155,21 +161,19 @@ jobs:
       - uses: actions/checkout@v2
         with:
           fetch-depth: 1
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
+
+      - run: . ci/gha/setup-env.inc.sh
+      - run: ci/install_noncacheable_dependencies.sh
+
+      - id: vcpkg-cache
         uses: actions/cache@v2
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
+          path: ${{ env.VCPKG_ROOT }}/installed
+          key: vcpkg-${{ matrix.os }}-${{ hashFiles('vcpkg.txt') }}-${{ matrix.triplet }}
+
+      - if: steps.vcpkg-cache.outputs.cache-hit != 'true'
+        run: vcpkg install --triplet x64-linux --overlay-ports=vcpkg/ports $(cat vcpkg.txt)
+
       - name: tests
         run: |
           set -x
@@ -177,6 +181,9 @@ jobs:
           ls -la "${RNP_INSTALL}/lib/"librnp*.so
           ! ctest -N | grep 'ruby' > /dev/null
           ! ls -la src/tests/ | grep 'ruby' > /dev/null
+        env:
+          VCPKG_TRIPLET: x64-linux
+
   version-cmake-up-to-date:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"

@@ -5,4 +5,4 @@ set -exu
 . ci/env.inc.sh
 
 "${OS}_install"
-install_static_noncacheable_build_dependencies_if_needed "$@"
+rubygem_install_build_dependencies "$@"

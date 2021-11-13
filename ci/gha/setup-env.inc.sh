@@ -26,12 +26,6 @@ fi
 ln -s "$GITHUB_WORKSPACE/installs" "${rnp_local_installs}"
 LOCAL_INSTALLS="${rnp_local_installs}"
 
-# When building packages, dependencies with non-standard installation paths must
-# be found by the (DEB) package builder.
-BOTAN_INSTALL="${rnp_local_installs}/botan-install"
-JSONC_INSTALL="${rnp_local_installs}/jsonc-install"
-GPG_INSTALL="${rnp_local_installs}/gpg-install"
-
 # set this explicitly since we don't want to cache the rnp installation
 RNP_INSTALL="${GITHUB_WORKSPACE}/rnp-install"
 
@@ -39,9 +33,6 @@ for var in \
   LOCAL_BUILDS \
   CACHE_DIR \
   LOCAL_INSTALLS \
-  BOTAN_INSTALL \
-  JSONC_INSTALL \
-  GPG_INSTALL \
   RNP_INSTALL
 do
   val="${!var}"
@@ -58,3 +49,5 @@ do
 
   echo "${var}=${val}" >> "$GITHUB_ENV"
 done
+
+echo "${VCPKG_ROOT}" >> $GITHUB_PATH

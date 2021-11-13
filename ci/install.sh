@@ -4,4 +4,4 @@ set -exu
 
 . ci/env.inc.sh
 
-install_static_cacheable_build_dependencies "$@"
+rubygem_install_build_dependencies "$@"

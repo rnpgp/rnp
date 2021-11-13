@@ -44,83 +44,20 @@ if(MSVC)
   )
 endif()
 
-add_executable(generate generate.c)
+foreach(exe_name generate encrypt decrypt sign verify dump)
+  add_executable(${exe_name} ${exe_name}.c)
 
-target_include_directories(generate
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
+  target_include_directories(${exe_name}
+    PRIVATE
+      "${PROJECT_SOURCE_DIR}/src"
+      "${PROJECT_SOURCE_DIR}/src/lib"
+  )
 
-target_link_libraries(generate
-  PRIVATE
-    librnp
-)
-
-add_executable(encrypt encrypt.c)
-
-target_include_directories(encrypt
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(encrypt
-  PRIVATE
-    librnp
-)
-
-add_executable(decrypt decrypt.c)
-
-target_include_directories(decrypt
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(decrypt
-  PRIVATE
-    librnp
-)
-
-add_executable(sign sign.c)
-
-target_include_directories(sign
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(sign
-  PRIVATE
-    librnp
-)
-
-add_executable(verify verify.c)
-
-target_include_directories(verify
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(verify
-  PRIVATE
-    librnp
-)
-
-add_executable(dump dump.c)
-
-target_include_directories(dump
-  PRIVATE
-    "${PROJECT_SOURCE_DIR}/src"
-    "${PROJECT_SOURCE_DIR}/src/lib"
-)
-
-target_link_libraries(dump
-  PRIVATE
-    librnp
-)
+  target_link_libraries(${exe_name}
+    PRIVATE
+      librnp
+  )
+endforeach()
 
 if(MSVC)
   target_include_directories(dump

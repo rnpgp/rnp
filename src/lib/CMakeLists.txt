@@ -291,6 +291,22 @@ else()
   add_library(librnp-static ALIAS librnp)
 endif()
 
+if (BOTAN2_LIBRARY MATCHES "${CMAKE_STATIC_LIBRARY_SUFFIX}$")
+  if (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
+    # /usr/bin/ld: libbotan-2.a(src_lib_utils_thread_utils_thread_pool.o):
+    #   in function `std::thread::thread<void (Botan::Thread_Pool::*)(), Botan::Thread_Pool*, void>(
+    #     void (Botan::Thread_Pool::*&&)(), Botan::Thread_Pool*&&)':
+    # /usr/include/c++/9/thread:126: undefined reference to `pthread_create'
+    # target_link_options(librnp-obj INTERFACE -pthread)
+    if (BUILD_SHARED_LIBS)
+      target_link_options(librnp-static INTERFACE -pthread)
+      target_link_options(librnp PRIVATE -pthread)
+    else()
+      target_link_options(librnp INTERFACE -pthread)
+    endif()
+  endif()
+endif()
+
 foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(val librnp-obj ${prop})
   set_property(TARGET librnp PROPERTY ${prop} ${val})

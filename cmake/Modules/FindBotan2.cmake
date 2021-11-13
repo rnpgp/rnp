@@ -116,6 +116,8 @@ if (BOTAN2_FOUND AND NOT TARGET Botan2::Botan2)
       PROPERTIES
         INTERFACE_INCLUDE_DIRECTORIES "${BOTAN2_INCLUDE_DIRS}"
     )
+    # https://gitlab.kitware.com/cmake/cmake/-/issues/15052
+    file(MAKE_DIRECTORY ${BOTAN2_INCLUDE_DIRS})
   endif()
   # set the required libraries for the target
   if (EXISTS "${BOTAN2_LIBRARY}")

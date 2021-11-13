@@ -13,6 +13,7 @@ set -eux
 : "${DIST_VERSION:=}"
 
 : "${SKIP_TESTS:=0}"
+: "${BUILD_TYPE:=Release}"
 
 prepare_build_prerequisites() {
   CMAKE=cmake
@@ -32,11 +33,21 @@ prepare_build_prerequisites() {
 prepare_test_env() {
   prepare_build_tool_env
 
-  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
+  if [[ "${BUILD_TYPE}" == "Debug" ]]; then
+    build_type_subdir="/debug"
+  else
+    build_type_subdir=""
+  fi
+
+  lib_path="${VCPKG_ROOT}/installed/${VCPKG_TRIPLET}${build_type_subdir}/lib"
+
+  export LD_LIBRARY_PATH="${lib_path}"
+
+  export PATH="${VCPKG_ROOT}/installed/${VCPKG_TRIPLET}/tools/botan:$PATH"
 
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
-    export PATH="${LOCAL_BUILDS}/rnp-build/lib:${LOCAL_BUILDS}/rnp-build/bin:${LOCAL_BUILDS}/rnp-build/src/lib:${BOTAN_INSTALL}/bin:$PATH"
+    export PATH="${lib_path}:$PATH"
   fi
 }
 
@@ -81,11 +92,16 @@ main() {
   pushd "${LOCAL_BUILDS}/rnp-build"
 
   cmakeopts=(
-    -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs.
+    -DCMAKE_BUILD_TYPE="${BUILD_TYPE}"   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs.
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
-    -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
   )
+
+  [ -n "${VCPKG_TRIPLET:-}" ] && [ -n "${VCPKG_ROOT:-}" ] && {
+    cmakeopts+=(-DVCPKG_TARGET_TRIPLET="${VCPKG_TRIPLET}")
+    cmakeopts+=(-DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake")
+  }
+
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
   [[ "${BUILD_MODE}" = "sanitize" ]] && cmakeopts+=(-DENABLE_SANITIZERS=yes)
