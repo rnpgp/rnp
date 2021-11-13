@@ -5,6 +5,7 @@ on:
     branches:
       - master
       - 'release/**'
+      - antonsviridenko-1594-print-backend-info
     paths-ignore:
       - 'docs/**'
       - '**.adoc'
