@@ -2517,8 +2517,9 @@ class Misc(unittest.TestCase):
             backend_prog = 'openssl'
         self.assertTrue(match)
         # check that botan or openssl executable binary exists in $PATH
-        if shutil.which(backend_prog) is not None:
-            ret, out, err = run_proc(backend_prog, ['version'])
+        backen_prog_ext = shutil.which(backend_prog)
+        if backen_prog_ext is not None:
+            ret, out, err = run_proc(backen_prog_ext, ['version'])
             self.assertEqual(ret, 0)
             self.assertIn(match.group(1), out)
 
