@@ -824,12 +824,18 @@ def gpg_check_features():
 
 def rnp_check_features():
     global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD
-    # Todo: improve this once automatic backend check will be available
-    if "CRYPTO_BACKEND" in os.environ and os.environ["CRYPTO_BACKEND"] == "openssl":
-        print('Detected OpenSSL backend.')
-        RNP_TWOFISH = False
-        RNP_BRAINPOOL = False
-        RNP_AEAD = False
+    ret, out, _ = run_proc(RNP, ['--version'])
+    if ret != 0:
+        raise_err('Failed to get RNP version.')
+    # AEAD
+    RNP_AEAD = re.match(r'(?s)^.*AEAD:.*EAX,.*OCB.*', out)
+    # Twofish
+    RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out)
+    # Brainpool curves
+    RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
+    # Check that everything is enabled for Botan:
+    if re.match(r'(?s)^.*Backend:\s+Botan.*', out) and (not RNP_AEAD or not RNP_TWOFISH or not RNP_BRAINPOOL):
+            raise_err('Something is wrong with features detection.')
 
 def setup(loglvl):
     # Setting up directories.
