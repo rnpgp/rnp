@@ -314,7 +314,7 @@ static bool
 compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
-    if (param == NULL) {
+    if (!param) {
         return false;
     }
 
@@ -323,6 +323,13 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         return true;
     }
 
+    if (param->alg == PGP_C_NONE) {
+        if (!src_read(param->pkt.readsrc, buf, len, readres)) {
+            RNP_LOG("failed to read uncompressed data");
+            return false;
+        }
+        return true;
+    }
     if ((param->alg == PGP_C_ZIP) || (param->alg == PGP_C_ZLIB)) {
         param->z.next_out = (Bytef *) buf;
         param->z.avail_out = len;
@@ -1826,6 +1833,8 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     /* Initializing decompression */
     switch (alg) {
+    case PGP_C_NONE:
+        break;
     case PGP_C_ZIP:
     case PGP_C_ZLIB:
         (void) memset(&param->z, 0x0, sizeof(param->z));
