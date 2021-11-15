@@ -39,6 +39,7 @@
 #include <regex>
 #endif
 #endif
+#include <cassert>
 
 namespace rnp {
 
@@ -64,34 +65,37 @@ backend_version()
      * like "OpenSSL 1.1.1l  24 Aug 2021"
      * */
     static char version[32] = {};
-    if (!version[0]) {
-#ifndef RNP_USE_STD_REGEX
-        static regex_t r;
-        regmatch_t     matches[10];
-        const char *   s = OpenSSL_version(OPENSSL_VERSION);
-
-        if (!strlen(version)) {
-            if (regcomp(&r, "OpenSSL ([a-zA-z\\.0-9]+) ", REG_EXTENDED) != 0) {
-                RNP_LOG("failed to compile regexp");
-                return "unknown";
-            }
-        }
-        if (regexec(&r, s, 10, matches, 0) != 0) {
-            return "unknown";
-        }
-        memcpy(version, s + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
-        version[matches[1].rm_eo - matches[1].rm_so] = '\0';
-#else
-        static std::regex re("OpenSSL ([a-zA-z\\.0-9]+) ", std::regex_constants::ECMAScript);
-        std::smatch       result;
-        std::string       input = OpenSSL_version(OPENSSL_VERSION);
-
-        if (!std::regex_search(input, result, re)) {
-            return "unknown";
-        }
-        strncpy(version, result[1].str().c_str(), sizeof version - 1);
-#endif
+    if (version[0]) {
+        return version;
     }
+    const char *reg = "OpenSSL (([0-9]\\.[0-9]\\.[0-9])[a-z]*(-beta[0-9])*(-dev)*) ";
+#ifndef RNP_USE_STD_REGEX
+    static regex_t r;
+    regmatch_t     matches[5];
+    const char *   ver = OpenSSL_version(OPENSSL_VERSION);
+
+    if (!strlen(version)) {
+        if (regcomp(&r, reg, REG_EXTENDED) != 0) {
+            RNP_LOG("failed to compile regexp");
+            return "unknown";
+        }
+    }
+    if (regexec(&r, ver, 5, matches, 0) != 0) {
+        return "unknown";
+    }
+    assert(sizeof(version) > matches[1].rm_eo - matches[1].rm_so);
+    memcpy(version, ver + matches[1].rm_so, matches[1].rm_eo - matches[1].rm_so);
+    version[matches[1].rm_eo - matches[1].rm_so] = '\0';
+#else
+    static std::regex re(reg, std::regex_constants::extended);
+    std::smatch       result;
+    std::string       ver = OpenSSL_version(OPENSSL_VERSION);
+    if (!std::regex_search(ver, result, re)) {
+        return "unknown";
+    }
+    assert(sizeof(version) > result[1].str().size());
+    strncpy(version, result[1].str().c_str(), sizeof(version) - 1);
+#endif
     return version;
 #else
 #error "Unknown backend"
