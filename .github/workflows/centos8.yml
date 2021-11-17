@@ -24,6 +24,7 @@ env:
   LC_ALL: C.UTF-8
   LC_LANG: C.UTF-8
   USE_STATIC_DEPENDENCIES: yes
+  DOWNLOAD_RUBYRNP: Off
 
 jobs:
   tests:
