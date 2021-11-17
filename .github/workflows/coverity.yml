@@ -1,9 +1,11 @@
 name: coverity
 
 on:
-  schedule:
-    # every day at 9:00 UTC
-    - cron: '0 9 * * *'
+  push:
+  pull_request:
+  # schedule:
+  #   # every day at 9:00 UTC
+  #   - cron: '0 9 * * *'
 
 env:
   CORES: 2
