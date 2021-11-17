@@ -25,6 +25,7 @@ env:
   LC_LANG: en_US.UTF-8
   USE_STATIC_DEPENDENCIES: yes
   BOTAN_VERSION: 2.17.3 # NOTE: 2.18.x may need newer GCC versions to build
+  DOWNLOAD_RUBYRNP: Off
 
 jobs:
   tests:
