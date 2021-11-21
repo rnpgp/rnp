@@ -108,7 +108,7 @@ What you can do after:
 
 === verify.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/verify.c[
+Location: https://github.com/rnpgp/rnp/blob/master/src/examples/verify.c
 
 This example uses keyrings generated in the `generate.c` example.
 
@@ -120,7 +120,7 @@ and all signatures to `stdout` (with signing key IDs and statuses).
 
 === dump.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/dump.c[
+Location: https://github.com/rnpgp/rnp/blob/master/src/examples/dump.c
 
 This example dumps OpenPGP packet information from the input stream
 (via `stdin` or filename), tuned with flags passed via the
