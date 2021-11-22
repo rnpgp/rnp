@@ -8459,14 +8459,15 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_non_null(key);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "22F3A217C0E439CB", &sub));
     assert_rnp_success(rnp_key_is_valid(key, &valid));
-    /* key is not valid since function checks public key */
+    /* key is not valid since expired */
     assert_false(valid);
     assert_rnp_success(rnp_key_valid_till(key, &till));
     assert_int_equal(till, 1577369391 + 16324055);
     assert_rnp_success(rnp_key_valid_till64(key, &till64));
     assert_int_equal(till64, 1577369391 + 16324055);
     assert_false(key->pub->valid());
-    assert_true(key->sec->valid());
+    /* secret key part is also not valid till new sig is added */
+    assert_false(key->sec->valid());
     assert_rnp_success(rnp_key_is_valid(sub, &valid));
     assert_false(valid);
     assert_rnp_success(rnp_key_valid_till(sub, &till));
@@ -8475,7 +8476,7 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_valid_till64(sub, &till64));
     assert_int_equal(till64, 1577369391 + 16324055);
     assert_false(sub->pub->valid());
-    assert_true(sub->sec->valid());
+    assert_false(sub->sec->valid());
     creation = 0;
     uint32_t validity = 2 * 30 * 24 * 60 * 60; // 2 monthes
     assert_rnp_success(rnp_key_get_creation(key, &creation));
