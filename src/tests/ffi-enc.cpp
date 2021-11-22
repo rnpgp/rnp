@@ -168,6 +168,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     // create encrypt operation
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     // add password (using all defaults)
+    assert_rnp_failure(rnp_op_encrypt_add_password(NULL, "pass1", NULL, 0, NULL));
+    assert_rnp_failure(rnp_op_encrypt_add_password(op, "", NULL, 0, NULL));
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
     // add password
     if (!sm2_enabled() && !twofish_enabled()) {
