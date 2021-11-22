@@ -11,6 +11,6 @@ if [ "$BUILD_MODE" = "coverage" ]; then
     gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
     shasum -a 256 -c codecov.SHA256SUM
     chmod +x codecov
-    find "${LOCAL_BUILDS}/rnp-build/" -type f -name '*.gcno' -exec gcov {} +
+    find "${LOCAL_BUILDS}/rnp-build/" -type f -name '*.gcno' -exec gcov -p {} +
     ./codecov
 fi
