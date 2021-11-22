@@ -2083,7 +2083,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
     validate_self_signatures();
 
     /* consider public key as valid on this level if it is not expired and has at least one
-     * valid self-signature (or it is secret), and is not revoked */
+     * valid self-signature, and is not revoked */
     validity_.reset();
     validity_.validated = true;
     bool has_cert = false;
@@ -2117,8 +2117,8 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
         has_cert = !has_expired;
     }
 
-    /* we have at least one non-expiring key self-signature or secret key */
-    if (has_cert || is_secret()) {
+    /* we have at least one non-expiring key self-signature */
+    if (has_cert) {
         validity_.valid = true;
         return;
     }
@@ -2152,7 +2152,7 @@ void
 pgp_key_t::validate_subkey(pgp_key_t *primary)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
-     * non-expired binding signature (or is secret), and is not revoked. */
+     * non-expired binding signature, and is not revoked. */
     validity_.reset();
     validity_.validated = true;
     if (!primary || !primary->valid()) {
@@ -2180,7 +2180,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
             return;
         }
     }
-    validity_.valid = has_binding || (is_secret() && primary->is_secret());
+    validity_.valid = has_binding;
     if (!validity_.valid) {
         validity_.expired = has_expired;
     }
