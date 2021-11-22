@@ -51,6 +51,7 @@ TEST_F(rnp_tests, test_ffi_homedir)
 
     // get the default homedir (not a very thorough test)
     {
+        assert_rnp_failure(rnp_get_default_homedir(NULL));
         char *homedir = NULL;
         assert_rnp_success(rnp_get_default_homedir(&homedir));
         assert_non_null(homedir);
@@ -66,6 +67,12 @@ TEST_F(rnp_tests, test_ffi_homedir)
     // check paths
     assert_string_equal(pub_path, "data/keyrings/1/pubring.gpg");
     assert_string_equal(sec_path, "data/keyrings/1/secring.gpg");
+    // setup FFI with wrong parameters
+    assert_rnp_failure(rnp_ffi_create(NULL, "GPG", "GPG"));
+    assert_rnp_failure(rnp_ffi_create(&ffi, "GPG", NULL));
+    assert_rnp_failure(rnp_ffi_create(&ffi, NULL, "GPG"));
+    assert_rnp_failure(rnp_ffi_create(&ffi, "ZZG", "GPG"));
+    assert_rnp_failure(rnp_ffi_create(&ffi, "GPG", "ZZG"));
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, pub_format, sec_format));
     // load our keyrings
@@ -2946,6 +2953,9 @@ TEST_F(rnp_tests, test_ffi_signatures_memory)
     // execute the operation
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
+    assert_rnp_failure(rnp_output_memory_get_buf(NULL, &signed_buf, &signed_len, true));
+    assert_rnp_failure(rnp_output_memory_get_buf(output, NULL, &signed_len, true));
+    assert_rnp_failure(rnp_output_memory_get_buf(output, &signed_buf, NULL, true));
     assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));
     assert_non_null(signed_buf);
     assert_true(signed_len > 0);
@@ -10435,4 +10445,47 @@ TEST_F(rnp_tests, test_ffi_key_protection_change)
     rnp_key_handle_destroy(sub);
 
     rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_ffi_set_log_fd)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_failure(rnp_ffi_set_log_fd(NULL, 0));
+#ifndef _WIN32
+    /* on windows one below will terminate processing due to invalid parameters to fdopen()
+     * until we use _set_invalid_parameter_handler */
+    assert_rnp_failure(rnp_ffi_set_log_fd(ffi, 100));
+#endif
+    int file_fd = rnp_open("tests.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
+    assert_true(file_fd > 0);
+    assert_rnp_success(rnp_ffi_set_log_fd(ffi, file_fd));
+    rnp_input_t input = NULL;
+    const char *msg = "hello";
+    assert_rnp_success(
+      rnp_input_from_memory(&input, (const uint8_t *) msg, strlen(msg), true));
+    char *saved_env = NULL;
+    if (getenv(RNP_LOG_CONSOLE)) {
+        saved_env = strdup(getenv(RNP_LOG_CONSOLE));
+    }
+    setenv(RNP_LOG_CONSOLE, "1", 1);
+    assert_rnp_failure(rnp_load_keys(ffi, "GPG", input, 119));
+    assert_rnp_success(rnp_input_destroy(input));
+    rnp_ffi_destroy(ffi);
+    if (saved_env) {
+        assert_int_equal(0, setenv(RNP_LOG_CONSOLE, saved_env, 1));
+        free(saved_env);
+    } else {
+        unsetenv(RNP_LOG_CONSOLE);
+    }
+#ifndef _WIN32
+    assert_int_equal(fcntl(file_fd, F_GETFD), -1);
+    assert_int_equal(errno, EBADF);
+#endif
+    char buffer[128] = {0};
+    file_fd = rnp_open("tests.txt", O_RDONLY, 0);
+    int64_t rres = read(file_fd, buffer, sizeof(buffer));
+    assert_true(rres > 0);
+    assert_non_null(strstr(buffer, "unexpected flags remaining: 0x"));
+    close(file_fd);
 }

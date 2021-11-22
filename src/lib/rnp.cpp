@@ -581,17 +581,14 @@ FFI_GUARD
 rnp_result_t
 rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd)
 try {
-    FILE *errs = NULL;
-
     // checks
     if (!ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
 
     // open
-    errs = fdopen(fd, "a");
+    FILE *errs = fdopen(fd, "a");
     if (!errs) {
-        close_io_file(&errs);
         return RNP_ERROR_ACCESS;
     }
     // close previous streams and replace them
