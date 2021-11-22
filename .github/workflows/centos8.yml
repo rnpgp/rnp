@@ -68,15 +68,10 @@ jobs:
             CXX: clang++
             IMAGE: centos:8
 # Coverage can only been tested with the GNU compiler
+# Upload only single report to the codecov to avoid mess
           - BUILD_MODE: coverage
             GPG_VERSION: beta
-            RNP_TESTS: cli_tests
-            CC: gcc
-            CXX: g++
-            IMAGE: centos:8
-          - BUILD_MODE: coverage
-            GPG_VERSION: beta
-            RNP_TESTS: rnp_tests
+            RNP_TESTS: ".*"
             CC: gcc
             CXX: g++
             IMAGE: centos:8
