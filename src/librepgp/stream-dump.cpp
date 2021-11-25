@@ -577,8 +577,22 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
         dst_print_hex(dst, sname, subpkt.fields.issuer, PGP_KEY_ID_SIZE, false);
         break;
-    case PGP_SIG_SUBPKT_NOTATION_DATA:
+    case PGP_SIG_SUBPKT_NOTATION_DATA: {
+        std::string          name(subpkt.fields.notation.name,
+                         subpkt.fields.notation.name + subpkt.fields.notation.nlen);
+        std::vector<uint8_t> value(subpkt.fields.notation.value,
+                                   subpkt.fields.notation.value + subpkt.fields.notation.vlen);
+        if (subpkt.fields.notation.human) {
+            dst_printf(dst, "%s: %s = ", sname, name.c_str());
+            dst_printf(dst, "%.*s\n", (int) value.size(), (char *) value.data());
+        } else {
+            char hex[64];
+            vsnprinthex(hex, sizeof(hex), value.data(), value.size());
+            dst_printf(dst, "%s: %s = ", sname, name.c_str());
+            dst_printf(dst, "0x%s (%zu bytes)\n", hex, value.size());
+        }
         break;
+    }
     case PGP_SIG_SUBPKT_PREFERRED_HASH:
         dst_print_algs(dst,
                        "preferred hash algorithms",
@@ -1693,7 +1707,23 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
     case PGP_SIG_SUBPKT_ISSUER_FPR:
         return obj_add_hex_json(
           obj, "fingerprint", subpkt.fields.issuer_fp.fp, subpkt.fields.issuer_fp.len);
-    case PGP_SIG_SUBPKT_NOTATION_DATA:
+    case PGP_SIG_SUBPKT_NOTATION_DATA: {
+        bool human = subpkt.fields.notation.human;
+        if (!json_add(obj, "human", human) || !json_add(obj,
+                                                        "name",
+                                                        (char *) subpkt.fields.notation.name,
+                                                        subpkt.fields.notation.nlen)) {
+            return false;
+        }
+        if (human) {
+            return json_add(obj,
+                            "value",
+                            (char *) subpkt.fields.notation.value,
+                            subpkt.fields.notation.vlen);
+        }
+        return obj_add_hex_json(
+          obj, "value", subpkt.fields.notation.value, subpkt.fields.notation.vlen);
+    }
     default:
         if (!ctx->dump_packets) {
             return obj_add_hex_json(obj, "raw", subpkt.data, subpkt.len);

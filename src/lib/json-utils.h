@@ -44,6 +44,21 @@
 bool obj_add_field_json(json_object *obj, const char *name, json_object *val);
 
 /**
+ * @brief Shortcut to add string via obj_add_field_json().
+ */
+bool json_add(json_object *obj, const char *name, const char *value);
+
+/**
+ * @brief Shortcut to add string with length via obj_add_field_json().
+ */
+bool json_add(json_object *obj, const char *name, const char *value, size_t len);
+
+/**
+ * @brief Shortcut to add bool via obj_add_field_json().
+ */
+bool json_add(json_object *obj, const char *name, bool value);
+
+/**
  * @brief Add hex representation of binary data as string field to JSON object.
  *        Note: this function follows conventions of obj_add_field_json().
  */
