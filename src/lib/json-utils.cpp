@@ -47,6 +47,24 @@ obj_add_field_json(json_object *obj, const char *name, json_object *val)
 }
 
 bool
+json_add(json_object *obj, const char *name, const char *value)
+{
+    return obj_add_field_json(obj, name, json_object_new_string(value));
+}
+
+bool
+json_add(json_object *obj, const char *name, bool value)
+{
+    return obj_add_field_json(obj, name, json_object_new_boolean(value));
+}
+
+bool
+json_add(json_object *obj, const char *name, const char *value, size_t len)
+{
+    return obj_add_field_json(obj, name, json_object_new_string_len(value, len));
+}
+
+bool
 obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
 {
     if (val_len > 1024 * 1024) {

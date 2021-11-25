@@ -3435,10 +3435,9 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
     assert_true(check_json_field_int(subpkt, "length", 51));
     assert_true(check_json_field_bool(subpkt, "hashed", true));
     assert_true(check_json_field_bool(subpkt, "critical", false));
-    assert_true(check_json_field_str(subpkt,
-                                     "raw",
-                                     "800000000021000a73657269616c6e756d62657240646f74732e7465"
-                                     "7374646f6d61696e2e7465737454455354303030303031"));
+    assert_true(check_json_field_bool(subpkt, "human", true));
+    assert_true(check_json_field_str(subpkt, "name", "serialnumber@dots.testdomain.test"));
+    assert_true(check_json_field_str(subpkt, "value", "TEST000001"));
     /* subpacket 4 */
     subpkt = json_object_array_get_idx(subpkts, 4);
     assert_true(check_json_field_int(subpkt, "type", 26));
