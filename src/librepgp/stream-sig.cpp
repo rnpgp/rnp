@@ -95,39 +95,6 @@ finish:
     return res;
 }
 
-bool
-signature_add_notation_data(pgp_signature_t *sig,
-                            bool             readable,
-                            const char *     name,
-                            const char *     value)
-{
-    size_t nlen = strlen(name);
-    size_t vlen = strlen(value);
-
-    if ((nlen > 0xffff) || (vlen > 0xffff)) {
-        RNP_LOG("wrong length");
-        return false;
-    }
-
-    try {
-        pgp_sig_subpkt_t &subpkt =
-          sig->add_subpkt(PGP_SIG_SUBPKT_NOTATION_DATA, 8 + nlen + vlen, false);
-        subpkt.hashed = true;
-        if (readable) {
-            subpkt.data[0] = 0x80;
-            subpkt.fields.notation.flags[0] = 0x80;
-        }
-        write_uint16(subpkt.data + 4, nlen);
-        memcpy(subpkt.data + 6, name, nlen);
-        write_uint16(subpkt.data + 6 + nlen, vlen);
-        memcpy(subpkt.data + 8 + nlen, value, vlen);
-        return subpkt.parse();
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-}
-
 void
 signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
 {
@@ -568,14 +535,14 @@ pgp_sig_subpkt_t::parse()
     case PGP_SIG_SUBPKT_NOTATION_DATA:
         if ((oklen = len >= 8)) {
             memcpy(fields.notation.flags, data, 4);
+            fields.notation.human = fields.notation.flags[0] & 0x80;
             fields.notation.nlen = read_uint16(&data[4]);
             fields.notation.vlen = read_uint16(&data[6]);
-
             if (len != 8 + fields.notation.nlen + fields.notation.vlen) {
                 oklen = false;
             } else {
-                fields.notation.name = (const char *) &data[8];
-                fields.notation.value = (const char *) &data[8 + fields.notation.nlen];
+                fields.notation.name = data + 8;
+                fields.notation.value = fields.notation.name + fields.notation.nlen;
             }
         }
         break;
@@ -1312,6 +1279,40 @@ pgp_signature_t::set_signer_uid(const std::string &uid)
     subpkt.fields.signer.uid = (const char *) subpkt.data;
     subpkt.fields.signer.len = subpkt.len;
     subpkt.parsed = true;
+}
+
+void
+pgp_signature_t::add_notation(const std::string &         name,
+                              const std::vector<uint8_t> &value,
+                              bool                        human,
+                              bool                        critical)
+{
+    auto nlen = name.size();
+    auto vlen = value.size();
+    if ((nlen > 0xffff) || (vlen > 0xffff)) {
+        RNP_LOG("wrong length");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    auto &subpkt = add_subpkt(PGP_SIG_SUBPKT_NOTATION_DATA, 8 + nlen + vlen, false);
+    subpkt.hashed = true;
+    subpkt.critical = critical;
+    if (human) {
+        subpkt.data[0] = 0x80;
+    }
+    write_uint16(subpkt.data + 4, nlen);
+    write_uint16(subpkt.data + 6, vlen);
+    memcpy(subpkt.data + 8, name.data(), nlen);
+    memcpy(subpkt.data + 8 + nlen, value.data(), vlen);
+    if (!subpkt.parse()) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+}
+
+void
+pgp_signature_t::add_notation(const std::string &name, const std::string &value, bool critical)
+{
+    add_notation(name, std::vector<uint8_t>(value.begin(), value.end()), true, critical);
 }
 
 pgp_sig_subpkt_t &

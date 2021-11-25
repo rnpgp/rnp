@@ -253,7 +253,7 @@ typedef struct pgp_signature_t {
     void set_revocable(bool status);
 
     /** @brief Get the key/subkey revocation reason in humand-readable form. If there is no
-     * revocation reason subpacket, then empty string will be returned.
+     *         revocation reason subpacket, then empty string will be returned.
      */
     std::string revocation_reason() const;
 
@@ -270,17 +270,17 @@ typedef struct pgp_signature_t {
 
     /**
      * @brief Check whether signer's key supports certain feature(s). Makes sense only for
-     * self-signature, for more details see the RFC 4880bis, 5.2.3.25. If there is no
-     * corresponding subpacket then false will be returned.
+     *        self-signature, for more details see the RFC 4880bis, 5.2.3.25. If there is
+     *        no corresponding subpacket then false will be returned.
      * @param flags one or more flags, combined via bitwise OR operation.
      * @return true if key is claimed to support all of the features listed in flags, or false
-     * otherwise
+     *         otherwise
      */
     bool key_has_features(pgp_key_feature_t flags) const;
 
     /**
      * @brief Set the features supported by the signer's key, makes sense only for
-     * self-signature. For more details see the RFC 4880bis, 5.2.3.25.
+     *        self-signature. For more details see the RFC 4880bis, 5.2.3.25.
      * @param flags one or more flags, combined via bitwise OR operation.
      */
     void set_key_features(pgp_key_feature_t flags);
@@ -292,9 +292,24 @@ typedef struct pgp_signature_t {
 
     /**
      * @brief Set the signer's uid, responcible for the signature creation. See the RFC
-     * 4880bis, 5.2.3.23 for details.
+     *        4880bis, 5.2.3.23 for details.
      */
     void set_signer_uid(const std::string &uid);
+
+    /**
+     * @brief Add notation.
+     */
+    void add_notation(const std::string &         name,
+                      const std::vector<uint8_t> &value,
+                      bool                        human = true,
+                      bool                        critical = false);
+
+    /**
+     * @brief Add human-readable notation.
+     */
+    void add_notation(const std::string &name,
+                      const std::string &value,
+                      bool               critical = false);
 
     /**
      * @brief Add subpacket of the specified type to v4 signature
@@ -377,11 +392,6 @@ typedef struct pgp_signature_info_t {
 } pgp_signature_info_t;
 
 bool signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig);
-
-bool signature_add_notation_data(pgp_signature_t *sig,
-                                 bool             readable,
-                                 const char *     name,
-                                 const char *     value);
 
 /**
  * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.
