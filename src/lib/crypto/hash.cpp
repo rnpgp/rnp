@@ -32,6 +32,7 @@
 #include "utils.h"
 #include "str-utils.h"
 #include "defaults.h"
+#include "sha1cd/hash_sha1cd.h"
 
 static const id_str_pair botan_alg_map[] = {
   {PGP_HASH_MD5, "MD5"},
@@ -51,6 +52,17 @@ namespace rnp {
 
 Hash::Hash(pgp_hash_alg_t alg)
 {
+    if (alg == PGP_HASH_SHA1) {
+        /* todo: avoid duplication here and in the OpenSSL backend */
+        handle_ = hash_sha1cd_create();
+        if (!handle_) {
+            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+        }
+        alg_ = alg;
+        size_ = rnp::Hash::size(alg);
+        return;
+    }
+
     const char *name = Hash::name_backend(alg);
     if (!name) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -77,6 +89,10 @@ Hash::add(const void *buf, size_t len)
     if (!handle_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
+    if (alg_ == PGP_HASH_SHA1) {
+        hash_sha1cd_add(handle_, buf, len);
+        return;
+    }
     static_cast<Botan::HashFunction *>(handle_)->update(static_cast<const uint8_t *>(buf),
                                                         len);
 }
@@ -86,6 +102,15 @@ Hash::finish(uint8_t *digest)
 {
     if (!handle_) {
         return 0;
+    }
+    if (alg_ == PGP_HASH_SHA1) {
+        int res = hash_sha1cd_finish(handle_, digest);
+        handle_ = NULL;
+        size_ = 0;
+        if (res) {
+            throw rnp_exception(RNP_ERROR_BAD_STATE);
+        }
+        return 20;
     }
 
     auto hash_fn =
@@ -116,6 +141,16 @@ Hash::clone(Hash &dst) const
         dst.finish();
     }
 
+    if (alg_ == PGP_HASH_SHA1) {
+        dst.handle_ = hash_sha1cd_clone(handle_);
+        if (!dst.handle_) {
+            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+        }
+        dst.size_ = size_;
+        dst.alg_ = alg_;
+        return;
+    }
+
     auto hash_fn = static_cast<Botan::HashFunction *>(handle_);
     if (!hash_fn) {
         throw rnp_exception(RNP_ERROR_BAD_STATE);
@@ -134,7 +169,12 @@ Hash::clone(Hash &dst) const
 
 Hash::~Hash()
 {
-    if (handle_) {
+    if (!handle_) {
+        return;
+    }
+    if (alg_ == PGP_HASH_SHA1) {
+        hash_sha1cd_finish(handle_, NULL);
+    } else {
         delete static_cast<Botan::HashFunction *>(handle_);
     }
 }

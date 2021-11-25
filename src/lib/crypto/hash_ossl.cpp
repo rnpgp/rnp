@@ -35,6 +35,7 @@
 #include "utils.h"
 #include "str-utils.h"
 #include "defaults.h"
+#include "sha1cd/hash_sha1cd.h"
 
 static const id_str_pair openssl_alg_map[] = {
   {PGP_HASH_MD5, "md5"},
@@ -53,6 +54,15 @@ static const id_str_pair openssl_alg_map[] = {
 namespace rnp {
 Hash::Hash(pgp_hash_alg_t alg)
 {
+    if (alg == PGP_HASH_SHA1) {
+        handle_ = hash_sha1cd_create();
+        if (!handle_) {
+            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+        }
+        alg_ = alg;
+        size_ = rnp::Hash::size(alg);
+        return;
+    }
     const char *hash_name = rnp::Hash::name_backend(alg);
     if (!hash_name) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -91,6 +101,10 @@ Hash::add(const void *buf, size_t len)
     if (!handle_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
+    if (alg_ == PGP_HASH_SHA1) {
+        hash_sha1cd_add(handle_, buf, len);
+        return;
+    }
     assert(alg_ != PGP_HASH_UNKNOWN);
 
     EVP_MD_CTX *hash_fn = static_cast<EVP_MD_CTX *>(handle_);
@@ -106,6 +120,15 @@ Hash::finish(uint8_t *digest)
 {
     if (!handle_) {
         return 0;
+    }
+    if (alg_ == PGP_HASH_SHA1) {
+        int res = hash_sha1cd_finish(handle_, digest);
+        handle_ = NULL;
+        size_ = 0;
+        if (res) {
+            throw rnp_exception(RNP_ERROR_BAD_STATE);
+        }
+        return 20;
     }
     assert(alg_ != PGP_HASH_UNKNOWN);
 
@@ -137,6 +160,16 @@ Hash::clone(Hash &dst) const
         dst.finish();
     }
 
+    if (alg_ == PGP_HASH_SHA1) {
+        dst.handle_ = hash_sha1cd_clone(handle_);
+        if (!dst.handle_) {
+            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+        }
+        dst.size_ = size_;
+        dst.alg_ = alg_;
+        return;
+    }
+
     EVP_MD_CTX *hash_fn = EVP_MD_CTX_new();
     if (!hash_fn) {
         RNP_LOG("Allocation failure");
@@ -157,7 +190,12 @@ Hash::clone(Hash &dst) const
 
 Hash::~Hash()
 {
-    if (handle_) {
+    if (!handle_) {
+        return;
+    }
+    if (alg_ == PGP_HASH_SHA1) {
+        hash_sha1cd_finish(handle_, NULL);
+    } else {
         EVP_MD_CTX_free(static_cast<EVP_MD_CTX *>(handle_));
     }
 }
