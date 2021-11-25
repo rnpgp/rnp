@@ -199,7 +199,10 @@ elseif(CRYPTO_BACKEND_BOTAN)
 else()
   message(FATAL_ERROR "Unknown crypto backend: ${CRYPTO_BACKEND}.")
 endif()
-  list(APPEND CRYPTO_SOURCES crypto/backend_version.cpp)
+list(APPEND CRYPTO_SOURCES crypto/backend_version.cpp)
+
+# sha11collisiondetection sources
+list(APPEND CRYPTO_SOURCES crypto/sha1cd/hash_sha1cd.cpp crypto/sha1cd/sha1.c crypto/sha1cd/ubc_check.c)
 
 add_library(librnp-obj OBJECT
   # librepgp
