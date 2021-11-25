@@ -262,11 +262,12 @@ typedef struct pgp_sig_subpkt_t {
         } revocation_key; /* 5.2.3.15.  Revocation Key */
         uint8_t *issuer;  /* 5.2.3.5.   Issuer */
         struct {
-            uint8_t     flags[4];
-            unsigned    nlen;
-            unsigned    vlen;
-            const char *name;
-            const char *value;
+            uint8_t        flags[4];
+            unsigned       nlen;
+            unsigned       vlen;
+            bool           human;
+            const uint8_t *name;
+            const uint8_t *value;
         } notation; /* 5.2.3.16.  Notation Data */
         struct {
             bool no_modify;

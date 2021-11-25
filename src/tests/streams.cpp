@@ -387,6 +387,16 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.set_keyid(key->keyid());
     sig.set_creation(create);
     sig.set_expiration(expire);
+    /* make use of add_notation() to cover it */
+    try {
+        std::vector<uint8_t> value;
+        value.resize(66000);
+        sig.add_notation("dummy@example.com", value, false, true);
+        assert_true(false);
+    } catch (const rnp::rnp_exception &e) {
+        assert_int_equal(e.code(), RNP_ERROR_BAD_PARAMETERS);
+    }
+    sig.add_notation("dummy@example.com", "make codecov happy!", false);
     sig.fill_hashed_data();
     /* try to sign without decrypting of the secret key */
     hash = hash_orig;
