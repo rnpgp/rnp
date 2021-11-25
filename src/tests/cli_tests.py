@@ -1953,6 +1953,18 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0, 'json all listing failed')
         compare_file_ex(data_path('test_list_packets/list_json_all.txt'), out,
                         'json all listing mismatch')
+        # List packets with notations
+        params = ['--list-packets', data_path('test_key_edge_cases/key-critical-notations.pgp')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*notation data: critical text = critical value.*$')
+        self.assertRegex(out, r'(?s)^.*notation data: critical binary = 0x000102030405060708090a0b0c0d0e0f \(16 bytes\).*$')
+        # List packets with notations via JSON
+        params = ['--list-packets', '--json', data_path('test_key_edge_cases/key-critical-notations.pgp')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\"human\":true.*\"name\":\"critical text\".*\"value\":\"critical value\".*$')
+        self.assertRegex(out, r'(?s)^.*\"human\":false.*\"name\":\"critical binary\".*\"value\":\"000102030405060708090a0b0c0d0e0f\".*$')
 
     def test_rnp_list_packets_edge_cases(self):
         KEY_EMPTY_UID = data_path('test_key_edge_cases/key-empty-uid.pgp')
