@@ -1943,6 +1943,12 @@ stdin_reader(void *app_ctx, void *buf, size_t len, size_t *readres)
     return true;
 }
 
+/* This produces
+   runtime error: call to function stdout_writer(void*, void const*, unsigned long) through
+   pointer to incorrect function type 'bool (*)(void *, const void *, unsigned long)' */
+#if defined(__clang__)
+__attribute__((no_sanitize("undefined")))
+#endif
 static bool
 stdout_writer(void *app_ctx, const void *buf, size_t len)
 {

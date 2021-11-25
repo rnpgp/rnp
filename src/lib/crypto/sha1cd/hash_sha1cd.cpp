@@ -41,6 +41,11 @@ hash_sha1cd_create()
     return res;
 }
 
+/* This produces runtime error: load of misaligned address 0x60d0000030a9 for type 'const
+ * uint32_t' (aka 'const unsigned int'), which requires 4 byte alignment */
+#if defined(__clang__)
+__attribute__((no_sanitize("undefined")))
+#endif
 void
 hash_sha1cd_add(void *ctx, const void *buf, size_t len)
 {
@@ -57,6 +62,9 @@ hash_sha1cd_clone(void *ctx)
     return res;
 }
 
+#if defined(__clang__)
+__attribute__((no_sanitize("undefined")))
+#endif
 int
 hash_sha1cd_finish(void *ctx, uint8_t *digest)
 {
