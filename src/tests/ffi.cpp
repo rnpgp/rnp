@@ -7362,6 +7362,45 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    /* sha1 detached signature over the collision-suspicious data */
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/shattered-1.pdf"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/shattered-1.pdf.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    /* sha1 detached signature over the document with collision*/
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&source, "data/test_messages/shattered-2.pdf"));
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/shattered-1.pdf.sig"));
+    assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, source, input));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(source);
+    rnp_input_destroy(input);
+
+    /* sha1 attached signature over the collision-suspicious data */
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/shattered-2.pdf.gpg"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
     /* signed message with key which is now expired */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     import_pub_keys(ffi, "data/test_messages/expired_signing_key-pub.asc");
