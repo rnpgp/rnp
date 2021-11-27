@@ -1965,6 +1965,11 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*\"human\":true.*\"name\":\"critical text\".*\"value\":\"critical value\".*$')
         self.assertRegex(out, r'(?s)^.*\"human\":false.*\"name\":\"critical binary\".*\"value\":\"000102030405060708090a0b0c0d0e0f\".*$')
+        # List test file with critical notation
+        params = ['--list-packets', data_path('test_messages/message.txt.signed.crit-notation')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*:type 20, len 35, critical.*notation data: critical text = critical value.*$')
 
     def test_rnp_list_packets_edge_cases(self):
         KEY_EMPTY_UID = data_path('test_key_edge_cases/key-empty-uid.pgp')

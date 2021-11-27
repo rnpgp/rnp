@@ -229,10 +229,24 @@ signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash)
         sinfo.valid = false;
     }
 
+    /* Check for unknown critical notations */
+    for (auto &subpkt : sinfo.sig->subpkts) {
+        if (!subpkt.critical || (subpkt.type != PGP_SIG_SUBPKT_NOTATION_DATA)) {
+            continue;
+        }
+        try {
+            std::string name(subpkt.fields.notation.name,
+                             subpkt.fields.notation.name + subpkt.fields.notation.nlen);
+            RNP_LOG("unknown critical notation: %s", name.c_str());
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+        }
+        sinfo.valid = false;
+    }
+
     if (sinfo.expired && sinfo.valid) {
         return RNP_ERROR_SIGNATURE_EXPIRED;
     }
-
     return sinfo.valid ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
 }
 

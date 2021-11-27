@@ -246,6 +246,12 @@ std::vector<uint8_t> export_key(rnp_key_handle_t key,
 /* Dump key to the stdout. Not used in real tests, but useful for artefact generation */
 void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
+/* some shortcuts for less code */
+bool check_key_valid(rnp_key_handle_t key, bool validity);
+bool check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
+bool check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
+bool check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
+
 bool sm2_enabled();
 bool aead_eax_enabled();
 bool aead_ocb_enabled();
