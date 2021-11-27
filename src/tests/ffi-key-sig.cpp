@@ -1412,3 +1412,60 @@ TEST_F(rnp_tests, test_ffi_rsa_small_sig)
     rnp_key_handle_destroy(key);
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
+
+TEST_F(rnp_tests, test_ffi_key_critical_notations)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Load key with 2 unknown critical notations in certification */
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-critical-notations.pgp"));
+    rnp_key_handle_t key = NULL;
+    /* key is valid since it has valid subkey binding, but userid is not valid */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "critical-key", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "ddc610bb7b8f689c", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, true));
+    /* uid is not valid, as certification has unknown critical notation */
+    assert_true(check_uid_valid(key, 0, false));
+    assert_true(check_sub_valid(key, 0, true));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* Load key with unknown critical notations in both certification and binding */
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-sub-crit-note-pub.pgp"));
+    /* key is not valid, as well as sub and uid */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "critical_notation", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "9988c1bcb55391d6", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, false));
+    assert_true(check_uid_valid(key, 0, false));
+    assert_true(check_sub_valid(key, 0, false));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+
+    /* Verify data signature with unknown critical notation */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg"));
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.signed.crit-notation"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    rnp_op_verify_t verify = NULL;
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    size_t sigcount = 255;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 1);
+    rnp_op_verify_signature_t sig = NULL;
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_SIGNATURE_INVALID);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    rnp_ffi_destroy(ffi);
+}

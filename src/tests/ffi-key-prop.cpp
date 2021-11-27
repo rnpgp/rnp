@@ -29,32 +29,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static bool
-check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid)
-{
-    rnp_uid_handle_t uid = NULL;
-    if (rnp_key_get_uid_handle_at(key, idx, &uid)) {
-        return false;
-    }
-    bool val = !valid;
-    rnp_uid_is_valid(uid, &val);
-    rnp_uid_handle_destroy(uid);
-    return val == valid;
-}
-
-static bool
-check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary)
-{
-    rnp_uid_handle_t uid = NULL;
-    if (rnp_key_get_uid_handle_at(key, idx, &uid)) {
-        return false;
-    }
-    bool prim = !primary;
-    rnp_uid_is_primary(uid, &prim);
-    rnp_uid_handle_destroy(uid);
-    return prim == primary;
-}
-
 TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
 {
     rnp_ffi_t ffi = NULL;
