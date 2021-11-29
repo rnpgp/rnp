@@ -2566,6 +2566,10 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     }
     assert_rnp_success(rnp_key_lock(key_handle));
 
+    // add with NULL parameters
+    assert_rnp_failure(rnp_key_add_uid(NULL, new_userid, NULL, 2147317200, 0x00, false));
+    assert_rnp_failure(rnp_key_add_uid(key_handle, NULL, NULL, 2147317200, 0x00, false));
+
     // add the userid (no pass provider, should fail)
     assert_int_equal(
       RNP_ERROR_BAD_PASSWORD,
@@ -2574,9 +2578,15 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     // actually add the userid
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "pass"));
+    // attempt to add empty uid
+    assert_rnp_failure(rnp_key_add_uid(key_handle, "", NULL, 2147317200, 0, false));
     // add with default hash algorithm
     assert_rnp_success(
       rnp_key_add_uid(key_handle, default_hash_userid, NULL, 2147317200, 0, false));
+    // check whether key was locked back
+    bool locked = false;
+    assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
+    assert_true(locked);
     // check if default hash was used
     assert_rnp_success(rnp_key_get_uid_handle_at(key_handle, 1, &uid));
     assert_rnp_success(rnp_uid_get_signature_at(uid, 0, &sig));

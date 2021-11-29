@@ -436,6 +436,25 @@ struct pgp_key_t {
     bool merge(const pgp_key_t &src, pgp_key_t *primary);
 };
 
+namespace rnp {
+class KeyLocker {
+    bool       lock_;
+    pgp_key_t &key_;
+
+  public:
+    KeyLocker(pgp_key_t &key) : lock_(key.is_locked()), key_(key)
+    {
+    }
+
+    ~KeyLocker()
+    {
+        if (lock_ && !key_.is_locked()) {
+            key_.lock();
+        }
+    }
+};
+}; // namespace rnp
+
 pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
                                       size_t,
                                       const pgp_key_pkt_t *,
