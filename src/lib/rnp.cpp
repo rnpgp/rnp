@@ -3857,17 +3857,14 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         }
     }
     /* unlock the secret key if needed */
-    bool locked = revoker->is_locked();
-    if (locked && !revoker->unlock(ffi->pass_provider)) {
+    rnp::KeyLocker revlock(*revoker);
+    if (revoker->is_locked() && !revoker->unlock(ffi->pass_provider)) {
         FFI_LOG(ffi, "Failed to unlock secret key");
         return RNP_ERROR_BAD_PASSWORD;
     }
     *sig = transferable_key_revoke(key->pkt(), revoker->pkt(), halg, revinfo);
     if (!*sig) {
         FFI_LOG(ffi, "Failed to generate revocation signature");
-    }
-    if (locked) {
-        revoker->lock();
     }
     return *sig ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
 }
@@ -5677,28 +5674,14 @@ try {
     if (!public_key && secret_key->format == PGP_KEY_STORE_G10) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    bool lock = false;
-    if (secret_key->is_locked()) {
-        if (!secret_key->unlock(handle->ffi->pass_provider, PGP_OP_ADD_USERID)) {
-            return RNP_ERROR_BAD_PASSWORD;
-        }
-        lock = true;
+    rnp::KeyLocker seclock(*secret_key);
+    if (secret_key->is_locked() &&
+        !secret_key->unlock(handle->ffi->pass_provider, PGP_OP_ADD_USERID)) {
+        return RNP_ERROR_BAD_PASSWORD;
     }
-
     /* add and certify userid */
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    try {
-        secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng, public_key);
-        ret = RNP_SUCCESS;
-    } catch (const rnp::rnp_exception &e) {
-        ret = e.code();
-    } catch (const std::exception &e) {
-        FFI_LOG(handle->ffi, "Failed to add uid.");
-    }
-    if (lock) {
-        secret_key->lock();
-    }
-    return ret;
+    secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng, public_key);
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 

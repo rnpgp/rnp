@@ -345,8 +345,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         return false;
     }
 
-    bool locked = false;
-    bool res = false;
+    rnp::KeyLocker seclock(*seckey);
     for (const auto &sigid : sigs) {
         pgp_subsig_t &sig = key->get_sig(sigid);
         /* update signature and re-sign it */
@@ -355,8 +354,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         }
 
         /* unlock secret key if needed */
-        locked = seckey->is_locked();
-        if (locked && !seckey->unlock(prov)) {
+        if (seckey->is_locked() && !seckey->unlock(prov)) {
             RNP_LOG("Failed to unlock secret key");
             return false;
         }
@@ -364,23 +362,23 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         pgp_signature_t newsig;
         pgp_sig_id_t    oldsigid = sigid;
         if (!update_sig_expiration(&newsig, &sig.sig, expiry)) {
-            goto done;
+            return false;
         }
         if (sig.is_cert()) {
             if (sig.uid >= key->uid_count()) {
                 RNP_LOG("uid not found");
-                goto done;
+                return false;
             }
             if (!signature_calculate_certification(
                   key->pkt(), key->get_uid(sig.uid).pkt, newsig, seckey->pkt())) {
                 RNP_LOG("failed to calculate signature");
-                goto done;
+                return false;
             }
         } else {
             /* direct-key signature case */
             if (!signature_calculate_direct(key->pkt(), newsig, seckey->pkt())) {
                 RNP_LOG("failed to calculate signature");
-                goto done;
+                return false;
             }
         }
 
@@ -394,24 +392,19 @@ pgp_key_set_expiration(pgp_key_t *                    key,
             }
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
-            goto done;
+            return false;
         }
     }
 
     if (!seckey->refresh_data()) {
         RNP_LOG("Failed to refresh seckey data.");
-        goto done;
+        return false;
     }
     if ((key != seckey) && !key->refresh_data()) {
         RNP_LOG("Failed to refresh key data.");
-        goto done;
+        return false;
     }
-    res = true;
-done:
-    if (locked) {
-        seckey->lock();
-    }
-    return res;
+    return true;
 }
 
 bool
@@ -436,64 +429,46 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         return true;
     }
 
-    bool res = false;
-    bool subsign = secsub->can_sign();
-    bool locked = primsec->is_locked();
-    if (locked && !primsec->unlock(prov)) {
+    rnp::KeyLocker primlock(*primsec);
+    if (primsec->is_locked() && !primsec->unlock(prov)) {
         RNP_LOG("Failed to unlock primary key");
         return false;
     }
-    pgp_signature_t newsig;
-    pgp_sig_id_t    oldsigid = subsig->sigid;
-    bool            sublocked = false;
-    if (subsign && secsub->is_locked()) {
-        if (!secsub->unlock(prov)) {
-            RNP_LOG("Failed to unlock subkey");
-            goto done;
-        }
-        sublocked = true;
+    bool           subsign = secsub->can_sign();
+    rnp::KeyLocker sublock(*secsub);
+    if (subsign && secsub->is_locked() && !secsub->unlock(prov)) {
+        RNP_LOG("Failed to unlock subkey");
+        return false;
     }
 
     /* update signature and re-sign */
+    pgp_signature_t newsig;
+    pgp_sig_id_t    oldsigid = subsig->sigid;
     if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
-        goto done;
+        return false;
     }
     if (!signature_calculate_binding(primsec->pkt(), secsub->pkt(), newsig, subsign)) {
         RNP_LOG("failed to calculate signature");
-        goto done;
+        return false;
     }
 
-    /* replace signature, first for the secret key since it may be replaced in public */
-    if (secsub->has_sig(oldsigid)) {
-        try {
-            secsub->replace_sig(oldsigid, newsig);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            goto done;
-        }
-        if (!secsub->refresh_data(primsec)) {
-            goto done;
-        }
-    }
-    if (sub == secsub) {
-        res = true;
-        goto done;
-    }
     try {
+        /* replace signature, first for the secret key since it may be replaced in public */
+        if (secsub->has_sig(oldsigid)) {
+            secsub->replace_sig(oldsigid, newsig);
+            if (!secsub->refresh_data(primsec)) {
+                return false;
+            }
+        }
+        if (sub == secsub) {
+            return true;
+        }
         sub->replace_sig(oldsigid, newsig);
+        return sub->refresh_data(primsec);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        goto done;
+        return false;
     }
-    res = sub->refresh_data(primsec);
-done:
-    if (locked) {
-        primsec->lock();
-    }
-    if (sublocked) {
-        secsub->lock();
-    }
-    return res;
 }
 
 pgp_key_t *
