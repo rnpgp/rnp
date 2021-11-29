@@ -56,6 +56,7 @@
 #include "crypto.h"
 #include "crypto/s2k.h"
 #include "crypto/mem.h"
+#include "crypto/signatures.h"
 #include "fingerprint.h"
 
 #include <librepgp/stream-packet.h>
@@ -295,67 +296,6 @@ pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password)
 done:
     dst_close(&memdst, true);
     return ret;
-}
-
-bool
-pgp_key_add_userid_certified(pgp_key_t *              key,
-                             const pgp_key_pkt_t *    seckey,
-                             pgp_hash_alg_t           hash_alg,
-                             rnp_selfsig_cert_info_t *cert)
-{
-    // sanity checks
-    if (!key || !seckey || !cert || !cert->userid[0]) {
-        RNP_LOG("wrong parameters");
-        return false;
-    }
-    // userids are only valid for primary keys, not subkeys
-    if (!key->is_primary()) {
-        RNP_LOG("cannot add a userid to a subkey");
-        return false;
-    }
-    // see if the key already has this userid
-    if (key->has_uid((const char *) cert->userid)) {
-        RNP_LOG("key already has this userid");
-        return false;
-    }
-    // this isn't really valid for this format
-    if (key->format == PGP_KEY_STORE_G10) {
-        RNP_LOG("Unsupported key store type");
-        return false;
-    }
-    // We only support modifying v4 and newer keys
-    if (key->pkt().version < PGP_V4) {
-        RNP_LOG("adding a userid to V2/V3 key is not supported");
-        return false;
-    }
-    // TODO: changing the primary userid is not currently supported
-    if (key->has_primary_uid() && cert->primary) {
-        RNP_LOG("changing the primary userid is not supported");
-        return false;
-    }
-
-    /* Fill the transferable userid */
-    pgp_transferable_userid_t uid;
-    uid.uid.tag = PGP_PKT_USER_ID;
-    uid.uid.uid_len = strlen((char *) cert->userid);
-    if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
-        RNP_LOG("allocation failed");
-        return false;
-    }
-    /* uid.uid.uid looks really weird */
-    memcpy(uid.uid.uid, (char *) cert->userid, uid.uid.uid_len);
-    if (!transferable_userid_certify(*seckey, uid, *seckey, hash_alg, *cert)) {
-        RNP_LOG("failed to add userid certification");
-        return false;
-    }
-    try {
-        key->add_uid(uid);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
-    }
-
-    return key->refresh_data();
 }
 
 static bool
@@ -1584,7 +1524,7 @@ pgp_key_t::set_rawpkt(const pgp_rawpacket_t &src)
 }
 
 bool
-pgp_key_t::unlock(const pgp_password_provider_t &provider)
+pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
 {
     // sanity checks
     if (!is_secret()) {
@@ -1596,7 +1536,7 @@ pgp_key_t::unlock(const pgp_password_provider_t &provider)
         return true;
     }
 
-    pgp_password_ctx_t ctx = {.op = PGP_OP_UNLOCK, .key = this};
+    pgp_password_ctx_t ctx = {.op = (uint8_t) op, .key = this};
     pgp_key_pkt_t *    decrypted_seckey = pgp_decrypt_seckey(this, &provider, &ctx);
     if (!decrypted_seckey) {
         return false;
@@ -2237,6 +2177,101 @@ pgp_key_t::mark_valid()
     for (size_t i = 0; i < sig_count(); i++) {
         get_sig(i).validity.mark_valid();
     }
+}
+
+void
+pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash)
+{
+    pgp_key_id_t keyid = {};
+    if (pgp_keyid(keyid, pkt_)) {
+        RNP_LOG("failed to calculate keyid");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    pgp_fingerprint_t keyfp;
+    if (pgp_fingerprint(keyfp, pkt_)) {
+        RNP_LOG("failed to calculate keyfp");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    sig.version = PGP_V4;
+    sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
+    sig.palg = pkt_.alg;
+    sig.set_keyfp(keyfp);
+    sig.set_creation(time(NULL));
+    sig.set_keyid(keyid);
+}
+
+void
+pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
+                     const pgp_userid_pkt_t &uid,
+                     pgp_signature_t &       sig,
+                     rng_t &                 rng)
+{
+    rnp::Hash hash;
+    sig.fill_hashed_data();
+    signature_hash_certification(sig, key, uid, hash);
+    signature_calculate(sig, pkt_.material, hash, rng);
+}
+
+void
+pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
+                        pgp_hash_alg_t           hash,
+                        rng_t &                  rng,
+                        pgp_key_t *              pubkey)
+{
+    if (!cert.userid[0]) {
+        /* todo: why not to allow empty uid? */
+        RNP_LOG("wrong parameters");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    // userids are only valid for primary keys, not subkeys
+    if (!is_primary()) {
+        RNP_LOG("cannot add a userid to a subkey");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    // see if the key already has this userid
+    if (has_uid((const char *) cert.userid)) {
+        RNP_LOG("key already has this userid");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    // this isn't really valid for this format
+    if (format == PGP_KEY_STORE_G10) {
+        RNP_LOG("Unsupported key store type");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    // We only support modifying v4 and newer keys
+    if (pkt().version < PGP_V4) {
+        RNP_LOG("adding a userid to V2/V3 key is not supported");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    /* TODO: if key has at least one uid then has_primary_uid() will be always true! */
+    if (has_primary_uid() && cert.primary) {
+        RNP_LOG("changing the primary userid is not supported");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    /* Fill the transferable userid */
+    pgp_userid_pkt_t uid;
+    pgp_signature_t  sig;
+    sign_init(sig, hash);
+    cert.populate(uid, sig);
+    try {
+        sign_cert(pkt_, uid, sig, rng);
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to certify: %s", e.what());
+        throw;
+    }
+    /* add uid and signature to the key and pubkey, if non-NULL */
+    uids_.emplace_back(uid);
+    add_sig(sig, uid_count() - 1);
+    refresh_data();
+    if (!pubkey) {
+        return;
+    }
+    pubkey->uids_.emplace_back(uid);
+    pubkey->add_sig(sig, pubkey->uid_count() - 1);
+    pubkey->refresh_data();
 }
 
 bool
