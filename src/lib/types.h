@@ -423,6 +423,12 @@ typedef struct rnp_selfsig_cert_info_t {
     uint32_t         key_expiration{}; /* key expiration time (sec), 0 = no expiration */
     pgp_user_prefs_t prefs{};          /* user preferences, optional */
     bool             primary : 1;      /* mark this as the primary user id */
+
+    /**
+     * @brief Populate uid and sig packet with data stored in this struct.
+     *        At some point we should get rid of it.
+     */
+    void populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig);
 } rnp_selfsig_cert_info_t;
 
 typedef struct rnp_selfsig_binding_info_t {

@@ -287,13 +287,14 @@ struct pgp_key_t {
     bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password);
 
     /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
-     *signing/decryption. Note: Key locking does not apply to unprotected keys.
+     *         signing/decryption.
+     *         Note: Key locking does not apply to unprotected keys.
      *
-     *  @param pass_provider the password provider that may be used
-     *         to unlock the key, if necessary
+     *  @param pass_provider the password provider that may be used to unlock the key
+     *  @param op operation for which secret key should be unloacked
      *  @return true if the key was unlocked, false otherwise
      **/
-    bool unlock(const pgp_password_provider_t &provider);
+    bool unlock(const pgp_password_provider_t &provider, pgp_op_t op = PGP_OP_UNLOCK);
     /** @brief Lock a key, i.e. cleanup decrypted secret data.
      *  Note: Key locking does not apply to unprotected keys.
      *
@@ -388,6 +389,42 @@ struct pgp_key_t {
     void validate_subkey(pgp_key_t *primary = NULL);
     void revalidate(rnp_key_store_t &keyring);
     void mark_valid();
+    /**
+     * @brief Fill common signature parameters, assuming that current key is a signing one.
+     * @param sig signature to init.
+     * @param hash hash algorithm to use (may be changed if it is not suitable for public key
+     *             algorithm).
+     */
+    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash);
+    /**
+     * @brief Calculate a certification and fill signature material.
+     *        Note: secret key must be unlocked before calling this function.
+     *
+     * @param key key packet to sign. May be both public and secret. Could be signing key's
+     *            packet for self-signature, or any other one for cross-key certification.
+     * @param uid uid to certify.
+     * @param sig signature, pre-populated with all of the required data, except the
+     *            signature material.
+     */
+    void sign_cert(const pgp_key_pkt_t &   key,
+                   const pgp_userid_pkt_t &uid,
+                   pgp_signature_t &       sig,
+                   rng_t &                 rng);
+
+    /**
+     * @brief Add and certify userid.
+     *        Note: secret key must be unlocked before calling this function.
+     *
+     * @param cert certification and userid parameters.
+     * @param hash hash algorithm to use during signing. See sign_init() for more details.
+     * @param rng initialized rng.
+     * @param pubkey if non-NULL then userid and certification will be added to this key as
+     *               well.
+     */
+    void add_uid_cert(rnp_selfsig_cert_info_t &cert,
+                      pgp_hash_alg_t           hash,
+                      rng_t &                  rng,
+                      pgp_key_t *              pubkey = nullptr);
 
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data();
@@ -431,19 +468,6 @@ pgp_key_t *pgp_sig_get_signer(const pgp_subsig_t &sig,
 pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx);
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
-
-/** add a new certified userid to a key
- *
- *  @param key
- *  @param seckey the decrypted seckey for signing
- *  @param hash_alg the hash algorithm to be used for the signature
- *  @param cert the self-signature information
- *  @return true if the userid was added, false otherwise
- */
-bool pgp_key_add_userid_certified(pgp_key_t *              key,
-                                  const pgp_key_pkt_t *    seckey,
-                                  pgp_hash_alg_t           hash_alg,
-                                  rnp_selfsig_cert_info_t *cert);
 
 bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
