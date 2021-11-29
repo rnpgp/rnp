@@ -5644,66 +5644,60 @@ rnp_key_add_uid(rnp_key_handle_t handle,
                 uint8_t          key_flags,
                 bool             primary)
 try {
-    rnp_result_t            ret = RNP_ERROR_GENERIC;
-    rnp_selfsig_cert_info_t info = {};
-    pgp_hash_alg_t          hash_alg = PGP_HASH_UNKNOWN;
-    pgp_key_t *             public_key = NULL;
-    pgp_key_t *             secret_key = NULL;
-    pgp_key_pkt_t *         seckey = NULL;
-    pgp_key_pkt_t *         decrypted_seckey = NULL;
-
     if (!handle || !uid) {
         return RNP_ERROR_NULL_POINTER;
     }
-
+    /* setup parameters */
     if (!hash) {
         hash = DEFAULT_HASH_ALG;
     }
-
+    pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN;
     if (!str_to_hash_alg(hash, &hash_alg)) {
         FFI_LOG(handle->ffi, "Invalid hash: %s", hash);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    size_t uid_len = strlen(uid);
+    rnp_selfsig_cert_info_t info = {};
+    size_t                  uid_len = strlen(uid);
     if (uid_len >= sizeof(info.userid)) {
         FFI_LOG(handle->ffi, "UserID too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
     memcpy(info.userid, uid, uid_len + 1);
-
     info.key_flags = key_flags;
     info.key_expiration = expiration;
     info.primary = primary;
 
-    secret_key = get_key_require_secret(handle);
+    /* obtain and unlok secret key */
+    pgp_key_t *secret_key = get_key_require_secret(handle);
     if (!secret_key) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    public_key = get_key_prefer_public(handle);
+    pgp_key_t *public_key = get_key_prefer_public(handle);
     if (!public_key && secret_key->format == PGP_KEY_STORE_G10) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-    seckey = &secret_key->pkt();
-    if (!seckey->material.secret) {
-        pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_USERID, .key = secret_key};
-        decrypted_seckey = pgp_decrypt_seckey(secret_key, &handle->ffi->pass_provider, &ctx);
-        if (!decrypted_seckey) {
+    bool lock = false;
+    if (secret_key->is_locked()) {
+        if (!secret_key->unlock(handle->ffi->pass_provider, PGP_OP_ADD_USERID)) {
             return RNP_ERROR_BAD_PASSWORD;
         }
-        seckey = decrypted_seckey;
-    }
-    if (public_key && !pgp_key_add_userid_certified(public_key, seckey, hash_alg, &info)) {
-        goto done;
-    }
-    if ((secret_key && secret_key->format != PGP_KEY_STORE_G10) &&
-        !pgp_key_add_userid_certified(secret_key, seckey, hash_alg, &info)) {
-        goto done;
+        lock = true;
     }
 
-    ret = RNP_SUCCESS;
-done:
-    delete decrypted_seckey;
+    /* add and certify userid */
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    try {
+        secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng, public_key);
+        ret = RNP_SUCCESS;
+    } catch (const rnp::rnp_exception &e) {
+        ret = e.code();
+    } catch (const std::exception &e) {
+        FFI_LOG(handle->ffi, "Failed to add uid.");
+    }
+    if (lock) {
+        secret_key->lock();
+    }
     return ret;
 }
 FFI_GUARD

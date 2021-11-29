@@ -632,12 +632,14 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_false(subpub->expired());
 
     /* add primary userid with smaller expiration date */
+    rng_t rng;
+    rng_init(&rng, RNG_DRBG);
     rnp_selfsig_cert_info_t selfsig1 = {};
     const char *            boris = "Boris <boris@rnp>";
     memcpy(selfsig1.userid, boris, strlen(boris));
     selfsig1.key_expiration = 100;
     selfsig1.primary = true;
-    assert_true(pgp_key_add_userid_certified(key, &key->pkt(), PGP_HASH_SHA256, &selfsig1));
+    key->add_uid_cert(selfsig1, PGP_HASH_SHA256, rng);
     key->revalidate(*secring);
     /* key becomes invalid even it is secret */
     assert_int_equal(key->expiration(), 100);
@@ -671,9 +673,10 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     memcpy(selfsig1.userid, boris, strlen(boris));
     selfsig1.key_expiration = 0;
     selfsig1.primary = true;
-    assert_true(pgp_key_add_userid_certified(key, &key->pkt(), PGP_HASH_SHA256, &selfsig1));
+    key->add_uid_cert(selfsig1, PGP_HASH_SHA256, rng);
     key->revalidate(*secring);
     assert_int_equal(key->expiration(), 6);
+    rng_destroy(&rng);
 
     pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-pub.pgp");
     assert_true(rnp_key_store_load_from_path(pubring, NULL));

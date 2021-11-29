@@ -1752,3 +1752,42 @@ pgp_signature_t::fill_hashed_data()
     memcpy(hashed_data, hbody.data(), hbody.size());
     hashed_len = hbody.size();
 }
+
+void
+rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig)
+{
+    /* populate signature */
+    sig.set_type(PGP_CERT_POSITIVE);
+    if (key_expiration) {
+        sig.set_key_expiration(key_expiration);
+    }
+    if (key_flags) {
+        sig.set_key_flags(key_flags);
+    }
+    if (primary) {
+        sig.set_primary_uid(true);
+    }
+    if (!prefs.symm_algs.empty()) {
+        sig.set_preferred_symm_algs(prefs.symm_algs);
+    }
+    if (!prefs.hash_algs.empty()) {
+        sig.set_preferred_hash_algs(prefs.hash_algs);
+    }
+    if (!prefs.z_algs.empty()) {
+        sig.set_preferred_z_algs(prefs.z_algs);
+    }
+    if (!prefs.ks_prefs.empty()) {
+        sig.set_key_server_prefs(prefs.ks_prefs[0]);
+    }
+    if (!prefs.key_server.empty()) {
+        sig.set_key_server(prefs.key_server);
+    }
+    /* populate uid */
+    uid.tag = PGP_PKT_USER_ID;
+    uid.uid_len = strlen((char *) userid);
+    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
+        RNP_LOG("alloc failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    memcpy(uid.uid, (char *) userid, uid.uid_len);
+}
