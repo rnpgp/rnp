@@ -1750,7 +1750,7 @@ pgp_subsig_t *
 pgp_key_t::latest_selfsig(uint32_t uid)
 {
     uint32_t      latest = 0;
-    pgp_subsig_t *res = NULL;
+    pgp_subsig_t *res = nullptr;
 
     for (auto &sigid : sigs_) {
         auto &sig = get_sig(sigid);
@@ -1764,7 +1764,8 @@ pgp_key_t::latest_selfsig(uint32_t uid)
             break;
         case PGP_UID_PRIMARY: {
             pgp_sig_subpkt_t *subpkt = sig.sig.get_subpkt(PGP_SIG_SUBPKT_PRIMARY_USER_ID);
-            skip = !is_self_cert(sig) || !subpkt || !subpkt->fields.primary_uid;
+            skip = !is_self_cert(sig) || !subpkt || !subpkt->fields.primary_uid ||
+                   (sig.uid == PGP_UID_NONE);
             break;
         }
         case PGP_UID_ANY:
@@ -1782,6 +1783,14 @@ pgp_key_t::latest_selfsig(uint32_t uid)
         if (creation >= latest) {
             latest = creation;
             res = &sig;
+        }
+    }
+
+    /* if there is later self-sig for the same uid without primary flag, then drop res */
+    if ((uid == PGP_UID_PRIMARY) && res) {
+        pgp_subsig_t *overres = latest_selfsig(res->uid);
+        if (overres && (overres->sig.creation() > res->sig.creation())) {
+            res = nullptr;
         }
     }
     return res;
@@ -2325,7 +2334,7 @@ pgp_key_t::refresh_data()
     }
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
-        /* if certification expires key then consider userid as expired too */
+        /* consider userid as valid if it has at least one non-expired self-sig */
         if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || sig.expired()) {
             continue;
         }
@@ -2341,21 +2350,11 @@ pgp_key_t::refresh_data()
             uid.valid = false;
         }
     }
-    /* primary userid: pick it only from valid ones */
+    /* primary userid: use latest one which is not overriden by later non-primary selfsig */
     uid0_set_ = false;
-    for (size_t i = 0; i < sig_count(); i++) {
-        pgp_subsig_t &sig = get_sig(i);
-        if (!sig.valid() || !sig.is_cert() || !is_signer(sig)) {
-            continue;
-        }
-        if ((sig.uid >= uid_count()) || !get_uid(sig.uid).valid) {
-            continue;
-        }
-        if (sig.sig.primary_uid()) {
-            uid0_ = sig.uid;
-            uid0_set_ = true;
-            break;
-        }
+    if (prisig && get_uid(prisig->uid).valid) {
+        uid0_ = prisig->uid;
+        uid0_set_ = true;
     }
     return true;
 }
