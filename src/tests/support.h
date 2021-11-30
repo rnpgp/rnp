@@ -247,10 +247,12 @@ std::vector<uint8_t> export_key(rnp_key_handle_t key,
 void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
 /* some shortcuts for less code */
-bool check_key_valid(rnp_key_handle_t key, bool validity);
-bool check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
-bool check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
-bool check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
+bool     check_key_valid(rnp_key_handle_t key, bool validity);
+uint32_t get_key_expiry(rnp_key_handle_t key);
+size_t   get_key_uids(rnp_key_handle_t key);
+bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
+bool     check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
+bool     check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
 
 bool sm2_enabled();
 bool aead_eax_enabled();
