@@ -140,7 +140,7 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     key_desc.hash_alg = PGP_HASH_SHA256;
     key_desc.rsa.modulus_bit_len = 1024;
     key_desc.rng = &global_rng;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    assert_true(pgp_generate_seckey(key_desc, seckey, true));
     key_rsa = &seckey.material.rsa;
 
     assert_rnp_success(rsa_encrypt_pkcs1(&global_rng, &enc, ptext, 3, key_rsa));
@@ -161,7 +161,7 @@ TEST_F(rnp_tests, rnp_test_eddsa)
     key_desc.rng = &global_rng;
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    assert_true(pgp_generate_seckey(key_desc, seckey, true));
 
     const uint8_t      hash[32] = {0};
     pgp_ec_signature_t sig = {{{0}}};
@@ -195,7 +195,7 @@ TEST_F(rnp_tests, rnp_test_x25519)
     key_desc.rng = &global_rng;
     key_desc.ecc.curve = PGP_CURVE_25519;
 
-    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    assert_true(pgp_generate_seckey(key_desc, seckey, true));
     /* check for length and correctly tweaked bits */
     assert_int_equal(seckey.material.ec.x.len, 32);
     assert_int_equal(seckey.material.ec.x.mpi[31] & 7, 0);
@@ -276,8 +276,8 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
         pgp_key_pkt_t seckey1;
         pgp_key_pkt_t seckey2;
 
-        assert_true(pgp_generate_seckey(&key_desc, &seckey1, true));
-        assert_true(pgp_generate_seckey(&key_desc, &seckey2, true));
+        assert_true(pgp_generate_seckey(key_desc, seckey1, true));
+        assert_true(pgp_generate_seckey(key_desc, seckey2, true));
 
         const pgp_ec_key_t *key1 = &seckey1.material.ec;
         const pgp_ec_key_t *key2 = &seckey2.material.ec;
@@ -318,7 +318,7 @@ TEST_F(rnp_tests, ecdh_roundtrip)
         key_desc.rng = &global_rng;
 
         pgp_key_pkt_t ecdh_key1;
-        assert_true(pgp_generate_seckey(&key_desc, &ecdh_key1, true));
+        assert_true(pgp_generate_seckey(key_desc, ecdh_key1, true));
 
         pgp_fingerprint_t ecdh_key1_fpr = {};
         assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
@@ -349,7 +349,7 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     key_desc.rng = &global_rng;
 
     pgp_key_pkt_t ecdh_key1;
-    assert_true(pgp_generate_seckey(&key_desc, &ecdh_key1, true));
+    assert_true(pgp_generate_seckey(key_desc, ecdh_key1, true));
 
     pgp_fingerprint_t ecdh_key1_fpr = {};
     assert_rnp_success(pgp_fingerprint(ecdh_key1_fpr, ecdh_key1));
@@ -402,7 +402,7 @@ TEST_F(rnp_tests, sm2_roundtrip)
     assert_true(rng_get_data(&global_rng, key, sizeof(key)));
 
     pgp_key_pkt_t seckey;
-    assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+    assert_true(pgp_generate_seckey(key_desc, seckey, true));
 
     const pgp_ec_key_t *eckey = &seckey.material.ec;
 
@@ -562,7 +562,7 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
         key_desc.dsa.q_bitlen = keys[i].q;
         key_desc.rng = &global_rng;
 
-        assert_true(pgp_generate_seckey(&key_desc, &seckey, true));
+        assert_true(pgp_generate_seckey(key_desc, seckey, true));
         // try to prevent timeouts in travis-ci
         printf("p: %zu q: %zu h: %s\n",
                key_desc.dsa.p_bitlen,
@@ -600,13 +600,13 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
     key_desc.dsa.q_bitlen = key.q;
     key_desc.rng = &global_rng;
 
-    assert_true(pgp_generate_seckey(&key_desc, &sec_key1, true));
+    assert_true(pgp_generate_seckey(key_desc, sec_key1, true));
     // try to prevent timeouts in travis-ci
     printf("p: %zu q: %zu h: %s\n",
            key_desc.dsa.p_bitlen,
            key_desc.dsa.q_bitlen,
            rnp::Hash::name(key_desc.hash_alg));
-    assert_true(pgp_generate_seckey(&key_desc, &sec_key2, true));
+    assert_true(pgp_generate_seckey(key_desc, sec_key2, true));
 
     pgp_dsa_key_t *key1 = &sec_key1.material.dsa;
     pgp_dsa_key_t *key2 = &sec_key2.material.dsa;
