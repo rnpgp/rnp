@@ -1127,6 +1127,16 @@ class Keystore(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertNotRegex(out, RE_RNP_ENCRYPTED_KEY, 'wrong unprotected secret key listing')
 
+    def test_generate_preferences(self):
+        pipe = pswd_pipe(PASSWORD)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--userid',
+                                      'eddsa_25519_prefs', '--generate-key', '--expert'], '22\n')
+        os.close(pipe)
+        self.assertEqual(ret, 0)
+        ret, out, _ = run_proc(RNP, ['--list-packets', os.path.join(RNPDIR, PUBRING)])
+        self.assertRegex(out, r'.*preferred symmetric algorithms: AES-256, AES-192, AES-128 \(9, 8, 7\).*')
+        self.assertRegex(out, r'.*preferred hash algorithms: SHA256, SHA384, SHA512, SHA224 \(8, 9, 10, 11\).*')
+
     def test_import_signatures(self):
         clear_keyrings()
         RE_SIG_2_UNCHANGED = r'(?s)^.*Import finished: 0 new signatures, 2 unchanged, 0 unknown.*'
