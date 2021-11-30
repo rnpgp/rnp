@@ -81,85 +81,78 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 #include "utils.h"
 
 bool
-pgp_generate_seckey(const rnp_keygen_crypto_params_t *crypto,
-                    pgp_key_pkt_t *                   seckey,
+pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
+                    pgp_key_pkt_t &                   seckey,
                     bool                              primary)
 {
-    if (!crypto || !seckey) {
-        RNP_LOG("NULL args");
-        return false;
-    }
-
     /* populate pgp key structure */
-    *seckey = {};
-    seckey->version = PGP_V4;
-    seckey->creation_time = time(NULL);
-    seckey->alg = crypto->key_alg;
-    seckey->material.alg = crypto->key_alg;
-    seckey->tag = primary ? PGP_PKT_SECRET_KEY : PGP_PKT_SECRET_SUBKEY;
+    seckey = {};
+    seckey.version = PGP_V4;
+    seckey.creation_time = time(NULL);
+    seckey.alg = crypto.key_alg;
+    seckey.material.alg = crypto.key_alg;
+    seckey.tag = primary ? PGP_PKT_SECRET_KEY : PGP_PKT_SECRET_SUBKEY;
 
-    switch (seckey->alg) {
+    switch (seckey.alg) {
     case PGP_PKA_RSA:
-        if (rsa_generate(crypto->rng, &seckey->material.rsa, crypto->rsa.modulus_bit_len)) {
+        if (rsa_generate(crypto.rng, &seckey.material.rsa, crypto.rsa.modulus_bit_len)) {
             RNP_LOG("failed to generate RSA key");
             return false;
         }
         break;
     case PGP_PKA_DSA:
-        if (dsa_generate(crypto->rng,
-                         &seckey->material.dsa,
-                         crypto->dsa.p_bitlen,
-                         crypto->dsa.q_bitlen)) {
+        if (dsa_generate(
+              crypto.rng, &seckey.material.dsa, crypto.dsa.p_bitlen, crypto.dsa.q_bitlen)) {
             RNP_LOG("failed to generate DSA key");
             return false;
         }
         break;
     case PGP_PKA_EDDSA:
-        if (eddsa_generate(crypto->rng, &seckey->material.ec)) {
+        if (eddsa_generate(crypto.rng, &seckey.material.ec)) {
             RNP_LOG("failed to generate EDDSA key");
             return false;
         }
         break;
     case PGP_PKA_ECDH:
-        if (!ecdh_set_params(&seckey->material.ec, crypto->ecc.curve)) {
-            RNP_LOG("Unsupported curve [ID=%d]", crypto->ecc.curve);
+        if (!ecdh_set_params(&seckey.material.ec, crypto.ecc.curve)) {
+            RNP_LOG("Unsupported curve [ID=%d]", crypto.ecc.curve);
             return false;
         }
-        if (crypto->ecc.curve == PGP_CURVE_25519) {
-            if (x25519_generate(crypto->rng, &seckey->material.ec)) {
+        if (crypto.ecc.curve == PGP_CURVE_25519) {
+            if (x25519_generate(crypto.rng, &seckey.material.ec)) {
                 RNP_LOG("failed to generate x25519 key");
                 return false;
             }
-            seckey->material.ec.curve = crypto->ecc.curve;
+            seckey.material.ec.curve = crypto.ecc.curve;
             break;
         }
         [[fallthrough]];
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
-        if (!curve_supported(crypto->ecc.curve)) {
-            RNP_LOG("EC generate: curve %d is not supported.", (int) crypto->ecc.curve);
+        if (!curve_supported(crypto.ecc.curve)) {
+            RNP_LOG("EC generate: curve %d is not supported.", (int) crypto.ecc.curve);
             return false;
         }
-        if (ec_generate(crypto->rng, &seckey->material.ec, seckey->alg, crypto->ecc.curve)) {
+        if (ec_generate(crypto.rng, &seckey.material.ec, seckey.alg, crypto.ecc.curve)) {
             RNP_LOG("failed to generate EC key");
             return false;
         }
-        seckey->material.ec.curve = crypto->ecc.curve;
+        seckey.material.ec.curve = crypto.ecc.curve;
         break;
     case PGP_PKA_ELGAMAL:
-        if (elgamal_generate(crypto->rng, &seckey->material.eg, crypto->elgamal.key_bitlen)) {
+        if (elgamal_generate(crypto.rng, &seckey.material.eg, crypto.elgamal.key_bitlen)) {
             RNP_LOG("failed to generate ElGamal key");
             return false;
         }
         break;
     default:
-        RNP_LOG("key generation not implemented for PK alg: %d", seckey->alg);
+        RNP_LOG("key generation not implemented for PK alg: %d", seckey.alg);
         return false;
     }
-    seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    seckey->material.secret = true;
+    seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
+    seckey.material.secret = true;
     /* fill the sec_data/sec_len */
-    if (encrypt_secret_key(seckey, NULL, NULL)) {
+    if (encrypt_secret_key(&seckey, NULL, NULL)) {
         RNP_LOG("failed to fill sec_data");
         return false;
     }
