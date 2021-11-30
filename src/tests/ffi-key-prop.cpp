@@ -134,6 +134,28 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_key_primary_uid_conflict)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* load key with 1 uid and two certifications: first marks uid primary, but expires key
+     * second marks uid as non-primary, but has zero key expiration */
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/key-primary-uid-conflict-pub.pgp"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "userid_2_sigs", &key));
+    assert_int_equal(get_key_uids(key), 1);
+    assert_int_equal(get_key_expiry(key), 0);
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_uid_primary(key, 0, false));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_25519_tweaked_bits)
 {
     rnp_ffi_t ffi = NULL;

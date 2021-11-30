@@ -1099,6 +1099,22 @@ check_key_valid(rnp_key_handle_t key, bool validity)
     return valid == validity;
 }
 
+uint32_t
+get_key_expiry(rnp_key_handle_t key)
+{
+    uint32_t expiry = (uint32_t) -1;
+    rnp_key_get_expiration(key, &expiry);
+    return expiry;
+}
+
+size_t
+get_key_uids(rnp_key_handle_t key)
+{
+    size_t count = (size_t) -1;
+    rnp_key_get_uid_count(key, &count);
+    return count;
+}
+
 bool
 check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity)
 {
