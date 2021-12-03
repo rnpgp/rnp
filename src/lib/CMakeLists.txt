@@ -226,6 +226,7 @@ add_library(librnp-obj OBJECT
   ${CRYPTO_SOURCES}
 
   # other sources
+  sec_profile.cpp
   crypto.cpp
   fingerprint.cpp
   generate-key.cpp
