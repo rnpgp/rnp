@@ -502,6 +502,7 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     errs = stderr;
     pubring = new rnp_key_store_t(pub_fmt, "");
     secring = new rnp_key_store_t(sec_fmt, "");
+    sec_profile = new rnp::SecurityProfile();
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
@@ -553,6 +554,7 @@ rnp_ffi_st::~rnp_ffi_st()
     close_io_file(&errs);
     delete pubring;
     delete secring;
+    delete sec_profile;
 }
 
 rnp_result_t
@@ -1103,6 +1105,185 @@ try {
 done:
     json_object_put(features);
     return ret;
+}
+FFI_GUARD
+
+static bool
+get_feature_sec_value(
+  rnp_ffi_t ffi, const char *stype, const char *sname, rnp::FeatureType &type, int &value)
+{
+    /* check type */
+    if (!rnp::str_case_eq(stype, RNP_FEATURE_HASH_ALG)) {
+        FFI_LOG(ffi, "Unsupported feature type: %s", stype);
+        return false;
+    }
+    type = rnp::FeatureType::Hash;
+    /* check feature name */
+    pgp_hash_alg_t alg = PGP_HASH_UNKNOWN;
+    if (sname && !str_to_hash_alg(sname, &alg)) {
+        FFI_LOG(ffi, "Unknown hash algorithm: %s", sname);
+        return false;
+    }
+    value = alg;
+    return true;
+}
+
+static bool
+get_feature_sec_level(rnp_ffi_t ffi, uint32_t flevel, rnp::SecurityLevel &level)
+{
+    switch (flevel) {
+    case RNP_SECURITY_PROHIBITED:
+        level = rnp::SecurityLevel::Disabled;
+        break;
+    case RNP_SECURITY_INSECURE:
+        level = rnp::SecurityLevel::Insecure;
+        break;
+    case RNP_SECURITY_DEFAULT:
+        level = rnp::SecurityLevel::Default;
+        break;
+    default:
+        FFI_LOG(ffi, "Invalid security level : %" PRIu32, flevel);
+        return false;
+    }
+    return true;
+}
+
+rnp_result_t
+rnp_add_security_rule(rnp_ffi_t   ffi,
+                      const char *type,
+                      const char *name,
+                      uint32_t    flags,
+                      uint64_t    from,
+                      uint32_t    level)
+try {
+    if (!ffi || !type || !name) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* convert values */
+    rnp::FeatureType   ftype;
+    int                fvalue;
+    rnp::SecurityLevel sec_level;
+    if (!get_feature_sec_value(ffi, type, name, ftype, fvalue) ||
+        !get_feature_sec_level(ffi, level, sec_level)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* check flags */
+    bool rule_override = flags & RNP_SECURITY_OVERRIDE;
+    flags &= ~RNP_SECURITY_OVERRIDE;
+    if (flags) {
+        FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* add rule */
+    rnp::SecurityRule newrule(ftype, fvalue, sec_level, from);
+    newrule.override = rule_override;
+    ffi->sec_profile->add_rule(newrule);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_get_security_rule(rnp_ffi_t   ffi,
+                      const char *type,
+                      const char *name,
+                      uint64_t    time,
+                      uint32_t *  flags,
+                      uint64_t *  from,
+                      uint32_t *  level)
+try {
+    if (!ffi || !type || !name || !level) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* convert values */
+    rnp::FeatureType ftype;
+    int              fvalue;
+    if (!get_feature_sec_value(ffi, type, name, ftype, fvalue)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* init default rule */
+    rnp::SecurityRule rule(ftype, fvalue, ffi->sec_profile->def_level());
+    /* check whether rule exists */
+    if (ffi->sec_profile->has_rule(ftype, fvalue, time)) {
+        rule = ffi->sec_profile->get_rule(ftype, fvalue, time);
+    }
+    /* fill the results */
+    if (flags) {
+        *flags = rule.override ? RNP_SECURITY_OVERRIDE : 0;
+    }
+    if (from) {
+        *from = rule.from;
+    }
+    switch (rule.level) {
+    case rnp::SecurityLevel::Disabled:
+        *level = RNP_SECURITY_PROHIBITED;
+        break;
+    case rnp::SecurityLevel::Insecure:
+        *level = RNP_SECURITY_INSECURE;
+        break;
+    case rnp::SecurityLevel::Default:
+        *level = RNP_SECURITY_DEFAULT;
+        break;
+    default:
+        FFI_LOG(ffi, "Invalid security level.");
+        return RNP_ERROR_BAD_STATE;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_remove_security_rule(rnp_ffi_t   ffi,
+                         const char *type,
+                         const char *name,
+                         uint32_t    level,
+                         uint32_t    flags,
+                         uint64_t    from,
+                         size_t *    removed)
+try {
+    if (!ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* check flags */
+    bool remove_all = flags & RNP_SECURITY_REMOVE_ALL;
+    flags &= ~RNP_SECURITY_REMOVE_ALL;
+    bool rule_override = flags & RNP_SECURITY_OVERRIDE;
+    flags &= ~RNP_SECURITY_OVERRIDE;
+    if (flags) {
+        FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* remove all rules */
+    size_t rules = ffi->sec_profile->size();
+    if (!type) {
+        ffi->sec_profile->clear_rules();
+        goto success;
+    }
+    rnp::FeatureType   ftype;
+    int                fvalue;
+    rnp::SecurityLevel flevel;
+    if (!get_feature_sec_value(ffi, type, name, ftype, fvalue) ||
+        !get_feature_sec_level(ffi, level, flevel)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    /* remove all rules for the specified type */
+    if (!name) {
+        ffi->sec_profile->clear_rules(ftype);
+        goto success;
+    }
+    if (remove_all) {
+        /* remove all rules for the specified type and name */
+        ffi->sec_profile->clear_rules(ftype, fvalue);
+    } else {
+        /* remove specific rule */
+        rnp::SecurityRule rule(ftype, fvalue, flevel, from);
+        rule.override = rule_override;
+        ffi->sec_profile->del_rule(rule);
+    }
+success:
+    if (removed) {
+        *removed = rules - ffi->sec_profile->size();
+    }
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 

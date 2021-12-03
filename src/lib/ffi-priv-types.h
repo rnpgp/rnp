@@ -30,6 +30,7 @@
 #include "utils.h"
 #include <list>
 #include <crypto/mem.h>
+#include "sec_profile.hpp"
 
 struct rnp_key_handle_st {
     rnp_ffi_t        ffi;
@@ -77,6 +78,7 @@ struct rnp_ffi_st {
     rnp::RNG                rng;
     pgp_key_provider_t      key_provider;
     pgp_password_provider_t pass_provider;
+    rnp::SecurityProfile *  sec_profile;
 
     rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt);
     ~rnp_ffi_st();
