@@ -108,6 +108,19 @@ typedef uint32_t rnp_result_t;
 #define RNP_USER_ATTR (2U)
 
 /**
+ * Predefined feature security levels
+ */
+#define RNP_SECURITY_PROHIBITED (0U)
+#define RNP_SECURITY_INSECURE (1U)
+#define RNP_SECURITY_DEFAULT (2U)
+
+/**
+ * Flags for feature security rules.
+ */
+#define RNP_SECURITY_OVERRIDE (1U << 0)
+#define RNP_SECURITY_REMOVE_ALL (1U << 16)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -416,6 +429,98 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
  * @return RNP_SUCCESS on success or any other value on error.
  */
 RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
+
+/**
+ * @brief Add new security rule to the FFI. Security rules allows to override default algorithm
+ *        security settings by disabling them or marking as insecure. After creation of FFI
+ *        object default rules are added, however caller may add more strict rules or
+ *        completely overwrite rule table by calling rnp_remove_security_rule().
+ *
+ * @param ffi initialized FFI object.
+ * @param type type of the feature, cannot be NULL. Currently only RNP_FEATURE_HASH_ALG is
+ *             supported.
+ * @param name name of the feature, i.e. SHA1, MD5. The same values are used in
+ *             rnp_supports_feature()/rnp_supported_features().
+ * @param flags additional flags. Following ones currently supported:
+ *              - RNP_SECURITY_OVERRIDE : override all other rules for the specified feature.
+ *                May be used to temporarily enable or disable some feature value (e.g., to
+ *                enable verification of SHA1 or MD5 signature), and then revert changes via
+ *                rnp_remove_security_rule().
+ * @param from timestamp, from when the rule is active. Objects that have creation time (like
+ *             signatures) are matched with the closest rules from the past, unless there is
+ *             a rule with an override flag. For instance, given a single rule with algorithm
+ *             'MD5', level 'insecure' and timestamp '2012-01-01', all signatures made before
+ *             2012-01-01 using the MD5 hash algorithm are considered to be at the default
+ *             security level (i.e., valid),  whereas all signatures made after 2021-01-01 will
+ *             be marked as 'insecure' (i.e., invalid).
+ * @param level security level of the rule. Currently the following ones are defined:
+ *              - RNP_SECURITY_PROHIBITED : feature (for instance, MD5 algorithm) is completely
+ *                disabled, so no processing can be done. In terms of signature check, that
+ *                would mean the check will fail right after the hashing begins.
+ *                Note: Currently it works in the same way as RNP_SECURITY_INSECURE.
+ *              - RNP_SECURITY_INSECURE : feature (for instance, SHA1 algorithm) is marked as
+ *                insecure. So even valid signatures, produced later than `from`, will be
+ *                marked as invalid.
+ *              - RNP_SECURITY_DEFAULT : feature is secure enough. Default value when there are
+ *                no other rules for feature.
+ *
+ * @return RNP_SUCCESS or any other value on error.
+ */
+RNP_API rnp_result_t rnp_add_security_rule(rnp_ffi_t   ffi,
+                                           const char *type,
+                                           const char *name,
+                                           uint32_t    flags,
+                                           uint64_t    from,
+                                           uint32_t    level);
+
+/**
+ * @brief Get security rule applicable for the corresponding feature value and timestamp.
+ *        Note: if there is no matching rule, it will fall back to the default security level
+ *        with empty flags and `from`.
+ *
+ * @param ffi initialized FFI object.
+ * @param type feature type to search for. Only RNP_FEATURE_HASH_ALG is supported right now.
+ * @param name feature name, i.e. SHA1 or so on.
+ * @param time timestamp for which feature should be checked.
+ * @param flags if non-NULL then rule's flags will be put here.
+ * @param from if non-NULL then rule's from time will be put here.
+ * @param level cannot be NULL. Security level will be stored here.
+ * @return RNP_SUCCESS or any other value on error.
+ */
+RNP_API rnp_result_t rnp_get_security_rule(rnp_ffi_t   ffi,
+                                           const char *type,
+                                           const char *name,
+                                           uint64_t    time,
+                                           uint32_t *  flags,
+                                           uint64_t *  from,
+                                           uint32_t *  level);
+
+/**
+ * @brief Remove security rule(s), matching the parameters.
+ *        Note: use this with caution, as this may also clear default security rules, so
+ *        all affected features would be considered of the default security level.
+ *
+ * @param ffi populated FFI structure, cannot be NULL.
+ * @param type type of the feature. If NULL, then all of the rules will be cleared.
+ * @param name name of the feature. If NULL, then all rules of the type will be cleared.
+ * @param level security level of the rule.
+ * @param flags additional flags, following are defined at the moment:
+ *          - RNP_SECURITY_OVERRIDE : rule should match this flag
+ *          - RNP_SECURITY_REMOVE_ALL : remove all rules for type and name.
+ * @param from timestamp, for when the rule should be removed. Ignored if
+ *             RNP_SECURITY_REMOVE_ALL_FROM is specified.
+ * @param removed if non-NULL then number of removed rules will be stored here.
+ * @return RNP_SUCCESS on success or any other value on error. Please note that if no rules are
+ *         matched, execution will be marked as successful. Use the `removed` parameter to
+ *         check for this case.
+ */
+RNP_API rnp_result_t rnp_remove_security_rule(rnp_ffi_t   ffi,
+                                              const char *type,
+                                              const char *name,
+                                              uint32_t    level,
+                                              uint32_t    flags,
+                                              uint64_t    from,
+                                              size_t *    removed);
 
 /**
  * @brief Request password via configured FFI's callback
