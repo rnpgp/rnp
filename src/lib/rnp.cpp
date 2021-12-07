@@ -503,6 +503,12 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     pubring = new rnp_key_store_t(pub_fmt, "");
     secring = new rnp_key_store_t(sec_fmt, "");
     sec_profile = new rnp::SecurityProfile();
+    /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
+    sec_profile->add_rule(rnp::SecurityRule(
+      rnp::FeatureType::Hash, PGP_HASH_SHA1, rnp::SecurityLevel::Insecure, 1547856000));
+    /* Mark MD5 insecure since 2012-01-01 */
+    sec_profile->add_rule(rnp::SecurityRule(
+      rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Insecure, 1325376000));
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
