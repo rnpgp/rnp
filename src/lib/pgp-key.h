@@ -395,7 +395,7 @@ struct pgp_key_t {
      * @param hash hash algorithm to use (may be changed if it is not suitable for public key
      *             algorithm).
      */
-    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash);
+    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash) const;
     /**
      * @brief Calculate a certification and fill signature material.
      *        Note: secret key must be unlocked before calling this function.
