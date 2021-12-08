@@ -412,6 +412,16 @@ struct pgp_key_t {
                    rng_t &                 rng) const;
 
     /**
+     * @brief Calculate direct-key signature.
+     *        Note: secret key must be unlocked before calling this function.
+     *
+     * @param key key packet to sign. May be both public and secret.
+     * @param sig signature, pre-populated with all of the required data, except the
+     *            signature material.
+     */
+    void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
+
+    /**
      * @brief Add and certify userid.
      *        Note: secret key must be unlocked before calling this function.
      *
