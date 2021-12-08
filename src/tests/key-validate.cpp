@@ -596,10 +596,12 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     sig.set_keyfp(key->fp());
     sig.set_keyid(key->keyid());
 
+    rng_t rng = {};
+    assert_true(rng_init(&rng, RNG_DRBG));
     pgp_password_provider_t pprov = {.callback = string_copy_password_callback,
                                      .userdata = (void *) "password"};
     key->unlock(pprov);
-    assert_true(signature_calculate_direct(key->pkt(), sig, key->pkt()));
+    key->sign_direct(key->pkt(), sig, rng);
     key->add_sig(sig, PGP_UID_NONE);
     key->revalidate(*secring);
 
@@ -632,8 +634,6 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_false(subpub->expired());
 
     /* add primary userid with smaller expiration date */
-    rng_t rng;
-    rng_init(&rng, RNG_DRBG);
     rnp_selfsig_cert_info_t selfsig1 = {};
     const char *            boris = "Boris <boris@rnp>";
     memcpy(selfsig1.userid, boris, strlen(boris));
@@ -664,7 +664,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     sig.set_keyid(key->keyid());
 
     key->unlock(pprov);
-    assert_true(signature_calculate_direct(key->pkt(), sig, key->pkt()));
+    key->sign_direct(key->pkt(), sig, rng);
     key->add_sig(sig, PGP_UID_NONE);
     key->revalidate(*secring);
     assert_int_equal(key->expiration(), 6);

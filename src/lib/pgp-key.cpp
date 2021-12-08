@@ -365,27 +365,18 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         if (!update_sig_expiration(&newsig, &sig.sig, expiry)) {
             return false;
         }
-        if (sig.is_cert()) {
-            if (sig.uid >= key->uid_count()) {
-                RNP_LOG("uid not found");
-                return false;
-            }
-            try {
-                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, rng);
-            } catch (const std::exception &e) {
-                RNP_LOG("failed to calculate signature: %s", e.what());
-                return false;
-            }
-        } else {
-            /* direct-key signature case */
-            if (!signature_calculate_direct(key->pkt(), newsig, seckey->pkt())) {
-                RNP_LOG("failed to calculate signature");
-                return false;
-            }
-        }
-
-        /* replace signature, first for secret key since it may be replaced in public */
         try {
+            if (sig.is_cert()) {
+                if (sig.uid >= key->uid_count()) {
+                    RNP_LOG("uid not found");
+                    return false;
+                }
+                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, rng);
+            } else {
+                /* direct-key signature case */
+                seckey->sign_direct(key->pkt(), newsig, rng);
+            }
+            /* replace signature, first for secret key since it may be replaced in public */
             if (seckey->has_sig(oldsigid)) {
                 seckey->replace_sig(oldsigid, newsig);
             }
@@ -393,7 +384,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                 key->replace_sig(oldsigid, newsig);
             }
         } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
+            RNP_LOG("failed to calculate or add signature: %s", e.what());
             return false;
         }
     }
@@ -2185,6 +2176,15 @@ pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
     rnp::Hash hash;
     sig.fill_hashed_data();
     signature_hash_certification(sig, key, uid, hash);
+    signature_calculate(sig, pkt_.material, hash, rng);
+}
+
+void
+pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const
+{
+    rnp::Hash hash;
+    sig.fill_hashed_data();
+    signature_hash_direct(sig, key, hash);
     signature_calculate(sig, pkt_.material, hash, rng);
 }
 
