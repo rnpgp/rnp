@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2021 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -422,17 +422,44 @@ struct pgp_key_t {
     void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
 
     /**
+     * @brief Calculate subkey or primary key binding.
+     *        Note: this will not embed primary key binding for the signing subkey, it should
+     *        be added by the caller.
+     *
+     * @param key subkey or primary key packet, may be both public or secret.
+     * @param sig signature, pre-populated with all of the required data, except the
+     *            signature material.
+     */
+    void sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
+
+    /**
+     * @brief Calculate subkey binding.
+     *        Note: secret key must be unlocked before calling this function. If subsign is
+     *        true then subkey must be secret and unlocked as well so function can calculate
+     *        primary key binding.
+     *
+     * @param sub subkey to bind to the primary key. If subsign is true then must be unlocked
+     *            secret key.
+     * @param sig signature, pre-populated with all of the required data, except the
+     *            signature material.
+     */
+    void sign_subkey_binding(const pgp_key_t &sub,
+                             pgp_signature_t &sig,
+                             rng_t &          rng,
+                             bool             subsign = false) const;
+
+    /**
      * @brief Generate key or subkey revocation signature.
      *
      * @param revoke revocation information.
      * @param key key or subkey packet to revoke.
      * @param sig object to store revocation signature. Will be populated in method call.
      */
-    void gen_revocation(pgp_revoke_t &       revoke,
+    void gen_revocation(const pgp_revoke_t & revoke,
                         pgp_hash_alg_t       hash,
                         const pgp_key_pkt_t &key,
                         pgp_signature_t &    sig,
-                        rng_t &              rng);
+                        rng_t &              rng) const;
 
     /**
      * @brief Add and certify userid.
@@ -521,7 +548,8 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    primsec,
                                pgp_key_t *                    secsub,
                                uint32_t                       expiry,
-                               const pgp_password_provider_t &prov);
+                               const pgp_password_provider_t &prov,
+                               rng_t &                        rng);
 
 /** find a key suitable for a particular operation
  *
