@@ -3819,15 +3819,14 @@ rnp_key_get_revoker(rnp_key_handle_t key)
 }
 
 static rnp_result_t
-rnp_key_get_revocation(rnp_ffi_t         ffi,
-                       pgp_key_t *       key,
-                       pgp_key_t *       revoker,
-                       const char *      hash,
-                       const char *      code,
-                       const char *      reason,
-                       pgp_signature_t **sig)
+rnp_key_get_revocation(rnp_ffi_t        ffi,
+                       pgp_key_t *      key,
+                       pgp_key_t *      revoker,
+                       const char *     hash,
+                       const char *     code,
+                       const char *     reason,
+                       pgp_signature_t &sig)
 {
-    *sig = NULL;
     if (!hash) {
         hash = DEFAULT_HASH_ALG;
     }
@@ -3859,11 +3858,13 @@ rnp_key_get_revocation(rnp_ffi_t         ffi,
         FFI_LOG(ffi, "Failed to unlock secret key");
         return RNP_ERROR_BAD_PASSWORD;
     }
-    *sig = transferable_key_revoke(key->pkt(), revoker->pkt(), halg, revinfo);
-    if (!*sig) {
-        FFI_LOG(ffi, "Failed to generate revocation signature");
+    try {
+        revoker->gen_revocation(revinfo, halg, key->pkt(), sig, ffi->rng);
+    } catch (const std::exception &e) {
+        FFI_LOG(ffi, "Failed to generate revocation signature: %s", e.what());
+        return RNP_ERROR_BAD_STATE;
     }
-    return *sig ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
@@ -3891,18 +3892,17 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_signature_t *sig = NULL;
-    rnp_result_t     ret =
-      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, &sig);
+    pgp_signature_t sig;
+    rnp_result_t    ret =
+      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, sig);
     if (ret) {
         return ret;
     }
 
-    sig->write(output->dst);
+    sig.write(output->dst);
     ret = output->dst.werr;
     dst_flush(&output->dst);
     output->keep = !ret;
-    delete sig;
     return ret;
 }
 FFI_GUARD
@@ -3928,21 +3928,20 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_signature_t *sig = NULL;
-    rnp_result_t     ret =
-      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, &sig);
+    pgp_signature_t sig;
+    rnp_result_t    ret =
+      rnp_key_get_revocation(key->ffi, exkey, revoker, hash, code, reason, sig);
     if (ret) {
         return ret;
     }
     pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     if (key->pub) {
-        pub_status = rnp_key_store_import_key_signature(key->ffi->pubring, key->pub, sig);
+        pub_status = rnp_key_store_import_key_signature(key->ffi->pubring, key->pub, &sig);
     }
     if (key->sec) {
-        sec_status = rnp_key_store_import_key_signature(key->ffi->secring, key->sec, sig);
+        sec_status = rnp_key_store_import_key_signature(key->ffi->secring, key->sec, &sig);
     }
-    delete sig;
 
     if ((pub_status == PGP_SIG_IMPORT_STATUS_UNKNOWN) ||
         (sec_status == PGP_SIG_IMPORT_STATUS_UNKNOWN)) {
