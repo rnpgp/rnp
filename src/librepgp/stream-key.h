@@ -123,11 +123,6 @@ pgp_signature_t *transferable_subkey_bind(const pgp_key_pkt_t &             prim
                                           pgp_hash_alg_t                    hash_alg,
                                           const rnp_selfsig_binding_info_t &binding);
 
-pgp_signature_t *transferable_key_revoke(const pgp_key_pkt_t &key,
-                                         const pgp_key_pkt_t &signer,
-                                         pgp_hash_alg_t       hash_alg,
-                                         const pgp_revoke_t & revoke);
-
 /* Process single primary key or subkey, skipping all key-related packets on error.
    If key.key.tag is zero, then (on success) result is subkey and it is stored in
    key.subkeys[0].

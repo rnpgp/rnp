@@ -382,59 +382,6 @@ transferable_subkey_bind(const pgp_key_pkt_t &             key,
     }
 }
 
-pgp_signature_t *
-transferable_key_revoke(const pgp_key_pkt_t &key,
-                        const pgp_key_pkt_t &signer,
-                        pgp_hash_alg_t       hash_alg,
-                        const pgp_revoke_t & revoke)
-{
-    pgp_signature_t   sig;
-    bool              res = false;
-    pgp_key_id_t      keyid;
-    pgp_fingerprint_t keyfp;
-
-    if (pgp_keyid(keyid, signer)) {
-        RNP_LOG("failed to calculate keyid");
-        return NULL;
-    }
-    if (pgp_fingerprint(keyfp, signer)) {
-        RNP_LOG("failed to calculate keyfp");
-        return NULL;
-    }
-
-    sig.version = PGP_V4;
-    sig.halg = pgp_hash_adjust_alg_to_key(hash_alg, &signer);
-    sig.palg = signer.alg;
-    sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
-
-    try {
-        sig.set_keyfp(keyfp);
-        sig.set_creation(time(NULL));
-        sig.set_revocation_reason(revoke.code, revoke.reason);
-        sig.set_keyid(keyid);
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to setup signature: %s", e.what());
-        return NULL;
-    }
-
-    if (is_primary_key_pkt(key.tag)) {
-        res = signature_calculate_direct(key, sig, signer);
-    } else {
-        res = signature_calculate_binding(signer, key, sig, false);
-    }
-    if (!res) {
-        RNP_LOG("failed to calculate signature");
-        return NULL;
-    }
-
-    try {
-        return new pgp_signature_t(std::move(sig));
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-}
-
 static bool
 skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 {
