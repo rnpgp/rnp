@@ -6628,7 +6628,8 @@ try {
     }
 
     if (pkey->is_primary()) {
-        if (!pgp_key_set_expiration(pkey, skey, expiry, key->ffi->pass_provider)) {
+        if (!pgp_key_set_expiration(
+              pkey, skey, expiry, key->ffi->pass_provider, key->ffi->rng)) {
             return RNP_ERROR_GENERIC;
         }
         pkey->revalidate(*key->ffi->pubring);
