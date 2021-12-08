@@ -2155,26 +2155,14 @@ pgp_key_t::mark_valid()
 }
 
 void
-pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash)
+pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash) const
 {
-    pgp_key_id_t keyid = {};
-    if (pgp_keyid(keyid, pkt_)) {
-        RNP_LOG("failed to calculate keyid");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    pgp_fingerprint_t keyfp;
-    if (pgp_fingerprint(keyfp, pkt_)) {
-        RNP_LOG("failed to calculate keyfp");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
-    sig.palg = pkt_.alg;
-    sig.set_keyfp(keyfp);
+    sig.palg = alg();
+    sig.set_keyfp(fp());
     sig.set_creation(time(NULL));
-    sig.set_keyid(keyid);
+    sig.set_keyid(keyid());
 }
 
 void
