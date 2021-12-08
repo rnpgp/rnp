@@ -2189,6 +2189,25 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rn
 }
 
 void
+pgp_key_t::gen_revocation(pgp_revoke_t &       revoke,
+                          pgp_hash_alg_t       hash,
+                          const pgp_key_pkt_t &key,
+                          pgp_signature_t &    sig,
+                          rng_t &              rng)
+{
+    sign_init(sig, hash);
+    sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
+    sig.set_revocation_reason(revoke.code, revoke.reason);
+
+    if (is_primary_key_pkt(key.tag)) {
+        sign_direct(key, sig, rng);
+    } else if (!signature_calculate_binding(this->pkt(), key, sig, false)) {
+        RNP_LOG("failed to calculate signature");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+}
+
+void
 pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
                         pgp_hash_alg_t           hash,
                         rng_t &                  rng,

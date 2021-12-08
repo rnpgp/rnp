@@ -422,6 +422,19 @@ struct pgp_key_t {
     void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
 
     /**
+     * @brief Generate key or subkey revocation signature.
+     *
+     * @param revoke revocation information.
+     * @param key key or subkey packet to revoke.
+     * @param sig object to store revocation signature. Will be populated in method call.
+     */
+    void gen_revocation(pgp_revoke_t &       revoke,
+                        pgp_hash_alg_t       hash,
+                        const pgp_key_pkt_t &key,
+                        pgp_signature_t &    sig,
+                        rng_t &              rng);
+
+    /**
      * @brief Add and certify userid.
      *        Note: secret key must be unlocked before calling this function.
      *
