@@ -409,7 +409,7 @@ struct pgp_key_t {
     void sign_cert(const pgp_key_pkt_t &   key,
                    const pgp_userid_pkt_t &uid,
                    pgp_signature_t &       sig,
-                   rng_t &                 rng);
+                   rng_t &                 rng) const;
 
     /**
      * @brief Add and certify userid.
@@ -491,7 +491,8 @@ pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
                             uint32_t                       expiry,
-                            const pgp_password_provider_t &prov);
+                            const pgp_password_provider_t &prov,
+                            rng_t &                        rng);
 
 bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    primsec,

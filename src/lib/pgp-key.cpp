@@ -320,7 +320,8 @@ bool
 pgp_key_set_expiration(pgp_key_t *                    key,
                        pgp_key_t *                    seckey,
                        uint32_t                       expiry,
-                       const pgp_password_provider_t &prov)
+                       const pgp_password_provider_t &prov,
+                       rng_t &                        rng)
 {
     if (!key->is_primary()) {
         RNP_LOG("Not a primary key");
@@ -369,9 +370,10 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                 RNP_LOG("uid not found");
                 return false;
             }
-            if (!signature_calculate_certification(
-                  key->pkt(), key->get_uid(sig.uid).pkt, newsig, seckey->pkt())) {
-                RNP_LOG("failed to calculate signature");
+            try {
+                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, rng);
+            } catch (const std::exception &e) {
+                RNP_LOG("failed to calculate signature: %s", e.what());
                 return false;
             }
         } else {
@@ -2169,7 +2171,7 @@ void
 pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
                      const pgp_userid_pkt_t &uid,
                      pgp_signature_t &       sig,
-                     rng_t &                 rng)
+                     rng_t &                 rng) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
