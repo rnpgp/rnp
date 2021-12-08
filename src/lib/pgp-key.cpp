@@ -405,7 +405,8 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
                           pgp_key_t *                    primsec,
                           pgp_key_t *                    secsub,
                           uint32_t                       expiry,
-                          const pgp_password_provider_t &prov)
+                          const pgp_password_provider_t &prov,
+                          rng_t &                        rng)
 {
     if (!sub->is_subkey()) {
         RNP_LOG("Not a subkey");
@@ -434,18 +435,14 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         return false;
     }
 
-    /* update signature and re-sign */
-    pgp_signature_t newsig;
-    pgp_sig_id_t    oldsigid = subsig->sigid;
-    if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
-        return false;
-    }
-    if (!signature_calculate_binding(primsec->pkt(), secsub->pkt(), newsig, subsign)) {
-        RNP_LOG("failed to calculate signature");
-        return false;
-    }
-
     try {
+        /* update signature and re-sign */
+        pgp_signature_t newsig;
+        pgp_sig_id_t    oldsigid = subsig->sigid;
+        if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+            return false;
+        }
+        primsec->sign_subkey_binding(*secsub, newsig, rng);
         /* replace signature, first for the secret key since it may be replaced in public */
         if (secsub->has_sig(oldsigid)) {
             secsub->replace_sig(oldsigid, newsig);
@@ -2189,11 +2186,24 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rn
 }
 
 void
-pgp_key_t::gen_revocation(pgp_revoke_t &       revoke,
+pgp_key_t::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const
+{
+    rnp::Hash hash;
+    sig.fill_hashed_data();
+    if (is_primary()) {
+        signature_hash_binding(sig, pkt(), key, hash);
+    } else {
+        signature_hash_binding(sig, key, pkt(), hash);
+    }
+    signature_calculate(sig, material(), hash, rng);
+}
+
+void
+pgp_key_t::gen_revocation(const pgp_revoke_t & revoke,
                           pgp_hash_alg_t       hash,
                           const pgp_key_pkt_t &key,
                           pgp_signature_t &    sig,
-                          rng_t &              rng)
+                          rng_t &              rng) const
 {
     sign_init(sig, hash);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
@@ -2201,9 +2211,31 @@ pgp_key_t::gen_revocation(pgp_revoke_t &       revoke,
 
     if (is_primary_key_pkt(key.tag)) {
         sign_direct(key, sig, rng);
-    } else if (!signature_calculate_binding(this->pkt(), key, sig, false)) {
-        RNP_LOG("failed to calculate signature");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    } else {
+        sign_binding(key, sig, rng);
+    }
+}
+
+void
+pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
+                               pgp_signature_t &sig,
+                               rng_t &          rng,
+                               bool             subsign) const
+{
+    if (!is_primary()) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    sign_binding(sub.pkt(), sig, rng);
+    /* add primary key binding subpacket if requested */
+    if (subsign) {
+        pgp_signature_t embsig;
+        sub.sign_init(embsig, sig.halg);
+        embsig.set_type(PGP_SIG_PRIMARY);
+        sub.sign_binding(pkt(), embsig, rng);
+        if (!signature_set_embedded_sig(&sig, &embsig)) {
+            RNP_LOG("failed to add primary key binding signature");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        }
     }
 }
 

@@ -6652,7 +6652,8 @@ try {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
-    if (!pgp_subkey_set_expiration(pkey, prim_sec, skey, expiry, key->ffi->pass_provider)) {
+    if (!pgp_subkey_set_expiration(
+          pkey, prim_sec, skey, expiry, key->ffi->pass_provider, key->ffi->rng)) {
         return RNP_ERROR_GENERIC;
     }
     prim_sec->revalidate(*key->ffi->secring);
