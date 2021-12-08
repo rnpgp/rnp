@@ -232,32 +232,6 @@ transferable_key_add_userid(pgp_transferable_key_t &key, const char *userid)
 }
 
 bool
-signature_calculate_certification(const pgp_key_pkt_t &   key,
-                                  const pgp_userid_pkt_t &uid,
-                                  pgp_signature_t &       sig,
-                                  const pgp_key_pkt_t &   signer)
-{
-    rng_t rng = {};
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        RNP_LOG("RNG init failed");
-        return false;
-    }
-
-    bool res = false;
-    try {
-        rnp::Hash hash;
-        sig.fill_hashed_data();
-        signature_hash_certification(sig, key, uid, hash);
-        signature_calculate(sig, signer.material, hash, rng);
-        res = true;
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to calculate certification : %s", e.what());
-    }
-    rng_destroy(&rng);
-    return res;
-}
-
-bool
 signature_calculate_direct(const pgp_key_pkt_t &key,
                            pgp_signature_t &    sig,
                            const pgp_key_pkt_t &signer)
