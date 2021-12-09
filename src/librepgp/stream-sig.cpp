@@ -45,56 +45,6 @@
 
 #include <time.h>
 
-bool
-signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig)
-{
-    pgp_sig_subpkt_t *subpkt = NULL;
-    pgp_dest_t        memdst = {};
-    pgp_source_t      memsrc = {};
-    size_t            len = 0;
-    bool              res = false;
-
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        RNP_LOG("alloc failed");
-        return false;
-    }
-    try {
-        esig->write(memdst);
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to write signature: %s", e.what());
-        goto finish;
-    }
-    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
-        RNP_LOG("failed to init mem src");
-        goto finish;
-    }
-    if (!stream_read_pkt_len(&memsrc, &len) || (len > 0xffff)) {
-        RNP_LOG("wrong pkt len");
-        goto finish;
-    }
-
-    try {
-        subpkt = &sig->add_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, len, true);
-        subpkt->hashed = false;
-        if (!src_read_eq(&memsrc, subpkt->data, len)) {
-            RNP_LOG("failed to read back signature");
-            goto finish;
-        }
-        subpkt->fields.sig = new pgp_signature_t(*esig);
-        subpkt->parsed = true;
-        res = true;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-    }
-finish:
-    if (!res && subpkt) {
-        sig->remove_subpkt(subpkt);
-    }
-    src_close(&memsrc);
-    dst_close(&memdst, true);
-    return res;
-}
-
 void
 signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
 {
@@ -1327,6 +1277,30 @@ void
 pgp_signature_t::add_notation(const std::string &name, const std::string &value, bool critical)
 {
     add_notation(name, std::vector<uint8_t>(value.begin(), value.end()), true, critical);
+}
+
+void
+pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
+{
+    pgp_rawpacket_t esigpkt(esig);
+    pgp_source_t    memsrc = {};
+    if (init_mem_src(&memsrc, esigpkt.raw.data(), esigpkt.raw.size(), false)) {
+        RNP_LOG("failed to init mem src");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    size_t len = 0;
+    stream_read_pkt_len(&memsrc, &len);
+    src_close(&memsrc);
+    if (!len || (len > 0xffff) || (len >= esigpkt.raw.size())) {
+        RNP_LOG("wrong pkt len");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, len, true);
+    subpkt.hashed = false;
+    size_t skip = esigpkt.raw.size() - len;
+    memcpy(subpkt.data, esigpkt.raw.data() + skip, len);
+    subpkt.fields.sig = new pgp_signature_t(esig);
+    subpkt.parsed = true;
 }
 
 pgp_sig_subpkt_t &
