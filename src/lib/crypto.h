@@ -73,10 +73,10 @@ bool pgp_generate_seckey(const rnp_keygen_crypto_params_t &params,
  *  @param primary_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
+bool pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
                               bool                       merge_defaults,
-                              pgp_key_t *                primary_sec,
-                              pgp_key_t *                primary_pub,
+                              pgp_key_t &                primary_sec,
+                              pgp_key_t &                primary_pub,
                               pgp_key_store_format_t     secformat);
 
 /** generate a new subkey
@@ -94,13 +94,13 @@ bool pgp_generate_primary_key(rnp_keygen_primary_desc_t *desc,
  *         decrypt the primary key, may be NULL if primary key is unlocked
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
+bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
                          bool                           merge_defaults,
-                         pgp_key_t *                    primary_sec,
-                         pgp_key_t *                    primary_pub,
-                         pgp_key_t *                    subkey_sec,
-                         pgp_key_t *                    subkey_pub,
-                         const pgp_password_provider_t *password_provider,
+                         pgp_key_t &                    primary_sec,
+                         pgp_key_t &                    primary_pub,
+                         pgp_key_t &                    subkey_sec,
+                         pgp_key_t &                    subkey_pub,
+                         const pgp_password_provider_t &password_provider,
                          pgp_key_store_format_t         secformat);
 
 /** generate a new primary key and subkey
@@ -116,14 +116,14 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t *     desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rng_t *                    rng,
-                          rnp_keygen_primary_desc_t *primary_desc,
-                          rnp_keygen_subkey_desc_t * subkey_desc,
+bool pgp_generate_keypair(rng_t &                    rng,
+                          rnp_keygen_primary_desc_t &primary_desc,
+                          rnp_keygen_subkey_desc_t & subkey_desc,
                           bool                       merge_defaults,
-                          pgp_key_t *                primary_sec,
-                          pgp_key_t *                primary_pub,
-                          pgp_key_t *                subkey_sec,
-                          pgp_key_t *                subkey_pub,
+                          pgp_key_t &                primary_sec,
+                          pgp_key_t &                primary_pub,
+                          pgp_key_t &                subkey_sec,
+                          pgp_key_t &                subkey_pub,
                           pgp_key_store_format_t     secformat);
 
 /**
