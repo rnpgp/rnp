@@ -989,7 +989,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         memcpy(desc.cert.userid, "test", 5);
 
         // generate
-        assert_true(pgp_generate_primary_key(&desc, true, &sec, &pub, PGP_KEY_STORE_GPG));
+        assert_true(pgp_generate_primary_key(desc, true, sec, pub, PGP_KEY_STORE_GPG));
 
         // add to our rings
         assert_true(rnp_key_store_add_key(pubring, &pub));
@@ -1124,8 +1124,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         desc.crypto.rng = &global_rng;
 
         // generate
+        pgp_password_provider_t prov = {};
         assert_true(pgp_generate_subkey(
-          &desc, true, primary_sec, primary_pub, &sec, &pub, NULL, PGP_KEY_STORE_GPG));
+          desc, true, *primary_sec, *primary_pub, sec, pub, prov, PGP_KEY_STORE_GPG));
         assert_true(pub.valid());
         assert_true(pub.validated());
         assert_false(pub.expired());
