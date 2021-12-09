@@ -244,7 +244,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     /* generate raw unprotected keypair */
     pgp_key_t skey, pkey, ssub, psub;
     assert_true(pgp_generate_keypair(
-      &rng, &pri_desc, &sub_desc, true, &skey, &pkey, &ssub, &psub, PGP_KEY_STORE_GPG));
+      rng, pri_desc, sub_desc, true, skey, pkey, ssub, psub, PGP_KEY_STORE_GPG));
     assert_non_null(skey.pkt().sec_data);
     assert_non_null(ssub.pkt().sec_data);
     assert_null(pkey.pkt().sec_data);

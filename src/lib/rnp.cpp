@@ -4664,14 +4664,14 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!pgp_generate_keypair(&ffi->rng,
-                                  &keygen_desc.primary.keygen,
-                                  &keygen_desc.subkey.keygen,
+        if (!pgp_generate_keypair(ffi->rng,
+                                  keygen_desc.primary.keygen,
+                                  keygen_desc.subkey.keygen,
                                   true,
-                                  &primary_sec,
-                                  &primary_pub,
-                                  &sub_sec,
-                                  &sub_pub,
+                                  primary_sec,
+                                  primary_pub,
+                                  sub_sec,
+                                  sub_pub,
                                   ffi->secring->format)) {
             goto done;
         }
@@ -4716,10 +4716,10 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!pgp_generate_primary_key(&keygen_desc.primary.keygen,
+        if (!pgp_generate_primary_key(keygen_desc.primary.keygen,
                                       true,
-                                      &primary_sec,
-                                      &primary_pub,
+                                      primary_sec,
+                                      primary_pub,
                                       ffi->secring->format)) {
             goto done;
         }
@@ -4788,13 +4788,13 @@ try {
             goto done;
         }
         keygen_desc.subkey.keygen.crypto.rng = &ffi->rng;
-        if (!pgp_generate_subkey(&keygen_desc.subkey.keygen,
+        if (!pgp_generate_subkey(keygen_desc.subkey.keygen,
                                  true,
-                                 primary_sec,
-                                 primary_pub,
-                                 &sub_sec,
-                                 &sub_pub,
-                                 &ffi->pass_provider,
+                                 *primary_sec,
+                                 *primary_pub,
+                                 sub_sec,
+                                 sub_pub,
+                                 ffi->pass_provider,
                                  ffi->secring->format)) {
             goto done;
         }
@@ -5449,7 +5449,7 @@ try {
         keygen.cert = op->cert;
         op->cert.prefs = {}; /* generate call will free prefs */
 
-        if (!pgp_generate_primary_key(&keygen, true, &sec, &pub, op->ffi->secring->format)) {
+        if (!pgp_generate_primary_key(keygen, true, sec, pub, op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
     } else {
@@ -5457,13 +5457,13 @@ try {
         rnp_keygen_subkey_desc_t keygen = {};
         keygen.crypto = op->crypto;
         keygen.binding = op->binding;
-        if (!pgp_generate_subkey(&keygen,
+        if (!pgp_generate_subkey(keygen,
                                  true,
-                                 op->primary_sec,
-                                 op->primary_pub,
-                                 &sec,
-                                 &pub,
-                                 &op->ffi->pass_provider,
+                                 *op->primary_sec,
+                                 *op->primary_pub,
+                                 sec,
+                                 pub,
+                                 op->ffi->pass_provider,
                                  op->ffi->secring->format)) {
             return RNP_ERROR_KEY_GENERATION;
         }
