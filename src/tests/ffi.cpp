@@ -6803,7 +6803,15 @@ TEST_F(rnp_tests, test_ffi_op_set_hash)
     assert_rnp_failure(rnp_op_sign_set_hash(op, NULL));
     assert_rnp_failure(rnp_op_sign_set_hash(op, "Unknown"));
     assert_rnp_success(rnp_op_sign_set_hash(op, "SHA256"));
-    // execute the operation
+    // execute the operation with wrong password
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong"));
+    assert_int_equal(rnp_op_sign_execute(op), RNP_ERROR_BAD_PASSWORD);
+    assert_rnp_success(rnp_op_sign_destroy(op));
+    // execute the operation with valid password
+    assert_rnp_success(rnp_op_sign_create(&op, ffi, input, output));
+    // setup signature(s)
+    test_ffi_setup_signatures(&ffi, &op);
     assert_rnp_success(rnp_op_sign_execute(op));
     // make sure the output file was created
     assert_rnp_success(rnp_output_memory_get_buf(output, &signed_buf, &signed_len, true));

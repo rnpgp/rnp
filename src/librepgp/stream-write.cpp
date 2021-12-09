@@ -1103,57 +1103,35 @@ cleartext_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     return RNP_SUCCESS;
 }
 
-static rnp_result_t
-signed_fill_signature(pgp_dest_signed_param_t *param,
-                      pgp_signature_t *        sig,
-                      pgp_dest_signer_info_t * signer)
+static void
+signed_fill_signature(pgp_dest_signed_param_t &param,
+                      pgp_signature_t &        sig,
+                      pgp_dest_signer_info_t & signer)
 {
-    /* fill signature fields */
-    try {
-        sig->set_keyfp(signer->key->fp());
-        sig->set_keyid(signer->key->keyid());
-        sig->set_creation(signer->sigcreate ? signer->sigcreate : time(NULL));
-        sig->set_expiration(signer->sigexpire);
-        sig->fill_hashed_data();
-    } catch (const std::exception &e) {
-        RNP_LOG("failed to setup signature fields: %s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
+    /* fill signature fields, assuming sign_init was called on it */
+    if (signer.sigcreate) {
+        sig.set_creation(signer.sigcreate);
     }
+    sig.set_expiration(signer.sigexpire);
+    sig.fill_hashed_data();
 
-    rnp_result_t         ret = RNP_ERROR_GENERIC;
-    const pgp_key_pkt_t *deckey = NULL;
-    try {
-        const rnp::Hash *listh = param->hashes.get(sig->halg);
-        if (!listh) {
-            RNP_LOG("failed to obtain hash");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-        rnp::Hash hash;
-        listh->clone(hash);
-
-        /* decrypt the secret key if needed */
-        if (signer->key->encrypted()) {
-            pgp_password_ctx_t ctx = {.op = PGP_OP_SIGN, .key = signer->key};
-            deckey = pgp_decrypt_seckey(signer->key, param->password_provider, &ctx);
-            if (!deckey) {
-                RNP_LOG("wrong secret key password");
-                return RNP_ERROR_BAD_PASSWORD;
-            }
-        } else {
-            deckey = &signer->key->pkt();
-        }
-
-        /* calculate the signature */
-        signature_calculate(*sig, deckey->material, hash, *rnp_ctx_rng_handle(param->ctx));
-        ret = RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    const rnp::Hash *listh = param.hashes.get(sig.halg);
+    if (!listh) {
+        RNP_LOG("failed to obtain hash");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    /* destroy decrypted secret key */
-    if (signer->key->encrypted()) {
-        delete deckey;
+    rnp::Hash hash;
+    listh->clone(hash);
+
+    /* decrypt the secret key if needed */
+    rnp::KeyLocker(*signer.key);
+    if (signer.key->encrypted() &&
+        !signer.key->unlock(*param.password_provider, PGP_OP_SIGN)) {
+        RNP_LOG("wrong secret key password");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PASSWORD);
     }
-    return ret;
+    /* calculate the signature */
+    signature_calculate(sig, signer.key->material(), hash, *rnp_ctx_rng_handle(param.ctx));
 }
 
 static rnp_result_t
@@ -1161,27 +1139,24 @@ signed_write_signature(pgp_dest_signed_param_t *param,
                        pgp_dest_signer_info_t * signer,
                        pgp_dest_t *             writedst)
 {
-    pgp_signature_t sig;
-    sig.version = (pgp_version_t) 4;
-    if (signer->onepass.version) {
-        sig.halg = signer->onepass.halg;
-        sig.palg = signer->onepass.palg;
-        sig.set_type(signer->onepass.type);
-    } else {
-        sig.halg = pgp_hash_adjust_alg_to_key(signer->halg, &signer->key->pkt());
-        sig.palg = signer->key->alg();
-        sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
-    }
-
-    rnp_result_t ret = signed_fill_signature(param, &sig, signer);
-    if (ret) {
-        return ret;
-    }
     try {
+        pgp_signature_t sig;
+        if (signer->onepass.version) {
+            signer->key->sign_init(sig, signer->onepass.halg);
+            sig.palg = signer->onepass.palg;
+            sig.set_type(signer->onepass.type);
+        } else {
+            signer->key->sign_init(sig, signer->halg);
+            /* line below should be checked */
+            sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
+        }
+        signed_fill_signature(*param, sig, *signer);
         sig.write(*writedst);
         return writedst->werr;
+    } catch (const rnp::rnp_exception &e) {
+        return e.code();
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+        RNP_LOG("Failed to write signature: %s", e.what());
         return RNP_ERROR_WRITE;
     }
 }
