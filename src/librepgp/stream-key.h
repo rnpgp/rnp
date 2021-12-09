@@ -115,9 +115,6 @@ rnp_result_t transferable_subkey_from_key(pgp_transferable_subkey_t &dst,
 rnp_result_t transferable_subkey_merge(pgp_transferable_subkey_t &      dst,
                                        const pgp_transferable_subkey_t &src);
 
-pgp_transferable_userid_t *transferable_key_add_userid(pgp_transferable_key_t &key,
-                                                       const char *            userid);
-
 /* Process single primary key or subkey, skipping all key-related packets on error.
    If key.key.tag is zero, then (on success) result is subkey and it is stored in
    key.subkeys[0].
