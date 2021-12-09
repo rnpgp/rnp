@@ -210,27 +210,6 @@ transferable_key_merge(pgp_transferable_key_t &dst, const pgp_transferable_key_t
     return RNP_SUCCESS;
 }
 
-pgp_transferable_userid_t *
-transferable_key_add_userid(pgp_transferable_key_t &key, const char *userid)
-{
-    try {
-        key.userids.emplace_back();
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-
-    pgp_transferable_userid_t &uid = key.userids.back();
-    uid.uid.tag = PGP_PKT_USER_ID;
-    uid.uid.uid_len = strlen(userid);
-    if (!(uid.uid.uid = (uint8_t *) malloc(uid.uid.uid_len))) {
-        key.userids.pop_back();
-        return NULL;
-    }
-    memcpy(uid.uid.uid, userid, uid.uid.uid_len);
-    return &uid;
-}
-
 static bool
 skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 {
