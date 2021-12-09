@@ -444,73 +444,50 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
         return false;
     }
 
-    const pgp_key_pkt_t *primary_seckey = NULL;
-    pgp_key_pkt_t *      decrypted_primary_seckey = NULL;
-    bool                 ok = false;
-
-    // decrypt the primary seckey if needed (for signatures)
-    if (primary_sec.encrypted()) {
-        pgp_password_ctx_t ctx = {.op = PGP_OP_ADD_SUBKEY, .key = &primary_sec};
-        decrypted_primary_seckey = pgp_decrypt_seckey(&primary_sec, &password_provider, &ctx);
-        if (!decrypted_primary_seckey) {
+    try {
+        /* decrypt the primary seckey if needed (for signatures) */
+        rnp::KeyLocker primlock(primary_sec);
+        if (primary_sec.encrypted() &&
+            !primary_sec.unlock(password_provider, PGP_OP_ADD_SUBKEY)) {
+            RNP_LOG("Failed to unlock primary key.");
             return false;
         }
-        primary_seckey = decrypted_primary_seckey;
-    } else {
-        primary_seckey = &primary_sec.pkt();
-    }
+        /* generate the raw subkey */
+        pgp_key_pkt_t secpkt;
+        if (!pgp_generate_seckey(desc.crypto, secpkt, false)) {
+            return false;
+        }
+        pgp_key_pkt_t pubpkt = pgp_key_pkt_t(secpkt, true);
+        pgp_key_t     sec(secpkt, primary_sec);
+        pgp_key_t     pub(pubpkt, primary_pub);
+        /* add binding */
+        primary_sec.add_sub_binding(
+          sec, pub, desc.binding, desc.crypto.hash_alg, *desc.crypto.rng);
+        /* copy to the result */
+        subkey_pub = std::move(pub);
+        switch (secformat) {
+        case PGP_KEY_STORE_GPG:
+        case PGP_KEY_STORE_KBX:
+            subkey_sec = std::move(sec);
+            break;
+        case PGP_KEY_STORE_G10:
+            if (!load_generated_g10_key(&subkey_sec, &secpkt, &primary_sec, &subkey_pub)) {
+                RNP_LOG("failed to load generated key");
+                return false;
+            }
+            break;
+        default:
+            RNP_LOG("invalid format");
+            return false;
+        }
 
-    pgp_transferable_subkey_t tskeysec;
-    pgp_transferable_subkey_t tskeypub;
-    // generate the raw key pair
-    if (!pgp_generate_seckey(desc.crypto, tskeysec.subkey, false)) {
-        goto end;
-    }
-
-    if (!transferable_subkey_bind(
-          *primary_seckey, tskeysec, desc.crypto.hash_alg, desc.binding)) {
-        RNP_LOG("failed to add subkey binding signature");
-        goto end;
-    }
-
-    try {
-        subkey_pub = pgp_key_t(pgp_transferable_subkey_t(tskeysec, true), &primary_pub);
+        subkey_pub.mark_valid();
+        subkey_sec.mark_valid();
+        return subkey_pub.refresh_data(&primary_pub) && subkey_sec.refresh_data(&primary_sec);
     } catch (const std::exception &e) {
-        RNP_LOG("failed to copy public subkey part: %s", e.what());
-        goto end;
+        RNP_LOG("Subkey generation failed: %s", e.what());
+        return false;
     }
-
-    switch (secformat) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
-        try {
-            subkey_sec = pgp_key_t(tskeysec, &primary_sec);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            goto end;
-        }
-        break;
-    case PGP_KEY_STORE_G10:
-        if (!load_generated_g10_key(
-              &subkey_sec, &tskeysec.subkey, &primary_sec, &subkey_pub)) {
-            RNP_LOG("failed to load generated key");
-            goto end;
-        }
-        break;
-    default:
-        RNP_LOG("invalid format");
-        goto end;
-        break;
-    }
-
-    subkey_pub.mark_valid();
-    subkey_sec.mark_valid();
-    ok = subkey_pub.refresh_data(&primary_pub) && subkey_sec.refresh_data(&primary_sec);
-end:
-    if (decrypted_primary_seckey) {
-        delete decrypted_primary_seckey;
-    }
-    return ok;
 }
 
 static void
