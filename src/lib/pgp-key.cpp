@@ -819,6 +819,11 @@ pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
     format = PGP_KEY_STORE_GPG;
 }
 
+pgp_key_t::pgp_key_t(const pgp_key_pkt_t &pkt, pgp_key_t &primary) : pgp_key_t(pkt)
+{
+    primary.link_subkey_fp(*this);
+}
+
 pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
 {
     /* Do some checks for g10 keys */
@@ -2297,6 +2302,39 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
     pubkey->uids_.emplace_back(uid);
     pubkey->add_sig(sig, pubkey->uid_count() - 1);
     pubkey->refresh_data();
+}
+
+void
+pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
+                           pgp_key_t &                       subpub,
+                           const rnp_selfsig_binding_info_t &binding,
+                           pgp_hash_alg_t                    hash,
+                           rng_t &                           rng)
+{
+    if (!is_primary()) {
+        RNP_LOG("must be called on primary key");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    /* populate signature */
+    pgp_signature_t sig;
+    sign_init(sig, hash);
+    sig.set_type(PGP_SIG_SUBKEY);
+    if (binding.key_expiration) {
+        sig.set_key_expiration(binding.key_expiration);
+    }
+    if (binding.key_flags) {
+        sig.set_key_flags(binding.key_flags);
+    }
+    /* calculate binding */
+    pgp_key_flags_t realkf = (pgp_key_flags_t) binding.key_flags;
+    if (!realkf) {
+        realkf = pgp_pk_alg_capabilities(subsec.alg());
+    }
+    sign_subkey_binding(subsec, sig, rng, realkf & PGP_KF_SIGN);
+    /* add to the secret and public key */
+    subsec.add_sig(sig);
+    subpub.add_sig(sig);
 }
 
 bool
