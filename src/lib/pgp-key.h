@@ -178,6 +178,7 @@ struct pgp_key_t {
 
     pgp_key_t() = default;
     pgp_key_t(const pgp_key_pkt_t &pkt);
+    pgp_key_t(const pgp_key_pkt_t &pkt, pgp_key_t &primary);
     pgp_key_t(const pgp_key_t &src, bool pubonly = false);
     pgp_key_t(const pgp_transferable_key_t &src);
     pgp_key_t(const pgp_transferable_subkey_t &src, pgp_key_t *primary);
@@ -475,6 +476,23 @@ struct pgp_key_t {
                       pgp_hash_alg_t           hash,
                       rng_t &                  rng,
                       pgp_key_t *              pubkey = nullptr);
+
+    /**
+     * @brief Calculate and add subkey binding signature.
+     *        Note: must be called on the unlocked secret primary key. Calculated signature is
+     *        added to the subkey.
+     *
+     * @param subsec secret subkey.
+     * @param subpub subkey's public part (so signature is added to both).
+     * @param binding information about subkey to put to the signature.
+     * @param hash hash algorithm to use (may be adjusted according to key and subkey
+     *             algorithms)
+     */
+    void add_sub_binding(pgp_key_t &                       subsec,
+                         pgp_key_t &                       subpub,
+                         const rnp_selfsig_binding_info_t &binding,
+                         pgp_hash_alg_t                    hash,
+                         rng_t &                           rng);
 
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data();
