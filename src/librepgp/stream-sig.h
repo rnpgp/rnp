@@ -312,6 +312,12 @@ typedef struct pgp_signature_t {
                       bool               critical = false);
 
     /**
+     * @brief Set the embedded signature.
+     * @param esig populated and calculated embedded signature.
+     */
+    void set_embedded_sig(const pgp_signature_t &esig);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
@@ -390,8 +396,6 @@ typedef struct pgp_signature_info_t {
     bool             signer_valid{};  /* assume that signing key is valid */
     bool             ignore_expiry{}; /* ignore signer's key expiration time */
 } pgp_signature_info_t;
-
-bool signature_set_embedded_sig(pgp_signature_t *sig, pgp_signature_t *esig);
 
 /**
  * @brief Hash key packet. Used in signatures and v4 fingerprint calculation.

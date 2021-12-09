@@ -2237,10 +2237,7 @@ pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
         sub.sign_init(embsig, sig.halg);
         embsig.set_type(PGP_SIG_PRIMARY);
         sub.sign_binding(pkt(), embsig, rng);
-        if (!signature_set_embedded_sig(&sig, &embsig)) {
-            RNP_LOG("failed to add primary key binding signature");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-        }
+        sig.set_embedded_sig(embsig);
     }
 }
 
