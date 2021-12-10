@@ -40,7 +40,16 @@ example_key_provider(rnp_ffi_t   ffi,
     rnp_input_t input = NULL;
     char        filename[32] = {0};
     if (strcmp(identifier_type, "keyid")) {
-        return;
+        if (strcmp(identifier_type, "fingerprint")) {
+            fprintf(stdout, "Unsupported key search: %s = %s\n", identifier_type, identifier);
+            return;
+        }
+        /* if we search by fp then keyid is last 16 chars */
+        if (strlen(identifier) < 40) {
+            fprintf(stdout, "Invalid fingerprint: %s\n", identifier);
+            return;
+        }
+        identifier += 24;
     }
 
     snprintf(filename, sizeof(filename), "key-%s-%s.asc", identifier, secret ? "sec" : "pub");

@@ -384,6 +384,14 @@ struct pgp_key_t {
      * @param sig signature to validate.
      */
     void validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const;
+
+    /**
+     * @brief Validate signature, assuming that 'this' is a signing key.
+     *
+     * @param sinfo populated signature info. Validation results will be stored here.
+     * @param hash hash, feed with all signed data except signature trailer.
+     */
+    void validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const;
     void validate_self_signatures();
     void validate_self_signatures(pgp_key_t &primary);
     void validate(rnp_key_store_t &keyring);
