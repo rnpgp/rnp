@@ -767,32 +767,58 @@ add_hash_for_sig(pgp_source_signed_param_t *param, pgp_sig_type_t stype, pgp_has
 }
 
 static const rnp::Hash *
-get_hash_for_sig(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
+get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 {
     /* Cleartext always uses param->hashes instead of param->txt_hashes */
-    if (!param->cleartext && (sinfo->sig->type() == PGP_SIG_TEXT)) {
-        return param->txt_hashes.get(sinfo->sig->halg);
+    if (!param.cleartext && (sinfo.sig->type() == PGP_SIG_TEXT)) {
+        return param.txt_hashes.get(sinfo.sig->halg);
     }
-    return param->hashes.get(sinfo->sig->halg);
+    return param.hashes.get(sinfo.sig->halg);
 }
 
 static void
-signed_validate_signature(pgp_source_signed_param_t *param, pgp_signature_info_t *sinfo)
+signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 {
+    /* Find signing key */
+    pgp_key_request_ctx_t keyctx = {
+      .op = PGP_OP_VERIFY, .secret = false, .search = {.type = PGP_KEY_SEARCH_FINGERPRINT}};
+
+    /* Get signer's fp or keyid */
+    if (sinfo.sig->has_keyfp()) {
+        keyctx.search.by.fingerprint = sinfo.sig->keyfp();
+    } else if (sinfo.sig->has_keyid()) {
+        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
+        keyctx.search.by.keyid = sinfo.sig->keyid();
+    } else {
+        RNP_LOG("cannot get signer's key fp or id from signature.");
+        sinfo.unknown = true;
+        return;
+    }
+    /* Get the public key */
+    pgp_key_t *key = pgp_request_key(param.handler->key_provider, &keyctx);
+    if (!key) {
+        /* fallback to secret key */
+        keyctx.secret = true;
+        if (!(key = pgp_request_key(param.handler->key_provider, &keyctx))) {
+            RNP_LOG("signer's key not found");
+            sinfo.no_signer = true;
+            return;
+        }
+    }
+    sinfo.signer = key;
     /* Get the hash context and clone it. */
     const rnp::Hash *hash = get_hash_for_sig(param, sinfo);
     if (!hash) {
-        RNP_LOG("faile to get hash context.");
+        RNP_LOG("failed to get hash context.");
         return;
     }
     try {
         rnp::Hash shash;
         hash->clone(shash);
-        /* fill the signature info */
-        signature_check(*sinfo, shash);
+        key->validate_sig(sinfo, shash);
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        sinfo->valid = false;
+        RNP_LOG("Signature validation failed: %s", e.what());
+        sinfo.valid = false;
     }
 }
 
@@ -1017,8 +1043,6 @@ static rnp_result_t
 signed_src_finish(pgp_source_t *src)
 {
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-    pgp_key_request_ctx_t      keyctx;
-    pgp_key_t *                key = NULL;
     rnp_result_t               ret = RNP_ERROR_GENERIC;
 
     if (param->cleartext) {
@@ -1027,7 +1051,7 @@ signed_src_finish(pgp_source_t *src)
         ret = signed_read_signatures(src);
     }
 
-    if (ret != RNP_SUCCESS) {
+    if (ret) {
         return ret;
     }
 
@@ -1036,38 +1060,11 @@ signed_src_finish(pgp_source_t *src)
     }
 
     /* validating signatures */
-    keyctx.op = PGP_OP_VERIFY;
-    keyctx.search.type = PGP_KEY_SEARCH_KEYID;
-
     for (auto &sinfo : param->siginfos) {
         if (!sinfo.sig) {
             continue;
         }
-
-        /* we need public key, however may fallback to secret later on */
-        keyctx.secret = false;
-
-        /* Get the key id */
-        if (!sinfo.sig->has_keyid()) {
-            RNP_LOG("cannot get signer's key id from signature");
-            sinfo.unknown = true;
-            continue;
-        }
-        keyctx.search.by.keyid = sinfo.sig->keyid();
-
-        /* Get the public key */
-        if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
-            // fallback to secret key
-            keyctx.secret = true;
-            if (!(key = pgp_request_key(param->handler->key_provider, &keyctx))) {
-                RNP_LOG("signer's key not found");
-                sinfo.no_signer = true;
-                continue;
-            }
-        }
-        sinfo.signer = key;
-        /* validate signature */
-        signed_validate_signature(param, &sinfo);
+        signed_validate_signature(*param, sinfo);
     }
 
     /* checking the validation results */

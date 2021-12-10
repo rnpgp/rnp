@@ -1965,6 +1965,66 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
 }
 
 void
+pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const
+{
+    sinfo.no_signer = false;
+    sinfo.valid = false;
+    sinfo.expired = false;
+
+    /* Validate signature itself */
+    if (sinfo.signer_valid || valid_at(sinfo.sig->creation())) {
+        sinfo.valid = !signature_validate(*sinfo.sig, material(), hash);
+    } else {
+        sinfo.valid = false;
+        RNP_LOG("invalid or untrusted key");
+    }
+
+    /* Check signature's expiration time */
+    uint32_t now = time(NULL);
+    uint32_t create = sinfo.sig->creation();
+    uint32_t expiry = sinfo.sig->expiration();
+    if (create > now) {
+        /* signature created later then now */
+        RNP_LOG("signature created %d seconds in future", (int) (create - now));
+        sinfo.expired = true;
+    }
+    if (create && expiry && (create + expiry < now)) {
+        /* signature expired */
+        RNP_LOG("signature expired");
+        sinfo.expired = true;
+    }
+
+    /* check key creation time vs signature creation */
+    if (creation() > create) {
+        RNP_LOG("key is newer than signature");
+        sinfo.valid = false;
+    }
+
+    /* check whether key was not expired when sig created */
+    if (!sinfo.ignore_expiry && expiration() && (creation() + expiration() < create)) {
+        RNP_LOG("signature made after key expiration");
+        sinfo.valid = false;
+    }
+
+    /* Check signer's fingerprint */
+    if (sinfo.sig->has_keyfp() && (sinfo.sig->keyfp() != fp())) {
+        RNP_LOG("issuer fingerprint doesn't match signer's one");
+        sinfo.valid = false;
+    }
+
+    /* Check for unknown critical notations */
+    for (auto &subpkt : sinfo.sig->subpkts) {
+        if (!subpkt.critical || (subpkt.type != PGP_SIG_SUBPKT_NOTATION_DATA)) {
+            continue;
+        }
+        std::string name(subpkt.fields.notation.name,
+                         subpkt.fields.notation.name + subpkt.fields.notation.nlen);
+        RNP_LOG("unknown critical notation: %s", name.c_str());
+        sinfo.valid = false;
+    }
+}
+
+void
 pgp_key_t::validate_self_signatures()
 {
     for (auto &sigid : sigs_) {
