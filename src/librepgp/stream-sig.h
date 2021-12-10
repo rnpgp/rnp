@@ -433,10 +433,6 @@ void signature_hash_direct(const pgp_signature_t &sig,
  */
 rnp_result_t signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash);
 
-rnp_result_t signature_check_certification(pgp_signature_info_t &  sinfo,
-                                           const pgp_key_pkt_t &   key,
-                                           const pgp_userid_pkt_t &uid);
-
 rnp_result_t signature_check_binding(pgp_signature_info_t &sinfo,
                                      const pgp_key_pkt_t & key,
                                      const pgp_key_t &     subkey);

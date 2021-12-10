@@ -1929,7 +1929,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
             RNP_LOG("Userid not found");
             return;
         }
-        signature_check_certification(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
+        validate_cert(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
         break;
     }
     case PGP_SIG_SUBKEY:
@@ -2022,6 +2022,16 @@ pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const
         RNP_LOG("unknown critical notation: %s", name.c_str());
         sinfo.valid = false;
     }
+}
+
+void
+pgp_key_t::validate_cert(pgp_signature_info_t &  sinfo,
+                         const pgp_key_pkt_t &   key,
+                         const pgp_userid_pkt_t &uid) const
+{
+    rnp::Hash hash;
+    signature_hash_certification(*sinfo.sig, key, uid, hash);
+    validate_sig(sinfo, hash);
 }
 
 void
