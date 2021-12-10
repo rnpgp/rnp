@@ -1044,14 +1044,15 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                                   rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
                 /* high level interface */
                 sinfo.sig = &sig;
-                sinfo.signer = pkey;
-                assert_rnp_success(signature_check_certification(sinfo, keyref.key, uid.uid));
+                pkey->validate_cert(sinfo, keyref.key, uid.uid);
+                assert_true(sinfo.valid);
                 /* low level check */
                 signature_hash_certification(sig, keyref.key, uid.uid, hash);
                 assert_rnp_success(signature_validate(sig, pkey->material(), hash));
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
-                assert_rnp_failure(signature_check_certification(sinfo, keyref.key, uid.uid));
+                pkey->validate_cert(sinfo, keyref.key, uid.uid);
+                assert_false(sinfo.valid);
                 signature_hash_certification(sig, keyref.key, uid.uid, hash);
                 assert_rnp_failure(signature_validate(sig, pkey->material(), hash));
             }

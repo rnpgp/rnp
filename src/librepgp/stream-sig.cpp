@@ -201,21 +201,6 @@ signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash)
 }
 
 rnp_result_t
-signature_check_certification(pgp_signature_info_t &  sinfo,
-                              const pgp_key_pkt_t &   key,
-                              const pgp_userid_pkt_t &uid)
-{
-    try {
-        rnp::Hash hash;
-        signature_hash_certification(*sinfo.sig, key, uid, hash);
-        return signature_check(sinfo, hash);
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to check certification: %s", e.what());
-        return RNP_ERROR_BAD_STATE;
-    }
-}
-
-rnp_result_t
 signature_check_binding(pgp_signature_info_t &sinfo,
                         const pgp_key_pkt_t & key,
                         const pgp_key_t &     subkey)
