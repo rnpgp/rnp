@@ -1023,9 +1023,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // validate the userid self-sig
 
         psiginfo.sig = psig;
-        psiginfo.signer = &pub;
-        assert_rnp_success(
-          signature_check_certification(psiginfo, pub.pkt(), pub.get_uid(0).pkt));
+        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt);
+        assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
@@ -1042,19 +1041,18 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(subpkt->fields.create <= time(NULL));
 
         ssiginfo.sig = ssig;
-        ssiginfo.signer = &sec;
-        assert_rnp_success(
-          signature_check_certification(ssiginfo, sec.pkt(), sec.get_uid(0).pkt));
+        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt);
+        assert_true(ssiginfo.valid);
         assert_true(ssig->keyfp() == sec.fp());
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails
-        assert_rnp_failure(
-          signature_check_certification(psiginfo, pub.pkt(), pub.get_uid(0).pkt));
-        assert_rnp_failure(
-          signature_check_certification(ssiginfo, sec.pkt(), sec.get_uid(0).pkt));
+        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt);
+        assert_false(psiginfo.valid);
+        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt);
+        assert_false(ssiginfo.valid);
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
@@ -1065,8 +1063,10 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         uid.uid_len = 4;
         memcpy(uid.uid, "fake", 4);
 
-        assert_rnp_failure(signature_check_certification(psiginfo, pub.pkt(), uid));
-        assert_rnp_failure(signature_check_certification(ssiginfo, sec.pkt(), uid));
+        pub.validate_cert(psiginfo, pub.pkt(), uid);
+        assert_false(psiginfo.valid);
+        sec.validate_cert(ssiginfo, sec.pkt(), uid);
+        assert_false(ssiginfo.valid);
 
         // validate via an alternative method
         // primary_pub + pubring

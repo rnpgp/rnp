@@ -392,6 +392,18 @@ struct pgp_key_t {
      * @param hash hash, feed with all signed data except signature trailer.
      */
     void validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const;
+
+    /**
+     * @brief Validate certification.
+     *
+     * @param sinfo populated signature info. Validation results will be stored here.
+     * @param key key packet to which certification belongs.
+     * @param uid userid which is bound by certification to the key packet.
+     */
+    void validate_cert(pgp_signature_info_t &  sinfo,
+                       const pgp_key_pkt_t &   key,
+                       const pgp_userid_pkt_t &uid) const;
+
     void validate_self_signatures();
     void validate_self_signatures(pgp_key_t &primary);
     void validate(rnp_key_store_t &keyring);
