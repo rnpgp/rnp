@@ -404,6 +404,14 @@ struct pgp_key_t {
                        const pgp_key_pkt_t &   key,
                        const pgp_userid_pkt_t &uid) const;
 
+    /**
+     * @brief Validate subkey binding.
+     * 
+     * @param sinfo populated signature info. Validation results will be stored here.
+     * @param subkey subkey packet.
+     */
+    void validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey) const;
+
     void validate_self_signatures();
     void validate_self_signatures(pgp_key_t &primary);
     void validate(rnp_key_store_t &keyring);

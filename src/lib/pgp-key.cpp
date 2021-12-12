@@ -1937,7 +1937,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
             RNP_LOG("Invalid subkey binding's signer.");
             return;
         }
-        signature_check_binding(sinfo, pkt(), key);
+        validate_binding(sinfo, key);
         break;
     case PGP_SIG_DIRECT:
     case PGP_SIG_REV_KEY:
@@ -2032,6 +2032,46 @@ pgp_key_t::validate_cert(pgp_signature_info_t &  sinfo,
     rnp::Hash hash;
     signature_hash_certification(*sinfo.sig, key, uid, hash);
     validate_sig(sinfo, hash);
+}
+
+void
+pgp_key_t::validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey) const
+{
+    rnp::Hash hash;
+    signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt(), hash);
+    validate_sig(sinfo, hash);
+    if (!sinfo.valid || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
+        return;
+    }
+
+    /* check primary key binding signature if any */
+    sinfo.valid = false;
+    pgp_sig_subpkt_t *subpkt = sinfo.sig->get_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, false);
+    if (!subpkt) {
+        RNP_LOG("error! no primary key binding signature");
+        return;
+    }
+    if (!subpkt->parsed) {
+        RNP_LOG("invalid embedded signature subpacket");
+        return;
+    }
+    if (subpkt->fields.sig->type() != PGP_SIG_PRIMARY) {
+        RNP_LOG("invalid primary key binding signature");
+        return;
+    }
+    if (subpkt->fields.sig->version < PGP_V4) {
+        RNP_LOG("invalid primary key binding signature version");
+        return;
+    }
+
+    signature_hash_binding(*subpkt->fields.sig, pkt(), subkey.pkt(), hash);
+    pgp_signature_info_t bindinfo = {};
+    bindinfo.sig = subpkt->fields.sig;
+    bindinfo.signer = &subkey;
+    bindinfo.signer_valid = true;
+    bindinfo.ignore_expiry = true;
+    subkey.validate_sig(bindinfo, hash);
+    sinfo.valid = bindinfo.valid && !bindinfo.expired;
 }
 
 void

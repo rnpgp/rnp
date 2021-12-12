@@ -1069,10 +1069,12 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_rnp_success(pgp_keyid(subid, subkey.subkey));
             pgp_key_t *psub = rnp_key_store_get_key_by_id(pubring, subid, NULL);
             assert_non_null(psub);
-            assert_rnp_success(signature_check_binding(sinfo, keyref.key, *psub));
+            pkey->validate_binding(sinfo, *psub);
+            assert_true(sinfo.valid);
             /* low level check */
             signature_hash_binding(sig, keyref.key, subkey.subkey, hash);
-            assert_rnp_success(signature_validate(sig, pkey->material(), hash));
+            pkey->validate_sig(sinfo, hash);
+            assert_true(sinfo.valid);
         }
     }
 

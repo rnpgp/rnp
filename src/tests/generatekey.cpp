@@ -1150,7 +1150,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // validate the binding sig
         psiginfo.sig = psig;
         psiginfo.signer = primary_pub;
-        assert_rnp_success(signature_check_binding(psiginfo, primary_pub->pkt(), pub));
+        primary_pub->validate_binding(psiginfo, pub);
+        assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
         subpkt = psig->get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
@@ -1168,15 +1169,18 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         ssiginfo.sig = ssig;
         ssiginfo.signer = primary_pub;
-        assert_rnp_success(signature_check_binding(ssiginfo, primary_pub->pkt(), sec));
+        primary_pub->validate_binding(ssiginfo, sec);
+        assert_true(ssiginfo.valid);
         assert_true(ssig->keyfp() == primary_sec->fp());
 
         // modify a hashed portion of the sig packets
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;
         // ensure validation fails
-        assert_rnp_failure(signature_check_binding(psiginfo, primary_pub->pkt(), pub));
-        assert_rnp_failure(signature_check_binding(ssiginfo, primary_pub->pkt(), sec));
+        primary_pub->validate_binding(psiginfo, pub);
+        assert_false(psiginfo.valid);
+        primary_pub->validate_binding(ssiginfo, sec);
+        assert_false(ssiginfo.valid);
         // restore the original data
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;
