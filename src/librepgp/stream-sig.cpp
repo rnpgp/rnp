@@ -201,61 +201,6 @@ signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash)
 }
 
 rnp_result_t
-signature_check_binding(pgp_signature_info_t &sinfo,
-                        const pgp_key_pkt_t & key,
-                        const pgp_key_t &     subkey)
-{
-    try {
-        rnp::Hash hash;
-        signature_hash_binding(*sinfo.sig, key, subkey.pkt(), hash);
-        rnp_result_t res = signature_check(sinfo, hash);
-        if (res || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
-            return res;
-        }
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to check subkey binding.");
-        return RNP_ERROR_BAD_STATE;
-    }
-
-    /* check primary key binding signature if any */
-    rnp_result_t res = RNP_ERROR_SIGNATURE_INVALID;
-    sinfo.valid = false;
-    pgp_sig_subpkt_t *subpkt = sinfo.sig->get_subpkt(PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE, false);
-    if (!subpkt) {
-        RNP_LOG("error! no primary key binding signature");
-        return res;
-    }
-    if (!subpkt->parsed) {
-        RNP_LOG("invalid embedded signature subpacket");
-        return res;
-    }
-    if (subpkt->fields.sig->type() != PGP_SIG_PRIMARY) {
-        RNP_LOG("invalid primary key binding signature");
-        return res;
-    }
-    if (subpkt->fields.sig->version < PGP_V4) {
-        RNP_LOG("invalid primary key binding signature version");
-        return res;
-    }
-
-    try {
-        rnp::Hash hash;
-        signature_hash_binding(*subpkt->fields.sig, key, subkey.pkt(), hash);
-        pgp_signature_info_t bindinfo = {};
-        bindinfo.sig = subpkt->fields.sig;
-        bindinfo.signer = &subkey;
-        bindinfo.signer_valid = true;
-        bindinfo.ignore_expiry = true;
-        res = signature_check(bindinfo, hash);
-        sinfo.valid = !res;
-        return res;
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to check primary binding.");
-        return RNP_ERROR_BAD_STATE;
-    }
-}
-
-rnp_result_t
 signature_check_direct(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &key)
 {
     try {
