@@ -1948,7 +1948,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
             RNP_LOG("Invalid subkey revocation's signer.");
             return;
         }
-        signature_check_subkey_revocation(sinfo, pkt(), key.pkt());
+        validate_sub_rev(sinfo, key.pkt());
         break;
     default:
         RNP_LOG("Unsupported key signature type: %d", (int) stype);
@@ -2072,6 +2072,14 @@ pgp_key_t::validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey
     bindinfo.ignore_expiry = true;
     subkey.validate_sig(bindinfo, hash);
     sinfo.valid = bindinfo.valid && !bindinfo.expired;
+}
+
+void
+pgp_key_t::validate_sub_rev(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &subkey) const
+{
+    rnp::Hash hash;
+    signature_hash_binding(*sinfo.sig, pkt(), subkey, hash);
+    validate_sig(sinfo, hash);
 }
 
 void
