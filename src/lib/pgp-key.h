@@ -420,6 +420,13 @@ struct pgp_key_t {
      */
     void validate_sub_rev(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &subkey) const;
 
+    /**
+     * @brief Validate direct-key signature.
+     *
+     * @param sinfo populated signature info. Validation results will be stored here.
+     */
+    void validate_direct(pgp_signature_info_t &sinfo) const;
+
     void validate_self_signatures();
     void validate_self_signatures(pgp_key_t &primary);
     void validate(rnp_key_store_t &keyring);
