@@ -108,7 +108,6 @@ struct option options[] = {
   {"coredumps", no_argument, NULL, OPT_COREDUMPS},
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
-  {"format", required_argument, NULL, OPT_FORMAT},
   {"with-sigs", no_argument, NULL, OPT_WITH_SIGS},
   {"hash", required_argument, NULL, OPT_HASH_ALG},
   {"home", required_argument, NULL, OPT_HOMEDIR},
@@ -562,13 +561,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         }
         cfg.set_str(CFG_IO_RESS, arg);
         return true;
-    case OPT_FORMAT:
-        if (!arg) {
-            ERR_MSG("No key format argument provided");
-            return false;
-        }
-        cfg.set_str(CFG_KEYFORMAT, arg);
-        return true;
     case OPT_CIPHER: {
         bool               supported = false;
         const std::string &alg = cli_rnp_alg_to_ffi(arg);
@@ -653,7 +645,6 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
     rnpcfg.load_defaults();
     rnpcfg.set_int(CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
     rnpcfg.set_str(CFG_IO_RESS, "<stdout>");
-    rnpcfg.set_str(CFG_KEYFORMAT, "human");
     rnpcfg.copy(cfg);
 
     if (!cli_cfg_set_keystore_info(rnpcfg)) {
