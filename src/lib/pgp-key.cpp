@@ -1941,7 +1941,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
         break;
     case PGP_SIG_DIRECT:
     case PGP_SIG_REV_KEY:
-        signature_check_direct(sinfo, key.pkt());
+        validate_direct(sinfo);
         break;
     case PGP_SIG_REV_SUBKEY:
         if (!is_signer(sig)) {
@@ -2079,6 +2079,14 @@ pgp_key_t::validate_sub_rev(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &su
 {
     rnp::Hash hash;
     signature_hash_binding(*sinfo.sig, pkt(), subkey, hash);
+    validate_sig(sinfo, hash);
+}
+
+void
+pgp_key_t::validate_direct(pgp_signature_info_t &sinfo) const
+{
+    rnp::Hash hash;
+    signature_hash_direct(*sinfo.sig, pkt(), hash);
     validate_sig(sinfo, hash);
 }
 
