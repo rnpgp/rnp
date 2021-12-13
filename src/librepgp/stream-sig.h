@@ -422,20 +422,6 @@ void signature_hash_direct(const pgp_signature_t &sig,
                            rnp::Hash &            hash);
 
 /**
- * @brief Check signature, including the expiration time, key validity and so on.
- *
- * @param sinfo populated signature info structure. Method will set flags valid, no_signer,
- *              expired.
- * @param hash populated hash
- * @return RNP_SUCCESS if all checks were passed, RNP_ERROR_SIGNATURE_INVALID for invalid sig,
- *         RNP_ERROR_SIGNATURE_EXPIRED for expired signature. Other error code means problems
- *         during the signature validation (out of memory, wrong parameters, etc).
- */
-rnp_result_t signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash);
-
-rnp_result_t signature_check_direct(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &key);
-
-/**
  * @brief Parse stream with signatures to the signatures list.
  *        Can handle binary or armored stream with signatures, including stream with multiple
  * armored signatures.
