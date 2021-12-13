@@ -122,7 +122,6 @@ enum optdefs {
     OPT_HASH_ALG,
     OPT_OUTPUT,
     OPT_RESULTS,
-    OPT_VERBOSE,
     OPT_COREDUMPS,
     OPT_PASSWDFD,
     OPT_PASSWD,
@@ -182,7 +181,6 @@ static struct option options[] = {
   {"detach", no_argument, NULL, OPT_DETACHED},
   {"detached", no_argument, NULL, OPT_DETACHED},
   {"hash", required_argument, NULL, OPT_HASH_ALG},
-  {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"password", required_argument, NULL, OPT_PASSWD},
   {"passwords", required_argument, NULL, OPT_PASSWORDS},
@@ -390,9 +388,6 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_DETACHED:
         cfg.set_bool(CFG_DETACHED, true);
-        return true;
-    case OPT_VERBOSE:
-        cfg.set_int(CFG_VERBOSE, cfg.get_int(CFG_VERBOSE) + 1);
         return true;
     case OPT_HOMEDIR:
         if (!arg) {
