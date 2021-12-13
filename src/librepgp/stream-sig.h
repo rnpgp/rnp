@@ -435,10 +435,6 @@ rnp_result_t signature_check(pgp_signature_info_t &sinfo, rnp::Hash &hash);
 
 rnp_result_t signature_check_direct(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &key);
 
-rnp_result_t signature_check_subkey_revocation(pgp_signature_info_t &sinfo,
-                                               const pgp_key_pkt_t & key,
-                                               const pgp_key_pkt_t & subkey);
-
 /**
  * @brief Parse stream with signatures to the signatures list.
  *        Can handle binary or armored stream with signatures, including stream with multiple

@@ -214,21 +214,6 @@ signature_check_direct(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &key)
 }
 
 rnp_result_t
-signature_check_subkey_revocation(pgp_signature_info_t &sinfo,
-                                  const pgp_key_pkt_t & key,
-                                  const pgp_key_pkt_t & subkey)
-{
-    try {
-        rnp::Hash hash;
-        signature_hash_binding(*sinfo.sig, key, subkey, hash);
-        return signature_check(sinfo, hash);
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to check direct sig: %s", e.what());
-        return RNP_ERROR_BAD_STATE;
-    }
-}
-
-rnp_result_t
 process_pgp_signatures(pgp_source_t *src, pgp_signature_list_t &sigs)
 {
     bool          armored = false;
