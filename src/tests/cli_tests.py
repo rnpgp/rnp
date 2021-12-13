@@ -975,6 +975,38 @@ class Keystore(unittest.TestCase):
     def test_generate_default_rsa_key(self):
         self._rnpkey_generate_rsa()
 
+    def test_rnpkeys_keygen_invalid_parameters(self):
+        # Pass invalid numbits
+        ret, _, err = run_proc(RNPK, ['--numbits', 'wrong', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', 'wrong', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong bits value: wrong.*')
+        # Too small
+        ret, _, err = run_proc(RNPK, ['--numbits', '768', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', '768', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong bits value: 768.*')
+        # Wrong hash algorithm
+        ret, _, err = run_proc(RNPK, ['--hash', 'BAD_HASH', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', 'bad_hash', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported hash algorithm: BAD_HASH.*')
+        # Wrong S2K iterations
+        ret, _, err = run_proc(RNPK, ['--s2k-iterations', 'WRONG_ITER', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', 'wrong_iter', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong iterations value: WRONG_ITER.*')
+        # Wrong S2K msec
+        ret, _, err = run_proc(RNPK, ['--s2k-msec', 'WRONG_MSEC', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', 'wrong_msec', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Invalid s2k msec value: WRONG_MSEC.*')
+        # Wrong cipher
+        ret, _, err = run_proc(RNPK, ['--cipher', 'WRONG_AES', '--homedir', RNPDIR, '--password', 'password', 
+                                      '--userid', 'wrong_aes', '--generate-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported symmetric algorithm: WRONG_AES.*')
+
     def test_generate_multiple_rsa_key__check_if_available(self):
         '''
         Generate multiple RSA keys and check if they are all available
@@ -985,9 +1017,9 @@ class Keystore(unittest.TestCase):
             # generate the next key
             pipe = pswd_pipe(PASSWORD)
             userid = str(i) + '@rnp-multiple'
-            ret, _, _ = run_proc(RNPK, ['--numbits', '2048', '--homedir', RNPDIR,
-                                            '--pass-fd', str(pipe), '--userid', userid,
-                                            '--generate-key'])
+            ret, _, _ = run_proc(RNPK, ['--numbits', '2048', '--homedir', RNPDIR, '--s2k-msec', '100',
+                                        '--cipher', 'AES-128', '--pass-fd', str(pipe), '--userid', userid,
+                                        '--generate-key'])
             os.close(pipe)
             self.assertEqual(ret, 0, KEY_GEN_FAILED)
             # list keys using the rnpkeys, checking whether it reports correct key
@@ -995,7 +1027,7 @@ class Keystore(unittest.TestCase):
             ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
             self.assertEqual(ret, 0, KEY_LIST_FAILED)
             match = re.match(RE_MULTIPLE_KEY_LIST, out)
-            self.assertTrue(match,KEY_LIST_WRONG)
+            self.assertTrue(match, KEY_LIST_WRONG)
             self.assertEqual(match.group(1), str((i + 1) * 2), 'wrong key count')
 
         # Checking the 5 keys output
@@ -1346,6 +1378,10 @@ class Keystore(unittest.TestCase):
         # Import Alice's public key
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
         self.assertEqual(ret, 0)
+        # Attempt to export no key
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*No key specified\.$')
         # Attempt to export wrong key
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'boris'])
         self.assertNotEqual(ret, 0)
@@ -1353,10 +1389,17 @@ class Keystore(unittest.TestCase):
         # Export it to the stdout
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice'])
         self.assertEqual(ret, 0)
-        self.assertTrue(re.match(PUB_KEY, out))
+        self.assertRegex(out, PUB_KEY)
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', '-'])
         self.assertEqual(ret, 0)
         self.assertRegex(out, PUB_KEY)
+        # Export key via --userid parameter
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', '--userid', 'alice'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, PUB_KEY)
+        # Export with empty --userid parameter
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', '--userid'])
+        self.assertNotEqual(ret, 0)
         # Export it to the file
         kpub, ksec, kren = reg_workfiles('alice-key', '.pub.asc', '.sec.asc', '.pub.ren-asc')
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub])
@@ -1566,6 +1609,9 @@ class Keystore(unittest.TestCase):
         # Import public keyring
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
         self.assertEqual(ret, 0)
+        # Remove without parameters
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key'])
+        self.assertNotEqual(ret, 0)
         # Remove all imported public keys with subkeys
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
         self.assertEqual(ret, 0)
@@ -1710,19 +1756,27 @@ class Misc(unittest.TestCase):
         armor_types = [('msg', 'MESSAGE'), ('pubkey', 'PUBLIC KEY BLOCK'),
                        ('seckey', 'PRIVATE KEY BLOCK'), ('sign', 'SIGNATURE')]
 
+        # Wrong armor type
+        ret, _, err = run_proc(RNP, ['--enarmor', 'wrong', src_beg, '--output', dst_beg])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong enarmor argument: wrong.*$')
+
         for data_type, header in armor_types:
             random_text(src_beg, 1000)
             prefix = '-----BEGIN PGP ' + header + '-----'
             suffix = '-----END PGP ' + header + '-----'
 
-            run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
+            ret, _, _ = run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
+            self.assertEqual(ret, 0)
             txt = file_text(dst_beg).strip('\r\n')
 
             self.assertTrue(txt.startswith(prefix), 'wrong armor header')
             self.assertTrue(txt.endswith(suffix), 'wrong armor trailer')
 
-            run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
-            run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
+            ret, _, _ = run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
+            self.assertEqual(ret, 0)
+            ret, _, _ = run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
+            self.assertEqual(ret, 0)
 
             compare_files(dst_beg, dst_fin, "RNP armor/dearmor test failed")
             compare_files(src_beg, dst_mid, "RNP armor/dearmor test failed")
@@ -1796,6 +1850,9 @@ class Misc(unittest.TestCase):
         compare_file(path + 'getkey_00000000', out, 'list key 00000000 failed')
         _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', 'zzzzzzzz'])
         compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
+
+        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '--userid', '2fcadf05ffa501bb'])
+        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
 
     def test_rnpkeys_g10_list_order(self):
         ret, out, _ = run_proc(RNPK, ['--homedir', data_path(SECRING_G10), '--list-keys'])
@@ -2397,18 +2454,24 @@ class Misc(unittest.TestCase):
         OPENSSL_BACKEND_VERSION = r'(?s)^.*' \
         'Backend: OpenSSL.*' \
         'Backend version: ([a-zA-z\.0-9]+).*$'
-        ret, out, err = run_proc(RNP, ['--version'])
+        # Run without parameters and make sure it matches
+        ret, out, _ = run_proc(RNP, [])
+        self.assertNotEqual(ret, 0)
+        match = re.match(BOTAN_BACKEND_VERSION, out) or re.match(OPENSSL_BACKEND_VERSION, out)
+        self.assertTrue(match)
+        # Run with version parameters
+        ret, out, _ = run_proc(RNP, ['--version'])
         self.assertEqual(ret, 0)
-        match = re.match(BOTAN_BACKEND_VERSION, out);
+        match = re.match(BOTAN_BACKEND_VERSION, out)
         backend_prog = 'botan'
         if not match:
-            match = re.match(OPENSSL_BACKEND_VERSION, out);
+            match = re.match(OPENSSL_BACKEND_VERSION, out)
             backend_prog = 'openssl'
         self.assertTrue(match)
         # check that botan or openssl executable binary exists in $PATH
         backen_prog_ext = shutil.which(backend_prog)
         if backen_prog_ext is not None:
-            ret, out, err = run_proc(backen_prog_ext, ['version'])
+            ret, out, _ = run_proc(backen_prog_ext, ['version'])
             self.assertEqual(ret, 0)
             self.assertIn(match.group(1), out)
 
