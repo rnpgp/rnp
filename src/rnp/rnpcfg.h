@@ -50,7 +50,6 @@
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
 #define CFG_SIGNERS "signers"            /* list of signers */
-#define CFG_VERBOSE "verbose"            /* verbose logging */
 #define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
 #define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */
 #define CFG_PASSFD "pass-fd"      /* password file descriptor */
