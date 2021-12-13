@@ -156,6 +156,40 @@ TEST_F(rnp_tests, test_ffi_key_primary_uid_conflict)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_key_expired_certification_and_direct_sig)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    /* load key with 2 uids and direct-key signature:
+     * - direct-key sig has 0 key expiration time but expires in 30 seconds
+     * - first uid is not primary, but key expiration is 60 seconds
+     * - second uid is marked as primary, doesn't expire key, but certification expires in 60
+     *   seconds */
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/key-expired-cert-direct.pgp"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "primary-uid-expired-cert", &key));
+    assert_null(key);
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "expired-certifications", &key));
+    assert_non_null(key);
+    assert_int_equal(get_key_uids(key), 2);
+    assert_int_equal(get_key_expiry(key), 60);
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    assert_non_null(sig);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_SIGNATURE_EXPIRED);
+    rnp_signature_handle_destroy(sig);
+    assert_true(check_key_valid(key, false));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_uid_primary(key, 0, false));
+    assert_true(check_uid_valid(key, 1, false));
+    assert_true(check_uid_primary(key, 1, false));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_25519_tweaked_bits)
 {
     rnp_ffi_t ffi = NULL;
