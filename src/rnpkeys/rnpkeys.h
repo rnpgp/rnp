@@ -33,7 +33,6 @@ typedef enum {
     OPT_HOMEDIR,
     OPT_NUMBITS,
     OPT_HASH_ALG,
-    OPT_VERBOSE,
     OPT_COREDUMPS,
     OPT_PASSWDFD,
     OPT_PASSWD,

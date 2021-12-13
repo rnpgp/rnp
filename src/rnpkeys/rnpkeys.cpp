@@ -116,7 +116,6 @@ struct option options[] = {
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
   {"expiration", required_argument, NULL, OPT_EXPIRATION},
-  {"verbose", no_argument, NULL, OPT_VERBOSE},
   {"pass-fd", required_argument, NULL, OPT_PASSWDFD},
   {"password", required_argument, NULL, OPT_PASSWD},
   {"results", required_argument, NULL, OPT_RESULTS},
@@ -471,9 +470,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             return false;
         }
         cfg.add_str(CFG_USERID, arg);
-        return true;
-    case OPT_VERBOSE:
-        cfg.set_int(CFG_VERBOSE, cfg.get_int(CFG_VERBOSE) + 1);
         return true;
     case OPT_HOMEDIR:
         if (!arg) {
