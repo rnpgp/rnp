@@ -1900,7 +1900,7 @@ pgp_key_t::is_binding(const pgp_subsig_t &sig) const
 }
 
 void
-pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
+pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
 {
     sig.validity.reset();
 
@@ -1913,46 +1913,50 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
     }
 
     pgp_sig_type_t stype = sig.sig.type();
-    switch (stype) {
-    case PGP_SIG_BINARY:
-    case PGP_SIG_TEXT:
-    case PGP_SIG_STANDALONE:
-    case PGP_SIG_PRIMARY:
-        RNP_LOG("Invalid key signature type: %d", (int) stype);
-        return;
-    case PGP_CERT_GENERIC:
-    case PGP_CERT_PERSONA:
-    case PGP_CERT_CASUAL:
-    case PGP_CERT_POSITIVE:
-    case PGP_SIG_REV_CERT: {
-        if (sig.uid >= key.uid_count()) {
-            RNP_LOG("Userid not found");
+    try {
+        switch (stype) {
+        case PGP_SIG_BINARY:
+        case PGP_SIG_TEXT:
+        case PGP_SIG_STANDALONE:
+        case PGP_SIG_PRIMARY:
+            RNP_LOG("Invalid key signature type: %d", (int) stype);
+            return;
+        case PGP_CERT_GENERIC:
+        case PGP_CERT_PERSONA:
+        case PGP_CERT_CASUAL:
+        case PGP_CERT_POSITIVE:
+        case PGP_SIG_REV_CERT: {
+            if (sig.uid >= key.uid_count()) {
+                RNP_LOG("Userid not found");
+                return;
+            }
+            validate_cert(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
+            break;
+        }
+        case PGP_SIG_SUBKEY:
+            if (!is_signer(sig)) {
+                RNP_LOG("Invalid subkey binding's signer.");
+                return;
+            }
+            validate_binding(sinfo, key);
+            break;
+        case PGP_SIG_DIRECT:
+        case PGP_SIG_REV_KEY:
+            validate_direct(sinfo);
+            break;
+        case PGP_SIG_REV_SUBKEY:
+            if (!is_signer(sig)) {
+                RNP_LOG("Invalid subkey revocation's signer.");
+                return;
+            }
+            validate_sub_rev(sinfo, key.pkt());
+            break;
+        default:
+            RNP_LOG("Unsupported key signature type: %d", (int) stype);
             return;
         }
-        validate_cert(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
-        break;
-    }
-    case PGP_SIG_SUBKEY:
-        if (!is_signer(sig)) {
-            RNP_LOG("Invalid subkey binding's signer.");
-            return;
-        }
-        validate_binding(sinfo, key);
-        break;
-    case PGP_SIG_DIRECT:
-    case PGP_SIG_REV_KEY:
-        validate_direct(sinfo);
-        break;
-    case PGP_SIG_REV_SUBKEY:
-        if (!is_signer(sig)) {
-            RNP_LOG("Invalid subkey revocation's signer.");
-            return;
-        }
-        validate_sub_rev(sinfo, key.pkt());
-        break;
-    default:
-        RNP_LOG("Unsupported key signature type: %d", (int) stype);
-        return;
+    } catch (const std::exception &e) {
+        RNP_LOG("Key signature validation failed: %s", e.what());
     }
 
     sig.validity.validated = true;
@@ -1965,7 +1969,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const
 }
 
 void
-pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const
+pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noexcept
 {
     sinfo.no_signer = false;
     sinfo.valid = false;
