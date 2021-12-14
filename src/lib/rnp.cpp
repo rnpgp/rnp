@@ -2482,7 +2482,7 @@ rnp_result_t
 rnp_op_encrypt_set_cipher(rnp_op_encrypt_t op, const char *cipher)
 try {
     // checks
-    if (!op) {
+    if (!op || !cipher) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!str_to_cipher(cipher, &op->rnpctx.ealg)) {
@@ -2497,7 +2497,7 @@ rnp_result_t
 rnp_op_encrypt_set_aead(rnp_op_encrypt_t op, const char *alg)
 try {
     // checks
-    if (!op) {
+    if (!op || !alg) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!str_to_aead_alg(alg, &op->rnpctx.aalg)) {
@@ -2890,7 +2890,8 @@ static bool
 rnp_verify_dest_provider(pgp_parse_handler_t *handler,
                          pgp_dest_t **        dst,
                          bool *               closedst,
-                         const char *         filename)
+                         const char *         filename,
+                         uint32_t             mtime)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     if (!op->output) {
@@ -2899,6 +2900,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     *dst = &(op->output->dst);
     *closedst = false;
     op->filename = filename ? strdup(filename) : NULL;
+    op->file_mtime = mtime;
     return true;
 }
 
@@ -3114,6 +3116,9 @@ FFI_GUARD
 rnp_result_t
 rnp_op_verify_get_file_info(rnp_op_verify_t op, char **filename, uint32_t *mtime)
 try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
     if (mtime) {
         *mtime = op->file_mtime;
     }
@@ -3450,7 +3455,8 @@ static bool
 rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
                           pgp_dest_t **        dst,
                           bool *               closedst,
-                          const char *         filename)
+                          const char *         filename,
+                          uint32_t             mtime)
 {
     *dst = &((rnp_output_t) handler->param)->dst;
     *closedst = false;
