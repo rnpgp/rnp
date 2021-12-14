@@ -1762,9 +1762,7 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
         ret = RNP_ERROR_READ;
         goto finish;
     }
-
-    param->hdr.timestamp = ((uint32_t) tstbuf[0] << 24) | ((uint32_t) tstbuf[1] << 16) |
-                           ((uint32_t) tstbuf[2] << 8) | (uint32_t) tstbuf[3];
+    param->hdr.timestamp = read_uint32(tstbuf);
 
     if (!param->pkt.indeterminate && !param->pkt.partial) {
         /* format filename-length filename timestamp */
@@ -2519,7 +2517,6 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     pgp_dest_t *         outdest = NULL;
     bool                 closeout = true;
     uint8_t *            readbuf = NULL;
-    char *               filename = NULL;
 
     ctx.handler = *handler;
     /* Building readers sequence. Checking whether it is binary data */
@@ -2582,12 +2579,17 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         }
         /* file processing case */
         decsrc = &ctx.sources.back();
+        char *   filename = NULL;
+        uint32_t mtime = 0;
+
         if (ctx.literal_src) {
-            filename = ((pgp_source_literal_param_t *) ctx.literal_src)->hdr.fname;
+            auto *param = static_cast<pgp_source_literal_param_t *>(ctx.literal_src->param);
+            filename = param->hdr.fname;
+            mtime = param->hdr.timestamp;
         }
 
         if (!handler->dest_provider ||
-            !handler->dest_provider(handler, &outdest, &closeout, filename)) {
+            !handler->dest_provider(handler, &outdest, &closeout, filename, mtime)) {
             res = RNP_ERROR_WRITE;
             goto finish;
         }

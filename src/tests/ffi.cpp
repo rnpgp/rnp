@@ -58,6 +58,17 @@ TEST_F(rnp_tests, test_ffi_homedir)
         rnp_buffer_destroy(homedir);
     }
 
+    // check NULL params
+    assert_rnp_failure(
+      rnp_detect_homedir_info(NULL, &pub_format, &pub_path, &sec_format, &sec_path));
+    assert_rnp_failure(
+      rnp_detect_homedir_info("data/keyrings/1", NULL, &pub_path, &sec_format, &sec_path));
+    assert_rnp_failure(
+      rnp_detect_homedir_info("data/keyrings/1", &pub_format, NULL, &sec_format, &sec_path));
+    assert_rnp_failure(
+      rnp_detect_homedir_info("data/keyrings/1", &pub_format, &pub_path, NULL, &sec_path));
+    assert_rnp_failure(
+      rnp_detect_homedir_info("data/keyrings/1", &pub_format, &pub_path, &sec_format, NULL));
     // detect the formats+paths
     assert_rnp_success(rnp_detect_homedir_info(
       "data/keyrings/1", &pub_format, &pub_path, &sec_format, &sec_path));
@@ -182,6 +193,16 @@ TEST_F(rnp_tests, test_ffi_detect_key_format)
     char * data = NULL;
     size_t data_size = 0;
     char * format = NULL;
+
+    // Wrong parameters
+    data = NULL;
+    format = NULL;
+    load_test_data("keyrings/1/pubring.gpg", &data, &data_size);
+    assert_rnp_failure(rnp_detect_key_format(NULL, data_size, &format));
+    assert_rnp_failure(rnp_detect_key_format((uint8_t *) data, 0, &format));
+    assert_rnp_failure(rnp_detect_key_format((uint8_t *) data, data_size, NULL));
+    free(data);
+    free(format);
 
     // GPG
     data = NULL;
@@ -327,6 +348,12 @@ TEST_F(rnp_tests, test_ffi_load_keys)
     // load
     assert_rnp_success(rnp_input_from_memory(&input, buf, buf_len, true));
     assert_non_null(input);
+    // try wrong parameters
+    assert_rnp_failure(rnp_load_keys(NULL, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_failure(rnp_load_keys(ffi, NULL, input, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_failure(rnp_load_keys(ffi, "GPG", NULL, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_failure(rnp_load_keys(ffi, "WRONG", input, RNP_LOAD_SAVE_SECRET_KEYS));
+    assert_rnp_failure(rnp_load_keys(ffi, "WRONG", input, 0));
     assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_SECRET_KEYS));
     rnp_input_destroy(input);
     input = NULL;
@@ -428,6 +455,11 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     pub_path = rnp_compose_path(temp_dir, "pubring.gpg", NULL);
     assert_false(rnp_file_exists(pub_path));
     assert_rnp_success(rnp_output_to_path(&output, pub_path));
+    assert_rnp_failure(rnp_save_keys(NULL, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_failure(rnp_save_keys(ffi, NULL, output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_failure(rnp_save_keys(ffi, "GPG", NULL, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_failure(rnp_save_keys(ffi, "WRONG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    assert_rnp_failure(rnp_save_keys(ffi, "GPG", output, 0));
     assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
@@ -4508,6 +4540,10 @@ TEST_F(rnp_tests, test_ffi_version)
     assert_true(rnp_version_for(1, 0, 1) > rnp_version_for(1, 0, 0));
     assert_true(rnp_version_for(1, 1, 0) > rnp_version_for(1, 0, 1023));
     assert_true(rnp_version_for(2, 0, 0) > rnp_version_for(1, 1023, 1023));
+
+    // commit timestamp
+    const uint64_t timestamp = rnp_version_commit_timestamp();
+    assert_true(!timestamp || (timestamp >= 1639439116));
 }
 
 TEST_F(rnp_tests, test_ffi_backend_version)
@@ -6180,6 +6216,9 @@ TEST_F(rnp_tests, test_ffi_import_keys_check_pktlen)
 TEST_F(rnp_tests, test_ffi_calculate_iterations)
 {
     size_t iterations = 0;
+    assert_rnp_failure(rnp_calculate_iterations(NULL, 500, &iterations));
+    assert_rnp_failure(rnp_calculate_iterations("SHA256", 500, NULL));
+    assert_rnp_failure(rnp_calculate_iterations("WRONG", 500, &iterations));
     assert_rnp_success(rnp_calculate_iterations("SHA256", 500, &iterations));
     assert_true(iterations > 65536);
 }
@@ -6231,6 +6270,10 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_true(check_features(RNP_FEATURE_SYMM_ALG, features, 10 + has_sm2 + has_tf));
     rnp_buffer_destroy(features);
     bool supported = false;
+    assert_rnp_failure(rnp_supports_feature(NULL, "IDEA", &supported));
+    assert_rnp_failure(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, NULL, &supported));
+    assert_rnp_failure(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", NULL));
+    assert_rnp_failure(rnp_supports_feature("WRONG", "IDEA", &supported));
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TRIPLEDES", &supported));
@@ -6890,16 +6933,31 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     // create encrypt operation
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     // setup AEAD params
+    assert_rnp_failure(rnp_op_encrypt_set_aead(NULL, "OCB"));
+    assert_rnp_failure(rnp_op_encrypt_set_aead(op, NULL));
+    assert_rnp_failure(rnp_op_encrypt_set_aead(op, "WRONG"));
     if (!aead_ocb_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_set_aead(op, "OCB"));
     } else {
         assert_rnp_success(rnp_op_encrypt_set_aead(op, "OCB"));
     }
+    assert_rnp_failure(rnp_op_encrypt_set_aead_bits(NULL, 10));
     assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, -1));
     assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, 60));
     assert_rnp_success(rnp_op_encrypt_set_aead_bits(op, 10));
     // add password (using all defaults)
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
+    // setup compression
+    assert_rnp_failure(rnp_op_encrypt_set_compression(NULL, "ZLIB", 6));
+    assert_rnp_failure(rnp_op_encrypt_set_compression(op, NULL, 6));
+    assert_rnp_failure(rnp_op_encrypt_set_compression(op, "WRONG", 6));
+    assert_rnp_success(rnp_op_encrypt_set_compression(op, "ZLIB", 6));
+    // set filename and mtime
+    assert_rnp_failure(rnp_op_encrypt_set_file_name(NULL, "filename"));
+    assert_rnp_success(rnp_op_encrypt_set_file_name(op, NULL));
+    assert_rnp_success(rnp_op_encrypt_set_file_name(op, "filename"));
+    assert_rnp_failure(rnp_op_encrypt_set_file_mtime(NULL, 1000));
+    assert_rnp_success(rnp_op_encrypt_set_file_mtime(op, 1000));
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
     // make sure the output file was created
@@ -7689,6 +7747,21 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     rnp_op_verify_t verify = NULL;
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_success(rnp_op_verify_execute(verify));
+    /* check filename and mtime */
+    char *   filename = NULL;
+    uint32_t mtime = 0;
+    assert_rnp_failure(rnp_op_verify_get_file_info(NULL, &filename, &mtime));
+    assert_rnp_success(rnp_op_verify_get_file_info(verify, &filename, &mtime));
+    assert_string_equal(filename, "message.txt");
+    assert_int_equal(mtime, 1571991574);
+    rnp_buffer_destroy(filename);
+    filename = NULL;
+    assert_rnp_success(rnp_op_verify_get_file_info(verify, &filename, NULL));
+    assert_string_equal(filename, "message.txt");
+    rnp_buffer_destroy(filename);
+    mtime = 0;
+    assert_rnp_success(rnp_op_verify_get_file_info(verify, NULL, &mtime));
+    assert_int_equal(mtime, 1571991574);
     /* rnp_op_verify_get_recipient_count */
     assert_rnp_failure(rnp_op_verify_get_recipient_count(verify, NULL));
     size_t count = 255;

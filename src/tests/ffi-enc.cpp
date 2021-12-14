@@ -166,10 +166,16 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
     assert_non_null(output);
     // create encrypt operation
+    assert_rnp_failure(rnp_op_encrypt_create(NULL, ffi, input, output));
+    assert_rnp_failure(rnp_op_encrypt_create(&op, NULL, input, output));
+    assert_rnp_failure(rnp_op_encrypt_create(&op, ffi, NULL, output));
+    assert_rnp_failure(rnp_op_encrypt_create(&op, ffi, input, NULL));
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     // add password (using all defaults)
     assert_rnp_failure(rnp_op_encrypt_add_password(NULL, "pass1", NULL, 0, NULL));
     assert_rnp_failure(rnp_op_encrypt_add_password(op, "", NULL, 0, NULL));
+    assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", "WRONG", 0, NULL));
+    assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, "WRONG"));
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));
     // add password
     if (!sm2_enabled() && !twofish_enabled()) {
@@ -189,6 +195,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
         assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
     }
     // set the data encryption cipher
+    assert_rnp_failure(rnp_op_encrypt_set_cipher(NULL, "CAST5"));
+    assert_rnp_failure(rnp_op_encrypt_set_cipher(op, NULL));
+    assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "WRONG"));
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
@@ -383,6 +392,8 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     // add recipients
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_rnp_failure(rnp_op_encrypt_add_recipient(NULL, key));
+    assert_rnp_failure(rnp_op_encrypt_add_recipient(op, NULL));
     assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
     rnp_key_handle_destroy(key);
     key = NULL;
@@ -622,12 +633,20 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     // set the data encryption cipher
     assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
     // enable armoring
+    assert_rnp_failure(rnp_op_encrypt_set_armor(NULL, true));
     assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
     // add signature
+    assert_rnp_failure(rnp_op_encrypt_set_hash(NULL, "SHA256"));
+    assert_rnp_failure(rnp_op_encrypt_set_hash(op, NULL));
+    assert_rnp_failure(rnp_op_encrypt_set_hash(op, "WRONG"));
     assert_rnp_success(rnp_op_encrypt_set_hash(op, "SHA1"));
+    assert_rnp_failure(rnp_op_encrypt_set_creation_time(NULL, 0));
     assert_rnp_success(rnp_op_encrypt_set_creation_time(op, 0));
+    assert_rnp_failure(rnp_op_encrypt_set_expiration_time(NULL, 0));
     assert_rnp_success(rnp_op_encrypt_set_expiration_time(op, 0));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid1", &key));
+    assert_rnp_failure(rnp_op_encrypt_add_signature(NULL, key, NULL));
+    assert_rnp_failure(rnp_op_encrypt_add_signature(op, NULL, NULL));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
     rnp_key_handle_destroy(key);
     key = NULL;
