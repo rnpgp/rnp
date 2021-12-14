@@ -48,23 +48,18 @@
 void
 signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
 {
-    try {
-        uint8_t hdr[3] = {0x99, 0x00, 0x00};
-        if (key.hashed_data) {
-            write_uint16(hdr + 1, key.hashed_len);
-            hash.add(hdr, 3);
-            hash.add(key.hashed_data, key.hashed_len);
-            return;
-        }
-
-        /* call self recursively if hashed data is not filled, to overcome const restriction */
-        pgp_key_pkt_t keycp(key, true);
-        keycp.fill_hashed_data();
-        signature_hash_key(keycp, hash);
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to hash key: %s", e.what());
-        throw;
+    uint8_t hdr[3] = {0x99, 0x00, 0x00};
+    if (key.hashed_data) {
+        write_uint16(hdr + 1, key.hashed_len);
+        hash.add(hdr, 3);
+        hash.add(key.hashed_data, key.hashed_len);
+        return;
     }
+
+    /* call self recursively if hashed data is not filled, to overcome const restriction */
+    pgp_key_pkt_t keycp(key, true);
+    keycp.fill_hashed_data();
+    signature_hash_key(keycp, hash);
 }
 
 void
