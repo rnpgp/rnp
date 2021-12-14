@@ -40,7 +40,8 @@ typedef struct pgp_signature_info_t pgp_signature_info_t;
 typedef bool                        pgp_destination_func_t(pgp_parse_handler_t *handler,
                                                            pgp_dest_t **        dst,
                                                            bool *               closedst,
-                                                           const char *         filename);
+                                                           const char *         filename,
+                                                           uint32_t             mtime);
 typedef bool pgp_source_func_t(pgp_parse_handler_t *handler, pgp_source_t *src);
 typedef void pgp_signatures_func_t(const std::vector<pgp_signature_info_t> &sigs, void *param);
 
