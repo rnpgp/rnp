@@ -383,7 +383,7 @@ struct pgp_key_t {
      * @param key key or subkey to which signature belongs.
      * @param sig signature to validate.
      */
-    void validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const;
+    void validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept;
 
     /**
      * @brief Validate signature, assuming that 'this' is a signing key.
@@ -391,7 +391,7 @@ struct pgp_key_t {
      * @param sinfo populated signature info. Validation results will be stored here.
      * @param hash hash, feed with all signed data except signature trailer.
      */
-    void validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const;
+    void validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noexcept;
 
     /**
      * @brief Validate certification.
