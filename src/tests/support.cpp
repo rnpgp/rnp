@@ -50,7 +50,7 @@
 #include <ftw.h>
 #endif
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 #ifdef _WIN32
 int

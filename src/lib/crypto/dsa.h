@@ -59,7 +59,7 @@ typedef struct pgp_dsa_signature_t {
  *
  * @return RNP_SUCCESS if key is valid or error code otherwise
  */
-rnp_result_t dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret);
+rnp_result_t dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret);
 
 /*
  * @brief   Performs DSA signing
@@ -74,7 +74,7 @@ rnp_result_t dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
  *          RNP_ERROR_BAD_PARAMETERS wrong input provided
  *          RNP_ERROR_SIGNING_FAILED internal error
  */
-rnp_result_t dsa_sign(rng_t *              rng,
+rnp_result_t dsa_sign(rnp::RNG *           rng,
                       pgp_dsa_signature_t *sig,
                       const uint8_t *      hash,
                       size_t               hash_len,
@@ -112,7 +112,7 @@ rnp_result_t dsa_verify(const pgp_dsa_signature_t *sig,
  *          RNP_ERROR_GENERIC internal error
  *          RNP_ERROR_SIGNATURE_INVALID signature is invalid
  */
-rnp_result_t dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits);
+rnp_result_t dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits);
 
 /*
  * @brief   Returns minimally sized hash which will work

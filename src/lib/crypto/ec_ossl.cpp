@@ -44,7 +44,7 @@ ec_is_raw_key(const pgp_curve_t curve)
 }
 
 rnp_result_t
-x25519_generate(rng_t *rng, pgp_ec_key_t *key)
+x25519_generate(rnp::RNG *rng, pgp_ec_key_t *key)
 {
     return ec_generate(rng, key, PGP_PKA_ECDH, PGP_CURVE_25519);
 }
@@ -108,7 +108,7 @@ ec_write_raw_seckey(EVP_PKEY *pkey, pgp_ec_key_t *key)
 }
 
 rnp_result_t
-ec_generate(rng_t *                rng,
+ec_generate(rnp::RNG *             rng,
             pgp_ec_key_t *         key,
             const pgp_pubkey_alg_t alg_id,
             const pgp_curve_t      curve)

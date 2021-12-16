@@ -37,7 +37,7 @@
 #include <openssl/ec.h>
 
 rnp_result_t
-eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     /* Not implemented in the OpenSSL, so just do basic size checks. */
     if ((mpi_bytes(&key->p) != 33) || (key->p.mpi[0] != 0x40)) {
@@ -50,7 +50,7 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
 }
 
 rnp_result_t
-eddsa_generate(rng_t *rng, pgp_ec_key_t *key)
+eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
 {
     rnp_result_t ret = ec_generate(rng, key, PGP_PKA_EDDSA, PGP_CURVE_ED25519);
     if (!ret) {
@@ -107,7 +107,7 @@ done:
 }
 
 rnp_result_t
-eddsa_sign(rng_t *             rng,
+eddsa_sign(rnp::RNG *          rng,
            pgp_ec_signature_t *sig,
            const uint8_t *     hash,
            size_t              hash_len,

@@ -112,7 +112,7 @@ typedef struct pgp_crypt_t {
 
     pgp_symm_alg_t alg;
     size_t         blocksize;
-    rng_t *        rng;
+    rnp::RNG *     rng;
 } pgp_crypt_t;
 
 unsigned pgp_block_size(pgp_symm_alg_t);

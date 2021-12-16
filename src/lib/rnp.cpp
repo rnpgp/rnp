@@ -496,12 +496,25 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 
 #define FFI_GUARD FFI_GUARD_FP((stderr))
 
+rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt)
+    : rng(rnp::RNG::Type::DRBG)
+{
+    errs = stderr;
+    pubring = new rnp_key_store_t(pub_fmt, "");
+    secring = new rnp_key_store_t(sec_fmt, "");
+    getkeycb = NULL;
+    getkeycb_ctx = NULL;
+    getpasscb = NULL;
+    getpasscb_ctx = NULL;
+    key_provider.callback = ffi_key_provider;
+    key_provider.userdata = this;
+    pass_provider.callback = rnp_password_cb_bounce;
+    pass_provider.userdata = this;
+}
+
 rnp_result_t
 rnp_ffi_create(rnp_ffi_t *ffi, const char *pub_format, const char *sec_format)
 try {
-    struct rnp_ffi_st *ob = NULL;
-    rnp_result_t       ret = RNP_ERROR_GENERIC;
-
     // checks
     if (!ffi || !pub_format || !sec_format) {
         return RNP_ERROR_NULL_POINTER;
@@ -514,38 +527,9 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    ob = (rnp_ffi_st *) calloc(1, sizeof(struct rnp_ffi_st));
-    if (!ob) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    // default to all stderr
-    ob->errs = stderr;
-    try {
-        ob->pubring = new rnp_key_store_t(pub_ks_format, "");
-        ob->secring = new rnp_key_store_t(sec_ks_format, "");
-    } catch (const std::exception &e) {
-        FFI_LOG(ob, "%s", e.what());
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-
-    ob->key_provider.callback = ffi_key_provider;
-    ob->key_provider.userdata = ob;
-    ob->pass_provider.callback = rnp_password_cb_bounce;
-    ob->pass_provider.userdata = ob;
-    if (!rng_init(&ob->rng, RNG_DRBG)) {
-        ret = RNP_ERROR_RNG;
-        goto done;
-    }
-
-    ret = RNP_SUCCESS;
-done:
-    if (ret) {
-        rnp_ffi_destroy(ob);
-        ob = NULL;
-    }
+    struct rnp_ffi_st *ob = new rnp_ffi_st(pub_ks_format, sec_ks_format);
     *ffi = ob;
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -564,15 +548,18 @@ close_io_file(FILE **fp)
     *fp = NULL;
 }
 
+rnp_ffi_st::~rnp_ffi_st()
+{
+    close_io_file(&errs);
+    delete pubring;
+    delete secring;
+}
+
 rnp_result_t
 rnp_ffi_destroy(rnp_ffi_t ffi)
 try {
     if (ffi) {
-        close_io_file(&ffi->errs);
-        delete ffi->pubring;
-        delete ffi->secring;
-        rng_destroy(&ffi->rng);
-        free(ffi);
+        delete ffi;
     }
     return RNP_SUCCESS;
 }

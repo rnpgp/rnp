@@ -174,7 +174,7 @@ struct pgp_key_t {
     bool          write_sec_pgp(pgp_dest_t &       dst,
                                 pgp_key_pkt_t &    seckey,
                                 const std::string &password,
-                                rng_t &            rng);
+                                rnp::RNG &         rng);
 
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
@@ -288,7 +288,7 @@ struct pgp_key_t {
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
     /** @brief write secret key data to the rawpkt, optionally encrypting with password */
-    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rng_t &rng);
+    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rnp::RNG &rng);
 
     /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
      *         signing/decryption.
@@ -310,14 +310,14 @@ struct pgp_key_t {
      *         parameters. */
     bool protect(const rnp_key_protection_params_t &protection,
                  const pgp_password_provider_t &    password_provider,
-                 rng_t &                            rng);
+                 rnp::RNG &                         rng);
     /** @brief Add/change protection of a key */
     bool protect(pgp_key_pkt_t &                    decrypted,
                  const rnp_key_protection_params_t &protection,
                  const std::string &                new_password,
-                 rng_t &                            rng);
+                 rnp::RNG &                         rng);
     /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
-    bool unprotect(const pgp_password_provider_t &password_provider, rng_t &rng);
+    bool unprotect(const pgp_password_provider_t &password_provider, rnp::RNG &rng);
 
     /** @brief Write key's packets to the output. */
     void write(pgp_dest_t &dst) const;
@@ -458,7 +458,7 @@ struct pgp_key_t {
     void sign_cert(const pgp_key_pkt_t &   key,
                    const pgp_userid_pkt_t &uid,
                    pgp_signature_t &       sig,
-                   rng_t &                 rng) const;
+                   rnp::RNG &              rng) const;
 
     /**
      * @brief Calculate direct-key signature.
@@ -468,7 +468,7 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
+    void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const;
 
     /**
      * @brief Calculate subkey or primary key binding.
@@ -479,7 +479,7 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const;
+    void sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const;
 
     /**
      * @brief Calculate subkey binding.
@@ -494,7 +494,7 @@ struct pgp_key_t {
      */
     void sign_subkey_binding(const pgp_key_t &sub,
                              pgp_signature_t &sig,
-                             rng_t &          rng,
+                             rnp::RNG &       rng,
                              bool             subsign = false) const;
 
     /**
@@ -508,7 +508,7 @@ struct pgp_key_t {
                         pgp_hash_alg_t       hash,
                         const pgp_key_pkt_t &key,
                         pgp_signature_t &    sig,
-                        rng_t &              rng) const;
+                        rnp::RNG &           rng) const;
 
     /**
      * @brief Add and certify userid.
@@ -522,7 +522,7 @@ struct pgp_key_t {
      */
     void add_uid_cert(rnp_selfsig_cert_info_t &cert,
                       pgp_hash_alg_t           hash,
-                      rng_t &                  rng,
+                      rnp::RNG &               rng,
                       pgp_key_t *              pubkey = nullptr);
 
     /**
@@ -540,7 +540,7 @@ struct pgp_key_t {
                          pgp_key_t &                       subpub,
                          const rnp_selfsig_binding_info_t &binding,
                          pgp_hash_alg_t                    hash,
-                         rng_t &                           rng);
+                         rnp::RNG &                        rng);
 
     /** @brief Refresh internal fields after primary key is updated */
     bool refresh_data();
@@ -608,14 +608,14 @@ bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
                             uint32_t                       expiry,
                             const pgp_password_provider_t &prov,
-                            rng_t &                        rng);
+                            rnp::RNG &                     rng);
 
 bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    primsec,
                                pgp_key_t *                    secsub,
                                uint32_t                       expiry,
                                const pgp_password_provider_t &prov,
-                               rng_t &                        rng);
+                               rnp::RNG &                     rng);
 
 /** find a key suitable for a particular operation
  *

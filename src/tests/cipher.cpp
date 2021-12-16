@@ -35,7 +35,7 @@
 #include "support.h"
 #include "fingerprint.h"
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 TEST_F(rnp_tests, hash_test_success)
 {
@@ -264,7 +264,7 @@ TEST_F(rnp_tests, ecdsa_signverify_success)
 
     for (size_t i = 0; i < ARRAY_SIZE(curves); i++) {
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data
-        assert_true(rng_get_data(&global_rng, message, sizeof(message)));
+        global_rng.get(message, sizeof(message));
 
         pgp_ec_signature_t         sig = {{{0}}};
         rnp_keygen_crypto_params_t key_desc;
@@ -399,7 +399,7 @@ TEST_F(rnp_tests, sm2_roundtrip)
     key_desc.ecc = {.curve = PGP_CURVE_SM2_P_256};
     key_desc.rng = &global_rng;
 
-    assert_true(rng_get_data(&global_rng, key, sizeof(key)));
+    global_rng.get(key, sizeof(key));
 
     pgp_key_pkt_t seckey;
     assert_true(pgp_generate_seckey(key_desc, seckey, true));
@@ -541,7 +541,7 @@ TEST_F(rnp_tests, test_dsa_roundtrip)
       {1024, 256, PGP_HASH_SHA256},
     };
 
-    assert_true(rng_get_data(&global_rng, message, sizeof(message)));
+    global_rng.get(message, sizeof(message));
 
     for (size_t i = 0; i < ARRAY_SIZE(keys); i++) {
         sig = {};
@@ -581,7 +581,7 @@ TEST_F(rnp_tests, test_dsa_verify_negative)
         pgp_hash_alg_t h;
     } key = {1024, 160, PGP_HASH_SHA1};
 
-    assert_true(rng_get_data(&global_rng, message, sizeof(message)));
+    global_rng.get(message, sizeof(message));
 
     rnp_keygen_crypto_params_t key_desc;
     key_desc.key_alg = PGP_PKA_DSA;
@@ -679,7 +679,7 @@ read_key_pkt(pgp_key_pkt_t *key, const char *path)
 TEST_F(rnp_tests, test_validate_key_material)
 {
     pgp_key_pkt_t key;
-    rng_t &       rng = global_rng;
+    rnp::RNG &    rng = global_rng;
 
     /* RSA key and subkey */
     assert_true(read_key_pkt(&key, KEYS "rsa-pub.pgp"));

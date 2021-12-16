@@ -32,7 +32,7 @@
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-armor.h"
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 static bool
 all_keys_valid(const rnp_key_store_t *keyring, pgp_key_t *except = NULL)

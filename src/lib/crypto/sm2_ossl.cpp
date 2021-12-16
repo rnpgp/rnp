@@ -30,13 +30,13 @@
 #include "utils.h"
 
 rnp_result_t
-sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     return RNP_ERROR_NOT_IMPLEMENTED;
 }
 
 rnp_result_t
-sm2_sign(rng_t *             rng,
+sm2_sign(rnp::RNG *          rng,
          pgp_ec_signature_t *sig,
          pgp_hash_alg_t      hash_alg,
          const uint8_t *     hash,
@@ -57,7 +57,7 @@ sm2_verify(const pgp_ec_signature_t *sig,
 }
 
 rnp_result_t
-sm2_encrypt(rng_t *              rng,
+sm2_encrypt(rnp::RNG *           rng,
             pgp_sm2_encrypted_t *out,
             const uint8_t *      in,
             size_t               in_len,

@@ -1411,7 +1411,7 @@ static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t *            sesskey,
                   pgp_key_pkt_t *               seckey,
-                  rng_t *                       rng)
+                  rnp::RNG *                    rng)
 {
     pgp_encrypted_material_t encmaterial;
     try {
@@ -2102,8 +2102,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(
-                  param, &pubenc, decrypted_seckey, rnp_ctx_rng_handle(handler->ctx))) {
+            if (encrypted_try_key(param, &pubenc, decrypted_seckey, handler->ctx->rng)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {

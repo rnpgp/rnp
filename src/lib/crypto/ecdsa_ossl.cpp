@@ -79,13 +79,13 @@ done:
 }
 
 rnp_result_t
-ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     return ec_validate_key(*key, secret);
 }
 
 rnp_result_t
-ecdsa_sign(rng_t *             rng,
+ecdsa_sign(rnp::RNG *          rng,
            pgp_ec_signature_t *sig,
            pgp_hash_alg_t      hash_alg,
            const uint8_t *     hash,
