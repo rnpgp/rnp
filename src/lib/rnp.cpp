@@ -3988,7 +3988,7 @@ try {
         FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
         return RNP_ERROR_BAD_STATE;
     }
-    if (!seckey->write_sec_rawpkt(seckey->pkt(), "")) {
+    if (!seckey->write_sec_rawpkt(seckey->pkt(), "", key->ffi->rng)) {
         FFI_LOG(key->ffi, "Failed to update rawpkt.");
         return RNP_ERROR_BAD_STATE;
     }
@@ -4697,13 +4697,14 @@ try {
         }
         /* add key/subkey protection */
         if (keygen_desc.primary.protection.symm_alg &&
-            !primary_sec.protect(keygen_desc.primary.protection, ffi->pass_provider)) {
+            !primary_sec.protect(
+              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
 
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4741,7 +4742,8 @@ try {
         }
         /* encrypt secret key if specified */
         if (keygen_desc.primary.protection.symm_alg &&
-            !primary_sec.protect(keygen_desc.primary.protection, ffi->pass_provider)) {
+            !primary_sec.protect(
+              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4816,7 +4818,7 @@ try {
         }
         /* encrypt subkey if specified */
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -5488,7 +5490,7 @@ try {
     } else if (op->request_password) {
         prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
     }
-    if (prov.callback && !sec.protect(op->protection, prov)) {
+    if (prov.callback && !sec.protect(op->protection, prov, op->ffi->rng)) {
         FFI_LOG(op->ffi, "failed to encrypt the key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
@@ -6962,7 +6964,8 @@ try {
             return RNP_ERROR_GENERIC;
         }
     }
-    bool res = key->protect(decrypted_key ? *decrypted_key : key->pkt(), protection, pass);
+    bool res = key->protect(
+      decrypted_key ? *decrypted_key : key->pkt(), protection, pass, handle->ffi->rng);
     delete decrypted_key;
     return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
@@ -6986,9 +6989,9 @@ try {
         pgp_password_provider_t prov = {
           .callback = rnp_password_provider_string,
           .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
-        ok = key->unprotect(prov);
+        ok = key->unprotect(prov, handle->ffi->rng);
     } else {
-        ok = key->unprotect(handle->ffi->pass_provider);
+        ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->rng);
     }
     if (!ok) {
         // likely a bad password

@@ -42,6 +42,8 @@
 #include <algorithm>
 #include "time-utils.h"
 
+extern rng_t global_rng;
+
 static bool
 stream_hash_file(rnp::Hash &hash, const char *path)
 {
@@ -339,10 +341,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     pgp_signature_t  sig;
     pgp_source_t     sigsrc;
     pgp_key_t *      key = NULL;
-    rng_t            rng;
 
-    /* we need rng for key validation */
-    assert_true(rng_init(&rng, RNG_SYSTEM));
     /* load keys */
     pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/test_stream_signatures/pub.asc");
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
@@ -400,13 +399,13 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.fill_hashed_data();
     /* try to sign without decrypting of the secret key */
     hash = hash_orig;
-    assert_throw(signature_calculate(sig, key->material(), hash, rng));
+    assert_throw(signature_calculate(sig, key->material(), hash, global_rng));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
                                          .userdata = (void *) "password"};
     assert_true(key->unlock(pswd_prov));
     hash = hash_orig;
-    signature_calculate(sig, key->material(), hash, rng);
+    signature_calculate(sig, key->material(), hash, global_rng);
     /* now verify signature */
     hash = hash_orig;
     /* validate signature and fields */
@@ -418,7 +417,6 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* cleanup */
     delete pubring;
     delete secring;
-    rng_destroy(&rng);
 }
 
 TEST_F(rnp_tests, test_stream_signatures_revoked_key)
@@ -926,10 +924,6 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
     size_t             keylen;
     pgp_key_sequence_t keyseq;
     pgp_key_sequence_t keyseq2;
-    rng_t              rng;
-
-    /* we need rng for key encryption */
-    assert_true(rng_init(&rng, RNG_SYSTEM));
 
     /* load and decrypt secret keyring, then re-encrypt and reload keys */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
@@ -944,10 +938,10 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
 
         /* change password and encryption algorithm */
         key.key.sec_protection.symm_alg = PGP_SA_CAMELLIA_192;
-        assert_rnp_success(encrypt_secret_key(&key.key, "passw0rd", &rng));
+        assert_rnp_success(encrypt_secret_key(&key.key, "passw0rd", global_rng));
         for (auto &subkey : key.subkeys) {
             subkey.subkey.sec_protection.symm_alg = PGP_SA_CAMELLIA_256;
-            assert_rnp_success(encrypt_secret_key(&subkey.subkey, "passw0rd", &rng));
+            assert_rnp_success(encrypt_secret_key(&subkey.subkey, "passw0rd", global_rng));
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
@@ -969,10 +963,10 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         }
         /* write key without the password */
         key2.key.sec_protection.s2k.usage = PGP_S2KU_NONE;
-        assert_rnp_success(encrypt_secret_key(&key2.key, NULL, NULL));
+        assert_rnp_success(encrypt_secret_key(&key2.key, NULL, global_rng));
         for (auto &subkey : key2.subkeys) {
             subkey.subkey.sec_protection.s2k.usage = PGP_S2KU_NONE;
-            assert_rnp_success(encrypt_secret_key(&subkey.subkey, NULL, NULL));
+            assert_rnp_success(encrypt_secret_key(&subkey.subkey, NULL, global_rng));
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
@@ -993,19 +987,14 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
             assert_rnp_success(decrypt_secret_key(&subkey.subkey, NULL));
         }
     }
-    rng_destroy(&rng);
 }
 
 TEST_F(rnp_tests, test_stream_key_signatures)
 {
     pgp_source_t         keysrc = {0};
     pgp_key_sequence_t   keyseq;
-    rng_t                rng;
     pgp_key_t *          pkey = NULL;
     pgp_signature_info_t sinfo = {};
-
-    /* we need rng for key validation */
-    assert_true(rng_init(&rng, RNG_SYSTEM));
 
     /* v3 public key */
     auto pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc");
@@ -1079,7 +1068,6 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     }
 
     delete pubring;
-    rng_destroy(&rng);
 }
 
 static bool
@@ -1615,7 +1603,7 @@ add_openpgp_layers(const char *msg, pgp_dest_t &pgpdst, int compr, int encr)
     /* add encryption layers */
     for (int i = 0; i < encr; i++) {
         assert_rnp_success(init_mem_dest(&dst, NULL, 0));
-        assert_rnp_success(rnp_raw_encrypt_src(src, dst, "password"));
+        assert_rnp_success(rnp_raw_encrypt_src(src, dst, "password", global_rng));
         src_close(&src);
         assert_rnp_success(init_mem_src(&src, mem_dest_own_memory(&dst), dst.writeb, true));
         dst_close(&dst, false);

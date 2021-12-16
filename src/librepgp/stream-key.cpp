@@ -888,7 +888,7 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 }
 
 rnp_result_t
-encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
+encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t &rng)
 {
     if (!is_secret_key_pkt(key->tag) || !key->material.secret) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -931,23 +931,12 @@ encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t *rng)
             return RNP_ERROR_BAD_PARAMETERS;
         }
         /* generate iv and s2k salt */
-        if (rng) {
-            if (!rng_get_data(rng, key->sec_protection.iv, blsize)) {
-                return RNP_ERROR_RNG;
-            }
-            if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
-                !rng_get_data(rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
-                return RNP_ERROR_RNG;
-            }
-        } else {
-            /* temporary solution! */
-            if (!rng_generate(key->sec_protection.iv, blsize)) {
-                return RNP_ERROR_RNG;
-            }
-            if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
-                !rng_generate(key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
-                return RNP_ERROR_RNG;
-            }
+        if (!rng_get_data(&rng, key->sec_protection.iv, blsize)) {
+            return RNP_ERROR_RNG;
+        }
+        if ((key->sec_protection.s2k.specifier != PGP_S2KS_SIMPLE) &&
+            !rng_get_data(&rng, key->sec_protection.s2k.salt, PGP_SALT_SIZE)) {
+            return RNP_ERROR_RNG;
         }
         /* derive key */
         rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> keybuf;
