@@ -84,6 +84,7 @@ rnp_result_t rnp_wrap_src(pgp_source_t &     src,
 
 rnp_result_t rnp_raw_encrypt_src(pgp_source_t &     src,
                                  pgp_dest_t &       dst,
-                                 const std::string &password);
+                                 const std::string &password,
+                                 rng_t &            rng);
 
 #endif

@@ -26,10 +26,11 @@
 
 #include "../librekey/key_store_pgp.h"
 #include "pgp-key.h"
-
 #include "rnp_tests.h"
 #include "support.h"
 #include "crypto/hash.h"
+
+extern rng_t global_rng;
 
 /* This test loads a pgp keyring and adds a few userids to the key.
  */
@@ -67,8 +68,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     unsigned subsigc = key->sig_count();
 
     // init rng
-    rng_t rng;
-    assert_true(rng_init(&rng, RNG_DRBG));
+    rng_t &rng = global_rng;
     // add first, non-primary userid
     rnp_selfsig_cert_info_t selfsig0 = {};
     memcpy(selfsig0.userid, "added0", 7);
@@ -115,7 +115,6 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     // actually add another userid
     key->add_uid_cert(selfsig2, PGP_HASH_SHA1, rng);
-    rng_destroy(&rng);
 
     // confirm that the counts have increased as expected
     assert_int_equal(key->uid_count(), uidc + 3);

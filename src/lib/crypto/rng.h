@@ -97,17 +97,4 @@ bool rng_get_data(rng_t *ctx, uint8_t *data, size_t len);
 struct botan_rng_struct *rng_handle(rng_t *);
 #endif
 
-/*
- * @brief   Initializes RNG_SYSTEM and generates random data.
- *          This function should be used only in places where
- *          rng_t is not available. Using this function may
- *          impact performance
- *
- * @param   data[out] Output buffer storing random data
- * @param   data_len length of data to be generated
- *
- * @return  true one success, otherwise false
- */
-bool rng_generate(uint8_t *data, size_t data_len);
-
 #endif // RNP_RANDOM_H_
