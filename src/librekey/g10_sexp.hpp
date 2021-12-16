@@ -108,7 +108,7 @@ class s_exp_t : public s_exp_element_t {
     void add_curve(const std::string &name, const pgp_ec_key_t &key);
     void add_pubkey(const pgp_key_pkt_t &key);
     void add_seckey(const pgp_key_pkt_t &key);
-    void add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password);
+    void add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password, rng_t &rng);
 
     void clear();
 };

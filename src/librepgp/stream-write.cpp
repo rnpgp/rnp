@@ -1994,15 +1994,14 @@ done:
 }
 
 rnp_result_t
-rnp_raw_encrypt_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &password)
+rnp_raw_encrypt_src(pgp_source_t &     src,
+                    pgp_dest_t &       dst,
+                    const std::string &password,
+                    rng_t &            rng)
 {
     pgp_write_handler_t handler = {};
     rnp_ctx_t           ctx;
-    rng_t               rng = {};
 
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        return RNP_ERROR_BAD_STATE;
-    }
     ctx.rng = &rng;
     ctx.ealg = DEFAULT_PGP_SYMM_ALG;
     handler.ctx = &ctx;
@@ -2022,6 +2021,5 @@ rnp_raw_encrypt_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &passw
     ret = dst_write_src(&src, &encrypted);
 done:
     dst_close(&encrypted, ret);
-    rng_destroy(&rng);
     return ret;
 }

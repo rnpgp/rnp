@@ -432,15 +432,12 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
     const char *msg = "no backdoors here";
 
     pgp_ec_key_t       sm2_key;
-    rng_t              rng;
     pgp_ec_signature_t sig;
 
     pgp_hash_alg_t hash_alg = PGP_HASH_SM3;
     const size_t   hash_len = rnp::Hash::size(hash_alg);
 
     uint8_t digest[PGP_MAX_HASH_SIZE];
-
-    rng_init(&rng, RNG_SYSTEM);
 
     sm2_key.curve = PGP_CURVE_NIST_P_256;
 
@@ -449,7 +446,7 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
             "c82f49ee0a5b11df22cb0c3c6d9d5526d9e24d02ff8c83c06a859c26565f1");
     hex2mpi(&sm2_key.x, "110E7973206F68C19EE5F7328C036F26911C8C73B4E4F36AE3291097F8984FFC");
 
-    assert_int_equal(sm2_validate_key(&rng, &sm2_key, true), RNP_SUCCESS);
+    assert_int_equal(sm2_validate_key(&global_rng, &sm2_key, true), RNP_SUCCESS);
 
     rnp::Hash hash(hash_alg);
 
@@ -458,7 +455,8 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
     assert_int_equal(hash.finish(digest), hash_len);
 
     // First generate a signature, then verify it
-    assert_int_equal(sm2_sign(&rng, &sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
+    assert_int_equal(sm2_sign(&global_rng, &sig, hash_alg, digest, hash_len, &sm2_key),
+                     RNP_SUCCESS);
     assert_int_equal(sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
 
     // Check that invalid signatures are rejected
@@ -472,34 +470,26 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
     hex2mpi(&sig.r, "96AA39A0C4A5C454653F394E86386F2E38BE14C57D0E555F3A27A5CEF30E51BD");
     hex2mpi(&sig.s, "62372BE4AC97DBE725AC0B279BB8FD15883858D814FD792DDB0A401DCC988E70");
     assert_int_equal(sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
-    rng_destroy(&rng);
 }
 #endif
 
 #if defined(ENABLE_SM2)
 TEST_F(rnp_tests, sm2_sha256_signature_test)
 {
-    const char *msg = "hi chappy";
-
+    const char *       msg = "hi chappy";
     pgp_ec_key_t       sm2_key;
-    rng_t              rng;
     pgp_ec_signature_t sig;
-
-    pgp_hash_alg_t hash_alg = PGP_HASH_SHA256;
-    const size_t   hash_len = rnp::Hash::size(hash_alg);
-
-    uint8_t digest[PGP_MAX_HASH_SIZE];
-
-    rng_init(&rng, RNG_SYSTEM);
+    pgp_hash_alg_t     hash_alg = PGP_HASH_SHA256;
+    const size_t       hash_len = rnp::Hash::size(hash_alg);
+    uint8_t            digest[PGP_MAX_HASH_SIZE];
 
     sm2_key.curve = PGP_CURVE_SM2_P_256;
-
     hex2mpi(&sm2_key.p,
             "04d03d30dd01ca3422aeaccf9b88043b554659d3092b0a9e8cce3e8c4530a98cb79d7"
             "05e6213eee145b748e36e274e5f101dc10d7bbc9dab9a04022e73b76e02cd");
     hex2mpi(&sm2_key.x, "110E7973206F68C19EE5F7328C036F26911C8C73B4E4F36AE3291097F8984FFC");
 
-    assert_int_equal(sm2_validate_key(&rng, &sm2_key, true), RNP_SUCCESS);
+    assert_int_equal(sm2_validate_key(&global_rng, &sm2_key, true), RNP_SUCCESS);
 
     rnp::Hash hash(hash_alg);
     assert_int_equal(sm2_compute_za(sm2_key, hash, "sm2test@example.com"), RNP_SUCCESS);
@@ -507,7 +497,8 @@ TEST_F(rnp_tests, sm2_sha256_signature_test)
     assert_int_equal(hash.finish(digest), hash_len);
 
     // First generate a signature, then verify it
-    assert_int_equal(sm2_sign(&rng, &sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
+    assert_int_equal(sm2_sign(&global_rng, &sig, hash_alg, digest, hash_len, &sm2_key),
+                     RNP_SUCCESS);
     assert_int_equal(sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
 
     // Check that invalid signatures are rejected
@@ -521,7 +512,6 @@ TEST_F(rnp_tests, sm2_sha256_signature_test)
     hex2mpi(&sig.r, "94DA20EA69E4FC70692158BF3D30F87682A4B2F84DF4A4829A1EFC5D9C979D3F");
     hex2mpi(&sig.s, "EE15AF8D455B728AB80E592FCB654BF5B05620B2F4D25749D263D5C01FAD365F");
     assert_int_equal(sm2_verify(&sig, hash_alg, digest, hash_len, &sm2_key), RNP_SUCCESS);
-    rng_destroy(&rng);
 }
 #endif
 
@@ -689,8 +679,7 @@ read_key_pkt(pgp_key_pkt_t *key, const char *path)
 TEST_F(rnp_tests, test_validate_key_material)
 {
     pgp_key_pkt_t key;
-    rng_t         rng = {};
-    rng_init(&rng, RNG_SYSTEM);
+    rng_t &       rng = global_rng;
 
     /* RSA key and subkey */
     assert_true(read_key_pkt(&key, KEYS "rsa-pub.pgp"));
@@ -818,8 +807,6 @@ TEST_F(rnp_tests, test_validate_key_material)
     assert_rnp_failure(validate_pgp_key_material(&key.material, &rng));
     key.material.ec.p.mpi[0] -= 2;
     key = pgp_key_pkt_t();
-
-    rng_destroy(&rng);
 }
 
 TEST_F(rnp_tests, test_sm2_enabled)

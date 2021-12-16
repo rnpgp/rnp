@@ -69,10 +69,8 @@ static const id_str_pair pubkey_alg_map[] = {
   {0, NULL}};
 
 static bool
-load_generated_g10_key(pgp_key_t *    dst,
-                       pgp_key_pkt_t *newkey,
-                       pgp_key_t *    primary_key,
-                       pgp_key_t *    pubkey)
+load_generated_g10_key(
+  pgp_key_t *dst, pgp_key_pkt_t *newkey, pgp_key_t *primary_key, pgp_key_t *pubkey, rng_t &rng)
 {
     bool                     ok = false;
     pgp_dest_t               memdst = {};
@@ -94,7 +92,7 @@ load_generated_g10_key(pgp_key_t *    dst,
         goto end;
     }
 
-    if (!g10_write_seckey(&memdst, newkey, NULL)) {
+    if (!g10_write_seckey(&memdst, newkey, NULL, rng)) {
         RNP_LOG("failed to write generated seckey");
         goto end;
     }
@@ -368,7 +366,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
             break;
         case PGP_KEY_STORE_G10:
             primary_pub = std::move(pub);
-            if (!load_generated_g10_key(&primary_sec, &secpkt, NULL, &primary_pub)) {
+            if (!load_generated_g10_key(
+                  &primary_sec, &secpkt, NULL, &primary_pub, *desc.crypto.rng)) {
                 RNP_LOG("failed to load generated key");
                 return false;
             }
@@ -471,7 +470,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
             subkey_sec = std::move(sec);
             break;
         case PGP_KEY_STORE_G10:
-            if (!load_generated_g10_key(&subkey_sec, &secpkt, &primary_sec, &subkey_pub)) {
+            if (!load_generated_g10_key(
+                  &subkey_sec, &secpkt, &primary_sec, &subkey_pub, *desc.crypto.rng)) {
                 RNP_LOG("failed to load generated key");
                 return false;
             }

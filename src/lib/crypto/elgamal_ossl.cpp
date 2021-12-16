@@ -65,14 +65,13 @@ pkcs1v15_pad(uint8_t *out, size_t out_len, const uint8_t *in, size_t in_len)
     out[1] = 0x02;
     size_t rnd = out_len - in_len - 3;
     out[2 + rnd] = 0x00;
-    if (!rng_generate(&out[2], rnd)) {
+    if (RAND_bytes(&out[2], rnd) != 1) {
         return false;
     }
     for (size_t i = 2; i < 2 + rnd; i++) {
         /* we need non-zero bytes */
         size_t cntr = 16;
-        while (!out[i] && cntr) {
-            rng_generate(&out[i], 1);
+        while (!out[i] && (cntr--) && (RAND_bytes(&out[i], 1) == 1)) {
         }
         if (!out[i]) {
             RNP_LOG("Something is wrong with RNG.");

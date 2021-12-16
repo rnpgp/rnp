@@ -55,9 +55,3 @@ rng_get_data(rng_t *ctx, uint8_t *data, size_t len)
     }
     return RAND_bytes(data, len) == 1;
 }
-
-bool
-rng_generate(uint8_t *data, size_t data_len)
-{
-    return RAND_bytes(data, data_len) == 1;
-}
