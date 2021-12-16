@@ -171,7 +171,10 @@ struct pgp_key_t {
     void          validate_primary(rnp_key_store_t &keyring);
     void          merge_validity(const pgp_validity_t &src);
     uint64_t      valid_till_common(bool expiry) const;
-    bool write_sec_pgp(pgp_dest_t &dst, pgp_key_pkt_t &seckey, const std::string &password);
+    bool          write_sec_pgp(pgp_dest_t &       dst,
+                                pgp_key_pkt_t &    seckey,
+                                const std::string &password,
+                                rng_t &            rng);
 
   public:
     pgp_key_store_format_t format{}; /* the format of the key in packets[0] */
@@ -285,7 +288,7 @@ struct pgp_key_t {
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
     /** @brief write secret key data to the rawpkt, optionally encrypting with password */
-    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password);
+    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rng_t &rng);
 
     /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
      *         signing/decryption.
@@ -306,13 +309,15 @@ struct pgp_key_t {
     /** @brief Add protection to an unlocked key, i.e. encrypt its secret data with specified
      *         parameters. */
     bool protect(const rnp_key_protection_params_t &protection,
-                 const pgp_password_provider_t &    password_provider);
+                 const pgp_password_provider_t &    password_provider,
+                 rng_t &                            rng);
     /** @brief Add/change protection of a key */
     bool protect(pgp_key_pkt_t &                    decrypted,
                  const rnp_key_protection_params_t &protection,
-                 const std::string &                new_password);
+                 const std::string &                new_password,
+                 rng_t &                            rng);
     /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
-    bool unprotect(const pgp_password_provider_t &password_provider);
+    bool unprotect(const pgp_password_provider_t &password_provider, rng_t &rng);
 
     /** @brief Write key's packets to the output. */
     void write(pgp_dest_t &dst) const;

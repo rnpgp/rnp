@@ -99,15 +99,3 @@ rng_handle(rng_t *ctx)
     (void) rng_ensure_initialized(ctx);
     return ctx->initialized ? ctx->botan_rng : NULL;
 }
-
-bool
-rng_generate(uint8_t *data, size_t data_len)
-{
-    botan_rng_t rng;
-    if (botan_rng_init(&rng, NULL)) {
-        return false;
-    }
-    const bool rc = botan_rng_get(rng, data, data_len) == 0;
-    (void) botan_rng_destroy(rng);
-    return rc;
-}
