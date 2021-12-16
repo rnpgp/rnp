@@ -105,9 +105,9 @@ typedef struct pgp_signature_t {
     bool has_keyid() const;
     /**
      * @brief Get signer's key id if available. Availability may be checked via has_keyid().
-     * @return signer's key id if available, or throws an exception otherwise.
+     * @return signer's key id if available, or empty (zero-filled) keyid otherwise.
      */
-    pgp_key_id_t keyid() const;
+    pgp_key_id_t keyid() const noexcept;
     /** @brief Set the signer's key id for the signature being populated. Version should be set
      *         prior of setting key id. */
     void set_keyid(const pgp_key_id_t &id);
@@ -120,9 +120,9 @@ typedef struct pgp_signature_t {
     /**
      * @brief Get signing key's fingerprint if it is available. Availability may be checked via
      *        has_keyfp() method.
-     * @return fingerprint or throws an error if it is unavailable.
+     * @return fingerprint (or empty zero-size fp in case it is unavailable)
      */
-    pgp_fingerprint_t keyfp() const;
+    pgp_fingerprint_t keyfp() const noexcept;
 
     /** @brief Set signing key's fingerprint. Works only for signatures with version 4 and up,
      *         so version should be set prior to fingerprint. */

@@ -648,7 +648,7 @@ pgp_signature_t::has_keyid() const
 }
 
 pgp_key_id_t
-pgp_signature_t::keyid() const
+pgp_signature_t::keyid() const noexcept
 {
     /* version 3 uses signature field */
     if (version < PGP_V4) {
@@ -656,7 +656,7 @@ pgp_signature_t::keyid() const
     }
 
     /* version 4 and up use subpackets */
-    pgp_key_id_t res;
+    pgp_key_id_t res{};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_KEY_ID_SIZE,
                   "pgp_key_id_t size mismatch");
 
@@ -671,7 +671,7 @@ pgp_signature_t::keyid() const
                PGP_KEY_ID_SIZE);
         return res;
     }
-    throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    return res;
 }
 
 void
@@ -703,15 +703,15 @@ pgp_signature_t::has_keyfp() const
 }
 
 pgp_fingerprint_t
-pgp_signature_t::keyfp() const
+pgp_signature_t::keyfp() const noexcept
 {
+    pgp_fingerprint_t res{};
     if (version < PGP_V4) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        return res;
     }
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-    pgp_fingerprint_t       res;
     if (!subpkt || (subpkt->fields.issuer_fp.len > sizeof(res.fingerprint))) {
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        return res;
     }
     res.length = subpkt->fields.issuer_fp.len;
     memcpy(res.fingerprint, subpkt->fields.issuer_fp.fp, subpkt->fields.issuer_fp.len);
