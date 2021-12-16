@@ -42,7 +42,7 @@
 #include <algorithm>
 #include "time-utils.h"
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 static bool
 stream_hash_file(rnp::Hash &hash, const char *path)

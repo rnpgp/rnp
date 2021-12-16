@@ -32,7 +32,7 @@
 #include "crypto/hash.h"
 #include "crypto.h"
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.
  * There is also some lock/unlock testing in here, since the two are

@@ -41,7 +41,7 @@
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)
 
 rnp_result_t
-elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
+elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret)
 {
     /* OpenSSL doesn't implement ElGamal, however we may use DL via DH */
     EVP_PKEY *pkey = dl_load_key(key->p, NULL, key->g, key->y, NULL);
@@ -106,7 +106,7 @@ pkcs1v15_unpad(size_t *padlen, const uint8_t *in, size_t in_len, bool skip0)
 }
 
 rnp_result_t
-elgamal_encrypt_pkcs1(rng_t *             rng,
+elgamal_encrypt_pkcs1(rnp::RNG *          rng,
                       pgp_eg_encrypted_t *out,
                       const uint8_t *     in,
                       size_t              in_len,
@@ -185,7 +185,7 @@ done:
 }
 
 rnp_result_t
-elgamal_decrypt_pkcs1(rng_t *                   rng,
+elgamal_decrypt_pkcs1(rnp::RNG *                rng,
                       uint8_t *                 out,
                       size_t *                  out_len,
                       const pgp_eg_encrypted_t *in,
@@ -267,7 +267,7 @@ done:
 }
 
 rnp_result_t
-elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits)
+elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits)
 {
     if ((keybits < 1024) || (keybits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;

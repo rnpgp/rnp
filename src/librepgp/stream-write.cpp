@@ -560,7 +560,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     switch (userkey->alg()) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY: {
-        ret = rsa_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
+        ret = rsa_encrypt_pkcs1(handler->ctx->rng,
                                 &material.rsa,
                                 enckey.data(),
                                 keylen + 3,
@@ -573,7 +573,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
     case PGP_PKA_SM2: {
 #if defined(ENABLE_SM2)
-        ret = sm2_encrypt(rnp_ctx_rng_handle(handler->ctx),
+        ret = sm2_encrypt(handler->ctx->rng,
                           &material.sm2,
                           enckey.data(),
                           keylen + 3,
@@ -595,7 +595,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                     (int) userkey->material().ec.curve);
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        ret = ecdh_encrypt_pkcs5(rnp_ctx_rng_handle(handler->ctx),
+        ret = ecdh_encrypt_pkcs5(handler->ctx->rng,
                                  &material.ecdh,
                                  enckey.data(),
                                  keylen + 3,
@@ -608,11 +608,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         break;
     }
     case PGP_PKA_ELGAMAL: {
-        ret = elgamal_encrypt_pkcs1(rnp_ctx_rng_handle(handler->ctx),
-                                    &material.eg,
-                                    enckey.data(),
-                                    keylen + 3,
-                                    &userkey->material().eg);
+        ret = elgamal_encrypt_pkcs1(
+          handler->ctx->rng, &material.eg, enckey.data(), keylen + 3, &userkey->material().eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
             return ret;
@@ -705,7 +702,9 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
         skey.enckeylen = keylen + pgp_cipher_aead_tag_len(skey.aalg);
 
-        if (!rng_get_data(rnp_ctx_rng_handle(param->ctx), skey.iv, skey.ivlen)) {
+        try {
+            param->ctx->rng->get(skey.iv, skey.ivlen);
+        } catch (const std::exception &e) {
             return RNP_ERROR_RNG;
         }
 
@@ -770,20 +769,17 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 
     /* generating and writing iv/password check bytes */
     blsize = pgp_block_size(param->ctx->ealg);
-    if (!rng_get_data(rnp_ctx_rng_handle(param->ctx), enchdr, blsize)) {
-        return RNP_ERROR_RNG;
-    }
+    try {
+        param->ctx->rng->get(enchdr, blsize);
+        enchdr[blsize] = enchdr[blsize - 2];
+        enchdr[blsize + 1] = enchdr[blsize - 1];
 
-    enchdr[blsize] = enchdr[blsize - 2];
-    enchdr[blsize + 1] = enchdr[blsize - 1];
-
-    if (param->has_mdc) {
-        try {
+        if (param->has_mdc) {
             param->mdc.add(enchdr, blsize + 2);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return RNP_ERROR_BAD_STATE;
         }
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_BAD_STATE;
     }
 
     pgp_cipher_cfb_encrypt(&param->encrypt, enchdr, enchdr, blsize + 2);
@@ -821,7 +817,9 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
 
     /* generate iv */
     nlen = pgp_cipher_aead_nonce_len(param->ctx->aalg);
-    if (!rng_get_data(rnp_ctx_rng_handle(param->ctx), param->iv, nlen)) {
+    try {
+        param->ctx->rng->get(param->iv, nlen);
+    } catch (const std::exception &e) {
         return RNP_ERROR_RNG;
     }
     memcpy(hdr + 4, param->iv, nlen);
@@ -913,7 +911,9 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
 
     if ((pkeycount > 0) || (skeycount > 1) || param->aead) {
-        if (!rng_get_data(rnp_ctx_rng_handle(handler->ctx), enckey.data(), keylen)) {
+        try {
+            handler->ctx->rng->get(enckey.data(), keylen);
+        } catch (const std::exception &e) {
             ret = RNP_ERROR_RNG;
             goto finish;
         }
@@ -1131,7 +1131,7 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
         throw rnp::rnp_exception(RNP_ERROR_BAD_PASSWORD);
     }
     /* calculate the signature */
-    signature_calculate(sig, signer.key->material(), hash, *rnp_ctx_rng_handle(param.ctx));
+    signature_calculate(sig, signer.key->material(), hash, *param.ctx->rng);
 }
 
 static rnp_result_t
@@ -1997,7 +1997,7 @@ rnp_result_t
 rnp_raw_encrypt_src(pgp_source_t &     src,
                     pgp_dest_t &       dst,
                     const std::string &password,
-                    rng_t &            rng)
+                    rnp::RNG &         rng)
 {
     pgp_write_handler_t handler = {};
     rnp_ctx_t           ctx;

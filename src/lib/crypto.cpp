@@ -191,7 +191,7 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
 }
 
 rnp_result_t
-validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng)
+validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
 {
 #ifdef FUZZERS_ENABLED
     /* do not timeout on large keys during fuzzing */

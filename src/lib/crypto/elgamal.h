@@ -55,13 +55,13 @@ typedef struct pgp_eg_encrypted_t {
     pgp_mpi_t m;
 } pgp_eg_encrypted_t;
 
-rnp_result_t elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret);
+rnp_result_t elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret);
 
 /*
  * Performs ElGamal encryption
  * Result of an encryption is composed of two parts - g2k and encm
  *
- * @param rng initialized rng_t
+ * @param rng initialized rnp::RNG
  * @param out encryption result
  * @param in plaintext to be encrypted
  * @param in_len length of the plaintext
@@ -74,7 +74,7 @@ rnp_result_t elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secr
  *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
  *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-rnp_result_t elgamal_encrypt_pkcs1(rng_t *             rng,
+rnp_result_t elgamal_encrypt_pkcs1(rnp::RNG *          rng,
                                    pgp_eg_encrypted_t *out,
                                    const uint8_t *     in,
                                    size_t              in_len,
@@ -83,7 +83,7 @@ rnp_result_t elgamal_encrypt_pkcs1(rng_t *             rng,
 /*
  * Performs ElGamal decryption
  *
- * @param rng initialized rng_t
+ * @param rng initialized rnp::RNG
  * @param out decrypted plaintext. Must be capable of storing at least as much bytes as p size
  * @param out_len number of plaintext bytes written will be put here
  * @param in encrypted data
@@ -97,7 +97,7 @@ rnp_result_t elgamal_encrypt_pkcs1(rng_t *             rng,
  *         RNP_ERROR_OUT_OF_MEMORY  allocation failure
  *         RNP_ERROR_BAD_PARAMETERS wrong input provided
  */
-rnp_result_t elgamal_decrypt_pkcs1(rng_t *                   rng,
+rnp_result_t elgamal_decrypt_pkcs1(rnp::RNG *                rng,
                                    uint8_t *                 out,
                                    size_t *                  out_len,
                                    const pgp_eg_encrypted_t *in,
@@ -116,5 +116,5 @@ rnp_result_t elgamal_decrypt_pkcs1(rng_t *                   rng,
  *          RNP_ERROR_GENERIC internal error
  *          RNP_SUCCESS key generated and copied to `seckey'
  */
-rnp_result_t elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits);
+rnp_result_t elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits);
 #endif

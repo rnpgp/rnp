@@ -140,7 +140,7 @@ done:
 }
 
 rnp_result_t
-dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
+dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret)
 {
     /* OpenSSL doesn't implement key checks for the DSA, however we may use DL via DH */
     EVP_PKEY *pkey = dl_load_key(key->p, &key->q, key->g, key->y, NULL);
@@ -154,7 +154,7 @@ dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
 }
 
 rnp_result_t
-dsa_sign(rng_t *              rng,
+dsa_sign(rnp::RNG *           rng,
          pgp_dsa_signature_t *sig,
          const uint8_t *      hash,
          size_t               hash_len,
@@ -240,7 +240,7 @@ done:
 }
 
 rnp_result_t
-dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
+dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
 {
     if ((keylen < 1024) || (keylen > 3072) || (qbits < 160) || (qbits > 256)) {
         return RNP_ERROR_BAD_PARAMETERS;

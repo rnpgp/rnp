@@ -85,14 +85,14 @@ ecdsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 }
 
 rnp_result_t
-ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
     botan_privkey_t bskey = NULL;
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (!ecdsa_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
     if (!secret) {
@@ -101,7 +101,7 @@ ecdsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!ecdsa_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -143,7 +143,7 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
 }
 
 rnp_result_t
-ecdsa_sign(rng_t *             rng,
+ecdsa_sign(rnp::RNG *          rng,
            pgp_ec_signature_t *sig,
            pgp_hash_alg_t      hash_alg,
            const uint8_t *     hash,
@@ -176,7 +176,7 @@ ecdsa_sign(rng_t *             rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
+    if (botan_pk_op_sign_finish(signer, rng->handle(), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
     }

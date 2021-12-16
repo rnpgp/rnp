@@ -116,7 +116,7 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rng_t &                    rng,
+bool pgp_generate_keypair(rnp::RNG &                 rng,
                           rnp_keygen_primary_desc_t &primary_desc,
                           rnp_keygen_subkey_desc_t & subkey_desc,
                           bool                       merge_defaults,
@@ -136,6 +136,6 @@ bool pgp_generate_keypair(rng_t &                    rng,
  */
 bool key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key2);
 
-rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rng_t *rng);
+rnp_result_t validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng);
 
 #endif /* CRYPTO_H_ */

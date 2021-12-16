@@ -40,7 +40,7 @@
 #include "defaults.h"
 #include <fstream>
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)

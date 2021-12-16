@@ -139,7 +139,7 @@ done:
 }
 
 rnp_result_t
-rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
+rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
 {
     if (secret) {
         EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
@@ -201,7 +201,7 @@ rsa_setup_context(EVP_PKEY_CTX *ctx, pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN)
 }
 
 rnp_result_t
-rsa_encrypt_pkcs1(rng_t *              rng,
+rsa_encrypt_pkcs1(rnp::RNG *           rng,
                   pgp_rsa_encrypted_t *out,
                   const uint8_t *      in,
                   size_t               in_len,
@@ -274,7 +274,7 @@ done:
 }
 
 rnp_result_t
-rsa_sign_pkcs1(rng_t *              rng,
+rsa_sign_pkcs1(rnp::RNG *           rng,
                pgp_rsa_signature_t *sig,
                pgp_hash_alg_t       hash_alg,
                const uint8_t *      hash,
@@ -310,7 +310,7 @@ done:
 }
 
 rnp_result_t
-rsa_decrypt_pkcs1(rng_t *                    rng,
+rsa_decrypt_pkcs1(rnp::RNG *                 rng,
                   uint8_t *                  out,
                   size_t *                   out_len,
                   const pgp_rsa_encrypted_t *in,
@@ -345,7 +345,7 @@ done:
 }
 
 rnp_result_t
-rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
+rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
 {
     if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;

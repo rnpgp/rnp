@@ -49,7 +49,7 @@ void signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp:
 void signature_calculate(pgp_signature_t &         sig,
                          const pgp_key_material_t &seckey,
                          rnp::Hash &               hash,
-                         rng_t &                   rng);
+                         rnp::RNG &                rng);
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
