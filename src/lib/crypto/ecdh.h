@@ -45,7 +45,7 @@ typedef struct pgp_ecdh_encrypted_t {
     size_t    mlen;
 } pgp_ecdh_encrypted_t;
 
-rnp_result_t ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
 
 /*
  * @brief   Sets hash algorithm and key wrapping algo
@@ -62,7 +62,7 @@ bool ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id);
  * Encrypts session key with a KEK agreed during ECDH as specified in
  * RFC 4880 bis 01, 13.5
  *
- * @param rng initialized rng_t object
+ * @param rng initialized rnp::RNG object
  * @param session_key key to be encrypted
  * @param session_key_len length of the key buffer
  * @param wrapped_key [out] resulting key wrapped in by some AES
@@ -81,7 +81,7 @@ bool ecdh_set_params(pgp_ec_key_t *key, pgp_curve_t curve_id);
  * @return RNP_ERROR_SHORT_BUFFER `wrapped_key_len' to small to store result
  * @return RNP_ERROR_GENERIC implementation error
  */
-rnp_result_t ecdh_encrypt_pkcs5(rng_t *                  rng,
+rnp_result_t ecdh_encrypt_pkcs5(rnp::RNG *               rng,
                                 pgp_ecdh_encrypted_t *   out,
                                 const uint8_t *const     in,
                                 size_t                   in_len,

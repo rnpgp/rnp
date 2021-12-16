@@ -85,7 +85,7 @@
 #include "bn.h"
 
 rnp_result_t
-rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
+rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
 {
     bignum_t *      n = NULL;
     bignum_t *      e = NULL;
@@ -106,7 +106,7 @@ rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+    if (botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -127,7 +127,7 @@ rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+    if (botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -192,7 +192,7 @@ done:
 }
 
 rnp_result_t
-rsa_encrypt_pkcs1(rng_t *              rng,
+rsa_encrypt_pkcs1(rnp::RNG *           rng,
                   pgp_rsa_encrypted_t *out,
                   const uint8_t *      in,
                   size_t               in_len,
@@ -212,7 +212,7 @@ rsa_encrypt_pkcs1(rng_t *              rng,
     }
 
     out->m.len = sizeof(out->m.mpi);
-    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out->m.mpi, &out->m.len, in, in_len)) {
+    if (botan_pk_op_encrypt(enc_op, rng->handle(), out->m.mpi, &out->m.len, in, in_len)) {
         out->m.len = 0;
         goto done;
     }
@@ -265,7 +265,7 @@ done:
 }
 
 rnp_result_t
-rsa_sign_pkcs1(rng_t *              rng,
+rsa_sign_pkcs1(rnp::RNG *           rng,
                pgp_rsa_signature_t *sig,
                pgp_hash_alg_t       hash_alg,
                const uint8_t *      hash,
@@ -301,7 +301,7 @@ rsa_sign_pkcs1(rng_t *              rng,
     }
 
     sig->s.len = sizeof(sig->s.mpi);
-    if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), sig->s.mpi, &sig->s.len)) {
+    if (botan_pk_op_sign_finish(sign_op, rng->handle(), sig->s.mpi, &sig->s.len)) {
         goto done;
     }
 
@@ -313,7 +313,7 @@ done:
 }
 
 rnp_result_t
-rsa_decrypt_pkcs1(rng_t *                    rng,
+rsa_decrypt_pkcs1(rnp::RNG *                 rng,
                   uint8_t *                  out,
                   size_t *                   out_len,
                   const pgp_rsa_encrypted_t *in,
@@ -349,7 +349,7 @@ done:
 }
 
 rnp_result_t
-rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
+rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
 {
     if ((numbits < 1024) || (numbits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -371,11 +371,11 @@ rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits)
     }
 
     if (botan_privkey_create(
-          &rsa_key, "RSA", std::to_string(numbits).c_str(), rng_handle(rng))) {
+          &rsa_key, "RSA", std::to_string(numbits).c_str(), rng->handle())) {
         goto end;
     }
 
-    if (botan_privkey_check_key(rsa_key, rng_handle(rng), 1) != 0) {
+    if (botan_privkey_check_key(rsa_key, rng->handle(), 1) != 0) {
         goto end;
     }
 

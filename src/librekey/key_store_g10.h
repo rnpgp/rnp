@@ -34,7 +34,7 @@ bool rnp_key_store_g10_key_to_dst(pgp_key_t *, pgp_dest_t *);
 bool g10_write_seckey(pgp_dest_t *   dst,
                       pgp_key_pkt_t *seckey,
                       const char *   password,
-                      rng_t &        rng);
+                      rnp::RNG &     rng);
 pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
                                   size_t               data_len,
                                   const pgp_key_pkt_t *pubkey,

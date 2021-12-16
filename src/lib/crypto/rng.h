@@ -1,100 +1,78 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
- * Copyright (c) 2009 The NetBSD Foundation, Inc.
+ * Copyright (c) 2017-2021, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
- * This code is originally derived from software contributed to
- * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
- * carried further by Ribose Inc (https://www.ribose.com).
+ * Redistribution and use in source and binary forms, with or without modification,
+ * are permitted provided that the following conditions are met:
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions
- * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
- *    documentation and/or other materials provided with the distribution.
+ * 1.  Redistributions of source code must retain the above copyright notice,
+ *     this list of conditions and the following disclaimer.
  *
- * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
- * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
- * TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
- * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
- * BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
- * CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
- * SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
- * INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
- * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
- * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
- * POSSIBILITY OF SUCH DAMAGE.
+ * 2.  Redistributions in binary form must reproduce the above copyright notice,
+ *     this list of conditions and the following disclaimer in the documentation
+ *     and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
+ * WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
+ * DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR
+ * SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
+ * CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
+ * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef RNP_RANDOM_H_
-#define RNP_RANDOM_H_
+#ifndef RNP_RNG_H_
+#define RNP_RNG_H_
 
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include "config.h"
 
-enum { RNG_DRBG, RNG_SYSTEM };
-typedef uint8_t rng_type_t;
 #ifdef CRYPTO_BACKEND_BOTAN
 typedef struct botan_rng_struct *botan_rng_t;
 #endif
 
-typedef struct rng_st_t {
-    rng_type_t rng_type;
+namespace rnp {
+class RNG {
+  private:
 #ifdef CRYPTO_BACKEND_BOTAN
-    bool        initialized;
-    botan_rng_t botan_rng;
+    struct botan_rng_struct *botan_rng;
 #endif
-} rng_t;
-
-/*
- * @brief Initializes rng structure
- *
- * @param rng_type indicates which random generator to initialize.
- *        Two values possible
- *          RNG_DRBG - will initialize HMAC_DRBG, this generator
- *                     is initialized on-demand (when used for the
- *                     first time)
- *          RNG_SYSTEM will initialize /dev/(u)random
- * @returns false if lazy initialization wasn't requested
- *          and initialization failed, otherwise true
- */
-bool rng_init(rng_t *ctx, rng_type_t rng_type);
-
-/*
- * Frees memory allocated by `rng_get_data'
- */
-void rng_destroy(rng_t *ctx);
-
-/*
- *  @brief  Used to retrieve random data. First successful completion
- *          of this function initializes memory in `ctx' which
- *          needs to be released with `rng_destroy'.
- *
- *          Function initializes HMAC_DRBG with automatic reseeding
- *          after each 1024'th call.
- *
- *  @param ctx pointer to rng_t
- *  @param data [out] output buffer of size at least `len`
- *  @param len number of bytes to get
- *
- *  @return true on success, false indicates implementation error.
- **/
-bool rng_get_data(rng_t *ctx, uint8_t *data, size_t len);
-
+  public:
+    enum Type { DRBG, System };
+    /**
+     * @brief Construct a new RNG object.
+     *        Note: OpenSSL uses own global RNG, so this class is not needed there and left
+     *        only for code-level compatibility.
+     *
+     * @param type indicates which random generator to initialize.
+     *             Possible values for Botan backend:
+     *             - DRBG will initialize HMAC_DRBG, this generator is initialized on-demand
+     *               (when used for the first time)
+     *             - SYSTEM will initialize /dev/(u)random
+     */
+    RNG(Type type = Type::DRBG);
+    ~RNG();
+    /**
+     * @brief Get randoom bytes.
+     *
+     * @param data buffer where data should be stored. Cannot be NULL.
+     * @param len number of bytes required.
+     */
+    void get(uint8_t *data, size_t len);
 #ifdef CRYPTO_BACKEND_BOTAN
-/*
- * @brief   Returns internal handle to botan rng. Returned
- *          handle is always initialized. In case of
- *          internal error NULL is returned
- *
- * @param   valid pointer to rng_t object
- */
-struct botan_rng_struct *rng_handle(rng_t *);
+    /**
+     * @brief   Returns internal handle to botan rng. Returned
+     *          handle is always initialized. In case of
+     *          internal error NULL is returned
+     */
+    struct botan_rng_struct *handle();
 #endif
+};
+} // namespace rnp
 
-#endif // RNP_RANDOM_H_
+#endif // RNP_RNG_H_

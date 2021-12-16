@@ -87,7 +87,7 @@
 #define DSA_MAX_Q_BITLEN 256
 
 rnp_result_t
-dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
+dsa_validate_key(rnp::RNG *rng, const pgp_dsa_key_t *key, bool secret)
 {
     bignum_t *      p = NULL;
     bignum_t *      q = NULL;
@@ -115,7 +115,7 @@ dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+    if (botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -136,7 +136,7 @@ dsa_validate_key(rng_t *rng, const pgp_dsa_key_t *key, bool secret)
         goto done;
     }
 
-    if (botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+    if (botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -153,7 +153,7 @@ done:
 }
 
 rnp_result_t
-dsa_sign(rng_t *              rng,
+dsa_sign(rnp::RNG *           rng,
          pgp_dsa_signature_t *sig,
          const uint8_t *      hash,
          size_t               hash_len,
@@ -204,7 +204,7 @@ dsa_sign(rng_t *              rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), sign_buf, &sigbuf_size)) {
+    if (botan_pk_op_sign_finish(sign_op, rng->handle(), sign_buf, &sigbuf_size)) {
         RNP_LOG("Signing has failed");
         goto end;
     }
@@ -299,7 +299,7 @@ end:
 }
 
 rnp_result_t
-dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
+dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
 {
     if ((keylen < 1024) || (keylen > 3072) || (qbits < 160) || (qbits > 256)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -319,8 +319,8 @@ dsa_generate(rng_t *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
         goto end;
     }
 
-    if (botan_privkey_create_dsa(&key_priv, rng_handle(rng), keylen, qbits) ||
-        botan_privkey_check_key(key_priv, rng_handle(rng), 1) ||
+    if (botan_privkey_create_dsa(&key_priv, rng->handle(), keylen, qbits) ||
+        botan_privkey_check_key(key_priv, rng->handle(), 1) ||
         botan_privkey_export_pubkey(&key_pub, key_priv)) {
         RNP_LOG("Wrong parameters");
         ret = RNP_ERROR_BAD_PARAMETERS;

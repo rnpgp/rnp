@@ -46,7 +46,7 @@ bool calculate_primary_binding(const pgp_key_pkt_t &key,
                                pgp_hash_alg_t       halg,
                                pgp_signature_t &    sig,
                                rnp::Hash &          hash,
-                               rng_t &              rng);
+                               rnp::RNG &           rng);
 
 int
 main(int argc, char **argv)
@@ -109,12 +109,7 @@ main(int argc, char **argv)
         return 1;
     }
 
-    rng_t rng = {};
-    if (!rng_init(&rng, RNG_SYSTEM)) {
-        RNP_LOG("RNG init failed");
-        return 1;
-    }
-
+    rnp::RNG rng(rnp::RNG::Type::System);
     if (signature_calculate(binding, &tskey.key.material, &hash, &rng)) {
         RNP_LOG("failed to calculate signature");
         return 1;

@@ -70,14 +70,14 @@ eddsa_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *keydata)
 }
 
 rnp_result_t
-eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+eddsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
     botan_privkey_t bskey = NULL;
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (!eddsa_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -87,7 +87,7 @@ eddsa_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!eddsa_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -98,13 +98,13 @@ done:
 }
 
 rnp_result_t
-eddsa_generate(rng_t *rng, pgp_ec_key_t *key)
+eddsa_generate(rnp::RNG *rng, pgp_ec_key_t *key)
 {
     botan_privkey_t eddsa = NULL;
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     uint8_t         key_bits[64];
 
-    if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng_handle(rng)) != 0) {
+    if (botan_privkey_create(&eddsa, "Ed25519", NULL, rng->handle()) != 0) {
         goto end;
     }
 
@@ -168,7 +168,7 @@ done:
 }
 
 rnp_result_t
-eddsa_sign(rng_t *             rng,
+eddsa_sign(rnp::RNG *          rng,
            pgp_ec_signature_t *sig,
            const uint8_t *     hash,
            size_t              hash_len,
@@ -193,7 +193,7 @@ eddsa_sign(rng_t *             rng,
         goto done;
     }
 
-    if (botan_pk_op_sign_finish(sign_op, rng_handle(rng), bn_buf, &sig_size) != 0) {
+    if (botan_pk_op_sign_finish(sign_op, rng->handle(), bn_buf, &sig_size) != 0) {
         goto done;
     }
 

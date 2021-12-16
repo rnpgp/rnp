@@ -74,9 +74,12 @@ struct rnp_ffi_st {
     void *                  getkeycb_ctx;
     rnp_password_cb         getpasscb;
     void *                  getpasscb_ctx;
-    rng_t                   rng;
+    rnp::RNG                rng;
     pgp_key_provider_t      key_provider;
     pgp_password_provider_t pass_provider;
+
+    rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt);
+    ~rnp_ffi_st();
 };
 
 struct rnp_input_st {

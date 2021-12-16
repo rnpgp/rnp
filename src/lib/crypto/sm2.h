@@ -39,7 +39,7 @@ class Hash;
 }
 
 #if defined(ENABLE_SM2)
-rnp_result_t sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret);
+rnp_result_t sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
 
 /**
  * Compute the SM2 "ZA" field, and add it to the hash object
@@ -50,7 +50,7 @@ rnp_result_t sm2_compute_za(const pgp_ec_key_t &key,
                             rnp::Hash &         hash,
                             const char *        ident_field = NULL);
 
-rnp_result_t sm2_sign(rng_t *             rng,
+rnp_result_t sm2_sign(rnp::RNG *          rng,
                       pgp_ec_signature_t *sig,
                       pgp_hash_alg_t      hash_alg,
                       const uint8_t *     hash,
@@ -63,7 +63,7 @@ rnp_result_t sm2_verify(const pgp_ec_signature_t *sig,
                         size_t                    hash_len,
                         const pgp_ec_key_t *      key);
 
-rnp_result_t sm2_encrypt(rng_t *              rng,
+rnp_result_t sm2_encrypt(rnp::RNG *           rng,
                          pgp_sm2_encrypted_t *out,
                          const uint8_t *      in,
                          size_t               in_len,

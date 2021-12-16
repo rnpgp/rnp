@@ -46,7 +46,7 @@ static const struct ecdh_wrap_alg_map_t {
                          {PGP_SA_AES_256, "aes256-wrap"}};
 
 rnp_result_t
-ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     return ec_validate_key(*key, secret);
 }
@@ -237,7 +237,7 @@ ecdh_kek_len(pgp_symm_alg_t wrap_alg)
 }
 
 rnp_result_t
-ecdh_encrypt_pkcs5(rng_t *                  rng,
+ecdh_encrypt_pkcs5(rnp::RNG *               rng,
                    pgp_ecdh_encrypted_t *   out,
                    const uint8_t *const     in,
                    size_t                   in_len,

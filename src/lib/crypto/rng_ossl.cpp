@@ -28,30 +28,20 @@
 #include <openssl/rand.h>
 #include "rng.h"
 
-bool
-rng_init(rng_t *ctx, rng_type_t rng_type)
+namespace rnp {
+RNG::RNG(Type type = Type::DRBG)
 {
-    if (!ctx) {
-        return false;
-    }
-    if ((rng_type != RNG_DRBG) && (rng_type != RNG_SYSTEM)) {
-        return false;
-    }
-    ctx->rng_type = rng_type;
-    return true;
+}
+
+RNG::~RNG()
+{
 }
 
 void
-rng_destroy(rng_t *ctx)
+RNG::get(uint8_t *data, size_t len)
 {
-    ;
-}
-
-bool
-rng_get_data(rng_t *ctx, uint8_t *data, size_t len)
-{
-    if (!ctx) {
-        return false;
+    if (RAND_bytes(data, len) != 1) {
+        throw rnp::rnp_exception(RNP_ERROR_RNG);
     }
-    return RAND_bytes(data, len) == 1;
 }
+} // namespace rnp
