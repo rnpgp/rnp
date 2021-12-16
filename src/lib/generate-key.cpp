@@ -69,8 +69,11 @@ static const id_str_pair pubkey_alg_map[] = {
   {0, NULL}};
 
 static bool
-load_generated_g10_key(
-  pgp_key_t *dst, pgp_key_pkt_t *newkey, pgp_key_t *primary_key, pgp_key_t *pubkey, rng_t &rng)
+load_generated_g10_key(pgp_key_t *    dst,
+                       pgp_key_pkt_t *newkey,
+                       pgp_key_t *    primary_key,
+                       pgp_key_t *    pubkey,
+                       rnp::RNG &     rng)
 {
     bool                     ok = false;
     pgp_dest_t               memdst = {};
@@ -504,7 +507,7 @@ keygen_merge_defaults(rnp_keygen_primary_desc_t &primary_desc,
 }
 
 bool
-pgp_generate_keypair(rng_t &                    rng,
+pgp_generate_keypair(rnp::RNG &                 rng,
                      rnp_keygen_primary_desc_t &primary_desc,
                      rnp_keygen_subkey_desc_t & subkey_desc,
                      bool                       merge_defaults,

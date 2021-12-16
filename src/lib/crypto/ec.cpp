@@ -41,7 +41,7 @@ static id_str_pair ec_algo_to_botan[] = {
 };
 
 rnp_result_t
-x25519_generate(rng_t *rng, pgp_ec_key_t *key)
+x25519_generate(rnp::RNG *rng, pgp_ec_key_t *key)
 {
     botan_privkey_t pr_key = NULL;
     botan_pubkey_t  pu_key = NULL;
@@ -49,7 +49,7 @@ x25519_generate(rng_t *rng, pgp_ec_key_t *key)
 
     rnp::secure_array<uint8_t, 32> keyle;
 
-    if (botan_privkey_create(&pr_key, "Curve25519", "", rng_handle(rng))) {
+    if (botan_privkey_create(&pr_key, "Curve25519", "", rng->handle())) {
         goto end;
     }
 
@@ -84,7 +84,7 @@ end:
 }
 
 rnp_result_t
-ec_generate(rng_t *                rng,
+ec_generate(rnp::RNG *             rng,
             pgp_ec_key_t *         key,
             const pgp_pubkey_alg_t alg_id,
             const pgp_curve_t      curve)
@@ -117,7 +117,7 @@ ec_generate(rng_t *                rng,
     filed_byte_size = BITS_TO_BYTES(ec_desc->bitlen);
 
     // at this point it must succeed
-    if (botan_privkey_create(&pr_key, ec_algo, ec_desc->botan_name, rng_handle(rng))) {
+    if (botan_privkey_create(&pr_key, ec_algo, ec_desc->botan_name, rng->handle())) {
         goto end;
     }
 

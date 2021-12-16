@@ -125,14 +125,13 @@ done:
 }
 
 rnp_result_t
-sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
     botan_privkey_t bskey = NULL;
     rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
-    if (!sm2_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+    if (!sm2_load_public_key(&bpkey, key) || botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -142,7 +141,7 @@ sm2_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!sm2_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -153,7 +152,7 @@ done:
 }
 
 rnp_result_t
-sm2_sign(rng_t *             rng,
+sm2_sign(rnp::RNG *          rng,
          pgp_ec_signature_t *sig,
          pgp_hash_alg_t      hash_alg,
          const uint8_t *     hash,
@@ -197,7 +196,7 @@ sm2_sign(rng_t *             rng,
         goto end;
     }
 
-    if (botan_pk_op_sign_finish(signer, rng_handle(rng), out_buf, &sig_len)) {
+    if (botan_pk_op_sign_finish(signer, rng->handle(), out_buf, &sig_len)) {
         RNP_LOG("Signing failed");
         goto end;
     }
@@ -276,7 +275,7 @@ end:
 }
 
 rnp_result_t
-sm2_encrypt(rng_t *              rng,
+sm2_encrypt(rnp::RNG *           rng,
             pgp_sm2_encrypted_t *out,
             const uint8_t *      in,
             size_t               in_len,
@@ -327,8 +326,7 @@ sm2_encrypt(rng_t *              rng,
     }
 
     out->m.len = sizeof(out->m.mpi);
-    if (botan_pk_op_encrypt(enc_op, rng_handle(rng), out->m.mpi, &out->m.len, in, in_len) ==
-        0) {
+    if (botan_pk_op_encrypt(enc_op, rng->handle(), out->m.mpi, &out->m.len, in, in_len) == 0) {
         out->m.mpi[out->m.len++] = hash_algo;
         ret = RNP_SUCCESS;
     }

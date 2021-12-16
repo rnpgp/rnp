@@ -126,7 +126,7 @@ bool curve_supported(pgp_curve_t curve);
 /*
  * @brief   Generates EC key in uncompressed format
  *
- * @param   rng initialized rng_t context*
+ * @param   rng initialized rnp::RNG context*
  * @param   key key data to be generated
  * @param   alg_id ID of EC algorithm
  * @param   curve underlying ECC curve ID
@@ -137,7 +137,7 @@ bool curve_supported(pgp_curve_t curve);
  * @returns RNP_ERROR_OUT_OF_MEMORY memory allocation failed
  * @returns RNP_ERROR_KEY_GENERATION implementation error
  */
-rnp_result_t ec_generate(rng_t *                rng,
+rnp_result_t ec_generate(rnp::RNG *             rng,
                          pgp_ec_key_t *         key,
                          const pgp_pubkey_alg_t alg_id,
                          const pgp_curve_t      curve);
@@ -145,12 +145,12 @@ rnp_result_t ec_generate(rng_t *                rng,
 /*
  * @brief   Generates x25519 ECDH key in x25519-specific format
  *
- * @param   rng initialized rng_t context*
+ * @param   rng initialized rnp::RNG context*
  * @param   key key data to be generated
  *
  * @returns RNP_ERROR_KEY_GENERATION implementation error
  */
-rnp_result_t x25519_generate(rng_t *rng, pgp_ec_key_t *key);
+rnp_result_t x25519_generate(rnp::RNG *rng, pgp_ec_key_t *key);
 
 /**
  * @brief Set least significant/most significant bits of the 25519 secret key as per

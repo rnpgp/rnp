@@ -73,7 +73,7 @@ void
 signature_calculate(pgp_signature_t &         sig,
                     const pgp_key_material_t &seckey,
                     rnp::Hash &               hash,
-                    rng_t &                   rng)
+                    rnp::RNG &                rng)
 {
     uint8_t              hval[PGP_MAX_HASH_SIZE];
     size_t               hlen = 0;

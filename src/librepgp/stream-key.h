@@ -140,7 +140,7 @@ rnp_result_t write_pgp_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armo
 
 rnp_result_t decrypt_secret_key(pgp_key_pkt_t *key, const char *password);
 
-rnp_result_t encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rng_t &rng);
+rnp_result_t encrypt_secret_key(pgp_key_pkt_t *key, const char *password, rnp::RNG &rng);
 
 void forget_secret_key_fields(pgp_key_material_t *key);
 

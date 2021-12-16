@@ -58,17 +58,17 @@ typedef struct pgp_rsa_encrypted_t {
  * RSA encrypt/decrypt
  */
 
-rnp_result_t rsa_validate_key(rng_t *rng, const pgp_rsa_key_t *key, bool secret);
+rnp_result_t rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret);
 
-rnp_result_t rsa_generate(rng_t *rng, pgp_rsa_key_t *key, size_t numbits);
+rnp_result_t rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits);
 
-rnp_result_t rsa_encrypt_pkcs1(rng_t *              rng,
+rnp_result_t rsa_encrypt_pkcs1(rnp::RNG *           rng,
                                pgp_rsa_encrypted_t *out,
                                const uint8_t *      in,
                                size_t               in_len,
                                const pgp_rsa_key_t *key);
 
-rnp_result_t rsa_decrypt_pkcs1(rng_t *                    rng,
+rnp_result_t rsa_decrypt_pkcs1(rnp::RNG *                 rng,
                                uint8_t *                  out,
                                size_t *                   out_len,
                                const pgp_rsa_encrypted_t *in,
@@ -80,7 +80,7 @@ rnp_result_t rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
                               size_t                     hash_len,
                               const pgp_rsa_key_t *      key);
 
-rnp_result_t rsa_sign_pkcs1(rng_t *              rng,
+rnp_result_t rsa_sign_pkcs1(rnp::RNG *           rng,
                             pgp_rsa_signature_t *sig,
                             pgp_hash_alg_t       hash_alg,
                             const uint8_t *      hash,

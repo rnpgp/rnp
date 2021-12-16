@@ -142,7 +142,7 @@ done:
 }
 
 rnp_result_t
-elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
+elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
     botan_privkey_t bskey = NULL;
@@ -150,7 +150,7 @@ elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
 
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
     if (!elgamal_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
 
@@ -160,7 +160,7 @@ elgamal_validate_key(rng_t *rng, const pgp_eg_key_t *key, bool secret)
     }
 
     if (!elgamal_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -171,7 +171,7 @@ done:
 }
 
 rnp_result_t
-elgamal_encrypt_pkcs1(rng_t *             rng,
+elgamal_encrypt_pkcs1(rnp::RNG *          rng,
                       pgp_eg_encrypted_t *out,
                       const uint8_t *     in,
                       size_t              in_len,
@@ -198,7 +198,7 @@ elgamal_encrypt_pkcs1(rng_t *             rng,
     p_len = mpi_bytes(&key->p) * 2;
 
     if (botan_pk_op_encrypt_create(&op_ctx, b_key, "PKCS1v15", 0) ||
-        botan_pk_op_encrypt(op_ctx, rng_handle(rng), enc_buf, &p_len, in, in_len)) {
+        botan_pk_op_encrypt(op_ctx, rng->handle(), enc_buf, &p_len, in, in_len)) {
         RNP_LOG("Failed to create operation context");
         goto end;
     }
@@ -225,7 +225,7 @@ end:
 }
 
 rnp_result_t
-elgamal_decrypt_pkcs1(rng_t *                   rng,
+elgamal_decrypt_pkcs1(rnp::RNG *                rng,
                       uint8_t *                 out,
                       size_t *                  out_len,
                       const pgp_eg_encrypted_t *in,
@@ -279,7 +279,7 @@ end:
 }
 
 rnp_result_t
-elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits)
+elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits)
 {
     if ((keybits < 1024) || (keybits > PGP_MPINT_BITS)) {
         return RNP_ERROR_BAD_PARAMETERS;
@@ -298,7 +298,7 @@ elgamal_generate(rng_t *rng, pgp_eg_key_t *key, size_t keybits)
     }
 
 start:
-    if (botan_privkey_create_elgamal(&key_priv, rng_handle(rng), keybits, keybits - 1)) {
+    if (botan_privkey_create_elgamal(&key_priv, rng->handle(), keybits, keybits - 1)) {
         RNP_LOG("Wrong parameters");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto end;

@@ -1135,7 +1135,9 @@ s_exp_t::write_padded(size_t padblock) const
 }
 
 void
-s_exp_t::add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password, rng_t &rng)
+s_exp_t::add_protected_seckey(pgp_key_pkt_t &    seckey,
+                              const std::string &password,
+                              rnp::RNG &         rng)
 {
     pgp_key_protection_t &prot = seckey.sec_protection;
     if (prot.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
@@ -1150,11 +1152,8 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password
     }
 
     // randomize IV and salt
-    if (!rng_get_data(&rng, prot.iv, sizeof(prot.iv)) ||
-        !rng_get_data(&rng, prot.s2k.salt, sizeof(prot.s2k.salt))) {
-        RNP_LOG("iv generation failed");
-        throw rnp::rnp_exception(RNP_ERROR_RNG);
-    }
+    rng.get(prot.iv, sizeof(prot.iv));
+    rng.get(prot.s2k.salt, sizeof(prot.s2k.salt));
 
     // write seckey
     s_exp_t  raw_s_exp;
@@ -1239,7 +1238,7 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &seckey, const std::string &password
 }
 
 bool
-g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password, rng_t &rng)
+g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password, rnp::RNG &rng)
 {
     bool is_protected = true;
 

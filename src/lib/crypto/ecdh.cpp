@@ -152,7 +152,7 @@ ecdh_load_secret_key(botan_privkey_t *seckey, const pgp_ec_key_t *key)
 }
 
 rnp_result_t
-ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
+ecdh_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret)
 {
     botan_pubkey_t  bpkey = NULL;
     botan_privkey_t bskey = NULL;
@@ -164,7 +164,7 @@ ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!ecdh_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng_handle(rng), 0)) {
+        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
         goto done;
     }
     if (!secret) {
@@ -173,7 +173,7 @@ ecdh_validate_key(rng_t *rng, const pgp_ec_key_t *key, bool secret)
     }
 
     if (!ecdh_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng_handle(rng), 0)) {
+        botan_privkey_check_key(bskey, rng->handle(), 0)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -184,7 +184,7 @@ done:
 }
 
 rnp_result_t
-ecdh_encrypt_pkcs5(rng_t *                  rng,
+ecdh_encrypt_pkcs5(rnp::RNG *               rng,
                    pgp_ecdh_encrypted_t *   out,
                    const uint8_t *const     in,
                    size_t                   in_len,
@@ -231,12 +231,12 @@ ecdh_encrypt_pkcs5(rng_t *                  rng,
     }
 
     if (!strcmp(curve_desc->botan_name, "curve25519")) {
-        if (botan_privkey_create(&eph_prv_key, "Curve25519", "", rng_handle(rng))) {
+        if (botan_privkey_create(&eph_prv_key, "Curve25519", "", rng->handle())) {
             goto end;
         }
     } else {
         if (botan_privkey_create(
-              &eph_prv_key, "ECDH", curve_desc->botan_name, rng_handle(rng))) {
+              &eph_prv_key, "ECDH", curve_desc->botan_name, rng->handle())) {
             goto end;
         }
     }

@@ -239,7 +239,7 @@ bool
 pgp_key_t::write_sec_pgp(pgp_dest_t &       dst,
                          pgp_key_pkt_t &    seckey,
                          const std::string &password,
-                         rng_t &            rng)
+                         rnp::RNG &         rng)
 {
     bool           res = false;
     pgp_pkt_type_t oldtag = seckey.tag;
@@ -260,7 +260,7 @@ done:
 }
 
 bool
-pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rng_t &rng)
+pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rnp::RNG &rng)
 {
     pgp_dest_t memdst = {};
     if (init_mem_dest(&memdst, NULL, 0)) {
@@ -324,7 +324,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                        pgp_key_t *                    seckey,
                        uint32_t                       expiry,
                        const pgp_password_provider_t &prov,
-                       rng_t &                        rng)
+                       rnp::RNG &                     rng)
 {
     if (!key->is_primary()) {
         RNP_LOG("Not a primary key");
@@ -409,7 +409,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
                           pgp_key_t *                    secsub,
                           uint32_t                       expiry,
                           const pgp_password_provider_t &prov,
-                          rng_t &                        rng)
+                          rnp::RNG &                     rng)
 {
     if (!sub->is_subkey()) {
         RNP_LOG("Not a subkey");
@@ -1545,7 +1545,7 @@ pgp_key_t::lock()
 bool
 pgp_key_t::protect(const rnp_key_protection_params_t &protection,
                    const pgp_password_provider_t &    password_provider,
-                   rng_t &                            rng)
+                   rnp::RNG &                         rng)
 {
     pgp_password_ctx_t ctx;
     memset(&ctx, 0, sizeof(ctx));
@@ -1564,7 +1564,7 @@ bool
 pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
                    const rnp_key_protection_params_t &protection,
                    const std::string &                new_password,
-                   rng_t &                            rng)
+                   rnp::RNG &                         rng)
 {
     if (!is_secret()) {
         RNP_LOG("Warning: this is not a secret key");
@@ -1602,7 +1602,7 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
 }
 
 bool
-pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rng_t &rng)
+pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rnp::RNG &rng)
 {
     /* sanity check */
     if (!is_secret()) {
@@ -2308,7 +2308,7 @@ void
 pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
                      const pgp_userid_pkt_t &uid,
                      pgp_signature_t &       sig,
-                     rng_t &                 rng) const
+                     rnp::RNG &              rng) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2317,7 +2317,7 @@ pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
 }
 
 void
-pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const
+pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2326,7 +2326,7 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rn
 }
 
 void
-pgp_key_t::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rng_t &rng) const
+pgp_key_t::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2343,7 +2343,7 @@ pgp_key_t::gen_revocation(const pgp_revoke_t & revoke,
                           pgp_hash_alg_t       hash,
                           const pgp_key_pkt_t &key,
                           pgp_signature_t &    sig,
-                          rng_t &              rng) const
+                          rnp::RNG &           rng) const
 {
     sign_init(sig, hash);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
@@ -2359,7 +2359,7 @@ pgp_key_t::gen_revocation(const pgp_revoke_t & revoke,
 void
 pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
                                pgp_signature_t &sig,
-                               rng_t &          rng,
+                               rnp::RNG &       rng,
                                bool             subsign) const
 {
     if (!is_primary()) {
@@ -2379,7 +2379,7 @@ pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
 void
 pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
                         pgp_hash_alg_t           hash,
-                        rng_t &                  rng,
+                        rnp::RNG &               rng,
                         pgp_key_t *              pubkey)
 {
     if (!cert.userid[0]) {
@@ -2441,7 +2441,7 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
                            pgp_key_t &                       subpub,
                            const rnp_selfsig_binding_info_t &binding,
                            pgp_hash_alg_t                    hash,
-                           rng_t &                           rng)
+                           rnp::RNG &                        rng)
 {
     if (!is_primary()) {
         RNP_LOG("must be called on primary key");

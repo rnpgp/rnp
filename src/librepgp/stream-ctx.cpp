@@ -30,13 +30,6 @@
 #include "utils.h"
 #include "stream-ctx.h"
 
-rng_t *
-rnp_ctx_rng_handle(const rnp_ctx_t *ctx)
-{
-    assert(ctx->rng);
-    return ctx->rng;
-}
-
 rnp_result_t
 rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
                                 const char *   password,
@@ -50,8 +43,11 @@ rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
     info.s2k.specifier = PGP_S2KS_ITERATED_AND_SALTED;
     info.s2k.hash_alg = halg;
 
-    if (!rng_get_data(ctx.rng, info.s2k.salt, sizeof(info.s2k.salt))) {
-        return RNP_ERROR_GENERIC;
+    try {
+        ctx.rng->get(info.s2k.salt, sizeof(info.s2k.salt));
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_RNG;
     }
     if (iterations == 0) {
         iterations = pgp_s2k_compute_iters(halg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);

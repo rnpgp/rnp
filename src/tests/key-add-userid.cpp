@@ -30,7 +30,7 @@
 #include "support.h"
 #include "crypto/hash.h"
 
-extern rng_t global_rng;
+extern rnp::RNG global_rng;
 
 /* This test loads a pgp keyring and adds a few userids to the key.
  */
@@ -68,7 +68,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     unsigned subsigc = key->sig_count();
 
     // init rng
-    rng_t &rng = global_rng;
+    rnp::RNG &rng = global_rng;
     // add first, non-primary userid
     rnp_selfsig_cert_info_t selfsig0 = {};
     memcpy(selfsig0.userid, "added0", 7);
