@@ -132,7 +132,7 @@ ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 static void
 rnp_ctx_init_ffi(rnp_ctx_t &ctx, rnp_ffi_t ffi)
 {
-    ctx.rng = &ffi->rng;
+    ctx.rng = &ffi->rng();
     ctx.ealg = DEFAULT_PGP_SYMM_ALG;
 }
 
@@ -497,18 +497,10 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 #define FFI_GUARD FFI_GUARD_FP((stderr))
 
 rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt)
-    : rng(rnp::RNG::Type::DRBG)
 {
     errs = stderr;
     pubring = new rnp_key_store_t(pub_fmt, "");
     secring = new rnp_key_store_t(sec_fmt, "");
-    sec_profile = new rnp::SecurityProfile();
-    /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
-    sec_profile->add_rule(rnp::SecurityRule(
-      rnp::FeatureType::Hash, PGP_HASH_SHA1, rnp::SecurityLevel::Insecure, 1547856000));
-    /* Mark MD5 insecure since 2012-01-01 */
-    sec_profile->add_rule(rnp::SecurityRule(
-      rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Insecure, 1325376000));
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
@@ -517,6 +509,18 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     key_provider.userdata = this;
     pass_provider.callback = rnp_password_cb_bounce;
     pass_provider.userdata = this;
+}
+
+rnp::RNG &
+rnp_ffi_st::rng() noexcept
+{
+    return context.rng;
+}
+
+rnp::SecurityProfile &
+rnp_ffi_st::profile() noexcept
+{
+    return context.profile;
 }
 
 rnp_result_t
@@ -560,7 +564,6 @@ rnp_ffi_st::~rnp_ffi_st()
     close_io_file(&errs);
     delete pubring;
     delete secring;
-    delete sec_profile;
 }
 
 rnp_result_t
@@ -1183,7 +1186,7 @@ try {
     /* add rule */
     rnp::SecurityRule newrule(ftype, fvalue, sec_level, from);
     newrule.override = rule_override;
-    ffi->sec_profile->add_rule(newrule);
+    ffi->profile().add_rule(newrule);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -1207,10 +1210,10 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* init default rule */
-    rnp::SecurityRule rule(ftype, fvalue, ffi->sec_profile->def_level());
+    rnp::SecurityRule rule(ftype, fvalue, ffi->profile().def_level());
     /* check whether rule exists */
-    if (ffi->sec_profile->has_rule(ftype, fvalue, time)) {
-        rule = ffi->sec_profile->get_rule(ftype, fvalue, time);
+    if (ffi->profile().has_rule(ftype, fvalue, time)) {
+        rule = ffi->profile().get_rule(ftype, fvalue, time);
     }
     /* fill the results */
     if (flags) {
@@ -1259,9 +1262,9 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* remove all rules */
-    size_t rules = ffi->sec_profile->size();
+    size_t rules = ffi->profile().size();
     if (!type) {
-        ffi->sec_profile->clear_rules();
+        ffi->profile().clear_rules();
         goto success;
     }
     rnp::FeatureType   ftype;
@@ -1273,21 +1276,21 @@ try {
     }
     /* remove all rules for the specified type */
     if (!name) {
-        ffi->sec_profile->clear_rules(ftype);
+        ffi->profile().clear_rules(ftype);
         goto success;
     }
     if (remove_all) {
         /* remove all rules for the specified type and name */
-        ffi->sec_profile->clear_rules(ftype, fvalue);
+        ffi->profile().clear_rules(ftype, fvalue);
     } else {
         /* remove specific rule */
         rnp::SecurityRule rule(ftype, fvalue, flevel, from);
         rule.override = rule_override;
-        ffi->sec_profile->del_rule(rule);
+        ffi->profile().del_rule(rule);
     }
 success:
     if (removed) {
-        *removed = rules - ffi->sec_profile->size();
+        *removed = rules - ffi->profile().size();
     }
     return RNP_SUCCESS;
 }
@@ -1700,7 +1703,7 @@ try {
         if (!pub && key.is_public()) {
             continue;
         }
-        if (validate_pgp_key_material(&key.material(), &ffi->rng)) {
+        if (validate_pgp_key_material(&key.material(), &ffi->rng())) {
             char hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
             rnp::hex_encode(
               key.keyid().data(), key.keyid().size(), hex, sizeof(hex), rnp::HEX_LOWERCASE);
@@ -4039,7 +4042,7 @@ rnp_key_get_revocation(rnp_ffi_t        ffi,
         return RNP_ERROR_BAD_PASSWORD;
     }
     try {
-        revoker->gen_revocation(revinfo, halg, key->pkt(), sig, ffi->rng);
+        revoker->gen_revocation(revinfo, halg, key->pkt(), sig, ffi->rng());
     } catch (const std::exception &e) {
         FFI_LOG(ffi, "Failed to generate revocation signature: %s", e.what());
         return RNP_ERROR_BAD_STATE;
@@ -4162,7 +4165,7 @@ try {
         FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
         return RNP_ERROR_BAD_STATE;
     }
-    if (!seckey->write_sec_rawpkt(seckey->pkt(), "", key->ffi->rng)) {
+    if (!seckey->write_sec_rawpkt(seckey->pkt(), "", key->ffi->rng())) {
         FFI_LOG(key->ffi, "Failed to update rawpkt.");
         return RNP_ERROR_BAD_STATE;
     }
@@ -4844,7 +4847,7 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!pgp_generate_keypair(ffi->rng,
+        if (!pgp_generate_keypair(ffi->rng(),
                                   keygen_desc.primary.keygen,
                                   keygen_desc.subkey.keygen,
                                   true,
@@ -4872,13 +4875,13 @@ try {
         /* add key/subkey protection */
         if (keygen_desc.primary.protection.symm_alg &&
             !primary_sec.protect(
-              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng)) {
+              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng())) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
 
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng())) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4892,7 +4895,7 @@ try {
             goto done;
         }
     } else if (jsoprimary && !jsosub) { // generating primary only
-        keygen_desc.primary.keygen.crypto.rng = &ffi->rng;
+        keygen_desc.primary.keygen.crypto.rng = &ffi->rng();
         if (!parse_keygen_primary(jsoprimary, &keygen_desc)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
@@ -4917,7 +4920,7 @@ try {
         /* encrypt secret key if specified */
         if (keygen_desc.primary.protection.symm_alg &&
             !primary_sec.protect(
-              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng)) {
+              keygen_desc.primary.protection, ffi->pass_provider, ffi->rng())) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -4969,7 +4972,7 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        keygen_desc.subkey.keygen.crypto.rng = &ffi->rng;
+        keygen_desc.subkey.keygen.crypto.rng = &ffi->rng();
         if (!pgp_generate_subkey(keygen_desc.subkey.keygen,
                                  true,
                                  *primary_sec,
@@ -4992,7 +4995,7 @@ try {
         }
         /* encrypt subkey if specified */
         if (keygen_desc.subkey.protection.symm_alg &&
-            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng)) {
+            !sub_sec.protect(keygen_desc.subkey.protection, ffi->pass_provider, ffi->rng())) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
@@ -5237,7 +5240,7 @@ try {
     (*op)->ffi = ffi;
     (*op)->primary = true;
     (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.rng = &ffi->rng;
+    (*op)->crypto.rng = &ffi->rng();
     (*op)->cert.key_flags = default_key_flags(key_alg, false);
 
     return RNP_SUCCESS;
@@ -5281,7 +5284,7 @@ try {
     (*op)->ffi = ffi;
     (*op)->primary = false;
     (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.rng = &ffi->rng;
+    (*op)->crypto.rng = &ffi->rng();
     (*op)->binding.key_flags = default_key_flags(key_alg, true);
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
@@ -5664,7 +5667,7 @@ try {
     } else if (op->request_password) {
         prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
     }
-    if (prov.callback && !sec.protect(op->protection, prov, op->ffi->rng)) {
+    if (prov.callback && !sec.protect(op->protection, prov, op->ffi->rng())) {
         FFI_LOG(op->ffi, "failed to encrypt the key");
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto done;
@@ -5858,7 +5861,7 @@ try {
         return RNP_ERROR_BAD_PASSWORD;
     }
     /* add and certify userid */
-    secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng, public_key);
+    secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng(), public_key);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6810,7 +6813,7 @@ try {
 
     if (pkey->is_primary()) {
         if (!pgp_key_set_expiration(
-              pkey, skey, expiry, key->ffi->pass_provider, key->ffi->rng)) {
+              pkey, skey, expiry, key->ffi->pass_provider, key->ffi->rng())) {
             return RNP_ERROR_GENERIC;
         }
         pkey->revalidate(*key->ffi->pubring);
@@ -6835,7 +6838,7 @@ try {
         return RNP_ERROR_KEY_NOT_FOUND;
     }
     if (!pgp_subkey_set_expiration(
-          pkey, prim_sec, skey, expiry, key->ffi->pass_provider, key->ffi->rng)) {
+          pkey, prim_sec, skey, expiry, key->ffi->pass_provider, key->ffi->rng())) {
         return RNP_ERROR_GENERIC;
     }
     prim_sec->revalidate(*key->ffi->secring);
@@ -7139,7 +7142,7 @@ try {
         }
     }
     bool res = key->protect(
-      decrypted_key ? *decrypted_key : key->pkt(), protection, pass, handle->ffi->rng);
+      decrypted_key ? *decrypted_key : key->pkt(), protection, pass, handle->ffi->rng());
     delete decrypted_key;
     return res ? RNP_SUCCESS : RNP_ERROR_GENERIC;
 }
@@ -7163,9 +7166,9 @@ try {
         pgp_password_provider_t prov = {
           .callback = rnp_password_provider_string,
           .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
-        ok = key->unprotect(prov, handle->ffi->rng);
+        ok = key->unprotect(prov, handle->ffi->rng());
     } else {
-        ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->rng);
+        ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->rng());
     }
     if (!ok) {
         // likely a bad password
