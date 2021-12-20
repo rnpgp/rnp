@@ -29,6 +29,7 @@
 #include <cstdint>
 #include <vector>
 #include "repgp/repgp_def.h"
+#include "crypto/rng.h"
 
 namespace rnp {
 
@@ -54,7 +55,7 @@ class SecurityProfile {
     std::vector<SecurityRule> rules_;
 
   public:
-    size_t        size() const;
+    size_t        size() const noexcept;
     SecurityRule &add_rule(const SecurityRule &rule);
     SecurityRule &add_rule(SecurityRule &&rule);
     bool          del_rule(const SecurityRule &rule);
@@ -62,10 +63,18 @@ class SecurityProfile {
     void          clear_rules(FeatureType type);
     void          clear_rules();
 
-    bool                has_rule(FeatureType type, int value, uint64_t time) const;
+    bool                has_rule(FeatureType type, int value, uint64_t time) const noexcept;
     const SecurityRule &get_rule(FeatureType type, int value, uint64_t time) const;
-    SecurityLevel       hash_level(pgp_hash_alg_t hash, uint64_t time) const;
+    SecurityLevel       hash_level(pgp_hash_alg_t hash, uint64_t time) const noexcept;
     SecurityLevel       def_level() const;
+};
+
+class SecurityContext {
+  public:
+    SecurityProfile profile;
+    RNG             rng;
+
+    SecurityContext();
 };
 } // namespace rnp
 

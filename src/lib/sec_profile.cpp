@@ -43,7 +43,7 @@ SecurityRule::operator!=(const SecurityRule &src) const
 }
 
 size_t
-SecurityProfile::size() const
+SecurityProfile::size() const noexcept
 {
     return rules_.size();
 }
@@ -101,7 +101,7 @@ SecurityProfile::clear_rules()
 }
 
 bool
-SecurityProfile::has_rule(FeatureType type, int value, uint64_t time) const
+SecurityProfile::has_rule(FeatureType type, int value, uint64_t time) const noexcept
 {
     for (auto &rule : rules_) {
         if ((rule.type == type) && (rule.feature == value) && (rule.from <= time)) {
@@ -133,7 +133,7 @@ SecurityProfile::get_rule(FeatureType type, int value, uint64_t time) const
 }
 
 SecurityLevel
-SecurityProfile::hash_level(pgp_hash_alg_t hash, uint64_t time) const
+SecurityProfile::hash_level(pgp_hash_alg_t hash, uint64_t time) const noexcept
 {
     if (has_rule(FeatureType::Hash, hash, time)) {
         return get_rule(FeatureType::Hash, hash, time).level;
@@ -146,5 +146,15 @@ SecurityProfile::def_level() const
 {
     return SecurityLevel::Default;
 };
+
+SecurityContext::SecurityContext() : rng(RNG::Type::DRBG)
+{
+    /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
+    profile.add_rule(
+      SecurityRule(FeatureType::Hash, PGP_HASH_SHA1, SecurityLevel::Insecure, 1547856000));
+    /* Mark MD5 insecure since 2012-01-01 */
+    profile.add_rule(
+      SecurityRule(FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000));
+}
 
 } // namespace rnp
