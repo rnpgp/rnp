@@ -1149,7 +1149,6 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
         // validate the binding sig
         psiginfo.sig = psig;
-        psiginfo.signer = primary_pub;
         primary_pub->validate_binding(psiginfo, pub);
         assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == primary_pub->fp());
@@ -1168,7 +1167,6 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(subpkt->fields.create <= time(NULL));
 
         ssiginfo.sig = ssig;
-        ssiginfo.signer = primary_pub;
         primary_pub->validate_binding(ssiginfo, sec);
         assert_true(ssiginfo.valid);
         assert_true(ssig->keyfp() == primary_sec->fp());

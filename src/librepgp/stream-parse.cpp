@@ -805,7 +805,6 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
             return;
         }
     }
-    sinfo.signer = key;
     /* Get the hash context and clone it. */
     const rnp::Hash *hash = get_hash_for_sig(param, sinfo);
     if (!hash) {
