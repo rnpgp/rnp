@@ -1053,7 +1053,6 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             assert_non_null(pkey = rnp_key_store_get_key_by_id(pubring, sig.keyid(), NULL));
             /* high level interface */
             sinfo.sig = &sig;
-            sinfo.signer = pkey;
             pgp_key_id_t subid;
             assert_rnp_success(pgp_keyid(subid, subkey.subkey));
             pgp_key_t *psub = rnp_key_store_get_key_by_id(pubring, subid, NULL);

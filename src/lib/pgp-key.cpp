@@ -1911,7 +1911,6 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
 
     pgp_signature_info_t sinfo = {};
     sinfo.sig = &sig.sig;
-    sinfo.signer = this;
     sinfo.signer_valid = true;
     if (key.is_self_cert(sig) || key.is_binding(sig)) {
         sinfo.ignore_expiry = true;
@@ -2076,7 +2075,6 @@ pgp_key_t::validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey
     signature_hash_binding(*subpkt->fields.sig, pkt(), subkey.pkt(), hash);
     pgp_signature_info_t bindinfo = {};
     bindinfo.sig = subpkt->fields.sig;
-    bindinfo.signer = &subkey;
     bindinfo.signer_valid = true;
     bindinfo.ignore_expiry = true;
     subkey.validate_sig(bindinfo, hash);
