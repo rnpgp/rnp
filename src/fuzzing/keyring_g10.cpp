@@ -28,6 +28,7 @@
 #include "../lib/pgp-key.h"
 #include "../librekey/key_store_g10.h"
 #include "../librepgp/stream-common.h"
+#include "../lib/sec_profile.hpp"
 
 #ifdef RNP_RUN_TESTS
 int keyring_g10_LLVMFuzzerTestOneInput(const uint8_t *data, size_t size);
@@ -38,8 +39,9 @@ extern "C" RNP_API int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 #endif
 {
-    rnp_key_store_t ks;
-    pgp_source_t    memsrc = {};
+    rnp::SecurityContext ctx;
+    rnp_key_store_t      ks(ctx);
+    pgp_source_t         memsrc = {};
 
     init_mem_src(&memsrc, data, size, false);
     rnp_key_store_g10_from_src(&ks, &memsrc, NULL);

@@ -39,12 +39,12 @@ TEST_F(rnp_tests, key_grip)
     rnp_key_store_t *pub_store = NULL;
     rnp_key_store_t *sec_store = NULL;
 
-    pub_store =
-      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx");
+    pub_store = new rnp_key_store_t(
+      PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx", global_ctx);
     assert_true(rnp_key_store_load_from_path(pub_store, NULL));
 
-    sec_store = new rnp_key_store_t(PGP_KEY_STORE_G10,
-                                    "data/test_stream_key_load/g10/private-keys-v1.d");
+    sec_store = new rnp_key_store_t(
+      PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pub_store};
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));

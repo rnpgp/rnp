@@ -40,7 +40,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 {
     pgp_source_t src = {};
 
-    rnp_key_store_t *key_store = new rnp_key_store_t();
+    rnp_key_store_t *key_store = new rnp_key_store_t(global_ctx);
 
     // load pubring in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/2/pubring.gpg"));
@@ -65,7 +65,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 
     // load secret keyring and decrypt the key
 
-    key_store = new rnp_key_store_t();
+    key_store = new rnp_key_store_t(global_ctx);
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/4/secring.pgp"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
@@ -103,7 +103,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 {
     pgp_source_t src = {};
 
-    rnp_key_store_t *key_store = new rnp_key_store_t();
+    rnp_key_store_t *key_store = new rnp_key_store_t(global_ctx);
 
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
@@ -130,7 +130,7 @@ check_pgp_keyring_counts(const char *   path,
                          const unsigned subkey_counts[])
 {
     pgp_source_t     src = {};
-    rnp_key_store_t *key_store = new rnp_key_store_t();
+    rnp_key_store_t *key_store = new rnp_key_store_t(global_ctx);
 
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, path));
@@ -193,7 +193,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
 
     // load keyring
     rnp_key_store_t *key_store =
-      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg");
+      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     // find
@@ -350,7 +350,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
 
     // load keyring
     rnp_key_store_t *key_store =
-      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg");
+      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg", global_ctx);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     // find
@@ -389,7 +389,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     pgp_key_id_t     keyid = {};
     rnp_key_store_t *key_store;
 
-    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-both.asc");
+    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-both.asc", global_ctx);
     assert_true(rnp_key_store_load_from_path(key_store, NULL));
 
     /* we must have 1 main key and 2 subkeys */
@@ -484,7 +484,7 @@ TEST_F(rnp_tests, test_load_merge)
     provider.callback = string_copy_password_callback;
     provider.userdata = (void *) "password";
 
-    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
     assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
     assert_true(rnp::hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));
@@ -697,9 +697,9 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     pgp_key_id_t     sub2id = {};
     rnp_key_store_t *secstore, *pubstore;
 
-    secstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-sec.asc");
+    secstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-sec.asc", global_ctx);
     assert_true(rnp_key_store_load_from_path(secstore, NULL));
-    pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg");
+    pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
 
     assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
@@ -758,7 +758,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_true(rnp_key_store_write_to_path(pubstore));
     delete pubstore;
     /* reload */
-    pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg");
+    pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubstore, NULL));
     assert_non_null(key = rnp_key_store_get_key_by_id(pubstore, keyid, NULL));
     assert_non_null(skey1 = rnp_key_store_get_key_by_id(pubstore, sub1id, NULL));
@@ -955,7 +955,7 @@ TEST_F(rnp_tests, test_load_subkey)
     pgp_key_id_t     sub2id = {};
     rnp_key_store_t *key_store;
 
-    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    key_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
     assert_true(rnp::hex_decode("9747D2A6B3A63124", keyid.data(), keyid.size()));
     assert_true(rnp::hex_decode("AF1114A47F5F5B28", sub1id.data(), sub1id.size()));
     assert_true(rnp::hex_decode("16CD16F267CCDD4F", sub2id.data(), sub2id.size()));

@@ -62,6 +62,7 @@
 #include "../librepgp/stream-packet.h"
 #include "crypto/symmetric.h"
 #include "types.h"
+#include "sec_profile.hpp"
 
 /** pgp_rawpacket_t */
 typedef struct pgp_rawpacket_t {
@@ -387,16 +388,22 @@ struct pgp_key_t {
      *
      * @param key key or subkey to which signature belongs.
      * @param sig signature to validate.
+     * @param ctx Populated security context.
      */
-    void validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept;
+    void validate_sig(const pgp_key_t &           key,
+                      pgp_subsig_t &              sig,
+                      const rnp::SecurityContext &ctx) const noexcept;
 
     /**
      * @brief Validate signature, assuming that 'this' is a signing key.
      *
      * @param sinfo populated signature info. Validation results will be stored here.
      * @param hash hash, feed with all signed data except signature trailer.
+     * @param ctx Populated security context.
      */
-    void validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noexcept;
+    void validate_sig(pgp_signature_info_t &      sinfo,
+                      rnp::Hash &                 hash,
+                      const rnp::SecurityContext &ctx) const noexcept;
 
     /**
      * @brief Validate certification.
@@ -405,9 +412,10 @@ struct pgp_key_t {
      * @param key key packet to which certification belongs.
      * @param uid userid which is bound by certification to the key packet.
      */
-    void validate_cert(pgp_signature_info_t &  sinfo,
-                       const pgp_key_pkt_t &   key,
-                       const pgp_userid_pkt_t &uid) const;
+    void validate_cert(pgp_signature_info_t &      sinfo,
+                       const pgp_key_pkt_t &       key,
+                       const pgp_userid_pkt_t &    uid,
+                       const rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Validate subkey binding.
@@ -415,7 +423,9 @@ struct pgp_key_t {
      * @param sinfo populated signature info. Validation results will be stored here.
      * @param subkey subkey packet.
      */
-    void validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey) const;
+    void validate_binding(pgp_signature_info_t &      sinfo,
+                          const pgp_key_t &           subkey,
+                          const rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Validate subkey revocation.
@@ -423,19 +433,21 @@ struct pgp_key_t {
      * @param sinfo populated signature info. Validation results will be stored here.
      * @param subkey subkey packet.
      */
-    void validate_sub_rev(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &subkey) const;
+    void validate_sub_rev(pgp_signature_info_t &      sinfo,
+                          const pgp_key_pkt_t &       subkey,
+                          const rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Validate direct-key signature.
      *
      * @param sinfo populated signature info. Validation results will be stored here.
      */
-    void validate_direct(pgp_signature_info_t &sinfo) const;
+    void validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityContext &ctx) const;
 
-    void validate_self_signatures();
-    void validate_self_signatures(pgp_key_t &primary);
+    void validate_self_signatures(const rnp::SecurityContext &ctx);
+    void validate_self_signatures(pgp_key_t &primary, const rnp::SecurityContext &ctx);
     void validate(rnp_key_store_t &keyring);
-    void validate_subkey(pgp_key_t *primary = NULL);
+    void validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx);
     void revalidate(rnp_key_store_t &keyring);
     void mark_valid();
     /**
@@ -458,7 +470,7 @@ struct pgp_key_t {
     void sign_cert(const pgp_key_pkt_t &   key,
                    const pgp_userid_pkt_t &uid,
                    pgp_signature_t &       sig,
-                   rnp::RNG &              rng) const;
+                   rnp::SecurityContext &  ctx) const;
 
     /**
      * @brief Calculate direct-key signature.
@@ -468,7 +480,9 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const;
+    void sign_direct(const pgp_key_pkt_t & key,
+                     pgp_signature_t &     sig,
+                     rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Calculate subkey or primary key binding.
@@ -479,7 +493,9 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const;
+    void sign_binding(const pgp_key_pkt_t & key,
+                      pgp_signature_t &     sig,
+                      rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Calculate subkey binding.
@@ -492,10 +508,10 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_subkey_binding(const pgp_key_t &sub,
-                             pgp_signature_t &sig,
-                             rnp::RNG &       rng,
-                             bool             subsign = false) const;
+    void sign_subkey_binding(const pgp_key_t &     sub,
+                             pgp_signature_t &     sig,
+                             rnp::SecurityContext &ctx,
+                             bool                  subsign = false) const;
 
     /**
      * @brief Generate key or subkey revocation signature.
@@ -504,11 +520,11 @@ struct pgp_key_t {
      * @param key key or subkey packet to revoke.
      * @param sig object to store revocation signature. Will be populated in method call.
      */
-    void gen_revocation(const pgp_revoke_t & revoke,
-                        pgp_hash_alg_t       hash,
-                        const pgp_key_pkt_t &key,
-                        pgp_signature_t &    sig,
-                        rnp::RNG &           rng) const;
+    void gen_revocation(const pgp_revoke_t &  revoke,
+                        pgp_hash_alg_t        hash,
+                        const pgp_key_pkt_t & key,
+                        pgp_signature_t &     sig,
+                        rnp::SecurityContext &ctx) const;
 
     /**
      * @brief Add and certify userid.
@@ -516,13 +532,13 @@ struct pgp_key_t {
      *
      * @param cert certification and userid parameters.
      * @param hash hash algorithm to use during signing. See sign_init() for more details.
-     * @param rng initialized rng.
+     * @param ctx  security context.
      * @param pubkey if non-NULL then userid and certification will be added to this key as
      *               well.
      */
     void add_uid_cert(rnp_selfsig_cert_info_t &cert,
                       pgp_hash_alg_t           hash,
-                      rnp::RNG &               rng,
+                      rnp::SecurityContext &   ctx,
                       pgp_key_t *              pubkey = nullptr);
 
     /**
@@ -540,12 +556,12 @@ struct pgp_key_t {
                          pgp_key_t &                       subpub,
                          const rnp_selfsig_binding_info_t &binding,
                          pgp_hash_alg_t                    hash,
-                         rnp::RNG &                        rng);
+                         rnp::SecurityContext &            ctx);
 
     /** @brief Refresh internal fields after primary key is updated */
-    bool refresh_data();
+    bool refresh_data(const rnp::SecurityContext &ctx);
     /** @brief Refresh internal fields after subkey is updated */
-    bool refresh_data(pgp_key_t *primary);
+    bool refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx);
     /** @brief Merge primary key with the src, i.e. add all new userids/signatures/subkeys */
     bool merge(const pgp_key_t &src);
     /** @brief Merge subkey with the source, i.e. add all new signatures */
@@ -608,14 +624,14 @@ bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
                             uint32_t                       expiry,
                             const pgp_password_provider_t &prov,
-                            rnp::RNG &                     rng);
+                            rnp::SecurityContext &         ctx);
 
 bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                pgp_key_t *                    primsec,
                                pgp_key_t *                    secsub,
                                uint32_t                       expiry,
                                const pgp_password_provider_t &prov,
-                               rnp::RNG &                     rng);
+                               rnp::SecurityContext &         ctx);
 
 /** find a key suitable for a particular operation
  *
