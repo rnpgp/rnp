@@ -82,9 +82,9 @@ rnp_result_t rnp_wrap_src(pgp_source_t &     src,
                           const std::string &filename,
                           uint32_t           modtime);
 
-rnp_result_t rnp_raw_encrypt_src(pgp_source_t &     src,
-                                 pgp_dest_t &       dst,
-                                 const std::string &password,
-                                 rnp::RNG &         rng);
+rnp_result_t rnp_raw_encrypt_src(pgp_source_t &        src,
+                                 pgp_dest_t &          dst,
+                                 const std::string &   password,
+                                 rnp::SecurityContext &secctx);
 
 #endif

@@ -50,8 +50,6 @@
 #include <ftw.h>
 #endif
 
-extern rnp::RNG global_rng;
-
 #ifdef _WIN32
 int
 setenv(const char *name, const char *value, int overwrite)

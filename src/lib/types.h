@@ -402,13 +402,17 @@ struct rnp_keygen_elgamal_params_t {
 };
 
 /* structure used to hold context of key generation */
+namespace rnp {
+class SecurityContext;
+}
+
 typedef struct rnp_keygen_crypto_params_t {
     // Asymmteric algorithm that user requesed key for
     pgp_pubkey_alg_t key_alg;
     // Hash to be used for key signature
     pgp_hash_alg_t hash_alg;
-    // Pointer to initialized RNG engine
-    rnp::RNG *rng;
+    // Pointer to security context
+    rnp::SecurityContext *ctx;
     union {
         struct rnp_keygen_ecc_params_t     ecc;
         struct rnp_keygen_rsa_params_t     rsa;

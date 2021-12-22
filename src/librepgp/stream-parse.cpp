@@ -814,7 +814,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
     try {
         rnp::Hash shash;
         hash->clone(shash);
-        key->validate_sig(sinfo, shash);
+        key->validate_sig(sinfo, shash, *param.handler->ctx->ctx);
     } catch (const std::exception &e) {
         RNP_LOG("Signature validation failed: %s", e.what());
         sinfo.valid = false;
@@ -2101,7 +2101,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(param, &pubenc, decrypted_seckey, handler->ctx->rng)) {
+            if (encrypted_try_key(param, &pubenc, decrypted_seckey, &handler->ctx->ctx->rng)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {

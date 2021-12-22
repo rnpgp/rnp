@@ -29,6 +29,7 @@
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
 #include "utils.h"
+#include "sec_profile.hpp"
 
 /**
  * @brief Add signature fields to the hash context and finish it.
@@ -73,7 +74,7 @@ void
 signature_calculate(pgp_signature_t &         sig,
                     const pgp_key_material_t &seckey,
                     rnp::Hash &               hash,
-                    rnp::RNG &                rng)
+                    rnp::SecurityContext &    ctx)
 {
     uint8_t              hval[PGP_MAX_HASH_SIZE];
     size_t               hlen = 0;
@@ -106,19 +107,19 @@ signature_calculate(pgp_signature_t &         sig,
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
-        ret = rsa_sign_pkcs1(&rng, &material.rsa, sig.halg, hval, hlen, &seckey.rsa);
+        ret = rsa_sign_pkcs1(&ctx.rng, &material.rsa, sig.halg, hval, hlen, &seckey.rsa);
         if (ret) {
             RNP_LOG("rsa signing failed");
         }
         break;
     case PGP_PKA_EDDSA:
-        ret = eddsa_sign(&rng, &material.ecc, hval, hlen, &seckey.ec);
+        ret = eddsa_sign(&ctx.rng, &material.ecc, hval, hlen, &seckey.ec);
         if (ret) {
             RNP_LOG("eddsa signing failed");
         }
         break;
     case PGP_PKA_DSA:
-        ret = dsa_sign(&rng, &material.dsa, hval, hlen, &seckey.dsa);
+        ret = dsa_sign(&ctx.rng, &material.dsa, hval, hlen, &seckey.dsa);
         if (ret != RNP_SUCCESS) {
             RNP_LOG("DSA signing failed");
         }
@@ -150,7 +151,7 @@ signature_calculate(pgp_signature_t &         sig,
 
         if (sig.palg == PGP_PKA_SM2) {
 #if defined(ENABLE_SM2)
-            ret = sm2_sign(&rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
+            ret = sm2_sign(&ctx.rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
             if (ret) {
                 RNP_LOG("SM2 signing failed");
             }
@@ -161,7 +162,7 @@ signature_calculate(pgp_signature_t &         sig,
             break;
         }
 
-        ret = ecdsa_sign(&rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
+        ret = ecdsa_sign(&ctx.rng, &material.ecc, hash_alg, hval, hlen, &seckey.ec);
         if (ret) {
             RNP_LOG("ECDSA signing failed");
         }
@@ -183,7 +184,10 @@ signature_calculate(pgp_signature_t &         sig,
 }
 
 rnp_result_t
-signature_validate(const pgp_signature_t &sig, const pgp_key_material_t &key, rnp::Hash &hash)
+signature_validate(const pgp_signature_t &     sig,
+                   const pgp_key_material_t &  key,
+                   rnp::Hash &                 hash,
+                   const rnp::SecurityContext &ctx)
 {
     if (sig.palg != key.alg) {
         RNP_LOG("Signature and key do not agree on algorithm type: %d vs %d",

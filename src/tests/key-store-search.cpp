@@ -38,7 +38,7 @@
 TEST_F(rnp_tests, test_key_store_search)
 {
     // create our store
-    rnp_key_store_t *store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    rnp_key_store_t *store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
     store->disable_validation = true;
 
     // some fake key data
@@ -170,11 +170,11 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
 
     // load pubring
     rnp_key_store_t *pub_store =
-      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx");
+      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
     assert_true(rnp_key_store_load_from_path(pub_store, NULL));
     // load secring
     rnp_key_store_t *sec_store =
-      new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d");
+      new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
     pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
                                        .userdata = pub_store};
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));

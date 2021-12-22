@@ -34,7 +34,7 @@ static char original_dir[PATH_MAX];
 /*
  * Handler used to access DRBG.
  */
-rnp::RNG global_rng;
+rnp::SecurityContext global_ctx;
 
 rnp_tests::rnp_tests() : m_dir(make_temp_dir())
 {

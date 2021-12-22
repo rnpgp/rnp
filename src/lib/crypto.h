@@ -105,7 +105,6 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
 
 /** generate a new primary key and subkey
  *
- *  @param rng initialized RNG
  *  @param primary_desc primary keygen description
  *  @param subkey_desc subkey keygen description
  *  @param merge_defaults true if you want defaults to be set for unset
@@ -116,8 +115,7 @@ bool pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
  *  @param subkey_pub pointer to store the generated public key, must not be NULL
  *  @return true if successful, false otherwise.
  **/
-bool pgp_generate_keypair(rnp::RNG &                 rng,
-                          rnp_keygen_primary_desc_t &primary_desc,
+bool pgp_generate_keypair(rnp_keygen_primary_desc_t &primary_desc,
                           rnp_keygen_subkey_desc_t & subkey_desc,
                           bool                       merge_defaults,
                           pgp_key_t &                primary_sec,
