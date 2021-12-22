@@ -44,7 +44,7 @@ rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
     info.s2k.hash_alg = halg;
 
     try {
-        ctx.rng->get(info.s2k.salt, sizeof(info.s2k.salt));
+        ctx.ctx->rng.get(info.s2k.salt, sizeof(info.s2k.salt));
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_RNG;

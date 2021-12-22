@@ -26,10 +26,8 @@
 
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
-#include <crypto/rng.h>
 #include <string.h>
-
-extern rnp::RNG global_rng;
+#include "support.h"
 
 TEST_F(rnp_tests, test_rng_randomness)
 {
@@ -38,12 +36,12 @@ TEST_F(rnp_tests, test_rng_randomness)
     memset(samples, 0, sizeof(samples));
 
     // Repetition Count Test, see NIST SP 800-90B
-    const int C = 6; // cutoff value
-    int       B = 1;
-    uint8_t   A;
-    global_rng.get(samples, sizeof(samples));
+    const size_t C = 6; // cutoff value
+    size_t       B = 1;
+    uint8_t      A;
+    global_ctx.rng.get(samples, sizeof(samples));
     A = samples[0];
-    for (int i = 1; i < sizeof(samples); i++) {
+    for (size_t i = 1; i < sizeof(samples); i++) {
         if (samples[i] == A) {
             B++;
             assert_int_not_equal(B, C);

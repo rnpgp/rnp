@@ -750,7 +750,7 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
     assert_int_equal(key_generate(GENKEYS, "expiration_2months@rnp", "2m"), 0);
     assert_int_equal(key_generate(GENKEYS, "expiration_2years@rnp", "2y"), 0);
 
-    auto         keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+    auto         keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
     pgp_source_t src = {};
     assert_rnp_success(init_file_src(&src, GENKEYS "/pubring.gpg"));
     assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));

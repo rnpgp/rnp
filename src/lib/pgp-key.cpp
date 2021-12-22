@@ -324,7 +324,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                        pgp_key_t *                    seckey,
                        uint32_t                       expiry,
                        const pgp_password_provider_t &prov,
-                       rnp::RNG &                     rng)
+                       rnp::SecurityContext &         ctx)
 {
     if (!key->is_primary()) {
         RNP_LOG("Not a primary key");
@@ -374,10 +374,10 @@ pgp_key_set_expiration(pgp_key_t *                    key,
                     RNP_LOG("uid not found");
                     return false;
                 }
-                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, rng);
+                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, ctx);
             } else {
                 /* direct-key signature case */
-                seckey->sign_direct(key->pkt(), newsig, rng);
+                seckey->sign_direct(key->pkt(), newsig, ctx);
             }
             /* replace signature, first for secret key since it may be replaced in public */
             if (seckey->has_sig(oldsigid)) {
@@ -392,11 +392,11 @@ pgp_key_set_expiration(pgp_key_t *                    key,
         }
     }
 
-    if (!seckey->refresh_data()) {
+    if (!seckey->refresh_data(ctx)) {
         RNP_LOG("Failed to refresh seckey data.");
         return false;
     }
-    if ((key != seckey) && !key->refresh_data()) {
+    if ((key != seckey) && !key->refresh_data(ctx)) {
         RNP_LOG("Failed to refresh key data.");
         return false;
     }
@@ -409,7 +409,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
                           pgp_key_t *                    secsub,
                           uint32_t                       expiry,
                           const pgp_password_provider_t &prov,
-                          rnp::RNG &                     rng)
+                          rnp::SecurityContext &         ctx)
 {
     if (!sub->is_subkey()) {
         RNP_LOG("Not a subkey");
@@ -445,11 +445,11 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
             return false;
         }
-        primsec->sign_subkey_binding(*secsub, newsig, rng);
+        primsec->sign_subkey_binding(*secsub, newsig, ctx);
         /* replace signature, first for the secret key since it may be replaced in public */
         if (secsub->has_sig(oldsigid)) {
             secsub->replace_sig(oldsigid, newsig);
-            if (!secsub->refresh_data(primsec)) {
+            if (!secsub->refresh_data(primsec, ctx)) {
                 return false;
             }
         }
@@ -457,7 +457,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
             return true;
         }
         sub->replace_sig(oldsigid, newsig);
-        return sub->refresh_data(primsec);
+        return sub->refresh_data(primsec, ctx);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return false;
@@ -1905,7 +1905,9 @@ pgp_key_t::is_binding(const pgp_subsig_t &sig) const
 }
 
 void
-pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
+pgp_key_t::validate_sig(const pgp_key_t &           key,
+                        pgp_subsig_t &              sig,
+                        const rnp::SecurityContext &ctx) const noexcept
 {
     sig.validity.reset();
 
@@ -1934,7 +1936,7 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
                 RNP_LOG("Userid not found");
                 return;
             }
-            validate_cert(sinfo, key.pkt(), key.get_uid(sig.uid).pkt);
+            validate_cert(sinfo, key.pkt(), key.get_uid(sig.uid).pkt, ctx);
             break;
         }
         case PGP_SIG_SUBKEY:
@@ -1942,18 +1944,18 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
                 RNP_LOG("Invalid subkey binding's signer.");
                 return;
             }
-            validate_binding(sinfo, key);
+            validate_binding(sinfo, key, ctx);
             break;
         case PGP_SIG_DIRECT:
         case PGP_SIG_REV_KEY:
-            validate_direct(sinfo);
+            validate_direct(sinfo, ctx);
             break;
         case PGP_SIG_REV_SUBKEY:
             if (!is_signer(sig)) {
                 RNP_LOG("Invalid subkey revocation's signer.");
                 return;
             }
-            validate_sub_rev(sinfo, key.pkt());
+            validate_sub_rev(sinfo, key.pkt(), ctx);
             break;
         default:
             RNP_LOG("Unsupported key signature type: %d", (int) stype);
@@ -1973,7 +1975,9 @@ pgp_key_t::validate_sig(const pgp_key_t &key, pgp_subsig_t &sig) const noexcept
 }
 
 void
-pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noexcept
+pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
+                        rnp::Hash &                 hash,
+                        const rnp::SecurityContext &ctx) const noexcept
 {
     sinfo.no_signer = false;
     sinfo.valid = false;
@@ -1981,7 +1985,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noex
 
     /* Validate signature itself */
     if (sinfo.signer_valid || valid_at(sinfo.sig->creation())) {
-        sinfo.valid = !signature_validate(*sinfo.sig, material(), hash);
+        sinfo.valid = !signature_validate(*sinfo.sig, material(), hash, ctx);
     } else {
         sinfo.valid = false;
         RNP_LOG("invalid or untrusted key");
@@ -2033,21 +2037,24 @@ pgp_key_t::validate_sig(pgp_signature_info_t &sinfo, rnp::Hash &hash) const noex
 }
 
 void
-pgp_key_t::validate_cert(pgp_signature_info_t &  sinfo,
-                         const pgp_key_pkt_t &   key,
-                         const pgp_userid_pkt_t &uid) const
+pgp_key_t::validate_cert(pgp_signature_info_t &      sinfo,
+                         const pgp_key_pkt_t &       key,
+                         const pgp_userid_pkt_t &    uid,
+                         const rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     signature_hash_certification(*sinfo.sig, key, uid, hash);
-    validate_sig(sinfo, hash);
+    validate_sig(sinfo, hash, ctx);
 }
 
 void
-pgp_key_t::validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey) const
+pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
+                            const pgp_key_t &           subkey,
+                            const rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt(), hash);
-    validate_sig(sinfo, hash);
+    validate_sig(sinfo, hash, ctx);
     if (!sinfo.valid || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
         return;
     }
@@ -2077,28 +2084,30 @@ pgp_key_t::validate_binding(pgp_signature_info_t &sinfo, const pgp_key_t &subkey
     bindinfo.sig = subpkt->fields.sig;
     bindinfo.signer_valid = true;
     bindinfo.ignore_expiry = true;
-    subkey.validate_sig(bindinfo, hash);
+    subkey.validate_sig(bindinfo, hash, ctx);
     sinfo.valid = bindinfo.valid && !bindinfo.expired;
 }
 
 void
-pgp_key_t::validate_sub_rev(pgp_signature_info_t &sinfo, const pgp_key_pkt_t &subkey) const
+pgp_key_t::validate_sub_rev(pgp_signature_info_t &      sinfo,
+                            const pgp_key_pkt_t &       subkey,
+                            const rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     signature_hash_binding(*sinfo.sig, pkt(), subkey, hash);
-    validate_sig(sinfo, hash);
+    validate_sig(sinfo, hash, ctx);
 }
 
 void
-pgp_key_t::validate_direct(pgp_signature_info_t &sinfo) const
+pgp_key_t::validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     signature_hash_direct(*sinfo.sig, pkt(), hash);
-    validate_sig(sinfo, hash);
+    validate_sig(sinfo, hash, ctx);
 }
 
 void
-pgp_key_t::validate_self_signatures()
+pgp_key_t::validate_self_signatures(const rnp::SecurityContext &ctx)
 {
     for (auto &sigid : sigs_) {
         pgp_subsig_t &sig = get_sig(sigid);
@@ -2108,13 +2117,13 @@ pgp_key_t::validate_self_signatures()
 
         if (is_direct_self(sig) || is_self_cert(sig) || is_uid_revocation(sig) ||
             is_revocation(sig)) {
-            validate_sig(*this, sig);
+            validate_sig(*this, sig, ctx);
         }
     }
 }
 
 void
-pgp_key_t::validate_self_signatures(pgp_key_t &primary)
+pgp_key_t::validate_self_signatures(pgp_key_t &primary, const rnp::SecurityContext &ctx)
 {
     for (auto &sigid : sigs_) {
         pgp_subsig_t &sig = get_sig(sigid);
@@ -2123,7 +2132,7 @@ pgp_key_t::validate_self_signatures(pgp_key_t &primary)
         }
 
         if (is_binding(sig) || is_revocation(sig)) {
-            primary.validate_sig(*this, sig);
+            primary.validate_sig(*this, sig, ctx);
         }
     }
 }
@@ -2132,7 +2141,7 @@ void
 pgp_key_t::validate_primary(rnp_key_store_t &keyring)
 {
     /* validate signatures if needed */
-    validate_self_signatures();
+    validate_self_signatures(keyring.secctx);
 
     /* consider public key as valid on this level if it is not expired and has at least one
      * valid self-signature, and is not revoked */
@@ -2186,7 +2195,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
         if (!sub) {
             continue;
         }
-        sub->validate_self_signatures(*this);
+        sub->validate_self_signatures(*this, keyring.secctx);
         pgp_subsig_t *sig = sub->latest_binding();
         if (!sig) {
             continue;
@@ -2201,7 +2210,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
 }
 
 void
-pgp_key_t::validate_subkey(pgp_key_t *primary)
+pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
 {
     /* consider subkey as valid on this level if it has valid primary key, has at least one
      * non-expired binding signature, and is not revoked. */
@@ -2211,7 +2220,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary)
         return;
     }
     /* validate signatures if needed */
-    validate_self_signatures(*primary);
+    validate_self_signatures(*primary, ctx);
 
     bool has_binding = false;
     bool has_expired = false;
@@ -2249,7 +2258,7 @@ pgp_key_t::validate(rnp_key_store_t &keyring)
         if (has_primary_fp()) {
             primary = rnp_key_store_get_key_by_fpr(&keyring, primary_fp());
         }
-        validate_subkey(primary);
+        validate_subkey(primary, keyring.secctx);
     }
 }
 
@@ -2261,21 +2270,21 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
         if (primary) {
             primary->revalidate(keyring);
         } else {
-            validate_subkey(NULL);
+            validate_subkey(NULL, keyring.secctx);
         }
         return;
     }
 
     validate(keyring);
-    if (!refresh_data()) {
+    if (!refresh_data(keyring.secctx)) {
         RNP_LOG("Failed to refresh key data");
     }
     /* validate/re-validate all subkeys as well */
     for (auto &fp : subkey_fps_) {
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(&keyring, fp);
         if (subkey) {
-            subkey->validate_subkey(this);
-            if (!subkey->refresh_data(this)) {
+            subkey->validate_subkey(this, keyring.secctx);
+            if (!subkey->refresh_data(this, keyring.secctx)) {
                 RNP_LOG("Failed to refresh subkey data");
             }
         }
@@ -2306,25 +2315,29 @@ void
 pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
                      const pgp_userid_pkt_t &uid,
                      pgp_signature_t &       sig,
-                     rnp::RNG &              rng) const
+                     rnp::SecurityContext &  ctx) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
     signature_hash_certification(sig, key, uid, hash);
-    signature_calculate(sig, pkt_.material, hash, rng);
+    signature_calculate(sig, pkt_.material, hash, ctx);
 }
 
 void
-pgp_key_t::sign_direct(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const
+pgp_key_t::sign_direct(const pgp_key_pkt_t & key,
+                       pgp_signature_t &     sig,
+                       rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
     signature_hash_direct(sig, key, hash);
-    signature_calculate(sig, pkt_.material, hash, rng);
+    signature_calculate(sig, pkt_.material, hash, ctx);
 }
 
 void
-pgp_key_t::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG &rng) const
+pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
+                        pgp_signature_t &     sig,
+                        rnp::SecurityContext &ctx) const
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2333,43 +2346,43 @@ pgp_key_t::sign_binding(const pgp_key_pkt_t &key, pgp_signature_t &sig, rnp::RNG
     } else {
         signature_hash_binding(sig, key, pkt(), hash);
     }
-    signature_calculate(sig, material(), hash, rng);
+    signature_calculate(sig, material(), hash, ctx);
 }
 
 void
-pgp_key_t::gen_revocation(const pgp_revoke_t & revoke,
-                          pgp_hash_alg_t       hash,
-                          const pgp_key_pkt_t &key,
-                          pgp_signature_t &    sig,
-                          rnp::RNG &           rng) const
+pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
+                          pgp_hash_alg_t        hash,
+                          const pgp_key_pkt_t & key,
+                          pgp_signature_t &     sig,
+                          rnp::SecurityContext &ctx) const
 {
     sign_init(sig, hash);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
     sig.set_revocation_reason(revoke.code, revoke.reason);
 
     if (is_primary_key_pkt(key.tag)) {
-        sign_direct(key, sig, rng);
+        sign_direct(key, sig, ctx);
     } else {
-        sign_binding(key, sig, rng);
+        sign_binding(key, sig, ctx);
     }
 }
 
 void
-pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
-                               pgp_signature_t &sig,
-                               rnp::RNG &       rng,
-                               bool             subsign) const
+pgp_key_t::sign_subkey_binding(const pgp_key_t &     sub,
+                               pgp_signature_t &     sig,
+                               rnp::SecurityContext &ctx,
+                               bool                  subsign) const
 {
     if (!is_primary()) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    sign_binding(sub.pkt(), sig, rng);
+    sign_binding(sub.pkt(), sig, ctx);
     /* add primary key binding subpacket if requested */
     if (subsign) {
         pgp_signature_t embsig;
         sub.sign_init(embsig, sig.halg);
         embsig.set_type(PGP_SIG_PRIMARY);
-        sub.sign_binding(pkt(), embsig, rng);
+        sub.sign_binding(pkt(), embsig, ctx);
         sig.set_embedded_sig(embsig);
     }
 }
@@ -2377,7 +2390,7 @@ pgp_key_t::sign_subkey_binding(const pgp_key_t &sub,
 void
 pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
                         pgp_hash_alg_t           hash,
-                        rnp::RNG &               rng,
+                        rnp::SecurityContext &   ctx,
                         pgp_key_t *              pubkey)
 {
     if (!cert.userid[0]) {
@@ -2417,7 +2430,7 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
     sign_init(sig, hash);
     cert.populate(uid, sig);
     try {
-        sign_cert(pkt_, uid, sig, rng);
+        sign_cert(pkt_, uid, sig, ctx);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to certify: %s", e.what());
         throw;
@@ -2425,13 +2438,13 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
     /* add uid and signature to the key and pubkey, if non-NULL */
     uids_.emplace_back(uid);
     add_sig(sig, uid_count() - 1);
-    refresh_data();
+    refresh_data(ctx);
     if (!pubkey) {
         return;
     }
     pubkey->uids_.emplace_back(uid);
     pubkey->add_sig(sig, pubkey->uid_count() - 1);
-    pubkey->refresh_data();
+    pubkey->refresh_data(ctx);
 }
 
 void
@@ -2439,7 +2452,7 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
                            pgp_key_t &                       subpub,
                            const rnp_selfsig_binding_info_t &binding,
                            pgp_hash_alg_t                    hash,
-                           rnp::RNG &                        rng)
+                           rnp::SecurityContext &            ctx)
 {
     if (!is_primary()) {
         RNP_LOG("must be called on primary key");
@@ -2461,21 +2474,21 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
     if (!realkf) {
         realkf = pgp_pk_alg_capabilities(subsec.alg());
     }
-    sign_subkey_binding(subsec, sig, rng, realkf & PGP_KF_SIGN);
+    sign_subkey_binding(subsec, sig, ctx, realkf & PGP_KF_SIGN);
     /* add to the secret and public key */
     subsec.add_sig(sig);
     subpub.add_sig(sig);
 }
 
 bool
-pgp_key_t::refresh_data()
+pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
 {
     if (!is_primary()) {
         RNP_LOG("key must be primary");
         return false;
     }
     /* validate self-signatures if not done yet */
-    validate_self_signatures();
+    validate_self_signatures(ctx);
     /* key expiration */
     expiration_ = 0;
     /* if we have direct-key signature, then it has higher priority */
@@ -2569,11 +2582,11 @@ pgp_key_t::refresh_data()
 }
 
 bool
-pgp_key_t::refresh_data(pgp_key_t *primary)
+pgp_key_t::refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx)
 {
     /* validate self-signatures if not done yet */
     if (primary) {
-        validate_self_signatures(*primary);
+        validate_self_signatures(*primary, ctx);
     }
     pgp_subsig_t *sig = latest_binding(primary);
     /* subkey expiration */
