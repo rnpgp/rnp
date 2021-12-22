@@ -30,8 +30,6 @@
 #include "support.h"
 #include "crypto/hash.h"
 
-extern rnp::RNG global_rng;
-
 /* This test loads a pgp keyring and adds a few userids to the key.
  */
 TEST_F(rnp_tests, test_key_add_userid)
@@ -48,7 +46,7 @@ TEST_F(rnp_tests, test_key_add_userid)
                                    "54505a936a4a970e",
                                    "326ef111425d14a5"};
 
-    rnp_key_store_t *ks = new rnp_key_store_t();
+    rnp_key_store_t *ks = new rnp_key_store_t(global_ctx);
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
@@ -67,15 +65,13 @@ TEST_F(rnp_tests, test_key_add_userid)
     unsigned uidc = key->uid_count();
     unsigned subsigc = key->sig_count();
 
-    // init rng
-    rnp::RNG &rng = global_rng;
     // add first, non-primary userid
     rnp_selfsig_cert_info_t selfsig0 = {};
     memcpy(selfsig0.userid, "added0", 7);
     selfsig0.key_flags = 0x2;
     selfsig0.key_expiration = base_expiry;
     selfsig0.primary = false;
-    key->add_uid_cert(selfsig0, PGP_HASH_SHA1, rng);
+    key->add_uid_cert(selfsig0, PGP_HASH_SHA1, global_ctx);
     // make sure this userid has not been marked as primary
     assert_false(key->has_primary_uid());
     // make sure key expiration and flags are set
@@ -89,7 +85,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     selfsig1.key_flags = 0xAB;
     selfsig1.key_expiration = base_expiry + 1;
     selfsig1.primary = 1;
-    key->add_uid_cert(selfsig1, PGP_HASH_SHA1, rng);
+    key->add_uid_cert(selfsig1, PGP_HASH_SHA1, global_ctx);
 
     // make sure this userid has been marked as primary
     assert_int_equal(key->uid_count() - 1, key->get_primary_uid());
@@ -101,20 +97,20 @@ TEST_F(rnp_tests, test_key_add_userid)
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info_t dup_selfsig = {};
     memcpy(dup_selfsig.userid, "added1", 7);
-    assert_throw(key->add_uid_cert(dup_selfsig, PGP_HASH_SHA1, rng));
+    assert_throw(key->add_uid_cert(dup_selfsig, PGP_HASH_SHA1, global_ctx));
 
     // try to add another primary userid (should fail)
     rnp_selfsig_cert_info_t selfsig2 = {};
     memcpy(selfsig2.userid, "added2", 7);
     selfsig2.primary = 1;
-    assert_throw(key->add_uid_cert(selfsig2, PGP_HASH_SHA1, rng));
+    assert_throw(key->add_uid_cert(selfsig2, PGP_HASH_SHA1, global_ctx));
 
     memcpy(selfsig2.userid, "added2", 7);
     selfsig2.key_flags = 0xCD;
     selfsig2.primary = 0;
 
     // actually add another userid
-    key->add_uid_cert(selfsig2, PGP_HASH_SHA1, rng);
+    key->add_uid_cert(selfsig2, PGP_HASH_SHA1, global_ctx);
 
     // confirm that the counts have increased as expected
     assert_int_equal(key->uid_count(), uidc + 3);
@@ -146,7 +142,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     key = NULL;
 
     // start over
-    ks = new rnp_key_store_t();
+    ks = new rnp_key_store_t(global_ctx);
     assert_non_null(ks);
     // read from the saved packets
     assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));

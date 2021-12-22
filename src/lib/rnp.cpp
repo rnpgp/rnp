@@ -132,7 +132,7 @@ ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 static void
 rnp_ctx_init_ffi(rnp_ctx_t &ctx, rnp_ffi_t ffi)
 {
-    ctx.rng = &ffi->rng();
+    ctx.ctx = &ffi->context;
     ctx.ealg = DEFAULT_PGP_SYMM_ALG;
 }
 
@@ -499,8 +499,8 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt)
 {
     errs = stderr;
-    pubring = new rnp_key_store_t(pub_fmt, "");
-    secring = new rnp_key_store_t(sec_fmt, "");
+    pubring = new rnp_key_store_t(pub_fmt, "", context);
+    secring = new rnp_key_store_t(sec_fmt, "", context);
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
@@ -1392,7 +1392,7 @@ do_load_keys(rnp_ffi_t              ffi,
 
     // create a temporary key store to hold the keys
     try {
-        tmp_store = new rnp_key_store_t(format, "");
+        tmp_store = new rnp_key_store_t(format, "", ffi->context);
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1658,7 +1658,7 @@ try {
 
     // load keys to temporary keystore.
     try {
-        tmp_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "");
+        tmp_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", ffi->context);
     } catch (const std::exception &e) {
         FFI_LOG(ffi, "Failed to create key store: %s.", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1886,7 +1886,7 @@ do_save_keys(rnp_ffi_t              ffi,
     // create a temporary key store to hold the keys
     rnp_key_store_t *tmp_store = NULL;
     try {
-        tmp_store = new rnp_key_store_t(format, "");
+        tmp_store = new rnp_key_store_t(format, "", ffi->context);
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -4042,7 +4042,7 @@ rnp_key_get_revocation(rnp_ffi_t        ffi,
         return RNP_ERROR_BAD_PASSWORD;
     }
     try {
-        revoker->gen_revocation(revinfo, halg, key->pkt(), sig, ffi->rng());
+        revoker->gen_revocation(revinfo, halg, key->pkt(), sig, ffi->context);
     } catch (const std::exception &e) {
         FFI_LOG(ffi, "Failed to generate revocation signature: %s", e.what());
         return RNP_ERROR_BAD_STATE;
@@ -4284,7 +4284,7 @@ signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, 
     }
     /* validate signature if didn't */
     if (signer && !sig.validated()) {
-        signer->validate_sig(key, sig);
+        signer->validate_sig(key, sig, ffi->context);
     }
     /* we cannot check for invalid/expired if sig was not validated */
     if (!sig.validated()) {
@@ -4847,8 +4847,9 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        if (!pgp_generate_keypair(ffi->rng(),
-                                  keygen_desc.primary.keygen,
+        keygen_desc.primary.keygen.crypto.ctx = &ffi->context;
+        keygen_desc.subkey.keygen.crypto.ctx = &ffi->context;
+        if (!pgp_generate_keypair(keygen_desc.primary.keygen,
                                   keygen_desc.subkey.keygen,
                                   true,
                                   primary_sec,
@@ -4895,7 +4896,7 @@ try {
             goto done;
         }
     } else if (jsoprimary && !jsosub) { // generating primary only
-        keygen_desc.primary.keygen.crypto.rng = &ffi->rng();
+        keygen_desc.primary.keygen.crypto.ctx = &ffi->context;
         if (!parse_keygen_primary(jsoprimary, &keygen_desc)) {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
@@ -4972,7 +4973,7 @@ try {
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        keygen_desc.subkey.keygen.crypto.rng = &ffi->rng();
+        keygen_desc.subkey.keygen.crypto.ctx = &ffi->context;
         if (!pgp_generate_subkey(keygen_desc.subkey.keygen,
                                  true,
                                  *primary_sec,
@@ -5240,7 +5241,7 @@ try {
     (*op)->ffi = ffi;
     (*op)->primary = true;
     (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.rng = &ffi->rng();
+    (*op)->crypto.ctx = &ffi->context;
     (*op)->cert.key_flags = default_key_flags(key_alg, false);
 
     return RNP_SUCCESS;
@@ -5284,7 +5285,7 @@ try {
     (*op)->ffi = ffi;
     (*op)->primary = false;
     (*op)->crypto.key_alg = key_alg;
-    (*op)->crypto.rng = &ffi->rng();
+    (*op)->crypto.ctx = &ffi->context;
     (*op)->binding.key_flags = default_key_flags(key_alg, true);
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
@@ -5861,7 +5862,7 @@ try {
         return RNP_ERROR_BAD_PASSWORD;
     }
     /* add and certify userid */
-    secret_key->add_uid_cert(info, hash_alg, handle->ffi->rng(), public_key);
+    secret_key->add_uid_cert(info, hash_alg, handle->ffi->context, public_key);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6243,7 +6244,7 @@ try {
         if (!signer) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
-        signer->validate_sig(*sig->key, *sig->sig);
+        signer->validate_sig(*sig->key, *sig->sig, sig->ffi->context);
     }
 
     if (!sig->sig->validity.validated) {
@@ -6813,7 +6814,7 @@ try {
 
     if (pkey->is_primary()) {
         if (!pgp_key_set_expiration(
-              pkey, skey, expiry, key->ffi->pass_provider, key->ffi->rng())) {
+              pkey, skey, expiry, key->ffi->pass_provider, key->ffi->context)) {
             return RNP_ERROR_GENERIC;
         }
         pkey->revalidate(*key->ffi->pubring);
@@ -6838,7 +6839,7 @@ try {
         return RNP_ERROR_KEY_NOT_FOUND;
     }
     if (!pgp_subkey_set_expiration(
-          pkey, prim_sec, skey, expiry, key->ffi->pass_provider, key->ffi->rng())) {
+          pkey, prim_sec, skey, expiry, key->ffi->pass_provider, key->ffi->context)) {
         return RNP_ERROR_GENERIC;
     }
     prim_sec->revalidate(*key->ffi->secring);

@@ -42,6 +42,7 @@
 #include <unordered_map>
 #include <memory>
 #include "librekey/kbx_blob.hpp"
+#include "sec_profile.hpp"
 
 /* Key import status. Order of elements is important. */
 typedef enum pgp_key_import_status_t {
@@ -63,6 +64,7 @@ typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pg
 typedef struct rnp_key_store_t {
     std::string            path;
     pgp_key_store_format_t format;
+    rnp::SecurityContext & secctx;
     bool                   disable_validation =
       false; /* do not automatically validate keys, added to this key store */
 
@@ -71,8 +73,11 @@ typedef struct rnp_key_store_t {
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
     ~rnp_key_store_t();
-    rnp_key_store_t() : path(""), format(PGP_KEY_STORE_UNKNOWN){};
-    rnp_key_store_t(pgp_key_store_format_t format, const std::string &path);
+    rnp_key_store_t(rnp::SecurityContext &ctx)
+        : path(""), format(PGP_KEY_STORE_UNKNOWN), secctx(ctx){};
+    rnp_key_store_t(pgp_key_store_format_t format,
+                    const std::string &    path,
+                    rnp::SecurityContext & ctx);
     /* make sure we use only empty constructor */
     rnp_key_store_t(rnp_key_store_t &&src) = delete;
     rnp_key_store_t &operator=(rnp_key_store_t &&) = delete;

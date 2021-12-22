@@ -69,6 +69,8 @@ char *mkdtemp(char *templ);
 #define realpath(N, R) _fullpath((R), (N), _MAX_PATH)
 #endif
 
+extern rnp::SecurityContext global_ctx;
+
 /* Check if a file is empty
  * Use with assert_true and rnp_assert_false(rstate, .
  */

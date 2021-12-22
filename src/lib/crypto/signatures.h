@@ -49,7 +49,7 @@ void signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp:
 void signature_calculate(pgp_signature_t &         sig,
                          const pgp_key_material_t &seckey,
                          rnp::Hash &               hash,
-                         rnp::RNG &                rng);
+                         rnp::SecurityContext &    ctx);
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
@@ -61,8 +61,9 @@ void signature_calculate(pgp_signature_t &         sig,
  *             during the execution. Signature fields and trailer are hashed in this function.
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
-rnp_result_t signature_validate(const pgp_signature_t &   sig,
-                                const pgp_key_material_t &key,
-                                rnp::Hash &               hash);
+rnp_result_t signature_validate(const pgp_signature_t &     sig,
+                                const pgp_key_material_t &  key,
+                                rnp::Hash &                 hash,
+                                const rnp::SecurityContext &ctx);
 
 #endif

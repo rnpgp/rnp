@@ -69,11 +69,11 @@ static const id_str_pair pubkey_alg_map[] = {
   {0, NULL}};
 
 static bool
-load_generated_g10_key(pgp_key_t *    dst,
-                       pgp_key_pkt_t *newkey,
-                       pgp_key_t *    primary_key,
-                       pgp_key_t *    pubkey,
-                       rnp::RNG &     rng)
+load_generated_g10_key(pgp_key_t *           dst,
+                       pgp_key_pkt_t *       newkey,
+                       pgp_key_t *           primary_key,
+                       pgp_key_t *           pubkey,
+                       rnp::SecurityContext &ctx)
 {
     bool                     ok = false;
     pgp_dest_t               memdst = {};
@@ -95,14 +95,14 @@ load_generated_g10_key(pgp_key_t *    dst,
         goto end;
     }
 
-    if (!g10_write_seckey(&memdst, newkey, NULL, rng)) {
+    if (!g10_write_seckey(&memdst, newkey, NULL, ctx.rng)) {
         RNP_LOG("failed to write generated seckey");
         goto end;
     }
 
     // this would be better on the stack but the key store does not allow it
     try {
-        key_store = new rnp_key_store_t();
+        key_store = new rnp_key_store_t(ctx);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         goto end;
@@ -359,7 +359,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
 
         pgp_key_t sec(secpkt);
         pgp_key_t pub(secpkt, true);
-        sec.add_uid_cert(desc.cert, desc.crypto.hash_alg, *desc.crypto.rng, &pub);
+        sec.add_uid_cert(desc.cert, desc.crypto.hash_alg, *desc.crypto.ctx, &pub);
 
         switch (secformat) {
         case PGP_KEY_STORE_GPG:
@@ -370,7 +370,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
         case PGP_KEY_STORE_G10:
             primary_pub = std::move(pub);
             if (!load_generated_g10_key(
-                  &primary_sec, &secpkt, NULL, &primary_pub, *desc.crypto.rng)) {
+                  &primary_sec, &secpkt, NULL, &primary_pub, *desc.crypto.ctx)) {
                 RNP_LOG("failed to load generated key");
                 return false;
             }
@@ -388,7 +388,8 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
     primary_pub.mark_valid();
     primary_sec.mark_valid();
     /* refresh key's data */
-    return primary_pub.refresh_data() && primary_sec.refresh_data();
+    return primary_pub.refresh_data(*desc.crypto.ctx) &&
+           primary_sec.refresh_data(*desc.crypto.ctx);
 }
 
 static bool
@@ -464,7 +465,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
         pgp_key_t     pub(pubpkt, primary_pub);
         /* add binding */
         primary_sec.add_sub_binding(
-          sec, pub, desc.binding, desc.crypto.hash_alg, *desc.crypto.rng);
+          sec, pub, desc.binding, desc.crypto.hash_alg, *desc.crypto.ctx);
         /* copy to the result */
         subkey_pub = std::move(pub);
         switch (secformat) {
@@ -474,7 +475,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
             break;
         case PGP_KEY_STORE_G10:
             if (!load_generated_g10_key(
-                  &subkey_sec, &secpkt, &primary_sec, &subkey_pub, *desc.crypto.rng)) {
+                  &subkey_sec, &secpkt, &primary_sec, &subkey_pub, *desc.crypto.ctx)) {
                 RNP_LOG("failed to load generated key");
                 return false;
             }
@@ -486,7 +487,8 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
 
         subkey_pub.mark_valid();
         subkey_sec.mark_valid();
-        return subkey_pub.refresh_data(&primary_pub) && subkey_sec.refresh_data(&primary_sec);
+        return subkey_pub.refresh_data(&primary_pub, *desc.crypto.ctx) &&
+               subkey_sec.refresh_data(&primary_sec, *desc.crypto.ctx);
     } catch (const std::exception &e) {
         RNP_LOG("Subkey generation failed: %s", e.what());
         return false;
@@ -507,8 +509,7 @@ keygen_merge_defaults(rnp_keygen_primary_desc_t &primary_desc,
 }
 
 bool
-pgp_generate_keypair(rnp::RNG &                 rng,
-                     rnp_keygen_primary_desc_t &primary_desc,
+pgp_generate_keypair(rnp_keygen_primary_desc_t &primary_desc,
                      rnp_keygen_subkey_desc_t & subkey_desc,
                      bool                       merge_defaults,
                      pgp_key_t &                primary_sec,
@@ -523,7 +524,6 @@ pgp_generate_keypair(rnp::RNG &                 rng,
     }
 
     // generate the primary key
-    primary_desc.crypto.rng = &rng;
     if (!pgp_generate_primary_key(
           primary_desc, merge_defaults, primary_sec, primary_pub, secformat)) {
         RNP_LOG("failed to generate primary key");
@@ -531,7 +531,6 @@ pgp_generate_keypair(rnp::RNG &                 rng,
     }
 
     // generate the subkey
-    subkey_desc.crypto.rng = &rng;
     pgp_password_provider_t prov = {};
     if (!pgp_generate_subkey(subkey_desc,
                              merge_defaults,

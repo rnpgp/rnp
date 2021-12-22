@@ -40,8 +40,6 @@
 #include "defaults.h"
 #include <fstream>
 
-extern rnp::RNG global_rng;
-
 static bool
 generate_test_key(const char *keystore, const char *userid, const char *hash, const char *home)
 {
@@ -967,8 +965,8 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    rnp_key_store_t *pubring = new rnp_key_store_t();
-    rnp_key_store_t *secring = new rnp_key_store_t();
+    rnp_key_store_t *pubring = new rnp_key_store_t(global_ctx);
+    rnp_key_store_t *secring = new rnp_key_store_t(global_ctx);
     pgp_key_t *      primary_pub = NULL, *primary_sec = NULL;
     pgp_key_t *      sub_pub = NULL, *sub_sec = NULL;
 
@@ -985,7 +983,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
 
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
-        desc.crypto.rng = &global_rng;
+        desc.crypto.ctx = &global_ctx;
         memcpy(desc.cert.userid, "test", 5);
 
         // generate
@@ -1023,7 +1021,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         // validate the userid self-sig
 
         psiginfo.sig = psig;
-        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt);
+        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
         assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == pub.fp());
         // check subpackets and their contents
@@ -1041,7 +1039,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(subpkt->fields.create <= time(NULL));
 
         ssiginfo.sig = ssig;
-        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt);
+        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
         assert_true(ssiginfo.valid);
         assert_true(ssig->keyfp() == sec.fp());
 
@@ -1049,9 +1047,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig->hashed_data[32] ^= 0xff;
         ssig->hashed_data[32] ^= 0xff;
         // ensure validation fails
-        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt);
+        pub.validate_cert(psiginfo, pub.pkt(), pub.get_uid(0).pkt, global_ctx);
         assert_false(psiginfo.valid);
-        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt);
+        sec.validate_cert(ssiginfo, sec.pkt(), sec.get_uid(0).pkt, global_ctx);
         assert_false(ssiginfo.valid);
         // restore the original data
         psig->hashed_data[32] ^= 0xff;
@@ -1063,9 +1061,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         uid.uid_len = 4;
         memcpy(uid.uid, "fake", 4);
 
-        pub.validate_cert(psiginfo, pub.pkt(), uid);
+        pub.validate_cert(psiginfo, pub.pkt(), uid, global_ctx);
         assert_false(psiginfo.valid);
-        sec.validate_cert(ssiginfo, sec.pkt(), uid);
+        sec.validate_cert(ssiginfo, sec.pkt(), uid, global_ctx);
         assert_false(ssiginfo.valid);
 
         // validate via an alternative method
@@ -1121,7 +1119,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         memset(&desc, 0, sizeof(desc));
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
-        desc.crypto.rng = &global_rng;
+        desc.crypto.ctx = &global_ctx;
 
         // generate
         pgp_password_provider_t prov = {};
@@ -1149,7 +1147,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_int_equal(PGP_PKT_SIGNATURE, sec.get_sig(0).rawpkt.tag);
         // validate the binding sig
         psiginfo.sig = psig;
-        primary_pub->validate_binding(psiginfo, pub);
+        primary_pub->validate_binding(psiginfo, pub, global_ctx);
         assert_true(psiginfo.valid);
         assert_true(psig->keyfp() == primary_pub->fp());
         // check subpackets and their contents
@@ -1167,7 +1165,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(subpkt->fields.create <= time(NULL));
 
         ssiginfo.sig = ssig;
-        primary_pub->validate_binding(ssiginfo, sec);
+        primary_pub->validate_binding(ssiginfo, sec, global_ctx);
         assert_true(ssiginfo.valid);
         assert_true(ssig->keyfp() == primary_sec->fp());
 
@@ -1175,9 +1173,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         psig->hashed_data[10] ^= 0xff;
         ssig->hashed_data[10] ^= 0xff;
         // ensure validation fails
-        primary_pub->validate_binding(psiginfo, pub);
+        primary_pub->validate_binding(psiginfo, pub, global_ctx);
         assert_false(psiginfo.valid);
-        primary_pub->validate_binding(ssiginfo, sec);
+        primary_pub->validate_binding(ssiginfo, sec, global_ctx);
         assert_false(ssiginfo.valid);
         // restore the original data
         psig->hashed_data[10] ^= 0xff;

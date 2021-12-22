@@ -323,9 +323,9 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
 
     /* validate all added keys if not disabled */
     if (!keyring->disable_validation && !oldkey->validated()) {
-        oldkey->validate_subkey(primary);
+        oldkey->validate_subkey(primary, keyring->secctx);
     }
-    if (!oldkey->refresh_data(primary)) {
+    if (!oldkey->refresh_data(primary, keyring->secctx)) {
         RNP_LOG_KEY("Failed to refresh subkey %s data", srckey);
         RNP_LOG_KEY("primary key is %s", primary);
     }
@@ -376,7 +376,7 @@ rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
     /* validate all added keys if not disabled or already validated */
     if (!keyring->disable_validation && !added_key->validated()) {
         added_key->revalidate(*keyring);
-    } else if (!added_key->refresh_data()) {
+    } else if (!added_key->refresh_data(keyring->secctx)) {
         RNP_LOG_KEY("Failed to refresh key %s data", srckey);
     }
     return added_key;
@@ -457,7 +457,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     try {
         pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
-        if (!tmpkey.refresh_data(primary)) {
+        if (!tmpkey.refresh_data(primary, keyring->secctx)) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
@@ -492,7 +492,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
     try {
         pgp_key_t tmpkey(key->pkt());
         tmpkey.add_sig(*sig);
-        if (!tmpkey.refresh_data()) {
+        if (!tmpkey.refresh_data(keyring->secctx)) {
             RNP_LOG("Failed to add signature to the key.");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
         }
@@ -848,7 +848,10 @@ rnp_key_store_search(rnp_key_store_t *       keyring,
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 
-rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format, const std::string &_path)
+rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format,
+                                 const std::string &    _path,
+                                 rnp::SecurityContext & ctx)
+    : secctx(ctx)
 {
     if (_format == PGP_KEY_STORE_UNKNOWN) {
         RNP_LOG("Invalid key store format");
