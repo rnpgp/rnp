@@ -193,40 +193,36 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
 static bool
 test_cli_g10_key_sign(const char *userid)
 {
-    int ret;
-
     /* create signature */
-    ret = call_rnp("rnp",
-                   "--homedir",
-                   G10KEYS,
-                   "--password",
-                   "password",
-                   "-u",
-                   userid,
-                   "-s",
-                   FILES "/hello.txt",
-                   NULL);
+    int ret = call_rnp("rnp",
+                       "--homedir",
+                       G10KEYS,
+                       "--password",
+                       "password",
+                       "-u",
+                       userid,
+                       "-s",
+                       FILES "/hello.txt",
+                       NULL);
     if (ret) {
+        rnp_unlink(FILES "/hello.txt.pgp");
         return false;
     }
 
     /* verify back */
     ret = call_rnp("rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", NULL);
-    if (ret) {
-        return false;
-    }
     rnp_unlink(FILES "/hello.txt.pgp");
-    return true;
+    return !ret;
 }
 
 static bool
 test_cli_g10_key_encrypt(const char *userid)
 {
-    int ret;
-
     /* encrypt */
-    ret = call_rnp("rnp", "--homedir", G10KEYS, "-r", userid, "-e", FILES "/hello.txt", NULL);
+    int ret =
+      call_rnp("rnp", "--homedir", G10KEYS, "-r", userid, "-e", FILES "/hello.txt", NULL);
     if (ret) {
+        rnp_unlink(FILES "/hello.txt.pgp");
         return false;
     }
 
@@ -239,11 +235,8 @@ test_cli_g10_key_encrypt(const char *userid)
                    "-d",
                    FILES "/hello.txt.pgp",
                    NULL);
-    if (ret) {
-        return false;
-    }
     rnp_unlink(FILES "/hello.txt.pgp");
-    return true;
+    return !ret;
 }
 
 TEST_F(rnp_tests, test_cli_g10_operations)
@@ -282,11 +275,18 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     assert_false(test_cli_g10_key_sign("02a5715c3537717e"));   // fail - encrypting subkey
     assert_true(test_cli_g10_key_encrypt("02a5715c3537717e")); // success
 
-    /* check rsa/rsa key, key is SC while subkey is E */
-    assert_true(test_cli_g10_key_sign("2fb9179118898e8b"));
-    assert_true(test_cli_g10_key_encrypt("2fb9179118898e8b"));
+    /* check rsa/rsa key, key is SC while subkey is E. Must fail as uses SHA1 */
+    assert_false(test_cli_g10_key_sign("2fb9179118898e8b"));
+    assert_false(test_cli_g10_key_encrypt("2fb9179118898e8b"));
     assert_false(test_cli_g10_key_sign("6e2f73008f8b8d6e"));
-    assert_true(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
+    assert_false(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
+
+    /* check new rsa/rsa key, key is SC while subkey is E. */
+    /* Now fails since we cannot parse new S-exps */
+    assert_false(test_cli_g10_key_sign("bd860a52d1899c0f"));
+    assert_false(test_cli_g10_key_encrypt("bd860a52d1899c0f"));
+    assert_false(test_cli_g10_key_sign("8e08d46a37414996"));
+    assert_false(test_cli_g10_key_encrypt("8e08d46a37414996"));
 
     /* check ed25519 key */
     assert_true(test_cli_g10_key_sign("cc786278981b0728"));

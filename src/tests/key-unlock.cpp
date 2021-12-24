@@ -70,7 +70,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     rnp_cfg &cfg = rnp.cfg();
     cfg.load_defaults();
     cfg.set_bool(CFG_SIGN_NEEDED, true);
-    cfg.set_str(CFG_HASH, "SHA1");
+    cfg.set_str(CFG_HASH, "SHA256");
     cfg.set_int(CFG_ZLEVEL, 0);
     cfg.set_str(CFG_INFILE, "dummyfile.dat");
     cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");
@@ -127,7 +127,7 @@ TEST_F(rnp_tests, test_key_unlock_pgp)
     cfg.clear();
     cfg.load_defaults();
     cfg.set_bool(CFG_SIGN_NEEDED, true);
-    cfg.set_str(CFG_HASH, "SHA1");
+    cfg.set_str(CFG_HASH, "SHA256");
     cfg.set_int(CFG_ZLEVEL, 0);
     cfg.set_str(CFG_INFILE, "dummyfile.dat");
     cfg.set_str(CFG_OUTFILE, "dummyfile.dat.pgp");

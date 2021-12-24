@@ -95,6 +95,12 @@ hash_supported(const std::string &hash)
     return true;
 }
 
+static bool
+hash_secure(const std::string &hash)
+{
+    return (lowercase(hash) != "md5") && (lowercase(hash) != "sha1");
+}
+
 TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
 {
     /* Set the UserId = custom value.
@@ -175,6 +181,12 @@ TEST_F(rnp_tests, rnpkeys_generatekey_testSignature)
                 cfg.set_bool(CFG_OVERWRITE, true);
                 cfg.set_str(CFG_INFILE, "dummyfile.dat.pgp");
                 cfg.set_str(CFG_OUTFILE, "dummyfile.verify");
+                if (!hash_secure(hashAlg[i])) {
+                    assert_false(cli_rnp_process_file(&rnp));
+                    rnp.end();
+                    assert_int_equal(rnp_unlink("dummyfile.dat.pgp"), 0);
+                    continue;
+                }
                 assert_true(cli_rnp_process_file(&rnp));
 
                 /* Ensure signature verification passed */
@@ -339,7 +351,14 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifySupportedHashAlg)
         assert_true(keycount > 0);
         rnp_key_handle_t handle = NULL;
         assert_rnp_success(rnp_locate_key(rnp.ffi, "userid", hashAlg[i], &handle));
-        assert_non_null(handle);
+        if (hash_secure(hashAlg[i])) {
+            assert_non_null(handle);
+            bool valid = false;
+            rnp_key_is_valid(handle, &valid);
+            assert_true(valid);
+        } else {
+            assert_null(handle);
+        }
         rnp_key_handle_destroy(handle);
         rnp.end();
         delete_recursively(".rnp");

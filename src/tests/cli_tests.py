@@ -3092,7 +3092,7 @@ class SignDefault(unittest.TestCase):
 
 
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
-    def _encrypt_decrypt(self, e1, e2):
+    def _encrypt_decrypt(self, e1, e2, failenc = False, faildec = False):
         keyfile, src, enc_out, dec_out = reg_workfiles(self.test_id, '.gpg',
                                                          '.in', '.enc', '.dec')
         random_text(src, 0x1337)
@@ -3108,8 +3108,8 @@ class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
 
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
-        self.assertTrue(e2.encrypt(e1.userid, enc_out, src))
-        self.assertTrue(e1.decrypt(dec_out, enc_out))
+        self.assertEqual(e2.encrypt(e1.userid, enc_out, src), not failenc)
+        self.assertEqual(e1.decrypt(dec_out, enc_out), not faildec)
         clear_workfiles()
 
     def setUp(self):
@@ -3147,7 +3147,8 @@ class EncryptElgamal(Encrypt):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        self._encrypt_decrypt(self.gpg, self.rnp)
+        # DSA 1024 key uses SHA-1 as hash so verification would fail
+        self._encrypt_decrypt(self.gpg, self.rnp, sign_key_size <= 1024, sign_key_size <= 1024)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
@@ -3165,6 +3166,12 @@ class EncryptElgamal(Encrypt):
 
     def test_generate_elgamal_key1024_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 1024, self.gpg.userid)
+        self.operation_key_gencmd = cmd
+        # Will fail since 1024-bit DSA key uses SHA-1 as hash.
+        self._encrypt_decrypt(self.gpg, self.rnp, True, True)
+
+    def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
+        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)
         self.operation_key_gencmd = cmd
         self._encrypt_decrypt(self.gpg, self.rnp)
 
@@ -3220,7 +3227,7 @@ class EncryptEcdh(Encrypt):
 class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     SIZES = [20, 1000, 5000, 20000, 150000, 1000000]
 
-    def _sign_verify(self, e1, e2):
+    def _sign_verify(self, e1, e2, failsign = False, failver = False):
         '''
         Helper function for Sign verification
         1. e1 creates/loads key
@@ -3245,8 +3252,8 @@ class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
             self.assertTrue(e1.generate_key_batch(self.operation_key_gencmd))
         self.assertTrue(e1.export_key(keyfile, False))
         self.assertTrue(e2.import_key(keyfile))
-        self.assertTrue(e1.sign(output, src))
-        self.assertTrue(e2.verify(output))
+        self.assertEqual(e1.sign(output, src), not failsign)
+        self.assertEqual(e2.verify(output), not failver)
         clear_workfiles()
 
     def setUp(self):
@@ -3337,13 +3344,15 @@ class SignDSA(Sign):
         pfx = SignDSA.key_pfx(p_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        self._sign_verify(self.rnp, self.gpg)
+        # DSA 1024-bit key uses SHA-1 so verification would fail
+        self._sign_verify(self.rnp, self.gpg, p_size <= 1024, p_size <= 1024)
 
     def do_test_verify(self, p_size):
         pfx = SignDSA.key_pfx(p_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        self._sign_verify(self.gpg, self.rnp)
+        # DSA 1024-bit key uses SHA-1 so verification would fail
+        self._sign_verify(self.gpg, self.rnp, False, p_size <= 1024)
 
     def test_sign_P1024_Q160(self): self.do_test_sign(1024)
     def test_sign_P2048_Q256(self): self.do_test_sign(2048)

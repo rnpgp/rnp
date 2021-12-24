@@ -72,6 +72,15 @@ TEST_F(rnp_tests, test_key_add_userid)
     selfsig0.key_expiration = base_expiry;
     selfsig0.primary = false;
     key->add_uid_cert(selfsig0, PGP_HASH_SHA1, global_ctx);
+    // attempt to add sha1-signed uid and make sure it fails
+    assert_int_equal(0, key->expiration());
+    assert_int_equal(0x3, key->flags());
+    assert_false(key->get_uid(uidc).valid);
+    // delete invalid uid and add valid one
+    key->del_uid(uidc);
+    assert_int_equal(uidc, key->uid_count());
+    assert_int_equal(subsigc, key->sig_count());
+    key->add_uid_cert(selfsig0, PGP_HASH_SHA256, global_ctx);
     // make sure this userid has not been marked as primary
     assert_false(key->has_primary_uid());
     // make sure key expiration and flags are set
@@ -85,7 +94,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     selfsig1.key_flags = 0xAB;
     selfsig1.key_expiration = base_expiry + 1;
     selfsig1.primary = 1;
-    key->add_uid_cert(selfsig1, PGP_HASH_SHA1, global_ctx);
+    key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);
 
     // make sure this userid has been marked as primary
     assert_int_equal(key->uid_count() - 1, key->get_primary_uid());
@@ -97,20 +106,20 @@ TEST_F(rnp_tests, test_key_add_userid)
     // try to add the same userid (should fail)
     rnp_selfsig_cert_info_t dup_selfsig = {};
     memcpy(dup_selfsig.userid, "added1", 7);
-    assert_throw(key->add_uid_cert(dup_selfsig, PGP_HASH_SHA1, global_ctx));
+    assert_throw(key->add_uid_cert(dup_selfsig, PGP_HASH_SHA256, global_ctx));
 
     // try to add another primary userid (should fail)
     rnp_selfsig_cert_info_t selfsig2 = {};
     memcpy(selfsig2.userid, "added2", 7);
     selfsig2.primary = 1;
-    assert_throw(key->add_uid_cert(selfsig2, PGP_HASH_SHA1, global_ctx));
+    assert_throw(key->add_uid_cert(selfsig2, PGP_HASH_SHA256, global_ctx));
 
     memcpy(selfsig2.userid, "added2", 7);
     selfsig2.key_flags = 0xCD;
     selfsig2.primary = 0;
 
     // actually add another userid
-    key->add_uid_cert(selfsig2, PGP_HASH_SHA1, global_ctx);
+    key->add_uid_cert(selfsig2, PGP_HASH_SHA256, global_ctx);
 
     // confirm that the counts have increased as expected
     assert_int_equal(key->uid_count(), uidc + 3);

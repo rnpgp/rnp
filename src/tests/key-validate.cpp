@@ -111,10 +111,25 @@ TEST_F(rnp_tests, test_key_validate)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/pubring.pgp", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    /* certification has signature with MD5 hash algorithm */
+    assert_false(all_keys_valid(pubring));
+
+    rnp_key_store_clear(pubring);
+    /* add rule which allows MD5 */
+    rnp::SecurityRule allow_md5(
+      rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
+    allow_md5.override = true;
+    global_ctx.profile.add_rule(allow_md5);
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
+    rnp_key_store_clear(pubring);
+    /* remove rule */
+    assert_true(global_ctx.profile.del_rule(allow_md5));
+    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_false(all_keys_valid(pubring));
     delete pubring;
 
-    /* secre keyring doesn't have certifications - so marked as invalid */
+    /* secret keyring doesn't have certifications - so marked as invalid */
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/secring.pgp", global_ctx);
     assert_true(rnp_key_store_load_from_path(secring, NULL));
@@ -259,8 +274,14 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
     /* load valid rsa/rsa keypair */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub.pgp");
-    assert_true(key_check(pubring, "2FB9179118898E8B", true));
-    assert_true(key_check(pubring, "6E2F73008F8B8D6E", true));
+    /* it is invalid since SHA1 hash is used for signatures */
+    assert_false(key_check(pubring, "2FB9179118898E8B", true));
+    assert_false(key_check(pubring, "6E2F73008F8B8D6E", true));
+    /* allow SHA1 within further checks */
+    rnp::SecurityRule allow_sha1(
+      rnp::FeatureType::Hash, PGP_HASH_SHA1, rnp::SecurityLevel::Default, 1547856001);
+    global_ctx.profile.add_rule(allow_sha1);
+
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa key with forged self-signature. Valid because of valid binding. */
@@ -291,6 +312,9 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_true(key_check(pubring, "3D032D00EE1EC3F5", false));
     assert_true(key_check(pubring, "021085B640CE8DCE", false));
     rnp_key_store_clear(pubring);
+
+    /* remove SHA1 rule */
+    assert_true(global_ctx.profile.del_rule(allow_sha1));
 
     /* load eddsa/rsa keypair with certification with future creation date - valid because of
      * binding. */
