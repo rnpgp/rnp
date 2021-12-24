@@ -94,6 +94,10 @@ TEST_F(rnp_tests, test_load_g10)
     assert_true(test_load_g10_check_key(pub_store, sec_store, "2FB9179118898E8B"));
     assert_true(test_load_g10_check_key(pub_store, sec_store, "6E2F73008F8B8D6E"));
 
+    /* rsa/rsa new key. Now fails since uses new s-exp syntax */
+    assert_false(test_load_g10_check_key(pub_store, sec_store, "BD860A52D1899C0F"));
+    assert_false(test_load_g10_check_key(pub_store, sec_store, "8E08D46A37414996"));
+
     /* ed25519 key */
     assert_true(test_load_g10_check_key(pub_store, sec_store, "CC786278981B0728"));
 

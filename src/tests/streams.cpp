@@ -1011,11 +1011,21 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     /* check certification signature */
     rnp::Hash hash;
     signature_hash_certification(sig, key.key, uid.uid, hash);
+    /* this signature uses MD5 hash after the allowed date */
+    assert_int_equal(signature_validate(sig, pkey->material(), hash, global_ctx),
+                     RNP_ERROR_SIGNATURE_INVALID);
+    /* add rule which allows MD5 */
+    rnp::SecurityRule allow_md5(
+      rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
+    allow_md5.override = true;
+    global_ctx.profile.add_rule(allow_md5);
     assert_rnp_success(signature_validate(sig, pkey->material(), hash, global_ctx));
     /* modify userid and check signature */
     uid.uid.uid[2] = '?';
     signature_hash_certification(sig, key.key, uid.uid, hash);
     assert_rnp_failure(signature_validate(sig, pkey->material(), hash, global_ctx));
+    /* remove MD5 rule */
+    assert_true(global_ctx.profile.del_rule(allow_md5));
     delete pubring;
 
     /* keyring */
@@ -1089,17 +1099,29 @@ validate_key_sigs(const char *path)
 
 TEST_F(rnp_tests, test_stream_key_signature_validate)
 {
-    rnp_key_store_t *pubring;
-    pgp_key_t *      pkey = NULL;
-
     /* v3 public key */
-    pubring =
+    rnp_key_store_t *pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
-    pkey = &pubring->keys.front();
-    pkey->validate(*pubring);
-    assert_true(pkey->valid());
+    pgp_key_t &pkey = pubring->keys.front();
+    pkey.validate(*pubring);
+    /* MD5 signature is marked as invalid by default */
+    assert_false(pkey.valid());
+    rnp::SecurityRule allow_md5(
+      rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
+    allow_md5.override = true;
+    /* Allow MD5 */
+    global_ctx.profile.add_rule(allow_md5);
+    /* we need to manually reset signature validity */
+    pkey.get_sig(0).validity.reset();
+    pkey.revalidate(*pubring);
+    assert_true(pkey.valid());
+    /* Remove MD5 and revalidate */
+    assert_true(global_ctx.profile.del_rule(allow_md5));
+    pkey.get_sig(0).validity.reset();
+    pkey.revalidate(*pubring);
+    assert_false(pkey.valid());
     delete pubring;
 
     /* keyring */
