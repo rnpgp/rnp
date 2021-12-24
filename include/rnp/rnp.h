@@ -435,6 +435,8 @@ RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
  *        security settings by disabling them or marking as insecure. After creation of FFI
  *        object default rules are added, however caller may add more strict rules or
  *        completely overwrite rule table by calling rnp_remove_security_rule().
+ *        Note: key signature validation status is cached, so rules should be changed before
+ *        keyrings are loaded or keyring should be reloaded after updating rules.
  *
  * @param ffi initialized FFI object.
  * @param type type of the feature, cannot be NULL. Currently only RNP_FEATURE_HASH_ALG is
