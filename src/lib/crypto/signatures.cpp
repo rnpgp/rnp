@@ -196,6 +196,12 @@ signature_validate(const pgp_signature_t &     sig,
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
+    /* Check signature security */
+    if (ctx.profile.hash_level(sig.halg, sig.creation()) < rnp::SecurityLevel::Default) {
+        RNP_LOG("Insecure hash algorithm %d, marking signature as invalid.", sig.halg);
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+
     /* Finalize hash */
     uint8_t hval[PGP_MAX_HASH_SIZE];
     size_t  hlen = 0;
