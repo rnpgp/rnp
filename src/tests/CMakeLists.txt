@@ -111,6 +111,7 @@ add_executable(rnp_tests
   partial-length.cpp
   pipe.cpp
   rnp_tests.cpp
+  rng-randomness.cpp
   s2k-iterations.cpp
   streams.cpp
   support.cpp

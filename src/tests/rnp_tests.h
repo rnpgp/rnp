@@ -457,6 +457,8 @@ void test_fuzz_dump(void **state);
 
 void test_fuzz_verify_detached(void **state);
 
+void test_rng_randomness(void **state);
+
 #define assert_true(a) EXPECT_TRUE((a))
 #define assert_false(a) EXPECT_FALSE((a))
 #define assert_string_equal(a, b) EXPECT_STREQ((a), (b))
