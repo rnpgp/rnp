@@ -232,7 +232,8 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
 #endif
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-        return elgamal_validate_key(rng, &material->eg, material->secret);
+        return elgamal_validate_key(&material->eg, material->secret) ? RNP_SUCCESS :
+                                                                       RNP_ERROR_GENERIC;
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) material->alg);
     }
