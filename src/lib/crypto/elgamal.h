@@ -51,7 +51,7 @@ typedef struct pgp_eg_encrypted_t {
     pgp_mpi_t m;
 } pgp_eg_encrypted_t;
 
-rnp_result_t elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret);
+bool elgamal_validate_key(const pgp_eg_key_t *key, bool secret);
 
 /*
  * Performs ElGamal encryption

@@ -27,6 +27,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <botan/ffi.h>
+#include <botan/bigint.h>
+#include <botan/numthry.h>
+#include <botan/reducer.h>
 #include <rnp/rnp_def.h>
 #include "elgamal.h"
 #include "utils.h"
@@ -89,33 +92,49 @@ done:
     return res;
 }
 
-rnp_result_t
-elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret)
+bool
+elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
 {
-    botan_pubkey_t  bpkey = NULL;
-    botan_privkey_t bskey = NULL;
-    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
-
     // Check if provided public key byte size is not greater than ELGAMAL_MAX_P_BYTELEN.
-    if (!elgamal_load_public_key(&bpkey, key) ||
-        botan_pubkey_check_key(bpkey, rng->handle(), 0)) {
-        goto done;
+    if (mpi_bytes(&key->p) > ELGAMAL_MAX_P_BYTELEN) {
+        return false;
     }
 
-    if (!secret) {
-        ret = RNP_SUCCESS;
-        goto done;
-    }
+    /* Use custom validation since we added some custom validation, and Botan has slow test for
+     * prime for p */
+    try {
+        Botan::BigInt p(key->p.mpi, key->p.len);
+        Botan::BigInt g(key->g.mpi, key->g.len);
 
-    if (!elgamal_load_secret_key(&bskey, key) ||
-        botan_privkey_check_key(bskey, rng->handle(), 0)) {
-        goto done;
+        /* 1 < g < p */
+        if ((g.cmp_word(1) != 1) || (g.cmp(p) != -1)) {
+            return false;
+        }
+        /* g ^ (p - 1) = 1 mod p */
+        if (Botan::power_mod(g, p - 1, p).cmp_word(1)) {
+            return false;
+        }
+        /* check for small order subgroups */
+        Botan::Modular_Reducer reducer(p);
+        Botan::BigInt          v = g;
+        for (size_t i = 2; i < (1 << 17); i++) {
+            v = reducer.multiply(v, g);
+            if (!v.cmp_word(1)) {
+                RNP_LOG("Small subgroup detected. Order %zu", i);
+                return false;
+            }
+        }
+        if (!secret) {
+            return true;
+        }
+        /* check that g ^ x = y (mod p) */
+        Botan::BigInt y(key->y.mpi, key->y.len);
+        Botan::BigInt x(key->x.mpi, key->x.len);
+        return Botan::power_mod(g, x, p) == y;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
     }
-    ret = RNP_SUCCESS;
-done:
-    botan_privkey_destroy(bskey);
-    botan_pubkey_destroy(bpkey);
-    return ret;
 }
 
 rnp_result_t

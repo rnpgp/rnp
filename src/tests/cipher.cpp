@@ -768,6 +768,17 @@ TEST_F(rnp_tests, test_validate_key_material)
     assert_rnp_failure(validate_pgp_key_material(&key.material, &rng));
     key = pgp_key_pkt_t();
 
+    /* ElGamal key with small subgroup */
+    assert_true(read_key_pkt(&key, KEYS "eg-sec-small-group.pgp"));
+    assert_rnp_failure(validate_pgp_key_material(&key.material, &rng));
+    assert_rnp_success(decrypt_secret_key(&key, NULL));
+    key = pgp_key_pkt_t();
+
+    assert_true(read_key_pkt(&key, KEYS "eg-sec-small-group-enc.pgp"));
+    assert_rnp_failure(validate_pgp_key_material(&key.material, &rng));
+    assert_rnp_success(decrypt_secret_key(&key, "password"));
+    key = pgp_key_pkt_t();
+
     /* ECDSA key */
     assert_true(read_key_pkt(&key, KEYS "ecdsa-p256-sec.pgp"));
     assert_rnp_success(validate_pgp_key_material(&key.material, &rng));
