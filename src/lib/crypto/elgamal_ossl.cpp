@@ -33,6 +33,7 @@
 #include "utils.h"
 #include "bn.h"
 #include "mem.h"
+#include <openssl/bn.h>
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -41,18 +42,77 @@
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)
 
-rnp_result_t
-elgamal_validate_key(rnp::RNG *rng, const pgp_eg_key_t *key, bool secret)
+bool
+elgamal_validate_key(const pgp_eg_key_t *key, bool secret)
 {
-    /* OpenSSL doesn't implement ElGamal, however we may use DL via DH */
-    EVP_PKEY *pkey = dl_load_key(key->p, NULL, key->g, key->y, NULL);
-    if (!pkey) {
-        RNP_LOG("Failed to load key");
-        return RNP_ERROR_BAD_PARAMETERS;
+    BN_CTX *ctx = BN_CTX_new();
+    if (!ctx) {
+        RNP_LOG("Allocation failed.");
+        return false;
     }
-    rnp_result_t ret = dl_validate_key(pkey, secret ? &key->x : NULL);
-    EVP_PKEY_free(pkey);
-    return ret;
+    BN_CTX_start(ctx);
+    bool         res = false;
+    bignum_t *   p = mpi2bn(&key->p);
+    bignum_t *   g = mpi2bn(&key->g);
+    bignum_t *   p1 = BN_CTX_get(ctx);
+    bignum_t *   r = BN_CTX_get(ctx);
+    bignum_t *   y = NULL;
+    bignum_t *   x = NULL;
+    BN_RECP_CTX *rctx = NULL;
+
+    if (!p || !g || !p1 || !r) {
+        goto done;
+    }
+
+    /* 1 < g < p */
+    if ((BN_cmp(g, BN_value_one()) != 1) || (BN_cmp(g, p) != -1)) {
+        RNP_LOG("Invalid g value.");
+        goto done;
+    }
+    /* g ^ (p - 1) = 1 mod p */
+    if (!BN_copy(p1, p) || !BN_sub_word(p1, 1) || !BN_mod_exp(r, g, p1, p, ctx)) {
+        RNP_LOG("g exp failed.");
+        goto done;
+    }
+    if (BN_cmp(r, BN_value_one()) != 0) {
+        RNP_LOG("Wrong g exp value.");
+        goto done;
+    }
+    /* check for small order subgroups */
+    rctx = BN_RECP_CTX_new();
+    if (!rctx || !BN_RECP_CTX_set(rctx, p, ctx) || !BN_copy(r, g)) {
+        RNP_LOG("Failed to init RECP context.");
+        goto done;
+    }
+    for (size_t i = 2; i < (1 << 17); i++) {
+        if (!BN_mod_mul_reciprocal(r, r, g, rctx, ctx)) {
+            RNP_LOG("Multiplication failed.");
+            goto done;
+        }
+        if (BN_cmp(r, BN_value_one()) == 0) {
+            RNP_LOG("Small subgroup detected. Order %zu", i);
+            goto done;
+        }
+    }
+    if (!secret) {
+        res = true;
+        goto done;
+    }
+    /* check that g ^ x = y (mod p) */
+    x = mpi2bn(&key->x);
+    y = mpi2bn(&key->y);
+    if (!x || !y) {
+        goto done;
+    }
+    res = BN_mod_exp(r, g, x, p, ctx) && !BN_cmp(r, y);
+done:
+    BN_CTX_free(ctx);
+    BN_RECP_CTX_free(rctx);
+    bn_free(p);
+    bn_free(g);
+    bn_free(y);
+    bn_free(x);
+    return res;
 }
 
 static bool
