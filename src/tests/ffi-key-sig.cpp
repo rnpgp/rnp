@@ -1469,3 +1469,30 @@ TEST_F(rnp_tests, test_ffi_key_critical_notations)
     rnp_output_destroy(output);
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_key_import_invalid_issuer)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* public key + secret subkey with invalid signer's keyfp */
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sub-sig-fp.pgp"));
+    char *   keys = NULL;
+    uint32_t flags =
+      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
+    assert_rnp_success(rnp_import_keys(ffi, input, flags, &keys));
+    rnp_input_destroy(input);
+    rnp_buffer_destroy(keys);
+
+    /* public key + secret subkey with invalid signer's keyid */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_key_edge_cases/alice-sub-sig-keyid.pgp"));
+    assert_rnp_success(rnp_import_keys(ffi, input, flags, &keys));
+    rnp_input_destroy(input);
+    rnp_buffer_destroy(keys);
+
+    rnp_ffi_destroy(ffi);
+}
