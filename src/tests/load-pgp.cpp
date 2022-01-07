@@ -425,6 +425,14 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
     assert_int_equal(key->rawpkt().tag, PGP_PKT_SECRET_SUBKEY);
     assert_int_equal(key->get_sig(0).rawpkt.tag, PGP_PKT_SIGNATURE);
 
+    /* make sure half of keyid doesn't work */
+    assert_true(rnp::hex_decode("0000000016CD16F2", keyid.data(), keyid.size()));
+    assert_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
+    assert_true(rnp::hex_decode("67CCDD4F00000000", keyid.data(), keyid.size()));
+    assert_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
+    assert_true(rnp::hex_decode("0000000067CCDD4F", keyid.data(), keyid.size()));
+    assert_null(key = rnp_key_store_get_key_by_id(key_store, keyid, NULL));
+
     /* both user ids should be present */
     assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-1"));
     assert_non_null(rnp_tests_key_search(key_store, "key-merge-uid-2"));

@@ -606,11 +606,8 @@ rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
     if (after) {
         it = std::next(it);
     }
-    it = std::find_if(it, keyring->keys.end(), [keyid](const pgp_key_t &key) {
-        return (key.keyid() == keyid) || !memcmp(key.keyid().data() + PGP_KEY_ID_SIZE / 2,
-                                                 keyid.data(),
-                                                 PGP_KEY_ID_SIZE / 2);
-    });
+    it = std::find_if(
+      it, keyring->keys.end(), [keyid](const pgp_key_t &key) { return key.keyid() == keyid; });
     return (it == keyring->keys.end()) ? NULL : &(*it);
 }
 
