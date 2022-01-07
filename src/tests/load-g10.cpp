@@ -33,20 +33,15 @@
 static bool
 test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
 {
-    pgp_key_id_t            keyid = {};
-    pgp_key_t *             key = NULL;
+    pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);
+    if (!key) {
+        return false;
+    }
+    if (!(key = rnp_tests_get_key_by_id(sec, id))) {
+        return false;
+    }
     pgp_password_provider_t pswd_prov = {.callback = string_copy_password_callback,
                                          .userdata = (void *) "password"};
-
-    if (!rnp::hex_decode(id, keyid.data(), keyid.size())) {
-        return false;
-    }
-    if (!rnp_key_store_get_key_by_id(pub, keyid, NULL)) {
-        return false;
-    }
-    if (!(key = rnp_key_store_get_key_by_id(sec, keyid, NULL))) {
-        return false;
-    }
     return key->is_protected() && key->unlock(pswd_prov) && key->lock();
 }
 
