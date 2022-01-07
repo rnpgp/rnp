@@ -217,9 +217,9 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
     key = rnp_tests_get_key_by_id(pub_store, "0x4be147bb22df1e60", NULL);
     assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "22df1e60", NULL);
-    assert_true(key == primpub);
+    assert_null(key);
     key = rnp_tests_get_key_by_id(pub_store, "0x22df1e60", NULL);
-    assert_true(key == primpub);
+    assert_null(key);
     key = rnp_tests_get_key_by_id(pub_store, "4be1 47bb 22df 1e60", NULL);
     assert_true(key == primpub);
     key = rnp_tests_get_key_by_id(pub_store, "4be147bb 22df1e60", NULL);
