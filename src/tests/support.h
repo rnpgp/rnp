@@ -137,10 +137,10 @@ bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 bool hex2mpi(pgp_mpi_t *val, const char *hex);
 
 /* check whether key id is equal to hex string */
-bool cmp_keyid(const pgp_key_id_t &id, const char *val);
+bool cmp_keyid(const pgp_key_id_t &id, const std::string &val);
 
 /* check whether key fp is equal to hex string */
-bool cmp_keyfp(const pgp_fingerprint_t &fp, const char *val);
+bool cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val);
 
 /*
  */
@@ -224,9 +224,9 @@ bool check_json_pkt_type(json_object *pkt, int tag);
 
 pgp_key_t *rnp_tests_get_key_by_id(rnp_key_store_t *  keyring,
                                    const std::string &keyid,
-                                   pgp_key_t *        after);
+                                   pgp_key_t *        after = NULL);
 pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid);
-pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &keyid);
+pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid);
 
 /* key load/reload  shortcuts */
 void reload_pubring(rnp_ffi_t *ffi);

@@ -573,45 +573,6 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
     return true;
 }
 
-/**
-   \ingroup HighLevel_KeyringFind
-
-   \brief Finds key in keyring from its Key ID
-
-   \param keyring Keyring to be searched
-   \param keyid ID of required key
-
-   \return Pointer to key, if found; NULL, if not found
-
-   \note This returns a pointer to the key inside the given keyring,
-   not a copy.  Do not free it after use.
-
-*/
-pgp_key_t *
-rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
-                            const pgp_key_id_t &keyid,
-                            pgp_key_t *         after)
-{
-    if (!keyring) {
-        return NULL;
-    }
-
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [after](const pgp_key_t &key) {
-          return !after || (after == &key);
-      });
-    if (after && (it == keyring->keys.end())) {
-        RNP_LOG("searching with non-keyrings after param");
-        return NULL;
-    }
-    if (after) {
-        it = std::next(it);
-    }
-    it = std::find_if(
-      it, keyring->keys.end(), [keyid](const pgp_key_t &key) { return key.keyid() == keyid; });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
-}
-
 const pgp_key_t *
 rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 {

@@ -138,10 +138,6 @@ pgp_key_t *rnp_key_store_import_signature(rnp_key_store_t *        keyring,
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
 
-pgp_key_t *rnp_key_store_get_key_by_id(rnp_key_store_t *   keyring,
-                                       const pgp_key_id_t &keyid,
-                                       pgp_key_t *         key);
-
 bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip);
 
 const pgp_key_t *rnp_key_store_get_key_by_grip(const rnp_key_store_t *,
