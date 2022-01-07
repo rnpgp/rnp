@@ -1012,8 +1012,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(rnp_key_store_add_key(pubring, &pub));
         assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings (for later)
-        primary_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip());
-        primary_sec = rnp_key_store_get_key_by_grip(secring, pub.grip());
+        primary_pub = rnp_tests_get_key_by_grip(pubring, pub.grip());
+        primary_sec = rnp_tests_get_key_by_grip(secring, pub.grip());
         assert_non_null(primary_pub);
         assert_non_null(primary_sec);
         assert_true(primary_pub->valid());
@@ -1204,8 +1204,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(rnp_key_store_add_key(pubring, &pub));
         assert_true(rnp_key_store_add_key(secring, &sec));
         // retrieve back from our rings
-        sub_pub = rnp_key_store_get_key_by_grip(pubring, pub.grip());
-        sub_sec = rnp_key_store_get_key_by_grip(secring, pub.grip());
+        sub_pub = rnp_tests_get_key_by_grip(pubring, pub.grip());
+        sub_sec = rnp_tests_get_key_by_grip(secring, pub.grip());
         assert_non_null(sub_pub);
         assert_non_null(sub_sec);
         assert_true(sub_pub->valid());

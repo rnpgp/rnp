@@ -574,24 +574,6 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
 }
 
 const pgp_key_t *
-rnp_key_store_get_key_by_grip(const rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
-{
-    auto it = std::find_if(keyring->keys.begin(),
-                           keyring->keys.end(),
-                           [grip](const pgp_key_t &key) { return key.grip() == grip; });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
-}
-
-pgp_key_t *
-rnp_key_store_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
-{
-    auto it = std::find_if(keyring->keys.begin(),
-                           keyring->keys.end(),
-                           [grip](const pgp_key_t &key) { return key.grip() == grip; });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
-}
-
-const pgp_key_t *
 rnp_key_store_get_key_by_fpr(const rnp_key_store_t *keyring, const pgp_fingerprint_t &fpr)
 {
     auto it = keyring->keybyfp.find(fpr);
