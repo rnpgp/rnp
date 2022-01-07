@@ -431,6 +431,7 @@ rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
     // fall back to key id search
     if (sig->has_keyid()) {
         search.by.keyid = sig->keyid();
+        search.type = PGP_KEY_SEARCH_KEYID;
         return rnp_key_store_search(store, &search, NULL);
     }
     return NULL;
@@ -657,7 +658,8 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
     }
 
     if (subkey->has_primary_fp()) {
-        return rnp_key_store_get_key_by_fpr(keyring, subkey->primary_fp());
+        pgp_key_t *primary = rnp_key_store_get_key_by_fpr(keyring, subkey->primary_fp());
+        return primary && primary->is_primary() ? primary : NULL;
     }
 
     for (size_t i = 0; i < subkey->sig_count(); i++) {
@@ -666,15 +668,11 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
             continue;
         }
 
-        if (subsig.sig.has_keyfp()) {
-            return rnp_key_store_get_key_by_fpr(keyring, subsig.sig.keyfp());
-        }
-
-        if (subsig.sig.has_keyid()) {
-            return rnp_key_store_get_key_by_id(keyring, subsig.sig.keyid(), NULL);
+        pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, &subsig.sig);
+        if (primary && primary->is_primary()) {
+            return primary;
         }
     }
-
     return NULL;
 }
 
