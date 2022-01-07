@@ -226,6 +226,8 @@ pgp_key_t *rnp_tests_get_key_by_id(rnp_key_store_t *  keyring,
                                    const std::string &keyid,
                                    pgp_key_t *        after = NULL);
 pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid);
+pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip);
+pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip);
 pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid);
 
 /* key load/reload  shortcuts */
