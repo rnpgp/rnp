@@ -449,15 +449,15 @@ hex2mpi(pgp_mpi_t *val, const char *hex)
 }
 
 bool
-cmp_keyid(const pgp_key_id_t &id, const char *val)
+cmp_keyid(const pgp_key_id_t &id, const std::string &val)
 {
-    return bin_eq_hex(id.data(), id.size(), val);
+    return bin_eq_hex(id.data(), id.size(), val.c_str());
 }
 
 bool
-cmp_keyfp(const pgp_fingerprint_t &fp, const char *val)
+cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val)
 {
-    return bin_eq_hex(fp.fingerprint, fp.length, val);
+    return bin_eq_hex(fp.fingerprint, fp.length, val.c_str());
 }
 
 int
@@ -848,7 +848,10 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
     if (binlen > PGP_KEY_ID_SIZE) {
         return NULL;
     }
-    return rnp_key_store_get_key_by_id(keyring, keyid_bin, after);
+    pgp_key_search_t search = {};
+    search.by.keyid = keyid_bin;
+    search.type = PGP_KEY_SEARCH_KEYID;
+    return rnp_key_store_search(keyring, &search, after);
 }
 
 pgp_key_t *
@@ -868,14 +871,14 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
 }
 
 pgp_key_t *
-rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &keyid)
+rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid)
 {
-    if (!keyring || keyid.empty()) {
+    if (!keyring || uid.empty()) {
         return NULL;
     }
 
     pgp_key_search_t srch_userid = {PGP_KEY_SEARCH_USERID};
-    strncpy(srch_userid.by.userid, keyid.c_str(), sizeof(srch_userid.by.userid));
+    strncpy(srch_userid.by.userid, uid.c_str(), sizeof(srch_userid.by.userid));
     srch_userid.by.userid[sizeof(srch_userid.by.userid) - 1] = '\0';
     return rnp_key_store_search(keyring, &srch_userid, NULL);
 }

@@ -89,13 +89,12 @@ TEST_F(rnp_tests, test_key_store_search)
 
     // keyid search
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
-        pgp_key_id_t keyid = {};
-        assert_true(rnp::hex_decode(testdata[i].keyid, keyid.data(), keyid.size()));
+        std::string           keyid = testdata[i].keyid;
         std::set<pgp_key_t *> seen_keys;
-        for (pgp_key_t *key = rnp_key_store_get_key_by_id(store, keyid, NULL); key;
-             key = rnp_key_store_get_key_by_id(store, keyid, key)) {
+        for (pgp_key_t *key = rnp_tests_get_key_by_id(store, keyid); key;
+             key = rnp_tests_get_key_by_id(store, keyid, key)) {
             // check that the keyid actually matches
-            assert_true(key->keyid() == keyid);
+            assert_true(cmp_keyid(key->keyid(), keyid));
             // check that we have not already encountered this key pointer
             assert_int_equal(seen_keys.count(key), 0);
             // keep track of what key pointers we have seen
@@ -107,13 +106,10 @@ TEST_F(rnp_tests, test_key_store_search)
     for (size_t i = 0; i < ARRAY_SIZE(testdata); i++) {
         std::set<pgp_key_t *> seen_keys;
         pgp_key_t *           key = NULL;
-        key = rnp_tests_get_key_by_id(store, testdata[i].keyid, NULL);
+        key = rnp_tests_get_key_by_id(store, testdata[i].keyid);
         while (key) {
             // check that the keyid actually matches
-            pgp_key_id_t expected_keyid = {};
-            assert_true(rnp::hex_decode(
-              testdata[i].keyid, expected_keyid.data(), expected_keyid.size()));
-            assert_true(key->keyid() == expected_keyid);
+            assert_true(cmp_keyid(key->keyid(), testdata[i].keyid));
             // check that we have not already encountered this key pointer
             assert_int_equal(seen_keys.count(key), 0);
             // keep track of what key pointers we have seen
@@ -188,12 +184,12 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
     /* Find keys and subkeys by fingerprint, id and userid */
     primsec = rnp_tests_get_key_by_fpr(sec_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60");
     assert_non_null(primsec);
-    key = rnp_tests_get_key_by_id(sec_store, "4BE147BB22DF1E60", NULL);
+    key = rnp_tests_get_key_by_id(sec_store, "4BE147BB22DF1E60");
     assert_true(key == primsec);
     subsec = rnp_tests_get_key_by_fpr(sec_store, "10793E367EE867C32E358F2AA49BAE05C16E8BC8");
     assert_non_null(subsec);
     assert_true(primsec != subsec);
-    key = rnp_tests_get_key_by_id(sec_store, "A49BAE05C16E8BC8", NULL);
+    key = rnp_tests_get_key_by_id(sec_store, "A49BAE05C16E8BC8");
     assert_true(key == subsec);
 
     primpub = rnp_tests_get_key_by_fpr(pub_store, "4F2E62B74E6A4CD333BC19004BE147BB22DF1E60");
@@ -210,31 +206,31 @@ TEST_F(rnp_tests, test_key_store_search_by_name)
     assert_true(key == primsec);
     key = rnp_tests_get_key_by_fpr(sec_store, "0x4f2e62b74e6a4cd333bc19004be147bb22df1e60");
     assert_true(key == primsec);
-    key = rnp_tests_get_key_by_id(pub_store, "4BE147BB22DF1E60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "4BE147BB22DF1E60");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "4be147bb22df1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "4be147bb22df1e60");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "0x4be147bb22df1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "0x4be147bb22df1e60");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "22df1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "22df1e60");
     assert_null(key);
-    key = rnp_tests_get_key_by_id(pub_store, "0x22df1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "0x22df1e60");
     assert_null(key);
-    key = rnp_tests_get_key_by_id(pub_store, "4be1 47bb 22df 1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "4be1 47bb 22df 1e60");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "4be147bb 22df1e60", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "4be147bb 22df1e60");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "    4be147bb\t22df1e60   ", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "    4be147bb\t22df1e60   ");
     assert_true(key == primpub);
-    key = rnp_tests_get_key_by_id(pub_store, "test1", NULL);
+    key = rnp_tests_get_key_by_id(pub_store, "test1");
     assert_null(key);
     /* Try negative searches */
     assert_null(rnp_tests_get_key_by_fpr(sec_store, "4f2e62b74e6a4cd333bc19004be147bb22df1e"));
     assert_null(rnp_tests_get_key_by_fpr(sec_store, "2e62b74e6a4cd333bc19004be147bb22df1e60"));
-    assert_null(rnp_tests_get_key_by_id(sec_store, "4be147bb22dfle60", NULL));
-    assert_null(rnp_tests_get_key_by_id(sec_store, "", NULL));
-    assert_null(rnp_tests_get_key_by_id(sec_store, "test11", NULL));
-    assert_null(rnp_tests_get_key_by_id(sec_store, "atest1", NULL));
+    assert_null(rnp_tests_get_key_by_id(sec_store, "4be147bb22dfle60"));
+    assert_null(rnp_tests_get_key_by_id(sec_store, ""));
+    assert_null(rnp_tests_get_key_by_id(sec_store, "test11"));
+    assert_null(rnp_tests_get_key_by_id(sec_store, "atest1"));
 
     // cleanup
     delete pub_store;
