@@ -240,6 +240,16 @@ add_library(librnp-obj OBJECT
   $<TARGET_OBJECTS:rnp-common>
 )
 
+get_target_property(_comp_options librnp-obj COMPILE_OPTIONS)
+string(REGEX MATCH "\\-fsanitize=[a-z,]*undefined" _comp_sanitizers "${_comp_options}" "${CMAKE_C_FLAGS}")
+if (ENABLE_SANITIZERS OR _comp_sanitizers)
+  # sha1cd attempts to use unaligned access for optimisations on intel CPUs
+  # CFLAGS is checked as sanitizers may be enabled without CMake var
+  set_source_files_properties(crypto/sha1cd/sha1.c
+    PROPERTIES COMPILE_DEFINITIONS "SHA1DC_FORCE_ALIGNED_ACCESS"
+  )
+endif()
+
 set_target_properties(librnp-obj PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(librnp-obj
   PUBLIC
