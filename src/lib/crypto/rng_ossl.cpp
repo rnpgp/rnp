@@ -27,9 +27,10 @@
 #include <assert.h>
 #include <openssl/rand.h>
 #include "rng.h"
+#include "types.h"
 
 namespace rnp {
-RNG::RNG(Type type = Type::DRBG)
+RNG::RNG(Type type)
 {
 }
 
