@@ -1158,13 +1158,16 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p521-sec.asc"));
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp256-pub.asc") ==
                 brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp256-sec.asc"));
+    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp256-sec.asc") ==
+                brainpool_enabled());
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp384-pub.asc") ==
                 brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp384-sec.asc"));
+    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp384-sec.asc") ==
+                brainpool_enabled());
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp512-pub.asc") ==
                 brainpool_enabled());
-    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp512-sec.asc"));
+    assert_true(validate_key_sigs("data/test_stream_key_load/ecc-bp512-sec.asc") ==
+                brainpool_enabled());
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256k1-pub.asc"));
     assert_true(validate_key_sigs("data/test_stream_key_load/ecc-p256k1-sec.asc"));
 }
