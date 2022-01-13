@@ -80,17 +80,6 @@ typedef struct pgp_rawpacket_t {
     void write(pgp_dest_t &dst) const;
 } pgp_rawpacket_t;
 
-/* validity information for the signature/key/userid */
-typedef struct pgp_validity_t {
-    bool validated{}; /* item was validated */
-    bool valid{};     /* item is valid by signature/key checks and calculations.
-                         Still may be revoked or expired. */
-    bool expired{};   /* item is expired */
-
-    void mark_valid();
-    void reset();
-} pgp_validity_t;
-
 /** information about the signature */
 typedef struct pgp_subsig_t {
     uint32_t         uid{};         /* index in userid array in key for certification sig */
@@ -217,7 +206,7 @@ struct pgp_key_t {
     pgp_key_pkt_t &      pkt();
     void                 set_pkt(const pgp_key_pkt_t &pkt);
 
-    const pgp_key_material_t &material() const;
+    pgp_key_material_t &material();
 
     pgp_pubkey_alg_t alg() const;
     pgp_curve_t      curve() const;
@@ -470,7 +459,7 @@ struct pgp_key_t {
     void sign_cert(const pgp_key_pkt_t &   key,
                    const pgp_userid_pkt_t &uid,
                    pgp_signature_t &       sig,
-                   rnp::SecurityContext &  ctx) const;
+                   rnp::SecurityContext &  ctx);
 
     /**
      * @brief Calculate direct-key signature.
@@ -482,7 +471,7 @@ struct pgp_key_t {
      */
     void sign_direct(const pgp_key_pkt_t & key,
                      pgp_signature_t &     sig,
-                     rnp::SecurityContext &ctx) const;
+                     rnp::SecurityContext &ctx);
 
     /**
      * @brief Calculate subkey or primary key binding.
@@ -495,7 +484,7 @@ struct pgp_key_t {
      */
     void sign_binding(const pgp_key_pkt_t & key,
                       pgp_signature_t &     sig,
-                      rnp::SecurityContext &ctx) const;
+                      rnp::SecurityContext &ctx);
 
     /**
      * @brief Calculate subkey binding.
@@ -508,10 +497,10 @@ struct pgp_key_t {
      * @param sig signature, pre-populated with all of the required data, except the
      *            signature material.
      */
-    void sign_subkey_binding(const pgp_key_t &     sub,
+    void sign_subkey_binding(pgp_key_t &           sub,
                              pgp_signature_t &     sig,
                              rnp::SecurityContext &ctx,
-                             bool                  subsign = false) const;
+                             bool                  subsign = false);
 
     /**
      * @brief Generate key or subkey revocation signature.
@@ -524,7 +513,7 @@ struct pgp_key_t {
                         pgp_hash_alg_t        hash,
                         const pgp_key_pkt_t & key,
                         pgp_signature_t &     sig,
-                        rnp::SecurityContext &ctx) const;
+                        rnp::SecurityContext &ctx);
 
     /**
      * @brief Add and certify userid.

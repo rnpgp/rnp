@@ -46,10 +46,10 @@ void signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp:
  *             during the execution. Signature fields and trailer are hashed in this function.
  * @param rng random number generator
  */
-void signature_calculate(pgp_signature_t &         sig,
-                         const pgp_key_material_t &seckey,
-                         rnp::Hash &               hash,
-                         rnp::SecurityContext &    ctx);
+void signature_calculate(pgp_signature_t &     sig,
+                         pgp_key_material_t &  seckey,
+                         rnp::Hash &           hash,
+                         rnp::SecurityContext &ctx);
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
