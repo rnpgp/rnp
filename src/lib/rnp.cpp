@@ -1703,13 +1703,6 @@ try {
         if (!pub && key.is_public()) {
             continue;
         }
-        if (validate_pgp_key_material(&key.material(), &ffi->rng())) {
-            char hex[PGP_KEY_ID_SIZE * 2 + 1] = {0};
-            rnp::hex_encode(
-              key.keyid().data(), key.keyid().size(), hex, sizeof(hex), rnp::HEX_LOWERCASE);
-            FFI_LOG(ffi, "warning! attempt to import key %s with invalid material.", hex);
-            continue;
-        }
         // if we got here then we add public key itself or public part of the secret key
         if (!rnp_key_store_import_key(ffi->pubring, &key, true, &pub_status)) {
             ret = RNP_ERROR_BAD_PARAMETERS;

@@ -1194,8 +1194,8 @@ pgp_key_t::set_pkt(const pgp_key_pkt_t &pkt)
     pkt_ = pkt;
 }
 
-const pgp_key_material_t &
-pgp_key_t::material() const
+pgp_key_material_t &
+pgp_key_t::material()
 {
     return pkt_.material;
 }
@@ -1214,7 +1214,7 @@ pgp_key_t::curve() const
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
-        return material().ec.curve;
+        return pkt_.material.ec.curve;
     default:
         return PGP_CURVE_UNKNOWN;
     }
@@ -1985,7 +1985,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
 
     /* Validate signature itself */
     if (sinfo.signer_valid || valid_at(sinfo.sig->creation())) {
-        sinfo.valid = !signature_validate(*sinfo.sig, material(), hash, ctx);
+        sinfo.valid = !signature_validate(*sinfo.sig, pkt_.material, hash, ctx);
     } else {
         sinfo.valid = false;
         RNP_LOG("invalid or untrusted key");
@@ -2315,7 +2315,7 @@ void
 pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
                      const pgp_userid_pkt_t &uid,
                      pgp_signature_t &       sig,
-                     rnp::SecurityContext &  ctx) const
+                     rnp::SecurityContext &  ctx)
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2326,7 +2326,7 @@ pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
 void
 pgp_key_t::sign_direct(const pgp_key_pkt_t & key,
                        pgp_signature_t &     sig,
-                       rnp::SecurityContext &ctx) const
+                       rnp::SecurityContext &ctx)
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2337,7 +2337,7 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t & key,
 void
 pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
                         pgp_signature_t &     sig,
-                        rnp::SecurityContext &ctx) const
+                        rnp::SecurityContext &ctx)
 {
     rnp::Hash hash;
     sig.fill_hashed_data();
@@ -2346,7 +2346,7 @@ pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
     } else {
         signature_hash_binding(sig, key, pkt(), hash);
     }
-    signature_calculate(sig, material(), hash, ctx);
+    signature_calculate(sig, pkt_.material, hash, ctx);
 }
 
 void
@@ -2354,7 +2354,7 @@ pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
                           pgp_hash_alg_t        hash,
                           const pgp_key_pkt_t & key,
                           pgp_signature_t &     sig,
-                          rnp::SecurityContext &ctx) const
+                          rnp::SecurityContext &ctx)
 {
     sign_init(sig, hash);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
@@ -2368,10 +2368,10 @@ pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
 }
 
 void
-pgp_key_t::sign_subkey_binding(const pgp_key_t &     sub,
+pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
                                pgp_signature_t &     sig,
                                rnp::SecurityContext &ctx,
-                               bool                  subsign) const
+                               bool                  subsign)
 {
     if (!is_primary()) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -2787,4 +2787,21 @@ pgp_key_material_t::qbits() const
         return 0;
     }
     return 8 * mpi_bytes(&dsa.q);
+}
+
+void
+pgp_key_material_t::validate(rnp::SecurityContext &ctx, bool reset)
+{
+    if (!reset && validity.validated) {
+        return;
+    }
+    validity.reset();
+    validity.valid = !validate_pgp_key_material(this, &ctx.rng);
+    validity.validated = true;
+}
+
+bool
+pgp_key_material_t::valid() const
+{
+    return validity.validated && validity.valid;
 }

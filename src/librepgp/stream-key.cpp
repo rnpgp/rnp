@@ -765,6 +765,8 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
     if (!is_secret_key_pkt(key->tag)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    /* mark material as not validated as it may be valid for public part */
+    key->material.validity.reset();
 
     /* check whether data is not encrypted */
     if (!key->sec_protection.s2k.usage) {

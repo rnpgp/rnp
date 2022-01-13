@@ -1258,6 +1258,12 @@ signed_add_signer(pgp_dest_signed_param_t *param, rnp_signer_info_t *signer, boo
         RNP_LOG("secret key required for signing");
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    /* validate signing key material if didn't before */
+    signer->key->pkt().material.validate(*param->ctx->ctx, false);
+    if (!signer->key->pkt().material.valid()) {
+        RNP_LOG("attempt to sign to the key with invalid material");
+        return RNP_ERROR_NO_SUITABLE_KEY;
+    }
 
     /* copy fields */
     sinfo.key = signer->key;
