@@ -925,3 +925,45 @@ TEST_F(rnp_tests, test_ffi_decrypt_small_rsa)
     assert_rnp_success(rnp_output_destroy(output));
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_decrypt_small_eg)
+{
+    /* make sure unlock and decrypt fails with invalid key */
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/key-eg-small-subgroup-sec.pgp"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "3b8dda452b9f69b4", &key));
+    assert_non_null(key);
+    /* key is not encrypted */
+    assert_rnp_success(rnp_key_unlock(key, NULL));
+    rnp_key_handle_destroy(key);
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-eg-bad"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_ffi_destroy(ffi);
+    /* make sure unlock and decrypt fails with invalid encrypted key */
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/key-eg-small-subgroup-sec-enc.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "3b072c3bb2d1a8b2", &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_lock(key));
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-eg-bad2"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_failure(rnp_decrypt(ffi, input, output));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_ffi_destroy(ffi);
+}

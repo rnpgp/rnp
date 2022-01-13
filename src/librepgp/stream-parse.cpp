@@ -1410,11 +1410,16 @@ static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t *            sesskey,
                   pgp_key_pkt_t *               seckey,
-                  rnp::RNG *                    rng)
+                  rnp::SecurityContext &        ctx)
 {
     pgp_encrypted_material_t encmaterial;
     try {
         if (!sesskey->parse_material(encmaterial)) {
+            return false;
+        }
+        seckey->material.validate(ctx, false);
+        if (!seckey->material.valid()) {
+            RNP_LOG("Attempt to decrypt using the key with invalid material.");
             return false;
         }
     } catch (const std::exception &e) {
@@ -1431,8 +1436,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     switch (sesskey->alg) {
     case PGP_PKA_RSA:
     case PGP_PKA_RSA_ENCRYPT_ONLY:
-        err =
-          rsa_decrypt_pkcs1(rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial->rsa);
+        err = rsa_decrypt_pkcs1(
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.rsa, &keymaterial->rsa);
         if (err) {
             RNP_LOG("RSA decryption failure");
             return false;
@@ -1454,7 +1459,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN: {
         const rnp_result_t ret = elgamal_decrypt_pkcs1(
-          rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial->eg);
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.eg, &keymaterial->eg);
         if (ret) {
             RNP_LOG("ElGamal decryption failure [%X]", ret);
             return false;
@@ -2101,7 +2106,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(param, &pubenc, decrypted_seckey, &handler->ctx->ctx->rng)) {
+            if (encrypted_try_key(param, &pubenc, decrypted_seckey, *handler->ctx->ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {

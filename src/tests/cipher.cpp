@@ -703,7 +703,13 @@ TEST_F(rnp_tests, test_validate_key_material)
     key = pgp_key_pkt_t();
 
     assert_true(read_key_pkt(&key, KEYS "rsa-sec.pgp"));
+    key.material.validate(global_ctx);
+    assert_true(key.material.validity.valid);
+    assert_true(key.material.validity.validated);
     assert_rnp_success(decrypt_secret_key(&key, NULL));
+    /* make sure validity is reset after decryption */
+    assert_false(key.material.validity.valid);
+    assert_false(key.material.validity.validated);
     assert_true(key.material.secret);
     assert_rnp_success(validate_pgp_key_material(&key.material, &rng));
     key.material.rsa.e.mpi[key.material.rsa.e.len - 1] += 1;
