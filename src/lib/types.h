@@ -60,6 +60,7 @@
 
 #include <rnp/rnp_def.h>
 #include "crypto/common.h"
+#include "sec_profile.hpp"
 
 /* SHA1 Hash Size */
 #define PGP_SHA1_HASH_SIZE 20
@@ -158,12 +159,24 @@ class rnp_exception : public std::exception {
 };
 } // namespace rnp
 
+/* validity information for the signature/key/userid */
+typedef struct pgp_validity_t {
+    bool validated{}; /* item was validated */
+    bool valid{};     /* item is valid by signature/key checks and calculations.
+                         Still may be revoked or expired. */
+    bool expired{};   /* item is expired */
+
+    void mark_valid();
+    void reset();
+} pgp_validity_t;
+
 /**
  * Type to keep public/secret key mpis without any openpgp-dependent data.
  */
 typedef struct pgp_key_material_t {
-    pgp_pubkey_alg_t alg;    /* algorithm of the key */
-    bool             secret; /* secret part of the key material is populated */
+    pgp_pubkey_alg_t alg;      /* algorithm of the key */
+    bool             secret;   /* secret part of the key material is populated */
+    pgp_validity_t   validity; /* key material validation status */
 
     union {
         pgp_rsa_key_t rsa;
@@ -174,6 +187,8 @@ typedef struct pgp_key_material_t {
 
     size_t bits() const;
     size_t qbits() const;
+    void   validate(rnp::SecurityContext &ctx, bool reset = true);
+    bool   valid() const;
 } pgp_key_material_t;
 
 /**

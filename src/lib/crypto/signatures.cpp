@@ -71,10 +71,10 @@ signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp::Hash
 }
 
 void
-signature_calculate(pgp_signature_t &         sig,
-                    const pgp_key_material_t &seckey,
-                    rnp::Hash &               hash,
-                    rnp::SecurityContext &    ctx)
+signature_calculate(pgp_signature_t &     sig,
+                    pgp_key_material_t &  seckey,
+                    rnp::Hash &           hash,
+                    rnp::SecurityContext &ctx)
 {
     uint8_t              hval[PGP_MAX_HASH_SIZE];
     size_t               hlen = 0;
@@ -94,7 +94,13 @@ signature_calculate(pgp_signature_t &         sig,
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     if (sig.palg != seckey.alg) {
-        RNP_LOG("Signature and secret key do not agree on algorithm type");
+        RNP_LOG("Signature and secret key do not agree on algorithm type.");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    /* Validate key material if didn't before */
+    seckey.validate(ctx, false);
+    if (!seckey.valid()) {
+        RNP_LOG("Attempt to sign with invalid key material.");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
