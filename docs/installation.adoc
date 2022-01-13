@@ -54,15 +54,15 @@ Prerequisite: please ensure `git` is installed on the system.
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.15.2
+git clone https://github.com/rnpgp/rnp.git -b v0.16.0
 
 # Install required packages
 sudo apt install g++-8 cmake libbz2-dev zlib1g-dev libjson-c-dev \
   build-essential python-minimal
 
 # Download, build and install Botan2
-wget -qO- https://botan.randombit.net/releases/Botan-2.14.0.tar.xz | tar xvJ
-cd Botan-2.14.0
+wget -qO- https://botan.randombit.net/releases/Botan-2.18.2.tar.xz | tar xvJ
+cd Botan-2.18.2
 ./configure.py --prefix=/usr
 make
 sudo make install
@@ -90,7 +90,7 @@ Prerequisite: please ensure `git` is installed on the system.
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.15.2
+git clone https://github.com/rnpgp/rnp.git -b v0.16.0
 
 # Enable access to `testing` packages by editing /etc/apt/sources.list
 # deb http://deb.debian.org/debian testing main
