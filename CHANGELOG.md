@@ -1,5 +1,52 @@
 ## Changelog
 
+### 0.16.0 [2022-01-20]
+
+#### General
+
+* Added support for OpenSSL cryptography backend so RNP may be built and used on systems without the Botan installed.
+* Added compile-time switches to disable certain features (AEAD, Brainpool curves, SM2/SM3/SM4 algorithms, Twofish)
+* Fixed possible incompatibility with GnuPG on x25519 secret key export from RNP to GnuPG.
+* Fixed building if Git is not available.
+* Fixed export of non-FFI symbols from the rnp.so/rnp.dylib.
+* Fixed support for Gnu/Hurd (absence of PATH_MAX).
+* Added support for `None` compression algorithm.
+* Added support for the dumping of notation data signature subpackets.
+* Fixed key expiration time calculation in the case with newer non-primary self-certification.
+* Improved performance of key import (no key material checks)
+
+#### Security
+
+* Added initial support for customizable security profiles.
+* Mark SHA1 signatures produced later than 2019-01-19, as invalid.
+* Mark MD5 signatures produced later than 2012-01-01, as invalid.
+* Remove SHA1 and 3DES from the default key preferences.
+* Use SHA1 collision detection code when using SHA1.
+* Mark signatures with unknown critical notation as invalid.
+* Do not prematurely mark secret keys as valid.
+* Validate secret key material before the first operation.
+* Limit the number of possible message recipients/signatures to a reasonable value (16k).
+* Limit the number of signature subpackets during parsing.
+
+#### FFI
+
+* Added functions `rnp_backend_string()` and `rnp_backend_version()`.
+* Added functions `rnp_key_25519_bits_tweaked()` and `rnp_key_25519_bits_tweak()` to check and fix x25519 secret key bits.
+* Added security profile manipulation functions: `rnp_add_security_rule()`, `rnp_get_security_rule()`, `rnp_remove_security_rule()`.
+* Added function `rnp_signature_get_expiration()`.
+* Deprecate functions `rnp_enable_debug()`/`rnp_disable_debug()`.
+
+#### CLI
+
+* Write new detailed help messages for `rnp` and `rnpkeys`.
+* Added `-` (stdin) and `env:VAR_NAME` input specifiers, as well as `-` (stdout) output specifier.
+* Do not fail with empty keyrings if those are not needed for the operation.
+* Added algorithm aliases for better usability (i.e. `SHA-256`, `SHA256`, etc.).
+* Added option `--notty` to print everything to stdout instead of TTY.
+* Added command `--edit-key` with subcommands `--check-cv25519-bits` and `--fix-cv25519-bits`.
+* Remove support for `-o someoption=somevalue`, which is unused.
+* Remove no longer used support for additional debug dumping via `--debug source.c`.
+
 ### 0.15.2 [2021-07-20]
 
 #### General
