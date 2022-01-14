@@ -2096,7 +2096,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             if (seckey->encrypted()) {
                 pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
                 decrypted_seckey =
-                  pgp_decrypt_seckey(seckey, handler->password_provider, &pass_ctx);
+                  pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
                 if (!decrypted_seckey) {
                     errcode = RNP_ERROR_BAD_PASSWORD;
                     continue;

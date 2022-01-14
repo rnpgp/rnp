@@ -576,14 +576,13 @@ class KeyLocker {
 };
 }; // namespace rnp
 
-pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const uint8_t *,
-                                      size_t,
-                                      const pgp_key_pkt_t *,
-                                      const char *);
+pgp_key_pkt_t *pgp_decrypt_seckey_pgp(const pgp_rawpacket_t &raw,
+                                      const pgp_key_pkt_t &  key,
+                                      const char *           password);
 
-pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t *,
-                                  const pgp_password_provider_t *,
-                                  const pgp_password_ctx_t *);
+pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
+                                  const pgp_password_provider_t &,
+                                  const pgp_password_ctx_t &);
 
 /**
  * @brief Get the signer's key for signature

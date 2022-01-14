@@ -83,9 +83,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     assert_true(key->is_locked());
 
     // decrypt the key
-    const pgp_rawpacket_t &pkt = key->rawpkt();
-    pgp_key_pkt_t *        seckey =
-      pgp_decrypt_seckey_pgp(pkt.raw.data(), pkt.raw.size(), &key->pkt(), "password");
+    pgp_key_pkt_t *seckey = pgp_decrypt_seckey_pgp(key->rawpkt(), key->pkt(), "password");
     assert_non_null(seckey);
 
     // cleanup
