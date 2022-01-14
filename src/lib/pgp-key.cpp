@@ -816,6 +816,8 @@ pgp_key_t::pgp_key_t(const pgp_key_pkt_t &keypkt) : pkt_(keypkt)
             RNP_LOG("failed to setup key fields");
             throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
         }
+        /* decryption resets validity */
+        pkt_.material.validity = keypkt.material.validity;
     }
     /* add rawpacket */
     rawpkt_ = pgp_rawpacket_t(pkt_);
