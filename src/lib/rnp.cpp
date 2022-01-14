@@ -7130,7 +7130,7 @@ try {
     const std::string pass = password;
     if (key->encrypted()) {
         pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
-        decrypted_key = pgp_decrypt_seckey(key, &handle->ffi->pass_provider, &ctx);
+        decrypted_key = pgp_decrypt_seckey(*key, handle->ffi->pass_provider, ctx);
         if (!decrypted_key) {
             return RNP_ERROR_GENERIC;
         }
