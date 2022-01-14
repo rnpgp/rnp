@@ -154,6 +154,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     }
     seckey.sec_protection.s2k.usage = PGP_S2KU_NONE;
     seckey.material.secret = true;
+    seckey.material.validity.mark_valid();
     /* fill the sec_data/sec_len */
     if (encrypt_secret_key(&seckey, NULL, crypto.ctx->rng)) {
         RNP_LOG("failed to fill sec_data");
