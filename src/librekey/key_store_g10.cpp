@@ -874,20 +874,21 @@ done:
 }
 
 pgp_key_pkt_t *
-g10_decrypt_seckey(const uint8_t *      data,
-                   size_t               data_len,
-                   const pgp_key_pkt_t *pubkey,
-                   const char *         password)
+g10_decrypt_seckey(const pgp_rawpacket_t &raw,
+                   const pgp_key_pkt_t &  pubkey,
+                   const char *           password)
 {
     if (!password) {
         return NULL;
     }
-
-    auto seckey = std::unique_ptr<pgp_key_pkt_t>(pubkey ? new pgp_key_pkt_t(*pubkey, false) :
-                                                          new pgp_key_pkt_t());
-    if (!g10_parse_seckey(*seckey, data, data_len, password)) {
+    auto seckey = std::unique_ptr<pgp_key_pkt_t>(new pgp_key_pkt_t(pubkey, false));
+    if (!g10_parse_seckey(*seckey, raw.raw.data(), raw.raw.size(), password)) {
         return NULL;
     }
+    /* g10 has the same 'ecc' algo for ECDSA/ECDH/EDDSA. Probably should be better place to fix
+     * this. */
+    seckey->alg = pubkey.alg;
+    seckey->material.alg = pubkey.material.alg;
     return seckey.release();
 }
 

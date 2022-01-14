@@ -45,7 +45,8 @@ ecdsa_load_public_key(botan_pubkey_t *pubkey, const pgp_ec_key_t *keydata)
     const size_t curve_order = BITS_TO_BYTES(curve->bitlen);
 
     if (!mpi_bytes(&keydata->p) || (keydata->p.mpi[0] != 0x04)) {
-        RNP_LOG("Failed to load public key");
+        RNP_LOG(
+          "Failed to load public key: %zu, %02x", mpi_bytes(&keydata->p), keydata->p.mpi[0]);
         return false;
     }
 
