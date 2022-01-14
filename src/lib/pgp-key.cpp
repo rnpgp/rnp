@@ -74,15 +74,14 @@
 #include "defaults.h"
 
 pgp_key_pkt_t *
-pgp_decrypt_seckey_pgp(const uint8_t *      data,
-                       size_t               data_len,
-                       const pgp_key_pkt_t *pubkey,
-                       const char *         password)
+pgp_decrypt_seckey_pgp(const pgp_rawpacket_t &raw,
+                       const pgp_key_pkt_t &  pubkey,
+                       const char *           password)
 {
     pgp_source_t   src = {0};
     pgp_key_pkt_t *res = NULL;
 
-    if (init_mem_src(&src, data, data_len, false)) {
+    if (init_mem_src(&src, raw.raw.data(), raw.raw.size(), false)) {
         return NULL;
     }
     try {
@@ -113,41 +112,32 @@ error:
  *   key->key.seckey by parsing the key data in packets[0].
  */
 pgp_key_pkt_t *
-pgp_decrypt_seckey(const pgp_key_t *              key,
-                   const pgp_password_provider_t *provider,
-                   const pgp_password_ctx_t *     ctx)
+pgp_decrypt_seckey(const pgp_key_t &              key,
+                   const pgp_password_provider_t &provider,
+                   const pgp_password_ctx_t &     ctx)
 {
-    typedef struct pgp_key_pkt_t *pgp_seckey_decrypt_t(
-      const uint8_t *data, size_t data_len, const pgp_key_pkt_t *pubkey, const char *password);
-    pgp_seckey_decrypt_t *decryptor = NULL;
-
     // sanity checks
-    if (!key || !key->is_secret() || !provider) {
+    if (!key.is_secret()) {
         RNP_LOG("invalid args");
         return NULL;
     }
-    switch (key->format) {
-    case PGP_KEY_STORE_GPG:
-    case PGP_KEY_STORE_KBX:
-        decryptor = pgp_decrypt_seckey_pgp;
-        break;
-    case PGP_KEY_STORE_G10:
-        decryptor = g10_decrypt_seckey;
-        break;
-    default:
-        RNP_LOG("unexpected format: %d", key->format);
-        return NULL;
-    }
-
     // ask the provider for a password
     rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
-    if (key->is_protected() &&
-        !pgp_request_password(provider, ctx, password.data(), password.size())) {
+    if (key.is_protected() &&
+        !pgp_request_password(&provider, &ctx, password.data(), password.size())) {
         return NULL;
     }
     // attempt to decrypt with the provided password
-    const pgp_rawpacket_t &pkt = key->rawpkt();
-    return decryptor(pkt.raw.data(), pkt.raw.size(), &key->pkt(), password.data());
+    switch (key.format) {
+    case PGP_KEY_STORE_GPG:
+    case PGP_KEY_STORE_KBX:
+        return pgp_decrypt_seckey_pgp(key.rawpkt(), key.pkt(), password.data());
+    case PGP_KEY_STORE_G10:
+        return g10_decrypt_seckey(key.rawpkt(), key.pkt(), password.data());
+    default:
+        RNP_LOG("unexpected format: %d", key.format);
+        return NULL;
+    }
 }
 
 pgp_key_t *
@@ -1512,7 +1502,7 @@ pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
     }
 
     pgp_password_ctx_t ctx = {.op = (uint8_t) op, .key = this};
-    pgp_key_pkt_t *    decrypted_seckey = pgp_decrypt_seckey(this, &provider, &ctx);
+    pgp_key_pkt_t *    decrypted_seckey = pgp_decrypt_seckey(*this, provider, ctx);
     if (!decrypted_seckey) {
         return false;
     }
@@ -1626,7 +1616,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rnp::RNG 
     ctx.op = PGP_OP_UNPROTECT;
     ctx.key = this;
 
-    pgp_key_pkt_t *decrypted_seckey = pgp_decrypt_seckey(this, &password_provider, &ctx);
+    pgp_key_pkt_t *decrypted_seckey = pgp_decrypt_seckey(*this, password_provider, ctx);
     if (!decrypted_seckey) {
         return false;
     }

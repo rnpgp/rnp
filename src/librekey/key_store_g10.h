@@ -35,9 +35,8 @@ bool g10_write_seckey(pgp_dest_t *   dst,
                       pgp_key_pkt_t *seckey,
                       const char *   password,
                       rnp::RNG &     rng);
-pgp_key_pkt_t *g10_decrypt_seckey(const uint8_t *      data,
-                                  size_t               data_len,
-                                  const pgp_key_pkt_t *pubkey,
-                                  const char *         password);
+pgp_key_pkt_t *g10_decrypt_seckey(const pgp_rawpacket_t &raw,
+                                  const pgp_key_pkt_t &  pubkey,
+                                  const char *           password);
 
 #endif // RNP_KEY_STORE_G10_H
