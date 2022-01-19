@@ -31,8 +31,10 @@ task:
     su rnpuser -c 'bash ci/install_noncacheable_dependencies.sh'
   dependencies_cache:
     folder: $LOCAL_INSTALLS
-    fingerprint_script: sha256 ci/install.sh && git ls-remote https://github.com/rnpgp/ruby-rnp.git HEAD
+    fingerprint_script: sha256 ci/*.sh ci/lib/*.sh && date +"%U" && git ls-remote https://github.com/rnpgp/ruby-rnp.git HEAD
   install_script: |
+    # Currently GnuPG is forced to be built with gcc
+    pkg install -y gcc
     # cirrus cache doesn't seem to retain ownership
     mkdir -p "$LOCAL_INSTALLS"
     chown -R rnpuser:rnpuser "$LOCAL_INSTALLS"

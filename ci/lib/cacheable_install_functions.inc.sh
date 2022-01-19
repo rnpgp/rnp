@@ -233,7 +233,7 @@ install_gpg() {
     case "${GPG_VERSION}" in
       stable)
         #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-        _install_gpg component-version 1.6  1.39         1.8.7     2.5.4     1.5.0   1.1.0    2.2.24
+        _install_gpg component-version 1.6  1.43         1.8.8     2.5.5     1.6.0   1.1.0    2.2.33
         # _install_gpg component-version 1.6  1.42         1.9.2     2.5.5     1.5.0   1.1.1    2.2.27
         ;;
       beta)
