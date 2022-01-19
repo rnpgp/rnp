@@ -1079,7 +1079,10 @@ RNP_API rnp_result_t rnp_key_revoke(rnp_key_handle_t key,
  *        rnp_key_lock() afterwards.
  *
  * @param key key handle, cannot be NULL. Must be ECDH Curve25519 unlocked secret key.
- * @param result resulting value will be stored here, cannot be NULL.
+ * @param result true will be stored here if secret key's low/high bits are not correctly set.
+ *               In this case you may need to call `rnp_key_25519_bits_tweak()` on it to set
+ *               bits to correct values so exported secret key will be compatible with
+ *               implementations which do not tweak these bits automatically.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_25519_bits_tweaked(rnp_key_handle_t key, bool *result);
