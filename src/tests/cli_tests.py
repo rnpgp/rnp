@@ -2647,6 +2647,18 @@ class Misc(unittest.TestCase):
             os.rename(RNPDIR + '-old', RNPDIR)
             clear_workfiles()
 
+    def test_text_sig_crcr(self):
+        # Cover case with line ending with multiple CRs
+        srcsig = data_path('test_messages/message.text-sig-crcr.sig')
+        srctxt = data_path('test_messages/message.text-sig-crcr')
+        # Verify with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcsig])
+        self.assertEqual(ret, 0)
+        # Verify with GPG
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        self.assertEqual(ret, 0, 'gpg key import failed')
+        gpg_verify_detached(srctxt, srcsig, 'Alice <alice@rnp>')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
