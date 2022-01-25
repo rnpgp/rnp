@@ -2659,6 +2659,16 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0, 'gpg key import failed')
         gpg_verify_detached(srctxt, srcsig, 'Alice <alice@rnp>')
 
+    def test_encrypted_password_wrong(self):
+        # Test symmetric decryption with wrong password used
+        srcenc = data_path('test_messages/message.enc-password')
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', 'password1', '-d', srcenc])
+        self.assertNotEqual(ret, 0)
+        self.assertIn('checksum check failed', err)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', 'password', '-d', srcenc, '--output', 'decrypted'])
+        self.assertEqual(ret, 0)
+        os.remove('decrypted')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
