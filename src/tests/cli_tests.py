@@ -2603,7 +2603,49 @@ class Misc(unittest.TestCase):
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--yes', '--delete-secret-key', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
         self.assertEqual(ret, 0)
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '--force', 'dde0ee539c017d2bd3f604a53176fc1486aa2528'])
-        self.assertEqual(ret, 0)        
+        self.assertEqual(ret, 0)
+    
+    def test_aead_last_chunk_zero_length(self):
+        # Cover case with last AEAD chunk of the zero size
+        os.rename(RNPDIR, RNPDIR + '-old')
+        os.mkdir(RNPDIR)
+        try:
+            dec, enc = reg_workfiles('cleartext', '.dec', '.enc')
+            srctxt = data_path('test_messages/message.aead-last-zero-chunk.txt')
+            srcenc = data_path('test_messages/message.aead-last-zero-chunk.enc')
+            # Import Alice's key
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+            self.assertEqual(ret, 0)
+            # Decrypt already existing file
+            if RNP_AEAD:
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', srcenc, '--output', dec])
+                self.assertEqual(ret, 0)
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+            # Decrypt with gnupg
+            if GPG_AEAD:
+                ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
+                                        GPGHOME, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
+                self.assertEqual(ret, 0, 'gpg key import failed')
+                gpg_decrypt_file(srcenc, dec, PASSWORD)
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+            if RNP_AEAD:
+                # Encrypt with RNP
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
+                self.assertEqual(ret, 0)
+                # Decrypt with RNP again
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+                if GPG_AEAD:
+                    # Decrypt with GnuPG
+                    gpg_decrypt_file(enc, dec, PASSWORD)
+                    self.assertEqual(file_text(srctxt), file_text(dec))
+        finally:
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.rename(RNPDIR + '-old', RNPDIR)
+            clear_workfiles()
 
 class Encryption(unittest.TestCase):
     '''
