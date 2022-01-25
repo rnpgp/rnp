@@ -2669,6 +2669,32 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         os.remove('decrypted')
 
+    def test_clearsign_long_lines(self):
+        # Cover case with cleartext signed file with long lines and filesize > 32k (buffer size)
+        [sig] = reg_workfiles('cleartext', '.sig')
+        srctxt = data_path('test_messages/message.4k-long-lines')
+        srcsig = data_path('test_messages/message.4k-long-lines.asc')
+        pubkey = data_path('test_key_validity/alice-sub-pub.pgp')
+        seckey = data_path('test_key_validity/alice-sub-sec.pgp')
+        # Verify already existing file
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-v', srcsig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*73edcc9119afc8e2dbbdcde50451409669ffde3c.*')
+        # Verify with gnupg
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        self.assertEqual(ret, 0, 'gpg key import failed')
+        gpg_verify_cleartext(srcsig, 'Alice <alice@rnp>')
+        # Sign again with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', seckey, '--password', PASSWORD, '--clearsign', srctxt, '--output', sig])
+        self.assertEqual(ret, 0)
+        # Verify with RNP again
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*73edcc9119afc8e2dbbdcde50451409669ffde3c.*')
+        # Verify with gnupg again
+        gpg_verify_cleartext(sig, 'Alice <alice@rnp>')
+        clear_workfiles()
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
