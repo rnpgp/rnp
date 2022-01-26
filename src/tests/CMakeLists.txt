@@ -212,7 +212,7 @@ if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN
     BUILD_IN_SOURCE yes
     CONFIGURE_COMMAND ""
     BUILD_COMMAND
-      COMMAND bundle add ffi --version 1.9.25
+      COMMAND bundle add ffi --version 1.15.5
       COMMAND bundle show parallel_tests || bundle add parallel_tests
       COMMAND bundle install --path .
     INSTALL_COMMAND ""
