@@ -67,7 +67,8 @@ test_s2k_iterations_value(rnp_ffi_t ffi,
         // check the symmetric-key encrypted session key packet
         json_object *pkt = json_object_array_get_idx(jso, 0);
         assert_true(check_json_pkt_type(pkt, PGP_PKT_SK_SESSION_KEY));
-        json_object *s2k = json_object_object_get(pkt, "s2k");
+        json_object *s2k = NULL;
+        assert_true(json_object_object_get_ex(pkt, "s2k", &s2k));
         json_object *fld = NULL;
         assert_true(json_object_object_get_ex(s2k, "iterations", &fld));
         assert_true(json_object_is_type(fld, json_type_int));
