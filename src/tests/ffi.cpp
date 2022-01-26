@@ -7340,6 +7340,19 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     rnp_input_destroy(input);
     rnp_output_destroy(output);
 
+    /* cleartext signed message without newline */
+    sigcount = 255;
+    assert_rnp_success(rnp_input_from_path(
+      &input, "data/test_messages/message.txt.cleartext-signed-nonewline"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_failure(rnp_op_verify_execute(verify));
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
+    assert_int_equal(sigcount, 0);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
     /* cleartext signed with malformed signature (wrong mpi len) */
     sigcount = 255;
     assert_rnp_success(
