@@ -1539,9 +1539,9 @@ TEST_F(rnp_tests, test_stream_dearmor_edge_cases)
     len = snprintf(msg, sizeof(msg), "%s\n\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
     assert_true(try_dearmor(msg, len));
 
-    /* no empty line after the headers */
+    /* no empty line after the headers, now accepted, see #1289 */
     len = snprintf(msg, sizeof(msg), "%s\n%s\n%s\n%s\n", HDR, b64, CRC, FTR);
-    assert_false(try_dearmor(msg, len));
+    assert_true(try_dearmor(msg, len));
 
     /* \r\n line ending */
     len = snprintf(msg, sizeof(msg), "%s\r\n\r\n%s\r\n%s\r\n%s\r\n", HDR, b64, CRC, FTR);
