@@ -5547,7 +5547,7 @@ check_import_keys_ex(rnp_ffi_t     ffi,
     if (!json_object_is_type(keyarr, json_type_array)) {
         goto done;
     }
-    if (json_object_array_length(keyarr) != rescount) {
+    if (json_object_array_length(keyarr) != (int) rescount) {
         goto done;
     }
     res = true;
