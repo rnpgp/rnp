@@ -659,6 +659,16 @@ armor_skip_line(pgp_source_t *src)
 }
 
 static bool
+is_base64_line(const char *line, size_t len)
+{
+    for (size_t i = 0; i < len && line[i]; i++) {
+        if (B64DEC[(uint8_t) line[i]] == 0xff)
+            return false;
+    }
+    return true;
+}
+
+static bool
 armor_parse_headers(pgp_source_t *src)
 {
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
@@ -676,6 +686,10 @@ armor_parse_headers(pgp_source_t *src)
             RNP_LOG("Too long armor header - truncated.");
             header[hdrlen] = '\0';
         } else if (hdrlen) {
+            if (is_base64_line(header, hdrlen)) {
+                RNP_LOG("Warning: no empty line after the base64 headers");
+                return true;
+            }
             src_skip(param->readsrc, hdrlen);
             if (rnp::is_blank_line(header, hdrlen)) {
                 return src_skip_eol(param->readsrc);
