@@ -124,7 +124,7 @@ r'.*$'
 
 RE_RSA_KEY_LIST = r'^\s*' \
 r'2 keys found\s+' \
-r'pub\s+(\d{4})/RSA \(Encrypt or Sign\) ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[.*\]\s+' \
+r'pub\s+(\d{4})/RSA ([0-9a-z]{16}) \d{4}-\d{2}-\d{2} \[.*\]\s+' \
 r'([0-9a-z]{40})\s+' \
 r'uid\s+(.+)\s+' \
 r'sub.+\s+' \

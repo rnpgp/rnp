@@ -89,6 +89,19 @@ str_case_eq(const char *s1, const char *s2)
     }
     return !*s1 && !*s2;
 }
+
+char *
+lowercase(char *s)
+{
+    if (!s) {
+        return s;
+    }
+    for (char *ptr = s; *ptr; ++ptr) {
+        *ptr = tolower(*ptr);
+    }
+    return s;
+}
+
 } // namespace rnp
 
 #ifdef _WIN32

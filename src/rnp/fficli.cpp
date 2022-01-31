@@ -1051,35 +1051,39 @@ cli_rnp_unescape_for_regcomp(const std::string &src)
 }
 #endif
 
+/* Convert key algorithm constant to one displayed to the user */
+static const char *
+cli_rnp_normalize_key_alg(const char *alg)
+{
+    if (!strcmp(alg, RNP_ALGNAME_EDDSA)) {
+        return "EdDSA";
+    }
+    if (!strcmp(alg, RNP_ALGNAME_ELGAMAL)) {
+        return "ElGamal";
+    }
+    return alg;
+}
+
 void
 cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs)
 {
-    char         buf[64] = {0};
-    const char * header = NULL;
-    bool         secret = false;
-    bool         primary = false;
-    bool         revoked = false;
-    uint32_t     bits = 0;
-    int64_t      create = 0;
-    uint32_t     expiry = 0;
-    size_t       uids = 0;
-    char *       json = NULL;
-    json_object *pkts = NULL;
-    json_object *keypkt = NULL;
+    char        buf[64] = {0};
+    const char *header = NULL;
+    bool        secret = false;
+    bool        primary = false;
+    bool        revoked = false;
+    uint32_t    bits = 0;
+    uint32_t    create = 0;
+    uint32_t    expiry = 0;
+    size_t      uids = 0;
+    char *      alg = NULL;
+    char *      keyid = NULL;
+    char *      keyfp = NULL;
 
     /* header */
-    if (rnp_key_have_secret(key, &secret) || rnp_key_is_primary(key, &primary) ||
-        rnp_key_packets_to_json(key, false, RNP_JSON_DUMP_GRIP, &json)) {
+    if (rnp_key_have_secret(key, &secret) || rnp_key_is_primary(key, &primary)) {
         fprintf(fp, "Key error.\n");
         return;
-    }
-    if (!(pkts = json_tokener_parse(json))) {
-        fprintf(fp, "Key JSON error.\n");
-        goto done;
-    }
-    if (!(keypkt = json_object_array_get_idx(pkts, 0))) {
-        fprintf(fp, "Key JSON error.\n");
-        goto done;
     }
 
     if (psecret && secret) {
@@ -1096,11 +1100,13 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     rnp_key_get_bits(key, &bits);
     fprintf(fp, "%d/", (int) bits);
     /* key algorithm */
-    fprintf(fp, "%s ", json_obj_get_str(keypkt, "algorithm.str"));
+    (void) rnp_key_get_alg(key, &alg);
+    fprintf(fp, "%s ", cli_rnp_normalize_key_alg(alg));
     /* key id */
-    fprintf(fp, "%s", json_obj_get_str(keypkt, "keyid"));
+    (void) rnp_key_get_keyid(key, &keyid);
+    fprintf(fp, "%s", rnp::lowercase(keyid));
     /* key creation time */
-    create = json_obj_get_int64(keypkt, "creation time");
+    (void) rnp_key_get_creation(key, &create);
     fprintf(fp, " %s", ptimestr(buf, sizeof(buf), create));
     /* key usage */
     fprintf(fp, " [%s]", cli_key_usage_str(key, buf));
@@ -1118,7 +1124,8 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
         fprintf(fp, " [REVOKED]");
     }
     /* fingerprint */
-    fprintf(fp, "\n      %s\n", json_obj_get_str(keypkt, "fingerprint"));
+    (void) rnp_key_get_fprint(key, &keyfp);
+    fprintf(fp, "\n      %s\n", rnp::lowercase(keyfp));
     /* user ids */
     (void) rnp_key_get_uid_count(key, &uids);
     for (size_t i = 0; i < uids; i++) {
@@ -1163,9 +1170,7 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
             }
             if (keyid) {
                 /* lowercase key id */
-                for (char *idptr = keyid; *idptr; ++idptr) {
-                    *idptr = tolower(*idptr);
-                }
+                rnp::lowercase(keyid);
                 /* signer primary uid */
                 if (rnp_locate_key(ffi, "keyid", keyid, &signer)) {
                     goto next;
@@ -1190,9 +1195,9 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
         (void) rnp_uid_handle_destroy(uid);
     }
 
-done:
-    rnp_buffer_destroy(json);
-    json_object_put(pkts);
+    rnp_buffer_destroy(alg);
+    rnp_buffer_destroy(keyid);
+    rnp_buffer_destroy(keyfp);
 }
 
 bool
@@ -2661,37 +2666,19 @@ cli_rnp_protect_file(cli_rnp_t *rnp)
 static void
 cli_rnp_print_sig_key_info(FILE *resfp, rnp_signature_handle_t sig)
 {
-    char *      keyid = NULL;
-    const char *alg = "Unknown";
+    char *keyid = NULL;
+    char *alg = NULL;
 
-    if (!rnp_signature_get_keyid(sig, &keyid)) {
-        for (char *idptr = keyid; *idptr; ++idptr) {
-            *idptr = tolower(*idptr);
-        }
-    }
+    (void) rnp_signature_get_keyid(sig, &keyid);
+    rnp::lowercase(keyid);
+    (void) rnp_signature_get_alg(sig, &alg);
 
-    char *       json = NULL;
-    json_object *pkts = NULL;
-    json_object *sigpkt = NULL;
-
-    if (rnp_signature_packet_to_json(sig, RNP_JSON_DUMP_GRIP, &json)) {
-        ERR_MSG("Signature error.");
-        goto done;
-    }
-    if (!(pkts = json_tokener_parse(json))) {
-        ERR_MSG("Signature JSON error");
-        goto done;
-    }
-    if (!(sigpkt = json_object_array_get_idx(pkts, 0))) {
-        ERR_MSG("Signature JSON error");
-        goto done;
-    }
-    alg = json_obj_get_str(sigpkt, "algorithm.str");
-done:
-    fprintf(resfp, "using %s key %s\n", alg, keyid ? keyid : "0000000000000000");
+    fprintf(resfp,
+            "using %s key %s\n",
+            cli_rnp_normalize_key_alg(alg),
+            keyid ? keyid : "0000000000000000");
     rnp_buffer_destroy(keyid);
-    rnp_buffer_destroy(json);
-    json_object_put(pkts);
+    rnp_buffer_destroy(alg);
 }
 
 static void
