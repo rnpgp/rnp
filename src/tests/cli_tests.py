@@ -2695,6 +2695,24 @@ class Misc(unittest.TestCase):
         gpg_verify_cleartext(sig, 'Alice <alice@rnp>')
         clear_workfiles()
 
+    def test_eddsa_sig_lead_zero(self):
+        # Cover case with line ending with multiple CRs
+        srcs = data_path('test_messages/eddsa-zero-s.txt.sig')
+        srcr = data_path('test_messages/eddsa-zero-r.txt.sig')
+        # Verify with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcs])
+        self.assertEqual(ret, 0)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcr])
+        self.assertEqual(ret, 0)
+        # Verify with GPG
+        [dst] = reg_workfiles('eddsa-zero', '.txt')
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        self.assertEqual(ret, 0, 'gpg key import failed')
+        gpg_verify_file(srcs, dst, 'Alice <alice@rnp>')
+        os.remove(dst)
+        gpg_verify_file(srcr, dst, 'Alice <alice@rnp>')
+        clear_workfiles()
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
