@@ -40,6 +40,10 @@ char *strip_eol(char *s);
 bool strip_eol(std::string &s);
 bool is_blank_line(const char *line, size_t len);
 bool str_case_eq(const char *s1, const char *s2);
+/**
+ * @brief Convert string to lowercase and return it.
+ */
+char *lowercase(char *s);
 } // namespace rnp
 #ifdef _WIN32
 #include <string>
