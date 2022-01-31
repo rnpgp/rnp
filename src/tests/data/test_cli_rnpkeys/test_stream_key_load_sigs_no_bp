@@ -4,7 +4,7 @@ pub   2048/DSA c8a10a7d78273e10 2018-04-03 [SC]
       091c44ce9cfbc3ff7ec7a64dc8a10a7d78273e10
 uid           dsa-eg
 sig           c8a10a7d78273e10 2019-02-02 dsa-eg
-sub   3072/Elgamal (Encrypt-Only) 02a5715c3537717e 2018-04-03 [E]
+sub   3072/ElGamal 02a5715c3537717e 2018-04-03 [E]
       3409f96f0c57242540702dba02a5715c3537717e
 
 pub   255/EdDSA cc786278981b0728 2018-04-03 [SC]
@@ -33,11 +33,11 @@ sig           2092ca8324263b6a 2019-02-02 ecc-p521
 sub   521/ECDH 9853df2f6d297442 2018-04-03 [E]
       a9297c86dd0de109e1ebae9c9853df2f6d297442
 
-pub   3072/RSA (Encrypt or Sign) 2fb9179118898e8b 2018-04-03 [ESCA]
+pub   3072/RSA 2fb9179118898e8b 2018-04-03 [ESCA]
       6bc04a5a3ddb35766b9a40d82fb9179118898e8b
 uid           rsa-rsa
 sig           2fb9179118898e8b 2019-02-02 [unknown]
-sub   3072/RSA (Encrypt or Sign) 6e2f73008f8b8d6e 2018-04-03 [ESCA]
+sub   3072/RSA 6e2f73008f8b8d6e 2018-04-03 [ESCA]
       20fe5b1ab68c2d7210fb08aa6e2f73008f8b8d6e
 
 pub   256/ECDSA d0c8a3daf9e0634a 2018-04-03 [SCA]
@@ -75,10 +75,10 @@ sig           3ea5bb6f9692c1a0 2019-02-02 ecc-p256k1
 sub   256/ECDH 7635401f90d3e533 2018-04-03 [E]
       c263ec4ce2b3772746ed53227635401f90d3e533
 
-pub   2048/RSA (Encrypt or Sign) bd860a52d1899c0f 2021-12-24 [SC]
+pub   2048/RSA bd860a52d1899c0f 2021-12-24 [SC]
       5aa9362aea07de23a726762cbd860a52d1899c0f
 uid           rsa-rsa-2
 sig           bd860a52d1899c0f 2021-12-24 rsa-rsa-2
-sub   2048/RSA (Encrypt or Sign) 8e08d46a37414996 2021-12-24 [E]
+sub   2048/RSA 8e08d46a37414996 2021-12-24 [E]
       ca3e4420cf3d3b62d9ee7c6e8e08d46a37414996
 
