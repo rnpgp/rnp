@@ -90,6 +90,15 @@ str_case_eq(const char *s1, const char *s2)
     return !*s1 && !*s2;
 }
 
+bool
+str_case_eq(const std::string &s1, const std::string &s2)
+{
+    if (s1.size() != s2.size()) {
+        return false;
+    }
+    return str_case_eq(s1.c_str(), s2.c_str());
+}
+
 char *
 lowercase(char *s)
 {
