@@ -905,31 +905,6 @@ json_obj_get_str(json_object *obj, const char *key)
     return json_object_get_string(fld);
 }
 
-int64_t
-json_obj_get_int64(json_object *obj, const char *key)
-{
-    json_object *fld = NULL;
-    if (!json_object_object_get_ex(obj, key, &fld)) {
-        return 0;
-    }
-    return json_object_get_int64(fld);
-}
-
-bool
-rnp_casecmp(const std::string &str1, const std::string &str2)
-{
-    if (str1.size() != str2.size()) {
-        return false;
-    }
-
-    for (size_t i = 0; i < str1.size(); i++) {
-        if (tolower(str1[i]) != tolower(str2[i])) {
-            return false;
-        }
-    }
-    return true;
-}
-
 static char *
 cli_key_usage_str(rnp_key_handle_t key, char *buf)
 {
@@ -1002,7 +977,7 @@ cli_rnp_alg_to_ffi(const std::string alg)
     size_t count = sizeof(alg_aliases) / sizeof(alg_aliases[0]);
     assert((count % 2) == 0);
     for (size_t idx = 0; idx < count; idx += 2) {
-        if (rnp_casecmp(alg, alg_aliases[idx])) {
+        if (rnp::str_case_eq(alg, alg_aliases[idx])) {
             return alg_aliases[idx + 1];
         }
     }
@@ -2789,7 +2764,7 @@ cli_rnp_process_file(cli_rnp_t *rnp)
     std::vector<rnp_op_verify_signature_t> sigs;
     size_t                                 scount = 0;
 
-    if (rnp_casecmp(contents, "signature")) {
+    if (rnp::str_case_eq(contents, "signature")) {
         /* detached signature */
         std::string in = rnp->cfg().get_str(CFG_INFILE);
         if (in.empty() || in == "-") {

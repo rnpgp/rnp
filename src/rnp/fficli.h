@@ -220,8 +220,6 @@ const std::string cli_rnp_alg_to_ffi(const std::string alg);
 void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
 const char *json_obj_get_str(json_object *obj, const char *key);
-int64_t     json_obj_get_int64(json_object *obj, const char *key);
-bool        rnp_casecmp(const std::string &str1, const std::string &str2);
 
 #ifdef _WIN32
 bool rnp_win_substitute_cmdline_args(int *argc, char ***argv);
