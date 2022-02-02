@@ -74,35 +74,32 @@ history of `master`, depending on how they are merged.
   Merging commits like "Fix build" or "Implement comments from code review"
   should be avoided.
 
-== Continuous Integration (Travis CI)
+== Continuous Integration (Github Actions)
 
-Travis CI is used for continuously testing new commits and pull
-requests.
+Github actions are used for continuously testing new commits and pull requests.
+Those include testing for different operating systems, linting via clang-format and shellcheck,
+and code coverage and quality checks via `Codecov` and `LGTM.io`.
 
-We use the sudo-less beta Ubuntu Trusty containers, which do not permit
-root access.
-
-See the file `.travis.yml` and the scripts in `ci/` for the most
-up-to-date details.
+For Github workflows sources see `.github/workflows/` folder and scripts from the `ci/` folder.
+Also there is a Cirrus CI runner, configuration for which is stored in `.cirrus.yml`.
 
 === Reproducing Locally
 
-Sometimes tests fail in Travis CI and you will want to reproduce them
-locally for easier troubleshooting.
-
-We can use a container for this, like so:
+If tests fail in CI, you may attempt to reproduce those locally via `ctest` command:
 
 [source,console]
 --
-./travis.sh
+ctest -j4 -V -R rnp_tests
 --
 
-Inside the container, you can do local CI runs like so:
+Or, more specific:
 
 [source,console]
 --
-env GPG_VERSION=beta BUILD_MODE=sanitize ci/local.sh
+ctest -V -R cli_tests-Misc
 --
+
+If test fails under the specific OS, you should construct corresponding Docker container and run tests inside, taking Github workflows as a guide.
 
 == Code Coverage
 
@@ -115,38 +112,12 @@ The current coverage can always be viewed here: https://codecov.io/github/rnpgp/
 
 ==== Coverity Scan
 
-Coverity Scan is used for occasional static analysis of the code base.
+Coverity Scan is used for static analysis of the code base.
+It is run daily on the master branch via the Github actions.
+See `.github/workflows/coverity.yml` for the details.
 
-To initiate analysis, a developer must push to the `coverity_scan` branch.
-You may wish to perform a clean clone for this, like so:
-
-[source,console]
---
-cd /tmp
-
-git clone https://github.com/rnpgp/rnp
-# or
-# git clone git@github.com:rnpgp/rnp.git
-cd rnp
-
-# switch to the coverity_scan branch
-git checkout coverity_scan
-
-# replay all commits from master onto coverity_scan
-git rebase master coverity_scan
-
-# forcefully push the coverity_scan branch
-git push -u origin coverity_scan -f
---
-
-Note: The `master` and `coverity_scan` branches have separate
-`.travis.yml` files, so you may need to perform a manual merge. In
-general, the `coverity_scan` branch's `.travis.yml` is identical to
-`master`'s, but with a build matrix of only one entry.
-
-The results can be accessed on
-https://scan.coverity.com/projects/rnpgp-rnp. You will need to
-create an account and request access to the rnpgp/rnp project.
+The results can be accessed on https://scan.coverity.com/projects/rnpgp-rnp.
+You will need to create an account and request access to the rnpgp/rnp project.
 
 Since the scan results are not updated live, line numbers may no longer
 be accurate against the `master` branch, issues may already be resolved,
