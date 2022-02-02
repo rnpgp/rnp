@@ -49,6 +49,7 @@
 #include <errno.h>
 
 #include "fficli.h"
+#include "str-utils.h"
 #include "logging.h"
 
 static const char *usage =
@@ -498,9 +499,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_AEAD: {
         const char *alg = NULL;
         std::string argstr = arg ? arg : "";
-        if (argstr.empty() || (argstr == "1") || rnp_casecmp(argstr, "eax")) {
+        if (argstr.empty() || (argstr == "1") || rnp::str_case_eq(argstr, "eax")) {
             alg = "EAX";
-        } else if ((argstr == "2") || rnp_casecmp(argstr, "ocb")) {
+        } else if ((argstr == "2") || rnp::str_case_eq(argstr, "ocb")) {
             alg = "OCB";
         } else {
             ERR_MSG("Wrong AEAD algorithm: %s", arg);
