@@ -87,6 +87,7 @@
 #define CFG_NOTTY "notty" /* disable tty usage and do input/output via stdin/stdout */
 #define CFG_FIX_25519_BITS "fix-25519-bits"   /* fix Cv25519 secret key via --edit-key */
 #define CFG_CHK_25519_BITS "check-25519-bits" /* check Cv25519 secret key bits */
+#define CFG_SOURCE "source"                   /* source for the detached signature */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"

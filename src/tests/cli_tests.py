@@ -2712,6 +2712,55 @@ class Misc(unittest.TestCase):
         os.remove(dst)
         gpg_verify_file(srcr, dst, 'Alice <alice@rnp>')
         clear_workfiles()
+    
+    def test_verify_detached_source(self):
+        # Test --source paramater for the detached signature verification.
+        src = data_path('test_messages/message.txt')
+        sig = data_path('test_messages/message.txt.sig')
+        sigasc = data_path('test_messages/message.txt.asc')
+        keys = data_path('keyrings/1')
+        # Just verify
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        # Verify .asc
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sigasc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        # Verify by specifying the correct path
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        # Verify by specifying the incorrect path
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src + '.wrong', '-v', sig])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Failed to open source for detached signature verification.*')
+        # Verify detached signature with non-asc/sig extension
+        [csig] = reg_workfiles('message', '.dat')
+        shutil.copy(sig, csig)
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', csig])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported detached signature extension. Use --source to override.*')
+        # Verify by reading data from stdin
+        srcdata = ""
+        with open(src, "rb") as srcf:
+            srcdata = srcf.read().decode('utf-8')
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v', csig], srcdata)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        # Verify by reading data from env
+        os.environ["SIGNED_DATA"] = srcdata
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', 'env:SIGNED_DATA', '-v', csig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        del os.environ["SIGNED_DATA"]
+        # Attempt to verify by specifying bot sig and data from stdin
+        sigtext = file_text(sigasc)
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v'], sigtext)
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Detached signature and signed source cannot be both stdin.*')
+
+        clear_workfiles()
 
 class Encryption(unittest.TestCase):
     '''
