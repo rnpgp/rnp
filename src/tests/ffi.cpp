@@ -5547,7 +5547,7 @@ check_import_keys_ex(rnp_ffi_t     ffi,
     if (!json_object_is_type(keyarr, json_type_array)) {
         goto done;
     }
-    if (json_object_array_length(keyarr) != (int) rescount) {
+    if ((size_t) json_object_array_length(keyarr) != rescount) {
         goto done;
     }
     res = true;
@@ -8537,6 +8537,9 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
+    bool expired = true;
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "DD23CEB7FEBEFF17", &sub));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 0);
@@ -8585,6 +8588,9 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_rnp_success(rnp_key_set_expiration(key, 1));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 1);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_true(expired);
+
     /* key is invalid since it is expired */
     assert_false(key->pub->valid());
     bool valid = true;
@@ -8663,9 +8669,9 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     uint32_t creation = 0;
     assert_rnp_success(rnp_key_get_creation(key, &creation));
     creation = time(NULL) - creation;
-    assert_rnp_success(rnp_key_set_expiration(key, creation + 2));
+    assert_rnp_success(rnp_key_set_expiration(key, creation + 8));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
-    assert_int_equal(expiry, creation + 2);
+    assert_int_equal(expiry, creation + 8);
     locked = false;
     assert_rnp_success(rnp_key_is_locked(key, &locked));
     assert_true(locked);
@@ -8682,9 +8688,14 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry)
     assert_true(locked);
 
     /* now change just subkey's expiration - should also work */
+    valid = false;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
     assert_rnp_success(rnp_key_set_expiration(sub, 4));
     assert_rnp_success(rnp_key_get_expiration(sub, &expiry));
     assert_int_equal(expiry, 4);
+    assert_rnp_success(rnp_key_is_expired(sub, &expired));
+    assert_true(expired);
     locked = false;
     assert_rnp_success(rnp_key_is_locked(sub, &locked));
     assert_true(locked);
