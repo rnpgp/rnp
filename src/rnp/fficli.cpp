@@ -1936,13 +1936,19 @@ stdout_writer(void *app_ctx, const void *buf, size_t len)
     return (wlen >= 0) && (size_t) wlen == len;
 }
 
+static bool
+is_stdinout_spec(const std::string &spec)
+{
+    return spec.empty() || (spec == "-");
+}
+
 rnp_input_t
 cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_path)
 {
     rnp_input_t  input = NULL;
     rnp_result_t res = RNP_ERROR_GENERIC;
     bool         path = false;
-    if (spec.empty() || (spec == "-")) {
+    if (is_stdinout_spec(spec)) {
         /* input from stdin */
         res = rnp_input_from_callback(&input, stdin_reader, NULL, NULL);
     } else if ((spec.size() > 4) && (spec.compare(0, 4, "env:") == 0)) {
@@ -1976,7 +1982,7 @@ cli_rnp_output_to_specifier(cli_rnp_t &rnp, const std::string &spec, bool discar
     std::string  path = spec;
     if (discard) {
         res = rnp_output_to_null(&output);
-    } else if (spec.empty() || (spec == "-")) {
+    } else if (is_stdinout_spec(spec)) {
         res = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
     } else if (!rnp_get_output_filename(spec, path, rnp)) {
         ERR_MSG("Operation failed: file '%s' already exists.", spec.c_str());
@@ -2767,15 +2773,22 @@ cli_rnp_process_file(cli_rnp_t *rnp)
     if (rnp::str_case_eq(contents, "signature")) {
         /* detached signature */
         std::string in = rnp->cfg().get_str(CFG_INFILE);
-        if (in.empty() || in == "-") {
-            ERR_MSG("Cannot verify detached signature from stdin.");
+        std::string src = rnp->cfg().get_str(CFG_SOURCE);
+        if (is_stdinout_spec(in) && is_stdinout_spec(src)) {
+            ERR_MSG("Detached signature and signed source cannot be both stdin.");
             goto done;
         }
-        if (!has_extension(in, EXT_SIG) && !has_extension(in, EXT_ASC)) {
-            ERR_MSG("Unsupported detached signature extension.");
+        if (src.empty() && !has_extension(in, EXT_SIG) && !has_extension(in, EXT_ASC)) {
+            ERR_MSG("Unsupported detached signature extension. Use --source to override.");
             goto done;
         }
-        if (!strip_extension(in) || rnp_input_from_path(&source, in.c_str())) {
+        if (src.empty()) {
+            src = in;
+            /* cannot fail as we checked for extension previously */
+            strip_extension(src);
+        }
+        source = cli_rnp_input_from_specifier(*rnp, src, NULL);
+        if (!source) {
             ERR_MSG("Failed to open source for detached signature verification.");
             goto done;
         }

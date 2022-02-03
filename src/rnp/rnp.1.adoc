@@ -138,6 +138,8 @@ Verify signature(s) without writing embedded data out, if any (unless option _--
 +
 To verify the detached signature of a file _file.ext_, the detached signature file in the file name pattern of _file.ext.sig_ or _file.ext.asc_ must exist. +
 +
+Also you may use option *--source* to specify the exact source for the signed data. +
++
 If data is encrypted, you may be asked for password as in the *--decrypt* command.
 
 === OTHER COMMANDS
@@ -231,6 +233,9 @@ via _stdin_/_tty_.
 
 *--overwrite*::
 Overwrite already existing files without prompt.
+
+*--source*::
+Specify signed data for the detached signature verification (_-_ and _env:_ substitutions may be used here). +
 
 *--hash* _ALGORITHM_::
 Set hash algorithm which to be used for signing and derivation
