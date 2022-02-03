@@ -2037,6 +2037,26 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*:type 20, len 35, critical.*notation data: critical text = critical value.*$')
+        # List signature with signer's userid subpacket
+        params = ['--list-packets', data_path('test_messages/message.text-sig-crcr.sig')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*:type 28, len 9.*signer\'s user ID: alice@rnp.*$')
+        # JSON list signature with signer's userid subpacket
+        params = ['--list-packets', '--json', data_path('test_messages/message.text-sig-crcr.sig')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"type.str":"signer\'s user ID".*"length":9.*"uid":"alice@rnp".*$')
+        # List signature with reason for revocation subpacket
+        params = ['--list-packets', data_path('test_uid_validity/key-sig-revocation.pgp')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*:type 29, len 24.*reason for revocation: 32 \(No longer valid\).*message: Testing revoked userid.*$')
+        # JSON list signature with reason for revocation subpacket
+        params = ['--list-packets', '--json', data_path('test_uid_validity/key-sig-revocation.pgp')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"type.str":"reason for revocation".*"code":32.*"message":"Testing revoked userid.".*$')
 
     def test_rnp_list_packets_edge_cases(self):
         KEY_EMPTY_UID = data_path('test_key_edge_cases/key-empty-uid.pgp')
