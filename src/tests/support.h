@@ -258,6 +258,9 @@ bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
 bool     check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
 bool     check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
 
+/* create bogus key handle with NULL pub/sec keys */
+rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
+
 bool sm2_enabled();
 bool aead_eax_enabled();
 bool aead_ocb_enabled();
