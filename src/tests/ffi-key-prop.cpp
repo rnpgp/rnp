@@ -46,6 +46,15 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     uint32_t expiry = 10;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
+    bool expired = true;
+    assert_rnp_failure(rnp_key_is_expired(key, NULL));
+    assert_rnp_failure(rnp_key_is_expired(NULL, &expired));
+    rnp_key_handle_t bkey = bogus_key_handle(ffi);
+    assert_non_null(bkey);
+    assert_rnp_failure(rnp_key_is_expired(bkey, &expired));
+    rnp_key_handle_destroy(bkey);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
     assert_true(check_uid_valid(key, 0, true));
     assert_true(check_uid_valid(key, 1, true));
     assert_true(check_uid_valid(key, 2, true));
@@ -56,6 +65,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     assert_rnp_success(rnp_key_set_expiration(key, 1));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 1);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_true(expired);
     bool valid = true;
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_false(valid);
@@ -69,6 +80,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     assert_non_null(key);
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 1);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_true(expired);
     assert_true(check_uid_valid(key, 0, true));
     assert_true(check_uid_valid(key, 1, true));
     assert_true(check_uid_valid(key, 2, true));
@@ -81,6 +94,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     valid = false;
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_true(valid);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
     assert_true(check_uid_valid(key, 0, true));
     assert_true(check_uid_valid(key, 1, true));
     assert_true(check_uid_valid(key, 2, true));
@@ -103,6 +118,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     expiry = 0;
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 674700647);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
     assert_true(check_uid_valid(key, 0, true));
     assert_true(check_uid_valid(key, 1, true));
     assert_true(check_uid_valid(key, 2, true));
@@ -113,6 +130,8 @@ TEST_F(rnp_tests, test_ffi_key_set_expiry_multiple_uids)
     assert_rnp_success(rnp_key_set_expiration(key, 0));
     assert_rnp_success(rnp_key_get_expiration(key, &expiry));
     assert_int_equal(expiry, 0);
+    assert_rnp_success(rnp_key_is_expired(key, &expired));
+    assert_false(expired);
     valid = false;
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_true(valid);
