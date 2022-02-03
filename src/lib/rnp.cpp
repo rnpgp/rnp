@@ -5742,7 +5742,7 @@ rnp_buffer_clear(void *ptr, size_t size)
 static pgp_key_t *
 get_key_require_public(rnp_key_handle_t handle)
 {
-    if (!handle->pub) {
+    if (!handle->pub && handle->sec) {
         pgp_key_request_ctx_t request;
         request.secret = false;
 
@@ -5772,7 +5772,7 @@ get_key_prefer_public(rnp_key_handle_t handle)
 static pgp_key_t *
 get_key_require_secret(rnp_key_handle_t handle)
 {
-    if (!handle->sec) {
+    if (!handle->sec && handle->pub) {
         pgp_key_request_ctx_t request;
         request.secret = true;
 
@@ -6896,6 +6896,21 @@ rnp_result_t
 rnp_key_is_retired(rnp_key_handle_t handle, bool *result)
 try {
     return rnp_key_is_revoked_with_code(handle, result, PGP_REVOCATION_RETIRED);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_is_expired(rnp_key_handle_t handle, bool *result)
+try {
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *result = key->expired();
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 

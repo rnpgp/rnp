@@ -27,6 +27,9 @@
 #include "support.h"
 #include "rnp_tests.h"
 #include "file-utils.h"
+#include <librepgp/stream-ctx.h>
+#include "pgp-key.h"
+#include "ffi-priv-types.h"
 
 #ifdef _MSC_VER
 #include "uniwin.h"
@@ -1153,6 +1156,17 @@ check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity)
     rnp_key_is_valid(sub, &valid);
     rnp_key_handle_destroy(sub);
     return valid == validity;
+}
+
+rnp_key_handle_t
+bogus_key_handle(rnp_ffi_t ffi)
+{
+    rnp_key_handle_t handle = (rnp_key_handle_t) calloc(1, sizeof(*handle));
+    handle->ffi = ffi;
+    handle->pub = NULL;
+    handle->sec = NULL;
+    handle->locator.type = PGP_KEY_SEARCH_KEYID;
+    return handle;
 }
 
 bool

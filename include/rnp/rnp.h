@@ -1754,6 +1754,18 @@ RNP_API rnp_result_t rnp_key_is_compromised(rnp_key_handle_t key, bool *result);
  */
 RNP_API rnp_result_t rnp_key_is_retired(rnp_key_handle_t key, bool *result);
 
+/**
+ * @brief Check whether key is expired.
+ *        Note: while expired key cannot be used to generate new signatures or encrypt to, it
+ *        still could be used to check older signatures/decrypt previously encrypted data.
+ *
+ * @param key key handle, should not be NULL.
+ * @param result on success result will be stored here. True means that key is expired and is
+ *               not usable and false otherwise.
+ * @return RNP_SUCCESS or error code on failure.
+ */
+RNP_API rnp_result_t rnp_key_is_expired(rnp_key_handle_t key, bool *result);
+
 /** check if a key is currently locked
  *
  *  @param key
