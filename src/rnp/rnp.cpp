@@ -74,6 +74,7 @@ static const char *usage =
   "  --clearsign          Cleartext-sign data.\n"
   "  -d, --decrypt        Decrypt and output data, verifying signatures.\n"
   "  -v, --verify         Verify signatures, without outputting data.\n"
+  "    --source           Specify source for the detached signature.\n"
   "  --dearmor            Strip ASCII armor from the data, outputting binary.\n"
   "  --enarmor            Add ASCII armor to the data.\n"
   "  --list-packets       List OpenPGP packets from the input.\n"
@@ -144,6 +145,7 @@ enum optdefs {
     OPT_MPIS,
     OPT_RAW,
     OPT_NOTTY,
+    OPT_SOURCE,
 
     /* debug */
     OPT_DEBUG
@@ -204,6 +206,7 @@ static struct option options[] = {
   {"mpi", no_argument, NULL, OPT_MPIS},
   {"raw", no_argument, NULL, OPT_RAW},
   {"notty", no_argument, NULL, OPT_NOTTY},
+  {"source", required_argument, NULL, OPT_SOURCE},
 
   {NULL, 0, NULL, 0},
 };
@@ -541,6 +544,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_NOTTY:
         cfg.set_bool(CFG_NOTTY, true);
+        return true;
+    case OPT_SOURCE:
+        cfg.set_str(CFG_SOURCE, arg);
         return true;
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
