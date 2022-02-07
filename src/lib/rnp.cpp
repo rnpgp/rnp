@@ -6205,6 +6205,24 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_key_fprint(rnp_signature_handle_t handle, char **result)
+try {
+    if (!handle || !result) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!handle->sig->sig.has_keyfp()) {
+        *result = NULL;
+        return RNP_SUCCESS;
+    }
+    pgp_fingerprint_t keyfp = handle->sig->sig.keyfp();
+    return hex_encode_value(keyfp.fingerprint, keyfp.length, result);
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_signer(rnp_signature_handle_t sig, rnp_key_handle_t *key)
 try {
     if (!sig || !sig->sig) {
