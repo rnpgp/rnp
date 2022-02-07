@@ -84,6 +84,13 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_non_null(keyid);
     assert_string_equal(keyid, "242A3AA5EA85F44A");
     rnp_buffer_destroy(keyid);
+    char *keyfp = NULL;
+    assert_rnp_failure(rnp_signature_get_key_fprint(sig, NULL));
+    assert_rnp_failure(rnp_signature_get_key_fprint(NULL, &keyfp));
+    assert_null(keyfp);
+    assert_rnp_success(rnp_signature_get_key_fprint(sig, &keyfp));
+    assert_string_equal(keyfp, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A");
+    rnp_buffer_destroy(keyfp);
     rnp_key_handle_t signer = NULL;
     assert_rnp_success(rnp_signature_get_signer(sig, &signer));
     assert_non_null(signer);
@@ -128,6 +135,20 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_rnp_success(rnp_signature_handle_destroy(sig));
     assert_rnp_success(rnp_uid_handle_destroy(uid));
     assert_rnp_success(rnp_key_handle_destroy(key));
+
+    // check subkey which signature doesn't have issue fingerprint subpacket
+    assert_true(load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "326EF111425D14A5", &subkey));
+    assert_rnp_success(rnp_key_get_signature_count(subkey, &sigs));
+    assert_int_equal(sigs, 1);
+    assert_rnp_success(rnp_key_get_signature_at(subkey, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &type));
+    assert_string_equal(type, "subkey binding");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_signature_get_key_fprint(sig, &keyfp));
+    assert_null(keyfp);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(subkey);
 
     // cleanup
     rnp_ffi_destroy(ffi);
