@@ -1387,6 +1387,16 @@ RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
  */
 RNP_API rnp_result_t rnp_signature_get_keyid(rnp_signature_handle_t sig, char **result);
 
+/** Get signer's key fingerprint from the signature.
+ *  Note: if key fingerprint is not available from the signature then NULL value will
+ *        be stored to result.
+ * @param sig signature handle
+ * @param result hex-encoded key fp will be stored here. Cannot be NULL. You must free it
+ *               later on using the rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_key_fprint(rnp_signature_handle_t sig, char **result);
+
 /** Get signing key handle, if available.
  *  Note: if signing key is not available then NULL will be stored in key.
  * @param sig signature handle
