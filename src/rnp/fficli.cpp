@@ -1039,6 +1039,61 @@ cli_rnp_normalize_key_alg(const char *alg)
     return alg;
 }
 
+static void
+cli_rnp_print_sig_info(FILE *fp, rnp_ffi_t ffi, rnp_signature_handle_t sig)
+{
+    uint32_t creation = 0;
+    (void) rnp_signature_get_creation(sig, &creation);
+
+    char *keyfp = NULL;
+    char *keyid = NULL;
+    (void) rnp_signature_get_key_fprint(sig, &keyfp);
+    (void) rnp_signature_get_keyid(sig, &keyid);
+
+    char *           signer_uid = NULL;
+    rnp_key_handle_t signer = NULL;
+    if (keyfp) {
+        /* Fingerprint lookup is faster */
+        (void) rnp_locate_key(ffi, "fingerprint", keyfp, &signer);
+    } else if (keyid) {
+        (void) rnp_locate_key(ffi, "keyid", keyid, &signer);
+    }
+    if (signer) {
+        /* signer primary uid */
+        (void) rnp_key_get_primary_uid(signer, &signer_uid);
+    }
+
+    /* signer key id */
+    fprintf(fp, "sig           %s ", keyid ? rnp::lowercase(keyid) : "[no key id]");
+    /* signature creation time */
+    char buf[64] = {0};
+    fprintf(fp, "%s", ptimestr(buf, sizeof(buf), creation));
+    /* signer's userid */
+    fprintf(fp, " %s", signer_uid ? signer_uid : "[unknown]");
+    /* signature validity */
+    const char * valmsg = NULL;
+    rnp_result_t validity = rnp_signature_is_valid(sig, 0);
+    switch (validity) {
+    case RNP_SUCCESS:
+        valmsg = "";
+        break;
+    case RNP_ERROR_SIGNATURE_EXPIRED:
+        valmsg = " [expired]";
+        break;
+    case RNP_ERROR_SIGNATURE_INVALID:
+        valmsg = " [invalid]";
+        break;
+    default:
+        valmsg = " [unverified]";
+    }
+    fprintf(fp, "%s\n", valmsg);
+
+    (void) rnp_key_handle_destroy(signer);
+    rnp_buffer_destroy(keyid);
+    rnp_buffer_destroy(keyfp);
+    rnp_buffer_destroy(signer_uid);
+}
+
 void
 cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs)
 {
@@ -1046,14 +1101,6 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     const char *header = NULL;
     bool        secret = false;
     bool        primary = false;
-    bool        revoked = false;
-    uint32_t    bits = 0;
-    uint32_t    create = 0;
-    uint32_t    expiry = 0;
-    size_t      uids = 0;
-    char *      alg = NULL;
-    char *      keyid = NULL;
-    char *      keyfp = NULL;
 
     /* header */
     if (rnp_key_have_secret(key, &secret) || rnp_key_is_primary(key, &primary)) {
@@ -1072,52 +1119,81 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     fprintf(fp, "%s   ", header);
 
     /* key bits */
+    uint32_t bits = 0;
     rnp_key_get_bits(key, &bits);
     fprintf(fp, "%d/", (int) bits);
     /* key algorithm */
+    char *alg = NULL;
     (void) rnp_key_get_alg(key, &alg);
     fprintf(fp, "%s ", cli_rnp_normalize_key_alg(alg));
     /* key id */
+    char *keyid = NULL;
     (void) rnp_key_get_keyid(key, &keyid);
     fprintf(fp, "%s", rnp::lowercase(keyid));
     /* key creation time */
+    uint32_t create = 0;
     (void) rnp_key_get_creation(key, &create);
     fprintf(fp, " %s", ptimestr(buf, sizeof(buf), create));
     /* key usage */
-    fprintf(fp, " [%s]", cli_key_usage_str(key, buf));
+    bool valid = false;
+    bool expired = false;
+    bool revoked = false;
+    (void) rnp_key_is_valid(key, &valid);
+    (void) rnp_key_is_expired(key, &expired);
+    (void) rnp_key_is_revoked(key, &revoked);
+    if (valid || expired || revoked) {
+        fprintf(fp, " [%s]", cli_key_usage_str(key, buf));
+    } else {
+        fprintf(fp, " [INVALID]");
+    }
     /* key expiration */
+    uint32_t expiry = 0;
     (void) rnp_key_get_expiration(key, &expiry);
-    if (expiry > 0) {
-        uint32_t now = time(NULL);
-        auto     expire_time = create + expiry;
-        ptimestr(buf, sizeof(buf), expire_time);
-        fprintf(fp, " [%s %s]", expire_time <= now ? "EXPIRED" : "EXPIRES", buf);
+    if (expiry) {
+        ptimestr(buf, sizeof(buf), create + expiry);
+        fprintf(fp, " [%s %s]", expired ? "EXPIRED" : "EXPIRES", buf);
     }
     /* key is revoked */
-    (void) rnp_key_is_revoked(key, &revoked);
     if (revoked) {
         fprintf(fp, " [REVOKED]");
     }
     /* fingerprint */
+    char *keyfp = NULL;
     (void) rnp_key_get_fprint(key, &keyfp);
     fprintf(fp, "\n      %s\n", rnp::lowercase(keyfp));
+    /* direct-key or binding signatures */
+    if (psigs) {
+        size_t sigs = 0;
+        (void) rnp_key_get_signature_count(key, &sigs);
+        for (size_t i = 0; i < sigs; i++) {
+            rnp_signature_handle_t sig = NULL;
+            (void) rnp_key_get_signature_at(key, i, &sig);
+            if (!sig) {
+                continue;
+            }
+            cli_rnp_print_sig_info(fp, ffi, sig);
+            rnp_signature_handle_destroy(sig);
+        }
+    }
     /* user ids */
+    size_t uids = 0;
     (void) rnp_key_get_uid_count(key, &uids);
     for (size_t i = 0; i < uids; i++) {
         rnp_uid_handle_t uid = NULL;
-        bool             revoked = false;
-        char *           uid_str = NULL;
-        size_t           sigs = 0;
 
         if (rnp_key_get_uid_handle_at(key, i, &uid)) {
             continue;
         }
+        bool  revoked = false;
+        bool  valid = false;
+        char *uid_str = NULL;
         (void) rnp_uid_is_revoked(uid, &revoked);
+        (void) rnp_uid_is_valid(uid, &valid);
         (void) rnp_key_get_uid_at(key, i, &uid_str);
 
         /* userid itself with revocation status */
         fprintf(fp, "uid           %s", cli_rnp_escape_string(uid_str).c_str());
-        fprintf(fp, "%s\n", revoked ? "[REVOKED]" : "");
+        fprintf(fp, "%s\n", revoked ? " [REVOKED]" : valid ? "" : " [INVALID]");
         rnp_buffer_destroy(uid_str);
 
         /* print signatures only if requested */
@@ -1126,46 +1202,16 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
             continue;
         }
 
+        size_t sigs = 0;
         (void) rnp_uid_get_signature_count(uid, &sigs);
         for (size_t j = 0; j < sigs; j++) {
             rnp_signature_handle_t sig = NULL;
-            rnp_key_handle_t       signer = NULL;
-            char *                 keyid = NULL;
-            uint32_t               creation = 0;
-            char *                 signer_uid = NULL;
-
-            if (rnp_uid_get_signature_at(uid, j, &sig)) {
+            (void) rnp_uid_get_signature_at(uid, j, &sig);
+            if (!sig) {
                 continue;
             }
-            if (rnp_signature_get_creation(sig, &creation)) {
-                goto next;
-            }
-            if (rnp_signature_get_keyid(sig, &keyid)) {
-                goto next;
-            }
-            if (keyid) {
-                /* lowercase key id */
-                rnp::lowercase(keyid);
-                /* signer primary uid */
-                if (rnp_locate_key(ffi, "keyid", keyid, &signer)) {
-                    goto next;
-                }
-                if (signer) {
-                    (void) rnp_key_get_primary_uid(signer, &signer_uid);
-                }
-            }
-
-            /* signer key id */
-            fprintf(fp, "sig           %s ", keyid ? keyid : "[no key id]");
-            /* signature creation time */
-            fprintf(fp, "%s", ptimestr(buf, sizeof(buf), creation));
-            /* signer's userid */
-            fprintf(fp, " %s\n", signer_uid ? signer_uid : "[unknown]");
-        next:
-            (void) rnp_signature_handle_destroy(sig);
-            (void) rnp_key_handle_destroy(signer);
-            rnp_buffer_destroy(keyid);
-            rnp_buffer_destroy(signer_uid);
+            cli_rnp_print_sig_info(fp, ffi, sig);
+            rnp_signature_handle_destroy(sig);
         }
         (void) rnp_uid_handle_destroy(uid);
     }

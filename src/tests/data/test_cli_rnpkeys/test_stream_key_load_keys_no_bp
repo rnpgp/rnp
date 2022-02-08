@@ -28,28 +28,28 @@ uid           ecc-p521
 sub   521/ECDH 9853df2f6d297442 2018-04-03 [E]
       a9297c86dd0de109e1ebae9c9853df2f6d297442
 
-pub   3072/RSA 2fb9179118898e8b 2018-04-03 [ESCA]
+pub   3072/RSA 2fb9179118898e8b 2018-04-03 [INVALID]
       6bc04a5a3ddb35766b9a40d82fb9179118898e8b
-uid           rsa-rsa
-sub   3072/RSA 6e2f73008f8b8d6e 2018-04-03 [ESCA]
+uid           rsa-rsa [INVALID]
+sub   3072/RSA 6e2f73008f8b8d6e 2018-04-03 [INVALID]
       20fe5b1ab68c2d7210fb08aa6e2f73008f8b8d6e
 
-pub   256/ECDSA d0c8a3daf9e0634a 2018-04-03 [SCA]
+pub   256/ECDSA d0c8a3daf9e0634a 2018-04-03 [INVALID]
       0633c5f72a198f51e650e4abd0c8a3daf9e0634a
-uid           ecc-bp256
-sub   256/ECDH 2edabb94d3055f76 2018-04-03 [E]
+uid           ecc-bp256 [INVALID]
+sub   256/ECDH 2edabb94d3055f76 2018-04-03 [INVALID]
       08192b478f740360b74c82cc2edabb94d3055f76
 
-pub   384/ECDSA 6cf2dce85599ada2 2018-04-03 [SCA]
+pub   384/ECDSA 6cf2dce85599ada2 2018-04-03 [INVALID]
       5b8a254c823ced98decd10ed6cf2dce85599ada2
-uid           ecc-bp384
-sub   384/ECDH cff1bb6f16d28191 2018-04-03 [E]
+uid           ecc-bp384 [INVALID]
+sub   384/ECDH cff1bb6f16d28191 2018-04-03 [INVALID]
       76969ce7033d990931df92b2cff1bb6f16d28191
 
-pub   512/ECDSA aa5c58d14f7b8f48 2018-04-03 [SCA]
+pub   512/ECDSA aa5c58d14f7b8f48 2018-04-03 [INVALID]
       4c59ab9272aa6a1f60b85bd0aa5c58d14f7b8f48
-uid           ecc-bp512
-sub   512/ECDH 20cdaa1482ba79ce 2018-04-03 [E]
+uid           ecc-bp512 [INVALID]
+sub   512/ECDH 20cdaa1482ba79ce 2018-04-03 [INVALID]
       270a7cd0dc6c2e01dce8603620cdaa1482ba79ce
 
 pub   255/EdDSA 941822a0fc1b30a5 2018-10-15 [SC]
