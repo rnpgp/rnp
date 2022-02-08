@@ -28,10 +28,10 @@ uid           ecc-p521
 ssb   521/ECDH 9853df2f6d297442 2018-04-03 [E]
       a9297c86dd0de109e1ebae9c9853df2f6d297442
 
-sec   3072/RSA 2fb9179118898e8b 2018-04-03 [ESCA]
+sec   3072/RSA 2fb9179118898e8b 2018-04-03 [INVALID]
       6bc04a5a3ddb35766b9a40d82fb9179118898e8b
-uid           rsa-rsa
-ssb   3072/RSA 6e2f73008f8b8d6e 2018-04-03 [ESCA]
+uid           rsa-rsa [INVALID]
+ssb   3072/RSA 6e2f73008f8b8d6e 2018-04-03 [INVALID]
       20fe5b1ab68c2d7210fb08aa6e2f73008f8b8d6e
 
 sec   256/ECDSA d0c8a3daf9e0634a 2018-04-03 [SC]
