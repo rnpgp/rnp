@@ -471,6 +471,6 @@ void test_rng_randomness(void **state);
 #define assert_rnp_failure(a) EXPECT_NE((a), RNP_SUCCESS)
 #define assert_memory_equal(a, b, sz) EXPECT_EQ(0, memcmp((a), (b), (sz)))
 #define assert_memory_not_equal(a, b, sz) EXPECT_NE(0, memcmp((a), (b), (sz)))
-#define assert_throw(a) EXPECT_ANY_THROW((a))
+#define assert_throw(a) EXPECT_ANY_THROW(a)
 
 #endif // RNP_TESTS_H
