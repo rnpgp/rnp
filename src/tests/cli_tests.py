@@ -2782,6 +2782,44 @@ class Misc(unittest.TestCase):
 
         clear_workfiles()
 
+    def test_onepass_edge_cases(self):
+        key = data_path('test_key_validity/alice-pub.asc')
+        # Verify one-pass which doesn't match the signature - different keyid
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-wrong-onepass')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Warning: signature doesn\'t match one-pass.*Good signature made.*0451409669ffde3c.*')
+        # Verify one-pass with unknown hash algorithm
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-unknown-onepass-hash')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Failed to create hash 136 for onepass 0.*')
+        # Verify one-pass with hash algorithm which doesn't match sig's one
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-wrong-onepass-hash')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*failed to get hash context.*BAD signature.*0451409669ffde3c.*')
+        # Extra one-pass without the corresponding signature
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-onepass')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Warning: premature end of signatures.*Good signature made.*0451409669ffde3c.*')
+        # Two one-passes and two equal signatures
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-2-onepass')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*0451409669ffde3c.*Good signature made.*0451409669ffde3c.*')
+        # Two one-passes and two sigs, but first one-pass is of unknown version
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-2-onepass-v10')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*warning: unexpected data on the stream end.*Good signature made.*0451409669ffde3c.*')
+        # Dump it as well
+        ret, out, err = run_proc(RNP, ['--list-packets', data_path('test_messages/message.txt.signed-2-2-onepass-v10')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*failed to process packet.*')
+        self.assertRegex(out, r'(?s)^.*:off 0: packet header 0xc40d.*:off 15: packet header 0xc40d.*One-pass signature packet.*')
+        # Dump it in JSON
+        ret, out, err = run_proc(RNP, ['--list-packets', '--json', data_path('test_messages/message.txt.signed-2-2-onepass-v10')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*failed to process packet.*')
+        self.assertRegex(out, r'(?s)^.*"offset":0.*"tag":4.*"offset":15.*"tag":4.*"version":3.*"nested":true.*')
+        # Two one-passes and sig of the unknown version
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:

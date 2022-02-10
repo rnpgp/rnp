@@ -1339,11 +1339,13 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         default:
             dst_printf(dst, "Skipping Unknown pkt: %d\n\n", (int) hdr.tag);
             ret = stream_skip_packet(src);
+            if (ret) {
+                goto finish;
+            }
         }
 
         if (ret) {
             RNP_LOG("failed to process packet");
-            goto finish;
         }
 
         if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
@@ -2453,7 +2455,6 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
 
         if (ret) {
             RNP_LOG("failed to process packet");
-            goto done;
         }
 
         if (json_object_array_add(pkts, pkt)) {

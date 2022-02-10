@@ -1019,22 +1019,24 @@ finish:
 static rnp_result_t
 signed_read_signatures(pgp_source_t *src)
 {
-    pgp_signature_t *          sig = NULL;
-    rnp_result_t               ret;
     pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
 
     /* reading signatures */
     for (auto op = param->onepasses.rbegin(); op != param->onepasses.rend(); op++) {
-        if ((ret = signed_read_single_signature(param, src, &sig)) != RNP_SUCCESS) {
+        pgp_signature_t *sig = NULL;
+        rnp_result_t     ret = signed_read_single_signature(param, src, &sig);
+        /* we have more onepasses then signatures */
+        if (ret == RNP_ERROR_READ) {
+            RNP_LOG("Warning: premature end of signatures");
+            return RNP_SUCCESS;
+        }
+        if (ret) {
             return ret;
         }
-
-        if (!sig || !sig->matches_onepass(*op)) {
-            RNP_LOG("signature doesn't match one-pass");
-            return RNP_ERROR_BAD_FORMAT;
+        if (sig && !sig->matches_onepass(*op)) {
+            RNP_LOG("Warning: signature doesn't match one-pass");
         }
     }
-
     return RNP_SUCCESS;
 }
 
