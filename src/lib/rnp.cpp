@@ -3031,7 +3031,7 @@ rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void 
         }
 
         if (sinfo.unknown) {
-            res->verify_status = RNP_ERROR_SIGNATURE_INVALID;
+            res->verify_status = RNP_ERROR_SIGNATURE_UNKNOWN;
         } else if (sinfo.valid) {
             res->verify_status = sinfo.expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
         } else {
