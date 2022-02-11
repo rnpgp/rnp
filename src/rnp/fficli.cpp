@@ -2736,31 +2736,36 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
             title = "NO PUBLIC KEY for signature";
             unknownc++;
             break;
-        default:
+        case RNP_ERROR_SIGNATURE_UNKNOWN:
             title = "UNKNOWN signature";
+            unknownc++;
             break;
+        default:
+            title = "UNKNOWN signature status";
+            break;
+        }
+
+        if (status == RNP_ERROR_SIGNATURE_UNKNOWN) {
+            fprintf(resfp, "%s\n", title.c_str());
+            continue;
         }
 
         uint32_t create = 0;
         uint32_t expiry = 0;
         rnp_op_verify_signature_get_times(sig, &create, &expiry);
 
-        if (create > 0) {
-            time_t crtime = create;
+        time_t crtime = create;
+        fprintf(resfp,
+                "%s made %s%s",
+                title.c_str(),
+                rnp_y2k38_warning(crtime) ? ">=" : "",
+                rnp_ctime(crtime));
+        if (expiry) {
+            crtime = rnp_timeadd(crtime, expiry);
             fprintf(resfp,
-                    "%s made %s%s",
-                    title.c_str(),
+                    "Valid until %s%s\n",
                     rnp_y2k38_warning(crtime) ? ">=" : "",
                     rnp_ctime(crtime));
-            if (expiry > 0) {
-                crtime = rnp_timeadd(crtime, expiry);
-                fprintf(resfp,
-                        "Valid until %s%s\n",
-                        rnp_y2k38_warning(crtime) ? ">=" : "",
-                        rnp_ctime(crtime));
-            }
-        } else {
-            fprintf(resfp, "%s\n", title.c_str());
         }
 
         rnp_signature_handle_t handle = NULL;
