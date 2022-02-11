@@ -2435,8 +2435,7 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_
  *
  * @param sig verified signature context, cannot be NULL.
  * @param handle signature handle will be stored here on success. You must free it after use
- * with
- *            the rnp_signature_handle_destroy() function.
+ *        with the rnp_signature_handle_destroy() function.
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_handle(rnp_op_verify_signature_t sig,
@@ -2492,7 +2491,7 @@ RNP_API void rnp_buffer_clear(void *ptr, size_t size);
  * @param input pointer to the input opaque structure
  * @param path path of the file to read from
  * @return RNP_SUCCESS if operation succeeded and input struct is ready to read, or error code
- * otherwise
+ *         otherwise
  */
 RNP_API rnp_result_t rnp_input_from_path(rnp_input_t *input, const char *path);
 
@@ -2541,7 +2540,7 @@ RNP_API rnp_result_t rnp_input_destroy(rnp_input_t input);
  * @param output pointer to the opaque output structure.
  * @param path path to the file.
  * @return RNP_SUCCESS if file was opened successfully and ready for writing or error code
- * otherwise.
+ *         otherwise.
  */
 RNP_API rnp_result_t rnp_output_to_path(rnp_output_t *output, const char *path);
 
