@@ -2427,6 +2427,7 @@ RNP_API rnp_result_t rnp_op_verify_destroy(rnp_op_verify_t op);
  *          RNP_ERROR_SIGNATURE_EXPIRED : signature is valid but expired
  *          RNP_ERROR_KEY_NOT_FOUND : public key to verify signature was not available
  *          RNP_ERROR_SIGNATURE_INVALID : data or signature was modified
+ *          RNP_ERROR_SIGNATURE_UNKNOWN : signature has unknown format
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_status(rnp_op_verify_signature_t sig);
 
