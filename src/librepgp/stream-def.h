@@ -59,6 +59,7 @@
 /* Maximum OpenPGP packet nesting level */
 #define MAXIMUM_NESTING_LEVEL 32
 #define MAXIMUM_STREAM_PKTS 16
+#define MAXIMUM_ERROR_PKTS 64
 
 /* Maximum text line length supported by GnuPG */
 #define MAXIMUM_GNUPG_LINELEN 19995

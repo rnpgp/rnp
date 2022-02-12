@@ -774,7 +774,7 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     indent_dest_decrease(dst);
 }
 
-static void
+static rnp_result_t
 stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
     pgp_signature_t sig;
@@ -791,9 +791,10 @@ stream_dump_signature(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         indent_dest_increase(dst);
         dst_printf(dst, "failed to parse\n");
         indent_dest_decrease(dst);
-        return;
+        return ret;
     }
     stream_dump_signature_pkt(ctx, &sig, dst);
+    return ret;
 }
 
 static rnp_result_t
@@ -1292,8 +1293,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         switch (hdr.tag) {
         case PGP_PKT_SIGNATURE:
-            stream_dump_signature(ctx, src, dst);
-            ret = RNP_SUCCESS;
+            ret = stream_dump_signature(ctx, src, dst);
             break;
         case PGP_PKT_SECRET_KEY:
         case PGP_PKT_PUBLIC_KEY:
@@ -1346,6 +1346,10 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
         if (ret) {
             RNP_LOG("failed to process packet");
+            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+                RNP_LOG("too many packet dump errors.");
+                goto finish;
+            }
         }
 
         if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
@@ -1396,6 +1400,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 
     ctx->layers = 0;
     ctx->stream_pkts = 0;
+    ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
     if (is_cleartext_source(src)) {
         dst_printf(dst, ":cleartext signed data\n");
@@ -1885,7 +1890,7 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
         ret = RNP_ERROR_GENERIC;
     }
     if (ret) {
-        return RNP_SUCCESS;
+        return ret;
     }
     return stream_dump_signature_pkt_json(ctx, &sig, pkt);
 }
@@ -2455,6 +2460,11 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
 
         if (ret) {
             RNP_LOG("failed to process packet");
+            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+                RNP_LOG("too many packet dump errors.");
+                goto done;
+            }
+            ret = RNP_SUCCESS;
         }
 
         if (json_object_array_add(pkts, pkt)) {
@@ -2487,6 +2497,8 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
     ctx->layers = 0;
+    ctx->stream_pkts = 0;
+    ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
     if (is_cleartext_source(src)) {
         if (!stream_skip_cleartext(src)) {
