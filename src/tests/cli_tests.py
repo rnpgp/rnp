@@ -2063,14 +2063,14 @@ class Misc(unittest.TestCase):
         # List empty key packets
         params = ['--list-packets', data_path('test_key_edge_cases/key-empty-packets.pgp')]
         ret, out, _ = run_proc(RNP, params)
-        self.assertNotEqual(ret, 0, 'packet listing not failed')
+        self.assertEqual(ret, 0, 'packet listing failed')
         compare_file_ex(data_path('test_key_edge_cases/key-empty-packets.txt'), out,
                         'key-empty-packets listing mismatch')
         
         # List empty key packets json
         params = ['--list-packets', '--json', data_path('test_key_edge_cases/key-empty-packets.pgp')]
         ret, _, _ = run_proc(RNP, params)
-        self.assertNotEqual(ret, 0, 'packet listing not failed')
+        self.assertEqual(ret, 0, 'packet listing failed')
 
         # List empty uid
         params = ['--list-packets', KEY_EMPTY_UID]

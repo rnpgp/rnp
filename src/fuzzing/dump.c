@@ -35,15 +35,19 @@ int
 LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 #endif
 {
-    rnp_input_t  input = NULL;
-    rnp_result_t ret = 0;
-    ret = rnp_input_from_memory(&input, data, size, false);
-
+    rnp_input_t input = NULL;
+    (void) rnp_input_from_memory(&input, data, size, false);
     rnp_output_t output = NULL;
-    ret = rnp_output_to_null(&output);
+    (void) rnp_output_to_null(&output);
 
-    ret = rnp_dump_packets_to_output(input, output, RNP_DUMP_RAW);
+    (void) rnp_dump_packets_to_output(input, output, RNP_DUMP_RAW);
     rnp_output_destroy(output);
+    rnp_input_destroy(input);
+
+    (void) rnp_input_from_memory(&input, data, size, false);
+    char *json = NULL;
+    (void) rnp_dump_packets_to_json(input, RNP_DUMP_RAW, &json);
+    rnp_buffer_destroy(json);
     rnp_input_destroy(input);
 
     return 0;
