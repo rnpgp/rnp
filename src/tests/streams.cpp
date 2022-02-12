@@ -1434,7 +1434,7 @@ TEST_F(rnp_tests, test_stream_z)
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/4gb.bzip2.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, true);
 
@@ -1446,7 +1446,7 @@ TEST_F(rnp_tests, test_stream_z)
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zlib.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, true);
 
@@ -1458,7 +1458,7 @@ TEST_F(rnp_tests, test_stream_z)
 
     assert_rnp_success(init_file_src(&src, "data/test_stream_z/128mb.zip.cut"));
     assert_rnp_success(init_null_dest(&dst));
-    assert_rnp_failure(stream_dump_packets(&ctx, &src, &dst));
+    assert_rnp_success(stream_dump_packets(&ctx, &src, &dst));
     src_close(&src);
     dst_close(&dst, true);
 }
