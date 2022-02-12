@@ -7145,7 +7145,8 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
     assert_rnp_failure(rnp_op_verify_execute(verify));
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
-    assert_int_equal(sigcount, 0);
+    assert_int_equal(sigcount, 1);
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_UNKNOWN));
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
@@ -7362,7 +7363,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_sig_count)
     assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sigcount));
     assert_int_equal(sigcount, 1);
-    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_INVALID));
+    assert_true(check_signature(verify, 0, RNP_ERROR_SIGNATURE_UNKNOWN));
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);
     rnp_output_destroy(output);
