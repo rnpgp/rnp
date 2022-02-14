@@ -185,6 +185,12 @@ target_compile_definitions(rnp_tests
     RNP_RUN_TESTS
     RNP_STATIC
 )
+
+# Centos 7 with CLang 7.0.1 reports strange memory leak in GoogleTest, maybe there is a better solution
+if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_VERSION VERSION_GREATER 7.0.1)
+  set_target_properties(rnp_tests PROPERTIES CXX_VISIBILITY_PRESET hidden)
+endif()
+
 gtest_discover_tests(rnp_tests
   PROPERTIES
     FIXTURES_REQUIRED testdata
