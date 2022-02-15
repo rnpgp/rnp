@@ -192,6 +192,8 @@ gtest_discover_tests(rnp_tests
     ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
 )
 
+# bogus change
+
 # ruby-rnp
 # cruby does not currently play nice with ASaN et al.
 if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN32)
