@@ -2830,6 +2830,25 @@ class Misc(unittest.TestCase):
         self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
         self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
 
+    def test_pkesk_skesk_wrong_version(self):
+        key = data_path('test_stream_key_load/ecc-p256-sec.asc')
+        msg = data_path('test_messages/message.txt.pkesk-skesk-v10')
+        msg2 = data_path('test_messages/message.txt.pkesk-skesk-v10-only')
+        # Decrypt with secret key
+        ret, out, err = run_proc(RNP, ['--keyfile', key, '--password', PASSWORD, '-d', msg])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*This is test message to be signed, and/or encrypted, cleartext signed and detached signed.*')
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*Failed to parse PKESK, skipping.*wrong packet version.*Failed to parse SKESK, skipping.*')
+        # Decrypt with password
+        ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', msg])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*This is test message to be signed, and/or encrypted, cleartext signed and detached signed.*')
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*Failed to parse PKESK, skipping.*wrong packet version.*Failed to parse SKESK, skipping.*')
+        # Attempt to decrypt message with only invalid PKESK/SKESK
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '--password', PASSWORD, '-d', msg2])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*wrong packet version.*Failed to parse PKESK, skipping.*wrong packet version.*Failed to parse SKESK, skipping.*failed to obtain decrypting key or password.*')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
