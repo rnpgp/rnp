@@ -1937,7 +1937,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                 pgp_sk_sesskey_t skey;
                 rnp_result_t     ret = skey.parse(*param->pkt.readsrc);
                 if (ret) {
-                    return ret;
+                    RNP_LOG("Failed to parse SKESK, skipping.");
+                    continue;
                 }
                 param->symencs.push_back(skey);
                 break;
@@ -1946,7 +1947,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                 pgp_pk_sesskey_t pkey;
                 rnp_result_t     ret = pkey.parse(*param->pkt.readsrc);
                 if (ret) {
-                    return ret;
+                    RNP_LOG("Failed to parse PKESK, skipping.");
+                    continue;
                 }
                 param->pubencs.push_back(pkey);
                 break;
