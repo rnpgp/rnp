@@ -639,6 +639,12 @@ TEST_F(rnp_tests, s2k_iteration_tuning)
     // Should not crash for unknown hash algorithm
     assert_int_equal(pgp_s2k_compute_iters(PGP_HASH_UNKNOWN, 1000, TRIAL_MSEC), 0);
     /// TODO test that hashing iters_xx data takes roughly requested time
+
+    size_t iter_sha1 = global_ctx.s2k_iterations(PGP_HASH_SHA1);
+    assert_int_equal(iter_sha1, global_ctx.s2k_iterations(PGP_HASH_SHA1));
+    size_t iter_sha512 = global_ctx.s2k_iterations(PGP_HASH_SHA512);
+    assert_int_equal(iter_sha512, global_ctx.s2k_iterations(PGP_HASH_SHA512));
+    assert_int_equal(global_ctx.s2k_iterations(PGP_HASH_UNKNOWN), 0);
 }
 
 TEST_F(rnp_tests, s2k_iteration_encode_decode)

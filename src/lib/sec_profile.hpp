@@ -28,6 +28,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <unordered_map>
 #include "repgp/repgp_def.h"
 #include "crypto/rng.h"
 
@@ -70,11 +71,15 @@ class SecurityProfile {
 };
 
 class SecurityContext {
+    std::unordered_map<int, size_t> s2k_iterations_;
+
   public:
     SecurityProfile profile;
     RNG             rng;
 
     SecurityContext();
+
+    size_t s2k_iterations(pgp_hash_alg_t halg);
 };
 } // namespace rnp
 

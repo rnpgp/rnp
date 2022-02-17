@@ -182,7 +182,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // try to protect (will fail when key is locked)
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "newpass"};
-    assert_false(key->protect({}, pprov, global_ctx.rng));
+    assert_false(key->protect({}, pprov, global_ctx));
     assert_false(key->is_protected());
 
     // unlock
@@ -192,12 +192,12 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
     // try to protect with a failing password provider
     pprov = {.callback = failing_password_callback, .userdata = NULL};
-    assert_false(key->protect({}, pprov, global_ctx.rng));
+    assert_false(key->protect({}, pprov, global_ctx));
     assert_false(key->is_protected());
 
     // (re)protect with a new password
     pprov = {.callback = string_copy_password_callback, .userdata = (void *) "newpass"};
-    assert_true(key->protect({}, pprov, global_ctx.rng));
+    assert_true(key->protect({}, pprov, global_ctx));
     assert_true(key->is_protected());
 
     // lock
@@ -288,8 +288,8 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     pgp_password_provider_t     pprov = {.callback = string_copy_password_callback,
                                      .userdata = (void *) "password"};
     rnp_key_protection_params_t prot = {};
-    assert_true(skey.protect(prot, pprov, global_ctx.rng));
-    assert_true(ssub.protect(prot, pprov, global_ctx.rng));
+    assert_true(skey.protect(prot, pprov, global_ctx));
+    assert_true(ssub.protect(prot, pprov, global_ctx));
     assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
     assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
 #if defined(__has_feature)
@@ -330,8 +330,8 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     /* protect it back  with another password */
     pgp_password_provider_t pprov2 = {.callback = string_copy_password_callback,
                                       .userdata = (void *) "password2"};
-    assert_true(skey.protect(prot, pprov2, global_ctx.rng));
-    assert_true(ssub.protect(prot, pprov2, global_ctx.rng));
+    assert_true(skey.protect(prot, pprov2, global_ctx));
+    assert_true(ssub.protect(prot, pprov2, global_ctx));
     assert_int_not_equal(memcmp(raw_skey, skey.pkt().sec_data, 32), 0);
     assert_int_not_equal(memcmp(raw_ssub, ssub.pkt().sec_data, 32), 0);
     assert_false(skey.unlock(pprov));
