@@ -2016,8 +2016,14 @@ rnp_raw_encrypt_src(pgp_source_t &        src,
     handler.ctx = &ctx;
     pgp_dest_t encrypted = {};
 
-    rnp_result_t ret = rnp_ctx_add_encryption_password(
-      ctx, password.c_str(), DEFAULT_PGP_HASH_ALG, DEFAULT_PGP_SYMM_ALG, 0);
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    try {
+        ret =
+          ctx.add_encryption_password(password, DEFAULT_PGP_HASH_ALG, DEFAULT_PGP_SYMM_ALG);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        goto done;
+    }
     if (ret) {
         goto done;
     }

@@ -121,12 +121,11 @@ typedef struct rnp_ctx_t {
 
     rnp_ctx_t &operator=(const rnp_ctx_t &) = delete;
     rnp_ctx_t &operator=(rnp_ctx_t &&) = delete;
-} rnp_ctx_t;
 
-rnp_result_t rnp_ctx_add_encryption_password(rnp_ctx_t &    ctx,
-                                             const char *   password,
-                                             pgp_hash_alg_t halg,
-                                             pgp_symm_alg_t ealg,
-                                             int            iterations);
+    rnp_result_t add_encryption_password(const std::string &password,
+                                         pgp_hash_alg_t     halg,
+                                         pgp_symm_alg_t     ealg,
+                                         size_t             iterations = 0);
+} rnp_ctx_t;
 
 #endif

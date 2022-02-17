@@ -26,6 +26,7 @@
 
 #include "sec_profile.hpp"
 #include "types.h"
+#include "defaults.h"
 #include <algorithm>
 
 namespace rnp {
@@ -155,6 +156,16 @@ SecurityContext::SecurityContext() : rng(RNG::Type::DRBG)
     /* Mark MD5 insecure since 2012-01-01 */
     profile.add_rule(
       SecurityRule(FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000));
+}
+
+size_t
+SecurityContext::s2k_iterations(pgp_hash_alg_t halg)
+{
+    if (!s2k_iterations_.count(halg)) {
+        s2k_iterations_[halg] =
+          pgp_s2k_compute_iters(halg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+    }
+    return s2k_iterations_[halg];
 }
 
 } // namespace rnp
