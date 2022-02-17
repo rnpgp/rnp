@@ -1537,7 +1537,7 @@ pgp_key_t::lock()
 bool
 pgp_key_t::protect(const rnp_key_protection_params_t &protection,
                    const pgp_password_provider_t &    password_provider,
-                   rnp::RNG &                         rng)
+                   rnp::SecurityContext &             sctx)
 {
     pgp_password_ctx_t ctx;
     memset(&ctx, 0, sizeof(ctx));
@@ -1549,14 +1549,14 @@ pgp_key_t::protect(const rnp_key_protection_params_t &protection,
     if (!pgp_request_password(&password_provider, &ctx, password.data(), password.size())) {
         return false;
     }
-    return protect(pkt_, protection, password.data(), rng);
+    return protect(pkt_, protection, password.data(), sctx);
 }
 
 bool
 pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
                    const rnp_key_protection_params_t &protection,
                    const std::string &                new_password,
-                   rnp::RNG &                         rng)
+                   rnp::SecurityContext &             ctx)
 {
     if (!is_secret()) {
         RNP_LOG("Warning: this is not a secret key");
@@ -1580,8 +1580,7 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
       protection.hash_alg ? protection.hash_alg : DEFAULT_PGP_HASH_ALG;
     auto iter = protection.iterations;
     if (!iter) {
-        iter = pgp_s2k_compute_iters(
-          pkt_.sec_protection.s2k.hash_alg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
+        iter = ctx.s2k_iterations(pkt_.sec_protection.s2k.hash_alg);
     }
     pkt_.sec_protection.s2k.iterations = pgp_s2k_round_iterations(iter);
     if (!ownpkt) {
@@ -1590,7 +1589,7 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
     }
 
     /* write the protected key to raw packet */
-    return write_sec_rawpkt(decrypted, new_password, rng);
+    return write_sec_rawpkt(decrypted, new_password, ctx.rng);
 }
 
 bool

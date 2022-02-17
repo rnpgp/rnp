@@ -300,12 +300,12 @@ struct pgp_key_t {
      *         parameters. */
     bool protect(const rnp_key_protection_params_t &protection,
                  const pgp_password_provider_t &    password_provider,
-                 rnp::RNG &                         rng);
+                 rnp::SecurityContext &             ctx);
     /** @brief Add/change protection of a key */
     bool protect(pgp_key_pkt_t &                    decrypted,
                  const rnp_key_protection_params_t &protection,
                  const std::string &                new_password,
-                 rnp::RNG &                         rng);
+                 rnp::SecurityContext &             ctx);
     /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
     bool unprotect(const pgp_password_provider_t &password_provider, rnp::RNG &rng);
 
