@@ -997,6 +997,19 @@ cli_rnp_set_hash(rnp_cfg &cfg, const std::string &hash)
     return true;
 }
 
+bool
+cli_rnp_set_cipher(rnp_cfg &cfg, const std::string &cipher)
+{
+    bool  supported = false;
+    auto &alg = cli_rnp_alg_to_ffi(cipher);
+    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, alg.c_str(), &supported) || !supported) {
+        ERR_MSG("Unsupported encryption algorithm: %s", cipher.c_str());
+        return false;
+    }
+    cfg.set_str(CFG_CIPHER, alg);
+    return true;
+}
+
 #ifndef RNP_USE_STD_REGEX
 static std::string
 cli_rnp_unescape_for_regcomp(const std::string &src)

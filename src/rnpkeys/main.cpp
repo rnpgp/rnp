@@ -76,7 +76,7 @@ rnpkeys_main(int argc, char **argv)
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
             if (!setoption(cfg, &cmd, options[optindex].val, optarg)) {
-                ERR_MSG("Bad setoption result %d", ch);
+                ERR_MSG("Failed to process argument --%s", options[optindex].name);
                 goto end;
             }
         } else {
