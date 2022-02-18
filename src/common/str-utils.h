@@ -45,6 +45,7 @@ bool str_case_eq(const std::string &s1, const std::string &s2);
  * @brief Convert string to lowercase and return it.
  */
 char *lowercase(char *s);
+bool  str_to_int(const std::string &s, int &val);
 } // namespace rnp
 #ifdef _WIN32
 #include <string>

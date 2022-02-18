@@ -252,7 +252,7 @@ The default value is _AES256_.
 Enable AEAD encryption and select algorithm to be used.
 
 *--aead-chunk-bits* _BITS_::
-Change AEAD chunk size. This is used for testing or debugging.
+Change AEAD chunk size bits, from 0 to 16 (actual chunk size would be 1 << (6 + bits)). See OpenPGP documentation for the details. +
 
 *--zip*, *--zlib*, *--bzip2*::
 Select corresponding algorithm to compress data with.
@@ -273,7 +273,7 @@ Useful for automated or non-interactive sessions.
 *--password* _PASSWORD_::
 Use the specified password when it is needed. +
 +
-WARNING: Not recommended for production use due to potential security issues.
+WARNING: Not recommended for production use due to potential security issues.
 Use *--pass-fd* for batch operations instead.
 
 *--passwords* _COUNT_::
