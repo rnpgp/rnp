@@ -111,6 +111,18 @@ lowercase(char *s)
     return s;
 }
 
+bool
+str_to_int(const std::string &s, int &val)
+{
+    for (const char &ch : s) {
+        if ((ch < '0') || (ch > '9')) {
+            return false;
+        }
+    }
+    val = std::stoi(s);
+    return true;
+}
+
 } // namespace rnp
 
 #ifdef _WIN32

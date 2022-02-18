@@ -442,8 +442,8 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             ERR_MSG("You must provide a number with --passwords option");
             return false;
         }
-        int count = atoi(arg);
-        if (count <= 0) {
+        int count = 0;
+        if (!rnp::str_to_int(arg, count) || (count <= 0)) {
             ERR_MSG("Incorrect value for --passwords option: %s", arg);
             return false;
         }
@@ -517,10 +517,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
             ERR_MSG("Option aead-chunk-bits requires parameter");
             return false;
         }
-
-        int bits = atoi(arg);
-        if ((bits < 0) || (bits > 56)) {
-            ERR_MSG("Wrong argument value %s for aead-chunk-bits", arg);
+        int bits = 0;
+        if (!rnp::str_to_int(arg, bits) || (bits < 0) || (bits > 16)) {
+            ERR_MSG("Wrong argument value %s for aead-chunk-bits, must be 0..16.", arg);
             return false;
         }
         cfg.set_int(CFG_AEAD_CHUNK, bits);

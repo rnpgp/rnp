@@ -3191,6 +3191,33 @@ class Encryption(unittest.TestCase):
         # Cleanup
         clear_workfiles()
 
+    def test_encryption_aead_defs(self):
+        if not RNP_AEAD:
+            return
+        # Encrypt with RNP
+        pubkey = data_path('test_key_validity/alice-sub-pub.pgp')
+        src, enc, dec = reg_workfiles('cleartext', '.txt', '.enc', '.dec')
+        random_text(src, 120000)
+        ret, _, _ = run_proc(RNP, ['--keyfile', pubkey, '-z', '0', '-r', 'alice', '--aead', '-e', src, '--output', enc])
+        self.assertEqual(ret, 0)
+        # List packets
+        ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*tag 20, partial len.*AEAD-encrypted data packet.*version: 1.*AES-256.*EAX.*chunk size: 12.*')
+        # Attempt to encrypt with too high AEAD bits value
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-r', 'alice', '--aead', '--aead-chunk-bits', '17', '-e', src, '--output', enc])
+        self.assertEqual(ret, 2)
+        self.assertRegex(err, r'(?s)^.*Wrong argument value 17 for aead-chunk-bits, must be 0..16.*')
+        # Attempt to encrypt with wrong AEAD bits value
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-r', 'alice', '--aead', '--aead-chunk-bits', 'banana', '-e', src, '--output', enc])
+        self.assertEqual(ret, 2)
+        self.assertRegex(err, r'(?s)^.*Wrong argument value banana for aead-chunk-bits, must be 0..16.*')
+        # Attempt to encrypt with another wrong AEAD bits value
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-r', 'alice', '--aead', '--aead-chunk-bits', '5banana', '-e', src, '--output', enc])
+        self.assertEqual(ret, 2)
+        self.assertRegex(err, r'(?s)^.*Wrong argument value 5banana for aead-chunk-bits, must be 0..16.*')
+        clear_workfiles()
+
 class Compression(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
