@@ -226,6 +226,15 @@ const std::string cli_rnp_alg_to_ffi(const std::string alg);
  */
 bool cli_rnp_set_hash(rnp_cfg &cfg, const std::string &hash);
 
+/**
+ * @brief Attempt to set symmetric cipher algorithm using the value provided.
+ *
+ * @param cfg config
+ * @param cipher algorithm name.
+ * @return true if algorithm is supported and set correctly, or false otherwise.
+ */
+bool cli_rnp_set_cipher(rnp_cfg &cfg, const std::string &cipher);
+
 void clear_key_handles(std::vector<rnp_key_handle_t> &keys);
 
 const char *json_obj_get_str(json_object *obj, const char *key);

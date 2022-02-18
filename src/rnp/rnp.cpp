@@ -415,17 +415,8 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_CREATION:
         cfg.set_str(CFG_CREATION, arg);
         return true;
-    case OPT_CIPHER: {
-        bool               supported = false;
-        const std::string &alg = cli_rnp_alg_to_ffi(arg);
-        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, alg.c_str(), &supported) ||
-            !supported) {
-            ERR_MSG("Unsupported encryption algorithm: %s", arg);
-            return false;
-        }
-        cfg.set_str(CFG_CIPHER, alg);
-        return true;
-    }
+    case OPT_CIPHER:
+        return cli_rnp_set_cipher(cfg, arg);
     case OPT_NUMTRIES:
         cfg.set_str(CFG_NUMTRIES, arg);
         return true;
