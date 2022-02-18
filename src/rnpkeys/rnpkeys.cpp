@@ -459,31 +459,15 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     /* options */
     case OPT_KEY_STORE_FORMAT:
-        if (!arg) {
-            ERR_MSG("No keyring format argument provided");
-            return false;
-        }
         cfg.set_str(CFG_KEYSTOREFMT, arg);
         return true;
     case OPT_USERID:
-        if (!arg) {
-            ERR_MSG("no userid argument provided");
-            return false;
-        }
         cfg.add_str(CFG_USERID, arg);
         return true;
     case OPT_HOMEDIR:
-        if (!arg) {
-            ERR_MSG("no home directory argument provided");
-            return false;
-        }
         cfg.set_str(CFG_HOMEDIR, arg);
         return true;
     case OPT_NUMBITS: {
-        if (!arg) {
-            ERR_MSG("no number of bits argument provided");
-            return false;
-        }
         int bits = 0;
         if (!rnp::str_to_int(arg, bits) || (bits < 1024) || (bits > 16384)) {
             ERR_MSG("wrong bits value: %s", arg);
@@ -493,10 +477,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     }
     case OPT_HASH_ALG: {
-        if (!arg) {
-            ERR_MSG("No hash algorithm argument provided");
-            return false;
-        }
         bool               supported = false;
         const std::string &alg = cli_rnp_alg_to_ffi(arg);
         if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, alg.c_str(), &supported) ||
@@ -508,10 +488,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     }
     case OPT_S2K_ITER: {
-        if (!arg) {
-            ERR_MSG("No s2k iteration argument provided");
-            return false;
-        }
         int iterations = atoi(arg);
         if (!iterations) {
             ERR_MSG("Wrong iterations value: %s", arg);
@@ -525,10 +501,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_str(CFG_KG_SUBKEY_EXPIRATION, arg);
         return true;
     case OPT_S2K_MSEC: {
-        if (!arg) {
-            ERR_MSG("No s2k msec argument provided");
-            return false;
-        }
         int msec = 0;
         if (!rnp::str_to_int(arg, msec) || !msec) {
             ERR_MSG("Invalid s2k msec value: %s", arg);
@@ -538,24 +510,12 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     }
     case OPT_PASSWDFD:
-        if (!arg) {
-            ERR_MSG("no pass-fd argument provided");
-            return false;
-        }
         cfg.set_str(CFG_PASSFD, arg);
         return true;
     case OPT_PASSWD:
-        if (!arg) {
-            ERR_MSG("No password argument provided");
-            return false;
-        }
         cfg.set_str(CFG_PASSWD, arg);
         return true;
     case OPT_RESULTS:
-        if (!arg) {
-            ERR_MSG("No output filename argument provided");
-            return false;
-        }
         cfg.set_str(CFG_IO_RESS, arg);
         return true;
     case OPT_CIPHER: {
@@ -592,10 +552,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_bool(CFG_WITH_SIGS, true);
         return true;
     case OPT_REV_TYPE: {
-        if (!arg) {
-            ERR_MSG("No revocation type argument provided");
-            return false;
-        }
         std::string revtype = arg;
         if (revtype == "0") {
             revtype = "no";
@@ -610,10 +566,6 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     }
     case OPT_REV_REASON:
-        if (!arg) {
-            ERR_MSG("No revocation reason argument provided");
-            return false;
-        }
         cfg.set_str(CFG_REV_REASON, arg);
         return true;
     case OPT_PERMISSIVE:
