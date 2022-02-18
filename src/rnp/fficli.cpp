@@ -984,6 +984,19 @@ cli_rnp_alg_to_ffi(const std::string alg)
     return alg;
 }
 
+bool
+cli_rnp_set_hash(rnp_cfg &cfg, const std::string &hash)
+{
+    bool  supported = false;
+    auto &alg = cli_rnp_alg_to_ffi(hash);
+    if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, alg.c_str(), &supported) || !supported) {
+        ERR_MSG("Unsupported hash algorithm: %s", hash.c_str());
+        return false;
+    }
+    cfg.set_str(CFG_HASH, alg);
+    return true;
+}
+
 #ifndef RNP_USE_STD_REGEX
 static std::string
 cli_rnp_unescape_for_regcomp(const std::string &src)

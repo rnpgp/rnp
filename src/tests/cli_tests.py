@@ -2395,7 +2395,8 @@ class Misc(unittest.TestCase):
             f.write('Hello world')
         # Encrypt file but forget to pass cipher name
         ret, _, err = run_proc(RNP, ['-c', src, '--password', 'password', '--cipher'])
-        self.assertNotEqual(ret, 0)
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--cipher.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
         # Encrypt file using the unknown symmetric algorithm
         ret, _, err = run_proc(RNP, ['-c', src, '--cipher', 'bad', '--password', 'password'])
         self.assertNotEqual(ret, 0)
@@ -2750,7 +2751,7 @@ class Misc(unittest.TestCase):
         # Do not provide source
         ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option .--source. requires an argument.*Usage: rnp --command \[options\] \[files\].*')
+        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--source.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
         # Verify by specifying the correct path
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
         self.assertEqual(ret, 0)

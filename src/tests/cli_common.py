@@ -134,6 +134,7 @@ def run_proc_windows(proc, params, stdin=None):
         pass_fl = os.open(pass_path, os.O_RDONLY | os.O_BINARY)
         pass_cp = os.dup(passfd)
 
+    retcode = -1
     try:
         os.dup2(stdout_fl, stdout_no)
         os.close(stdout_fl)

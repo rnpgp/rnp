@@ -384,17 +384,8 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         cfg.set_str(CFG_KEYFILE, arg);
         cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
         return true;
-    case OPT_HASH_ALG: {
-        bool               supported = false;
-        const std::string &alg = cli_rnp_alg_to_ffi(arg);
-        if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, alg.c_str(), &supported) ||
-            !supported) {
-            ERR_MSG("Unsupported hash algorithm: %s", arg);
-            return false;
-        }
-        cfg.set_str(CFG_HASH, alg);
-        return true;
-    }
+    case OPT_HASH_ALG:
+        return cli_rnp_set_hash(cfg, arg);
     case OPT_PASSWDFD:
         cfg.set_str(CFG_PASSFD, arg);
         return true;
