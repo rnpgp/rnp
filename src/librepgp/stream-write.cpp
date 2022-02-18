@@ -868,7 +868,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     if (handler->ctx->aalg) {
         if ((handler->ctx->aalg != PGP_AEAD_EAX) && (handler->ctx->aalg != PGP_AEAD_OCB)) {
-            RNP_LOG("unknown AEAD algorithm");
+            RNP_LOG("unknown AEAD algorithm: %d", (int) handler->ctx->aalg);
             return RNP_ERROR_BAD_PARAMETERS;
         }
 
@@ -877,8 +877,8 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
             return RNP_ERROR_BAD_PARAMETERS;
         }
 
-        if ((handler->ctx->abits < 0) || (handler->ctx->abits > 56)) {
-            RNP_LOG("wrong AEAD chunk bits");
+        if ((handler->ctx->abits < 0) || (handler->ctx->abits > 16)) {
+            RNP_LOG("wrong AEAD chunk bits: %d", handler->ctx->abits);
             return RNP_ERROR_BAD_PARAMETERS;
         }
     }

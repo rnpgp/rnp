@@ -134,6 +134,8 @@ rnp_ctx_init_ffi(rnp_ctx_t &ctx, rnp_ffi_t ffi)
 {
     ctx.ctx = &ffi->context;
     ctx.ealg = DEFAULT_PGP_SYMM_ALG;
+    ctx.aalg = PGP_AEAD_NONE;
+    ctx.abits = DEFAULT_AEAD_CHUNK_BITS;
 }
 
 static const id_str_pair sig_type_map[] = {{PGP_SIG_BINARY, "binary"},
