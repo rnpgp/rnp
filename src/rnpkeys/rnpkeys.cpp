@@ -509,17 +509,8 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case OPT_RESULTS:
         cfg.set_str(CFG_IO_RESS, arg);
         return true;
-    case OPT_CIPHER: {
-        bool               supported = false;
-        const std::string &alg = cli_rnp_alg_to_ffi(arg);
-        if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, alg.c_str(), &supported) ||
-            !supported) {
-            ERR_MSG("Unsupported symmetric algorithm: %s", arg);
-            return false;
-        }
-        cfg.set_str(CFG_CIPHER, alg);
-        return true;
-    }
+    case OPT_CIPHER:
+        return cli_rnp_set_cipher(cfg, arg);
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
         return true;

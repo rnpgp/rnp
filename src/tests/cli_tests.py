@@ -1005,7 +1005,7 @@ class Keystore(unittest.TestCase):
         ret, _, err = run_proc(RNPK, ['--cipher', 'WRONG_AES', '--homedir', RNPDIR, '--password', 'password', 
                                       '--userid', 'wrong_aes', '--generate-key'])
         self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Unsupported symmetric algorithm: WRONG_AES.*')
+        self.assertRegex(err, r'(?s)^.*Unsupported encryption algorithm: WRONG_AES.*Failed to process argument --cipher.*')
 
     def test_generate_multiple_rsa_key__check_if_available(self):
         '''
