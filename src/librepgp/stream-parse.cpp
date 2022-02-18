@@ -2003,6 +2003,9 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             RNP_LOG("too large chunk size: %d", param->aead_hdr.csize);
             return RNP_ERROR_BAD_FORMAT;
         }
+        if (param->aead_hdr.csize > 16) {
+            RNP_LOG("Warning: AEAD chunk bits > 16.");
+        }
         param->chunklen = 1L << (param->aead_hdr.csize + 6);
 
         /* build additional data */

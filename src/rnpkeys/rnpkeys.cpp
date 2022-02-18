@@ -38,6 +38,7 @@
 #include <string.h>
 #include <stdarg.h>
 #include "rnpkeys.h"
+#include "str-utils.h"
 
 const char *usage =
   "Manipulate OpenPGP keys and keyrings.\n"
@@ -483,8 +484,8 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             ERR_MSG("no number of bits argument provided");
             return false;
         }
-        int bits = atoi(arg);
-        if ((bits < 1024) || (bits > 16384)) {
+        int bits = 0;
+        if (!rnp::str_to_int(arg, bits) || (bits < 1024) || (bits > 16384)) {
             ERR_MSG("wrong bits value: %s", arg);
             return false;
         }
@@ -528,8 +529,8 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
             ERR_MSG("No s2k msec argument provided");
             return false;
         }
-        int msec = atoi(arg);
-        if (!msec) {
+        int msec = 0;
+        if (!rnp::str_to_int(arg, msec) || !msec) {
             ERR_MSG("Invalid s2k msec value: %s", arg);
             return false;
         }

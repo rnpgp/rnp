@@ -44,10 +44,10 @@
 #define DEFAULT_Z_LEVEL 6
 
 /* Default AEAD algorithm */
-#define DEFAULT_AEAD_ALG "EAX"
+#define DEFAULT_AEAD_ALG PGP_AEAD_EAX
 
-/* Default AEAD chunk bits, equals to 100MB chunks */
-#define DEFAULT_AEAD_CHUNK_BITS 21
+/* Default AEAD chunk bits, equals to 256K chunks */
+#define DEFAULT_AEAD_CHUNK_BITS 12
 
 /* Default cipher mode for secret key encryption */
 #define DEFAULT_CIPHER_MODE "CFB"
