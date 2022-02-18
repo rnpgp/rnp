@@ -2747,6 +2747,10 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sigasc])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        # Do not provide source
+        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option .--source. requires an argument.*Usage: rnp --command \[options\] \[files\].*')
         # Verify by specifying the correct path
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
         self.assertEqual(ret, 0)
