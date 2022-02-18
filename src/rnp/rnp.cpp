@@ -500,17 +500,16 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         cfg.set_str(CFG_ZALG, "BZip2");
         return true;
     case OPT_AEAD: {
-        const char *alg = NULL;
         std::string argstr = arg ? arg : "";
         if (argstr.empty() || (argstr == "1") || rnp::str_case_eq(argstr, "eax")) {
-            alg = "EAX";
+            argstr = "EAX";
         } else if ((argstr == "2") || rnp::str_case_eq(argstr, "ocb")) {
-            alg = "OCB";
+            argstr = "OCB";
         } else {
-            ERR_MSG("Wrong AEAD algorithm: %s", arg);
+            ERR_MSG("Wrong AEAD algorithm: %s", argstr.c_str());
             return false;
         }
-        cfg.set_str(CFG_AEAD, alg);
+        cfg.set_str(CFG_AEAD, argstr);
         return true;
     }
     case OPT_AEAD_CHUNK: {
