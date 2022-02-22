@@ -75,4 +75,7 @@
 /* Infinite password request attempts */
 #define INFINITE_ATTEMPTS -1
 
+/* Default key expiration in seconds, 2 years */
+#define DEFAULT_KEY_EXPIRATION (2 * 365 * 24 * 60 * 60)
+
 #endif
