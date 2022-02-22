@@ -5234,6 +5234,7 @@ try {
     (*op)->crypto.key_alg = key_alg;
     (*op)->crypto.ctx = &ffi->context;
     (*op)->cert.key_flags = default_key_flags(key_alg, false);
+    (*op)->cert.key_expiration = DEFAULT_KEY_EXPIRATION;
 
     return RNP_SUCCESS;
 }
@@ -5278,6 +5279,7 @@ try {
     (*op)->crypto.key_alg = key_alg;
     (*op)->crypto.ctx = &ffi->context;
     (*op)->binding.key_flags = default_key_flags(key_alg, true);
+    (*op)->binding.key_expiration = DEFAULT_KEY_EXPIRATION;
     (*op)->primary_sec = primary->sec;
     (*op)->primary_pub = primary->pub;
 

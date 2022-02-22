@@ -1133,6 +1133,14 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_false(flag);
     assert_rnp_success(rnp_key_allows_usage(key, "authenticate", &flag));
     assert_false(flag);
+    uint32_t expiration = 0;
+    assert_rnp_success(rnp_key_get_expiration(key, &expiration));
+    assert_int_equal(expiration, 2 * 365 * 24 * 60 * 60);
+    uint32_t creation = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    uint32_t till = 0;
+    assert_rnp_success(rnp_key_valid_till(key, &till));
+    assert_int_equal(till, creation + expiration);
     rnp_key_handle_t subkey = NULL;
     assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
     assert_non_null(subkey);
@@ -1144,6 +1152,14 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_true(flag);
     assert_rnp_success(rnp_key_allows_usage(subkey, "authenticate", &flag));
     assert_false(flag);
+    expiration = 0;
+    assert_rnp_success(rnp_key_get_expiration(subkey, &expiration));
+    assert_int_equal(expiration, 2 * 365 * 24 * 60 * 60);
+    creation = 0;
+    assert_rnp_success(rnp_key_get_creation(key, &creation));
+    till = 0;
+    assert_rnp_success(rnp_key_valid_till(key, &till));
+    assert_int_equal(till, creation + expiration);
     assert_rnp_success(rnp_key_handle_destroy(key));
     assert_rnp_success(rnp_key_handle_destroy(subkey));
     /* generate encrypted RSA-RSA key */
@@ -1182,6 +1198,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_success(rnp_op_generate_set_userid(op, "ecdsa_ecdsa"));
     assert_rnp_success(rnp_op_generate_add_usage(op, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(op, "certify"));
+    assert_rnp_success(rnp_op_generate_set_expiration(op, 0));
     assert_rnp_success(rnp_op_generate_execute(op));
     rnp_key_handle_t primary = NULL;
     assert_rnp_success(rnp_op_generate_get_key(op, &primary));
@@ -1194,6 +1211,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_success(rnp_op_generate_set_curve(subop, "NIST P-256"));
     assert_rnp_success(rnp_op_generate_add_usage(subop, "sign"));
     assert_rnp_success(rnp_op_generate_add_usage(subop, "certify"));
+    assert_rnp_success(rnp_op_generate_set_expiration(subop, 0));
     assert_rnp_success(rnp_op_generate_execute(subop));
     assert_rnp_success(rnp_op_generate_get_key(subop, &subkey));
     rnp_op_generate_destroy(subop);
@@ -1221,7 +1239,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_failure(rnp_key_is_valid(NULL, &valid));
     assert_rnp_success(rnp_key_is_valid(primary, &valid));
     assert_true(valid);
-    uint32_t till = 0;
+    till = 0;
     assert_rnp_failure(rnp_key_valid_till(primary, NULL));
     assert_rnp_failure(rnp_key_valid_till(NULL, &till));
     assert_rnp_success(rnp_key_valid_till(primary, &till));
