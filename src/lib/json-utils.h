@@ -70,4 +70,22 @@ bool obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, si
  */
 bool array_add_element_json(json_object *obj, json_object *val);
 
+namespace rnp {
+class JSONObject {
+    json_object *obj_;
+
+  public:
+    JSONObject(json_object *obj) : obj_(obj)
+    {
+    }
+
+    ~JSONObject()
+    {
+        if (obj_) {
+            json_object_put(obj_);
+        }
+    }
+};
+} // namespace rnp
+
 #endif
