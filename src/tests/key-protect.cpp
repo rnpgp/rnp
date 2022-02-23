@@ -238,9 +238,11 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     sub_desc.crypto.ctx = &global_ctx;
 
     /* generate raw unprotected keypair */
-    pgp_key_t skey, pkey, ssub, psub;
-    assert_true(pgp_generate_keypair(
-      pri_desc, sub_desc, true, skey, pkey, ssub, psub, PGP_KEY_STORE_GPG));
+    pgp_key_t               skey, pkey, ssub, psub;
+    pgp_password_provider_t prov = {};
+    assert_true(pgp_generate_primary_key(pri_desc, true, skey, pkey, PGP_KEY_STORE_GPG));
+    assert_true(
+      pgp_generate_subkey(sub_desc, true, skey, pkey, ssub, psub, prov, PGP_KEY_STORE_GPG));
     assert_non_null(skey.pkt().sec_data);
     assert_non_null(ssub.pkt().sec_data);
     assert_null(pkey.pkt().sec_data);
