@@ -1088,6 +1088,51 @@ TEST_F(rnp_tests, test_ffi_keygen_json_sub)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_keygen_json_edge_cases)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* Attempt to generate with invalid parameters */
+    std::string json = "";
+    char *      results = NULL;
+    assert_rnp_failure(rnp_generate_key_json(NULL, json.c_str(), &results));
+    assert_rnp_failure(rnp_generate_key_json(ffi, NULL, &results));
+    assert_rnp_failure(rnp_generate_key_json(ffi, "{ something, wrong }", &results));
+    assert_rnp_failure(rnp_generate_key_json(ffi, "{ }", &results));
+    assert_rnp_failure(
+      rnp_generate_key_json(ffi, "{ \"primary\": { }, \"wrong\": {} }", &results));
+    assert_rnp_failure(
+      rnp_generate_key_json(ffi, "{ \"primary\": { }, \"PRIMARY\": { } }", &results));
+    /* Json-C puts stuff under the same key into the single object */
+    assert_rnp_success(
+      rnp_generate_key_json(ffi, "{ \"primary\": { }, \"primary\": { } }", &results));
+    rnp_buffer_destroy(results);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    /* Generate key with an empty description */
+    assert_rnp_success(rnp_generate_key_json(ffi, "{ \"priMary\": {} }", &results));
+    assert_non_null(results);
+    rnp_buffer_destroy(results);
+    size_t count = 0;
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    /* Generate with wrong preferences */
+    json = file_to_str("data/test_ffi_json/generate-eddsa-wrong-prefs.json");
+    assert_rnp_failure(rnp_generate_key_json(ffi, json.c_str(), &results));
+    /* Generate with wrong PK algorithm */
+    json = file_to_str("data/test_ffi_json/generate-bad-pk-alg.json");
+    results = NULL;
+    assert_rnp_failure(rnp_generate_key_json(ffi, json.c_str(), &results));
+    assert_null(results);
+    assert_rnp_success(rnp_get_secret_key_count(ffi, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_get_public_key_count(ffi, &count));
+    assert_int_equal(count, 0);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_generate_misc)
 {
     rnp_ffi_t ffi = NULL;
