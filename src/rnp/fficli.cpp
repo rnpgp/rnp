@@ -151,7 +151,7 @@ rnp_win_substitute_cmdline_args(int *argc, char ***argv)
         auto argv_utf8_strings = get_utf8_args();
         argc_utf8 = argv_utf8_strings.size();
         *argc = argc_utf8;
-        argv_utf8_cstrs = new (std::nothrow) char *[argc_utf8]();
+        argv_utf8_cstrs = new (std::nothrow) char *[argc_utf8 + 1]();
         if (!argv_utf8_cstrs) {
             throw std::bad_alloc();
         }
@@ -162,6 +162,8 @@ rnp_win_substitute_cmdline_args(int *argc, char ***argv)
             }
             argv_utf8_cstrs[i] = arg_utf8;
         }
+        /* argv must be terminated with NULL string */
+        argv_utf8_cstrs[argc_utf8] = NULL;
     } catch (...) {
         if (argv_utf8_cstrs) {
             rnp_win_clear_args(argc_utf8, argv_utf8_cstrs);
