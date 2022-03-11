@@ -1652,54 +1652,44 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t     ret = RNP_ERROR_GENERIC;
-    rnp_key_store_t *tmp_store = NULL;
-    rnp_result_t     tmpret;
-    json_object *    jsores = NULL;
-    json_object *    jsokeys = NULL;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    rnp_key_store_t tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
 
     // load keys to temporary keystore.
-    try {
-        tmp_store = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", ffi->context);
-    } catch (const std::exception &e) {
-        FFI_LOG(ffi, "Failed to create key store: %s.", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
     if (single) {
         /* we need to init and handle dearmor on this layer since it may be used for the next
          * keys import */
         ret = rnp_input_dearmor_if_needed(input);
         if (ret == RNP_ERROR_EOF) {
-            goto done;
+            return ret;
         }
         if (ret) {
             FFI_LOG(ffi, "Failed to init/check dearmor.");
-            goto done;
+            return ret;
         }
-        ret = rnp_key_store_pgp_read_key_from_src(*tmp_store, input->src, skipbad);
+        ret = rnp_key_store_pgp_read_key_from_src(tmp_store, input->src, skipbad);
         if (ret) {
-            goto done;
+            return ret;
         }
     } else {
-        ret = rnp_key_store_pgp_read_from_src(tmp_store, &input->src, skipbad);
+        ret = rnp_key_store_pgp_read_from_src(&tmp_store, &input->src, skipbad);
         if (ret) {
-            goto done;
+            return ret;
         }
     }
-    jsores = json_object_new_object();
+
+    json_object *jsores = json_object_new_object();
     if (!jsores) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    jsokeys = json_object_new_array();
+    rnp::JSONObject jsowrap(jsores);
+    json_object *   jsokeys = json_object_new_array();
     if (!obj_add_field_json(jsores, "keys", jsokeys)) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     // import keys to the main keystore.
-    for (auto &key : tmp_store->keys) {
+    for (auto &key : tmp_store.keys) {
         pgp_key_import_status_t pub_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
         pgp_key_import_status_t sec_status = PGP_KEY_IMPORT_STATUS_UNKNOWN;
         if (!pub && key.is_public()) {
@@ -1707,46 +1697,37 @@ try {
         }
         // if we got here then we add public key itself or public part of the secret key
         if (!rnp_key_store_import_key(ffi->pubring, &key, true, &pub_status)) {
-            ret = RNP_ERROR_BAD_PARAMETERS;
-            goto done;
+            return RNP_ERROR_BAD_PARAMETERS;
         }
         // import secret key part if available and requested
         if (sec && key.is_secret()) {
             if (!rnp_key_store_import_key(ffi->secring, &key, false, &sec_status)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
+                return RNP_ERROR_BAD_PARAMETERS;
             }
             // add uids, certifications and other stuff from the public key if any
             pgp_key_t *expub = rnp_key_store_get_key_by_fpr(ffi->pubring, key.fp());
             if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
-                ret = RNP_ERROR_BAD_PARAMETERS;
-                goto done;
+                return RNP_ERROR_BAD_PARAMETERS;
             }
         }
         // now add key fingerprint to json based on statuses
-        if ((tmpret = add_key_status(jsokeys, &key, pub_status, sec_status))) {
-            ret = tmpret;
-            goto done;
+        rnp_result_t tmpret = add_key_status(jsokeys, &key, pub_status, sec_status);
+        if (tmpret) {
+            return tmpret;
         }
     }
 
     if (results) {
         *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
         if (!*results) {
-            goto done;
+            return RNP_ERROR_GENERIC;
         }
         *results = strdup(*results);
         if (!*results) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-
-    ret = RNP_SUCCESS;
-done:
-    delete tmp_store;
-    json_object_put(jsores);
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
