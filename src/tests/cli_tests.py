@@ -1788,6 +1788,18 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*123456789.*')
         self.assertRegex(err, r'(?s)^.*Warning: missing or malformed CRC line.*')
+        # No invalid CRC message
+        R_CRC = r'(?s)^.*Warning: CRC mismatch.*$'
+        dec = 'decoded.pgp'
+        ret, _, err = run_proc(RNP, ['--dearmor', data_path('test_stream_key_load/ecc-25519-pub.asc'), '--output', dec])
+        remove_files(dec)
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, R_CRC)
+        # Invalid CRC message
+        ret, _, err = run_proc(RNP, ['--dearmor', data_path('test_stream_armor/ecc-25519-pub-bad-crc.asc'), '--output', dec])
+        remove_files(dec)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_CRC)
 
     def test_rnpkeys_lists(self):
         KEYRING_1 = data_path('keyrings/1')

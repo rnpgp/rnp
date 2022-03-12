@@ -78,6 +78,7 @@ typedef uint32_t rnp_result_t;
 #define RNP_LOAD_SAVE_SECRET_KEYS (1U << 1)
 #define RNP_LOAD_SAVE_PERMISSIVE (1U << 8)
 #define RNP_LOAD_SAVE_SINGLE (1U << 9)
+#define RNP_LOAD_SAVE_BASE64 (1U << 10)
 
 /**
  * Flags for the rnp_key_remove_signatures
@@ -578,6 +579,8 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *              erroneous first key on the stream RNP_SUCCESS will be returned, but results
  *              will include an empty array. Also RNP_ERROR_EOF will be returned if the last
  *              key was read.
+ *              RNP_LOAD_SAVE_BASE64 should set to allow import of base64-encoded keys (i.e.
+ *              autocrypt ones). By default only binary and OpenPGP-armored keys are allowed.
  * @param results if not NULL then after the successful execution will contain JSON with
  *                information about new and updated keys. You must free it using the
  *                rnp_buffer_destroy() function.
