@@ -1535,7 +1535,7 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-rnp_input_dearmor_if_needed(rnp_input_t input)
+rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
 {
     if (!input) {
         return RNP_ERROR_NULL_POINTER;
@@ -1547,7 +1547,8 @@ rnp_input_dearmor_if_needed(rnp_input_t input)
     /* check whether we already have armored stream */
     if (input->src.type == PGP_STREAM_ARMORED) {
         if (!src_eof(&input->src)) {
-            return RNP_SUCCESS;
+            /* be ready for the case of damaged armoring */
+            return src_error(&input->src) ? RNP_ERROR_READ : RNP_SUCCESS;
         }
         /* eof - probably next we have another armored message */
         src_close(&input->src);
@@ -1560,7 +1561,8 @@ rnp_input_dearmor_if_needed(rnp_input_t input)
     if (src_eof(&input->src)) {
         return RNP_ERROR_EOF;
     }
-    if (!is_armored_source(&input->src)) {
+    /* check whether input is armored only if base64 is not forced */
+    if (!noheaders && !is_armored_source(&input->src)) {
         return require_armor ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
     }
 
@@ -1571,7 +1573,7 @@ rnp_input_dearmor_if_needed(rnp_input_t input)
     *app_ctx = *input;
 
     pgp_source_t armored;
-    rnp_result_t ret = init_armored_src(&armored, &app_ctx->src);
+    rnp_result_t ret = init_armored_src(&armored, &app_ctx->src, noheaders);
     if (ret) {
         /* original src may be changed during init_armored_src call, so copy it back */
         input->src = app_ctx->src;
@@ -1647,6 +1649,11 @@ try {
         single = true;
         flags &= ~RNP_LOAD_SAVE_SINGLE;
     }
+    bool base64 = false;
+    if (flags & RNP_LOAD_SAVE_BASE64) {
+        base64 = true;
+        flags &= ~RNP_LOAD_SAVE_BASE64;
+    }
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1654,6 +1661,14 @@ try {
 
     rnp_result_t    ret = RNP_ERROR_GENERIC;
     rnp_key_store_t tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
+
+    /* check whether input is base64 */
+    if (base64 && is_base64_source(input->src)) {
+        ret = rnp_input_dearmor_if_needed(input, true);
+        if (ret) {
+            return ret;
+        }
+    }
 
     // load keys to temporary keystore.
     if (single) {

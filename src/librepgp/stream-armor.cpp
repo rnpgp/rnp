@@ -58,13 +58,14 @@ typedef struct pgp_source_armored_param_t {
     char *            charset;         /* Charset: header if any */
     uint8_t  rest[ARMORED_BLOCK_SIZE]; /* unread decoded bytes, makes implementation easier */
     unsigned restlen;                  /* number of bytes in rest */
-    unsigned restpos;    /* index of first unread byte in rest, restpos <= restlen */
-    uint8_t  brest[3];   /* decoded 6-bit tail bytes */
-    unsigned brestlen;   /* number of bytes in brest */
-    bool     eofb64;     /* end of base64 stream reached */
-    uint8_t  readcrc[3]; /* crc-24 from the armored data */
-    bool     has_crc;    /* message contains CRC line */
-    rnp::CRC24 crc_ctx;  /* CTX used to calculate CRC */
+    unsigned restpos;     /* index of first unread byte in rest, restpos <= restlen */
+    uint8_t  brest[3];    /* decoded 6-bit tail bytes */
+    unsigned brestlen;    /* number of bytes in brest */
+    bool     eofb64;      /* end of base64 stream reached */
+    uint8_t  readcrc[3];  /* crc-24 from the armored data */
+    bool     has_crc;     /* message contains CRC line */
+    rnp::CRC24 crc_ctx;   /* CTX used to calculate CRC */
+    bool       noheaders; /* only base64 data, no headers */
 } pgp_source_armored_param_t;
 
 typedef struct pgp_dest_armored_param_t {
@@ -106,13 +107,12 @@ static const uint8_t B64DEC[256] = {
   0xff};
 
 static bool
-armor_read_padding(pgp_source_t *src, size_t *read)
+armor_read_padding(pgp_source_armored_param_t *param, size_t *read)
 {
-    char          st[64];
-    size_t        stlen = 0;
-    pgp_source_t *readsrc = ((pgp_source_armored_param_t *) src->param)->readsrc;
+    char   st[64];
+    size_t stlen = 0;
 
-    if (!src_peek_line(readsrc, st, 64, &stlen)) {
+    if (!src_peek_line(param->readsrc, st, 64, &stlen)) {
         return false;
     }
 
@@ -122,8 +122,8 @@ armor_read_padding(pgp_source_t *src, size_t *read)
         }
 
         *read = stlen;
-        src_skip(readsrc, stlen);
-        return src_skip_eol(readsrc);
+        src_skip(param->readsrc, stlen);
+        return src_skip_eol(param->readsrc);
     } else if (stlen == 5) {
         *read = 0;
         return true;
@@ -133,6 +133,38 @@ armor_read_padding(pgp_source_t *src, size_t *read)
         return true;
     }
     return false;
+}
+
+static bool
+base64_read_padding(pgp_source_armored_param_t *param, size_t *read)
+{
+    char   pad[16];
+    size_t padlen = sizeof(pad);
+
+    /* we would allow arbitrary number of whitespaces/eols after the padding */
+    if (!src_read(param->readsrc, pad, padlen, &padlen)) {
+        return false;
+    }
+    /* strip trailing whitespaces */
+    while (padlen && (B64DEC[(int) pad[padlen - 1]] == 0xfd)) {
+        padlen--;
+    }
+    /* check for '=' */
+    for (size_t i = 0; i < padlen; i++) {
+        if (pad[i] != CH_EQ) {
+            RNP_LOG("wrong base64 padding: %.*s", (int) padlen, pad);
+            return false;
+        }
+    }
+    if (padlen > 2) {
+        RNP_LOG("wrong base64 padding length %zu.", padlen);
+        return false;
+    }
+    if (!src_eof(param->readsrc)) {
+        RNP_LOG("warning: extra data after the base64 stream.");
+    }
+    *read = padlen;
+    return true;
 }
 
 static bool
@@ -229,6 +261,32 @@ armor_read_trailer(pgp_source_t *src)
 }
 
 static bool
+armored_update_crc(pgp_source_armored_param_t *param,
+                   const void *                buf,
+                   size_t                      len,
+                   bool                        finish = false)
+{
+    if (param->noheaders) {
+        return true;
+    }
+    try {
+        param->crc_ctx.add(buf, len);
+        if (!finish) {
+            return true;
+        }
+        uint8_t crc_fin[5];
+        param->crc_ctx.finish(crc_fin);
+        if (param->has_crc && memcmp(param->readcrc, crc_fin, 3)) {
+            RNP_LOG("Warning: CRC mismatch");
+        }
+        return true;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
+}
+
+static bool
 armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     pgp_source_armored_param_t *param = (pgp_source_armored_param_t *) src->param;
@@ -300,7 +358,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             } else if (bval == 0xff) {
                 auto ch = *(bptr - 1);
                 /* OpenPGP message headers without the crc and without trailing = */
-                if (ch == '-') {
+                if ((ch == CH_DASH) && !param->noheaders) {
                     param->eofb64 = true;
                     break;
                 }
@@ -336,31 +394,44 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         memmove(decbuf, dptr, dend - dptr);
         dend = decbuf + (dend - dptr);
 
-        if (param->eofb64) {
-            /* '=' reached, bptr points on it */
-            src_skip(param->readsrc, bptr - b64buf - 1);
-
-            /* reading b64 padding if any */
-            if (!armor_read_padding(src, &eqcount)) {
-                RNP_LOG("wrong padding");
-                return false;
-            }
-
-            /* reading crc */
-            if (!armor_read_crc(src)) {
-                RNP_LOG("Warning: missing or malformed CRC line");
-            }
-            /* reading armor trailing line */
-            if (!armor_read_trailer(src)) {
-                RNP_LOG("wrong armor trailer");
-                return false;
-            }
-
-            break;
-        } else {
+        /* skip already processed data */
+        if (!param->eofb64) {
             /* all input is base64 data or eol/spaces, so skipping it */
             src_skip(param->readsrc, read);
+            /* check for eof for base64-encoded data without headers */
+            if (param->noheaders && src_eof(param->readsrc)) {
+                src_skip(param->readsrc, read);
+                param->eofb64 = true;
+            } else {
+                continue;
+            }
+        } else {
+            /* '=' reached, bptr points on it */
+            src_skip(param->readsrc, bptr - b64buf - 1);
         }
+
+        /* end of base64 data */
+        if (param->noheaders) {
+            if (!base64_read_padding(param, &eqcount)) {
+                return false;
+            }
+            break;
+        }
+        /* reading b64 padding if any */
+        if (!armor_read_padding(param, &eqcount)) {
+            RNP_LOG("wrong padding");
+            return false;
+        }
+        /* reading crc */
+        if (!armor_read_crc(src)) {
+            RNP_LOG("Warning: missing or malformed CRC line");
+        }
+        /* reading armor trailing line */
+        if (!armor_read_trailer(src)) {
+            RNP_LOG("wrong armor trailer");
+            return false;
+        }
+        break;
     } while (left >= 3);
 
     /* process bytes left in decbuf */
@@ -378,10 +449,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         *bptr++ = b24 & 0xff;
     }
 
-    try {
-        param->crc_ctx.add(buf, bufptr - (uint8_t *) buf);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    if (!armored_update_crc(param, buf, bufptr - (uint8_t *) buf)) {
         return false;
     }
 
@@ -399,18 +467,9 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             *bptr++ = (*dptr << 2) | (*(dptr + 1) >> 4);
         }
 
-        uint8_t crc_fin[5];
         /* Calculate CRC after reading whole input stream */
-        try {
-            param->crc_ctx.add(param->rest, bptr - param->rest);
-            param->crc_ctx.finish(crc_fin);
-        } catch (const std::exception &e) {
-            RNP_LOG("Can't finalize RNP ctx: %s", e.what());
+        if (!armored_update_crc(param, param->rest, bptr - param->rest, true)) {
             return false;
-        }
-
-        if (param->has_crc && memcmp(param->readcrc, crc_fin, 3)) {
-            RNP_LOG("Warning: CRC mismatch");
         }
     } else {
         /* few bytes which do not fit to 4 boundary */
@@ -426,13 +485,8 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     if ((left > 0) && (param->restlen > 0)) {
         read = left > param->restlen ? param->restlen : left;
         memcpy(bufptr, param->rest, read);
-        if (!param->eofb64) {
-            try {
-                param->crc_ctx.add(bufptr, read);
-            } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
-                return false;
-            }
+        if (!param->eofb64 && !armored_update_crc(param, bufptr, read)) {
+            return false;
         }
         left -= read;
         param->restpos += read;
@@ -743,28 +797,31 @@ armor_parse_headers(pgp_source_t *src)
 }
 
 rnp_result_t
-init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
+init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
 {
-    rnp_result_t                errcode = RNP_ERROR_GENERIC;
-    pgp_source_armored_param_t *param;
-
     if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    try {
-        param = new pgp_source_armored_param_t();
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    pgp_source_armored_param_t *param = new (std::nothrow) pgp_source_armored_param_t();
+    if (!param) {
+        RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     param->readsrc = readsrc;
+    param->noheaders = noheaders;
     src->param = param;
     src->read = armored_src_read;
     src->close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
 
+    /* base64 data only */
+    if (noheaders) {
+        return RNP_SUCCESS;
+    }
+
     /* parsing armored header */
+    rnp_result_t errcode = RNP_ERROR_GENERIC;
     if (!armor_parse_header(src)) {
         errcode = RNP_ERROR_BAD_FORMAT;
         goto finish;
@@ -784,9 +841,8 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     /* now we are good to go with base64-encoded data */
     errcode = RNP_SUCCESS;
-
 finish:
-    if (errcode != RNP_SUCCESS) {
+    if (errcode) {
         src_close(src);
     }
     return errcode;
@@ -1120,6 +1176,18 @@ is_cleartext_source(pgp_source_t *src)
     }
     buf[read - 1] = 0;
     return !!strstr((char *) buf, ST_CLEAR_BEGIN);
+}
+
+bool
+is_base64_source(pgp_source_t &src)
+{
+    char   buf[128];
+    size_t read = 0;
+
+    if (!src_peek(&src, buf, sizeof(buf), &read) || (read < 4)) {
+        return false;
+    }
+    return is_base64_line(buf, read);
 }
 
 rnp_result_t
