@@ -1782,6 +1782,13 @@ class Misc(unittest.TestCase):
             compare_files(src_beg, dst_mid, "RNP armor/dearmor test failed")
             remove_files(dst_beg, dst_mid, dst_fin)
 
+        # 3-byte last chunk with missing crc
+        msg = '-----BEGIN PGP MESSAGE-----\n\nMTIzNDU2Nzg5\n-----END PGP MESSAGE-----\n'
+        ret, out, err = run_proc(RNP, ['--dearmor'], msg)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*123456789.*')
+        self.assertRegex(err, r'(?s)^.*Warning: missing or malformed CRC line.*')
+
     def test_rnpkeys_lists(self):
         KEYRING_1 = data_path('keyrings/1')
         KEYRING_2 = data_path('keyrings/2')

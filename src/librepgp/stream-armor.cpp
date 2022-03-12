@@ -112,7 +112,7 @@ armor_read_padding(pgp_source_t *src, size_t *read)
     size_t        stlen = 0;
     pgp_source_t *readsrc = ((pgp_source_armored_param_t *) src->param)->readsrc;
 
-    if (!src_peek_line(readsrc, st, 12, &stlen)) {
+    if (!src_peek_line(readsrc, st, 64, &stlen)) {
         return false;
     }
 
@@ -125,6 +125,10 @@ armor_read_padding(pgp_source_t *src, size_t *read)
         src_skip(readsrc, stlen);
         return src_skip_eol(readsrc);
     } else if (stlen == 5) {
+        *read = 0;
+        return true;
+    } else if ((stlen > 5) && !memcmp(st, ST_DASHES, 5)) {
+        /* case with absent crc and 3-byte last chunk */
         *read = 0;
         return true;
     }
@@ -294,7 +298,13 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
                 param->eofb64 = true;
                 break;
             } else if (bval == 0xff) {
-                RNP_LOG("wrong base64 character 0x%02hhX", *(bptr - 1));
+                auto ch = *(bptr - 1);
+                /* OpenPGP message headers without the crc and without trailing = */
+                if (ch == '-') {
+                    param->eofb64 = true;
+                    break;
+                }
+                RNP_LOG("wrong base64 character 0x%02hhX", ch);
                 return false;
             }
         }
