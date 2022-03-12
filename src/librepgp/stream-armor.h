@@ -43,7 +43,9 @@ typedef enum {
  * @param readsrc source to read data from
  * @return RNP_SUCCESS on success or error code otherwise
  **/
-rnp_result_t init_armored_src(pgp_source_t *src, pgp_source_t *readsrc);
+rnp_result_t init_armored_src(pgp_source_t *src,
+                              pgp_source_t *readsrc,
+                              bool          noheaders = false);
 
 /* @brief Init armoring stream
  * @param dst allocated pgp_dest_t structure
@@ -99,6 +101,12 @@ bool is_armored_dest(pgp_dest_t *dst);
  * @return true if source could be a cleartext signed data or false otherwise
  **/
 bool is_cleartext_source(pgp_source_t *src);
+
+/** @brief Check whether source is base64-encoded
+ *  @param src initialized source with some data
+ *  @return true if source could be a base64-encoded data or false otherwise
+ **/
+bool is_base64_source(pgp_source_t &src);
 
 /** Set line length for armoring
  *
