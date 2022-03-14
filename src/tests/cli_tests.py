@@ -1980,6 +1980,40 @@ class Misc(unittest.TestCase):
         compare_file_any(allow_y2k38_on_32bit(data_path('test_cli_rnpkeys/pubring-malf-cert-permissive-import.txt')),
             out, 'listing mismatch')
 
+    def test_rnp_autocrypt_key_import(self):
+        R_25519 = r'(?s)^.*pub.*255/EdDSA.*21fc68274aae3b5de39a4277cc786278981b0728.*$'
+        R_256K1 = r'(?s)^.*pub.*3ea5bb6f9692c1a0.*7635401f90d3e533.*$'
+        # Import misc configurations of base64-encoded autocrypt keys
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_25519)
+        # No trailing EOL after the base64 data
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub-2.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_25519)
+        # Extra spaces/eols/tabs after the base64 data
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub-3.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_25519)
+        # Invalid symbols after the base64 data
+        clear_keyrings()
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub-4.b64')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*wrong base64 padding: ==zz.*Failed to init/check dearmor.*$')
+        # Binary data size is multiple of 3, single base64 line
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-p256k1-pub.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_256K1)
+        # Binary data size is multiple of 3, multiple base64 lines
+        clear_keyrings()
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-p256k1-pub-2.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_256K1)
+
     def test_rnp_list_packets(self):
         KEY_P256 = data_path('test_list_packets/ecc-p256-pub.asc')
         # List packets in humand-readable format
