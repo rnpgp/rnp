@@ -177,8 +177,8 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
     bool res = false;
     bool updated = false;
 
-    uint32_t flags =
-      RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | RNP_LOAD_SAVE_SINGLE;
+    uint32_t flags = RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS |
+                     RNP_LOAD_SAVE_SINGLE | RNP_LOAD_SAVE_BASE64;
 
     bool permissive = rnp->cfg().get_bool(CFG_PERMISSIVE);
     if (permissive) {
