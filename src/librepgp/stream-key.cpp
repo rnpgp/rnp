@@ -421,7 +421,7 @@ armoredpass:
         RNP_LOG("warning! public keys are mixed together with secret ones!");
     }
 
-    ret = RNP_SUCCESS;
+    ret = src_error(src) ? RNP_ERROR_READ : RNP_SUCCESS;
 finish:
     if (armored) {
         src_close(&armorsrc);
