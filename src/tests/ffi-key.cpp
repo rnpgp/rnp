@@ -3981,3 +3981,76 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_keys_import_autocrypt)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    rnp_input_t input = NULL;
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-pub.b64"));
+    /* no base64 flag */
+    assert_rnp_failure(rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS, NULL));
+    rnp_input_destroy(input);
+    /* enable base64 flag */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-pub.b64"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    size_t keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 1);
+    /* load other files, with different base64 formatting */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-pub-2.b64"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 1);
+
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-pub-3.b64"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 1);
+
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-25519-pub-4.b64"));
+    assert_rnp_failure(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 0);
+
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256k1-pub.b64"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_key_load/ecc-p256k1-pub-2.b64"));
+    assert_rnp_success(
+      rnp_import_keys(ffi, input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_BASE64, NULL));
+    rnp_input_destroy(input);
+    keycount = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keycount));
+    assert_int_equal(keycount, 2);
+
+    rnp_ffi_destroy(ffi);
+}
