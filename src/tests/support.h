@@ -149,6 +149,8 @@ int test_value_equal(const char *  what,
                      const uint8_t v[],
                      size_t        v_len);
 
+void test_ffi_init(rnp_ffi_t *ffi);
+
 bool mpi_empty(const pgp_mpi_t &val);
 /*
  */
@@ -207,6 +209,19 @@ bool ffi_string_password_provider(rnp_ffi_t        ffi,
                                   const char *     pgp_context,
                                   char *           buf,
                                   size_t           buf_len);
+
+void unused_getkeycb(rnp_ffi_t   ffi,
+                     void *      app_ctx,
+                     const char *identifier_type,
+                     const char *identifier,
+                     bool        secret);
+
+bool unused_getpasscb(rnp_ffi_t        ffi,
+                      void *           app_ctx,
+                      rnp_key_handle_t key,
+                      const char *     pgp_context,
+                      char *           buf,
+                      size_t           buf_len);
 
 bool starts_with(const std::string &data, const std::string &match);
 bool ends_with(const std::string &data, const std::string &match);
