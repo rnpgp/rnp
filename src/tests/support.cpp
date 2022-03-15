@@ -477,6 +477,16 @@ test_value_equal(const char *what, const char *expected_value, const uint8_t v[]
     return 0;
 }
 
+void
+test_ffi_init(rnp_ffi_t *ffi)
+{
+    // setup FFI
+    assert_rnp_success(rnp_ffi_create(ffi, "GPG", "GPG"));
+    // load our keyrings
+    assert_true(
+      load_keys_gpg(*ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
+}
+
 bool
 mpi_empty(const pgp_mpi_t &val)
 {
@@ -691,6 +701,28 @@ string_copy_password_callback(const pgp_password_ctx_t *ctx,
     const char *str = (const char *) userdata;
     strncpy(password, str, password_size - 1);
     return true;
+}
+
+void
+unused_getkeycb(rnp_ffi_t   ffi,
+                void *      app_ctx,
+                const char *identifier_type,
+                const char *identifier,
+                bool        secret)
+{
+    assert_true(false);
+}
+
+bool
+unused_getpasscb(rnp_ffi_t        ffi,
+                 void *           app_ctx,
+                 rnp_key_handle_t key,
+                 const char *     pgp_context,
+                 char *           buf,
+                 size_t           buf_len)
+{
+    assert_true(false);
+    return false;
 }
 
 bool
