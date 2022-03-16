@@ -848,15 +848,13 @@ finish:
     return errcode;
 }
 
-/** @brief Copy armor header of tail to the buffer. Buffer should be at least ~40 chars. */
+/** @brief Write message header to the dst. */
 static bool
-armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
+armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
 {
-    const char *str;
-    str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
-    memcpy(buf, str, strlen(str));
-    buf += strlen(str);
-    switch (type) {
+    const char *str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
+    dst_write(param->writedst, str, strlen(str));
+    switch (param->type) {
     case PGP_ARMORED_MESSAGE:
         str = "MESSAGE";
         break;
@@ -875,11 +873,8 @@ armor_message_header(pgp_armored_msg_t type, bool finish, char *buf)
     default:
         return false;
     }
-
-    memcpy(buf, str, strlen(str));
-    buf += strlen(str);
-    memcpy(buf, ST_DASHES, std::min<size_t>(sizeof(ST_DASHES) - 1, 5));
-    buf[5] = '\0';
+    dst_write(param->writedst, str, strlen(str));
+    dst_write(param->writedst, ST_DASHES, strlen(ST_DASHES));
     return true;
 }
 
@@ -1026,11 +1021,10 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 static rnp_result_t
 armored_dst_finish(pgp_dest_t *dst)
 {
-    uint8_t                   buf[64];
-    uint8_t                   crcbuf[3];
     pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t *) dst->param;
 
     /* writing tail */
+    uint8_t buf[5];
     if (param->tailc == 1) {
         buf[0] = B64ENC[param->tail[0] >> 2];
         buf[1] = B64ENC[(param->tail[0] << 4) & 0xff];
@@ -1051,23 +1045,23 @@ armored_dst_finish(pgp_dest_t *dst)
     }
 
     /* writing CRC and EOL */
-    buf[0] = CH_EQ;
-
     // At this point crc_ctx is initialized, so call can't fail
+    uint8_t crcbuf[3];
     try {
         param->crc_ctx.finish(crcbuf);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
     }
+    buf[0] = CH_EQ;
     armored_encode3(&buf[1], crcbuf);
     dst_write(param->writedst, buf, 5);
     armor_write_eol(param);
 
     /* writing armor header */
-    armor_message_header(param->type, true, (char *) buf);
-    dst_write(param->writedst, buf, strlen((char *) buf));
+    if (!armor_write_message_header(param, true)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     armor_write_eol(param);
-
     return param->writedst->werr;
 }
 
@@ -1087,13 +1081,10 @@ armored_dst_close(pgp_dest_t *dst, bool discard)
 rnp_result_t
 init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtype)
 {
-    char                      hdr[64];
-    pgp_dest_armored_param_t *param;
-    rnp_result_t              ret = RNP_SUCCESS;
-
     if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    pgp_dest_armored_param_t *param = NULL;
     try {
         param = new pgp_dest_armored_param_t();
     } catch (const std::exception &e) {
@@ -1114,24 +1105,16 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     param->usecrlf = true;
     param->llen = 76; /* must be multiple of 4 */
 
-    if (!armor_message_header(param->type, false, hdr)) {
-        RNP_LOG("unknown data type");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto finish;
-    }
-
     /* armor header */
-    dst_write(writedst, hdr, strlen(hdr));
+    if (!armor_write_message_header(param, false)) {
+        RNP_LOG("unknown data type");
+        armored_dst_close(dst, true);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     armor_write_eol(param);
     /* empty line */
     armor_write_eol(param);
-
-finish:
-    if (ret != RNP_SUCCESS) {
-        armored_dst_close(dst, true);
-    }
-
-    return ret;
+    return RNP_SUCCESS;
 }
 
 bool
