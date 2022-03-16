@@ -230,7 +230,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     pri_desc.crypto.key_alg = PGP_PKA_RSA;
     pri_desc.crypto.rsa.modulus_bit_len = 1024;
     pri_desc.crypto.ctx = &global_ctx;
-    memcpy(pri_desc.cert.userid, "test", 5);
+    pri_desc.cert.userid = "test";
 
     rnp_keygen_subkey_desc_t sub_desc = {};
     sub_desc.crypto.key_alg = PGP_PKA_RSA;
