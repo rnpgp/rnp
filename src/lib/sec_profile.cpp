@@ -136,10 +136,16 @@ SecurityProfile::get_rule(FeatureType type, int value, uint64_t time) const
 SecurityLevel
 SecurityProfile::hash_level(pgp_hash_alg_t hash, uint64_t time) const noexcept
 {
-    if (has_rule(FeatureType::Hash, hash, time)) {
-        return get_rule(FeatureType::Hash, hash, time).level;
+    if (!has_rule(FeatureType::Hash, hash, time)) {
+        return def_level();
     }
-    return def_level();
+
+    try {
+        return get_rule(FeatureType::Hash, hash, time).level;
+    } catch (const std::exception &e) {
+        /* this should never happen however we need to satisfy noexcept specifier */
+        return def_level();
+    }
 }
 
 SecurityLevel
