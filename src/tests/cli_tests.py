@@ -2002,7 +2002,7 @@ class Misc(unittest.TestCase):
         clear_keyrings()
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub-4.b64')])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*wrong base64 padding: ==zz.*Failed to init/check dearmor.*$')
+        self.assertRegex(err, r'(?s)^.*wrong base64 padding: ==zz.*Failed to init/check dearmor.*failed to import key\(s\) from .*, stopping.$')
         # Binary data size is multiple of 3, single base64 line
         clear_keyrings()
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-p256k1-pub.b64')])
@@ -2013,6 +2013,16 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-p256k1-pub-2.b64')])
         self.assertEqual(ret, 0)
         self.assertRegex(out, R_256K1)
+        # Too long base64 trailer ('===')
+        clear_keyrings()
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_armor/long_b64_trailer.b64')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*wrong base64 padding length 3.*Failed to init/check dearmor.*$')
+        # Extra data after the base64-encoded data
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_armor/b64_trailer_extra_data.b64')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*warning: extra data after the base64 stream.*Failed to init/check dearmor.*warning: not all data was processed.*$')
+        self.assertRegex(out, R_25519)
 
     def test_rnp_list_packets(self):
         KEY_P256 = data_path('test_list_packets/ecc-p256-pub.asc')
