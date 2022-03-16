@@ -1998,6 +1998,14 @@ TEST_F(rnp_tests, test_ffi_dearmor_edge_cases)
     assert_rnp_failure(rnp_dearmor(input, output));
     rnp_input_destroy(input);
     rnp_output_destroy(output);
+
+    /* wrong base64 padding */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_stream_armor/wrong_b64_trailer.asc"));
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_dearmor(input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
 }
 
 TEST_F(rnp_tests, test_ffi_customized_enarmor)
