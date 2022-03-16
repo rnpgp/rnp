@@ -1576,10 +1576,10 @@ rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig)
     }
     /* populate uid */
     uid.tag = PGP_PKT_USER_ID;
-    uid.uid_len = strlen((char *) userid);
+    uid.uid_len = userid.size();
     if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
         RNP_LOG("alloc failed");
         throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
-    memcpy(uid.uid, (char *) userid, uid.uid_len);
+    memcpy(uid.uid, userid.data(), uid.uid_len);
 }

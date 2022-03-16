@@ -683,7 +683,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     /* add primary userid with smaller expiration date */
     rnp_selfsig_cert_info_t selfsig1 = {};
     const char *            boris = "Boris <boris@rnp>";
-    memcpy(selfsig1.userid, boris, strlen(boris));
+    selfsig1.userid = boris;
     selfsig1.key_expiration = 100;
     selfsig1.primary = true;
     key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);
@@ -718,7 +718,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_int_equal(key->expiration(), 6);
     /* add primary userid with 0 expiration */
     selfsig1 = {};
-    memcpy(selfsig1.userid, boris, strlen(boris));
+    selfsig1.userid = boris;
     selfsig1.key_expiration = 0;
     selfsig1.primary = true;
     key->add_uid_cert(selfsig1, PGP_HASH_SHA256, global_ctx);

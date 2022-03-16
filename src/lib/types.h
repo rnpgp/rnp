@@ -437,11 +437,11 @@ typedef struct rnp_keygen_crypto_params_t {
 } rnp_keygen_crypto_params_t;
 
 typedef struct rnp_selfsig_cert_info_t {
-    uint8_t          userid[MAX_ID_LENGTH]{}; /* userid, required */
-    uint8_t          key_flags{};             /* key flags */
+    std::string      userid;           /* userid, required */
+    uint8_t          key_flags{};      /* key flags */
     uint32_t         key_expiration{}; /* key expiration time (sec), 0 = no expiration */
     pgp_user_prefs_t prefs{};          /* user preferences, optional */
-    bool             primary : 1;      /* mark this as the primary user id */
+    bool             primary;          /* mark this as the primary user id */
 
     /**
      * @brief Populate uid and sig packet with data stored in this struct.
