@@ -588,7 +588,7 @@ pgp_signature_t::get_id() const
     rnp::Hash hash(PGP_HASH_SHA1);
     hash.add(hashed_data, hashed_len);
     hash.add(material_buf, material_len);
-    pgp_sig_id_t res;
+    pgp_sig_id_t res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
                   "pgp_sig_id_t size mismatch");
     hash.finish(res.data());
