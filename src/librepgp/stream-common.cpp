@@ -626,15 +626,16 @@ bool
 init_dst_common(pgp_dest_t *dst, size_t paramsize)
 {
     memset(dst, 0, sizeof(*dst));
-    if (paramsize) {
-        dst->param = calloc(1, paramsize);
-        if (!dst->param) {
-            RNP_LOG("allocation failed");
-            return false;
-        }
-    }
     dst->werr = RNP_SUCCESS;
-    return true;
+    if (!paramsize) {
+        return true;
+    }
+    /* allocate param */
+    dst->param = calloc(1, paramsize);
+    if (!dst->param) {
+        RNP_LOG("allocation failed");
+    }
+    return dst->param;
 }
 
 void
