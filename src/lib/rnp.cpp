@@ -4586,12 +4586,11 @@ parse_keygen_primary(json_object *                jso,
             if (!json_object_is_type(value, json_type_string)) {
                 return false;
             }
-            const char *userid = json_object_get_string(value);
-            size_t      userid_len = strlen(userid);
-            if (userid_len >= sizeof(cert.userid)) {
+            auto uid = json_object_get_string(value);
+            if (strlen(uid) > MAX_ID_LENGTH) {
                 return false;
             }
-            memcpy(cert.userid, userid, userid_len + 1);
+            cert.userid = json_object_get_string(value);
         } else if (rnp::str_case_eq(key, "usage")) {
             switch (json_object_get_type(value)) {
             case json_type_array: {
@@ -5438,11 +5437,10 @@ try {
     if (!op->primary) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    size_t userid_len = strlen(userid);
-    if (userid_len >= sizeof(op->cert.userid)) {
+    if (strlen(userid) > MAX_ID_LENGTH) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    memcpy(op->cert.userid, userid, userid_len + 1);
+    op->cert.userid = userid;
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -5791,13 +5789,12 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_selfsig_cert_info_t info = {};
-    size_t                  uid_len = strlen(uid);
-    if (uid_len >= sizeof(info.userid)) {
+    if (strlen(uid) > MAX_ID_LENGTH) {
         FFI_LOG(handle->ffi, "UserID too long");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    memcpy(info.userid, uid, uid_len + 1);
+    rnp_selfsig_cert_info_t info;
+    info.userid = uid;
     info.key_flags = key_flags;
     info.key_expiration = expiration;
     info.primary = primary;

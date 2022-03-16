@@ -1003,7 +1003,7 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
         desc.crypto.ctx = &global_ctx;
-        memcpy(desc.cert.userid, "test", 5);
+        desc.cert.userid = "test";
 
         // generate
         assert_true(pgp_generate_primary_key(desc, true, sec, pub, PGP_KEY_STORE_GPG));

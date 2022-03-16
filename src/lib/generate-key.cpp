@@ -318,13 +318,15 @@ keygen_primary_merge_defaults(rnp_keygen_primary_desc_t &desc)
         // set some default key flags if none are provided
         desc.cert.key_flags = pk_alg_default_flags(desc.crypto.key_alg);
     }
-    if (desc.cert.userid[0] == '\0') {
-        snprintf((char *) desc.cert.userid,
-                 sizeof(desc.cert.userid),
+    if (desc.cert.userid.empty()) {
+        char uid[MAX_ID_LENGTH] = {0};
+        snprintf(uid,
+                 sizeof(uid),
                  "%s %d-bit key <%s@localhost>",
                  id_str_pair::lookup(pubkey_alg_map, desc.crypto.key_alg),
                  get_numbits(&desc.crypto),
                  getenv_logname());
+        desc.cert.userid = uid;
     }
 }
 
