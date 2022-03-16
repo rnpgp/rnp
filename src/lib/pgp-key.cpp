@@ -2384,7 +2384,7 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
                         rnp::SecurityContext &   ctx,
                         pgp_key_t *              pubkey)
 {
-    if (!cert.userid[0]) {
+    if (cert.userid.empty()) {
         /* todo: why not to allow empty uid? */
         RNP_LOG("wrong parameters");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -2395,7 +2395,7 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
     // see if the key already has this userid
-    if (has_uid((const char *) cert.userid)) {
+    if (has_uid(cert.userid)) {
         RNP_LOG("key already has this userid");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }

@@ -66,8 +66,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     unsigned subsigc = key->sig_count();
 
     // add first, non-primary userid
-    rnp_selfsig_cert_info_t selfsig0 = {};
-    memcpy(selfsig0.userid, "added0", 7);
+    rnp_selfsig_cert_info_t selfsig0;
+    selfsig0.userid = "added0";
     selfsig0.key_flags = 0x2;
     selfsig0.key_expiration = base_expiry;
     selfsig0.primary = false;
@@ -89,8 +89,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_true(key->get_uid(uidc).valid);
 
     // add a primary userid
-    rnp_selfsig_cert_info_t selfsig1 = {};
-    memcpy(selfsig1.userid, "added1", 7);
+    rnp_selfsig_cert_info_t selfsig1;
+    selfsig1.userid = "added1";
     selfsig1.key_flags = 0xAB;
     selfsig1.key_expiration = base_expiry + 1;
     selfsig1.primary = 1;
@@ -104,17 +104,17 @@ TEST_F(rnp_tests, test_key_add_userid)
     assert_true(key->get_uid(uidc + 1).valid);
 
     // try to add the same userid (should fail)
-    rnp_selfsig_cert_info_t dup_selfsig = {};
-    memcpy(dup_selfsig.userid, "added1", 7);
+    rnp_selfsig_cert_info_t dup_selfsig;
+    dup_selfsig.userid = "added1";
     assert_throw(key->add_uid_cert(dup_selfsig, PGP_HASH_SHA256, global_ctx));
 
     // try to add another primary userid (should fail)
-    rnp_selfsig_cert_info_t selfsig2 = {};
-    memcpy(selfsig2.userid, "added2", 7);
+    rnp_selfsig_cert_info_t selfsig2;
+    selfsig2.userid = "added2";
     selfsig2.primary = 1;
     assert_throw(key->add_uid_cert(selfsig2, PGP_HASH_SHA256, global_ctx));
 
-    memcpy(selfsig2.userid, "added2", 7);
+    selfsig2.userid = "added2";
     selfsig2.key_flags = 0xCD;
     selfsig2.primary = 0;
 
