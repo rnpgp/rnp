@@ -45,6 +45,9 @@ typedef uint32_t rnp_result_t;
 #define RNP_KEY_EXPORT_SECRET (1U << 2)
 #define RNP_KEY_EXPORT_SUBKEYS (1U << 3)
 
+/* Export base64-encoded autocrypt key instead of binary */
+#define RNP_KEY_EXPORT_BASE64 (1U << 9)
+
 #define RNP_KEY_REMOVE_PUBLIC (1U << 0)
 #define RNP_KEY_REMOVE_SECRET (1U << 1)
 #define RNP_KEY_REMOVE_SUBKEYS (1U << 2)
@@ -1016,7 +1019,8 @@ RNP_API rnp_result_t rnp_key_export(rnp_key_handle_t key, rnp_output_t output, u
  * @param subkey subkey to export. May be NULL to pick the first suitable.
  * @param uid userid to export. May be NULL if key has only one uid.
  * @param output the stream to write to
- * @param flags additional flags, must be 0 for now.
+ * @param flags additional flags. Currently only RNP_KEY_EXPORT_BASE64 is supported. Enabling
+ *              it would export key base64-encoded instead of binary.
  * @return RNP_SUCCESS on success, or any other value if failed.
  */
 RNP_API rnp_result_t rnp_key_export_autocrypt(rnp_key_handle_t key,
