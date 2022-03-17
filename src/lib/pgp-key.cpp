@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022 [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -78,31 +78,17 @@ pgp_decrypt_seckey_pgp(const pgp_rawpacket_t &raw,
                        const pgp_key_pkt_t &  pubkey,
                        const char *           password)
 {
-    pgp_source_t   src = {0};
-    pgp_key_pkt_t *res = NULL;
-
-    if (init_mem_src(&src, raw.raw.data(), raw.raw.size(), false)) {
-        return NULL;
-    }
     try {
-        res = new pgp_key_pkt_t();
-        if (res->parse(src)) {
-            goto error;
+        rnp::MemorySource src(raw.raw.data(), raw.raw.size(), false);
+        auto              res = std::unique_ptr<pgp_key_pkt_t>(new pgp_key_pkt_t());
+        if (res->parse(src.src()) || decrypt_secret_key(res.get(), password)) {
+            return NULL;
         }
+        return res.release();
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        goto error;
+        return NULL;
     }
-    if (decrypt_secret_key(res, password)) {
-        goto error;
-    }
-
-    src_close(&src);
-    return res;
-error:
-    src_close(&src);
-    delete res;
-    return NULL;
 }
 
 /* Note that this function essentially serves two purposes.
@@ -252,43 +238,34 @@ done:
 bool
 pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rnp::RNG &rng)
 {
-    pgp_dest_t memdst = {};
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        return false;
-    }
-
-    bool ret = false;
     // encrypt+write the key in the appropriate format
     try {
+        rnp::MemoryDest memdst;
         switch (format) {
         case PGP_KEY_STORE_GPG:
         case PGP_KEY_STORE_KBX:
-            if (!write_sec_pgp(memdst, seckey, password, rng)) {
+            if (!write_sec_pgp(memdst.dst(), seckey, password, rng)) {
                 RNP_LOG("failed to write secret key");
-                goto done;
+                return false;
             }
             break;
         case PGP_KEY_STORE_G10:
-            if (!g10_write_seckey(&memdst, &seckey, password.c_str(), rng)) {
+            if (!g10_write_seckey(&memdst.dst(), &seckey, password.c_str(), rng)) {
                 RNP_LOG("failed to write g10 secret key");
-                goto done;
+                return false;
             }
             break;
         default:
             RNP_LOG("invalid format");
-            goto done;
+            return false;
         }
 
-        uint8_t *mem = (uint8_t *) mem_dest_get_memory(&memdst);
-        rawpkt_ = pgp_rawpacket_t(mem, memdst.writeb, type());
+        rawpkt_ = pgp_rawpacket_t((uint8_t *) memdst.memory(), memdst.writeb(), type());
+        return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        goto done;
+        return false;
     }
-    ret = true;
-done:
-    dst_close(&memdst, true);
-    return ret;
 }
 
 static bool
@@ -506,20 +483,6 @@ pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
 }
 
 static void
-mem_dest_to_vector(pgp_dest_t *dst, std::vector<uint8_t> &vec)
-{
-    uint8_t *mem = (uint8_t *) mem_dest_get_memory(dst);
-    try {
-        vec = std::vector<uint8_t>(mem, mem + dst->writeb);
-        dst_close(dst, true);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        dst_close(dst, true);
-        throw;
-    }
-}
-
-static void
 bytevec_append_uniq(std::vector<uint8_t> &vec, uint8_t val)
 {
     if (std::find(vec.begin(), vec.end(), val) == vec.end()) {
@@ -577,53 +540,25 @@ pgp_user_prefs_t::add_ks_pref(pgp_key_server_prefs_t pref)
 
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_signature_t &sig)
 {
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        throw std::bad_alloc();
-    }
-
-    try {
-        sig.write(dst);
-    } catch (const std::exception &e) {
-        dst_close(&dst, true);
-        throw;
-    }
-    mem_dest_to_vector(&dst, raw);
+    rnp::MemoryDest dst;
+    sig.write(dst.dst());
+    raw = dst.to_vector();
     tag = PGP_PKT_SIGNATURE;
 }
 
 pgp_rawpacket_t::pgp_rawpacket_t(pgp_key_pkt_t &key)
 {
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        throw std::bad_alloc();
-    }
-    try {
-        key.write(dst);
-    } catch (const std::exception &e) {
-        dst_close(&dst, true);
-        throw;
-    }
-    mem_dest_to_vector(&dst, raw);
+    rnp::MemoryDest dst;
+    key.write(dst.dst());
+    raw = dst.to_vector();
     tag = key.tag;
 }
 
 pgp_rawpacket_t::pgp_rawpacket_t(const pgp_userid_pkt_t &uid)
 {
-    pgp_dest_t dst = {};
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        throw std::bad_alloc();
-    }
-    try {
-        uid.write(dst);
-    } catch (const std::exception &e) {
-        dst_close(&dst, true);
-        throw;
-    }
-    mem_dest_to_vector(&dst, raw);
+    rnp::MemoryDest dst;
+    uid.write(dst.dst());
+    raw = dst.to_vector();
     tag = uid.tag;
 }
 
@@ -1699,37 +1634,31 @@ pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
         RNP_LOG("No valid binding for subkey");
         return false;
     }
-    /* write all or nothing */
-    pgp_dest_t memdst = {};
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        RNP_LOG("Allocation failed");
-        return false;
-    }
 
-    bool res = false;
     try {
+        /* write all or nothing */
+        rnp::MemoryDest memdst;
         if (is_secret()) {
             pgp_key_pkt_t pkt(pkt_, true);
-            pkt.write(memdst);
+            pkt.write(memdst.dst());
         } else {
-            pkt().write(memdst);
+            pkt().write(memdst.dst());
         }
-        get_uid(uid).pkt.write(memdst);
-        cert->sig.write(memdst);
+        get_uid(uid).pkt.write(memdst.dst());
+        cert->sig.write(memdst.dst());
         if (sub.is_secret()) {
             pgp_key_pkt_t pkt(sub.pkt(), true);
-            pkt.write(memdst);
+            pkt.write(memdst.dst());
         } else {
-            sub.pkt().write(memdst);
+            sub.pkt().write(memdst.dst());
         }
-        binding->sig.write(memdst);
-        dst_write(&dst, mem_dest_get_memory(&memdst), memdst.writeb);
-        res = !dst.werr;
+        binding->sig.write(memdst.dst());
+        dst_write(&dst, memdst.memory(), memdst.writeb());
+        return !dst.werr;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
+        return false;
     }
-    dst_close(&memdst, true);
-    return res;
 }
 
 /* look only for primary userids */
