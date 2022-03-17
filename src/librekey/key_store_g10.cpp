@@ -932,69 +932,53 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
                            pgp_source_t *            src,
                            const pgp_key_provider_t *key_provider)
 {
-    const pgp_key_t *pubkey = NULL;
-    pgp_key_t        key;
-    pgp_key_pkt_t    seckey;
-    pgp_source_t     memsrc = {};
-    bool             ret = false;
-
-    if (read_mem_src(&memsrc, src)) {
-        goto done;
-    }
-
-    /* parse secret key: fills material and sec_protection only */
-    if (!g10_parse_seckey(
-          seckey, (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, NULL)) {
-        goto done;
-    }
-
-    /* copy public key fields if any */
-    if (key_provider) {
-        pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-        if (!rnp_key_store_get_key_grip(&seckey.material, search.by.grip)) {
-            goto done;
-        }
-
-        pgp_key_request_ctx_t req_ctx;
-        memset(&req_ctx, 0, sizeof(req_ctx));
-        req_ctx.op = PGP_OP_MERGE_INFO;
-        req_ctx.secret = false;
-        req_ctx.search = search;
-
-        if (!(pubkey = pgp_request_key(key_provider, &req_ctx))) {
-            goto done;
-        }
-
-        /* public key packet has some more info then the secret part */
-        try {
-            key = pgp_key_t(*pubkey, true);
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            goto done;
-        }
-
-        if (!copy_secret_fields(key.pkt(), seckey)) {
-            goto done;
-        }
-    } else {
-        key.set_pkt(std::move(seckey));
-    }
-
     try {
-        key.set_rawpkt(pgp_rawpacket_t(
-          (uint8_t *) mem_src_get_memory(&memsrc), memsrc.size, PGP_PKT_RESERVED));
+        /* read src to the memory */
+        rnp::MemorySource memsrc(*src);
+        /* parse secret key: fills material and sec_protection only */
+        pgp_key_pkt_t seckey;
+        if (!g10_parse_seckey(seckey, (uint8_t *) memsrc.memory(), memsrc.size(), NULL)) {
+            return false;
+        }
+        /* copy public key fields if any */
+        pgp_key_t key;
+        if (key_provider) {
+            pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
+            if (!rnp_key_store_get_key_grip(&seckey.material, search.by.grip)) {
+                return false;
+            }
+
+            pgp_key_request_ctx_t req_ctx;
+            memset(&req_ctx, 0, sizeof(req_ctx));
+            req_ctx.op = PGP_OP_MERGE_INFO;
+            req_ctx.secret = false;
+            req_ctx.search = search;
+
+            const pgp_key_t *pubkey = pgp_request_key(key_provider, &req_ctx);
+            if (!pubkey) {
+                return false;
+            }
+
+            /* public key packet has some more info then the secret part */
+            key = pgp_key_t(*pubkey, true);
+            if (!copy_secret_fields(key.pkt(), seckey)) {
+                return false;
+            }
+        } else {
+            key.set_pkt(std::move(seckey));
+        }
+        /* set rawpkt */
+        key.set_rawpkt(
+          pgp_rawpacket_t((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
+        key.format = PGP_KEY_STORE_G10;
+        if (!rnp_key_store_add_key(key_store, &key)) {
+            return false;
+        }
+        return true;
     } catch (const std::exception &e) {
-        RNP_LOG("failed to add packet: %s", e.what());
-        goto done;
+        RNP_LOG("%s", e.what());
+        return false;
     }
-    key.format = PGP_KEY_STORE_G10;
-    if (!rnp_key_store_add_key(key_store, &key)) {
-        goto done;
-    }
-    ret = true;
-done:
-    src_close(&memsrc);
-    return ret;
 }
 
 #define MAX_SIZE_T_LEN ((3 * sizeof(size_t) * CHAR_BIT / 8) + 2)
@@ -1102,37 +1086,25 @@ s_exp_t::add_seckey(const pgp_key_pkt_t &key)
 rnp::secure_vector<uint8_t>
 s_exp_t::write_padded(size_t padblock) const
 {
-    pgp_dest_t raw = {0};
-    if (init_mem_dest(&raw, NULL, 0)) {
-        RNP_LOG("mem dst alloc failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    rnp::MemoryDest raw;
+    raw.set_secure(true);
+
+    if (!write(raw.dst())) {
+        RNP_LOG("failed to serialize s_exp");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    mem_dest_secure_memory(&raw, true);
 
-    try {
-        if (!write(raw)) {
-            RNP_LOG("failed to serialize s_exp");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-        }
-
-        // add padding!
-        size_t padding = padblock - raw.writeb % padblock;
-        for (size_t i = 0; i < padding; i++) {
-            dst_write(&raw, "X", 1);
-        }
-        if (raw.werr) {
-            RNP_LOG("failed to write padding");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
-        }
-
-        uint8_t *                   mem = (uint8_t *) mem_dest_get_memory(&raw);
-        rnp::secure_vector<uint8_t> res(mem, mem + raw.writeb);
-        dst_close(&raw, true);
-        return res;
-    } catch (const std::exception &e) {
-        dst_close(&raw, true);
-        throw;
+    // add padding!
+    size_t padding = padblock - raw.writeb() % padblock;
+    for (size_t i = 0; i < padding; i++) {
+        raw.write("X", 1);
     }
+    if (raw.werr()) {
+        RNP_LOG("failed to write padding");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+    const uint8_t *mem = (uint8_t *) raw.memory();
+    return rnp::secure_vector<uint8_t>(mem, mem + raw.writeb());
 }
 
 void
@@ -1280,7 +1252,6 @@ g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password, r
 static bool
 g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t *checksum)
 {
-    pgp_dest_t memdst = {};
     try {
         /* populate s_exp */
         s_exp_t s_exp;
@@ -1290,23 +1261,18 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
         s_sub_exp.add("protected-at");
         s_sub_exp.add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
         /* write it to memdst */
-        if (init_mem_dest(&memdst, NULL, 0)) {
-            return false;
-        }
-        mem_dest_secure_memory(&memdst, true);
-        if (!s_exp.write(memdst)) {
+        rnp::MemoryDest memdst;
+        memdst.set_secure(true);
+        if (!s_exp.write(memdst.dst())) {
             RNP_LOG("Failed to write s_exp");
-            dst_close(&memdst, true);
             return false;
         }
         rnp::Hash hash(PGP_HASH_SHA1);
-        hash.add(mem_dest_get_memory(&memdst), memdst.writeb);
+        hash.add(memdst.memory(), memdst.writeb());
         hash.finish(checksum);
-        dst_close(&memdst, true);
         return true;
     } catch (const std::exception &e) {
         RNP_LOG("Failed to build s_exp: %s", e.what());
-        dst_close(&memdst, true);
         return false;
     }
 }
