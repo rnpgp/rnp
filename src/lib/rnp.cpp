@@ -3881,7 +3881,13 @@ try {
     if (!key || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
+    bool base64 = false;
+    if (flags & RNP_KEY_EXPORT_BASE64) {
+        base64 = true;
+        flags &= ~RNP_KEY_EXPORT_BASE64;
+    }
     if (flags) {
+        FFI_LOG(key->ffi, "Unknown flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* Get the primary key */
@@ -3927,10 +3933,15 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!primary->write_autocrypt(output->dst, *sub, uididx)) {
-        return RNP_ERROR_BAD_PARAMETERS;
+    /* Check whether base64 is requested */
+    bool res = false;
+    if (base64) {
+        rnp::ArmoredDest armor(output->dst, PGP_ARMORED_BASE64);
+        res = primary->write_autocrypt(armor.dst(), *sub, uididx);
+    } else {
+        res = primary->write_autocrypt(output->dst, *sub, uididx);
     }
-    return RNP_SUCCESS;
+    return res ? RNP_SUCCESS : RNP_ERROR_BAD_PARAMETERS;
 }
 FFI_GUARD
 
