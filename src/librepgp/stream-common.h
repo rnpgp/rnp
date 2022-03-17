@@ -374,4 +374,165 @@ rnp_result_t init_null_dest(pgp_dest_t *dst);
  **/
 rnp_result_t dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit = 0);
 
+namespace rnp {
+/* Temporary wrapper to destruct stack-based pgp_source_t */
+class Source {
+  protected:
+    pgp_source_t src_;
+
+  public:
+    Source(const Source &) = delete;
+    Source(Source &&) = delete;
+
+    Source() : src_({})
+    {
+    }
+
+    ~Source()
+    {
+        src_close(&src_);
+    }
+
+    pgp_source_t &
+    src()
+    {
+        return src_;
+    }
+
+    size_t
+    size()
+    {
+        return src_.size;
+    }
+};
+
+class MemorySource : public Source {
+  public:
+    MemorySource(const MemorySource &) = delete;
+    MemorySource(MemorySource &&) = delete;
+
+    /**
+     * @brief Construct memory source object.
+     *
+     * @param mem source memory. Must be valid for the whole lifetime of the object.
+     * @param len size of the memory.
+     * @param free free memory once processing is finished.
+     */
+    MemorySource(const void *mem, size_t len, bool free) : Source()
+    {
+        auto res = init_mem_src(&src_, mem, len, free);
+        if (res) {
+            throw std::bad_alloc();
+        }
+    }
+
+    /**
+     * @brief Construct memory source object
+     *
+     * @param vec vector with data. Must be valid for the whole lifetime of the object.
+     */
+    MemorySource(const std::vector<uint8_t> &vec) : MemorySource(vec.data(), vec.size(), false)
+    {
+    }
+
+    MemorySource(pgp_source_t &src) : Source()
+    {
+        auto res = read_mem_src(&src_, &src);
+        if (res) {
+            throw rnp::rnp_exception(res);
+        }
+    }
+
+    const void *
+    memory(bool own = false)
+    {
+        return mem_src_get_memory(&src_, own);
+    }
+};
+
+/* Temporary wrapper to destruct stack-based pgp_dest_t */
+class Dest {
+  protected:
+    pgp_dest_t dst_;
+    bool       discard_;
+
+  public:
+    Dest(const Dest &) = delete;
+    Dest(Dest &&) = delete;
+
+    Dest() : dst_({}), discard_(false)
+    {
+    }
+
+    ~Dest()
+    {
+        dst_close(&dst_, discard_);
+    }
+
+    void
+    write(const void *buf, size_t len)
+    {
+        dst_write(&dst_, buf, len);
+    }
+
+    void
+    set_discard(bool discard)
+    {
+        discard_ = discard;
+    }
+
+    pgp_dest_t &
+    dst()
+    {
+        return dst_;
+    }
+
+    size_t
+    writeb()
+    {
+        return dst_.writeb;
+    }
+
+    rnp_result_t
+    werr()
+    {
+        return dst_.werr;
+    }
+};
+
+class MemoryDest : public Dest {
+  public:
+    MemoryDest(const MemoryDest &) = delete;
+    MemoryDest(MemoryDest &&) = delete;
+
+    MemoryDest(void *mem = NULL, size_t len = 0) : Dest()
+    {
+        auto res = init_mem_dest(&dst_, mem, len);
+        if (res) {
+            throw std::bad_alloc();
+        }
+        discard_ = true;
+    }
+
+    void *
+    memory()
+    {
+        return mem_dest_get_memory(&dst_);
+    }
+
+    void
+    set_secure(bool secure)
+    {
+        mem_dest_secure_memory(&dst_, secure);
+    }
+
+    std::vector<uint8_t>
+    to_vector()
+    {
+        uint8_t *mem = (uint8_t *) memory();
+        return std::vector<uint8_t>(mem, mem + writeb());
+    }
+};
+} // namespace rnp
+
 #endif
