@@ -379,79 +379,61 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
                            pgp_source_t *            src,
                            const pgp_key_provider_t *key_provider)
 {
-    pgp_source_t memsrc = {};
-    if (read_mem_src(&memsrc, src)) {
-        RNP_LOG("failed to get data to memory source");
+    try {
+        rnp::MemorySource mem(*src);
+        size_t            has_bytes = mem.size();
+        uint8_t *         buf = (uint8_t *) mem.memory();
+
+        while (has_bytes > 4) {
+            size_t blob_length = read_uint32(buf);
+            if (blob_length > BLOB_SIZE_LIMIT) {
+                RNP_LOG("Blob size is %zu bytes but limit is %d bytes",
+                        blob_length,
+                        (int) BLOB_SIZE_LIMIT);
+                return false;
+            }
+            if (blob_length < BLOB_HEADER_SIZE) {
+                RNP_LOG("Too small blob header size");
+                return false;
+            }
+            if (has_bytes < blob_length) {
+                RNP_LOG("Blob have size %zu bytes but file contains only %zu bytes",
+                        blob_length,
+                        has_bytes);
+                return false;
+            }
+            auto blob = rnp_key_store_kbx_parse_blob(buf, blob_length);
+            if (!blob.get()) {
+                RNP_LOG("Failed to parse blob");
+                return false;
+            }
+            kbx_blob_t *pblob = blob.get();
+            key_store->blobs.push_back(std::move(blob));
+
+            if (pblob->type() == KBX_PGP_BLOB) {
+                // parse keyblock if it existed
+                kbx_pgp_blob_t &pgp_blob = dynamic_cast<kbx_pgp_blob_t &>(*pblob);
+                if (!pgp_blob.keyblock_length()) {
+                    RNP_LOG("PGP blob have zero size");
+                    return false;
+                }
+
+                rnp::MemorySource blsrc(pgp_blob.image().data() + pgp_blob.keyblock_offset(),
+                                        pgp_blob.keyblock_length(),
+                                        false);
+                if (rnp_key_store_pgp_read_from_src(key_store, &blsrc.src())) {
+                    return false;
+                }
+            }
+
+            has_bytes -= blob_length;
+            buf += blob_length;
+        }
+        return true;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
         return false;
     }
-
-    size_t has_bytes = memsrc.size;
-    /* complications below are because of memsrc uses malloc instead of new */
-    std::unique_ptr<uint8_t, void (*)(void *)> mem(
-      (uint8_t *) mem_src_get_memory(&memsrc, true), free);
-    src_close(&memsrc);
-    uint8_t *buf = mem.get();
-
-    while (has_bytes > 4) {
-        size_t blob_length = read_uint32(buf);
-        if (blob_length > BLOB_SIZE_LIMIT) {
-            RNP_LOG("Blob size is %zu bytes but limit is %d bytes",
-                    blob_length,
-                    (int) BLOB_SIZE_LIMIT);
-            return false;
-        }
-        if (blob_length < BLOB_HEADER_SIZE) {
-            RNP_LOG("Too small blob header size");
-            return false;
-        }
-        if (has_bytes < blob_length) {
-            RNP_LOG("Blob have size %zu bytes but file contains only %zu bytes",
-                    blob_length,
-                    has_bytes);
-            return false;
-        }
-        auto blob = rnp_key_store_kbx_parse_blob(buf, blob_length);
-        if (!blob.get()) {
-            RNP_LOG("Failed to parse blob");
-            return false;
-        }
-        kbx_blob_t *pblob = blob.get();
-        try {
-            key_store->blobs.push_back(std::move(blob));
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
-
-        if (pblob->type() == KBX_PGP_BLOB) {
-            // parse keyblock if it existed
-            kbx_pgp_blob_t &pgp_blob = dynamic_cast<kbx_pgp_blob_t &>(*pblob);
-            if (!pgp_blob.keyblock_length()) {
-                RNP_LOG("PGP blob have zero size");
-                return false;
-            }
-
-            pgp_source_t blsrc = {};
-            if (init_mem_src(&blsrc,
-                             pgp_blob.image().data() + pgp_blob.keyblock_offset(),
-                             pgp_blob.keyblock_length(),
-                             false)) {
-                RNP_LOG("memory src allocation failed");
-                return false;
-            }
-
-            if (rnp_key_store_pgp_read_from_src(key_store, &blsrc)) {
-                src_close(&blsrc);
-                return false;
-            }
-            src_close(&blsrc);
-        }
-
-        has_bytes -= blob_length;
-        buf += blob_length;
-    }
-
-    return true;
 }
 
 static bool
@@ -505,201 +487,174 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_dest_t *dst)
 static bool
 rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest_t *dst)
 {
-    unsigned              i;
-    pgp_dest_t            memdst = {};
-    size_t                key_start, uid_start;
-    uint8_t *             p;
-    uint8_t               checksum[20];
-    uint32_t              pt;
-    bool                  result = false;
-    std::vector<uint32_t> subkey_sig_expirations;
-    uint32_t              expiration = 0;
+    rnp::MemoryDest mem(NULL, BLOB_SIZE_LIMIT);
 
-    if (init_mem_dest(&memdst, NULL, BLOB_SIZE_LIMIT)) {
-        RNP_LOG("alloc failed");
+    if (!pu32(&mem.dst(), 0)) { // length, we don't know length of blob yet, so it's 0
         return false;
     }
 
-    if (!pu32(&memdst, 0)) { // length, we don't know length of blob yet, so it's 0 right now
-        goto finish;
+    if (!pu8(&mem.dst(), KBX_PGP_BLOB) || !pu8(&mem.dst(), 1)) { // type, version
+        return false;
     }
 
-    if (!pu8(&memdst, KBX_PGP_BLOB) || !pu8(&memdst, 1)) { // type, version
-        goto finish;
+    if (!pu16(&mem.dst(), 0)) { // flags, not used by GnuPG
+        return false;
     }
 
-    if (!pu16(&memdst, 0)) { // flags, not used by GnuPG
-        goto finish;
+    if (!pu32(&mem.dst(), 0) ||
+        !pu32(&mem.dst(), 0)) { // offset and length of keyblock, update later
+        return false;
     }
 
-    if (!pu32(&memdst, 0) ||
-        !pu32(&memdst, 0)) { // offset and length of keyblock, update later
-        goto finish;
+    if (!pu16(&mem.dst(), 1 + key->subkey_count())) { // number of keys in keyblock
+        return false;
+    }
+    if (!pu16(&mem.dst(), 28)) { // size of key info structure)
+        return false;
     }
 
-    if (!pu16(&memdst, 1 + key->subkey_count())) { // number of keys in keyblock
-        goto finish;
-    }
-    if (!pu16(&memdst, 28)) { // size of key info structure)
-        goto finish;
-    }
-
-    if (!pbuf(&memdst, key->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
-        !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
-        !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
-        !pu16(&memdst, 0)) {                 // RFU
-        goto finish;
+    if (!pbuf(&mem.dst(), key->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
+        !pu32(&mem.dst(), mem.writeb() - 8) || // offset to keyid (part of fpr for V4)
+        !pu16(&mem.dst(), 0) ||                // flags, not used by GnuPG
+        !pu16(&mem.dst(), 0)) {                // RFU
+        return false;
     }
 
     // same as above, for each subkey
+    std::vector<uint32_t> subkey_sig_expirations;
     for (auto &sfp : key->subkey_fps()) {
         pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
-        if (!pbuf(&memdst, subkey->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
-            !pu32(&memdst, memdst.writeb - 8) || // offset to keyid (part of fpr for V4)
-            !pu16(&memdst, 0) ||                 // flags, not used by GnuPG
-            !pu16(&memdst, 0)) {                 // RFU
-            goto finish;
+        if (!pbuf(&mem.dst(), subkey->fp().fingerprint, PGP_FINGERPRINT_SIZE) ||
+            !pu32(&mem.dst(), mem.writeb() - 8) || // offset to keyid (part of fpr for V4)
+            !pu16(&mem.dst(), 0) ||                // flags, not used by GnuPG
+            !pu16(&mem.dst(), 0)) {                // RFU
+            return false;
         }
         // load signature expirations while we're at it
-        for (i = 0; i < subkey->sig_count(); i++) {
-            expiration = subkey->get_sig(i).sig.key_expiration();
-            try {
-                subkey_sig_expirations.push_back(expiration);
-            } catch (const std::exception &e) {
-                RNP_LOG("%s", e.what());
-                goto finish;
-            }
+        for (size_t i = 0; i < subkey->sig_count(); i++) {
+            uint32_t expiration = subkey->get_sig(i).sig.key_expiration();
+            subkey_sig_expirations.push_back(expiration);
         }
     }
 
-    if (!pu16(&memdst, 0)) { // Zero size of serial number
-        goto finish;
+    if (!pu16(&mem.dst(), 0)) { // Zero size of serial number
+        return false;
     }
 
     // skip serial number
-
-    if (!pu16(&memdst, key->uid_count()) || !pu16(&memdst, 12)) {
-        goto finish;
+    if (!pu16(&mem.dst(), key->uid_count()) || !pu16(&mem.dst(), 12)) {
+        return false;
     }
 
-    uid_start = memdst.writeb;
-
-    for (i = 0; i < key->uid_count(); i++) {
-        if (!pu32(&memdst, 0) ||
-            !pu32(&memdst, 0)) { // UID offset and length, update when blob has done
-            goto finish;
+    size_t uid_start = mem.writeb();
+    for (size_t i = 0; i < key->uid_count(); i++) {
+        if (!pu32(&mem.dst(), 0) ||
+            !pu32(&mem.dst(), 0)) { // UID offset and length, update when blob has done
+            return false;
         }
 
-        if (!pu16(&memdst, 0)) { // flags, (not yet used)
-            goto finish;
+        if (!pu16(&mem.dst(), 0)) { // flags, (not yet used)
+            return false;
         }
 
-        if (!pu8(&memdst, 0) || !pu8(&memdst, 0)) { // Validity & RFU
-            goto finish;
+        if (!pu8(&mem.dst(), 0) || !pu8(&mem.dst(), 0)) { // Validity & RFU
+            return false;
         }
     }
 
-    if (!pu16(&memdst, key->sig_count() + subkey_sig_expirations.size()) ||
-        !pu16(&memdst, 4)) {
-        goto finish;
+    if (!pu16(&mem.dst(), key->sig_count() + subkey_sig_expirations.size()) ||
+        !pu16(&mem.dst(), 4)) {
+        return false;
     }
 
-    for (i = 0; i < key->sig_count(); i++) {
-        if (!pu32(&memdst, key->get_sig(i).sig.key_expiration())) {
-            goto finish;
+    for (size_t i = 0; i < key->sig_count(); i++) {
+        if (!pu32(&mem.dst(), key->get_sig(i).sig.key_expiration())) {
+            return false;
         }
     }
     for (auto &expiration : subkey_sig_expirations) {
-        if (!pu32(&memdst, expiration)) {
-            goto finish;
+        if (!pu32(&mem.dst(), expiration)) {
+            return false;
         }
     }
 
-    if (!pu8(&memdst, 0) ||
-        !pu8(&memdst, 0)) { // Assigned ownertrust & All_Validity (not yet used)
-        goto finish;
+    if (!pu8(&mem.dst(), 0) ||
+        !pu8(&mem.dst(), 0)) { // Assigned ownertrust & All_Validity (not yet used)
+        return false;
     }
 
-    if (!pu16(&memdst, 0) || !pu32(&memdst, 0)) { // RFU & Recheck_after
-        goto finish;
+    if (!pu16(&mem.dst(), 0) || !pu32(&mem.dst(), 0)) { // RFU & Recheck_after
+        return false;
     }
 
-    if (!pu32(&memdst, time(NULL)) ||
-        !pu32(&memdst, time(NULL))) { // Latest timestamp && created
-        goto finish;
+    if (!pu32(&mem.dst(), time(NULL)) ||
+        !pu32(&mem.dst(), time(NULL))) { // Latest timestamp && created
+        return false;
     }
 
-    if (!pu32(&memdst, 0)) { // Size of reserved space
-        goto finish;
+    if (!pu32(&mem.dst(), 0)) { // Size of reserved space
+        return false;
     }
 
     // wrtite UID, we might redesign PGP write and use this information from keyblob
-    for (i = 0; i < key->uid_count(); i++) {
+    for (size_t i = 0; i < key->uid_count(); i++) {
         const pgp_userid_t &uid = key->get_uid(i);
-        p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i);
+        uint8_t *           p = (uint8_t *) mem.memory() + uid_start + (12 * i);
         /* store absolute uid offset in the output stream */
-        pt = memdst.writeb + dst->writeb;
+        uint32_t pt = mem.writeb() + dst->writeb;
         STORE32BE(p, pt);
         /* and uid length */
         pt = uid.str.size();
-        p = (uint8_t *) mem_dest_get_memory(&memdst) + uid_start + (12 * i) + 4;
-        STORE32BE(p, pt);
+        STORE32BE(p + 4, pt);
         /* uid data itself */
-        if (!pbuf(&memdst, uid.str.c_str(), pt)) {
-            goto finish;
+        if (!pbuf(&mem.dst(), uid.str.c_str(), pt)) {
+            return false;
         }
     }
 
     /* write keyblock and fix the offset/length */
-    key_start = memdst.writeb;
-    pt = key_start;
-    p = (uint8_t *) mem_dest_get_memory(&memdst) + 8;
+    size_t   key_start = mem.writeb();
+    uint32_t pt = key_start;
+    uint8_t *p = (uint8_t *) mem.memory() + 8;
     STORE32BE(p, pt);
 
-    key->write(memdst);
-    if (memdst.werr) {
-        goto finish;
+    key->write(mem.dst());
+    if (mem.werr()) {
+        return false;
     }
 
     for (auto &sfp : key->subkey_fps()) {
         const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
-        subkey->write(memdst);
-        if (memdst.werr) {
-            goto finish;
+        subkey->write(mem.dst());
+        if (mem.werr()) {
+            return false;
         }
     }
 
     /* key blob length */
-    pt = memdst.writeb - key_start;
-    p = (uint8_t *) mem_dest_get_memory(&memdst) + 12;
+    pt = mem.writeb() - key_start;
+    p = (uint8_t *) mem.memory() + 12;
     STORE32BE(p, pt);
 
     // fix the length of blob
-    pt = memdst.writeb + 20;
-    p = (uint8_t *) mem_dest_get_memory(&memdst);
+    pt = mem.writeb() + 20;
+    p = (uint8_t *) mem.memory();
     STORE32BE(p, pt);
 
     // checksum
-    try {
-        rnp::Hash hash(PGP_HASH_SHA1);
-        assert(hash.size() == 20);
-        hash.add(mem_dest_get_memory(&memdst), memdst.writeb);
-        hash.finish(checksum);
-    } catch (const std::exception &e) {
-        RNP_LOG("Hashing failed: %s", e.what());
-        goto finish;
-    }
+    rnp::Hash hash(PGP_HASH_SHA1);
+    hash.add(mem.memory(), mem.writeb());
+    uint8_t checksum[PGP_SHA1_HASH_SIZE];
+    assert(hash.size() == sizeof(checksum));
+    hash.finish(checksum);
 
-    if (!(pbuf(&memdst, checksum, 20))) {
-        goto finish;
+    if (!(pbuf(&mem.dst(), checksum, PGP_SHA1_HASH_SIZE))) {
+        return false;
     }
 
     /* finally write to the output */
-    dst_write(dst, mem_dest_get_memory(&memdst), memdst.writeb);
-    result = dst->werr == RNP_SUCCESS;
-finish:
-    dst_close(&memdst, true);
-    return result;
+    dst_write(dst, mem.memory(), mem.writeb());
+    return !dst->werr;
 }
 
 static bool
@@ -719,25 +674,29 @@ rnp_key_store_kbx_write_x509(rnp_key_store_t *key_store, pgp_dest_t *dst)
 bool
 rnp_key_store_kbx_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
-    if (!rnp_key_store_kbx_write_header(key_store, dst)) {
-        RNP_LOG("Can't write KBX header");
-        return false;
-    }
-
-    for (auto &key : key_store->keys) {
-        if (!key.is_primary()) {
-            continue;
-        }
-        if (!rnp_key_store_kbx_write_pgp(key_store, &key, dst)) {
-            RNP_LOG("Can't write PGP blobs for key %p", &key);
+    try {
+        if (!rnp_key_store_kbx_write_header(key_store, dst)) {
+            RNP_LOG("Can't write KBX header");
             return false;
         }
-    }
 
-    if (!rnp_key_store_kbx_write_x509(key_store, dst)) {
-        RNP_LOG("Can't write X509 blobs");
+        for (auto &key : key_store->keys) {
+            if (!key.is_primary()) {
+                continue;
+            }
+            if (!rnp_key_store_kbx_write_pgp(key_store, &key, dst)) {
+                RNP_LOG("Can't write PGP blobs for key %p", &key);
+                return false;
+            }
+        }
+
+        if (!rnp_key_store_kbx_write_x509(key_store, dst)) {
+            RNP_LOG("Can't write X509 blobs");
+            return false;
+        }
+        return true;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to write KBX store: %s", e.what());
         return false;
     }
-
-    return true;
 }
