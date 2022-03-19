@@ -1100,15 +1100,10 @@ pgp_signature_t::add_notation(const std::string &name, const std::string &value,
 void
 pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
 {
-    pgp_rawpacket_t esigpkt(esig);
-    pgp_source_t    memsrc = {};
-    if (init_mem_src(&memsrc, esigpkt.raw.data(), esigpkt.raw.size(), false)) {
-        RNP_LOG("failed to init mem src");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    size_t len = 0;
-    stream_read_pkt_len(&memsrc, &len);
-    src_close(&memsrc);
+    pgp_rawpacket_t   esigpkt(esig);
+    rnp::MemorySource mem(esigpkt.raw);
+    size_t            len = 0;
+    stream_read_pkt_len(&mem.src(), &len);
     if (!len || (len > 0xffff) || (len >= esigpkt.raw.size())) {
         RNP_LOG("wrong pkt len");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
