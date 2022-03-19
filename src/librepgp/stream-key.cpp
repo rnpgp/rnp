@@ -89,16 +89,14 @@ transferable_userid_merge(pgp_transferable_userid_t &dst, const pgp_transferable
 rnp_result_t
 transferable_subkey_from_key(pgp_transferable_subkey_t &dst, const pgp_key_t &key)
 {
-    pgp_source_t memsrc = {};
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    if (!rnp_key_to_src(&key, &memsrc)) {
-        return RNP_ERROR_BAD_STATE;
+    try {
+        auto              vec = rnp_key_to_vec(key);
+        rnp::MemorySource mem(vec);
+        return process_pgp_subkey(mem.src(), dst, false);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-
-    ret = process_pgp_subkey(memsrc, dst, false);
-    src_close(&memsrc);
-    return ret;
 }
 
 rnp_result_t
@@ -119,16 +117,14 @@ transferable_subkey_merge(pgp_transferable_subkey_t &dst, const pgp_transferable
 rnp_result_t
 transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key)
 {
-    pgp_source_t memsrc = {};
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    if (!rnp_key_to_src(&key, &memsrc)) {
-        return RNP_ERROR_BAD_STATE;
+    try {
+        auto              vec = rnp_key_to_vec(key);
+        rnp::MemorySource mem(vec);
+        return process_pgp_key(&mem.src(), dst, false);
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_GENERIC;
     }
-
-    ret = process_pgp_key(&memsrc, dst, false);
-    src_close(&memsrc);
-    return ret;
 }
 
 static pgp_transferable_userid_t *

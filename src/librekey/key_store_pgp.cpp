@@ -187,20 +187,12 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, boo
     return RNP_SUCCESS;
 }
 
-bool
-rnp_key_to_src(const pgp_key_t *key, pgp_source_t *src)
+std::vector<uint8_t>
+rnp_key_to_vec(const pgp_key_t &key)
 {
-    pgp_dest_t dst = {};
-    bool       res;
-
-    if (init_mem_dest(&dst, NULL, 0)) {
-        return false;
-    }
-
-    key->write(dst);
-    res = !dst.werr && !init_mem_src(src, mem_dest_own_memory(&dst), dst.writeb, true);
-    dst_close(&dst, true);
-    return res;
+    rnp::MemoryDest dst;
+    key.write(dst.dst());
+    return dst.to_vector();
 }
 
 static bool
