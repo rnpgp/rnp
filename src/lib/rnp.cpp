@@ -6234,29 +6234,11 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_dest_t memdst = {};
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    try {
-        sig->sig->sig.write(memdst);
-    } catch (const std::exception &e) {
-        FFI_LOG(sig->ffi, "%s", e.what());
-        dst_close(&memdst, true);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    pgp_source_t memsrc = {};
-    rnp_result_t ret = RNP_ERROR_BAD_STATE;
-    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
-        goto done;
-    }
-
-    ret = rnp_dump_src_to_json(&memsrc, flags, json);
-done:
-    dst_close(&memdst, true);
-    src_close(&memsrc);
-    return ret;
+    rnp::MemoryDest memdst;
+    sig->sig->sig.write(memdst.dst());
+    auto              vec = memdst.to_vector();
+    rnp::MemorySource memsrc(vec);
+    return rnp_dump_src_to_json(&memsrc.src(), flags, json);
 }
 FFI_GUARD
 
@@ -7220,24 +7202,13 @@ FFI_GUARD
 static rnp_result_t
 key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 {
-    pgp_dest_t memdst = {};
-
-    if (init_mem_dest(&memdst, NULL, 0)) {
+    auto vec = rnp_key_to_vec(*key);
+    *buf = (uint8_t *) calloc(1, vec.size());
+    if (!*buf) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    key->write(memdst);
-    if (memdst.werr) {
-        dst_close(&memdst, true);
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    *buf_len = memdst.writeb;
-    *buf = (uint8_t *) mem_dest_own_memory(&memdst);
-    dst_close(&memdst, true);
-    if (*buf_len && !*buf) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    memcpy(*buf, vec.data(), vec.size());
+    *buf_len = vec.size();
     return RNP_SUCCESS;
 }
 
@@ -7971,40 +7942,18 @@ done:
 rnp_result_t
 rnp_key_packets_to_json(rnp_key_handle_t handle, bool secret, uint32_t flags, char **result)
 try {
-    pgp_key_t *  key = NULL;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    pgp_dest_t   memdst = {};
-    pgp_source_t memsrc = {};
-
     if (!handle || !result) {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    key = secret ? handle->sec : handle->pub;
+    pgp_key_t *key = secret ? handle->sec : handle->pub;
     if (!key || (key->format == PGP_KEY_STORE_G10)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (init_mem_dest(&memdst, NULL, 0)) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-
-    key->write(memdst);
-    if (memdst.werr) {
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto done;
-    }
-
-    if (init_mem_src(&memsrc, mem_dest_get_memory(&memdst), memdst.writeb, false)) {
-        ret = RNP_ERROR_BAD_STATE;
-        goto done;
-    }
-
-    ret = rnp_dump_src_to_json(&memsrc, flags, result);
-done:
-    dst_close(&memdst, true);
-    src_close(&memsrc);
-    return ret;
+    auto              vec = rnp_key_to_vec(*key);
+    rnp::MemorySource mem(vec);
+    return rnp_dump_src_to_json(&mem.src(), flags, result);
 }
 FFI_GUARD
 
