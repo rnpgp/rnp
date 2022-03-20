@@ -48,12 +48,15 @@ class cli_rnp_t {
     bool    check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked);
 
   public:
-    rnp_ffi_t ffi{};
-    FILE *    resfp{};      /* where to put result messages, defaults to stdout */
-    FILE *    passfp{};     /* file pointer for password input */
-    FILE *    userio_in{};  /* file pointer for user's inputs */
-    FILE *    userio_out{}; /* file pointer for user's outputs */
-    int       pswdtries{};  /* number of password tries, -1 for unlimited */
+    rnp_ffi_t   ffi{};
+    FILE *      resfp{};      /* where to put result messages, defaults to stdout */
+    FILE *      passfp{};     /* file pointer for password input */
+    FILE *      userio_in{};  /* file pointer for user's inputs */
+    FILE *      userio_out{}; /* file pointer for user's outputs */
+    int         pswdtries{};  /* number of password tries, -1 for unlimited */
+    bool        reuse_password_for_subkey{};
+    std::string reuse_primary_fprint;
+    char *      reused_password{};
 
     bool init(const rnp_cfg &cfg);
     void end();
