@@ -379,36 +379,67 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
     char       prompt[128] = {0};
     char *     buffer = NULL;
     bool       ok = false;
+    bool       protect = false;
+    bool       decrypt_symmetric = false;
+    bool       encrypt_symmetric = false;
+    bool       is_primary = false;
     cli_rnp_t *rnp = static_cast<cli_rnp_t *>(app_ctx);
 
     if (!ffi || !pgp_context) {
         goto done;
     }
 
-    if (strcmp(pgp_context, "decrypt (symmetric)") &&
-        strcmp(pgp_context, "encrypt (symmetric)")) {
+    if (!strcmp(pgp_context, "protect")) {
+        protect = true;
+    } else if (!strcmp(pgp_context, "decrypt (symmetric)")) {
+        decrypt_symmetric = true;
+    } else if (!strcmp(pgp_context, "encrypt (symmetric)")) {
+        encrypt_symmetric = true;
+    }
+
+    if (!decrypt_symmetric && !encrypt_symmetric) {
         rnp_key_get_keyid(key, &keyid);
         snprintf(target, sizeof(target), "key 0x%s", keyid);
         rnp_buffer_destroy(keyid);
+        (void) rnp_key_is_primary(key, &is_primary);
     }
+
+    if (protect && rnp->reuse_password_for_subkey && !is_primary) {
+        char *primary_fprint = NULL;
+        if (rnp_key_get_primary_fprint(key, &primary_fprint) == RNP_SUCCESS &&
+            !rnp->reuse_primary_fprint.empty() &&
+            rnp->reuse_primary_fprint == primary_fprint) {
+            strncpy(buf, rnp->reused_password, buf_len);
+            ok = true;
+        }
+
+        rnp_buffer_clear(rnp->reused_password, strnlen(rnp->reused_password, buf_len));
+        free(rnp->reused_password);
+        rnp->reused_password = NULL;
+        rnp->reuse_password_for_subkey = false;
+        rnp_buffer_destroy(primary_fprint);
+        if (ok)
+            return true;
+    }
+
     buffer = (char *) calloc(1, buf_len);
     if (!buffer) {
         return false;
     }
 start:
-    if (!strcmp(pgp_context, "decrypt (symmetric)")) {
+    if (decrypt_symmetric) {
         snprintf(prompt, sizeof(prompt), "Enter password to decrypt data: ");
-    } else if (!strcmp(pgp_context, "encrypt (symmetric)")) {
+    } else if (encrypt_symmetric) {
         snprintf(prompt, sizeof(prompt), "Enter password to encrypt data: ");
     } else {
-        snprintf(prompt, sizeof(prompt), "Enter password for %s: ", target);
+        snprintf(prompt, sizeof(prompt), "Enter password for %s to %s: ", target, pgp_context);
     }
 
     if (!stdin_getpass(prompt, buf, buf_len, rnp)) {
         goto done;
     }
-    if (!strcmp(pgp_context, "protect") || !strcmp(pgp_context, "encrypt (symmetric)")) {
-        if (!strcmp(pgp_context, "protect")) {
+    if (protect || encrypt_symmetric) {
+        if (protect) {
             snprintf(prompt, sizeof(prompt), "Repeat password for %s: ", target);
         } else {
             snprintf(prompt, sizeof(prompt), "Repeat password: ");
@@ -421,6 +452,23 @@ start:
             fputs("\nPasswords do not match!", rnp->userio_out);
             // currently will loop forever
             goto start;
+        }
+        if (strnlen(buf, buf_len) == 0 && !rnp->cfg().get_bool(CFG_FORCE)) {
+            if (!cli_rnp_get_confirmation(
+                  rnp, "Password is empty. The key will be left unprotected. Are you sure?")) {
+                goto start;
+            }
+        }
+    }
+    if (protect && is_primary) {
+        if (cli_rnp_get_confirmation(
+              rnp, "Would you like to use the same password to protect subkey(s)?")) {
+            char *primary_fprint = NULL;
+            rnp->reuse_password_for_subkey = true;
+            rnp_key_get_fprint(key, &primary_fprint);
+            rnp->reuse_primary_fprint = primary_fprint;
+            rnp->reused_password = strdup(buf);
+            rnp_buffer_destroy(primary_fprint);
         }
     }
     ok = true;
@@ -574,6 +622,13 @@ cli_rnp_t::end()
     rnp_ffi_destroy(ffi);
     ffi = NULL;
     cfg_.clear();
+    reuse_primary_fprint.clear();
+    if (reused_password) {
+        rnp_buffer_clear(reused_password, strlen(reused_password));
+        free(reused_password);
+        reused_password = NULL;
+    }
+    reuse_password_for_subkey = false;
 }
 
 bool
