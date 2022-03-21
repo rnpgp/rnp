@@ -48,9 +48,9 @@ typedef void pgp_signatures_func_t(const std::vector<pgp_signature_info_t> &sigs
 typedef void pgp_on_recipients_func_t(const std::vector<pgp_pk_sesskey_t> &recipients,
                                       const std::vector<pgp_sk_sesskey_t> &passwords,
                                       void *                               param);
-typedef void pgp_decryption_start_func_t(pgp_pk_sesskey_t *pubenc,
-                                         pgp_sk_sesskey_t *symenc,
-                                         void *            param);
+typedef void pgp_decryption_start_func_t(const pgp_pk_sesskey_t *pubenc,
+                                         const pgp_sk_sesskey_t *symenc,
+                                         void *                  param);
 typedef void pgp_decryption_info_func_t(bool           mdc,
                                         pgp_aead_alg_t aead,
                                         pgp_symm_alg_t salg,

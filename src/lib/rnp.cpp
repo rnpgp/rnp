@@ -3087,7 +3087,7 @@ rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
 }
 
 static void
-rnp_verify_on_decryption_start(pgp_pk_sesskey_t *pubenc, pgp_sk_sesskey_t *symenc, void *param)
+rnp_verify_on_decryption_start(const pgp_pk_sesskey_t *pubenc, const pgp_sk_sesskey_t *symenc, void *param)
 {
     rnp_op_verify_t op = (rnp_op_verify_t) param;
     /* store only top-level encrypted stream info */
