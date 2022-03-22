@@ -116,4 +116,34 @@ bool is_base64_source(pgp_source_t &src);
  */
 rnp_result_t armored_dst_set_line_length(pgp_dest_t *dst, size_t llen);
 
+namespace rnp {
+
+class ArmoredSource : public Source {
+    pgp_source_t &readsrc_;
+    bool          armored_;
+    bool          multiple_;
+
+  public:
+    static const uint32_t AllowBinary;
+    static const uint32_t AllowBase64;
+    static const uint32_t AllowMultiple;
+
+    ArmoredSource(const ArmoredSource &) = delete;
+    ArmoredSource(ArmoredSource &&) = delete;
+
+    ArmoredSource(pgp_source_t &readsrc, uint32_t flags = 0);
+
+    pgp_source_t &src();
+
+    bool
+    multiple()
+    {
+        return multiple_;
+    }
+
+    /* Restart dearmoring in case of multiple armored messages in a single stream */
+    void restart();
+};
+} // namespace rnp
+
 #endif

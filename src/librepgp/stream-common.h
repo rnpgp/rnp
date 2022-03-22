@@ -388,12 +388,12 @@ class Source {
     {
     }
 
-    ~Source()
+    virtual ~Source()
     {
         src_close(&src_);
     }
 
-    pgp_source_t &
+    virtual pgp_source_t &
     src()
     {
         return src_;
@@ -402,7 +402,25 @@ class Source {
     size_t
     size()
     {
-        return src_.size;
+        return src().size;
+    }
+
+    size_t
+    readb()
+    {
+        return src().readb;
+    }
+
+    bool
+    eof()
+    {
+        return src_eof(&src());
+    }
+
+    bool
+    error()
+    {
+        return src_error(&src());
     }
 };
 
