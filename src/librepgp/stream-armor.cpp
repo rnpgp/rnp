@@ -1211,3 +1211,63 @@ rnp_armor_source(pgp_source_t *src, pgp_dest_t *dst, pgp_armored_msg_t msgtype)
     dst_close(&armordst, res != RNP_SUCCESS);
     return res;
 }
+
+namespace rnp {
+
+const uint32_t ArmoredSource::AllowBinary = 0x01;
+const uint32_t ArmoredSource::AllowBase64 = 0x02;
+const uint32_t ArmoredSource::AllowMultiple = 0x04;
+
+ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
+    : Source(), readsrc_(readsrc), multiple_(false)
+{
+    /* Do not dearmor already armored stream */
+    bool already = readsrc_.type == PGP_STREAM_ARMORED;
+    /* Check for base64 source: no multiple streams allowed */
+    if (!already && (flags & AllowBase64) && (is_base64_source(readsrc))) {
+        auto res = init_armored_src(&src_, &readsrc_, true);
+        if (res) {
+            RNP_LOG("Failed to parse base64 data.");
+            throw rnp::rnp_exception(res);
+        }
+        armored_ = true;
+        return;
+    }
+    /* Check for armored source */
+    if (!already && is_armored_source(&readsrc)) {
+        auto res = init_armored_src(&src_, &readsrc_);
+        if (res) {
+            RNP_LOG("Failed to parse armored data.");
+            throw rnp::rnp_exception(res);
+        }
+        armored_ = true;
+        multiple_ = flags & AllowMultiple;
+        return;
+    }
+    /* Use binary source if allowed */
+    if (!(flags & AllowBinary)) {
+        RNP_LOG("Non-armored data is not allowed here.");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    armored_ = false;
+}
+
+void
+ArmoredSource::restart()
+{
+    if (!armored_ || src_eof(&readsrc_) || src_error(&readsrc_)) {
+        return;
+    }
+    src_close(&src_);
+    auto res = init_armored_src(&src_, &readsrc_);
+    if (res) {
+        throw rnp::rnp_exception(res);
+    }
+}
+
+pgp_source_t &
+ArmoredSource::src()
+{
+    return armored_ ? src_ : readsrc_;
+}
+} // namespace rnp
