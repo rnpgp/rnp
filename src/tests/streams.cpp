@@ -446,7 +446,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* public keyring, read-save-read-save armored-read */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_true(keyseq.keys.size() > 1);
     src_close(&keysrc);
 
@@ -455,7 +455,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout.asc", true));
@@ -463,12 +463,12 @@ TEST_F(rnp_tests, test_stream_key_load)
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
 
     /* secret keyring */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_true(keyseq.keys.size() > 1);
     src_close(&keysrc);
 
@@ -477,7 +477,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout-sec.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout-sec.asc", true));
@@ -485,12 +485,12 @@ TEST_F(rnp_tests, test_stream_key_load)
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
 
     /* armored v3 public key */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_keyid(keyid, key->key));
@@ -500,7 +500,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* armored v3 secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_keyid(keyid, key->key));
@@ -509,7 +509,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* rsa/rsa public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/rsa-rsa-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -522,7 +522,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* rsa/rsa secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/rsa-rsa-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -535,7 +535,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* dsa/el-gamal public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/dsa-eg-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -548,7 +548,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* dsa/el-gamal secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/dsa-eg-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -557,7 +557,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* curve 25519 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -566,7 +566,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* curve 25519 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_true(key->subkeys.empty());
@@ -574,7 +574,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* eddsa/x25519 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -587,7 +587,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* eddsa/x25519 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -596,7 +596,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-256 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -608,7 +608,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-256 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -617,7 +617,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-384 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p384-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -629,7 +629,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-384 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p384-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -638,7 +638,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-521 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p521-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -650,7 +650,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* p-521 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p521-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -659,7 +659,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P256 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp256-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -671,7 +671,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P256 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp256-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -680,7 +680,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P384 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp384-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -692,7 +692,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P384 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp384-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -701,7 +701,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P512 ecc public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp512-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -713,7 +713,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* Brainpool P512 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-bp512-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -722,7 +722,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* secp256k1 ecc public key, not supported now */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256k1-pub.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(pgp_fingerprint(keyfp, key->key));
@@ -734,7 +734,7 @@ TEST_F(rnp_tests, test_stream_key_load)
 
     /* secp256k1 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256k1-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_int_equal(keyseq.keys.size(), 1);
     assert_non_null(key = &keyseq.keys.front());
     assert_int_equal(key->subkeys.size(), 1);
@@ -753,7 +753,7 @@ buggy_key_load_single(const void *keydata, size_t keylen)
     /* try truncated load */
     for (partlen = 1; partlen < keylen; partlen += 15) {
         assert_rnp_success(init_mem_src(&memsrc, keydata, partlen, false));
-        if (!process_pgp_keys(&memsrc, keyseq, false)) {
+        if (!process_pgp_keys(memsrc, keyseq, false)) {
             /* it may succeed if we accidentally hit some packet boundary */
             assert_false(keyseq.keys.empty());
         } else {
@@ -767,7 +767,7 @@ buggy_key_load_single(const void *keydata, size_t keylen)
     for (partlen = 1; partlen < keylen; partlen++) {
         dataptr[partlen] ^= 0xff;
         assert_rnp_success(init_mem_src(&memsrc, keydata, keylen, false));
-        if (!process_pgp_keys(&memsrc, keyseq, false)) {
+        if (!process_pgp_keys(memsrc, keyseq, false)) {
             /* it may succeed if we accidentally hit some packet boundary */
             assert_false(keyseq.keys.empty());
         } else {
@@ -834,7 +834,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* load and decrypt secret keyring */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     for (auto &key : keyseq.keys) {
         assert_rnp_failure(decrypt_secret_key(&key.key, "passw0rd"));
         assert_rnp_success(decrypt_secret_key(&key.key, "password"));
@@ -848,7 +848,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* armored v3 secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_failure(decrypt_secret_key(&key->key, "passw0rd"));
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
@@ -856,7 +856,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* rsa/rsa secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/rsa-rsa-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -865,7 +865,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* dsa/el-gamal secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/dsa-eg-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -874,14 +874,14 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* curve 25519 eddsa ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-25519-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     src_close(&keysrc);
 
     /* x25519 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-x25519-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -890,7 +890,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* p-256 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p256-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -899,7 +899,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* p-384 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p384-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -908,7 +908,7 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
 
     /* p-521 ecc secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/ecc-p521-sec.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
     assert_non_null(subkey = &key->subkeys.front());
@@ -927,7 +927,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
 
     /* load and decrypt secret keyring, then re-encrypt and reload keys */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/secring.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
     for (auto &key : keyseq.keys) {
         assert_rnp_success(decrypt_secret_key(&key.key, "password"));
@@ -950,7 +950,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         dst_close(&keydst, false);
         /* load and decrypt changed key */
         assert_rnp_success(init_mem_src(&keysrc, keybuf, keylen, false));
-        assert_rnp_success(process_pgp_keys(&keysrc, keyseq2, false));
+        assert_rnp_success(process_pgp_keys(keysrc, keyseq2, false));
         src_close(&keysrc);
         assert_false(keyseq2.keys.empty());
         auto &key2 = keyseq2.keys.front();
@@ -975,7 +975,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         dst_close(&keydst, false);
         /* load non-encrypted key */
         assert_rnp_success(init_mem_src(&keysrc, keybuf, keylen, false));
-        assert_rnp_success(process_pgp_keys(&keysrc, keyseq2, false));
+        assert_rnp_success(process_pgp_keys(keysrc, keyseq2, false));
         src_close(&keysrc);
         assert_false(keyseq2.keys.empty());
         auto &key3 = keyseq2.keys.front();
@@ -1001,7 +1001,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-p.asc"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
     assert_int_equal(keyseq.keys.size(), 1);
     auto &key = keyseq.keys.front();
@@ -1033,7 +1033,7 @@ TEST_F(rnp_tests, test_stream_key_signatures)
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(process_pgp_keys(&keysrc, keyseq, false));
+    assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     src_close(&keysrc);
 
     /* check key signatures */
