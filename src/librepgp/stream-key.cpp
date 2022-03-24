@@ -360,34 +360,31 @@ process_pgp_key_auto(pgp_source_t &          src,
 }
 
 rnp_result_t
-process_pgp_keys(pgp_source_t *src, pgp_key_sequence_t &keys, bool skiperrors)
+process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
 {
-    bool          armored = false;
-    pgp_source_t  armorsrc = {0};
-    pgp_source_t *origsrc = src;
-    bool          has_secret = false;
-    bool          has_public = false;
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    bool has_secret = false;
+    bool has_public = false;
 
     keys.keys.clear();
-    /* check whether keys are armored */
-armoredpass:
-    if ((src->type != PGP_STREAM_ARMORED) && is_armored_source(src)) {
-        if (init_armored_src(&armorsrc, src)) {
-            RNP_LOG("failed to parse armored data");
-            ret = RNP_ERROR_READ;
-            goto finish;
-        }
-        armored = true;
-        src = &armorsrc;
-    }
+    /* create maybe-armored stream */
+    rnp::ArmoredSource armor(
+      src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
 
     /* read sequence of transferable OpenPGP keys as described in RFC 4880, 11.1 - 11.2 */
-    while (!src_eof(src) && !src_error(src)) {
+    while (!armor.error()) {
+        /* Allow multiple armored messages in a single stream */
+        if (armor.eof() && armor.multiple()) {
+            armor.restart();
+        }
+        if (armor.eof()) {
+            break;
+        }
+        /* Attempt to read the next key */
         pgp_transferable_key_t curkey;
-        ret = process_pgp_key_auto(*src, curkey, false, skiperrors);
+        rnp_result_t ret = process_pgp_key_auto(armor.src(), curkey, false, skiperrors);
         if (ret && (!skiperrors || (ret != RNP_ERROR_BAD_FORMAT))) {
-            goto finish;
+            keys.keys.clear();
+            return ret;
         }
         /* check whether we actually read any key or just skipped erroneous packets */
         if (curkey.key.tag == PGP_PKT_RESERVED) {
@@ -396,36 +393,18 @@ armoredpass:
         has_secret |= (curkey.key.tag == PGP_PKT_SECRET_KEY);
         has_public |= (curkey.key.tag == PGP_PKT_PUBLIC_KEY);
 
-        try {
-            keys.keys.emplace_back(std::move(curkey));
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
-        }
-    }
-
-    /* file may have multiple armored keys */
-    if (armored && !src_eof(origsrc) && is_armored_source(origsrc)) {
-        src_close(&armorsrc);
-        armored = false;
-        src = origsrc;
-        goto armoredpass;
+        keys.keys.emplace_back(std::move(curkey));
     }
 
     if (has_secret && has_public) {
         RNP_LOG("warning! public keys are mixed together with secret ones!");
     }
 
-    ret = src_error(src) ? RNP_ERROR_READ : RNP_SUCCESS;
-finish:
-    if (armored) {
-        src_close(&armorsrc);
-    }
-    if (ret) {
+    if (armor.error()) {
         keys.keys.clear();
+        return RNP_ERROR_READ;
     }
-    return ret;
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
