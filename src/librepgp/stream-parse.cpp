@@ -993,27 +993,24 @@ signed_read_single_signature(pgp_source_signed_param_t *param,
 }
 
 static rnp_result_t
-signed_read_cleartext_signatures(pgp_source_t *src)
+signed_read_cleartext_signatures(pgp_source_t &src, pgp_source_signed_param_t *param)
 {
-    pgp_source_t               armor = {0};
-    rnp_result_t               ret = RNP_ERROR_BAD_FORMAT;
-    pgp_source_signed_param_t *param = (pgp_source_signed_param_t *) src->param;
-
-    if ((ret = init_armored_src(&armor, param->readsrc)) != RNP_SUCCESS) {
-        return ret;
-    }
-
-    while (!src_eof(&armor)) {
-        if ((ret = signed_read_single_signature(param, &armor, NULL)) != RNP_SUCCESS) {
-            goto finish;
+    try {
+        rnp::ArmoredSource armor(*param->readsrc);
+        while (!armor.eof()) {
+            auto ret = signed_read_single_signature(param, &armor.src(), NULL);
+            if (ret) {
+                return ret;
+            }
         }
+        return RNP_SUCCESS;
+    } catch (const rnp::rnp_exception &e) {
+        RNP_LOG("%s", e.what());
+        return e.code();
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_BAD_FORMAT;
     }
-
-    ret = RNP_SUCCESS;
-
-finish:
-    src_close(&armor);
-    return ret;
 }
 
 static rnp_result_t
@@ -1047,7 +1044,7 @@ signed_src_finish(pgp_source_t *src)
     rnp_result_t               ret = RNP_ERROR_GENERIC;
 
     if (param->cleartext) {
-        ret = signed_read_cleartext_signatures(src);
+        ret = signed_read_cleartext_signatures(*src, param);
     } else {
         ret = signed_read_signatures(src);
     }
