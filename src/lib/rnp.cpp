@@ -1801,26 +1801,21 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t         ret = RNP_ERROR_GENERIC;
-    json_object *        jsores = NULL;
-    json_object *        jsosigs = NULL;
     pgp_signature_list_t sigs;
-    rnp_result_t         sigret = process_pgp_signatures(&input->src, sigs);
+    rnp_result_t         sigret = process_pgp_signatures(input->src, sigs);
     if (sigret) {
-        ret = sigret;
         FFI_LOG(ffi, "failed to parse signature(s)");
-        goto done;
+        return sigret;
     }
 
-    jsores = json_object_new_object();
+    json_object *jsores = json_object_new_object();
     if (!jsores) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    jsosigs = json_object_new_array();
+    rnp::JSONObject jsowrap(jsores);
+    json_object *   jsosigs = json_object_new_array();
     if (!obj_add_field_json(jsores, "sigs", jsosigs)) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     for (auto &sig : sigs) {
@@ -1830,27 +1825,21 @@ try {
         pgp_key_t *skey = rnp_key_store_import_signature(ffi->secring, &sig, &sec_status);
         sigret = add_sig_status(jsosigs, pkey ? pkey : skey, pub_status, sec_status);
         if (sigret) {
-            ret = sigret;
-            goto done;
+            return sigret;
         }
     }
 
     if (results) {
         *results = (char *) json_object_to_json_string_ext(jsores, JSON_C_TO_STRING_PRETTY);
         if (!*results) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         *results = strdup(*results);
         if (!*results) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-    ret = RNP_SUCCESS;
-done:
-    json_object_put(jsores);
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 

@@ -429,6 +429,6 @@ void signature_hash_direct(const pgp_signature_t &sig,
  * @param sigs on success parsed signature structures will be put here.
  * @return RNP_SUCCESS or error code otherwise.
  */
-rnp_result_t process_pgp_signatures(pgp_source_t *src, pgp_signature_list_t &sigs);
+rnp_result_t process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs);
 
 #endif
