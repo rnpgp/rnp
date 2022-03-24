@@ -117,63 +117,39 @@ signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key, rnp:
 }
 
 rnp_result_t
-process_pgp_signatures(pgp_source_t *src, pgp_signature_list_t &sigs)
+process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
 {
-    bool          armored = false;
-    pgp_source_t  armorsrc = {0};
-    pgp_source_t *origsrc = src;
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-
     sigs.clear();
-    /* check whether signatures are armored */
-armoredpass:
-    if (is_armored_source(src)) {
-        if ((ret = init_armored_src(&armorsrc, src))) {
-            RNP_LOG("failed to parse armored data");
-            goto finish;
-        }
-        armored = true;
-        src = &armorsrc;
-    }
-
+    /* Allow binary or armored input, including multiple armored messages */
+    rnp::ArmoredSource armor(
+      src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
     /* read sequence of OpenPGP signatures */
-    while (!src_eof(src) && !src_error(src)) {
-        int ptag = stream_pkt_type(src);
-
+    while (!armor.error()) {
+        if (armor.eof() && armor.multiple()) {
+            armor.restart();
+        }
+        if (armor.eof()) {
+            break;
+        }
+        int ptag = stream_pkt_type(&armor.src());
         if (ptag != PGP_PKT_SIGNATURE) {
             RNP_LOG("wrong signature tag: %d", ptag);
-            ret = RNP_ERROR_BAD_FORMAT;
-            goto finish;
+            sigs.clear();
+            return RNP_ERROR_BAD_FORMAT;
         }
 
-        try {
-            sigs.emplace_back();
-            if ((ret = sigs.back().parse(*src))) {
-                goto finish;
-            }
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
+        sigs.emplace_back();
+        rnp_result_t ret = sigs.back().parse(armor.src());
+        if (ret) {
+            sigs.clear();
+            return ret;
         }
     }
-
-    /* file may have multiple armored keys */
-    if (armored && !src_eof(origsrc) && is_armored_source(origsrc)) {
-        src_close(&armorsrc);
-        armored = false;
-        src = origsrc;
-        goto armoredpass;
-    }
-    ret = RNP_SUCCESS;
-finish:
-    if (armored) {
-        src_close(&armorsrc);
-    }
-    if (ret) {
+    if (armor.error()) {
         sigs.clear();
+        return RNP_ERROR_READ;
     }
-    return ret;
+    return RNP_SUCCESS;
 }
 
 pgp_sig_subpkt_t::pgp_sig_subpkt_t(const pgp_sig_subpkt_t &src)
