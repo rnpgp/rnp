@@ -120,7 +120,7 @@ transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key)
     try {
         auto              vec = rnp_key_to_vec(key);
         rnp::MemorySource mem(vec);
-        return process_pgp_key(&mem.src(), dst, false);
+        return process_pgp_key(mem.src(), dst, false);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return RNP_ERROR_GENERIC;
@@ -340,7 +340,15 @@ process_pgp_key_auto(pgp_source_t &          src,
     if (!is_primary_key_pkt(ptag)) {
         RNP_LOG("wrong key tag: %d at pos %" PRIu64, ptag, src.readb);
     } else {
-        ret = process_pgp_key(&src, key, skiperrors);
+        try {
+            ret = process_pgp_key(src, key, skiperrors);
+        } catch (const rnp::rnp_exception &e) {
+            RNP_LOG("%s", e.what());
+            ret = e.code();
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            ret = RNP_ERROR_GENERIC;
+        }
     }
     if (skiperrors && (ret == RNP_ERROR_BAD_FORMAT) &&
         !skip_pgp_packets(&src,
@@ -408,109 +416,75 @@ process_pgp_keys(pgp_source_t &src, pgp_key_sequence_t &keys, bool skiperrors)
 }
 
 rnp_result_t
-process_pgp_key(pgp_source_t *src, pgp_transferable_key_t &key, bool skiperrors)
+process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
 {
-    pgp_source_t armorsrc = {0};
-    bool         armored = false;
-    int          ptag;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     key = pgp_transferable_key_t();
-    /* check whether keys are armored */
-    if ((src->type != PGP_STREAM_ARMORED) && is_armored_source(src)) {
-        if (init_armored_src(&armorsrc, src)) {
-            RNP_LOG("failed to parse armored data");
-            return RNP_ERROR_READ;
-        }
-        armored = true;
-        src = &armorsrc;
-    }
+    /* create maybe-armored stream */
+    rnp::ArmoredSource armor(
+      src, rnp::ArmoredSource::AllowBinary | rnp::ArmoredSource::AllowMultiple);
 
     /* main key packet */
-    uint64_t keypos = src->readb;
-    ptag = stream_pkt_type(src);
+    uint64_t keypos = armor.readb();
+    int      ptag = stream_pkt_type(&armor.src());
     if ((ptag <= 0) || !is_primary_key_pkt(ptag)) {
         RNP_LOG("wrong key packet tag: %d at %" PRIu64, ptag, keypos);
-        ret = RNP_ERROR_BAD_FORMAT;
-        goto finish;
+        return RNP_ERROR_BAD_FORMAT;
     }
 
-    try {
-        ret = key.key.parse(*src);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        ret = RNP_ERROR_GENERIC;
-    }
+    rnp_result_t ret = key.key.parse(armor.src());
     if (ret) {
         RNP_LOG("failed to parse key pkt at %" PRIu64, keypos);
         key.key = {};
-        goto finish;
+        return ret;
     }
 
-    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
-        ret = RNP_ERROR_READ;
-        goto finish;
+    if (!skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST})) {
+        return RNP_ERROR_READ;
     }
 
     /* direct-key signatures */
-    if ((ret = process_pgp_key_signatures(src, key.signatures, skiperrors))) {
-        goto finish;
+    if ((ret = process_pgp_key_signatures(&armor.src(), key.signatures, skiperrors))) {
+        return ret;
     }
 
     /* user ids/attrs with signatures */
-    while ((ptag = stream_pkt_type(src)) > 0) {
+    while ((ptag = stream_pkt_type(&armor.src())) > 0) {
         if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
             break;
         }
 
-        try {
-            pgp_transferable_userid_t uid;
-            ret = process_pgp_userid(src, uid, skiperrors);
-            if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
-                skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
-                /* skip malformed uid */
-                continue;
-            }
-            if (ret) {
-                goto finish;
-            }
-            key.userids.push_back(std::move(uid));
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto finish;
+        pgp_transferable_userid_t uid;
+        ret = process_pgp_userid(&armor.src(), uid, skiperrors);
+        if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
+            skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            /* skip malformed uid */
+            continue;
         }
+        if (ret) {
+            return ret;
+        }
+        key.userids.push_back(std::move(uid));
     }
 
     /* subkeys with signatures */
-    while ((ptag = stream_pkt_type(src)) > 0) {
+    while ((ptag = stream_pkt_type(&armor.src())) > 0) {
         if (!is_subkey_pkt(ptag)) {
             break;
         }
 
         pgp_transferable_subkey_t subkey;
-        ret = process_pgp_subkey(*src, subkey, skiperrors);
+        ret = process_pgp_subkey(armor.src(), subkey, skiperrors);
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
-            skip_pgp_packets(src, {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
             /* skip malformed subkey */
             continue;
         }
-        try {
-            key.subkeys.emplace_back(std::move(subkey));
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-        }
         if (ret) {
-            goto finish;
+            return ret;
         }
+        key.subkeys.emplace_back(std::move(subkey));
     }
-    ret = ptag >= 0 ? RNP_SUCCESS : RNP_ERROR_BAD_FORMAT;
-finish:
-    if (armored) {
-        src_close(&armorsrc);
-    }
-    return ret;
+    return ptag >= 0 ? RNP_SUCCESS : RNP_ERROR_BAD_FORMAT;
 }
 
 rnp_result_t

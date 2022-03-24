@@ -418,7 +418,7 @@ static bool
 load_transferable_key(pgp_transferable_key_t *key, const char *fname)
 {
     pgp_source_t src = {};
-    bool         res = !init_file_src(&src, fname) && !process_pgp_key(&src, *key, false);
+    bool         res = !init_file_src(&src, fname) && !process_pgp_key(src, *key, false);
     src_close(&src);
     return res;
 }
