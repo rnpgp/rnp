@@ -159,12 +159,10 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
 rnp_result_t
 rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, bool skiperrors)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     /* check whether we have transferable subkey in source */
     if (is_subkey_pkt(stream_pkt_type(src))) {
         pgp_transferable_subkey_t tskey;
-        ret = process_pgp_subkey(*src, tskey, skiperrors);
+        rnp_result_t              ret = process_pgp_subkey(*src, tskey, skiperrors);
         if (ret) {
             return ret;
         }
@@ -174,17 +172,22 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, boo
     }
 
     /* process armored or raw transferable key packets sequence(s) */
-    pgp_key_sequence_t keys;
-    if ((ret = process_pgp_keys(src, keys, skiperrors))) {
-        return ret;
-    }
-
-    for (auto &key : keys.keys) {
-        if (!rnp_key_store_add_transferable_key(keyring, &key)) {
-            return RNP_ERROR_BAD_STATE;
+    try {
+        pgp_key_sequence_t keys;
+        rnp_result_t       ret = process_pgp_keys(*src, keys, skiperrors);
+        if (ret) {
+            return ret;
         }
+        for (auto &key : keys.keys) {
+            if (!rnp_key_store_add_transferable_key(keyring, &key)) {
+                return RNP_ERROR_BAD_STATE;
+            }
+        }
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return RNP_ERROR_BAD_PARAMETERS;
     }
-    return RNP_SUCCESS;
 }
 
 std::vector<uint8_t>
