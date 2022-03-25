@@ -1323,8 +1323,6 @@ rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, c
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     pgp_key_provider_t chained;
     chained.callback = rnp_key_provider_store;
     chained.userdata = store;
@@ -1336,28 +1334,18 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 
     if (input->src_directory) {
         // load the keys
-        try {
-            store->path = input->src_directory;
-        } catch (const std::exception &e) {
-            FFI_LOG(ffi, "%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
+        store->path = input->src_directory;
         if (!rnp_key_store_load_from_path(store, &key_provider)) {
-            ret = RNP_ERROR_BAD_FORMAT;
-            goto done;
+            return RNP_ERROR_BAD_FORMAT;
         }
-    } else {
-        // load the keys
-        if (!rnp_key_store_load_from_src(store, &input->src, &key_provider)) {
-            ret = RNP_ERROR_BAD_FORMAT;
-            goto done;
-        }
+        return RNP_SUCCESS;
     }
 
-    ret = RNP_SUCCESS;
-done:
-    return ret;
+    // load the keys
+    if (!rnp_key_store_load_from_src(store, &input->src, &key_provider)) {
+        return RNP_ERROR_BAD_FORMAT;
+    }
+    return RNP_SUCCESS;
 }
 
 static bool
@@ -1387,27 +1375,20 @@ do_load_keys(rnp_ffi_t              ffi,
              pgp_key_store_format_t format,
              key_type_t             key_type)
 {
-    rnp_result_t     ret = RNP_ERROR_GENERIC;
-    rnp_key_store_t *tmp_store = NULL;
-    pgp_key_t        keycp;
-    rnp_result_t     tmpret;
-
     // create a temporary key store to hold the keys
+    std::unique_ptr<rnp_key_store_t> tmp_store;
     try {
-        tmp_store = new rnp_key_store_t(format, "", ffi->context);
+        tmp_store =
+          std::unique_ptr<rnp_key_store_t>(new rnp_key_store_t(format, "", ffi->context));
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
-    } catch (const std::exception &e) {
-        FFI_LOG(ffi, "%s", e.what());
-        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     // load keys into our temporary store
-    tmpret = load_keys_from_input(ffi, input, tmp_store);
+    rnp_result_t tmpret = load_keys_from_input(ffi, input, tmp_store.get());
     if (tmpret) {
-        ret = tmpret;
-        goto done;
+        return tmpret;
     }
     // go through all the loaded keys
     for (auto &key : tmp_store->keys) {
@@ -1416,14 +1397,12 @@ do_load_keys(rnp_ffi_t              ffi,
         if (key.is_secret() && ((key_type == KEY_TYPE_SECRET) || (key_type == KEY_TYPE_ANY))) {
             if (key_needs_conversion(&key, ffi->secring)) {
                 FFI_LOG(ffi, "This key format conversion is not yet supported");
-                ret = RNP_ERROR_NOT_IMPLEMENTED;
-                goto done;
+                return RNP_ERROR_NOT_IMPLEMENTED;
             }
 
             if (!rnp_key_store_add_key(ffi->secring, &key)) {
                 FFI_LOG(ffi, "Failed to add secret key");
-                ret = RNP_ERROR_GENERIC;
-                goto done;
+                return RNP_ERROR_GENERIC;
             }
         }
 
@@ -1433,12 +1412,12 @@ do_load_keys(rnp_ffi_t              ffi,
             continue;
         }
 
+        pgp_key_t keycp;
         try {
             keycp = pgp_key_t(key, true);
         } catch (const std::exception &e) {
             RNP_LOG("Failed to copy public key part: %s", e.what());
-            ret = RNP_ERROR_GENERIC;
-            goto done;
+            return RNP_ERROR_GENERIC;
         }
 
         /* TODO: We could do this a few different ways. There isn't an obvious reason
@@ -1449,22 +1428,16 @@ do_load_keys(rnp_ffi_t              ffi,
 
         if (key_needs_conversion(&key, ffi->pubring)) {
             FFI_LOG(ffi, "This key format conversion is not yet supported");
-            ret = RNP_ERROR_NOT_IMPLEMENTED;
-            goto done;
+            return RNP_ERROR_NOT_IMPLEMENTED;
         }
 
         if (!rnp_key_store_add_key(ffi->pubring, &keycp)) {
             FFI_LOG(ffi, "Failed to add public key");
-            ret = RNP_ERROR_GENERIC;
-            goto done;
+            return RNP_ERROR_GENERIC;
         }
     }
-
     // success, even if we didn't actually load any
-    ret = RNP_SUCCESS;
-done:
-    delete tmp_store;
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static key_type_t
