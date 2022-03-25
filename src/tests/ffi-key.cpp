@@ -4054,3 +4054,29 @@ TEST_F(rnp_tests, test_ffi_keys_import_autocrypt)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_keys_load_armored_spaces)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    const char *key = R"key(
+    -----BEGIN PGP PUBLIC KEY BLOCK-----
+
+mDMEXLO69BYJKwYBBAHaRw8BAQdAWsoBwHOLMrbp7ykSSCD7FYG7tMYT74aLn5wh
+Q63nmJC0BmVjZHNhMIiQBBMWCAA4FiEEMuxFQcPhApFLtGbaEJXD7W1DwDsFAlyz
+uvQCGwMFCwkIBwIGFQoJCAsCBBYCAwECHgECF4AACgkQEJXD7W1DwDs/cwD+PQt4
+GnDUFFW2omo7XJh6AUUC4eUnKQoMWoD3iwYetCwA/1leV7sUdsvs5wvkp+LJVDTW
+dbpkwTCmBVbAmazgea0B
+=omFJ
+-----END PGP PUBLIC KEY BLOCK-----
+)key";
+
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) key, strlen(key), false));
+    assert_rnp_success(rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS));
+    rnp_input_destroy(input);
+    size_t keys = 0;
+    assert_rnp_success(rnp_get_public_key_count(ffi, &keys));
+    assert_int_equal(keys, 1);
+    rnp_ffi_destroy(ffi);
+}
