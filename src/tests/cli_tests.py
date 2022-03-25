@@ -369,13 +369,15 @@ def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
     if ret != 0:
         raise_err('rnp encrypt-and-sign failed', err)
 
-def rnp_decrypt_file(src, dst, password = PASSWORD):
+def rnp_decrypt_file(src, dst, password = PASSWORD, expect_ok=True):
     pipe = pswd_pipe(password)
     ret, out, err = run_proc(
         RNP, ['--homedir', RNPDIR, '--pass-fd', str(pipe), '--decrypt', src, '--output', dst])
     os.close(pipe)
-    if ret != 0:
-        raise_err('rnp decryption failed', out + err)
+    ok = ret == 0
+    if ok != expect_ok:
+        raise_err('rnp decryption had unexpected result', out + err)
+    return out, err
 
 def rnp_sign_file_ex(src, dst, signers, passwords, options = None):
     pipe = pswd_pipe('\n'.join(passwords))
@@ -488,6 +490,20 @@ def gpg_encrypt_file(src, dst, cipher=None, z=None, armor=False):
     src = path_for_gpg(src)
     dst = path_for_gpg(dst)
     params = ['--homedir', GPGHOME, '-e', '-r', KEY_ENCRYPT, '--batch',
+              '--trust-model', 'always', '--output', dst, src]
+    if z: gpg_params_insert_z(params, 3, z)
+    if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
+    if armor: params[2:2] = ['--armor']
+    if GPG_NO_OLD: params[2:2] = ['--allow-old-cipher-algos']
+
+    ret, out, err = run_proc(GPG, params)
+    if ret != 0:
+        raise_err('gpg encryption failed for cipher ' + cipher, err)
+
+def gpg_encrypt_file_hidden_to(src, dst, recipient, cipher=None, z=None, armor=False):
+    src = path_for_gpg(src)
+    dst = path_for_gpg(dst)
+    params = ['--homedir', GPGHOME, '-e', '--hidden-recipient', recipient, '--batch',
               '--trust-model', 'always', '--output', dst, src]
     if z: gpg_params_insert_z(params, 3, z)
     if cipher: params[3:3] = ['--cipher-algo', RNP_TO_GPG_CIPHERS[cipher]]
@@ -634,6 +650,32 @@ def gpg_to_rnp_encryption(filesize, cipher=None, z=None):
         rnp_decrypt_file(dst, dec)
         compare_files(src, dec, RNP_DATA_DIFFERS)
         remove_files(dst, dec)
+    clear_workfiles()
+
+
+def gpg_hidden_to_rnp_encryption(self, filesize, cipher=None, z=None):
+    '''
+    Encrypts with GPG for a hidden recipient and decrypts with RNP
+    '''
+    src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
+    # Generate random file of required size
+    random_text(src, filesize)
+    for armor in [False, True]:
+        # Do for multiple recipients to stress the logic which suppresses decryption error messages
+        for recipient in [KEY_ENCRYPT, 'dummy1@rnp', 'unknown@rnp']:
+            expect_ok = recipient != 'unknown@rnp'
+            # Encrypt cleartext file with GPG
+            gpg_encrypt_file_hidden_to(src, dst, recipient, cipher, z, armor)
+            # Decrypt encrypted file with RNP
+            out, err = rnp_decrypt_file(dst, dec, PASSWORD, expect_ok)
+            if expect_ok:
+                compare_files(src, dec, RNP_DATA_DIFFERS)
+                self.assertEqual(out, '', 'Unexpected stdout contents')
+                err_lines = err.split('\n')
+                err_lines = list(filter(lambda x: x and "premature end of armored input" not in x, err_lines))
+                self.assertEqual(err_lines, [], 'Unexpected stderr contents')
+
+            remove_files(dst, dec)
     clear_workfiles()
 
 
@@ -3066,8 +3108,15 @@ class Encryption(unittest.TestCase):
         # Add some other keys to the keyring
         rnp_genkey_rsa('dummy1@rnp', 1024)
         rnp_genkey_rsa('dummy2@rnp', 1024)
+        rnp_genkey_rsa('unknown@rnp', 1024) # Will not be available for decryption
+
         gpg_import_pubring()
         gpg_import_secring()
+
+        # Remove it from RNP secret keychain
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '--force', 'unknown@rnp'])
+        assert ret == 0
+
         if not RNP_TWOFISH:
             Encryption.CIPHERS.remove('TWOFISH')
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
@@ -3086,6 +3135,7 @@ class Encryption(unittest.TestCase):
     def test_file_encryption__gpg_to_rnp(self):
         for size, cipher in zip(Encryption.SIZES_R, Encryption.CIPHERS_R):
             gpg_to_rnp_encryption(size, cipher)
+            gpg_hidden_to_rnp_encryption(self, size, cipher)
 
     # Encrypt with RNP and decrypt with GPG
     def test_file_encryption__rnp_to_gpg(self):
