@@ -144,6 +144,30 @@ class ArmoredSource : public Source {
     /* Restart dearmoring in case of multiple armored messages in a single stream */
     void restart();
 };
+
+class ArmoredDest : public Dest {
+    pgp_dest_t &writedst_;
+
+  public:
+    ArmoredDest(const ArmoredDest &) = delete;
+    ArmoredDest(ArmoredDest &&) = delete;
+
+    ArmoredDest(pgp_dest_t &writedst, pgp_armored_msg_t msgtype) : Dest(), writedst_(writedst)
+    {
+        auto ret = init_armored_dst(&dst_, &writedst_, msgtype);
+        if (ret) {
+            throw rnp::rnp_exception(ret);
+        }
+    };
+
+    ~ArmoredDest()
+    {
+        if (!discard_) {
+            dst_finish(&dst_);
+        }
+    }
+};
+
 } // namespace rnp
 
 #endif
