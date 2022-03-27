@@ -150,7 +150,7 @@ main(int argc, char **argv)
 
     pgp_dest_t dst = {};
     init_stdout_dest(&dst);
-    write_pgp_key(&tpkey, &dst, true);
+    write_transferable_key(tpkey, dst, true);
     dst_close(&dst, false);
 
     transferable_key_destroy(&tpkey);
