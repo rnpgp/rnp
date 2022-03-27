@@ -1201,8 +1201,6 @@ signed_detached_dst_finish(pgp_dest_t *dst)
 static rnp_result_t
 cleartext_dst_finish(pgp_dest_t *dst)
 {
-    pgp_dest_t               armordst = {0};
-    rnp_result_t             ret;
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
 
     /* writing cached line if any */
@@ -1213,22 +1211,21 @@ cleartext_dst_finish(pgp_dest_t *dst)
     dst_write(param->writedst, ST_CRLF, 2);
 
     /* writing signatures to the armored stream, which outputs to param->writedst */
-    if ((ret = init_armored_dst(&armordst, param->writedst, PGP_ARMORED_SIGNATURE))) {
-        return ret;
-    }
-
-    for (auto &sinfo : param->siginfos) {
-        if ((ret = signed_write_signature(param, &sinfo, &armordst))) {
-            break;
+    try {
+        rnp::ArmoredDest armor(*param->writedst, PGP_ARMORED_SIGNATURE);
+        armor.set_discard(true);
+        for (auto &sinfo : param->siginfos) {
+            auto ret = signed_write_signature(param, &sinfo, &armor.dst());
+            if (ret) {
+                return ret;
+            }
         }
+        armor.set_discard(false);
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to write armored signature: %s", e.what());
+        return RNP_ERROR_WRITE;
     }
-
-    if (ret == RNP_SUCCESS) {
-        ret = dst_finish(&armordst);
-    }
-
-    dst_close(&armordst, ret != RNP_SUCCESS);
-    return ret;
 }
 
 static void
