@@ -1084,11 +1084,8 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     if (!init_dst_common(dst, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    pgp_dest_armored_param_t *param = NULL;
-    try {
-        param = new pgp_dest_armored_param_t();
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    pgp_dest_armored_param_t *param = new (std::nothrow) pgp_dest_armored_param_t();
+    if (!param) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
