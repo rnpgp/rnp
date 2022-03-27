@@ -262,6 +262,10 @@ bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 std::vector<uint8_t> export_key(rnp_key_handle_t key,
                                 bool             armored = false,
                                 bool             secret = false);
+/* write transferable key(s) to stream */
+bool write_transferable_key(pgp_transferable_key_t &key, pgp_dest_t &dst, bool armor = false);
+bool write_transferable_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor = false);
+
 /* Dump key to the stdout. Not used in real tests, but useful for artefact generation */
 void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
