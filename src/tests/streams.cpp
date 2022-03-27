@@ -451,7 +451,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout.gpg", true));
-    assert_rnp_success(write_pgp_keys(keyseq, &keydst, false));
+    assert_true(write_transferable_keys(keyseq, &keydst, false));
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout.gpg"));
@@ -459,7 +459,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout.asc", true));
-    assert_rnp_success(write_pgp_keys(keyseq, &keydst, true));
+    assert_true(write_transferable_keys(keyseq, &keydst, true));
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout.asc"));
@@ -473,7 +473,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout-sec.gpg", true));
-    assert_rnp_success(write_pgp_keys(keyseq, &keydst, false));
+    assert_true(write_transferable_keys(keyseq, &keydst, false));
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout-sec.gpg"));
@@ -481,7 +481,7 @@ TEST_F(rnp_tests, test_stream_key_load)
     src_close(&keysrc);
 
     assert_rnp_success(init_file_dest(&keydst, "keyout-sec.asc", true));
-    assert_rnp_success(write_pgp_keys(keyseq, &keydst, true));
+    assert_true(write_transferable_keys(keyseq, &keydst, true));
     dst_close(&keydst, false);
 
     assert_rnp_success(init_file_src(&keysrc, "keyout-sec.asc"));
@@ -945,7 +945,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
-        assert_rnp_success(write_pgp_key(key, &keydst, false));
+        assert_true(write_transferable_key(key, keydst));
         keylen = keydst.writeb;
         dst_close(&keydst, false);
         /* load and decrypt changed key */
@@ -970,7 +970,7 @@ TEST_F(rnp_tests, test_stream_key_encrypt)
         }
         /* write changed key */
         assert_rnp_success(init_mem_dest(&keydst, keybuf, sizeof(keybuf)));
-        assert_rnp_success(write_pgp_key(key2, &keydst, false));
+        assert_true(write_transferable_key(key2, keydst));
         keylen = keydst.writeb;
         dst_close(&keydst, false);
         /* load non-encrypted key */

@@ -29,6 +29,7 @@
 #include "file-utils.h"
 #include <librepgp/stream-ctx.h>
 #include "pgp-key.h"
+#include "librepgp/stream-armor.h"
 #include "ffi-priv-types.h"
 
 #ifdef _MSC_VER
@@ -1123,6 +1124,52 @@ dump_key_stdout(rnp_key_handle_t key, bool secret)
     }
     auto sec = export_key(key, true, true);
     printf("%.*s", (int) sec.size(), (char *) sec.data());
+}
+
+bool
+write_transferable_key(pgp_transferable_key_t &key, pgp_dest_t &dst, bool armor)
+{
+    pgp_key_sequence_t keys;
+    keys.keys.push_back(key);
+    return write_transferable_keys(keys, &dst, armor);
+}
+
+bool
+write_transferable_keys(pgp_key_sequence_t &keys, pgp_dest_t *dst, bool armor)
+{
+    std::unique_ptr<rnp::ArmoredDest> armdst;
+    if (armor) {
+        pgp_armored_msg_t msgtype = PGP_ARMORED_PUBLIC_KEY;
+        if (!keys.keys.empty() && is_secret_key_pkt(keys.keys.front().key.tag)) {
+            msgtype = PGP_ARMORED_SECRET_KEY;
+        }
+        armdst = std::unique_ptr<rnp::ArmoredDest>(new rnp::ArmoredDest(*dst, msgtype));
+        dst = &armdst->dst();
+    }
+
+    for (auto &key : keys.keys) {
+        /* main key */
+        key.key.write(*dst);
+        /* revocation and direct-key signatures */
+        for (auto &sig : key.signatures) {
+            sig.write(*dst);
+        }
+        /* user ids/attrs and signatures */
+        for (auto &uid : key.userids) {
+            uid.uid.write(*dst);
+            for (auto &sig : uid.signatures) {
+                sig.write(*dst);
+            }
+        }
+        /* subkeys with signatures */
+        for (auto &skey : key.subkeys) {
+            skey.subkey.write(*dst);
+            for (auto &sig : skey.signatures) {
+                sig.write(*dst);
+            }
+        }
+    }
+    return !dst->werr;
 }
 
 bool
