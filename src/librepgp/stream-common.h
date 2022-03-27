@@ -482,7 +482,7 @@ class Dest {
     {
     }
 
-    ~Dest()
+    virtual ~Dest()
     {
         dst_close(&dst_, discard_);
     }
