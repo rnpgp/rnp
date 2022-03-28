@@ -100,7 +100,14 @@ jobs:
           popd
       - name: tests
         shell: msys2 {0}
-        run: bash ci/main.sh
+        run: |
+          set -euxo pipefail
+          ls -la C:/ProgramData/Chocolatey/ || true
+          ls -la C:/ProgramData/Chocolatey/include/ || true
+          ls -la C:/ProgramData/Chocolatey/x86_64-w64-mingw32/ || true
+          #ls -la D:/a/_temp/msys64/clang64/include || true
+          #ls -la /D/a/_temp/msys64/clang64/include || true
+          bash ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail

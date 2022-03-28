@@ -96,9 +96,10 @@ main() {
 
   if [[ "${OS}" = "msys" ]]; then
     cmakeopts+=(-G "MSYS Makefiles")
+    cmakeopts+=(-D CMAKE_CXX_FLAGS="-v")
   fi
   build_rnp "${rnpsrc}"
-  make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
+  make_install VERBOSE=1
 
   if [[ ${SKIP_TESTS} = 0 ]]; then
     echo "TESTS NOT SKIPPED"
