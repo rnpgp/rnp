@@ -46,9 +46,9 @@ jobs:
       matrix:
         os: [windows-latest]
         env:
-#          - CC: gcc
-#            CXX: g++
-#            RNP_INSTALL: /home/runneradmin/rnp-install
+          - CC: gcc
+            CXX: g++
+            RNP_INSTALL: /home/runneradmin/rnp-install
           - CC: clang
             CXX: clang++
             RNP_INSTALL: /home/runneradmin/rnp-install
@@ -61,7 +61,6 @@ jobs:
         with:
           path-type: minimal
           update: true
-          install: p7zip
       - name: Setup environment
         shell: msys2 {0}
 #  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
