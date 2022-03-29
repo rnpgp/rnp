@@ -53,7 +53,7 @@ jobs:
           - CC: clang
             CXX: clang++
             CFLAGS: "-I/clang64/include"
-            CXXFLAGS: "-I/clang64/include"
+            CXXFLAGS: "-I/clang64/include -I/clang64/include/c++/v1"
             GTEST_SOURCES: ${{ github.workspace }}/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
