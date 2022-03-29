@@ -100,6 +100,7 @@ main() {
   build_rnp "${rnpsrc}"
 which clang
 clang --version  
+make 
   make_install                  # VERBOSE=1 -- verbose flag commented out to speed up recurring CI runs. Uncomment if you are debugging CI
 
   if [[ ${SKIP_TESTS} = 0 ]]; then
