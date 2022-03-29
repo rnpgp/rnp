@@ -47,13 +47,13 @@ jobs:
         env:
           - CC: gcc
             CXX: g++
-            GTEST_SOURCES: /home/runneradmin/googletest-src
+            GTEST_SOURCES: ${{ github.workspace }}/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
           - CC: clang
             CXX: clang++
             CFLAGS: "-I/clang64/include"
             CXXFLAGS: "-I/clang64/include"
-            GTEST_SOURCES: /home/runneradmin/googletest-src
+            GTEST_SOURCES: ${{ github.workspace }}/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
     steps:
