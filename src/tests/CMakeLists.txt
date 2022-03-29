@@ -37,16 +37,19 @@ set_tests_properties(setupTestData PROPERTIES FIXTURES_SETUP testdata)
 # rnp_tests
 include(GoogleTest)
 if (GTEST_SOURCES)
+message(STATUS "--------------> Using GTEST_SOURCES")
   # use Googletest sources if specified
   add_subdirectory(${GTEST_SOURCES}
     ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
     EXCLUDE_FROM_ALL)
   set(GTestMain gtest_main)
 elseif (NOT DOWNLOAD_GTEST)
+message(STATUS "--------------> NOT DOWNLOAD_GTEST")
   # use preinstalled googletest
   find_package(GTest REQUIRED)
   set(GTestMain GTest::Main)
 else()
+message(STATUS "--------------> DOWNLOAD_GTEST")
   # download and build googletest
   include(FetchContent)
   FetchContent_Declare(googletest
