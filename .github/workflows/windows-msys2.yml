@@ -47,11 +47,13 @@ jobs:
         env:
           - CC: gcc
             CXX: g++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+            GTEST_SOURCES: /home/runneradmin/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
           - CC: clang
             CXX: clang++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
+            CFLAGS: "-I/clang64/include"
+            CXXFLAGS: "-I/clang64/include"
+            GTEST_SOURCES: /home/runneradmin/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
     steps:
@@ -89,7 +91,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: google/googletest
-          path: googletest-download/googletest-src
+          path: ${{ env.GTEST_SOURCES }}
           fetch-depth: 0
           ref: release-1.11.0
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
