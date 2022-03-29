@@ -629,7 +629,6 @@ msys_install() {
                clang64/mingw-w64-clang-x86_64-json-c
                clang64/mingw-w64-clang-x86_64-libsystre
     )
-    echo "=============== Packages ================="
   fi
 
   pacman --noconfirm -S --needed "${packages[@]}"
@@ -868,6 +867,8 @@ build_rnp() {
 }
 
 make_install() {
+  echo ">>> $@ <<<"
+
   make -j"${MAKE_PARALLEL}" install "$@"
 }
 
