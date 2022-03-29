@@ -54,12 +54,13 @@ jobs:
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - uses: msys2/setup-msys2@v2
         with:
           path-type: minimal
+        install: p7zip
       - name: Setup environment
         shell: msys2 {0}
 #  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
