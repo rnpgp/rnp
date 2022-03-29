@@ -53,7 +53,7 @@ jobs:
           - CC: clang
             CXX: clang++
             CFLAGS: "-I/clang64/include"
-            CXXFLAGS: "-I/clang64/include -I/clang64/include/c++/v1"
+            CXXFLAGS: "-I/clang64/include"
             GTEST_SOURCES: ${{ github.workspace }}/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
@@ -63,9 +63,9 @@ jobs:
           fetch-depth: 1
       - uses: msys2/setup-msys2@v2
         with:
-          path-type: inherit
+          path-type: strict
       - name: Setup environment
-        shell: msys2 {0}
+        shell: mingw64 {0}
 #  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
 #  Environment setup is required only if some dependencies shall be built locally
 #  If it becomes a case for mingw environment setup shall be reconsidered
@@ -82,7 +82,7 @@ jobs:
 #          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
 #      - name: Build cache
 #        if: steps.cache.outputs.cache-hit != 'true'
-#        shell: msys2 {0}
+#        shell: mingw64 {0}
 #        env:
 #          USE_STATIC_DEPENDENCIES: "yes"
 #        run: |
@@ -99,11 +99,11 @@ jobs:
         #  Failed to get the hash for HEAD:
         #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
       - name: tests
-        shell: msys2 {0}
+        shell: mingw64 {0}
         run: |
           /clang64/bin/clang --version
           env GTEST_SOURCES=$(pwd)/googletest-src ci/main.sh
-      - shell: msys2 {0}
+      - shell: mingw64 {0}
         run: |
           set -euxo pipefail
           wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
