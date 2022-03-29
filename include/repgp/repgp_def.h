@@ -95,7 +95,7 @@
 
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_SIZE 20
-#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 3) + 1
+#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 2) + 1
 
 /* Size of the key grip */
 #define PGP_KEY_GRIP_SIZE 20
