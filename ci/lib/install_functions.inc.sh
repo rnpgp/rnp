@@ -867,8 +867,6 @@ build_rnp() {
 }
 
 make_install() {
-  echo ">>> $@ <<<"
-
   make -j"${MAKE_PARALLEL}" install "$@"
 }
 
