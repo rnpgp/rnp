@@ -100,7 +100,9 @@ jobs:
         #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
       - name: tests
         shell: msys2 {0}
-        run: env GTEST_SOURCES=$(pwd)/googletest-src ci/main.sh
+        run: |
+          /clang64/bin/clang --version
+          env GTEST_SOURCES=$(pwd)/googletest-src ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
