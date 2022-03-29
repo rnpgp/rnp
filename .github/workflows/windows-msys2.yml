@@ -96,7 +96,7 @@ jobs:
           pushd ${HOME}/googletest-download
           git clone --no-checkout "https://github.com/google/googletest.git" "googletest-src"
           cd googletest-src
-          git checkout c43f710 --
+          git checkout v1.11.0 --
           popd
       - name: tests
         shell: msys2 {0}
