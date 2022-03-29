@@ -89,9 +89,6 @@ jobs:
 #          set -x
 #          ci/install_cacheable_dependencies.sh
       - name: download googletest
-        shell: msys2 {0}
-        env:
-            GTEST_SOURCES: ${{ github.workspace }}/googletest-src
         uses: actions/checkout@v3
         with:
           repository: google/googletest
