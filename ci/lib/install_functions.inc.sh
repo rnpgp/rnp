@@ -611,7 +611,7 @@ msys_install() {
     gnupg2
     make
     pkg-config
-    p2zip
+    p7zip
     mingw64/mingw-w64-x86_64-cmake
     mingw64/mingw-w64-x86_64-python3
   )
