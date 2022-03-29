@@ -59,7 +59,7 @@ jobs:
           fetch-depth: 1
       - uses: msys2/setup-msys2@v2
         with:
-          path-type: strict
+          path-type: minimal
       - name: Setup environment
         shell: msys2 {0}
 #  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
