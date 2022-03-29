@@ -2,7 +2,7 @@ name: windows-msys2
 
 on:
   push:
-    branches:
+#    branches:
 #      - master
 #      - 'release/**'
     paths-ignore:
