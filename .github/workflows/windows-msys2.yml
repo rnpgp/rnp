@@ -33,6 +33,7 @@ on:
 env:
   BUILD_MODE: normal
   GPG_VERSION: stable
+  GTEST_SOURCES: googletest-src
   CORES: 2
 
 jobs:
@@ -89,7 +90,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           repository: google/googletest
-          path: googletest-src
+          path: ${{ env.GTEST_SOURCES }}
           fetch-depth: 0
           ref: release-1.11.0
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
@@ -97,8 +98,7 @@ jobs:
         #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
       - name: tests
         shell: msys2 {0}
-        run: |
-          env GTEST_SOURCES=googletest-src ci/main.sh
+        run: ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
