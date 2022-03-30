@@ -1,6 +1,7 @@
 name: windows-msys2
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -32,6 +33,7 @@ on:
 env:
   BUILD_MODE: normal
   GPG_VERSION: stable
+  GTEST_SOURCES: googletest-src
   CORES: 2
 
 jobs:
@@ -47,20 +49,19 @@ jobs:
         env:
           - CC: gcc
             CXX: g++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
           - CC: clang
             CXX: clang++
-            GTEST_SOURCES: /home/runneradmin/googletest-download/googletest-src
             RNP_INSTALL: /home/runneradmin/rnp-install
     env:  ${{ matrix.env }}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - uses: msys2/setup-msys2@v2
         with:
-          path-type: inherit
+          path-type: minimal
+          update: true
       - name: Setup environment
         shell: msys2 {0}
 #  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
@@ -86,21 +87,18 @@ jobs:
 #          set -x
 #          ci/install_cacheable_dependencies.sh
       - name: download googletest
+        uses: actions/checkout@v3
+        with:
+          repository: google/googletest
+          path: ${{ env.GTEST_SOURCES }}
+          fetch-depth: 0
+          ref: release-1.11.0
         # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
         #  Failed to get the hash for HEAD:
         #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
-        shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          mkdir ${HOME}/googletest-download
-          pushd ${HOME}/googletest-download
-          git clone --no-checkout "https://github.com/google/googletest.git" "googletest-src"
-          cd googletest-src
-          git checkout c43f710 --
-          popd
       - name: tests
         shell: msys2 {0}
-        run: bash ci/main.sh
+        run: ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
