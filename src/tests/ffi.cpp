@@ -5820,3 +5820,81 @@ TEST_F(rnp_tests, test_ffi_security_profile)
 
     rnp_ffi_destroy(ffi);
 }
+
+static void
+decrypt_hidden_to(rnp_ffi_t &ffi)
+{
+    assert_true(import_sec_keys(ffi, "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+
+    rnp_input_t input = NULL;
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.hidden-to"));
+    assert_non_null(input);
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    rnp_output_memory_get_buf(output, &buf, &len, false);
+    std::string out;
+    out.assign((char *) buf, len);
+    assert_true(out == file_to_str("data/test_messages/message.txt"));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+}
+
+TEST_F(rnp_tests, test_ffi_decrypt_hidden_to)
+{
+    rnp_ffi_t ffi = NULL;
+    test_ffi_init(&ffi);
+
+    decrypt_hidden_to(ffi);
+
+    rnp_ffi_destroy(ffi);
+    // TODO tunables to enable/disable trying to decrypt messages hidden recipients
+}
+
+TEST_F(rnp_tests, DISABLED_test_ffi_decrypt_hidden_to_no_errormsgs)
+{
+    // Secret keyrings can have many keys.
+    // When decrypting a message to a hidden recipient, each key has to be tried.
+    // There shouldn't be any error messages printed about decryption failures caused by the failed attempts.
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    // Log fd handing inspired by test_ffi_set_log_fd.
+    int log_fd = rnp_open("decrypt_hidden_to.log", O_RDWR | O_CREAT | O_TRUNC, 0777);
+    assert_true(log_fd > 0);
+    assert_rnp_success(rnp_ffi_set_log_fd(ffi, log_fd));
+
+    // Temporarily redirect stderr to a file
+    int stderr_dup_fd;
+    fpos_t orig_stderr_pos;
+    fflush(stderr);
+    fgetpos(stderr, &orig_stderr_pos);
+    stderr_dup_fd = dup(fileno(stderr));
+    freopen("decrypt_hidden_to.err", "w", stderr);
+
+    decrypt_hidden_to(ffi);
+
+    // Test that there are no error messages like the one below in the FFI log file and in stderr.
+    // [elgamal_decrypt_pkcs1() /home/rnp/1275/rnp/src/lib/crypto/elgamal.cpp:238] Decryption failed
+    // The expected result is that nothing is logged to both log_fd and stderr.
+    // The actual behaviour as of 2022-03-30 is that stderr gets these error messages.
+    struct stat sb;
+    assert_int_equal(0, fstat(log_fd, &sb));
+    assert_int_equal(0, sb.st_size);
+
+    rnp_ffi_destroy(ffi); // closes log_fd
+
+    // Revert temporary redirect of stderr to a file
+    fflush(stderr);
+    dup2(stderr_dup_fd, fileno(stderr));
+    close(stderr_dup_fd);
+    clearerr(stderr);
+    fsetpos(stderr, &orig_stderr_pos);
+
+    assert_int_equal(0, stat("decrypt_hidden_to.err", &sb));
+    assert_int_equal(0, sb.st_size); // This assertion fails as of 2022-03-30.
+}
