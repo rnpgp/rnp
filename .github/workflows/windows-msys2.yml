@@ -98,7 +98,7 @@ jobs:
       - name: tests
         shell: msys2 {0}
         run: |
-          env GTEST_SOURCES=$(pwd)/googletest-src ci/main.sh
+          env GTEST_SOURCES=googletest-src ci/main.sh
       - shell: msys2 {0}
         run: |
           set -euxo pipefail
