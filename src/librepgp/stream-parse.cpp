@@ -1410,9 +1410,9 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
-                  const pgp_pk_sesskey_t       *sesskey,
-                  pgp_key_pkt_t                *seckey,
-                  rnp::SecurityContext         &ctx,
+                  const pgp_pk_sesskey_t *      sesskey,
+                  pgp_key_pkt_t *               seckey,
+                  rnp::SecurityContext &        ctx,
                   bool                          speculative)
 {
     pgp_encrypted_material_t encmaterial;
@@ -2052,12 +2052,12 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
  * @return RNP_SUCCESS, RNP_ERROR_NO_SUITABLE_KEY or other.
  */
 static rnp_result_t
-key_fetch_and_try(pgp_parse_handler_t          *handler,
+key_fetch_and_try(pgp_parse_handler_t *         handler,
                   pgp_source_encrypted_param_t *param,
-                  const pgp_pk_sesskey_t       &pubenc,
+                  const pgp_pk_sesskey_t &      pubenc,
                   bool                          speculative)
 {
-    pgp_key_t     *seckey = NULL;
+    pgp_key_t *    seckey = NULL;
     pgp_key_pkt_t *decrypted_seckey = NULL;
 
     pgp_key_request_ctx_t keyctx = {};
@@ -2166,7 +2166,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                  * session key.  This format helps reduce traffic analysis of messages. */
                 rnp_identifier_iterator_t it = NULL;
                 rnp_key_handle_t          handle = NULL;
-                const char               *identifier = NULL;
+                const char *              identifier = NULL;
 
                 /* Iterate through the keys */
                 rnp_ffi_t ffi = (rnp_ffi_t) handler->key_provider->userdata;
