@@ -5828,9 +5828,10 @@ decrypt_hidden_to(rnp_ffi_t &ffi)
     assert_rnp_success(
       rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
 
-    rnp_input_t input = NULL;
+    rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
-    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.hidden-to"));
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.hidden-to"));
     assert_non_null(input);
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_decrypt(ffi, input, output));
@@ -5859,7 +5860,8 @@ TEST_F(rnp_tests, DISABLED_test_ffi_decrypt_hidden_to_no_errormsgs)
 {
     // Secret keyrings can have many keys.
     // When decrypting a message to a hidden recipient, each key has to be tried.
-    // There shouldn't be any error messages printed about decryption failures caused by the failed attempts.
+    // There shouldn't be any error messages printed about decryption failures caused by the
+    // failed attempts.
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
 
@@ -5869,7 +5871,7 @@ TEST_F(rnp_tests, DISABLED_test_ffi_decrypt_hidden_to_no_errormsgs)
     assert_rnp_success(rnp_ffi_set_log_fd(ffi, log_fd));
 
     // Temporarily redirect stderr to a file
-    int stderr_dup_fd;
+    int    stderr_dup_fd;
     fpos_t orig_stderr_pos;
     fflush(stderr);
     fgetpos(stderr, &orig_stderr_pos);
