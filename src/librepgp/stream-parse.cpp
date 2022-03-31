@@ -2179,15 +2179,15 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                         break;
                     }
 
-                    bool secret = false;
-                    assert(!rnp_key_have_secret(handle, &secret));
-                    if (!secret) {
-                        rnp_key_handle_destroy(handle);
-                        continue;
+                    bool key_is_secret = false;
+                    rnp_key_have_secret(handle, &key_is_secret);
+                    bool key_can_decrypt = false;
+                    if (key_is_secret) {
+                        key_can_decrypt = handle->sec->can_encrypt();
                     }
-                    // try only encrypt-capable keys
-                    if (!handle->sec->can_encrypt()) {
-                        rnp_key_handle_destroy(handle);
+                    rnp_key_handle_destroy(handle);
+                    // Try only secret, encrypt-capable keys
+                    if (!(key_is_secret && key_can_decrypt)) {
                         continue;
                     }
 
