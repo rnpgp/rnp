@@ -5880,10 +5880,12 @@ TEST_F(rnp_tests, DISABLED_test_ffi_decrypt_hidden_to_no_errormsgs)
 
     decrypt_hidden_to(ffi);
 
+    // clang-format off
     // Test that there are no error messages like the one below in the FFI log file and in stderr.
     // [elgamal_decrypt_pkcs1() /home/rnp/1275/rnp/src/lib/crypto/elgamal.cpp:238] Decryption failed
     // The expected result is that nothing is logged to both log_fd and stderr.
     // The actual behaviour as of 2022-03-30 is that stderr gets these error messages.
+    // clang-format on
     struct stat sb;
     assert_int_equal(0, fstat(log_fd, &sb));
     assert_int_equal(0, sb.st_size);
