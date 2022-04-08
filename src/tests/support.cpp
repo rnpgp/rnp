@@ -1074,9 +1074,10 @@ import_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len, uint32_t flags)
 }
 
 bool
-import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len)
+import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len, uint32_t flags)
 {
-    return import_keys(ffi, data, len, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
+    return import_keys(
+      ffi, data, len, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS | flags);
 }
 
 bool

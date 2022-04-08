@@ -255,7 +255,7 @@ bool load_keys_kbx_g10(rnp_ffi_t ffi, const std::string &pub, const std::string 
 bool import_all_keys(rnp_ffi_t ffi, const std::string &path);
 bool import_pub_keys(rnp_ffi_t ffi, const std::string &path);
 bool import_sec_keys(rnp_ffi_t ffi, const std::string &path);
-bool import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
+bool import_all_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len, uint32_t flags = 0);
 bool import_pub_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 bool import_sec_keys(rnp_ffi_t ffi, const uint8_t *data, size_t len);
 /* key export shortcut */
