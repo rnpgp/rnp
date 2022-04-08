@@ -35,7 +35,8 @@ typedef enum {
     PGP_ARMORED_PUBLIC_KEY,
     PGP_ARMORED_SECRET_KEY,
     PGP_ARMORED_SIGNATURE,
-    PGP_ARMORED_CLEARTEXT
+    PGP_ARMORED_CLEARTEXT,
+    PGP_ARMORED_BASE64
 } pgp_armored_msg_t;
 
 /* @brief Init dearmoring stream

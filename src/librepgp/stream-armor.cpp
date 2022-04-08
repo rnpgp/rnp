@@ -71,7 +71,7 @@ typedef struct pgp_source_armored_param_t {
 typedef struct pgp_dest_armored_param_t {
     pgp_dest_t *      writedst;
     pgp_armored_msg_t type;    /* type of the message */
-    bool              usecrlf; /* use CR LF instead of LF as eol */
+    char              eol[2];  /* end of line, all non-zeroes are written */
     unsigned          lout;    /* chars written in current line */
     unsigned          llen;    /* length of the base64 line, defaults to 76 as per RFC */
     uint8_t           tail[2]; /* bytes which didn't fit into 3-byte boundary */
@@ -881,10 +881,22 @@ armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
 static void
 armor_write_eol(pgp_dest_armored_param_t *param)
 {
-    if (param->usecrlf) {
-        dst_write(param->writedst, ST_CRLF, 2);
-    } else {
-        dst_write(param->writedst, ST_LF, 1);
+    if (param->eol[0]) {
+        dst_write(param->writedst, &param->eol[0], 1);
+    }
+    if (param->eol[1]) {
+        dst_write(param->writedst, &param->eol[1], 1);
+    }
+}
+
+static void
+armor_append_eol(pgp_dest_armored_param_t *param, uint8_t *&ptr)
+{
+    if (param->eol[0]) {
+        *ptr++ = param->eol[0];
+    }
+    if (param->eol[1]) {
+        *ptr++ = param->eol[1];
     }
 }
 
@@ -918,36 +930,34 @@ armored_encode3(uint8_t *out, uint8_t *in)
 static rnp_result_t
 armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 {
-    uint8_t                   encbuf[PGP_INPUT_CACHE_SIZE / 2];
-    uint8_t *                 encptr = encbuf;
-    uint8_t *                 enclast;
-    uint8_t                   dec3[3];
-    uint8_t *                 bufptr = (uint8_t *) buf;
-    uint8_t *                 bufend = bufptr + len;
-    uint8_t *                 inlend;
-    uint32_t                  t;
-    unsigned                  inllen;
     pgp_dest_armored_param_t *param = (pgp_dest_armored_param_t *) dst->param;
-
     if (!param) {
         RNP_LOG("wrong param");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     /* update crc */
-    try {
-        param->crc_ctx.add(buf, len);
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return RNP_ERROR_BAD_STATE;
+    bool base64 = param->type == PGP_ARMORED_BASE64;
+    if (!base64) {
+        try {
+            param->crc_ctx.add(buf, len);
+        } catch (const std::exception &e) {
+            RNP_LOG("%s", e.what());
+            return RNP_ERROR_BAD_STATE;
+        }
     }
 
+    uint8_t  encbuf[PGP_INPUT_CACHE_SIZE / 2];
+    uint8_t *bufptr = (uint8_t *) buf;
+    uint8_t *bufend = bufptr + len;
+    uint8_t *encptr = encbuf;
     /* processing tail if any */
     if (len + param->tailc < 3) {
         memcpy(&param->tail[param->tailc], buf, len);
         param->tailc += len;
         return RNP_SUCCESS;
     } else if (param->tailc > 0) {
+        uint8_t dec3[3] = {0};
         memcpy(dec3, param->tail, param->tailc);
         memcpy(&dec3[param->tailc], bufptr, 3 - param->tailc);
         bufptr += 3 - param->tailc;
@@ -956,10 +966,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         encptr += 4;
         param->lout += 4;
         if (param->lout == param->llen) {
-            if (param->usecrlf) {
-                *encptr++ = CH_CR;
-            }
-            *encptr++ = CH_LF;
+            armor_append_eol(param, encptr);
             param->lout = 0;
         }
     }
@@ -967,9 +974,9 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     /* this version prints whole chunks, so rounding down to the closest 4 */
     auto adjusted_llen = param->llen & ~3;
     /* number of input bytes to form a whole line of output, param->llen / 4 * 3 */
-    inllen = (adjusted_llen >> 2) + (adjusted_llen >> 1);
+    auto inllen = (adjusted_llen >> 2) + (adjusted_llen >> 1);
     /* pointer to the last full line space in encbuf */
-    enclast = encbuf + sizeof(encbuf) - adjusted_llen - 2;
+    auto enclast = encbuf + sizeof(encbuf) - adjusted_llen - 2;
 
     /* processing line chunks, this is the main performance-hitting cycle */
     while (bufptr + 3 <= bufend) {
@@ -979,8 +986,8 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
             encptr = encbuf;
         }
         /* setup length of the input to process in this iteration */
-        inlend = param->lout == 0 ? bufptr + inllen :
-                                    bufptr + ((adjusted_llen - param->lout) >> 2) * 3;
+        uint8_t *inlend =
+          !param->lout ? bufptr + inllen : bufptr + ((adjusted_llen - param->lout) >> 2) * 3;
         if (inlend > bufend) {
             /* no enough input for the full line */
             inlend = bufptr + (bufend - bufptr) / 3 * 3;
@@ -992,7 +999,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
 
         /* processing one line */
         while (bufptr < inlend) {
-            t = (bufptr[0] << 16) | (bufptr[1] << 8) | (bufptr[2]);
+            uint32_t t = (bufptr[0] << 16) | (bufptr[1] << 8) | (bufptr[2]);
             bufptr += 3;
             *encptr++ = B64ENC[(t >> 18) & 0xff];
             *encptr++ = B64ENC[(t >> 12) & 0xff];
@@ -1001,11 +1008,8 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         }
 
         /* adding line ending */
-        if (param->lout == 0) {
-            if (param->usecrlf) {
-                *encptr++ = CH_CR;
-            }
-            *encptr++ = CH_LF;
+        if (!param->lout) {
+            armor_append_eol(param, encptr);
         }
     }
 
@@ -1037,6 +1041,10 @@ armored_dst_finish(pgp_dest_t *dst)
         buf[2] = B64ENC[(param->tail[1] << 2) & 0xff];
         buf[3] = CH_EQ;
         dst_write(param->writedst, buf, 4);
+    }
+    /* Check for base64 */
+    if (param->type == PGP_ARMORED_BASE64) {
+        return param->writedst->werr;
     }
 
     /* writing EOL if needed */
@@ -1099,9 +1107,18 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
 
     param->writedst = writedst;
     param->type = msgtype;
-    param->usecrlf = true;
+    /* Base64 message */
+    if (msgtype == PGP_ARMORED_BASE64) {
+        /* Base64 encoding will not output EOLs but we need this to not duplicate code for a
+         * separate base64_dst_write function */
+        param->eol[0] = 0;
+        param->eol[1] = 0;
+        param->llen = 256;
+        return RNP_SUCCESS;
+    }
+    param->eol[0] = CH_CR;
+    param->eol[1] = CH_LF;
     param->llen = 76; /* must be multiple of 4 */
-
     /* armor header */
     if (!armor_write_message_header(param, false)) {
         RNP_LOG("unknown data type");
