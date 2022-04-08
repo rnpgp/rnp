@@ -31,6 +31,11 @@
 #include "pgp-key.h"
 #include "ffi-priv-types.h"
 #include "str-utils.h"
+#ifndef RNP_USE_STD_REGEX
+#include <regex.h>
+#else
+#include <regex>
+#endif
 
 static void
 check_key_properties(rnp_key_handle_t key,
@@ -3798,7 +3803,8 @@ static bool
 check_key_autocrypt(rnp_output_t       memout,
                     const std::string &keyid,
                     const std::string &subid,
-                    const std::string &uid)
+                    const std::string &uid,
+                    bool               base64 = false)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
@@ -3808,11 +3814,9 @@ check_key_autocrypt(rnp_output_t       memout,
     if (rnp_output_memory_get_buf(memout, &buf, &len, false) || !buf || !len) {
         return false;
     }
-    rnp_input_t input = NULL;
-    if (!import_all_keys(ffi, buf, len)) {
+    if (!import_all_keys(ffi, buf, len, base64 ? RNP_LOAD_SAVE_BASE64 : 0)) {
         return false;
     }
-    rnp_input_destroy(input);
     size_t count = 0;
     rnp_get_public_key_count(ffi, &count);
     if (count != 2) {
@@ -3889,6 +3893,33 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, "key0-uid2", output, 0));
     assert_true(
       check_key_autocrypt(output, "7bc6709b15c23a4a", "8a05b89fad5aded1", "key0-uid2"));
+    rnp_output_destroy(output);
+
+    /* export base64-encoded key */
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(
+      rnp_key_export_autocrypt(key, NULL, "key0-uid2", output, RNP_KEY_EXPORT_BASE64));
+    /* Make sure it is base64-encoded */
+    const std::string reg = "^[A-Za-z0-9\\+\\/]+={0,2}$";
+    uint8_t *         buf = NULL;
+    size_t            len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    std::string val((char *) buf, (char *) buf + len);
+#ifndef RNP_USE_STD_REGEX
+    static regex_t r;
+    regmatch_t     matches[1];
+    assert_int_equal(regcomp(&r, reg.c_str(), REG_EXTENDED), 0);
+    assert_int_equal(regexec(&r, val.c_str(), 1, matches, 0), 0);
+#else
+    static std::regex re(reg, std::regex_constants::extended | std::regex_constants::icase);
+    std::smatch       result;
+    assert_true(std::regex_search(val, result, re));
+#endif
+    /* Fails to load without base64 flag */
+    assert_false(import_all_keys(ffi, buf, len));
+    /* Now should succeed */
+    assert_true(
+      check_key_autocrypt(output, "7bc6709b15c23a4a", "8a05b89fad5aded1", "key0-uid2", true));
     rnp_output_destroy(output);
 
     /* remove first subkey and export again */
