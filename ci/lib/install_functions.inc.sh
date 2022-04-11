@@ -91,14 +91,14 @@ freebsd_install() {
     libtool
     gettext-tools
     python
-    ruby26
+    lang/ruby27
   )
 
   # Note: we assume sudo is already installed
   "${SUDO}" pkg install -y "${packages[@]}"
 
   cd /usr/ports/devel/ruby-gems
-  "${SUDO}" make -DBATCH RUBY_VER=2.5 install
+  "${SUDO}" make -DBATCH RUBY_VER=2.7 install
   cd
 
   mkdir -p ~/.gnupg
