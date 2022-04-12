@@ -1787,57 +1787,6 @@ finish:
 }
 
 rnp_result_t
-rnp_encrypt_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
-{
-    /* stack of the streams would be as following:
-       [armoring stream] - if armoring is enabled
-       encrypting stream, partial writing stream
-       [compressing stream, partial writing stream] - if compression is enabled
-       literal data stream, partial writing stream
-    */
-    pgp_dest_t   dests[4];
-    int          destc = 0;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
-    /* pushing armoring stream, which will write to the output */
-    if (handler->ctx->armor) {
-        if ((ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE))) {
-            goto finish;
-        }
-        destc++;
-    }
-
-    /* pushing encrypting stream, which will write to the output or armoring stream */
-    if ((ret = init_encrypted_dst(handler, &dests[destc], destc ? &dests[destc - 1] : dst))) {
-        goto finish;
-    }
-    destc++;
-
-    /* if compression is enabled then pushing compressing stream */
-    if (handler->ctx->zlevel > 0) {
-        if ((ret = init_compressed_dst(handler, &dests[destc], &dests[destc - 1]))) {
-            goto finish;
-        }
-        destc++;
-    }
-
-    /* pushing literal data stream */
-    if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
-        goto finish;
-    }
-    destc++;
-
-    /* processing stream sequence */
-    ret = process_stream_sequence(src, dests, destc);
-finish:
-    for (int i = destc - 1; i >= 0; i--) {
-        dst_close(&dests[i], ret != RNP_SUCCESS);
-    }
-
-    return ret;
-}
-
-rnp_result_t
 rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 {
     /* stack of the streams would be as following:
@@ -1905,7 +1854,7 @@ rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t
        literal data stream, partial writing stream
     */
     pgp_dest_t   dests[5];
-    unsigned     destc = 0;
+    size_t       destc = 0;
     rnp_result_t ret = RNP_SUCCESS;
 
     /* we may use only attached signatures here */
@@ -1916,8 +1865,7 @@ rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t
 
     /* pushing armoring stream, which will write to the output */
     if (handler->ctx->armor) {
-        ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE);
-        if (ret != RNP_SUCCESS) {
+        if ((ret = init_armored_dst(&dests[destc], dst, PGP_ARMORED_MESSAGE))) {
             goto finish;
         }
         destc++;
@@ -1937,11 +1885,13 @@ rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t
         destc++;
     }
 
-    /* pushing signing stream */
-    if ((ret = init_signed_dst(handler, &dests[destc], &dests[destc - 1]))) {
-        goto finish;
+    /* pushing signing stream if we have signers */
+    if (!handler->ctx->signers.empty()) {
+        if ((ret = init_signed_dst(handler, &dests[destc], &dests[destc - 1]))) {
+            goto finish;
+        }
+        destc++;
     }
-    destc++;
 
     /* pushing literal data stream */
     if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
@@ -1952,8 +1902,8 @@ rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t
     /* process source with streams stack */
     ret = process_stream_sequence(src, dests, destc);
 finish:
-    for (int i = destc - 1; i >= 0; i--) {
-        dst_close(&dests[i], ret != RNP_SUCCESS);
+    for (size_t i = destc; i > 0; i--) {
+        dst_close(&dests[i - 1], ret);
     }
     return ret;
 }

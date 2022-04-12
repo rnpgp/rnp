@@ -2731,14 +2731,10 @@ try {
       pgp_write_handler(&op->ffi->pass_provider, &op->rnpctx, NULL, &op->ffi->key_provider);
 
     rnp_result_t ret;
-    if (!op->signatures.empty()) {
-        if ((ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
-            return ret;
-        }
-        ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
-    } else {
-        ret = rnp_encrypt_src(&handler, &op->input->src, &op->output->dst);
+    if (!op->signatures.empty() && (ret = rnp_op_add_signatures(op->signatures, op->rnpctx))) {
+        return ret;
     }
+    ret = rnp_encrypt_sign_src(&handler, &op->input->src, &op->output->dst);
 
     dst_flush(&op->output->dst);
     op->output->keep = ret == RNP_SUCCESS;
