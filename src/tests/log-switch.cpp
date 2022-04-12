@@ -83,6 +83,52 @@ TEST_F(rnp_tests, test_log_switch)
         unsetenv(RNP_LOG_CONSOLE);
     }
 
+    // check temporary stopping of logging
+    fclose(stream);
+    assert_int_equal(0, rnp_unlink(LOGTEST_FILENAME));
+    stream = fopen(LOGTEST_FILENAME, "w");
+
+    set_rnp_log_switch(0);
+    // make sure it will not allow logging
+    rnp_log_continue();
+    RNP_LOG_FD(stream, "y");
+    fflush(stream);
+    assert_int_equal(0, ftell(stream));
+    // make sure logging was temporary stopped
+    set_rnp_log_switch(1);
+    rnp_log_stop();
+    RNP_LOG_FD(stream, "y");
+    fflush(stream);
+    assert_int_equal(0, ftell(stream));
+    // make sure logging continued
+    rnp_log_continue();
+    RNP_LOG_FD(stream, "y");
+    fflush(stream);
+    auto sz = ftell(stream);
+    assert_int_not_equal(0, sz);
+    {
+        // check C++ object helper
+        rnp::LogStop log_stop;
+        RNP_LOG_FD(stream, "y");
+        fflush(stream);
+        assert_int_equal(sz, ftell(stream));
+    }
+    // combine multiple log_stop calls
+    rnp_log_stop();
+    {
+        rnp::LogStop log_stop;
+        RNP_LOG_FD(stream, "y");
+        fflush(stream);
+        assert_int_equal(sz, ftell(stream));
+    }
+    // this should continue logging
+    rnp_log_continue();
+    RNP_LOG_FD(stream, "y");
+    fflush(stream);
+    auto sz2 = ftell(stream);
+    assert_int_not_equal(sz2, sz);
+    assert_true(sz2 > sz);
+
     // restore _rnp_log_switch
     set_rnp_log_switch(saved_rnp_log_switch ? 1 : 0);
 
