@@ -39,6 +39,9 @@ static int8_t _rnp_log_switch =
 #endif
   ;
 
+/* Temporary disable logging */
+static size_t _rnp_log_disable = 0;
+
 void
 set_rnp_log_switch(int8_t value)
 {
@@ -52,5 +55,21 @@ rnp_log_switch()
         const char *var = getenv(RNP_LOG_CONSOLE);
         _rnp_log_switch = (var && strcmp(var, "0")) ? 1 : 0;
     }
-    return !!_rnp_log_switch;
+    return !_rnp_log_disable && !!_rnp_log_switch;
+}
+
+void
+rnp_log_stop()
+{
+    if (_rnp_log_disable < SIZE_MAX) {
+        _rnp_log_disable++;
+    }
+}
+
+void
+rnp_log_continue()
+{
+    if (_rnp_log_disable) {
+        _rnp_log_disable--;
+    }
 }
