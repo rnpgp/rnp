@@ -73,18 +73,7 @@ jobs:
             CC: clang
             CXX: clang++
             IMAGE: centos:7
-# Sanitize is only been tested with the clang compiler
-# see env-common.inc.sh
-          - BUILD_MODE: sanitize
-            GPG_VERSION: stable
-            CC: clang
-            CXX: clang++
-            IMAGE: centos:7
-          - BUILD_MODE: sanitize
-            GPG_VERSION: beta
-            CC: clang
-            CXX: clang++
-            IMAGE: centos:7
+# Sanitize build mode gave false positives on centos7 and was removed
 # Coverage can only been tested with the GNU compiler
 # Upload only single report from centos8 to the codecov to avoid mess
     name: ${{ matrix.env.IMAGE }} Botan [mode ${{ matrix.env.BUILD_MODE }}; test type ${{ matrix.env.RNP_TESTS }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
