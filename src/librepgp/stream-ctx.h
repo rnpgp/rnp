@@ -37,13 +37,6 @@
 #include "crypto/mem.h"
 #include "sec_profile.hpp"
 
-typedef enum rnp_operation_t {
-    RNP_OP_UNKNOWN = 0,
-    RNP_OP_DECRYPT_VERIFY = 1,
-    RNP_OP_ENCRYPT_SIGN = 2,
-    RNP_OP_ARMOR = 3
-} rnp_operation_t;
-
 /* signature info structure */
 typedef struct rnp_signer_info_t {
     pgp_key_t *    key{};
@@ -113,7 +106,6 @@ typedef struct rnp_ctx_t {
     std::list<rnp_signer_info_t>         signers{};   /* keys to which sign message */
     bool                                 discard{};   /* discard the output */
     rnp::SecurityContext *               ctx{};       /* pointer to rnp::RNG */
-    rnp_operation_t                      operation{}; /* current operation type */
 
     rnp_ctx_t() = default;
     rnp_ctx_t(const rnp_ctx_t &) = delete;
