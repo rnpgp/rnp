@@ -2153,6 +2153,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                 rnp_identifier_iterator_t it = NULL;
                 rnp_key_handle_t          handle = NULL;
                 const char *              identifier = NULL;
+                rnp::LogStop              log_stop; // disable decryption failures logging
 
                 /* Iterate through the keys */
                 rnp_ffi_t ffi = (rnp_ffi_t) handler->key_provider->userdata;
