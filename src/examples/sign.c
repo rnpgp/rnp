@@ -144,7 +144,7 @@ ffi_sign()
 
     /* finally do signing */
     if (rnp_op_sign_execute(sign) != RNP_SUCCESS) {
-        fprintf(stdout, "failed to add signature for key 25519@key.\n");
+        fprintf(stdout, "failed to sign\n");
         goto finish;
     }
 
