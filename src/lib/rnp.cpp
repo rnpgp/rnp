@@ -2448,6 +2448,22 @@ rnp_op_set_expiration_time(rnp_ctx_t &ctx, uint32_t expire)
 }
 
 static rnp_result_t
+rnp_op_set_flags(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t flags)
+{
+    if (flags & RNP_ENCRYPT_NOWRAP) {
+        ctx.no_wrap = true;
+        flags &= ~RNP_ENCRYPT_NOWRAP;
+    } else {
+        ctx.no_wrap = false;
+    }
+    if (flags) {
+        FFI_LOG(ffi, "Unknown operation flags: %x", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+
+static rnp_result_t
 rnp_op_set_file_name(rnp_ctx_t &ctx, const char *filename)
 {
     ctx.filename = filename ? filename : "";
@@ -2654,6 +2670,17 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     return rnp_op_set_compression(op->ffi, op->rnpctx, compression, level);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flags)
+try {
+    // checks
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    return rnp_op_set_flags(op->ffi, op->rnpctx, flags);
 }
 FFI_GUARD
 

@@ -125,6 +125,11 @@ typedef uint32_t rnp_result_t;
 #define RNP_SECURITY_REMOVE_ALL (1U << 16)
 
 /**
+ * Encryption flags
+ */
+#define RNP_ENCRYPT_NOWRAP (1U << 0)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -2802,6 +2807,19 @@ RNP_API rnp_result_t rnp_op_encrypt_set_aead_bits(rnp_op_encrypt_t op, int bits)
 RNP_API rnp_result_t rnp_op_encrypt_set_compression(rnp_op_encrypt_t op,
                                                     const char *     compression,
                                                     int              level);
+
+/**
+ * @brief Set additional encryption flags.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @param flags encryption flags. ORed combination of RNP_ENCRYPT_* values.
+ *              Following flags are supported:
+ *              RNP_ENCRYPT_NOWRAP - do not wrap the data in a literal data packet. This
+ *              would allow to encrypt already signed data.
+ *
+ * @return RNP_SUCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flags);
 
 /**
  * @brief set the internally stored file name for the data being encrypted
