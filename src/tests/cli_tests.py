@@ -672,7 +672,15 @@ def gpg_hidden_to_rnp_encryption(self, filesize, cipher=None, z=None):
                 compare_files(src, dec, RNP_DATA_DIFFERS)
                 self.assertEqual(out, '', 'Unexpected stdout contents')
                 err_lines = err.split('\n')
-                err_lines = list(filter(lambda x: x and "premature end of armored input" not in x, err_lines))
+                allowed_strings = [
+                        "premature end of armored input",
+                        # next 3 lines are for UBSAN false positive on CentOS 7
+                        "runtime error: call to function ffi_pass_callback_file",
+                        "note: ffi_pass_callback_file",
+                        "UndefinedBehaviorSanitizer: undefined-behavior",
+                        ]
+                for allowed_string in allowed_strings:
+                    err_lines = list(filter(lambda x: x and allowed_string not in x, err_lines))
                 self.assertEqual(err_lines, [], 'Unexpected stderr contents')
 
             remove_files(dst, dec)
