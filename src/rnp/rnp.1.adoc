@@ -78,6 +78,10 @@ Select a compression algorithm and level.
 *--armor*:::
 Output ASCII data instead of binary via the *--armor* option. If the input file is _file.ext_, and *--output* is not specified, then the data will be written (depending on *--armor* option) to _file.ext.pgp_ or _file.ext.asc_. +
 
+*--no-wrap*:::
+Do not wrap the output in literal data packet. This could be used to encrypt a file which is already signed or encrypted.
+By default this would also disable compression, use option *-z* to override.
+
 *--overwrite*:::
 If the destination file already exists, and the *--overwrite* option is not given, the caller will be asked for the permission to overwrite or to provide a new file name. Please see the *OPTIONS* section for more information.
 

@@ -65,6 +65,7 @@ static const char *usage =
   "    -z 0..9            Set the compression level.\n"
   "    --[zip,zlib,bzip]  Use the corresponding compression algorithm.\n"
   "    --armor            Apply ASCII armor to the encryption/signing output.\n"
+  "    --no-wrap          Do not wrap the output in a literal data packet.\n"
   "  -c, --symmetric      Encrypt data using the password(s).\n"
   "    --passwords num    Encrypt to the specified number of passwords.\n"
   "  -s, --sign           Sign data. May be combined with encryption.\n"
@@ -146,6 +147,7 @@ enum optdefs {
     OPT_RAW,
     OPT_NOTTY,
     OPT_SOURCE,
+    OPT_NOWRAP,
 
     /* debug */
     OPT_DEBUG
@@ -207,6 +209,7 @@ static struct option options[] = {
   {"raw", no_argument, NULL, OPT_RAW},
   {"notty", no_argument, NULL, OPT_NOTTY},
   {"source", required_argument, NULL, OPT_SOURCE},
+  {"no-wrap", no_argument, NULL, OPT_NOWRAP},
 
   {NULL, 0, NULL, 0},
 };
@@ -471,6 +474,10 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_SOURCE:
         cfg.set_str(CFG_SOURCE, arg);
+        return true;
+    case OPT_NOWRAP:
+        cfg.set_bool(CFG_NOWRAP, true);
+        cfg.set_int(CFG_ZLEVEL, 0);
         return true;
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
