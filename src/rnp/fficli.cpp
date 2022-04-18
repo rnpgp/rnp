@@ -2603,6 +2603,9 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
         rnp_op_encrypt_set_aead_bits(op, cfg.get_int(CFG_AEAD_CHUNK))) {
         goto done;
     }
+    if (cfg.has(CFG_NOWRAP) && rnp_op_encrypt_set_flags(op, RNP_ENCRYPT_NOWRAP)) {
+        goto done;
+    }
 
     /* adding passwords if password-based encryption is used */
     if (cfg.get_bool(CFG_ENCRYPT_SK)) {
