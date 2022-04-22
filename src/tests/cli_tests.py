@@ -3285,6 +3285,33 @@ class Encryption(unittest.TestCase):
         self.assertEqual(ret, 2)
         self.assertRegex(err, r'(?s)^.*Wrong argument value 5banana for aead-chunk-bits, must be 0..16.*')
         clear_workfiles()
+    
+    def test_encryption_no_wrap(self):
+        src, sig, enc, dec = reg_workfiles('cleartext', '.txt', '.sig', '.enc', '.dec')
+        random_text(src, 2000)
+        # Sign with GnuPG
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '-u', KEY_ENCRYPT, '--output', sig, '-s', src])
+        # Additionally encrypt with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '-r', 'dummy1@rnp', '--no-wrap', '-e', sig, '--output', enc])
+        self.assertEqual(ret, 0)
+        # List packets
+        ret, out, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*gpg: encrypted with .*dummy1@rnp.*')
+        self.assertRegex(out, r'(?s)^.*:pubkey enc packet: version 3.*:encrypted data packet:.*mdc_method: 2.*' \
+                              r':compressed packet.*:onepass_sig packet:.*:literal data packet.*:signature packet.*')
+        # Decrypt with GnuPG
+        ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', PASSWORD, '--output', dec, '-d', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*gpg: encrypted with .*dummy1@rnp.*gpg: Good signature from "encryption@rnp".*')
+        self.assertEqual(file_text(dec), file_text(src))
+        remove_files(dec)
+        # Decrypt with RNP
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', dec, '-d', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature.*uid\s+encryption@rnp.*Signature\(s\) verified successfully.*')
+        self.assertEqual(file_text(dec), file_text(src))
+        clear_workfiles()
 
 class Compression(unittest.TestCase):
     @classmethod
