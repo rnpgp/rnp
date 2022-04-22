@@ -967,3 +967,66 @@ TEST_F(rnp_tests, test_ffi_decrypt_small_eg)
     assert_rnp_success(rnp_output_destroy(output));
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_encrypt_no_wrap)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
+
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, "data/test_messages/message.txt.signed"));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, "encrypted"));
+    rnp_op_encrypt_t op = NULL;
+    assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "key0-uid2", &key));
+    assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+    rnp_key_handle_destroy(key);
+    /* set nowrap flag */
+    assert_rnp_failure(rnp_op_encrypt_set_flags(NULL, RNP_ENCRYPT_NOWRAP));
+    assert_rnp_failure(rnp_op_encrypt_set_flags(op, 17));
+    assert_rnp_success(rnp_op_encrypt_set_flags(op, RNP_ENCRYPT_NOWRAP));
+    assert_rnp_success(rnp_op_encrypt_execute(op));
+
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_op_encrypt_destroy(op));
+
+    /* decrypt via rnp_decrypt() */
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "decrypted"));
+    assert_rnp_success(
+      rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password"));
+    assert_rnp_success(rnp_decrypt(ffi, input, output));
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+    assert_string_equal(file_to_str("decrypted").c_str(),
+                        file_to_str("data/test_messages/message.txt").c_str());
+    unlink("decrypted");
+
+    /* decrypt and verify signatures */
+    rnp_op_verify_t verify;
+    assert_rnp_success(rnp_input_from_path(&input, "encrypted"));
+    assert_rnp_success(rnp_output_to_path(&output, "verified"));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    assert_rnp_success(rnp_op_verify_execute(verify));
+    /* check signature */
+    rnp_op_verify_signature_t sig;
+    size_t                    sig_count;
+    assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
+    assert_int_equal(sig_count, 1);
+    assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
+    assert_rnp_success(rnp_op_verify_signature_get_status(sig));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+    rnp_op_verify_destroy(verify);
+    assert_string_equal(file_to_str("verified").c_str(),
+                        file_to_str("data/test_messages/message.txt").c_str());
+    unlink("verified");
+
+    // final cleanup
+    rnp_ffi_destroy(ffi);
+}
