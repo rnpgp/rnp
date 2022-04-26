@@ -4111,3 +4111,196 @@ dbpkwTCmBVbAmazgea0B
     assert_int_equal(keys, 1);
     rnp_ffi_destroy(ffi);
 }
+
+/* Functions below are used to demonstrate how to check whether key has weak MD5/SHA1
+ * signatures, and may be reused later in FFI code */
+static bool
+is_self_signature(const char *keyid, rnp_signature_handle_t sig)
+{
+    char *signer = NULL;
+    rnp_signature_get_keyid(sig, &signer);
+    if (!signer) {
+        return false;
+    }
+    bool result = !strcmp(keyid, signer);
+    rnp_buffer_destroy(signer);
+    return result;
+}
+
+static bool
+is_weak_signature(rnp_ffi_t ffi, rnp_signature_handle_t sig)
+{
+    char *   hash = NULL;
+    uint32_t creation = 0;
+    rnp_signature_get_hash_alg(sig, &hash);
+    rnp_signature_get_creation(sig, &creation);
+    /* This approach would be more general, however hardcoding MD5/SHA1 may be used as well */
+    uint32_t level = 0;
+    rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, hash, creation, NULL, NULL, &level);
+    bool res = level < RNP_SECURITY_DEFAULT;
+    if (res) {
+        printf(
+          "Detected weak signature with %s hash, created at %zu\n", hash, (size_t) creation);
+    }
+    rnp_buffer_destroy(hash);
+    return res;
+}
+
+const std::string
+get_uid_str(rnp_uid_handle_t uid)
+{
+    uint32_t type = 0;
+    rnp_uid_get_type(uid, &type);
+    switch (type) {
+    case RNP_USER_ID: {
+        void * data = NULL;
+        size_t len = 0;
+        rnp_uid_get_data(uid, &data, &len);
+        std::string res((const char *) data, (const char *) data + len);
+        rnp_buffer_destroy(data);
+        return res;
+    }
+    case RNP_USER_ATTR:
+        return "photo";
+    default:
+        return "Unknown";
+    }
+}
+
+static size_t
+key_weak_self_signatures_count(rnp_ffi_t ffi, rnp_key_handle_t key)
+{
+    char *keyid = NULL;
+    rnp_key_get_keyid(key, &keyid);
+    bool valid = false;
+    rnp_key_is_valid(key, &valid);
+    printf(
+      "Key %s is %s, checking for the weak signatures.\n", keyid, valid ? "valid" : "invalid");
+    /* Check direct-key signatures */
+    size_t res = 0;
+    size_t count = 0;
+    rnp_key_get_signature_count(key, &count);
+    for (size_t i = 0; i < count; i++) {
+        rnp_signature_handle_t sig = NULL;
+        rnp_key_get_signature_at(key, i, &sig);
+        if (is_self_signature(keyid, sig) && is_weak_signature(ffi, sig)) {
+            printf("Key %s has weak direct-key signature at index %zu.\n", keyid, i);
+            res++;
+        }
+        rnp_signature_handle_destroy(sig);
+    }
+    /* Check certifications */
+    size_t uidcount = 0;
+    rnp_key_get_uid_count(key, &uidcount);
+    for (size_t i = 0; i < uidcount; i++) {
+        rnp_uid_handle_t uid = NULL;
+        rnp_key_get_uid_handle_at(key, i, &uid);
+        count = 0;
+        rnp_uid_get_signature_count(uid, &count);
+        for (size_t j = 0; j < count; j++) {
+            rnp_signature_handle_t sig = NULL;
+            rnp_uid_get_signature_at(uid, j, &sig);
+            if (is_self_signature(keyid, sig) && is_weak_signature(ffi, sig)) {
+                auto uidstr = get_uid_str(uid);
+                printf("Uid %s of the key %s has weak self-certification at index %zu.\n",
+                       uidstr.c_str(),
+                       keyid,
+                       j);
+                res++;
+            }
+            rnp_signature_handle_destroy(sig);
+        }
+        rnp_uid_handle_destroy(uid);
+    }
+    /* Check subkeys */
+    size_t subcount = 0;
+    rnp_key_get_subkey_count(key, &subcount);
+    for (size_t i = 0; i < subcount; i++) {
+        rnp_key_handle_t subkey = NULL;
+        rnp_key_get_subkey_at(key, i, &subkey);
+        count = 0;
+        rnp_key_get_signature_count(subkey, &count);
+        for (size_t j = 0; j < count; j++) {
+            rnp_signature_handle_t sig = NULL;
+            rnp_key_get_signature_at(subkey, j, &sig);
+            if (is_self_signature(keyid, sig) && is_weak_signature(ffi, sig)) {
+                char *subid = NULL;
+                rnp_key_get_keyid(subkey, &subid);
+                printf("Subkey %s of the key %s has weak binding signature at index %zu.\n",
+                       subid,
+                       keyid,
+                       j);
+                res++;
+                rnp_buffer_destroy(subid);
+            }
+            rnp_signature_handle_destroy(sig);
+        }
+        rnp_key_handle_destroy(subkey);
+    }
+    rnp_buffer_destroy(keyid);
+    return res;
+}
+
+TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* This key has SHA1 self signature, made after the cut-off date */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/rsa-rsa-pub.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fb9179118898e8b", &key));
+    /* Check key validity */
+    bool valid = true;
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_false(valid);
+    size_t count = 0;
+    /* Check uid validity */
+    assert_rnp_success(rnp_key_get_uid_count(key, &count));
+    assert_int_equal(count, 1);
+    rnp_uid_handle_t uid = NULL;
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    rnp_uid_handle_destroy(uid);
+    /* Check subkey validity */
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 1);
+    rnp_key_handle_t sub = NULL;
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_false(valid);
+    /* Check weak signature count */
+    assert_int_equal(key_weak_self_signatures_count(ffi, key), 2);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    /* Now allow the SHA1 hash */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_HASH_ALG,
+                                             "SHA1",
+                                             RNP_SECURITY_OVERRIDE,
+                                             1547856000,
+                                             RNP_SECURITY_DEFAULT));
+
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/rsa-rsa-pub.asc"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fb9179118898e8b", &key));
+    /* Check key validity */
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_true(valid);
+    /* Check uid validity */
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_true(valid);
+    rnp_uid_handle_destroy(uid);
+    /* Check subkey validity */
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_true(valid);
+    /* Check weak signature count */
+    assert_int_equal(key_weak_self_signatures_count(ffi, key), 0);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    rnp_ffi_destroy(ffi);
+}
