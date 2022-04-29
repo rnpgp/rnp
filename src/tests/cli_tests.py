@@ -2892,10 +2892,30 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
         self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        # Two one-passes and sig of the unknown version (second)
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-2-sig-v10-2')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
+        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
         # 2 detached signatures, first is of version 10
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.2sigs'), '--source', data_path('test_messages/message.txt')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
+        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        # 2 detached signatures, second is of version 10
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.2sigs-2'), '--source', data_path('test_messages/message.txt')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
+        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        # Two cleartext signatures, first is of unknown version
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.clear-2-sigs')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
+        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        # Two cleartext signatures, second is of unknown version
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.clear-2-sigs-2')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*unknown signature version: 11.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
         self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
 
     def test_pkesk_skesk_wrong_version(self):
