@@ -2781,7 +2781,7 @@ class Misc(unittest.TestCase):
         clear_workfiles()
 
     def test_eddsa_sig_lead_zero(self):
-        # Cover case with line ending with multiple CRs
+        # Cover case with lead zeroes in EdDSA signature
         srcs = data_path('test_messages/eddsa-zero-s.txt.sig')
         srcr = data_path('test_messages/eddsa-zero-r.txt.sig')
         # Verify with RNP
@@ -2796,6 +2796,26 @@ class Misc(unittest.TestCase):
         gpg_verify_file(srcs, dst, 'Alice <alice@rnp>')
         os.remove(dst)
         gpg_verify_file(srcr, dst, 'Alice <alice@rnp>')
+        clear_workfiles()
+    
+    def test_eddsa_seckey_lead_zero(self):
+        # Load and use *unencrypted* EdDSA secret key with 2 leading zeroes
+        seckey = data_path('test_stream_key_load/eddsa-00-sec.pgp')
+        pubkey = data_path('test_stream_key_load/eddsa-00-pub.pgp')
+        src, sig = reg_workfiles('source', '.txt', '.sig')
+        random_text(src, 2000)
+
+        # Sign with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', seckey, '-s', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        # Verify with RNP
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        # Verify with GnuPG
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', pubkey])
+        ret, _, err = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--verify', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Signature made.*8BF2223370F61F8D965B.*Good signature from "eddsa-lead-zero".*$')
         clear_workfiles()
     
     def test_verify_detached_source(self):
