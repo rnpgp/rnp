@@ -2812,15 +2812,29 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
         rnp_signature_handle_destroy(handle);
     }
 
-    if (sigs.size() == 0) {
+    if (!sigs.size()) {
         ERR_MSG("No signature(s) found - is this a signed file?");
-    } else if (invalidc > 0 || unknownc > 0) {
-        ERR_MSG(
-          "Signature verification failure: %u invalid signature(s), %u unknown signature(s)",
-          invalidc,
-          unknownc);
-    } else {
+        return;
+    }
+    if (!invalidc && !unknownc) {
         ERR_MSG("Signature(s) verified successfully");
+        return;
+    }
+    /* Show a proper error message if there are invalid/unknown signatures */
+    auto si = invalidc > 1 ? "s" : "";
+    auto su = unknownc > 1 ? "s" : "";
+    auto fail = "Signature verification failure: ";
+    if (invalidc && !unknownc) {
+        ERR_MSG("%s%u invalid signature%s", fail, invalidc, si);
+    } else if (!invalidc && unknownc) {
+        ERR_MSG("%s%u unknown signature%s", fail, unknownc, su);
+    } else {
+        ERR_MSG("%s%u invalid signature%s, %u unknown signature%s",
+                fail,
+                invalidc,
+                si,
+                unknownc,
+                su);
     }
 }
 

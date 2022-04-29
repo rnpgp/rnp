@@ -87,6 +87,7 @@ SECRING = 'secring.gpg'
 PUBRING_1 = 'keyrings/1/pubring.gpg'
 SECRING_G10 = 'test_stream_key_load/g10'
 KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
+KEY_ALICE_SUB_PUB = 'test_key_validity/alice-sub-pub.pgp'
 KEY_ALICE_SEC = 'test_key_validity/alice-sec.asc'
 KEY_ALICE_SUB_SEC = 'test_key_validity/alice-sub-sec.pgp'
 KEY_25519_NOTWEAK_SEC = 'test_key_edge_cases/key-25519-non-tweaked-sec.asc'
@@ -1376,7 +1377,7 @@ class Keystore(unittest.TestCase):
 
         clear_keyrings()
         # Import Alice's public key
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
         # Attempt to export no key
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key'])
@@ -2126,14 +2127,14 @@ class Misc(unittest.TestCase):
         # List empty key packets
         params = ['--list-packets', data_path('test_key_edge_cases/key-empty-packets.pgp')]
         ret, out, _ = run_proc(RNP, params)
-        self.assertEqual(ret, 0, 'packet listing failed')
+        self.assertEqual(ret, 0, PKT_LIST_FAILED)
         compare_file_ex(data_path('test_key_edge_cases/key-empty-packets.txt'), out,
                         'key-empty-packets listing mismatch')
         
         # List empty key packets json
         params = ['--list-packets', '--json', data_path('test_key_edge_cases/key-empty-packets.pgp')]
         ret, _, _ = run_proc(RNP, params)
-        self.assertEqual(ret, 0, 'packet listing failed')
+        self.assertEqual(ret, 0, PKT_LIST_FAILED)
 
         # List empty uid
         params = ['--list-packets', KEY_EMPTY_UID]
@@ -2736,10 +2737,10 @@ class Misc(unittest.TestCase):
         srcsig = data_path('test_messages/message.text-sig-crcr.sig')
         srctxt = data_path('test_messages/message.text-sig-crcr')
         # Verify with RNP
-        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcsig])
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path(KEY_ALICE_SUB_PUB), '-v', srcsig])
         self.assertEqual(ret, 0)
         # Verify with GPG
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0, 'gpg key import failed')
         gpg_verify_detached(srctxt, srcsig, 'Alice <alice@rnp>')
 
@@ -2758,14 +2759,14 @@ class Misc(unittest.TestCase):
         [sig] = reg_workfiles('cleartext', '.sig')
         srctxt = data_path('test_messages/message.4k-long-lines')
         srcsig = data_path('test_messages/message.4k-long-lines.asc')
-        pubkey = data_path('test_key_validity/alice-sub-pub.pgp')
+        pubkey = data_path(KEY_ALICE_SUB_PUB)
         seckey = data_path('test_key_validity/alice-sub-sec.pgp')
         # Verify already existing file
         ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-v', srcsig])
         self.assertEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Good signature made.*73edcc9119afc8e2dbbdcde50451409669ffde3c.*')
         # Verify with gnupg
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', pubkey])
         self.assertEqual(ret, 0, 'gpg key import failed')
         gpg_verify_cleartext(srcsig, 'Alice <alice@rnp>')
         # Sign again with RNP
@@ -2784,13 +2785,13 @@ class Misc(unittest.TestCase):
         srcs = data_path('test_messages/eddsa-zero-s.txt.sig')
         srcr = data_path('test_messages/eddsa-zero-r.txt.sig')
         # Verify with RNP
-        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcs])
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path(KEY_ALICE_SUB_PUB), '-v', srcs])
         self.assertEqual(ret, 0)
-        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path('test_key_validity/alice-sub-pub.pgp'), '-v', srcr])
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', data_path(KEY_ALICE_SUB_PUB), '-v', srcr])
         self.assertEqual(ret, 0)
         # Verify with GPG
         [dst] = reg_workfiles('eddsa-zero', '.txt')
-        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path('test_key_validity/alice-sub-pub.pgp')])
+        ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0, 'gpg key import failed')
         gpg_verify_file(srcs, dst, 'Alice <alice@rnp>')
         os.remove(dst)
@@ -2806,11 +2807,12 @@ class Misc(unittest.TestCase):
         # Just verify
         ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig])
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        R_GOOD = r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*'
+        self.assertRegex(err, R_GOOD)
         # Verify .asc
         ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sigasc])
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        self.assertRegex(err, R_GOOD)
         # Do not provide source
         ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
         self.assertEqual(ret, 1)
@@ -2818,7 +2820,7 @@ class Misc(unittest.TestCase):
         # Verify by specifying the correct path
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        self.assertRegex(err, R_GOOD)
         # Verify by specifying the incorrect path
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src + '.wrong', '-v', sig])
         self.assertNotEqual(ret, 0)
@@ -2835,12 +2837,12 @@ class Misc(unittest.TestCase):
             srcdata = srcf.read().decode('utf-8')
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v', csig], srcdata)
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        self.assertRegex(err, R_GOOD)
         # Verify by reading data from env
         os.environ["SIGNED_DATA"] = srcdata
         ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', 'env:SIGNED_DATA', '-v', csig])
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*')
+        self.assertRegex(err, R_GOOD)
         del os.environ["SIGNED_DATA"]
         # Attempt to verify by specifying bot sig and data from stdin
         sigtext = file_text(sigasc)
@@ -2890,33 +2892,35 @@ class Misc(unittest.TestCase):
         # Two one-passes and sig of the unknown version
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-2-sig-v10')])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        R_VER_10 = r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*'
+        R_1_UNK = r'(?s)^.*Signature verification failure: 1 unknown signature.*'
+        self.assertRegex(err, R_VER_10)
+        self.assertRegex(err, R_1_UNK)
         # Two one-passes and sig of the unknown version (second)
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.signed-2-2-sig-v10-2')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        self.assertRegex(err, R_1_UNK)
         # 2 detached signatures, first is of version 10
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.2sigs'), '--source', data_path('test_messages/message.txt')])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        self.assertRegex(err, R_VER_10)
+        self.assertRegex(err, R_1_UNK)
         # 2 detached signatures, second is of version 10
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.2sigs-2'), '--source', data_path('test_messages/message.txt')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        self.assertRegex(err, R_1_UNK)
         # Two cleartext signatures, first is of unknown version
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.clear-2-sigs')])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*unknown signature version: 10.*failed to parse signature.*UNKNOWN signature.*Good signature made.*0451409669ffde3c.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        self.assertRegex(err, R_VER_10)
+        self.assertRegex(err, R_1_UNK)
         # Two cleartext signatures, second is of unknown version
         ret, _, err = run_proc(RNP, ['--keyfile', key, '-v', data_path('test_messages/message.txt.clear-2-sigs-2')])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*unknown signature version: 11.*failed to parse signature.*Good signature made.*0451409669ffde3c.*UNKNOWN signature.*')
-        self.assertRegex(err, r'(?s)^.*Signature verification failure: 0 invalid signature\(s\), 1 unknown signature\(s\).*')
+        self.assertRegex(err, R_1_UNK)
 
     def test_pkesk_skesk_wrong_version(self):
         key = data_path('test_stream_key_load/ecc-p256-sec.asc')
@@ -3283,7 +3287,7 @@ class Encryption(unittest.TestCase):
         if not RNP_AEAD:
             return
         # Encrypt with RNP
-        pubkey = data_path('test_key_validity/alice-sub-pub.pgp')
+        pubkey = data_path(KEY_ALICE_SUB_PUB)
         src, enc, dec = reg_workfiles('cleartext', '.txt', '.enc', '.dec')
         random_text(src, 120000)
         ret, _, _ = run_proc(RNP, ['--keyfile', pubkey, '-z', '0', '-r', 'alice', '--aead', '-e', src, '--output', enc])
