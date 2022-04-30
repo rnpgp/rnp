@@ -265,11 +265,11 @@ def compare_file_ex(src, string, message, symbol='?'):
             raise_err(message)
 
 def remove_files(*args):
-    try:
-        for fpath in args:
+    for fpath in args:
+        try:
             os.remove(fpath)
-    except Exception:
-        pass
+        except Exception:
+            pass
 
 def reg_workfiles(mainname, *exts):
     global TEST_WORKFILES
