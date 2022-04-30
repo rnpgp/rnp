@@ -2998,6 +2998,24 @@ class Encryption(unittest.TestCase):
                                                AEAD_M, AEAD_B, Encryption.Z_R):
             rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
 
+    def test_aead_chunk_edge_cases(self):
+        if not RNP_AEAD:
+            print('AEAD is not available for RNP - skipping.')
+            return
+        src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
+        # Cover lines from src_skip() where > 16 bytes must be skipped
+        random_text(src, 1001)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+        self.assertEqual(ret, 0)
+        rnp_decrypt_file(enc, dst)
+        remove_files(src, dst, enc)
+        # Cover case with AEAD chunk start on the data end
+        random_text(src, 1002)
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+        self.assertEqual(ret, 0)
+        rnp_decrypt_file(enc, dst)
+        remove_files(src, dst, enc)
+
     def test_encryption_multiple_recipients(self):
         USERIDS = ['key1@rnp', 'key2@rnp', 'key3@rnp']
         KEYPASS = ['key1pass', 'key2pass', 'key3pass']
