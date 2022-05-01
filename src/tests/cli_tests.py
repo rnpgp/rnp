@@ -2917,6 +2917,20 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*wrong packet version.*Failed to parse PKESK, skipping.*wrong packet version.*Failed to parse SKESK, skipping.*failed to obtain decrypting key or password.*')
 
+    def test_interactive_password(self):
+        # Reuse password for subkey, say "yes"
+        stdinstr = 'password\npassword\ny\n'
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        self.assertEqual(ret, 0)
+        # Do not reuse same password for subkey, say "no"
+        stdinstr = 'password\npassword\nN\nsubkeypassword\nsubkeypassword\n'
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        self.assertEqual(ret, 0)
+        # Set empty password and reuse it
+        stdinstr = '\n\ny\ny\n'
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
+        self.assertEqual(ret, 0)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
