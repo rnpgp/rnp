@@ -2382,9 +2382,10 @@ has_extension(const std::string &path, const std::string &ext)
 }
 
 static std::string
-output_extension(const rnp_cfg &cfg, const std::string &op)
+output_extension(const rnp_cfg &cfg, Operation op)
 {
-    if (op == "encrypt_sign") {
+    switch (op) {
+    case Operation::EncryptOrSign: {
         bool armor = cfg.get_bool(CFG_ARMOR);
         if (cfg.get_bool(CFG_DETACHED)) {
             return armor ? EXT_ASC : EXT_SIG;
@@ -2394,10 +2395,11 @@ output_extension(const rnp_cfg &cfg, const std::string &op)
         }
         return armor ? EXT_ASC : EXT_PGP;
     }
-    if (op == "armor") {
+    case Operation::Enarmor:
         return EXT_ASC;
+    default:
+        return "";
     }
-    return "";
 }
 
 static std::string
@@ -2410,16 +2412,13 @@ extract_filename(const std::string path)
     return path.substr(lpos + 1);
 }
 
-static bool
-cli_rnp_init_io(const std::string &op,
-                rnp_input_t *      input,
-                rnp_output_t *     output,
-                cli_rnp_t *        rnp)
+bool
+cli_rnp_t::init_io(Operation op, rnp_input_t *input, rnp_output_t *output)
 {
-    const std::string &in = rnp->cfg().get_str(CFG_INFILE);
+    const std::string &in = cfg().get_str(CFG_INFILE);
     bool               is_pathin = true;
     if (input) {
-        *input = cli_rnp_input_from_specifier(*rnp, in, &is_pathin);
+        *input = cli_rnp_input_from_specifier(*this, in, &is_pathin);
         if (!*input) {
             return false;
         }
@@ -2428,17 +2427,17 @@ cli_rnp_init_io(const std::string &op,
     if (!output) {
         return true;
     }
-    std::string out = rnp->cfg().get_str(CFG_OUTFILE);
-    bool discard = (op == "verify") && out.empty() && rnp->cfg().get_bool(CFG_NO_OUTPUT);
+    std::string out = cfg().get_str(CFG_OUTFILE);
+    bool discard = (op == Operation::Verify) && out.empty() && cfg().get_bool(CFG_NO_OUTPUT);
 
     if (out.empty() && is_pathin && !discard) {
-        std::string ext = output_extension(rnp->cfg(), op);
+        std::string ext = output_extension(cfg(), op);
         if (!ext.empty()) {
             out = in + ext;
         }
     }
 
-    *output = cli_rnp_output_to_specifier(*rnp, out, discard);
+    *output = cli_rnp_output_to_specifier(*this, out, discard);
     if (!*output && input) {
         rnp_input_destroy(*input);
         *input = NULL;
@@ -2468,7 +2467,7 @@ cli_rnp_dump_file(cli_rnp_t *rnp)
     }
 
     rnp_result_t ret = 0;
-    if (!cli_rnp_init_io("dump", &input, &output, rnp)) {
+    if (!rnp->init_io(Operation::Dump, &input, &output)) {
         ERR_MSG("failed to open source or create output");
         ret = 1;
         goto done;
@@ -2508,7 +2507,7 @@ cli_rnp_armor_file(cli_rnp_t *rnp)
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
-    if (!cli_rnp_init_io("armor", &input, &output, rnp)) {
+    if (!rnp->init_io(Operation::Enarmor, &input, &output)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
@@ -2524,7 +2523,7 @@ cli_rnp_dearmor_file(cli_rnp_t *rnp)
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
-    if (!cli_rnp_init_io("dearmor", &input, &output, rnp)) {
+    if (!rnp->init_io(Operation::Dearmor, &input, &output)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
@@ -2756,7 +2755,7 @@ cli_rnp_protect_file(cli_rnp_t *rnp)
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
 
-    if (!cli_rnp_init_io("encrypt_sign", &input, &output, rnp)) {
+    if (!rnp->init_io(Operation::EncryptOrSign, &input, &output)) {
         ERR_MSG("failed to open source or create output");
         return false;
     }
@@ -2888,7 +2887,7 @@ bool
 cli_rnp_process_file(cli_rnp_t *rnp)
 {
     rnp_input_t input = NULL;
-    if (!cli_rnp_init_io("verify", &input, NULL, rnp)) {
+    if (!rnp->init_io(Operation::Verify, &input, NULL)) {
         ERR_MSG("failed to open source");
         return false;
     }
@@ -2934,7 +2933,7 @@ cli_rnp_process_file(cli_rnp_t *rnp)
 
         ret = rnp_op_verify_detached_create(&verify, rnp->ffi, source, input);
     } else {
-        if (!cli_rnp_init_io("verify", NULL, &output, rnp)) {
+        if (!rnp->init_io(Operation::Verify, NULL, &output)) {
             ERR_MSG("Failed to create output stream.");
             goto done;
         }
