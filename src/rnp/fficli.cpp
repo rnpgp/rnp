@@ -2349,6 +2349,28 @@ output_extension(const rnp_cfg &cfg, Operation op)
     }
 }
 
+static bool
+has_pgp_extension(const std::string &path)
+{
+    return has_extension(path, EXT_PGP) || has_extension(path, EXT_ASC) ||
+           has_extension(path, EXT_GPG);
+}
+
+static std::string
+output_strip_extension(Operation op, const std::string &in)
+{
+    std::string out = in;
+    if ((op == Operation::Verify) && (has_pgp_extension(out))) {
+        strip_extension(out);
+        return out;
+    }
+    if ((op == Operation::Dearmor) && (has_extension(out, EXT_ASC))) {
+        strip_extension(out);
+        return out;
+    }
+    return "";
+}
+
 static std::string
 extract_filename(const std::string path)
 {
@@ -2378,9 +2400,12 @@ cli_rnp_t::init_io(Operation op, rnp_input_t *input, rnp_output_t *output)
     bool discard = (op == Operation::Verify) && out.empty() && cfg().get_bool(CFG_NO_OUTPUT);
 
     if (out.empty() && is_pathin && !discard) {
+        /* Attempt to guess whether to add or strip extension for known cases */
         std::string ext = output_extension(cfg(), op);
         if (!ext.empty()) {
             out = in + ext;
+        } else {
+            out = output_strip_extension(op, in);
         }
     }
 

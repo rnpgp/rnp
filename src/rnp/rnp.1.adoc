@@ -35,8 +35,10 @@ There are some special cases for _INPUT_FILE_ :
 Depending on the input, output may be written:
 
 * if *--output* option is given output is written to the path specified (or to the *stdout* if *-* is used)
-* to the _INPUT_FILE_ with a removed or added file extension (_.pgp_, _.asc_, _.sig_); or
+* to the _INPUT_FILE_ with a removed or added file extension (_.pgp_, _.gpg_, _.asc_, _.sig_), depending on operation.
 * to the _stdout_ if input was read from the _stdin_.
+
+If output file already exists, it will *not* be overwritten, unless *--overwrite* option is given.
 
 Without the *--armor* option, output will be in binary.
 
@@ -132,7 +134,7 @@ If the data is signed, signature verification information will be printed to _st
 Additional options:
 
 *--output*:::
-Output, if not overridden with this option, will be written to the file with stripped _.pgp_ extension or stdout. If _INPUT_FILE_ does not end with the _.pgp_ extension, then output file name will be asked via _stdin_/_tty_.
+Override the default output selection with a file name or stdout specifier (*_-_*). For the default output path selection see the *BASICS* section.
 
 *--password*, *--pass-fd*:::
 Depending on encryption options, you may be asked for the password of one of your secret keys, or for the encryption password. These options override that behavior such that you can input the password through automated means.
