@@ -2116,7 +2116,11 @@ cli_rnp_output_to_specifier(cli_rnp_t &rnp, const std::string &spec, bool discar
     } else if (is_stdinout_spec(spec)) {
         res = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
     } else if (!rnp_get_output_filename(spec, path, rnp)) {
-        ERR_MSG("Operation failed: file '%s' already exists.", spec.c_str());
+        if (spec.empty()) {
+            ERR_MSG("Operation failed: no output filename specified");
+        } else {
+            ERR_MSG("Operation failed: file '%s' already exists.", spec.c_str());
+        }
         res = RNP_ERROR_BAD_PARAMETERS;
     } else {
         res = rnp_output_to_file(&output, path.c_str(), RNP_OUTPUT_FILE_OVERWRITE);
