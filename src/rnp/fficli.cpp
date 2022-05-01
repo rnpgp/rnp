@@ -324,14 +324,16 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
     // doesn't hurt
     *buffer = '\0';
 
+    if (!rnp->cfg().get_bool(CFG_NOTTY)) {
 #ifndef _WIN32
-    in = fopen("/dev/tty", "w+ce");
+        in = fopen("/dev/tty", "w+ce");
 #endif
+        out = in;
+    }
+
     if (!in) {
         in = userio_in;
-        out = stderr;
-    } else {
-        out = in;
+        out = (rnp && rnp->userio_out) ? rnp->userio_out : stdout;
     }
 
     // TODO: Implement alternative for hiding password entry on Windows
