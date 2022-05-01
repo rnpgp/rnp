@@ -139,6 +139,8 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    "password",
                    "-d",
                    FILES "/hello.txt.pgp",
+                   "--output",
+                   "-",
                    NULL);
     assert_int_equal(ret, 0);
     assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
@@ -175,6 +177,8 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    "password",
                    "-d",
                    FILES "/hello.txt.asc",
+                   "--output",
+                   "-",
                    NULL);
     assert_int_not_equal(ret, 0);
     /* decrypt correctly with seckey + subkeys */
@@ -185,6 +189,8 @@ TEST_F(rnp_tests, test_cli_rnp_keyfile)
                    "password",
                    "-d",
                    FILES "/hello.txt.asc",
+                   "--output",
+                   "-",
                    NULL);
     assert_int_equal(ret, 0);
     assert_int_equal(rnp_unlink(FILES "/hello.txt.asc"), 0);
@@ -210,7 +216,8 @@ test_cli_g10_key_sign(const char *userid)
     }
 
     /* verify back */
-    ret = call_rnp("rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", NULL);
+    ret = call_rnp(
+      "rnp", "--homedir", G10KEYS, "-v", FILES "/hello.txt.pgp", "--output", "-", NULL);
     rnp_unlink(FILES "/hello.txt.pgp");
     return !ret;
 }
@@ -234,6 +241,8 @@ test_cli_g10_key_encrypt(const char *userid)
                    "password",
                    "-d",
                    FILES "/hello.txt.pgp",
+                   "--output",
+                   "-",
                    NULL);
     rnp_unlink(FILES "/hello.txt.pgp");
     return !ret;
@@ -265,6 +274,8 @@ TEST_F(rnp_tests, test_cli_g10_operations)
                    "password",
                    "-d",
                    FILES "/hello.txt.pgp",
+                   "--output",
+                   "-",
                    NULL);
     assert_int_equal(ret, 0);
     assert_int_equal(rnp_unlink(FILES "/hello.txt.pgp"), 0);
@@ -515,6 +526,8 @@ TEST_F(rnp_tests, test_cli_rnp)
                    "password",
                    "--decrypt",
                    FILES "/hello.txt.pgp",
+                   "--output",
+                   "-",
                    NULL);
     assert_int_equal(ret, 0);
 }
