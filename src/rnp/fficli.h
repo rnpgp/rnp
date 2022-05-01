@@ -36,6 +36,8 @@
 #include "rnpcfg.h"
 #include "json.h"
 
+enum class Operation { EncryptOrSign, Verify, Enarmor, Dearmor, Dump };
+
 class cli_rnp_t {
   private:
     rnp_cfg cfg_{};
@@ -57,6 +59,8 @@ class cli_rnp_t {
 
     bool init(const rnp_cfg &cfg);
     void end();
+
+    bool init_io(Operation op, rnp_input_t *input, rnp_output_t *output);
 
     bool load_keyrings(bool loadsecret = false);
 
