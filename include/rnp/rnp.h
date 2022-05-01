@@ -2065,7 +2065,7 @@ RNP_API rnp_result_t rnp_op_sign_cleartext_create(rnp_op_sign_t *op,
  *  @param op pointer to opaque signing context
  *  @param ffi
  *  @param input stream with data to be signed. Could not be NULL.
- *  @param output stream to write results to. Could not be NULL.
+ *  @param signature stream to write results to. Could not be NULL.
  *  @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_sign_detached_create(rnp_op_sign_t *op,
