@@ -2916,6 +2916,68 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--keyfile', key, '--password', PASSWORD, '-d', msg2])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*wrong packet version.*Failed to parse PKESK, skipping.*wrong packet version.*Failed to parse SKESK, skipping.*failed to obtain decrypting key or password.*')
+    
+    def test_ext_adding_stripping(self):
+        # Check whether rnp correctly strip .pgp/.gpg/.asc extension
+        seckey = data_path('test_stream_key_load/ecc-p256-sec.asc')
+        pubkey = data_path('test_stream_key_load/ecc-p256-pub.asc')
+        src, src2, asc, pgp, gpg, some = reg_workfiles('cleartext', '.txt', '.txt2', '.txt.asc', '.txt.pgp', '.txt.gpg', '.txt.some')
+        with open(src, 'w+') as f:
+            f.write('Hello world')
+        # Encrypt with binary output
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-e', src])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(pgp))
+        # Decrypt binary output, it must be put in cleartext.txt if it doesn't exists
+        os.remove(src)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', seckey, '--password', PASSWORD, '-d', pgp])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(src))
+        # Decrypt binary output with the rename prompt
+        ret, out, _ = run_proc(RNP, ['--keyfile', seckey, '--password', PASSWORD, '--notty', '-d', pgp], "n\n" + src2 + "\n")
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(src2))
+        self.assertRegex(out, r'(?s)^.*File.*cleartext.txt.*already exists. Would you like to overwrite it.*Please enter the new filename:.*$')
+        self.assertIn(src, out)
+        self.assertTrue(os.path.isfile(src2))
+        os.remove(src2)
+        # Rename from .pgp to .gpg and try again
+        os.remove(src)
+        os.rename(pgp, gpg)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', seckey, '--password', PASSWORD, '-d', gpg])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(src))
+        # Rename from .pgp to .some and check that all is put in stdout
+        os.rename(gpg, some)
+        ret, out, _ = run_proc(RNP, ['--keyfile', seckey, '--password', PASSWORD, '--notty', '-d', some], "\n\n")
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^\s*Hello world\s*$')
+        os.remove(some)
+        # Encrypt with armored output
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', pubkey, '-e', src, '--armor'])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(asc))
+        # Decrypt armored output, it must be put in cleartext.txt if it doesn't exists
+        os.remove(src)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--keyfile', seckey, '--password', PASSWORD, '-d', asc])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(src))
+        # Enarmor - must be put in .asc file
+        os.remove(asc)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--enarmor=msg', src])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(asc))
+        # Dearmor asc - must be outputed to src
+        os.remove(src)
+        ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--dearmor', asc])
+        self.assertEqual(ret, 0)
+        self.assertTrue(os.path.isfile(src))
+        # Dearmor unknown extension - must be put to stdout
+        os.rename(asc, some)
+        ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--dearmor', some])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^\s*Hello world\s*$')
+
 
 class Encryption(unittest.TestCase):
     '''
