@@ -3256,6 +3256,15 @@ class Encryption(unittest.TestCase):
         # Decrypt and verify with RNP
         rnp_decrypt_file(dst, dec, 'password')
         self.assertEqual(file_text(src), file_text(dec))
+        # Encrypt/decrypt using the p256 key, making sure message is not displayed
+        key = data_path('test_stream_key_load/ecc-p256-sec.asc')
+        remove_files(dst, dec)
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-es', '-r', 'ecc-p256', '-u', 'ecc-p256', '--password', PASSWORD, src, '--output', dst])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, BITS_MSG)
+        ret, _, err = run_proc(RNP, ['--keyfile', key, '-d', '--password', PASSWORD, dst, '--output', dec])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, BITS_MSG)
         # Cleanup
         clear_workfiles()
 
