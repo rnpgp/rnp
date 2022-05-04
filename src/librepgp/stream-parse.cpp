@@ -1475,7 +1475,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             RNP_LOG("ECDH fingerprint calculation failed");
             return false;
         }
-        if (!x25519_bits_tweaked(keymaterial->ec)) {
+        if ((keymaterial->ec.curve == PGP_CURVE_25519) &&
+            !x25519_bits_tweaked(keymaterial->ec)) {
             RNP_LOG("Warning: bits of 25519 secret key are not tweaked.");
         }
         declen = decbuf.size();
