@@ -375,7 +375,7 @@ RNP_API rnp_result_t rnp_ffi_set_pass_provider(rnp_ffi_t       ffi,
 /** retrieve the default homedir (example: /home/user/.rnp)
  *
  * @param homedir pointer that will be set to the homedir path.
- *        The caller should free this with rnp_buffer_free.
+ *        The caller should free this with rnp_buffer_destroy.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_get_default_homedir(char **homedir);
@@ -384,13 +384,13 @@ RNP_API rnp_result_t rnp_get_default_homedir(char **homedir);
  *
  * @param homedir the path to the home directory (example: /home/user/.rnp)
  * @param pub_format pointer that will be set to the format of the public keyring.
- *        The caller should free this with rnp_buffer_free.
+ *        The caller should free this with rnp_buffer_destroy.
  * @param pub_path pointer that will be set to the path to the public keyring.
- *        The caller should free this with rnp_buffer_free.
+ *        The caller should free this with rnp_buffer_destroy.
  * @param sec_format pointer that will be set to the format of the secret keyring.
- *        The caller should free this with rnp_buffer_free.
+ *        The caller should free this with rnp_buffer_destroy.
  * @param sec_path pointer that will be set to the path to the secret keyring.
- *        The caller should free this with rnp_buffer_free.
+ *        The caller should free this with rnp_buffer_destroy.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_detect_homedir_info(
@@ -401,7 +401,7 @@ RNP_API rnp_result_t rnp_detect_homedir_info(
  * @param buf the key data, must not be NULL
  * @param buf_len the size of the buffer, must be > 0
  * @param format pointer that will be set to the format of the keyring.
- *        Must not be NULL. The caller should free this with rnp_buffer_free.
+ *        Must not be NULL. The caller should free this with rnp_buffer_destroy.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format);
@@ -2249,8 +2249,8 @@ RNP_API rnp_result_t rnp_op_verify_get_signature_at(rnp_op_verify_t            o
  *         embedded signature verification.
  *  @param op opaque verification context. Must be initialized and have execute() called on it.
  *  @param filename pointer to the filename. On success caller is responsible for freeing it
- *                  via the rnp_buffer_free function call. May be NULL if this information is
- *                  not needed.
+ *                  via the rnp_buffer_destroy function call. May be NULL if this information
+ *                  is not needed.
  *  @param mtime file modification time will be stored here on success. May be NULL.
  *  @return RNP_SUCCESS if call succeeded.
  */
@@ -2263,15 +2263,15 @@ RNP_API rnp_result_t rnp_op_verify_get_file_info(rnp_op_verify_t op,
  *
  * @param op opaque verification context. Must be initialized and have execute() called on it.
  * @param mode on success string with mode will be stored here. Caller is responsible for
- *             freeing it using the rnp_buffer_free() call. May be NULL if information is not
- * needed. Currently defined values are as following:
+ *             freeing it using the rnp_buffer_destroy() call. May be NULL if information is
+ *             not needed. Currently defined values are as following:
  *             - none : message was not protected/encrypted
  *             - cfb : message was encrypted in CFB mode without the MDC
  *             - cfb-mdc : message was encrypted in CFB mode and protected with MDC
  *             - aead-ocb : message was encrypted in AEAD-OCB mode
  *             - aead-eax : message was encrypted in AEAD-EAX mode
  * @param cipher symmetric cipher, used for data encryption. May be NULL if information is not
- *               needed. Must be freed by rnp_buffer_free() call.
+ *               needed. Must be freed by rnp_buffer_destroy() call.
  * @param valid true if message integrity protection was used (i.e. MDC or AEAD), and it was
  *              validated successfully. Otherwise (even for raw cfb mode) will be false. May be
  *              NULL if information is not needed.
@@ -2458,7 +2458,7 @@ RNP_API rnp_result_t rnp_op_verify_signature_get_handle(rnp_op_verify_signature_
 /** @brief Get hash function used to calculate signature
  *  @param sig opaque signature context obtained via rnp_op_verify_get_signature_at call.
  *  @param hash pointer to string with hash algorithm name will be put here on success.
- *              Caller is responsible for freeing it with rnp_buffer_free
+ *              Caller is responsible for freeing it with rnp_buffer_destroy
  *  @return RNP_SUCCESS or error code otherwise
  */
 RNP_API rnp_result_t rnp_op_verify_signature_get_hash(rnp_op_verify_signature_t sig,
