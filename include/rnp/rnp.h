@@ -1650,11 +1650,12 @@ RNP_API rnp_result_t rnp_key_get_primary_grip(rnp_key_handle_t key, char **grip)
 /**
  * @brief Get primary's key fingerprint for the subkey, if available.
  *
- * @param key key handle, should not be NULL
+ * @param key subkey handle, should not be NULL
  * @param grip pointer to the NULL-terminated string with hex-encoded key fingerprint or NULL
  *             will be stored here, depending whether primary key is available or not. You must
  *             free it later using rnp_buffer_destroy function.
- * @return RNP_SUCCESS or error code on failure.
+ * @return RNP_SUCCESS on success, RNP_BAD_PARAMETERS if not a subkey, or other error code
+ *         on failure.
  */
 RNP_API rnp_result_t rnp_key_get_primary_fprint(rnp_key_handle_t key, char **fprint);
 
