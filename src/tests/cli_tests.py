@@ -1810,7 +1810,7 @@ class Misc(unittest.TestCase):
 
         _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '--list-keys'])
         compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys'), out, 'keyring 1 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--hom', KEYRING_1, '-l', '--with-sigs'])
+        _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '-l', '--with-sigs'])
         compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs'), out, 'keyring 1 sig listing failed')
         _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '--list-keys', '--secret'])
         compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys_sec'), out, 'keyring 1 sec key listing failed')
