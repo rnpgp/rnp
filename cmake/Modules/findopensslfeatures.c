@@ -50,9 +50,9 @@ list_hashes()
 }
 
 static void
-print_cipher(const EVP_CIPHER *ciph, const char *from, const char *to, void *x)
+print_cipher(const EVP_CIPHER *cipher, const char *from, const char *to, void *x)
 {
-    if (!ciph) {
+    if (!cipher) {
         return;
     }
     printf("%s\n", from);

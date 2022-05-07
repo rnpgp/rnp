@@ -641,7 +641,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, s_exp_t &s_exp, const char *passwo
     }
     if (protected_key->size() != 4 || !protected_key->at(1).is_block() ||
         protected_key->at(2).is_block() || !protected_key->at(3).is_block()) {
-        RNP_LOG("Wrong protected format, expected: (protected mode (parms) "
+        RNP_LOG("Wrong protected format, expected: (protected mode (params) "
                 "encrypted_octet_string)\n");
         return false;
     }

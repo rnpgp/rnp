@@ -194,7 +194,7 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
             break;
         }
         if (ret && updated) {
-            /* some keys were imported, but then error occured */
+            /* some keys were imported, but then error occurred */
             ERR_MSG("warning: not all data was processed.");
             res = true;
             break;

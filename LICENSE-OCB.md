@@ -6,7 +6,7 @@ users of [`rnp`](https://github.com/rnpgp/rnp) to utilize the patented
 [OCB](http://web.cs.ucdavis.edu/~rogaway/ocb/) blockcipher mode of operation,
 which simultaneously provides privacy and authenticity.
 
-The license text is presented below in plain text form purely for referencial
+The license text is presented below in plain text form purely for referential
 purposes. The original signed license is available on request from Ribose Inc.,
 reachable at open.source@ribose.com.
 
