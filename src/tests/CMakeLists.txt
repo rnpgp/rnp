@@ -55,7 +55,7 @@ else()
   )
   # maintain compiler/linker settings on Windows
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-  # explicitely disable unneeded gmock build
+  # explicitly disable unneeded gmock build
   set(BUILD_GMOCK OFF CACHE BOOL "" FORCE)
   FetchContent_MakeAvailable(googletest)
   set(GTestMain gtest_main)

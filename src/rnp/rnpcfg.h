@@ -177,7 +177,7 @@ class rnp_cfg {
      *  - 2017-07-12 : as the exact date
      *  - 60000 : number of seconds
      *
-     *  @param seconds On successfull return result will be placed here
+     *  @param seconds On successful return result will be placed here
      *  @return true on success or false otherwise
      */
     bool get_expiration(const std::string &key, uint32_t &seconds) const;
