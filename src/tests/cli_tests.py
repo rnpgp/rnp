@@ -1420,7 +1420,7 @@ class Keystore(unittest.TestCase):
             f.truncate(10)
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'alice', '--output', kpub, '--overwrite'])
         self.assertEqual(ret, 0)
-        # Re-import it, making sure file was correctly overwriten
+        # Re-import it, making sure file was correctly overwritten
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', kpub])
         self.assertEqual(ret, 0)
         # Enter 'y' in ovewrite prompt
@@ -2798,7 +2798,7 @@ class Misc(unittest.TestCase):
         clear_workfiles()
     
     def test_verify_detached_source(self):
-        # Test --source paramater for the detached signature verification.
+        # Test --source parameter for the detached signature verification.
         src = data_path('test_messages/message.txt')
         sig = data_path('test_messages/message.txt.sig')
         sigasc = data_path('test_messages/message.txt.asc')
@@ -3243,7 +3243,7 @@ class Encryption(unittest.TestCase):
         self.assertNotRegex(err, BITS_MSG)
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'eddsa-25519-non-tweaked', '--force'])
         self.assertEqual(ret, 0)
-        # Due to issue in GnuPG it reports successfull import of non-tweaked secret key in batch mode
+        # Due to issue in GnuPG it reports successful import of non-tweaked secret key in batch mode
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '--import', data_path(KEY_25519_NOTWEAK_SEC)])
         self.assertEqual(ret, 0)
         ret, _, _ = run_proc(GPG, ['--batch', '--homedir', GPGHOME, '-d', data_path(MSG_ES_25519)])
