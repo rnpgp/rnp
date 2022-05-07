@@ -1302,7 +1302,7 @@ TEST_F(rnp_tests, test_y2k38)
     /* clean up and flush the file */
     rnp.end();
 
-    /* check the file for presense of correct dates */
+    /* check the file for presence of correct dates */
     auto        output = file_to_str("stderr.dat");
     time_t      crtime = 0xC0000000;
     std::string correctMade = "signature made ";

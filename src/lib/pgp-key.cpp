@@ -2492,7 +2492,7 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
             uid.valid = false;
         }
     }
-    /* primary userid: use latest one which is not overriden by later non-primary selfsig */
+    /* primary userid: use latest one which is not overridden by later non-primary selfsig */
     uid0_set_ = false;
     if (prisig && get_uid(prisig->uid).valid) {
         uid0_ = prisig->uid;
