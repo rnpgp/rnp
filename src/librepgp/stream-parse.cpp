@@ -2092,39 +2092,61 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
         for (auto &pubenc : param->pubencs) {
             keyctx.search.by.keyid = pubenc.key_id;
-            /* Get the key if any */
-            if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
-                errcode = RNP_ERROR_NO_SUITABLE_KEY;
-                continue;
-            }
-            /* Decrypt key */
-            if (seckey->encrypted()) {
-                pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
-                decrypted_seckey =
-                  pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
-                if (!decrypted_seckey) {
-                    errcode = RNP_ERROR_BAD_PASSWORD;
+
+            // pgp_request_key() is done in a loop to support hidden recipients presented as zero keyid.
+            while (!have_key) {
+                /* Get the key if any */
+                if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
+                    errcode = RNP_ERROR_NO_SUITABLE_KEY;
+                    break; // for key requesting loop
+                }
+                /* Decrypt key */
+                if (seckey->encrypted()) {
+                    pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
+                    decrypted_seckey =
+                      pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
+                    if (!decrypted_seckey) {
+                        errcode = RNP_ERROR_BAD_PASSWORD;
+                        continue;
+                    }
+                } else {
+                    decrypted_seckey = &seckey->pkt();
+                }
+
+                if (pubenc.key_id == rnp::zero_keyid) {
+                    // Suppress probable decryption errors as we try each key
+                    rnp_log_stop();
+                }
+                /* Try to initialize the decryption */
+                if (encrypted_try_key(param, &pubenc, decrypted_seckey, *handler->ctx->ctx)) {
+                    have_key = true;
+                    /* inform handler that we used this pubenc */
+                    if (handler->on_decryption_start) {
+                        handler->on_decryption_start(&pubenc, NULL, handler->param);
+                    }
+                }
+                if (pubenc.key_id == rnp::zero_keyid) {
+                    rnp_log_continue();
+                }
+
+                /* Destroy decrypted key */
+                if (seckey->encrypted()) {
+                    delete decrypted_seckey;
+                    decrypted_seckey = NULL;
+                }
+
+                if (pubenc.key_id == rnp::zero_keyid && !have_key) {
                     continue;
-                }
-            } else {
-                decrypted_seckey = &seckey->pkt();
-            }
-
-            /* Try to initialize the decryption */
-            if (encrypted_try_key(param, &pubenc, decrypted_seckey, *handler->ctx->ctx)) {
-                have_key = true;
-                /* inform handler that we used this pubenc */
-                if (handler->on_decryption_start) {
-                    handler->on_decryption_start(&pubenc, NULL, handler->param);
+                } else {
+                    break;
                 }
             }
 
-            /* Destroy decrypted key */
-            if (seckey->encrypted()) {
-                delete decrypted_seckey;
-                decrypted_seckey = NULL;
+            if (pubenc.key_id == rnp::zero_keyid) {
+                // TODO reset ffi search state  - last_key_id or something
+                // however ffi is opaque at this point
+                // create another api call to key_provider?
             }
-
             if (have_key) {
                 break;
             }

@@ -49,6 +49,10 @@ typedef struct pgp_key_search_t {
     } by;
 } pgp_key_search_t;
 
+namespace rnp {
+static const pgp_key_id_t zero_keyid{0,};
+}
+
 typedef struct pgp_key_request_ctx_t {
     pgp_op_t         op;
     bool             secret;
