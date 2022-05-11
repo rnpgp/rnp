@@ -95,24 +95,31 @@ find_key(rnp_ffi_t               ffi,
     pgp_key_t *key = NULL;
 
     // if handling wildcard, let key provider do its work first
-    if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid && !try_key_provider) {
-        // when handling wildcard key_id, we are called in a loop
-        // and are expected to return the next item
-        pgp_key_t *after = NULL;
+    if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid) {
+        if (!try_key_provider) {
+            pgp_key_t *after = ffi->last_key;
+            // when handling wildcard key_id, we are called in a loop
+            // and are expected to return the next item
 
-        if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid) {
-            after = ffi->last_key;
-        } else {
-            // implicit state reset; FIXME sketchy though
-            ffi->last_key = NULL;
+            switch (key_type) {
+            case KEY_TYPE_PUBLIC:
+                key = rnp_key_store_search(ffi->pubring, search, after);
+                break;
+            case KEY_TYPE_SECRET:
+                key = rnp_key_store_search(ffi->secring, search, after);
+                break;
+            default:
+                assert(false);
+                break;
+            }
         }
-
+    } else {
         switch (key_type) {
         case KEY_TYPE_PUBLIC:
-            key = rnp_key_store_search(ffi->pubring, search, after);
+            key = rnp_key_store_search(ffi->pubring, search, NULL);
             break;
         case KEY_TYPE_SECRET:
-            key = rnp_key_store_search(ffi->secring, search, after);
+            key = rnp_key_store_search(ffi->secring, search, NULL);
             break;
         default:
             assert(false);
