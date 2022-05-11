@@ -79,6 +79,7 @@ struct rnp_ffi_st {
     pgp_password_provider_t pass_provider;
     rnp::SecurityContext    context;
     pgp_key_t *             last_key;
+    bool                    key_provider_tried;
 
     rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt);
     ~rnp_ffi_st();

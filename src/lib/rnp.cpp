@@ -96,23 +96,28 @@ find_key(rnp_ffi_t               ffi,
 
     // if handling wildcard, let key provider do its work first
     if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid) {
-        if (!try_key_provider) {
-            pgp_key_t *after = ffi->last_key;
-            // when handling wildcard key_id, we are called in a loop
-            // and are expected to return the next item
+        assert(key_type == KEY_TYPE_SECRET);
+        // upload every secret key available
+        if (try_key_provider && ffi->getkeycb && !ffi->key_provider_tried) {
+            char        identifier[RNP_LOCATOR_MAX_SIZE];
+            const char *identifier_type = NULL;
 
-            switch (key_type) {
-            case KEY_TYPE_PUBLIC:
-                key = rnp_key_store_search(ffi->pubring, search, after);
-                break;
-            case KEY_TYPE_SECRET:
-                key = rnp_key_store_search(ffi->secring, search, after);
-                break;
-            default:
-                assert(false);
-                break;
-            }
+            assert(locator_to_str(search, &identifier_type, identifier, sizeof(identifier)));
+            // TODO let identifier="000..." mean "load all secret keys"
+            ffi->getkeycb(ffi,
+                          ffi->getkeycb_ctx,
+                          identifier_type,
+                          identifier,
+                          key_type == KEY_TYPE_SECRET);
+            ffi->key_provider_tried = true;
         }
+
+        // when handling wildcard key_id, we are called in a loop
+        // and are expected to return the next item
+        pgp_key_t *after = ffi->last_key;
+        key = rnp_key_store_search(ffi->secring, search, after);
+        ffi->last_key = key;
+        return key;
     } else {
         switch (key_type) {
         case KEY_TYPE_PUBLIC:
@@ -125,26 +130,19 @@ find_key(rnp_ffi_t               ffi,
             assert(false);
             break;
         }
-    }
 
-    // when we go through every key already loaded during the loop, we'll hit this case and proceed with the loop
-    // bad because it's not a given that keys dynamically uploaded into store will go after `after`
-    if (!key && ffi->getkeycb && try_key_provider) {
-        // in this case there's no "after" logic but find_key() recursion is happening
-        char        identifier[RNP_LOCATOR_MAX_SIZE];
-        const char *identifier_type = NULL;
+        if (!key && ffi->getkeycb && try_key_provider) {
+            char        identifier[RNP_LOCATOR_MAX_SIZE];
+            const char *identifier_type = NULL;
 
-        if (locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
-            // this...
-            ffi->getkeycb(ffi,
-                          ffi->getkeycb_ctx,
-                          identifier_type,
-                          identifier,
-                          key_type == KEY_TYPE_SECRET);
-            // affects this find_key() call
-            // by potentially uploading more keys into store, e.g. via rnp_load_keys()
-            // recurse and try the store search above once more
-            return find_key(ffi, search, key_type, false);
+            if (locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
+                ffi->getkeycb(ffi,
+                              ffi->getkeycb_ctx,
+                              identifier_type,
+                              identifier,
+                              key_type == KEY_TYPE_SECRET);
+                return find_key(ffi, search, key_type, false);
+            }
         }
     }
     return key;
@@ -163,9 +161,6 @@ ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
     // (find_key() just peeks at ffi->last_keyid)
     pgp_key_t *ret = find_key(ffi, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
 
-    if (ctx->search.by.keyid == rnp::zero_keyid && ctx->secret) {
-        ffi->last_key = ret;
-    }
     return ret;
 }
 
