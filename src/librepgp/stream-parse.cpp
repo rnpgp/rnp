@@ -2028,6 +2028,14 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     return RNP_SUCCESS;
 }
 
+static void
+log_keyid(const char *msg, const pgp_key_id_t &id)
+{
+    char keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};
+    rnp::hex_encode(id.data(), id.size(), keyid, sizeof(keyid), rnp::HEX_LOWERCASE);
+    RNP_LOG(msg, keyid);
+}
+
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
@@ -2092,13 +2100,19 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
         for (auto &pubenc : param->pubencs) {
             keyctx.search.by.keyid = pubenc.key_id;
+            log_keyid("Searching for keyid %s", pubenc.key_id);
 
             // pgp_request_key() is done in a loop to support hidden recipients presented as zero keyid.
             while (!have_key) {
                 /* Get the key if any */
-                if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
+                seckey = pgp_request_key(handler->key_provider, &keyctx);
+                if (!seckey) {
+                    RNP_LOG("pgp_request_key() returned NULL");
                     errcode = RNP_ERROR_NO_SUITABLE_KEY;
                     break; // for key requesting loop
+                }
+                else {
+                    log_keyid("pgp_request_key() returned %s", seckey->keyid());
                 }
                 /* Decrypt key */
                 if (seckey->encrypted()) {
