@@ -2134,12 +2134,6 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                     delete decrypted_seckey;
                     decrypted_seckey = NULL;
                 }
-
-                if (pubenc.key_id == rnp::zero_keyid && !have_key) {
-                    continue;
-                } else {
-                    break;
-                }
             }
 
             if (pubenc.key_id == rnp::zero_keyid) {
