@@ -2121,7 +2121,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                       pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
                     if (!decrypted_seckey) {
                         errcode = RNP_ERROR_BAD_PASSWORD;
-                        continue;
+                        break; // but continue the loop on param->pubencs
                     }
                 } else {
                     decrypted_seckey = &seckey->pkt();
@@ -2148,16 +2148,18 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
                     delete decrypted_seckey;
                     decrypted_seckey = NULL;
                 }
+                if (pubenc.key_id == rnp::zero_keyid) {
+                    // TODO reset ffi search state  - last_key_id or something
+                    // however ffi is opaque at this point
+                    // create another api call to key_provider?
+                } else {
+                    // even if !have_key, no point in looping here
+                    break;
+                }
             }
 
-            if (pubenc.key_id == rnp::zero_keyid) {
-                // TODO reset ffi search state  - last_key_id or something
-                // however ffi is opaque at this point
-                // create another api call to key_provider?
-            }
-            if (have_key) {
+            if (have_key)
                 break;
-            }
         }
     }
 
