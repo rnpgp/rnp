@@ -35,13 +35,26 @@ bool
 SecurityRule::operator==(const SecurityRule &src) const
 {
     return (type == src.type) && (feature == src.feature) && (from == src.from) &&
-           (level == src.level) && (override == src.override);
+           (level == src.level) && (override == src.override) && (action == src.action);
 }
 
 bool
 SecurityRule::operator!=(const SecurityRule &src) const
 {
     return !(*this == src);
+}
+
+bool
+SecurityRule::matches(FeatureType    ftype,
+                      int            fval,
+                      uint64_t       ftime,
+                      SecurityAction faction) const noexcept
+{
+    if ((type != ftype) || (feature != fval) || (from > ftime)) {
+        return false;
+    }
+    return (action == SecurityAction::Any) || (faction == SecurityAction::Any) ||
+           (action == faction);
 }
 
 size_t
@@ -103,10 +116,13 @@ SecurityProfile::clear_rules()
 }
 
 bool
-SecurityProfile::has_rule(FeatureType type, int value, uint64_t time) const noexcept
+SecurityProfile::has_rule(FeatureType    type,
+                          int            value,
+                          uint64_t       time,
+                          SecurityAction action) const noexcept
 {
     for (auto &rule : rules_) {
-        if ((rule.type == type) && (rule.feature == value) && (rule.from <= time)) {
+        if (rule.matches(type, value, time, action)) {
             return true;
         }
     }
@@ -114,11 +130,14 @@ SecurityProfile::has_rule(FeatureType type, int value, uint64_t time) const noex
 }
 
 const SecurityRule &
-SecurityProfile::get_rule(FeatureType type, int value, uint64_t time) const
+SecurityProfile::get_rule(FeatureType    type,
+                          int            value,
+                          uint64_t       time,
+                          SecurityAction action) const
 {
     const SecurityRule *res = nullptr;
     for (auto &rule : rules_) {
-        if ((rule.type != type) || (rule.feature != value) || (rule.from > time)) {
+        if (!rule.matches(type, value, time, action)) {
             continue;
         }
         if (rule.override) {
@@ -135,14 +154,16 @@ SecurityProfile::get_rule(FeatureType type, int value, uint64_t time) const
 }
 
 SecurityLevel
-SecurityProfile::hash_level(pgp_hash_alg_t hash, uint64_t time) const noexcept
+SecurityProfile::hash_level(pgp_hash_alg_t hash,
+                            uint64_t       time,
+                            SecurityAction action) const noexcept
 {
-    if (!has_rule(FeatureType::Hash, hash, time)) {
+    if (!has_rule(FeatureType::Hash, hash, time, action)) {
         return def_level();
     }
 
     try {
-        return get_rule(FeatureType::Hash, hash, time).level;
+        return get_rule(FeatureType::Hash, hash, time, action).level;
     } catch (const std::exception &e) {
         /* this should never happen however we need to satisfy noexcept specifier */
         return def_level();
@@ -158,11 +179,13 @@ SecurityProfile::def_level() const
 SecurityContext::SecurityContext() : time_(0), rng(RNG::Type::DRBG)
 {
     /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
-    profile.add_rule(
-      SecurityRule(FeatureType::Hash, PGP_HASH_SHA1, SecurityLevel::Insecure, 1547856000));
+    profile.add_rule({FeatureType::Hash,
+                      PGP_HASH_SHA1,
+                      SecurityLevel::Insecure,
+                      1547856000,
+                      SecurityAction::Any});
     /* Mark MD5 insecure since 2012-01-01 */
-    profile.add_rule(
-      SecurityRule(FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000));
+    profile.add_rule({FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000});
 }
 
 size_t

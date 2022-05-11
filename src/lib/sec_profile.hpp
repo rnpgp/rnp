@@ -36,19 +36,31 @@ namespace rnp {
 
 enum class FeatureType { Hash, Cipher, PublicKey };
 enum class SecurityLevel { Disabled, Insecure, Default };
+enum class SecurityAction { Any, VerifyKey, VerifyData };
 
 struct SecurityRule {
-    FeatureType   type;
-    int           feature;
-    SecurityLevel level;
-    uint64_t      from;
-    bool          override;
+    FeatureType    type;
+    int            feature;
+    SecurityLevel  level;
+    uint64_t       from;
+    bool           override;
+    SecurityAction action;
 
-    SecurityRule(FeatureType ftype, int fval, SecurityLevel flevel, uint64_t ffrom = 0)
-        : type(ftype), feature(fval), level(flevel), from(ffrom), override(false){};
+    SecurityRule(FeatureType    ftype,
+                 int            fval,
+                 SecurityLevel  flevel,
+                 uint64_t       ffrom = 0,
+                 SecurityAction faction = SecurityAction::Any)
+        : type(ftype), feature(fval), level(flevel), from(ffrom), override(false),
+          action(faction){};
 
     bool operator==(const SecurityRule &src) const;
     bool operator!=(const SecurityRule &src) const;
+
+    bool matches(FeatureType    ftype,
+                 int            fval,
+                 uint64_t       ftime,
+                 SecurityAction faction) const noexcept;
 };
 
 class SecurityProfile {
@@ -64,9 +76,17 @@ class SecurityProfile {
     void          clear_rules(FeatureType type);
     void          clear_rules();
 
-    bool                has_rule(FeatureType type, int value, uint64_t time) const noexcept;
-    const SecurityRule &get_rule(FeatureType type, int value, uint64_t time) const;
-    SecurityLevel       hash_level(pgp_hash_alg_t hash, uint64_t time) const noexcept;
+    bool                has_rule(FeatureType    type,
+                                 int            value,
+                                 uint64_t       time,
+                                 SecurityAction action = SecurityAction::Any) const noexcept;
+    const SecurityRule &get_rule(FeatureType    type,
+                                 int            value,
+                                 uint64_t       time,
+                                 SecurityAction action = SecurityAction::Any) const;
+    SecurityLevel       hash_level(pgp_hash_alg_t hash,
+                                   uint64_t       time,
+                                   SecurityAction action = SecurityAction::Any) const noexcept;
     SecurityLevel       def_level() const;
 };
 
