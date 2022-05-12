@@ -52,6 +52,8 @@ def pswd_pipe(password):
         fw.write(password)
         fw.write('\n')
         fw.write(password)
+        fw.write('\n')
+        fw.write(password)
     os.set_inheritable(pr, True)
 
     if not is_windows():
