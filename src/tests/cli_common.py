@@ -14,11 +14,13 @@ CONSOLE_ENCODING = 'UTF-8'
 class CLIError(Exception):
     def __init__(self, message, log = None):
         super(CLIError, self).__init__(message)
+        self.message = message
         self.log = log
-
-    def __str__(self):
         logging.info(self.message)
         logging.debug(self.log.strip())
+
+    def __str__(self):
+        return self.message + '\n' + self.log
 
 def is_windows():
     return sys.platform.startswith('win') or sys.platform.startswith('msys')
