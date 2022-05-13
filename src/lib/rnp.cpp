@@ -119,6 +119,8 @@ find_key(rnp_ffi_t               ffi,
         ffi->last_key = key;
         return key;
     } else {
+        ffi->last_key = NULL;
+
         switch (key_type) {
         case KEY_TYPE_PUBLIC:
             key = rnp_key_store_search(ffi->pubring, search, NULL);
@@ -546,6 +548,7 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     key_provider.userdata = this;
     pass_provider.callback = rnp_password_cb_bounce;
     pass_provider.userdata = this;
+    last_key = NULL;
 }
 
 rnp::RNG &
