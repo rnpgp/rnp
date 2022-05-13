@@ -154,13 +154,6 @@ static pgp_key_t *
 ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_ffi_t ffi = (rnp_ffi_t) userdata;
-    // check whether zero keyid requested.
-    // On first call return a first secret key and store somewhere in userdata which key was returned.
-    // rnp_identifier_iterator_t could be useful here.
-    //
-    // ctx->search, ffi->search - what's the difference?
-
-    // (find_key() just peeks at ffi->last_keyid)
     pgp_key_t *ret = find_key(ffi, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
 
     return ret;
