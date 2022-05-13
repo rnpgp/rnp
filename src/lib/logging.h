@@ -89,10 +89,3 @@ class LogStop {
     } while (0)
 
 #endif
-
-#define RNP_LOG_KEYID(msg, pkid)                                                          \
-    do {                                                                                 \
-        char                keyid[PGP_KEY_ID_SIZE * 2 + 1] = {0};                        \
-        rnp::hex_encode(pkid->data(), pkid->size(), keyid, sizeof(keyid), rnp::HEX_LOWERCASE); \
-        RNP_LOG(msg, keyid);                                                             \
-    } while (0)
