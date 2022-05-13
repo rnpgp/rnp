@@ -542,6 +542,7 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     pass_provider.callback = rnp_password_cb_bounce;
     pass_provider.userdata = this;
     last_key = NULL;
+    key_provider_tried = false;
 }
 
 rnp::RNG &
