@@ -50,7 +50,9 @@ typedef struct pgp_key_search_t {
 } pgp_key_search_t;
 
 namespace rnp {
-static const pgp_key_id_t zero_keyid{0,};
+static const pgp_key_id_t zero_keyid{
+    0,
+};
 }
 
 typedef struct pgp_key_request_ctx_t {
