@@ -59,10 +59,16 @@ rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
 }
 
 pgp_key_t *
-pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx)
+pgp_request_key(const pgp_key_provider_t *provider, pgp_key_request_ctx_t *ctx)
 {
     pgp_key_t *key = NULL;
     if (!provider || !provider->callback || !ctx) {
+        return NULL;
+    }
+
+    if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid && ctx->wildcard_search_in_progress && !ffi->last_key) {
+        // API misuse, but not an internal integrity assertion
+        RNP_ERROR("API misuse: pgp_request_key() called after it has returned NULL on this context");
         return NULL;
     }
     if (!(key = provider->callback(ctx, provider->userdata))) {

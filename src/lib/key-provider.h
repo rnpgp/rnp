@@ -59,9 +59,10 @@ typedef struct pgp_key_request_ctx_t {
     pgp_op_t         op;
     bool             secret;
     pgp_key_search_t search;
+    bool             wildcard_search_in_progress;
 } pgp_key_request_ctx_t;
 
-typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
+typedef pgp_key_t *pgp_key_callback_t(pgp_key_request_ctx_t *ctx, void *userdata);
 
 typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
@@ -86,7 +87,7 @@ bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search
  *  @return a key pointer on success, or NULL if key was not found otherwise
  **/
 pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
-                           const pgp_key_request_ctx_t *ctx);
+                           pgp_key_request_ctx_t *ctx);
 
 /** key provider callback that searches a list of pgp_key_t pointers
  *

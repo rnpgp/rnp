@@ -2095,12 +2095,14 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
-        pgp_key_request_ctx_t keyctx = {};
-        keyctx.op = PGP_OP_DECRYPT_SYM;
-        keyctx.secret = true;
-        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
-
         for (auto &pubenc : param->pubencs) {
+            // TODO make keyctx such that lib/rnp.cpp's find_key() can distinguish between multiple consecutive zero_keyid in pubencs
+            // either drop `const` in pgp_request_key() signature, or make keyctx identifiable (thread safety woes ahead!) or do something nasty
+            pgp_key_request_ctx_t keyctx = {};
+            keyctx.op = PGP_OP_DECRYPT_SYM;
+            keyctx.secret = true;
+            keyctx.search.type = PGP_KEY_SEARCH_KEYID;
+
             keyctx.search.by.keyid = pubenc.key_id;
             //log_keyid("Searching for keyid %s", pubenc.key_id);
 

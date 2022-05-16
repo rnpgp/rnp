@@ -88,19 +88,47 @@ static rnp_result_t rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char
 
 static pgp_key_t *
 find_key(rnp_ffi_t               ffi,
+         pgp_key_request_ctx_t * ctx,
          const pgp_key_search_t *search,
          key_type_t              key_type,
          bool                    try_key_provider)
 {
     pgp_key_t *key = NULL;
+    // bool try_key_provider is defined in the arguments and is used in internal decision making
+    pgp_key_t *after = NULL;
 
-    // if handling wildcard, let key provider do its work first
     if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid) {
         assert(key_type == KEY_TYPE_SECRET);
+        // if handling wildcard, let key provider do its work first
+
+        // first lap of a loop or not?
+        if (ctx->wildcard_search_in_progress) {
+            if (!ffi->last_key) {
+                // don't go from last_key == NULL to rnp_key_store_search(), just finish instead
+                // api misuse, but not an internal integrity assertion
+                ctx->wildcard_search_in_progress = false;
+                ffi->last_key = NULL;
+                return NULL;
+            }
+
+            // when we are in progress, we've already called the key provider once
+            try_key_profider = false;
+        } else {
+            assert(!ctx->wildcard_search_in_progress);
+            ctx->wildcard_search_in_progress = true;
+
+            // try_key_provider stays as was requested
+            // try every key in the store, using ffi->last_key as `after`
+            after = ffi->last_key;
+        }
+
         // upload every secret key available
-        if (try_key_provider && ffi->getkeycb && !ffi->key_provider_tried) {
+        if (try_key_provider && ffi->getkeycb) {
             char        identifier[RNP_LOCATOR_MAX_SIZE];
             const char *identifier_type = NULL;
+
+            assert(!ffi->key_provider_used_for_wildcard);
+            ffi->key_provider_used_for_wildcard = true;
 
             assert(locator_to_str(search, &identifier_type, identifier, sizeof(identifier)));
             // TODO let identifier="000..." mean "load all secret keys"
@@ -109,17 +137,17 @@ find_key(rnp_ffi_t               ffi,
                           identifier_type,
                           identifier,
                           key_type == KEY_TYPE_SECRET);
-            ffi->key_provider_tried = true;
         }
 
         // when handling wildcard key_id, we are called in a loop
         // and are expected to return the next item
-        pgp_key_t *after = ffi->last_key;
         key = rnp_key_store_search(ffi->secring, search, after);
         ffi->last_key = key;
         return key;
+
     } else {
-        ffi->last_key = NULL;
+        assert(!ctx->wildcard_search_in_progress);
+        assert(!ffi->last_key);
 
         switch (key_type) {
         case KEY_TYPE_PUBLIC:
@@ -151,10 +179,10 @@ find_key(rnp_ffi_t               ffi,
 }
 
 static pgp_key_t *
-ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
+ffi_key_provider(pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_ffi_t ffi = (rnp_ffi_t) userdata;
-    pgp_key_t *ret = find_key(ffi, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
+    pgp_key_t *ret = find_key(ffi, ctx, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
 
     return ret;
 }
