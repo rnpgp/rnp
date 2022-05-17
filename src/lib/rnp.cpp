@@ -95,7 +95,7 @@ find_key(rnp_ffi_t               ffi,
 {
     pgp_key_t *key = NULL;
     // bool try_key_provider is defined in the arguments and is used in internal decision making
-    pgp_key_t *after = NULL;
+    pgp_key_t *after = ffi->last_key;
 
     if (search->type == PGP_KEY_SEARCH_KEYID && search->by.keyid == rnp::zero_keyid) {
         assert(key_type == KEY_TYPE_SECRET);
@@ -119,7 +119,6 @@ find_key(rnp_ffi_t               ffi,
 
             // try_key_provider stays as was requested
             // try every key in the store, using ffi->last_key as `after`
-            after = ffi->last_key;
         }
 
         // upload every secret key available
