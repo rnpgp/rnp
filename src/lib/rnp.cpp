@@ -6841,7 +6841,8 @@ try {
     pgp_key_search_t search = {};
     search.type = PGP_KEY_SEARCH_FINGERPRINT;
     search.by.fingerprint = pkey->primary_fp();
-    pgp_key_t *prim_sec = find_key(key->ffi, &search, KEY_TYPE_SECRET, true);
+    pgp_key_request_ctx_t ctx;
+    pgp_key_t *prim_sec = find_key(key->ffi, &ctx, &search, KEY_TYPE_SECRET, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
@@ -6851,7 +6852,8 @@ try {
         return RNP_ERROR_GENERIC;
     }
     prim_sec->revalidate(*key->ffi->secring);
-    pgp_key_t *prim_pub = find_key(key->ffi, &search, KEY_TYPE_PUBLIC, true);
+    pgp_key_request_ctx_t ctx2;
+    pgp_key_t *prim_pub = find_key(key->ffi, &ctx2, &search, KEY_TYPE_PUBLIC, true);
     if (prim_pub) {
         prim_pub->revalidate(*key->ffi->pubring);
     }
