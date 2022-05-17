@@ -112,7 +112,7 @@ find_key(rnp_ffi_t               ffi,
             }
 
             // when we are in progress, we've already called the key provider once
-            try_key_profider = false;
+            try_key_provider = false;
         } else {
             assert(!ctx->wildcard_search_in_progress);
             ctx->wildcard_search_in_progress = true;
@@ -171,7 +171,7 @@ find_key(rnp_ffi_t               ffi,
                               identifier_type,
                               identifier,
                               key_type == KEY_TYPE_SECRET);
-                return find_key(ffi, search, key_type, false);
+                return find_key(ffi, ctx, search, key_type, false);
             }
         }
     }
@@ -570,7 +570,7 @@ rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t se
     pass_provider.callback = rnp_password_cb_bounce;
     pass_provider.userdata = this;
     last_key = NULL;
-    key_provider_tried = false;
+    key_provider_used_for_wildcard = false;
 }
 
 rnp::RNG &
