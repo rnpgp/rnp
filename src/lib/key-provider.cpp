@@ -82,7 +82,7 @@ pgp_request_key(const pgp_key_provider_t *provider, pgp_key_request_ctx_t *ctx)
 }
 
 pgp_key_t *
-rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
+rnp_key_provider_key_ptr_list(pgp_key_request_ctx_t *ctx, void *userdata)
 {
     std::vector<pgp_key_t *> *key_list = (std::vector<pgp_key_t *> *) userdata;
     for (auto key : *key_list) {
@@ -94,7 +94,7 @@ rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 }
 
 pgp_key_t *
-rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
+rnp_key_provider_chained(pgp_key_request_ctx_t *ctx, void *userdata)
 {
     for (pgp_key_provider_t **pprovider = (pgp_key_provider_t **) userdata;
          pprovider && *pprovider;
@@ -109,7 +109,7 @@ rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
 }
 
 pgp_key_t *
-rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
+rnp_key_provider_store(pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_key_store_t *ks = (rnp_key_store_t *) userdata;
 
