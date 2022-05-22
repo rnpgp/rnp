@@ -122,6 +122,8 @@ typedef uint32_t rnp_result_t;
  * Flags for feature security rules.
  */
 #define RNP_SECURITY_OVERRIDE (1U << 0)
+#define RNP_SECURITY_VERIFY_KEY (1U << 1)
+#define RNP_SECURITY_VERIFY_DATA (1U << 2)
 #define RNP_SECURITY_REMOVE_ALL (1U << 16)
 
 /**
@@ -458,6 +460,11 @@ RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
  *                May be used to temporarily enable or disable some feature value (e.g., to
  *                enable verification of SHA1 or MD5 signature), and then revert changes via
  *                rnp_remove_security_rule().
+ *              - RNP_SECURITY_VERIFY_KEY : limit rule only to the key signature verification.
+ *              - RNP_SECURITY_VERIFY_DATA : limit rule only to the data signature
+ *                verification.
+ *              Note: by default rule applies to all possible usages.
+ *
  * @param from timestamp, from when the rule is active. Objects that have creation time (like
  *             signatures) are matched with the closest rules from the past, unless there is
  *             a rule with an override flag. For instance, given a single rule with algorithm
@@ -494,7 +501,13 @@ RNP_API rnp_result_t rnp_add_security_rule(rnp_ffi_t   ffi,
  * @param type feature type to search for. Only RNP_FEATURE_HASH_ALG is supported right now.
  * @param name feature name, i.e. SHA1 or so on.
  * @param time timestamp for which feature should be checked.
- * @param flags if non-NULL then rule's flags will be put here.
+ * @param flags if non-NULL then rule's flags will be put here. In this case *flags must be
+ *              initialized to the desired usage limitation:
+ *               - 0 to look up for any usage (this is also assumed if flags parameter is
+ *                 NULL).
+ *               - RNP_SECURITY_VERIFY_KEY, RNP_SECURITY_VERIFY_DATA and so on to look up for
+ *                 the specific usage. Please note that constants cannot be ORed here, only
+ *                 single one must be present.
  * @param from if non-NULL then rule's from time will be put here.
  * @param level cannot be NULL. Security level will be stored here.
  * @return RNP_SUCCESS or any other value on error.
@@ -518,6 +531,8 @@ RNP_API rnp_result_t rnp_get_security_rule(rnp_ffi_t   ffi,
  * @param level security level of the rule.
  * @param flags additional flags, following are defined at the moment:
  *          - RNP_SECURITY_OVERRIDE : rule should match this flag
+ *          - RNP_SECURITY_VERIFY_KEY, RNP_SECURITY_VERIFY_DATA : rule should match these flags
+ *            (can be ORed together)
  *          - RNP_SECURITY_REMOVE_ALL : remove all rules for type and name.
  * @param from timestamp, for when the rule should be removed. Ignored if
  *             RNP_SECURITY_REMOVE_ALL_FROM is specified.
