@@ -1143,6 +1143,10 @@ try {
     /* check flags */
     bool rule_override = flags & RNP_SECURITY_OVERRIDE;
     flags &= ~RNP_SECURITY_OVERRIDE;
+    bool verify_key = flags & RNP_SECURITY_VERIFY_KEY;
+    flags &= ~RNP_SECURITY_VERIFY_KEY;
+    bool verify_data = flags & RNP_SECURITY_VERIFY_DATA;
+    flags &= ~RNP_SECURITY_VERIFY_DATA;
     if (flags) {
         FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1150,10 +1154,35 @@ try {
     /* add rule */
     rnp::SecurityRule newrule(ftype, fvalue, sec_level, from);
     newrule.override = rule_override;
-    ffi->profile().add_rule(newrule);
+    /* Add rule for any action */
+    if (!verify_key && !verify_data) {
+        ffi->profile().add_rule(newrule);
+        return RNP_SUCCESS;
+    }
+    /* Add rule for each specified key usage */
+    if (verify_key) {
+        newrule.action = rnp::SecurityAction::VerifyKey;
+        ffi->profile().add_rule(newrule);
+    }
+    if (verify_data) {
+        newrule.action = rnp::SecurityAction::VerifyData;
+        ffi->profile().add_rule(newrule);
+    }
     return RNP_SUCCESS;
 }
 FFI_GUARD
+
+static rnp::SecurityAction
+get_security_action(uint32_t flags)
+{
+    if (flags & RNP_SECURITY_VERIFY_KEY) {
+        return rnp::SecurityAction::VerifyKey;
+    }
+    if (flags & RNP_SECURITY_VERIFY_DATA) {
+        return rnp::SecurityAction::VerifyData;
+    }
+    return rnp::SecurityAction::Any;
+}
 
 rnp_result_t
 rnp_get_security_rule(rnp_ffi_t   ffi,
@@ -1175,13 +1204,25 @@ try {
     }
     /* init default rule */
     rnp::SecurityRule rule(ftype, fvalue, ffi->profile().def_level());
+    /* Check whether limited usage is requested */
+    auto action = get_security_action(flags ? *flags : 0);
     /* check whether rule exists */
-    if (ffi->profile().has_rule(ftype, fvalue, time)) {
-        rule = ffi->profile().get_rule(ftype, fvalue, time);
+    if (ffi->profile().has_rule(ftype, fvalue, time, action)) {
+        rule = ffi->profile().get_rule(ftype, fvalue, time, action);
     }
     /* fill the results */
     if (flags) {
         *flags = rule.override ? RNP_SECURITY_OVERRIDE : 0;
+        switch (rule.action) {
+        case rnp::SecurityAction::VerifyKey:
+            *flags |= RNP_SECURITY_VERIFY_KEY;
+            break;
+        case rnp::SecurityAction::VerifyData:
+            *flags |= RNP_SECURITY_VERIFY_DATA;
+            break;
+        default:
+            break;
+        }
     }
     if (from) {
         *from = rule.from;
@@ -1221,6 +1262,9 @@ try {
     flags &= ~RNP_SECURITY_REMOVE_ALL;
     bool rule_override = flags & RNP_SECURITY_OVERRIDE;
     flags &= ~RNP_SECURITY_OVERRIDE;
+    rnp::SecurityAction action = get_security_action(flags);
+    flags &= ~RNP_SECURITY_VERIFY_DATA;
+    flags &= ~RNP_SECURITY_VERIFY_KEY;
     if (flags) {
         FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1248,7 +1292,7 @@ try {
         ffi->profile().clear_rules(ftype, fvalue);
     } else {
         /* remove specific rule */
-        rnp::SecurityRule rule(ftype, fvalue, flevel, from);
+        rnp::SecurityRule rule(ftype, fvalue, flevel, from, action);
         rule.override = rule_override;
         ffi->profile().del_rule(rule);
     }
