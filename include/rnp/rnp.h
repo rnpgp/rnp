@@ -999,7 +999,7 @@ RNP_API rnp_result_t rnp_op_generate_execute(rnp_op_generate_t op);
  */
 RNP_API rnp_result_t rnp_op_generate_get_key(rnp_op_generate_t op, rnp_key_handle_t *handle);
 
-/** Free resources associated with signing operation.
+/** Free resources associated with key generation operation.
  *
  *  @param op opaque key generation context. Must be successfully initialized with one of the
  *         rnp_op_generate_*_create functions.
