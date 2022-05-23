@@ -715,8 +715,8 @@ RNP_API rnp_result_t rnp_generate_key_sm2(rnp_ffi_t         ffi,
                                           rnp_key_handle_t *key);
 
 /**
- * @brief Shortcut for quick key generation. While it is used in other shortcut functions for
- *        key generation
+ * @brief Shortcut for quick key generation. It is used in other shortcut functions for
+ *        key generation (rnp_generate_key_*).
  *
  * @param ffi
  * @param key_alg string with primary key algorithm. Cannot be NULL.
@@ -730,6 +730,8 @@ RNP_API rnp_result_t rnp_generate_key_sm2(rnp_ffi_t         ffi,
  * @param sub_curve Subkey curve name. Must be non-NULL only with EC-based subkey algorithm,
  *               otherwise error will be returned.
  * @param userid String with userid. Cannot be NULL.
+ * @param password String with password which would be used to protect the key and subkey.
+ *                 If NULL then key will be stored in cleartext (unencrypted).
  * @param key if non-NULL, then handle of the primary key will be stored here on success.
  *            Caller must destroy it with rnp_key_handle_destroy() call.
  * @return RNP_SUCCESS or error code instead.
