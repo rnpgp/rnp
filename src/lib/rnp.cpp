@@ -1262,7 +1262,7 @@ FFI_GUARD
 
 rnp_result_t
 rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, char **password)
-{
+try {
     if (!ffi || !password || !ffi->getpasscb) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -1281,6 +1281,7 @@ rnp_request_password(rnp_ffi_t ffi, rnp_key_handle_t key, const char *context, c
     memcpy(*password, pass.data(), pass_len);
     return RNP_SUCCESS;
 }
+FFI_GUARD
 
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
