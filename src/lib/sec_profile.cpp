@@ -178,12 +178,18 @@ SecurityProfile::def_level() const
 
 SecurityContext::SecurityContext() : time_(0), rng(RNG::Type::DRBG)
 {
-    /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
+    /* Mark SHA-1 data signature insecure since 2019-01-19, as GnuPG does */
     profile.add_rule({FeatureType::Hash,
                       PGP_HASH_SHA1,
                       SecurityLevel::Insecure,
                       1547856000,
-                      SecurityAction::Any});
+                      SecurityAction::VerifyData});
+    /* Mark SHA-1 key signature insecure since 2024-01-19 by default */
+    profile.add_rule({FeatureType::Hash,
+                      PGP_HASH_SHA1,
+                      SecurityLevel::Insecure,
+                      1705629600,
+                      SecurityAction::VerifyKey});
     /* Mark MD5 insecure since 2012-01-01 */
     profile.add_rule({FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000});
 }
