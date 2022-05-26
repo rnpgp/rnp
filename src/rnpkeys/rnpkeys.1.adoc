@@ -371,6 +371,13 @@ By default RNP would detect whether TTY is attached and use it for user prompts.
 +
 This option overrides default behaviour so user input may be passed in batch mode.
 
+*--current-time* _TIME_::
+Override system's time with a specified value. +
++
+By default RNP uses system's time in all signature/key checks, however in some scenarios it could be needed to override this. +
++
+*TIME* could be specified in the ISO 8601-1:2019 date format (_yyyy-mm-dd_), or in the UNIX timestamp format.
+
 == EXIT STATUS
 
 _0_::
