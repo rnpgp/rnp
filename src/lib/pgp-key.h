@@ -100,7 +100,7 @@ typedef struct pgp_subsig_t {
     /** @brief Returns true if signature is certification */
     bool is_cert() const;
     /** @brief Returns true if signature is expired */
-    bool expired() const;
+    bool expired(uint64_t at) const;
 } pgp_subsig_t;
 
 typedef std::unordered_map<pgp_sig_id_t, pgp_subsig_t> pgp_sig_map_t;
@@ -278,7 +278,9 @@ struct pgp_key_t {
     const pgp_rawpacket_t &rawpkt() const;
     void                   set_rawpkt(const pgp_rawpacket_t &src);
     /** @brief write secret key data to the rawpkt, optionally encrypting with password */
-    bool write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rnp::RNG &rng);
+    bool write_sec_rawpkt(pgp_key_pkt_t &       seckey,
+                          const std::string &   password,
+                          rnp::SecurityContext &ctx);
 
     /** @brief Unlock a key, i.e. decrypt its secret data so it can be used for
      *         signing/decryption.
@@ -307,7 +309,8 @@ struct pgp_key_t {
                  const std::string &                new_password,
                  rnp::SecurityContext &             ctx);
     /** @brief Remove protection from a key, i.e. leave secret fields unencrypted */
-    bool unprotect(const pgp_password_provider_t &password_provider, rnp::RNG &rng);
+    bool unprotect(const pgp_password_provider_t &password_provider,
+                   rnp::SecurityContext &         ctx);
 
     /** @brief Write key's packets to the output. */
     void write(pgp_dest_t &dst) const;
@@ -355,7 +358,7 @@ struct pgp_key_t {
     bool is_signer(const pgp_subsig_t &sig) const;
 
     /** @brief Returns true if key is expired according to sig. */
-    bool expired_with(const pgp_subsig_t &sig) const;
+    bool expired_with(const pgp_subsig_t &sig, uint64_t at) const;
 
     /** @brief Check whether signature is key's self certification. */
     bool is_self_cert(const pgp_subsig_t &sig) const;
@@ -444,8 +447,9 @@ struct pgp_key_t {
      * @param sig signature to init.
      * @param hash hash algorithm to use (may be changed if it is not suitable for public key
      *             algorithm).
+     * @param creation signature's creation time.
      */
-    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash) const;
+    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation) const;
     /**
      * @brief Calculate a certification and fill signature material.
      *        Note: secret key must be unlocked before calling this function.

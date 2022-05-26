@@ -470,7 +470,7 @@ static bool
 rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_dest_t *dst)
 {
     uint16_t flags = 0;
-    uint32_t file_created_at = time(NULL);
+    uint32_t file_created_at = key_store->secctx.time();
 
     if (!key_store->blobs.empty() && (key_store->blobs[0]->type() == KBX_HEADER_BLOB)) {
         kbx_header_blob_t &blob = dynamic_cast<kbx_header_blob_t &>(*key_store->blobs[0]);
@@ -481,7 +481,8 @@ rnp_key_store_kbx_write_header(rnp_key_store_t *key_store, pgp_dest_t *dst)
              !pu8(dst, 1)                                                   // version
              || !pu16(dst, flags) || !pbuf(dst, "KBXf", 4) || !pu32(dst, 0) // RFU
              || !pu32(dst, 0)                                               // RFU
-             || !pu32(dst, file_created_at) || !pu32(dst, time(NULL)) || !pu32(dst, 0)); // RFU
+             || !pu32(dst, file_created_at) || !pu32(dst, key_store->secctx.time()) ||
+             !pu32(dst, 0)); // RFU
 }
 
 static bool
@@ -587,8 +588,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         return false;
     }
 
-    if (!pu32(&mem.dst(), time(NULL)) ||
-        !pu32(&mem.dst(), time(NULL))) { // Latest timestamp && created
+    if (!pu32(&mem.dst(), key_store->secctx.time()) ||
+        !pu32(&mem.dst(), key_store->secctx.time())) { // Latest timestamp && created
         return false;
     }
 

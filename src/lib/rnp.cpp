@@ -1283,6 +1283,17 @@ try {
 }
 FFI_GUARD
 
+rnp_result_t
+rnp_set_timestamp(rnp_ffi_t ffi, uint64_t time)
+try {
+    if (!ffi) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    ffi->context.set_time(time);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
@@ -4129,7 +4140,7 @@ try {
         FFI_LOG(key->ffi, "Failed to tweak 25519 key bits.");
         return RNP_ERROR_BAD_STATE;
     }
-    if (!seckey->write_sec_rawpkt(seckey->pkt(), "", key->ffi->rng())) {
+    if (!seckey->write_sec_rawpkt(seckey->pkt(), "", key->ffi->context)) {
         FFI_LOG(key->ffi, "Failed to update rawpkt.");
         return RNP_ERROR_BAD_STATE;
     }
@@ -7113,9 +7124,9 @@ try {
         pgp_password_provider_t prov = {
           .callback = rnp_password_provider_string,
           .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
-        ok = key->unprotect(prov, handle->ffi->rng());
+        ok = key->unprotect(prov, handle->ffi->context);
     } else {
-        ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->rng());
+        ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->context);
     }
     if (!ok) {
         // likely a bad password
