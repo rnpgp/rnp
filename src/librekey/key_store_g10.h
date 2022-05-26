@@ -31,10 +31,10 @@
 
 bool rnp_key_store_g10_from_src(rnp_key_store_t *, pgp_source_t *, const pgp_key_provider_t *);
 bool rnp_key_store_g10_key_to_dst(pgp_key_t *, pgp_dest_t *);
-bool g10_write_seckey(pgp_dest_t *   dst,
-                      pgp_key_pkt_t *seckey,
-                      const char *   password,
-                      rnp::RNG &     rng);
+bool g10_write_seckey(pgp_dest_t *          dst,
+                      pgp_key_pkt_t *       seckey,
+                      const char *          password,
+                      rnp::SecurityContext &ctx);
 pgp_key_pkt_t *g10_decrypt_seckey(const pgp_rawpacket_t &raw,
                                   const pgp_key_pkt_t &  pubkey,
                                   const char *           password);

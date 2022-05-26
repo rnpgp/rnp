@@ -91,7 +91,7 @@ load_generated_g10_key(pgp_key_t *           dst,
     }
     /* Write g10 seckey */
     rnp::MemoryDest memdst(NULL, 0);
-    if (!g10_write_seckey(&memdst.dst(), newkey, NULL, ctx.rng)) {
+    if (!g10_write_seckey(&memdst.dst(), newkey, NULL, ctx)) {
         RNP_LOG("failed to write generated seckey");
         return false;
     }

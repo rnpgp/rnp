@@ -551,6 +551,20 @@ RNP_API rnp_result_t rnp_request_password(rnp_ffi_t        ffi,
                                           const char *     context,
                                           char **          password);
 
+/**
+ * @brief Set timestamp, used in all operations instead of system's time. These operations
+ *        include key/signature generation (this timestamp will be used as signature/key
+ *        creation date), verification of the keys and signatures (this timestamp will be used
+ *        as 'current' time).
+ *        Please note, that exactly this timestamp will be used during the whole ffi lifetime.
+ *
+ * @param ffi initialized FFI structure
+ * @param time non-zero timestamp to be used. Zero value restores original behaviour and uses
+ *             system's time.
+ * @return RNP_SUCCESS or other value on error.
+ */
+RNP_API rnp_result_t rnp_set_timestamp(rnp_ffi_t ffi, uint64_t time);
+
 /** load keys
  *
  * Note that for G10, the input must be a directory (which must already exist).

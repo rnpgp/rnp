@@ -236,7 +236,9 @@ done:
 }
 
 bool
-pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, rnp::RNG &rng)
+pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &       seckey,
+                            const std::string &   password,
+                            rnp::SecurityContext &ctx)
 {
     // encrypt+write the key in the appropriate format
     try {
@@ -244,13 +246,13 @@ pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, 
         switch (format) {
         case PGP_KEY_STORE_GPG:
         case PGP_KEY_STORE_KBX:
-            if (!write_sec_pgp(memdst.dst(), seckey, password, rng)) {
+            if (!write_sec_pgp(memdst.dst(), seckey, password, ctx.rng)) {
                 RNP_LOG("failed to write secret key");
                 return false;
             }
             break;
         case PGP_KEY_STORE_G10:
-            if (!g10_write_seckey(&memdst.dst(), &seckey, password.c_str(), rng)) {
+            if (!g10_write_seckey(&memdst.dst(), &seckey, password.c_str(), ctx)) {
                 RNP_LOG("failed to write g10 secret key");
                 return false;
             }
@@ -269,7 +271,10 @@ pgp_key_t::write_sec_rawpkt(pgp_key_pkt_t &seckey, const std::string &password, 
 }
 
 static bool
-update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t expiry)
+update_sig_expiration(pgp_signature_t *      dst,
+                      const pgp_signature_t *src,
+                      uint64_t               create,
+                      uint32_t               expiry)
 {
     try {
         *dst = *src;
@@ -278,7 +283,7 @@ update_sig_expiration(pgp_signature_t *dst, const pgp_signature_t *src, uint32_t
         } else {
             dst->set_key_expiration(expiry);
         }
-        dst->set_creation(time(NULL));
+        dst->set_creation(create);
         return true;
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
@@ -332,7 +337,7 @@ pgp_key_set_expiration(pgp_key_t *                    key,
 
         pgp_signature_t newsig;
         pgp_sig_id_t    oldsigid = sigid;
-        if (!update_sig_expiration(&newsig, &sig.sig, expiry)) {
+        if (!update_sig_expiration(&newsig, &sig.sig, ctx.time(), expiry)) {
             return false;
         }
         try {
@@ -409,7 +414,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         /* update signature and re-sign */
         pgp_signature_t newsig;
         pgp_sig_id_t    oldsigid = subsig->sigid;
-        if (!update_sig_expiration(&newsig, &subsig->sig, expiry)) {
+        if (!update_sig_expiration(&newsig, &subsig->sig, ctx.time(), expiry)) {
             return false;
         }
         primsec->sign_subkey_binding(*secsub, newsig, ctx);
@@ -630,15 +635,14 @@ pgp_subsig_t::is_cert() const
 }
 
 bool
-pgp_subsig_t::expired() const
+pgp_subsig_t::expired(uint64_t at) const
 {
     /* sig expiration: absence of subpkt or 0 means it never expires */
     uint64_t expiration = sig.expiration();
     if (!expiration) {
         return false;
     }
-    uint64_t now = time(NULL);
-    return expiration + sig.creation() < now;
+    return expiration + sig.creation() < at;
 }
 
 pgp_userid_t::pgp_userid_t(const pgp_userid_pkt_t &uidpkt)
@@ -1524,11 +1528,12 @@ pgp_key_t::protect(pgp_key_pkt_t &                    decrypted,
     }
 
     /* write the protected key to raw packet */
-    return write_sec_rawpkt(decrypted, new_password, ctx.rng);
+    return write_sec_rawpkt(decrypted, new_password, ctx);
 }
 
 bool
-pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rnp::RNG &rng)
+pgp_key_t::unprotect(const pgp_password_provider_t &password_provider,
+                     rnp::SecurityContext &         secctx)
 {
     /* sanity check */
     if (!is_secret()) {
@@ -1542,7 +1547,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rnp::RNG 
     /* simple case */
     if (!encrypted()) {
         pkt_.sec_protection.s2k.usage = PGP_S2KU_NONE;
-        return write_sec_rawpkt(pkt_, "", rng);
+        return write_sec_rawpkt(pkt_, "", secctx);
     }
 
     pgp_password_ctx_t ctx;
@@ -1555,7 +1560,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider, rnp::RNG 
         return false;
     }
     decrypted_seckey->sec_protection.s2k.usage = PGP_S2KU_NONE;
-    if (!write_sec_rawpkt(*decrypted_seckey, "", rng)) {
+    if (!write_sec_rawpkt(*decrypted_seckey, "", secctx)) {
         delete decrypted_seckey;
         return false;
     }
@@ -1782,15 +1787,14 @@ pgp_key_t::is_signer(const pgp_subsig_t &sig) const
 }
 
 bool
-pgp_key_t::expired_with(const pgp_subsig_t &sig) const
+pgp_key_t::expired_with(const pgp_subsig_t &sig, uint64_t at) const
 {
     /* key expiration: absence of subpkt or 0 means it never expires */
     uint64_t expiration = sig.sig.key_expiration();
     if (!expiration) {
         return false;
     }
-    uint64_t now = time(NULL);
-    return expiration + creation() < now;
+    return expiration + creation() < at;
 }
 
 bool
@@ -1912,7 +1916,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
     }
 
     /* Check signature's expiration time */
-    uint32_t now = time(NULL);
+    uint32_t now = ctx.time();
     uint32_t create = sinfo.sig->creation();
     uint32_t expiry = sinfo.sig->expiration();
     if (create > now) {
@@ -2080,21 +2084,22 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
         }
     }
     /* if we have direct-key signature, then it has higher priority for expiration check */
+    uint64_t      now = keyring.secctx.time();
     pgp_subsig_t *dirsig = latest_selfsig(PGP_UID_NONE);
     if (dirsig) {
-        has_expired = expired_with(*dirsig);
+        has_expired = expired_with(*dirsig, now);
         has_cert = !has_expired;
     }
     /* if we have primary uid and it is more restrictive, then use it as well */
     pgp_subsig_t *prisig = NULL;
     if (!has_expired && (prisig = latest_selfsig(PGP_UID_PRIMARY))) {
-        has_expired = expired_with(*prisig);
+        has_expired = expired_with(*prisig, now);
         has_cert = !has_expired;
     }
     /* if we don't have direct-key sig and primary uid, use the latest self-cert */
     pgp_subsig_t *latest = NULL;
     if (!dirsig && !prisig && (latest = latest_selfsig(PGP_UID_ANY))) {
-        has_expired = expired_with(*latest);
+        has_expired = expired_with(*latest, now);
         has_cert = !has_expired;
     }
 
@@ -2121,7 +2126,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
             continue;
         }
         /* check whether subkey is expired - then do not mark key as valid */
-        if (sub->expired_with(*sig)) {
+        if (sub->expired_with(*sig, now)) {
             continue;
         }
         validity_.valid = true;
@@ -2152,7 +2157,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
 
         if (is_binding(sig) && !has_binding) {
             /* check whether subkey is expired */
-            if (expired_with(sig)) {
+            if (expired_with(sig, ctx.time())) {
                 has_expired = true;
                 continue;
             }
@@ -2221,13 +2226,13 @@ pgp_key_t::mark_valid()
 }
 
 void
-pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash) const
+pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation) const
 {
     sig.version = PGP_V4;
     sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
     sig.palg = alg();
     sig.set_keyfp(fp());
-    sig.set_creation(time(NULL));
+    sig.set_creation(creation);
     sig.set_keyid(keyid());
 }
 
@@ -2276,7 +2281,7 @@ pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
                           pgp_signature_t &     sig,
                           rnp::SecurityContext &ctx)
 {
-    sign_init(sig, hash);
+    sign_init(sig, hash, ctx.time());
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
     sig.set_revocation_reason(revoke.code, revoke.reason);
 
@@ -2300,7 +2305,7 @@ pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
     /* add primary key binding subpacket if requested */
     if (subsign) {
         pgp_signature_t embsig;
-        sub.sign_init(embsig, sig.halg);
+        sub.sign_init(embsig, sig.halg, ctx.time());
         embsig.set_type(PGP_SIG_PRIMARY);
         sub.sign_binding(pkt(), embsig, ctx);
         sig.set_embedded_sig(embsig);
@@ -2347,7 +2352,7 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
     /* Fill the transferable userid */
     pgp_userid_pkt_t uid;
     pgp_signature_t  sig;
-    sign_init(sig, hash);
+    sign_init(sig, hash, ctx.time());
     cert.populate(uid, sig);
     try {
         sign_cert(pkt_, uid, sig, ctx);
@@ -2381,7 +2386,7 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
 
     /* populate signature */
     pgp_signature_t sig;
-    sign_init(sig, hash);
+    sign_init(sig, hash, ctx.time());
     sig.set_type(PGP_SIG_SUBKEY);
     if (binding.key_expiration) {
         sig.set_key_expiration(binding.key_expiration);
@@ -2477,7 +2482,7 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
     for (size_t i = 0; i < sig_count(); i++) {
         pgp_subsig_t &sig = get_sig(i);
         /* consider userid as valid if it has at least one non-expired self-sig */
-        if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || sig.expired()) {
+        if (!sig.valid() || !sig.is_cert() || !is_signer(sig) || sig.expired(ctx.time())) {
             continue;
         }
         if (sig.uid >= uid_count()) {

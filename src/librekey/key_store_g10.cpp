@@ -1108,9 +1108,9 @@ s_exp_t::write_padded(size_t padblock) const
 }
 
 void
-s_exp_t::add_protected_seckey(pgp_key_pkt_t &    seckey,
-                              const std::string &password,
-                              rnp::RNG &         rng)
+s_exp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
+                              const std::string &   password,
+                              rnp::SecurityContext &ctx)
 {
     pgp_key_protection_t &prot = seckey.sec_protection;
     if (prot.s2k.specifier != PGP_S2KS_ITERATED_AND_SALTED) {
@@ -1125,8 +1125,8 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &    seckey,
     }
 
     // randomize IV and salt
-    rng.get(prot.iv, sizeof(prot.iv));
-    rng.get(prot.s2k.salt, sizeof(prot.s2k.salt));
+    ctx.rng.get(prot.iv, sizeof(prot.iv));
+    ctx.rng.get(prot.s2k.salt, sizeof(prot.s2k.salt));
 
     // write seckey
     s_exp_t  raw_s_exp;
@@ -1134,8 +1134,7 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &    seckey,
     psub_s_exp->add_seckey(seckey);
 
     // calculate hash
-    time_t now;
-    time(&now);
+    time_t  now = ctx.time();
     char    protected_at[G10_PROTECTED_AT_SIZE + 1];
     uint8_t checksum[G10_SHA1_HASH_SIZE];
     // TODO: how critical is it if we have a skewed timestamp here due to y2k38 problem?
@@ -1211,7 +1210,10 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &    seckey,
 }
 
 bool
-g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password, rnp::RNG &rng)
+g10_write_seckey(pgp_dest_t *          dst,
+                 pgp_key_pkt_t *       seckey,
+                 const char *          password,
+                 rnp::SecurityContext &ctx)
 {
     bool is_protected = true;
 
@@ -1238,7 +1240,7 @@ g10_write_seckey(pgp_dest_t *dst, pgp_key_pkt_t *seckey, const char *password, r
         pkey.add_pubkey(*seckey);
 
         if (is_protected) {
-            pkey.add_protected_seckey(*seckey, password, rng);
+            pkey.add_protected_seckey(*seckey, password, ctx);
         } else {
             pkey.add_seckey(*seckey);
         }
