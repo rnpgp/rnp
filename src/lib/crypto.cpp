@@ -88,7 +88,7 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     /* populate pgp key structure */
     seckey = {};
     seckey.version = PGP_V4;
-    seckey.creation_time = time(NULL);
+    seckey.creation_time = crypto.ctx->time();
     seckey.alg = crypto.key_alg;
     seckey.material.alg = crypto.key_alg;
     seckey.tag = primary ? PGP_PKT_SECRET_KEY : PGP_PKT_SECRET_SUBKEY;
