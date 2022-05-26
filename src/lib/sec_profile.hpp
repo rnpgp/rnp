@@ -72,6 +72,7 @@ class SecurityProfile {
 
 class SecurityContext {
     std::unordered_map<int, size_t> s2k_iterations_;
+    uint64_t                        time_;
 
   public:
     SecurityProfile profile;
@@ -80,6 +81,9 @@ class SecurityContext {
     SecurityContext();
 
     size_t s2k_iterations(pgp_hash_alg_t halg);
+
+    void     set_time(uint64_t time) noexcept;
+    uint64_t time() const noexcept;
 };
 } // namespace rnp
 

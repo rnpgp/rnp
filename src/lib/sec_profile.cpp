@@ -27,6 +27,7 @@
 #include "sec_profile.hpp"
 #include "types.h"
 #include "defaults.h"
+#include <ctime>
 #include <algorithm>
 
 namespace rnp {
@@ -154,7 +155,7 @@ SecurityProfile::def_level() const
     return SecurityLevel::Default;
 };
 
-SecurityContext::SecurityContext() : rng(RNG::Type::DRBG)
+SecurityContext::SecurityContext() : time_(0), rng(RNG::Type::DRBG)
 {
     /* Mark SHA-1 insecure since 2019-01-19, as GnuPG does */
     profile.add_rule(
@@ -172,6 +173,18 @@ SecurityContext::s2k_iterations(pgp_hash_alg_t halg)
           pgp_s2k_compute_iters(halg, DEFAULT_S2K_MSEC, DEFAULT_S2K_TUNE_MSEC);
     }
     return s2k_iterations_[halg];
+}
+
+void
+SecurityContext::set_time(uint64_t time) noexcept
+{
+    time_ = time;
+}
+
+uint64_t
+SecurityContext::time() const noexcept
+{
+    return time_ ? time_ : ::time(NULL);
 }
 
 } // namespace rnp
