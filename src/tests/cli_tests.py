@@ -3037,6 +3037,54 @@ class Misc(unittest.TestCase):
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--generate-key'], stdinstr)
         self.assertEqual(ret, 0)
 
+    def test_set_current_time(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+
+        # Generate key back in the past
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--password', PASSWORD, '--generate-key', '--current-time', '2015-02-02', '--userid', 'key-2015'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*Generating a new key\.\.\..*sec.*2015\-02\-0.*EXPIRES 2017\-.*ssb.*2015\-02\-0.*EXPIRES 2017\-.*$')
+        # List keys
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*pub.*2015-02-0.*EXPIRED 2017.*sub.*2015-02-0.*\[INVALID\] \[EXPIRES 2017.*$')
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--current-time', '2015-02-04', '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*pub.*2015-02-0.*EXPIRES 2017.*sub.*2015-02-0.*EXPIRES 2017.*$')
+        # Create workfile
+        src, sig, enc = reg_workfiles('cleartext', '.txt', '.txt.sig', '.txt.enc')
+        with open(src, 'w+') as f:
+            f.write('Hello world')
+        # Sign with key from the past
+        ret, _, err = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '-u', 'key-2015', '-s', src, '--output', sig])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Failed to add signature.*$')
+        ret, _, _ = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '-u', 'key-2015', '--current-time', '2015-02-03', '-s', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        # List packets
+        ret, out, _ = run_proc(RNP, ['--homedir', RNP2, '--list-packets', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*signature creation time.*2015\).*signature expiration time.*$')
+        # Verify with the expired key
+        ret, out, err = run_proc(RNP, ['--homedir', RNP2, '-v', sig, '--output', '-'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*2015.*pub.*\[SC\] \[EXPIRED 2017.*$')
+        self.assertRegex(out, r'(?s)^.*Hello world.*$')
+        # Encrypt with the expired key
+        ret, _, err = run_proc(RNP, ['--homedir', RNP2, '-r', 'key-2015', '-e', src, '--output', enc])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Operation failed: No suitable key.*$')
+        ret, _, _ = run_proc(RNP, ['--homedir', RNP2, '-r', 'key-2015', '--current-time', '2015-02-03', '-e', src, '--output', enc])
+        self.assertEqual(ret, 0)
+        # Decrypt with the expired key
+        ret, out, _ = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '-d', enc, '--output', '-'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*Hello world.*$')
+
+        shutil.rmtree(RNP2, ignore_errors=True)
+        clear_workfiles()
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
