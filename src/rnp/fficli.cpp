@@ -592,6 +592,10 @@ cli_rnp_t::init(const rnp_cfg &cfg)
             goto done;
         }
     }
+    // setup current time if requested
+    if (cfg_.has(CFG_CURTIME)) {
+        rnp_set_timestamp(ffi, cfg_.time());
+    }
     pswdtries = MAX_PASSWORD_ATTEMPTS;
     res = true;
 done:

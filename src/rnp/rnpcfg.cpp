@@ -38,6 +38,7 @@
 #include <time.h>
 #include <errno.h>
 #include <stdexcept>
+#include <inttypes.h>
 
 #include "rnpcfg.h"
 #include "defaults.h"
@@ -320,7 +321,7 @@ rnp_cfg::get_expiration(const std::string &key, uint32_t &seconds) const
     uint64_t           delta;
     uint64_t           t;
     if (parse_date(val, t)) {
-        uint64_t now = time(NULL);
+        uint64_t now = time();
         if (t > now) {
             delta = t - now;
             if (delta > UINT32_MAX) {
@@ -392,25 +393,43 @@ rnp_cfg::get_expiration(const std::string &key, uint32_t &seconds) const
     return true;
 }
 
+bool
+rnp_cfg::extract_timestamp(const std::string &st, uint64_t &t) const
+{
+    if (st.empty()) {
+        return false;
+    }
+    if (parse_date(st, t)) {
+        return true;
+    }
+    /* Check if string is UNIX timestamp */
+    for (auto c : st) {
+        if (!isdigit(c)) {
+            return false;
+        }
+    }
+    t = std::stoll(st);
+    return true;
+}
+
 uint64_t
 rnp_cfg::get_sig_creation() const
 {
-    if (!has(CFG_CREATION)) {
-        return time(NULL);
-    }
-    const std::string &cr = get_str(CFG_CREATION);
-    /* Check if string is date */
-    uint64_t t;
-    if (parse_date(cr, t)) {
+    uint64_t t = 0;
+    if (extract_timestamp(get_str(CFG_CREATION), t)) {
         return t;
     }
-    /* Check if string is UNIX timestamp */
-    for (auto c : cr) {
-        if (!isdigit(c)) {
-            return time(NULL);
-        }
+    return time();
+}
+
+uint64_t
+rnp_cfg::time() const
+{
+    uint64_t t = 0;
+    if (extract_timestamp(get_str(CFG_CURTIME), t)) {
+        return t;
     }
-    return std::stoll(cr);
+    return ::time(NULL);
 }
 
 void
@@ -492,7 +511,7 @@ bool
 rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
 {
     /* fill time zone information */
-    const time_t now = time(NULL);
+    const time_t now = ::time(NULL);
     struct tm    tm = *localtime(&now);
     tm.tm_hour = 0;
     tm.tm_min = 0;

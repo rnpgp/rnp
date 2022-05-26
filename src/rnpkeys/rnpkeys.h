@@ -53,6 +53,7 @@ typedef enum {
     OPT_NOTTY,
     OPT_FIX_25519_BITS,
     OPT_CHK_25519_BITS,
+    OPT_CURTIME,
 
     /* debug */
     OPT_DEBUG

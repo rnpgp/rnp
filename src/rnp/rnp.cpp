@@ -92,6 +92,7 @@ static const char *usage =
   "  --password           Password used during operation.\n"
   "  --pass-fd num        Read password(s) from the file descriptor.\n"
   "  --notty              Do not output anything to the TTY.\n"
+  "  --current-time       Override system's time.\n"
   "\n"
   "See man page for a detailed listing and explanation.\n"
   "\n";
@@ -148,6 +149,7 @@ enum optdefs {
     OPT_NOTTY,
     OPT_SOURCE,
     OPT_NOWRAP,
+    OPT_CURTIME,
 
     /* debug */
     OPT_DEBUG
@@ -210,6 +212,7 @@ static struct option options[] = {
   {"notty", no_argument, NULL, OPT_NOTTY},
   {"source", required_argument, NULL, OPT_SOURCE},
   {"no-wrap", no_argument, NULL, OPT_NOWRAP},
+  {"current-time", required_argument, NULL, OPT_CURTIME},
 
   {NULL, 0, NULL, 0},
 };
@@ -478,6 +481,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_NOWRAP:
         cfg.set_bool(CFG_NOWRAP, true);
         cfg.set_int(CFG_ZLEVEL, 0);
+        return true;
+    case OPT_CURTIME:
+        cfg.set_str(CFG_CURTIME, arg);
         return true;
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");

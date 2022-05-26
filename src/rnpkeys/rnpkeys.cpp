@@ -79,6 +79,7 @@ const char *usage =
   "  --output [file, -]     Write data to the specified file or stdout.\n"
   "  --overwrite            Overwrite output file without a prompt.\n"
   "  --notty                Do not write anything to the TTY.\n"
+  "  --current-time         Override system's time.\n"
   "\n"
   "See man page for a detailed listing and explanation.\n"
   "\n";
@@ -132,6 +133,7 @@ struct option options[] = {
   {"notty", no_argument, NULL, OPT_NOTTY},
   {"fix-cv25519-bits", no_argument, NULL, OPT_FIX_25519_BITS},
   {"check-cv25519-bits", no_argument, NULL, OPT_CHK_25519_BITS},
+  {"current-time", required_argument, NULL, OPT_CURTIME},
   {NULL, 0, NULL, 0},
 };
 
@@ -567,6 +569,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_CHK_25519_BITS:
         cfg.set_bool(CFG_CHK_25519_BITS, true);
+        return true;
+    case OPT_CURTIME:
+        cfg.set_str(CFG_CURTIME, arg);
         return true;
     default:
         *cmd = CMD_HELP;
