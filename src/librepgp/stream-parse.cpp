@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -92,7 +92,7 @@ typedef struct pgp_source_encrypted_param_t {
     bool                          aead;           /* AEAD encrypted data packet, tag 20 */
     bool                          aead_validated; /* we read and validated last chunk */
     pgp_crypt_t                   decrypt;        /* decrypting crypto */
-    rnp::Hash                     mdc;            /* mdc SHA1 hash */
+    std::unique_ptr<rnp::Hash>    mdc;            /* mdc SHA1 hash */
     size_t                        chunklen;       /* size of AEAD chunk in bytes */
     size_t                        chunkin;  /* number of bytes read from the current chunk */
     size_t                        chunkidx; /* index of the current chunk */
@@ -674,14 +674,15 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
 
     if (param->has_mdc) {
         try {
-            param->mdc.add(buf, read);
+            param->mdc->add(buf, read);
 
             if (parsemdc) {
                 pgp_cipher_cfb_decrypt(&param->decrypt, mdcbuf, mdcbuf, MDC_V1_SIZE);
                 pgp_cipher_cfb_finish(&param->decrypt);
-                param->mdc.add(mdcbuf, 2);
+                param->mdc->add(mdcbuf, 2);
                 uint8_t hash[PGP_SHA1_HASH_SIZE] = {0};
-                param->mdc.finish(hash);
+                param->mdc->finish(hash);
+                param->mdc = nullptr;
 
                 if ((mdcbuf[0] != MDC_PKT_TAG) || (mdcbuf[1] != MDC_V1_SIZE - 2)) {
                     RNP_LOG("mdc header check failed");
@@ -805,16 +806,15 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
             return;
         }
     }
-    /* Get the hash context and clone it. */
-    const rnp::Hash *hash = get_hash_for_sig(param, sinfo);
-    if (!hash) {
-        RNP_LOG("failed to get hash context.");
-        return;
-    }
     try {
-        rnp::Hash shash;
-        hash->clone(shash);
-        key->validate_sig(sinfo, shash, *param.handler->ctx->ctx);
+        /* Get the hash context and clone it. */
+        auto hash = get_hash_for_sig(param, sinfo);
+        if (!hash) {
+            RNP_LOG("failed to get hash context.");
+            return;
+        }
+        auto shash = hash->clone();
+        key->validate_sig(sinfo, *shash, *param.handler->ctx->ctx);
     } catch (const std::exception &e) {
         RNP_LOG("Signature validation failed: %s", e.what());
         sinfo.valid = false;
@@ -852,7 +852,7 @@ signed_src_update(pgp_source_t *src, const void *buf, size_t len)
         RNP_LOG("%s", e.what());
     }
     /* update text-mode sig hashes */
-    if (param->txt_hashes.empty()) {
+    if (param->txt_hashes.hashes.empty()) {
         return;
     }
 
@@ -1364,8 +1364,8 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
     }
 
     try {
-        param->mdc = rnp::Hash(PGP_HASH_SHA1);
-        param->mdc.add(dechdr, blsize + 2);
+        param->mdc = rnp::Hash::create(PGP_HASH_SHA1);
+        param->mdc->add(dechdr, blsize + 2);
     } catch (const std::exception &e) {
         RNP_LOG("cannot create sha1 hash: %s", e.what());
         goto error;

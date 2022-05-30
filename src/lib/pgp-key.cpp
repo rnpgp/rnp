@@ -1962,9 +1962,8 @@ pgp_key_t::validate_cert(pgp_signature_info_t &      sinfo,
                          const pgp_userid_pkt_t &    uid,
                          const rnp::SecurityContext &ctx) const
 {
-    rnp::Hash hash;
-    signature_hash_certification(*sinfo.sig, key, uid, hash);
-    validate_sig(sinfo, hash, ctx);
+    auto hash = signature_hash_certification(*sinfo.sig, key, uid);
+    validate_sig(sinfo, *hash, ctx);
 }
 
 void
@@ -1972,9 +1971,8 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
                             const pgp_key_t &           subkey,
                             const rnp::SecurityContext &ctx) const
 {
-    rnp::Hash hash;
-    signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt(), hash);
-    validate_sig(sinfo, hash, ctx);
+    auto hash = signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt());
+    validate_sig(sinfo, *hash, ctx);
     if (!sinfo.valid || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
         return;
     }
@@ -1999,12 +1997,12 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
         return;
     }
 
-    signature_hash_binding(*subpkt->fields.sig, pkt(), subkey.pkt(), hash);
+    hash = signature_hash_binding(*subpkt->fields.sig, pkt(), subkey.pkt());
     pgp_signature_info_t bindinfo = {};
     bindinfo.sig = subpkt->fields.sig;
     bindinfo.signer_valid = true;
     bindinfo.ignore_expiry = true;
-    subkey.validate_sig(bindinfo, hash, ctx);
+    subkey.validate_sig(bindinfo, *hash, ctx);
     sinfo.valid = bindinfo.valid && !bindinfo.expired;
 }
 
@@ -2013,17 +2011,15 @@ pgp_key_t::validate_sub_rev(pgp_signature_info_t &      sinfo,
                             const pgp_key_pkt_t &       subkey,
                             const rnp::SecurityContext &ctx) const
 {
-    rnp::Hash hash;
-    signature_hash_binding(*sinfo.sig, pkt(), subkey, hash);
-    validate_sig(sinfo, hash, ctx);
+    auto hash = signature_hash_binding(*sinfo.sig, pkt(), subkey);
+    validate_sig(sinfo, *hash, ctx);
 }
 
 void
 pgp_key_t::validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityContext &ctx) const
 {
-    rnp::Hash hash;
-    signature_hash_direct(*sinfo.sig, pkt(), hash);
-    validate_sig(sinfo, hash, ctx);
+    auto hash = signature_hash_direct(*sinfo.sig, pkt());
+    validate_sig(sinfo, *hash, ctx);
 }
 
 void
@@ -2237,10 +2233,9 @@ pgp_key_t::sign_cert(const pgp_key_pkt_t &   key,
                      pgp_signature_t &       sig,
                      rnp::SecurityContext &  ctx)
 {
-    rnp::Hash hash;
     sig.fill_hashed_data();
-    signature_hash_certification(sig, key, uid, hash);
-    signature_calculate(sig, pkt_.material, hash, ctx);
+    auto hash = signature_hash_certification(sig, key, uid);
+    signature_calculate(sig, pkt_.material, *hash, ctx);
 }
 
 void
@@ -2248,10 +2243,9 @@ pgp_key_t::sign_direct(const pgp_key_pkt_t & key,
                        pgp_signature_t &     sig,
                        rnp::SecurityContext &ctx)
 {
-    rnp::Hash hash;
     sig.fill_hashed_data();
-    signature_hash_direct(sig, key, hash);
-    signature_calculate(sig, pkt_.material, hash, ctx);
+    auto hash = signature_hash_direct(sig, key);
+    signature_calculate(sig, pkt_.material, *hash, ctx);
 }
 
 void
@@ -2259,14 +2253,10 @@ pgp_key_t::sign_binding(const pgp_key_pkt_t & key,
                         pgp_signature_t &     sig,
                         rnp::SecurityContext &ctx)
 {
-    rnp::Hash hash;
     sig.fill_hashed_data();
-    if (is_primary()) {
-        signature_hash_binding(sig, pkt(), key, hash);
-    } else {
-        signature_hash_binding(sig, key, pkt(), hash);
-    }
-    signature_calculate(sig, pkt_.material, hash, ctx);
+    auto hash = is_primary() ? signature_hash_binding(sig, pkt(), key) :
+                               signature_hash_binding(sig, key, pkt());
+    signature_calculate(sig, pkt_.material, *hash, ctx);
 }
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,10 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "hash_ossl.hpp"
 #include <stdio.h>
 #include <memory>
 #include <cassert>
-#include <openssl/evp.h>
 #include <openssl/err.h>
 #include "config.h"
 #include "hash.h"
@@ -35,7 +35,6 @@
 #include "utils.h"
 #include "str-utils.h"
 #include "defaults.h"
-#include "sha1cd/hash_sha1cd.h"
 
 static const id_str_pair openssl_alg_map[] = {
   {PGP_HASH_MD5, "md5"},
@@ -52,63 +51,67 @@ static const id_str_pair openssl_alg_map[] = {
 };
 
 namespace rnp {
-Hash::Hash(pgp_hash_alg_t alg)
+Hash_OpenSSL::Hash_OpenSSL(pgp_hash_alg_t alg) : Hash(alg)
 {
-    if (alg == PGP_HASH_SHA1) {
-        handle_ = hash_sha1cd_create();
-        if (!handle_) {
-            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-        }
-        alg_ = alg;
-        size_ = rnp::Hash::size(alg);
-        return;
-    }
-    const char *hash_name = rnp::Hash::name_backend(alg);
-    if (!hash_name) {
-        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-#if !defined(ENABLE_SM2)
-    if (alg == PGP_HASH_SM3) {
-        RNP_LOG("SM3 hash is not available.");
-        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-#endif
+    const char *  hash_name = Hash_OpenSSL::name_backend(alg);
     const EVP_MD *hash_tp = EVP_get_digestbyname(hash_name);
     if (!hash_tp) {
         RNP_LOG("Error creating hash object for '%s'", hash_name);
         throw rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    EVP_MD_CTX *hash_fn = EVP_MD_CTX_new();
-    if (!hash_fn) {
+    fn_ = EVP_MD_CTX_new();
+    if (!fn_) {
         RNP_LOG("Allocation failure");
         throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
-    int res = EVP_DigestInit_ex(hash_fn, hash_tp, NULL);
+    int res = EVP_DigestInit_ex(fn_, hash_tp, NULL);
     if (res != 1) {
         RNP_LOG("Digest initializataion error %d : %lu", res, ERR_peek_last_error());
-        EVP_MD_CTX_free(hash_fn);
+        EVP_MD_CTX_free(fn_);
         throw rnp_exception(RNP_ERROR_BAD_STATE);
     }
+    assert(size_ == EVP_MD_size(hash_tp));
+}
 
-    alg_ = alg;
-    size_ = EVP_MD_size(hash_tp);
-    handle_ = hash_fn;
+Hash_OpenSSL::Hash_OpenSSL(const Hash_OpenSSL &src) : Hash(src.alg_)
+{
+    if (!src.fn_) {
+        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+
+    fn_ = EVP_MD_CTX_new();
+    if (!fn_) {
+        RNP_LOG("Allocation failure");
+        throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+
+    int res = EVP_MD_CTX_copy(fn_, src.fn_);
+    if (res != 1) {
+        RNP_LOG("Digest copying error %d: %lu", res, ERR_peek_last_error());
+        EVP_MD_CTX_free(fn_);
+        throw rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+}
+
+std::unique_ptr<Hash_OpenSSL>
+Hash_OpenSSL::create(pgp_hash_alg_t alg)
+{
+    return std::unique_ptr<Hash_OpenSSL>(new Hash_OpenSSL(alg));
+}
+
+std::unique_ptr<Hash>
+Hash_OpenSSL::clone() const
+{
+    return std::unique_ptr<Hash>(new Hash_OpenSSL(*this));
 }
 
 void
-Hash::add(const void *buf, size_t len)
+Hash_OpenSSL::add(const void *buf, size_t len)
 {
-    if (!handle_) {
+    if (!fn_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
-    if (alg_ == PGP_HASH_SHA1) {
-        hash_sha1cd_add(handle_, buf, len);
-        return;
-    }
-    assert(alg_ != PGP_HASH_UNKNOWN);
-
-    EVP_MD_CTX *hash_fn = static_cast<EVP_MD_CTX *>(handle_);
-    int         res = EVP_DigestUpdate(hash_fn, buf, len);
+    int res = EVP_DigestUpdate(fn_, buf, len);
     if (res != 1) {
         RNP_LOG("Digest updating error %d: %lu", res, ERR_peek_last_error());
         throw rnp_exception(RNP_ERROR_GENERIC);
@@ -116,26 +119,14 @@ Hash::add(const void *buf, size_t len)
 }
 
 size_t
-Hash::finish(uint8_t *digest)
+Hash_OpenSSL::finish(uint8_t *digest)
 {
-    if (!handle_) {
+    if (!fn_) {
         return 0;
     }
-    if (alg_ == PGP_HASH_SHA1) {
-        int res = hash_sha1cd_finish(handle_, digest);
-        handle_ = NULL;
-        size_ = 0;
-        if (res) {
-            throw rnp_exception(RNP_ERROR_BAD_STATE);
-        }
-        return 20;
-    }
-    assert(alg_ != PGP_HASH_UNKNOWN);
-
-    EVP_MD_CTX *hash_fn = static_cast<EVP_MD_CTX *>(handle_);
-    int         res = digest ? EVP_DigestFinal_ex(hash_fn, digest, NULL) : 1;
-    EVP_MD_CTX_free(hash_fn);
-    handle_ = NULL;
+    int res = digest ? EVP_DigestFinal_ex(fn_, digest, NULL) : 1;
+    EVP_MD_CTX_free(fn_);
+    fn_ = NULL;
     if (res != 1) {
         RNP_LOG("Digest finalization error %d: %lu", res, ERR_peek_last_error());
         return 0;
@@ -143,65 +134,19 @@ Hash::finish(uint8_t *digest)
 
     size_t outsz = size_;
     size_ = 0;
-    alg_ = PGP_HASH_UNKNOWN;
     return outsz;
 }
 
-void
-Hash::clone(Hash &dst) const
+Hash_OpenSSL::~Hash_OpenSSL()
 {
-    if (!handle_) {
-        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-
-    assert(alg_ != PGP_HASH_UNKNOWN);
-
-    if (dst.handle_) {
-        dst.finish();
-    }
-
-    if (alg_ == PGP_HASH_SHA1) {
-        dst.handle_ = hash_sha1cd_clone(handle_);
-        if (!dst.handle_) {
-            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-        }
-        dst.size_ = size_;
-        dst.alg_ = alg_;
+    if (!fn_) {
         return;
     }
-
-    EVP_MD_CTX *hash_fn = EVP_MD_CTX_new();
-    if (!hash_fn) {
-        RNP_LOG("Allocation failure");
-        throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-
-    int res = EVP_MD_CTX_copy(hash_fn, static_cast<EVP_MD_CTX *>(handle_));
-    if (res != 1) {
-        RNP_LOG("Digest copying error %d: %lu", res, ERR_peek_last_error());
-        EVP_MD_CTX_free(hash_fn);
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    dst.size_ = size_;
-    dst.alg_ = alg_;
-    dst.handle_ = hash_fn;
-}
-
-Hash::~Hash()
-{
-    if (!handle_) {
-        return;
-    }
-    if (alg_ == PGP_HASH_SHA1) {
-        hash_sha1cd_finish(handle_, NULL);
-    } else {
-        EVP_MD_CTX_free(static_cast<EVP_MD_CTX *>(handle_));
-    }
+    EVP_MD_CTX_free(fn_);
 }
 
 const char *
-Hash::name_backend(pgp_hash_alg_t alg)
+Hash_OpenSSL::name_backend(pgp_hash_alg_t alg)
 {
     return id_str_pair::lookup(openssl_alg_map, alg);
 }

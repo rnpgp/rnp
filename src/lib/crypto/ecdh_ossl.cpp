@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -89,11 +89,11 @@ ecdh_derive_kek(uint8_t *                x,
     size_t have = 0;
     try {
         for (size_t i = 1; i <= reps; i++) {
-            rnp::Hash hash(key.kdf_hash_alg);
-            hash.add(i);
-            hash.add(x, xlen);
-            hash.add(other_info, other_len);
-            hash.finish(dgst.data());
+            auto hash = rnp::Hash::create(key.kdf_hash_alg);
+            hash->add(i);
+            hash->add(x, xlen);
+            hash->add(other_info, other_len);
+            hash->finish(dgst.data());
             size_t bytes = std::min(hash_len, kek_len - have);
             memcpy(kek + have, dgst.data(), bytes);
             have += bytes;

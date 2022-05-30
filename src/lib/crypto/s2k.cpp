@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -43,6 +43,7 @@
 #include "utils.h"
 #ifdef CRYPTO_BACKEND_BOTAN
 #include <botan/ffi.h>
+#include "hash_botan.hpp"
 #endif
 
 bool
@@ -87,8 +88,10 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
                  size_t         iterations)
 {
     char s2k_algo_str[128];
-    snprintf(
-      s2k_algo_str, sizeof(s2k_algo_str), "OpenPGP-S2K(%s)", rnp::Hash::name_backend(alg));
+    snprintf(s2k_algo_str,
+             sizeof(s2k_algo_str),
+             "OpenPGP-S2K(%s)",
+             rnp::Hash_Botan::name_backend(alg));
 
     return botan_pwdhash(s2k_algo_str,
                          iterations,
@@ -166,14 +169,14 @@ pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec
     uint64_t end = start;
     size_t   bytes = 0;
     try {
-        rnp::Hash hash(alg);
-        uint8_t   buf[8192] = {0};
+        auto    hash = rnp::Hash::create(alg);
+        uint8_t buf[8192] = {0};
         while (end - start < trial_msec * 1000ull) {
-            hash.add(buf, sizeof(buf));
+            hash->add(buf, sizeof(buf));
             bytes += sizeof(buf);
             end = get_timestamp_usec();
         }
-        hash.finish(buf);
+        hash->finish(buf);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to hash data: %s", e.what());
         return 0;

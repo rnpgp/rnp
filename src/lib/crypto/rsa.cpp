@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017-2018 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -78,6 +78,7 @@
 #include <string>
 #include <cstring>
 #include <botan/ffi.h>
+#include "hash_botan.hpp"
 #include "crypto/rsa.h"
 #include "hash.h"
 #include "config.h"
@@ -243,7 +244,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
-             rnp::Hash::name_backend(hash_alg));
+             rnp::Hash_Botan::name_backend(hash_alg));
 
     if (botan_pk_op_verify_create(&verify_op, rsa_key, padding_name, 0) != 0) {
         goto done;
@@ -290,7 +291,7 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
     snprintf(padding_name,
              sizeof(padding_name),
              "EMSA-PKCS1-v1_5(Raw,%s)",
-             rnp::Hash::name_backend(hash_alg));
+             rnp::Hash_Botan::name_backend(hash_alg));
 
     if (botan_pk_op_sign_create(&sign_op, rsa_key, padding_name, 0) != 0) {
         goto done;

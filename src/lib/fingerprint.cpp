@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -46,10 +46,10 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
             return RNP_ERROR_NOT_SUPPORTED;
         }
         try {
-            rnp::Hash hash(PGP_HASH_MD5);
-            hash.add(key.material.rsa.n);
-            hash.add(key.material.rsa.e);
-            fp.length = hash.finish(fp.fingerprint);
+            auto hash = rnp::Hash::create(PGP_HASH_MD5);
+            hash->add(key.material.rsa.n);
+            hash->add(key.material.rsa.e);
+            fp.length = hash->finish(fp.fingerprint);
             return RNP_SUCCESS;
         } catch (const std::exception &e) {
             RNP_LOG("Failed to calculate v3 fingerprint: %s", e.what());
@@ -57,20 +57,20 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
         }
     }
 
-    if (key.version == PGP_V4) {
-        try {
-            rnp::Hash hash(PGP_HASH_SHA1);
-            signature_hash_key(key, hash);
-            fp.length = hash.finish(fp.fingerprint);
-            return RNP_SUCCESS;
-        } catch (const std::exception &e) {
-            RNP_LOG("Failed to calculate v4 fingerprint: %s", e.what());
-            return RNP_ERROR_BAD_STATE;
-        }
+    if (key.version != PGP_V4) {
+        RNP_LOG("unsupported key version");
+        return RNP_ERROR_NOT_SUPPORTED;
     }
 
-    RNP_LOG("unsupported key version");
-    return RNP_ERROR_NOT_SUPPORTED;
+    try {
+        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+        signature_hash_key(key, *hash);
+        fp.length = hash->finish(fp.fingerprint);
+        return RNP_SUCCESS;
+    } catch (const std::exception &e) {
+        RNP_LOG("Failed to calculate v4 fingerprint: %s", e.what());
+        return RNP_ERROR_BAD_STATE;
+    }
 }
 
 /**

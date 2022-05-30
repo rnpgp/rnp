@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -350,22 +350,21 @@ TEST_F(rnp_tests, test_stream_signatures)
     src_close(&sigsrc);
     /* hash signed file */
     pgp_hash_alg_t halg = sig.halg;
-    rnp::Hash      hash_orig(halg);
-    assert_true(stream_hash_file(hash_orig, "data/test_stream_signatures/source.txt"));
+    auto           hash_orig = rnp::Hash::create(halg);
+    assert_true(stream_hash_file(*hash_orig, "data/test_stream_signatures/source.txt"));
     /* hash forged file */
-    rnp::Hash hash_forged(halg);
+    auto hash_forged = rnp::Hash::create(halg);
     assert_true(
-      stream_hash_file(hash_forged, "data/test_stream_signatures/source_forged.txt"));
+      stream_hash_file(*hash_forged, "data/test_stream_signatures/source_forged.txt"));
     /* find signing key */
     assert_non_null(key = rnp_key_store_get_signer_key(pubring, &sig));
     /* validate signature and fields */
-    rnp::Hash hash;
-    hash = hash_orig;
+    auto hash = hash_orig->clone();
     assert_int_equal(sig.creation(), 1522241943);
-    assert_rnp_success(signature_validate(sig, key->material(), hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, key->material(), *hash, global_ctx));
     /* check forged file */
-    hash = hash_forged;
-    assert_rnp_failure(signature_validate(sig, key->material(), hash, global_ctx));
+    hash = hash_forged->clone();
+    assert_rnp_failure(signature_validate(sig, key->material(), *hash, global_ctx));
     /* now let's create signature and sign file */
 
     /* load secret key */
@@ -398,22 +397,22 @@ TEST_F(rnp_tests, test_stream_signatures)
     sig.add_notation("dummy@example.com", "make codecov happy!", false);
     sig.fill_hashed_data();
     /* try to sign without decrypting of the secret key */
-    hash = hash_orig;
-    assert_throw(signature_calculate(sig, key->material(), hash, global_ctx));
+    hash = hash_orig->clone();
+    assert_throw(signature_calculate(sig, key->material(), *hash, global_ctx));
     /* now unlock the key and sign */
     pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
                                          .userdata = (void *) "password"};
     assert_true(key->unlock(pswd_prov));
-    hash = hash_orig;
-    signature_calculate(sig, key->material(), hash, global_ctx);
+    hash = hash_orig->clone();
+    signature_calculate(sig, key->material(), *hash, global_ctx);
     /* now verify signature */
-    hash = hash_orig;
+    hash = hash_orig->clone();
     /* validate signature and fields */
     assert_int_equal(sig.creation(), create);
     assert_int_equal(sig.expiration(), expire);
     assert_true(sig.has_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR));
     assert_true(sig.keyfp() == key->fp());
-    assert_rnp_success(signature_validate(sig, key->material(), hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, key->material(), *hash, global_ctx));
     /* cleanup */
     delete pubring;
     delete secring;
@@ -1009,21 +1008,20 @@ TEST_F(rnp_tests, test_stream_key_signatures)
     auto &sig = uid.signatures.front();
     assert_non_null(pkey = rnp_key_store_get_signer_key(pubring, &sig));
     /* check certification signature */
-    rnp::Hash hash;
-    signature_hash_certification(sig, key.key, uid.uid, hash);
+    auto hash = signature_hash_certification(sig, key.key, uid.uid);
     /* this signature uses MD5 hash after the allowed date */
-    assert_int_equal(signature_validate(sig, pkey->material(), hash, global_ctx),
+    assert_int_equal(signature_validate(sig, pkey->material(), *hash, global_ctx),
                      RNP_ERROR_SIGNATURE_INVALID);
     /* add rule which allows MD5 */
     rnp::SecurityRule allow_md5(
       rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
     allow_md5.override = true;
     global_ctx.profile.add_rule(allow_md5);
-    assert_rnp_success(signature_validate(sig, pkey->material(), hash, global_ctx));
+    assert_rnp_success(signature_validate(sig, pkey->material(), *hash, global_ctx));
     /* modify userid and check signature */
     uid.uid.uid[2] = '?';
-    signature_hash_certification(sig, key.key, uid.uid, hash);
-    assert_rnp_failure(signature_validate(sig, pkey->material(), hash, global_ctx));
+    hash = signature_hash_certification(sig, key.key, uid.uid);
+    assert_rnp_failure(signature_validate(sig, pkey->material(), *hash, global_ctx));
     /* remove MD5 rule */
     assert_true(global_ctx.profile.del_rule(allow_md5));
     delete pubring;
@@ -1047,16 +1045,16 @@ TEST_F(rnp_tests, test_stream_key_signatures)
                 pkey->validate_cert(sinfo, keyref.key, uid.uid, global_ctx);
                 assert_true(sinfo.valid);
                 /* low level check */
-                signature_hash_certification(sig, keyref.key, uid.uid, hash);
+                auto hash = signature_hash_certification(sig, keyref.key, uid.uid);
                 assert_rnp_success(
-                  signature_validate(sig, pkey->material(), hash, global_ctx));
+                  signature_validate(sig, pkey->material(), *hash, global_ctx));
                 /* modify userid and check signature */
                 uid.uid.uid[2] = '?';
                 pkey->validate_cert(sinfo, keyref.key, uid.uid, global_ctx);
                 assert_false(sinfo.valid);
-                signature_hash_certification(sig, keyref.key, uid.uid, hash);
+                hash = signature_hash_certification(sig, keyref.key, uid.uid);
                 assert_rnp_failure(
-                  signature_validate(sig, pkey->material(), hash, global_ctx));
+                  signature_validate(sig, pkey->material(), *hash, global_ctx));
             }
         }
 
@@ -1075,8 +1073,8 @@ TEST_F(rnp_tests, test_stream_key_signatures)
             pkey->validate_binding(sinfo, *psub, global_ctx);
             assert_true(sinfo.valid);
             /* low level check */
-            signature_hash_binding(sig, keyref.key, subkey.subkey, hash);
-            pkey->validate_sig(sinfo, hash, global_ctx);
+            hash = signature_hash_binding(sig, keyref.key, subkey.subkey);
+            pkey->validate_sig(sinfo, *hash, global_ctx);
             assert_true(sinfo.valid);
         }
     }

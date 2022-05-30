@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,10 +24,19 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include "config.h"
 #include "hash.h"
 #include "types.h"
 #include "utils.h"
 #include "str-utils.h"
+#include "hash_sha1cd.hpp"
+#if defined(CRYPTO_BACKEND_BOTAN)
+#include "hash_botan.hpp"
+#endif
+#if defined(CRYPTO_BACKEND_OPENSSL)
+#include "hash_ossl.hpp"
+#include "hash_crc24.hpp"
+#endif
 
 static const struct hash_alg_map_t {
     pgp_hash_alg_t type;
@@ -55,7 +64,40 @@ Hash::alg() const
 size_t
 Hash::size() const
 {
-    return size_;
+    return Hash::size(alg_);
+}
+
+std::unique_ptr<Hash>
+Hash::create(pgp_hash_alg_t alg)
+{
+    if (alg == PGP_HASH_SHA1) {
+        return Hash_SHA1CD::create();
+    }
+#if !defined(ENABLE_SM2)
+    if (alg == PGP_HASH_SM3) {
+        RNP_LOG("SM3 hash is not available.");
+        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+#endif
+#if defined(CRYPTO_BACKEND_OPENSSL)
+    return Hash_OpenSSL::create(alg);
+#elif defined(CRYPTO_BACKEND_BOTAN)
+    return Hash_Botan::create(alg);
+#else
+#error "Crypto backend not specified"
+#endif
+}
+
+std::unique_ptr<CRC24>
+CRC24::create()
+{
+#if defined(CRYPTO_BACKEND_OPENSSL)
+    return CRC24_RNP::create();
+#elif defined(CRYPTO_BACKEND_BOTAN)
+    return CRC24_Botan::create();
+#else
+#error "Crypto backend not specified"
+#endif
 }
 
 void
@@ -88,6 +130,10 @@ Hash::add(const pgp_mpi_t &val)
     add(val.mpi + idx, len - idx);
 }
 
+Hash::~Hash()
+{
+}
+
 pgp_hash_alg_t
 Hash::alg(const char *name)
 {
@@ -118,52 +164,20 @@ Hash::size(pgp_hash_alg_t alg)
     return val;
 }
 
-Hash::Hash(Hash &&src)
-{
-    handle_ = src.handle_;
-    src.handle_ = NULL;
-    alg_ = src.alg_;
-    src.alg_ = PGP_HASH_UNKNOWN;
-    size_ = src.size_;
-    src.size_ = 0;
-}
-
-Hash &
-Hash::operator=(const Hash &src)
-{
-    src.clone(*this);
-    return *this;
-}
-
-Hash &
-Hash::operator=(Hash &&src)
-{
-    if (handle_) {
-        finish();
-    }
-    handle_ = src.handle_;
-    src.handle_ = NULL;
-    alg_ = src.alg_;
-    src.alg_ = PGP_HASH_UNKNOWN;
-    size_ = src.size_;
-    src.size_ = 0;
-    return *this;
-}
-
 void
 HashList::add_alg(pgp_hash_alg_t alg)
 {
     if (!get(alg)) {
-        hashes_.emplace_back(alg);
+        hashes.emplace_back(rnp::Hash::create(alg));
     }
 }
 
 const Hash *
 HashList::get(pgp_hash_alg_t alg) const
 {
-    for (auto &hash : hashes_) {
-        if (hash.alg() == alg) {
-            return &hash;
+    for (auto &hash : hashes) {
+        if (hash->alg() == alg) {
+            return hash.get();
         }
     }
     return NULL;
@@ -172,21 +186,9 @@ HashList::get(pgp_hash_alg_t alg) const
 void
 HashList::add(const void *buf, size_t len)
 {
-    for (auto &hash : hashes_) {
-        hash.add(buf, len);
+    for (auto &hash : hashes) {
+        hash->add(buf, len);
     }
-}
-
-bool
-HashList::empty() const
-{
-    return hashes_.empty();
-}
-
-std::vector<Hash> &
-HashList::hashes()
-{
-    return hashes_;
 }
 
 } // namespace rnp

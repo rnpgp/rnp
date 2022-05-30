@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -87,33 +87,34 @@ signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_
     hash.add(uid.uid, uid.uid_len);
 }
 
-void
+std::unique_ptr<rnp::Hash>
 signature_hash_certification(const pgp_signature_t & sig,
                              const pgp_key_pkt_t &   key,
-                             const pgp_userid_pkt_t &userid,
-                             rnp::Hash &             hash)
+                             const pgp_userid_pkt_t &userid)
 {
-    signature_init(key.material, sig.halg, hash);
-    signature_hash_key(key, hash);
-    signature_hash_userid(userid, hash, sig.version);
+    auto hash = signature_init(key.material, sig.halg);
+    signature_hash_key(key, *hash);
+    signature_hash_userid(userid, *hash, sig.version);
+    return hash;
 }
 
-void
+std::unique_ptr<rnp::Hash>
 signature_hash_binding(const pgp_signature_t &sig,
                        const pgp_key_pkt_t &  key,
-                       const pgp_key_pkt_t &  subkey,
-                       rnp::Hash &            hash)
+                       const pgp_key_pkt_t &  subkey)
 {
-    signature_init(key.material, sig.halg, hash);
-    signature_hash_key(key, hash);
-    signature_hash_key(subkey, hash);
+    auto hash = signature_init(key.material, sig.halg);
+    signature_hash_key(key, *hash);
+    signature_hash_key(subkey, *hash);
+    return hash;
 }
 
-void
-signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key, rnp::Hash &hash)
+std::unique_ptr<rnp::Hash>
+signature_hash_direct(const pgp_signature_t &sig, const pgp_key_pkt_t &key)
 {
-    signature_init(key.material, sig.halg, hash);
-    signature_hash_key(key, hash);
+    auto hash = signature_init(key.material, sig.halg);
+    signature_hash_key(key, *hash);
+    return hash;
 }
 
 rnp_result_t
@@ -561,13 +562,13 @@ pgp_signature_t::~pgp_signature_t()
 pgp_sig_id_t
 pgp_signature_t::get_id() const
 {
-    rnp::Hash hash(PGP_HASH_SHA1);
-    hash.add(hashed_data, hashed_len);
-    hash.add(material_buf, material_len);
+    auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+    hash->add(hashed_data, hashed_len);
+    hash->add(material_buf, material_len);
     pgp_sig_id_t res = {0};
     static_assert(std::tuple_size<decltype(res)>::value == PGP_SHA1_HASH_SIZE,
                   "pgp_sig_id_t size mismatch");
-    hash.finish(res.data());
+    hash->finish(res.data());
     return res;
 }
 

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <botan/ffi.h>
+#include "hash_botan.hpp"
 #include "ecdh.h"
 #include "ecdh_utils.h"
 #include "hash.h"
@@ -69,7 +70,8 @@ compute_kek(uint8_t *              kek,
         goto end;
     }
 
-    snprintf(kdf_name, sizeof(kdf_name), "SP800-56A(%s)", rnp::Hash::name_backend(hash_alg));
+    snprintf(
+      kdf_name, sizeof(kdf_name), "SP800-56A(%s)", rnp::Hash_Botan::name_backend(hash_alg));
     ret = !botan_kdf(
       kdf_name, kek, kek_len, s.data(), s_len, NULL, 0, other_info, other_info_size);
 end:
