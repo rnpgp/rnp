@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -70,19 +70,19 @@ TEST_F(rnp_tests, hash_test_success)
     for (int i = 0; hash_algs[i] != PGP_HASH_UNKNOWN; ++i) {
 #if !defined(ENABLE_SM2)
         if (hash_algs[i] == PGP_HASH_SM3) {
-            assert_throw({ rnp::Hash hash(hash_algs[i]); });
+            assert_throw({ auto hash = rnp::Hash::create(hash_algs[i]); });
             size_t hash_size = rnp::Hash::size(hash_algs[i]);
             assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
             continue;
         }
 #endif
-        rnp::Hash hash(hash_algs[i]);
-        size_t    hash_size = rnp::Hash::size(hash_algs[i]);
+        auto   hash = rnp::Hash::create(hash_algs[i]);
+        size_t hash_size = rnp::Hash::size(hash_algs[i]);
         assert_int_equal(hash_size * 2, strlen(hash_alg_expected_outputs[i]));
 
-        hash.add(test_input, 1);
-        hash.add(test_input + 1, sizeof(test_input) - 1);
-        hash.finish(hash_output);
+        hash->add(test_input, 1);
+        hash->add(test_input + 1, sizeof(test_input) - 1);
+        hash->finish(hash_output);
 
         assert_int_equal(0,
                          test_value_equal(rnp::Hash::name(hash_algs[i]),
@@ -450,11 +450,11 @@ TEST_F(rnp_tests, sm2_sm3_signature_test)
 
     assert_int_equal(sm2_validate_key(&global_ctx.rng, &sm2_key, true), RNP_SUCCESS);
 
-    rnp::Hash hash(hash_alg);
+    auto hash = rnp::Hash::create(hash_alg);
 
-    assert_int_equal(sm2_compute_za(sm2_key, hash, "sm2_p256_test@example.com"), RNP_SUCCESS);
-    hash.add(msg, strlen(msg));
-    assert_int_equal(hash.finish(digest), hash_len);
+    assert_int_equal(sm2_compute_za(sm2_key, *hash, "sm2_p256_test@example.com"), RNP_SUCCESS);
+    hash->add(msg, strlen(msg));
+    assert_int_equal(hash->finish(digest), hash_len);
 
     // First generate a signature, then verify it
     assert_int_equal(sm2_sign(&global_ctx.rng, &sig, hash_alg, digest, hash_len, &sm2_key),
@@ -493,10 +493,10 @@ TEST_F(rnp_tests, sm2_sha256_signature_test)
 
     assert_int_equal(sm2_validate_key(&global_ctx.rng, &sm2_key, true), RNP_SUCCESS);
 
-    rnp::Hash hash(hash_alg);
-    assert_int_equal(sm2_compute_za(sm2_key, hash, "sm2test@example.com"), RNP_SUCCESS);
-    hash.add(msg, strlen(msg));
-    assert_int_equal(hash.finish(digest), hash_len);
+    auto hash = rnp::Hash::create(hash_alg);
+    assert_int_equal(sm2_compute_za(sm2_key, *hash, "sm2test@example.com"), RNP_SUCCESS);
+    hash->add(msg, strlen(msg));
+    assert_int_equal(hash->finish(digest), hash_len);
 
     // First generate a signature, then verify it
     assert_int_equal(sm2_sign(&global_ctx.rng, &sig, hash_alg, digest, hash_len, &sm2_key),

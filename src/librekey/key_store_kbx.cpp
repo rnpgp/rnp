@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -642,11 +642,11 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     STORE32BE(p, pt);
 
     // checksum
-    rnp::Hash hash(PGP_HASH_SHA1);
-    hash.add(mem.memory(), mem.writeb());
+    auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+    hash->add(mem.memory(), mem.writeb());
     uint8_t checksum[PGP_SHA1_HASH_SIZE];
-    assert(hash.size() == sizeof(checksum));
-    hash.finish(checksum);
+    assert(hash->size() == sizeof(checksum));
+    hash->finish(checksum);
 
     if (!(pbuf(&mem.dst(), checksum, PGP_SHA1_HASH_SIZE))) {
         return false;

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,6 +30,9 @@
 #include <repgp/repgp_def.h>
 #include "types.h"
 #include "config.h"
+#include <memory>
+#include <vector>
+#include <array>
 
 /**
  * Output size (in bytes) of biggest supported hash algo
@@ -39,26 +42,24 @@
 namespace rnp {
 class Hash {
   protected:
-    void *         handle_;
-    size_t         size_;
     pgp_hash_alg_t alg_;
+    size_t         size_;
+    Hash(pgp_hash_alg_t alg) : alg_(alg)
+    {
+        size_ = Hash::size(alg);
+    };
 
   public:
     pgp_hash_alg_t alg() const;
     size_t         size() const;
 
-    Hash() : handle_(NULL), size_(0), alg_(PGP_HASH_UNKNOWN){};
-    Hash(pgp_hash_alg_t alg);
-    Hash(Hash &&src);
+    static std::unique_ptr<Hash>  create(pgp_hash_alg_t alg);
+    virtual std::unique_ptr<Hash> clone() const = 0;
 
-    virtual void   add(const void *buf, size_t len);
+    virtual void   add(const void *buf, size_t len) = 0;
     virtual void   add(uint32_t val);
     virtual void   add(const pgp_mpi_t &mpi);
-    virtual size_t finish(uint8_t *digest = NULL);
-    virtual void   clone(Hash &dst) const;
-
-    Hash &operator=(const Hash &src);
-    Hash &operator=(Hash &&src);
+    virtual size_t finish(uint8_t *digest = NULL) = 0;
 
     virtual ~Hash();
 
@@ -66,39 +67,30 @@ class Hash {
     static pgp_hash_alg_t alg(const char *name);
     /* Hash algorithm representation for cleartext-signed text */
     static const char *name(pgp_hash_alg_t alg);
-    /* Hash algorithm representation for the backend functions */
-    static const char *name_backend(pgp_hash_alg_t alg);
     /* Size of the hash algorithm output or 0 if algorithm is unknown */
     static size_t size(pgp_hash_alg_t alg);
 };
 
-#if defined(CRYPTO_BACKEND_BOTAN)
-class CRC24 : public Hash {
-  public:
-    CRC24();
-};
-#endif
-#if defined(CRYPTO_BACKEND_OPENSSL)
 class CRC24 {
-    uint32_t state_;
+  protected:
+    CRC24(){};
 
   public:
-    CRC24();
+    static std::unique_ptr<CRC24> create();
 
-    void   add(const void *buf, size_t len);
-    size_t finish(uint8_t *crc);
+    virtual void                   add(const void *buf, size_t len) = 0;
+    virtual std::array<uint8_t, 3> finish() = 0;
+
+    virtual ~CRC24(){};
 };
-#endif
 
 class HashList {
-    std::vector<Hash> hashes_;
-
   public:
-    void               add_alg(pgp_hash_alg_t alg);
-    const Hash *       get(pgp_hash_alg_t alg) const;
-    void               add(const void *buf, size_t len);
-    bool               empty() const;
-    std::vector<Hash> &hashes();
+    std::vector<std::unique_ptr<Hash>> hashes;
+
+    void        add_alg(pgp_hash_alg_t alg);
+    const Hash *get(pgp_hash_alg_t alg) const;
+    void        add(const void *buf, size_t len);
 };
 
 } // namespace rnp

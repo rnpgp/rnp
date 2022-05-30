@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,18 +27,36 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "hash_sha1cd.h"
-#include "sha1.h"
+#include <cassert>
 #include "logging.h"
+#include "hash_sha1cd.hpp"
 
-void *
-hash_sha1cd_create()
+namespace rnp {
+Hash_SHA1CD::Hash_SHA1CD() : Hash(PGP_HASH_SHA1)
 {
-    SHA1_CTX *res = (SHA1_CTX *) calloc(1, sizeof(SHA1_CTX));
-    if (res) {
-        SHA1DCInit(res);
-    }
-    return res;
+    assert(size_ == 20);
+    SHA1DCInit(&ctx_);
+}
+
+Hash_SHA1CD::Hash_SHA1CD(const Hash_SHA1CD &src) : Hash(PGP_HASH_SHA1)
+{
+    ctx_ = src.ctx_;
+}
+
+Hash_SHA1CD::~Hash_SHA1CD()
+{
+}
+
+std::unique_ptr<Hash_SHA1CD>
+Hash_SHA1CD::create()
+{
+    return std::unique_ptr<Hash_SHA1CD>(new Hash_SHA1CD());
+}
+
+std::unique_ptr<Hash>
+Hash_SHA1CD::clone() const
+{
+    return std::unique_ptr<Hash>(new Hash_SHA1CD(*this));
 }
 
 /* This produces runtime error: load of misaligned address 0x60d0000030a9 for type 'const
@@ -47,36 +65,30 @@ hash_sha1cd_create()
 __attribute__((no_sanitize("undefined")))
 #endif
 void
-hash_sha1cd_add(void *ctx, const void *buf, size_t len)
+Hash_SHA1CD::add(const void *buf, size_t len)
 {
-    SHA1DCUpdate((SHA1_CTX *) ctx, (const char *) buf, len);
-}
-
-void *
-hash_sha1cd_clone(void *ctx)
-{
-    SHA1_CTX *res = (SHA1_CTX *) calloc(1, sizeof(SHA1_CTX));
-    if (res) {
-        *res = *((SHA1_CTX *) ctx);
-    }
-    return res;
+    SHA1DCUpdate(&ctx_, (const char *) buf, len);
 }
 
 #if defined(__clang__)
 __attribute__((no_sanitize("undefined")))
 #endif
-int
-hash_sha1cd_finish(void *ctx, uint8_t *digest)
+size_t
+Hash_SHA1CD::finish(uint8_t *digest)
 {
     unsigned char fixed_digest[20];
-    int           res = 0;
-    if ((res = SHA1DCFinal(fixed_digest, (SHA1_CTX *) ctx)) && digest) {
+    int           res = SHA1DCFinal(fixed_digest, &ctx_);
+    if (res && digest) {
         /* Show warning only if digest is non-null */
         RNP_LOG("Warning! SHA1 collision detected and mitigated.");
+    }
+    if (res) {
+        throw rnp_exception(RNP_ERROR_BAD_STATE);
     }
     if (digest) {
         memcpy(digest, fixed_digest, 20);
     }
-    free(ctx);
-    return res;
+    return 20;
 }
+
+} // namespace rnp

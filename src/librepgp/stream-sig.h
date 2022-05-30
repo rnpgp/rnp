@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -406,19 +406,16 @@ void signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash);
 
 void signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_t sigver);
 
-void signature_hash_certification(const pgp_signature_t & sig,
-                                  const pgp_key_pkt_t &   key,
-                                  const pgp_userid_pkt_t &userid,
-                                  rnp::Hash &             hash);
+std::unique_ptr<rnp::Hash> signature_hash_certification(const pgp_signature_t & sig,
+                                                        const pgp_key_pkt_t &   key,
+                                                        const pgp_userid_pkt_t &userid);
 
-void signature_hash_binding(const pgp_signature_t &sig,
-                            const pgp_key_pkt_t &  key,
-                            const pgp_key_pkt_t &  subkey,
-                            rnp::Hash &            hash);
+std::unique_ptr<rnp::Hash> signature_hash_binding(const pgp_signature_t &sig,
+                                                  const pgp_key_pkt_t &  key,
+                                                  const pgp_key_pkt_t &  subkey);
 
-void signature_hash_direct(const pgp_signature_t &sig,
-                           const pgp_key_pkt_t &  key,
-                           rnp::Hash &            hash);
+std::unique_ptr<rnp::Hash> signature_hash_direct(const pgp_signature_t &sig,
+                                                 const pgp_key_pkt_t &  key);
 
 /**
  * @brief Parse stream with signatures to the signatures list.
