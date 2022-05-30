@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -716,36 +716,36 @@ bool
 rnp_key_store_get_key_grip(const pgp_key_material_t *key, pgp_key_grip_t &grip)
 {
     try {
-        rnp::Hash hash(PGP_HASH_SHA1);
+        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
         switch (key->alg) {
         case PGP_PKA_RSA:
         case PGP_PKA_RSA_SIGN_ONLY:
         case PGP_PKA_RSA_ENCRYPT_ONLY:
-            grip_hash_mpi(hash, key->rsa.n, '\0');
+            grip_hash_mpi(*hash, key->rsa.n, '\0');
             break;
         case PGP_PKA_DSA:
-            grip_hash_mpi(hash, key->dsa.p, 'p');
-            grip_hash_mpi(hash, key->dsa.q, 'q');
-            grip_hash_mpi(hash, key->dsa.g, 'g');
-            grip_hash_mpi(hash, key->dsa.y, 'y');
+            grip_hash_mpi(*hash, key->dsa.p, 'p');
+            grip_hash_mpi(*hash, key->dsa.q, 'q');
+            grip_hash_mpi(*hash, key->dsa.g, 'g');
+            grip_hash_mpi(*hash, key->dsa.y, 'y');
             break;
         case PGP_PKA_ELGAMAL:
         case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
-            grip_hash_mpi(hash, key->eg.p, 'p');
-            grip_hash_mpi(hash, key->eg.g, 'g');
-            grip_hash_mpi(hash, key->eg.y, 'y');
+            grip_hash_mpi(*hash, key->eg.p, 'p');
+            grip_hash_mpi(*hash, key->eg.g, 'g');
+            grip_hash_mpi(*hash, key->eg.y, 'y');
             break;
         case PGP_PKA_ECDH:
         case PGP_PKA_ECDSA:
         case PGP_PKA_EDDSA:
         case PGP_PKA_SM2:
-            grip_hash_ec(hash, key->ec);
+            grip_hash_ec(*hash, key->ec);
             break;
         default:
             RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
             return false;
         }
-        return hash.finish(grip.data()) == grip.size();
+        return hash->finish(grip.data()) == grip.size();
     } catch (const std::exception &e) {
         RNP_LOG("Grip calculation failed: %s", e.what());
         return false;

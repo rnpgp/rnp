@@ -202,7 +202,7 @@ endif()
 list(APPEND CRYPTO_SOURCES crypto/backend_version.cpp)
 
 # sha11collisiondetection sources
-list(APPEND CRYPTO_SOURCES crypto/sha1cd/hash_sha1cd.cpp crypto/sha1cd/sha1.c crypto/sha1cd/ubc_check.c)
+list(APPEND CRYPTO_SOURCES crypto/hash_sha1cd.cpp crypto/sha1cd/sha1.c crypto/sha1cd/ubc_check.c)
 
 add_library(librnp-obj OBJECT
   # librepgp

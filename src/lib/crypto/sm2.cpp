@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,6 +26,7 @@
 
 #include <string.h>
 #include <botan/ffi.h>
+#include "hash_botan.hpp"
 #include "sm2.h"
 #include "hash.h"
 #include "utils.h"
@@ -87,7 +88,7 @@ sm2_compute_za(const pgp_ec_key_t &key, rnp::Hash &hash, const char *ident_field
     botan_pubkey_t sm2_key = NULL;
     int            rc;
 
-    const char *hash_algo = rnp::Hash::name_backend(hash.alg());
+    const char *hash_algo = rnp::Hash_Botan::name_backend(hash.alg());
     size_t      digest_len = hash.size();
 
     uint8_t *digest_buf = (uint8_t *) malloc(digest_len);
@@ -321,7 +322,8 @@ sm2_encrypt(rnp::RNG *           rng,
     it's an all in one scheme, only the hash (used for the integrity
     check) is specified.
     */
-    if (botan_pk_op_encrypt_create(&enc_op, sm2_key, rnp::Hash::name_backend(hash_algo), 0)) {
+    if (botan_pk_op_encrypt_create(
+          &enc_op, sm2_key, rnp::Hash_Botan::name_backend(hash_algo), 0)) {
         goto done;
     }
 
@@ -362,7 +364,7 @@ sm2_decrypt(uint8_t *                  out,
     }
 
     hash_id = in->m.mpi[in_len - 1];
-    hash_name = rnp::Hash::name_backend((pgp_hash_alg_t) hash_id);
+    hash_name = rnp::Hash_Botan::name_backend((pgp_hash_alg_t) hash_id);
     if (!hash_name) {
         RNP_LOG("Unknown hash used in SM2 ciphertext");
         goto done;

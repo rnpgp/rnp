@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -84,21 +84,21 @@ typedef struct pgp_dest_compressed_param_t {
 } pgp_dest_compressed_param_t;
 
 typedef struct pgp_dest_encrypted_param_t {
-    pgp_dest_packet_param_t pkt;     /* underlying packet-related params */
-    rnp_ctx_t *             ctx;     /* rnp operation context with additional parameters */
-    bool                    has_mdc; /* encrypted with mdc, i.e. tag 18 */
-    bool                    aead;    /* we use AEAD encryption */
-    pgp_crypt_t             encrypt; /* encrypting crypto */
-    rnp::Hash               mdc;     /* mdc SHA1 hash */
-    pgp_aead_alg_t          aalg;    /* AEAD algorithm used */
-    uint8_t                 iv[PGP_AEAD_MAX_NONCE_LEN]; /* iv for AEAD mode */
-    uint8_t                 ad[PGP_AEAD_MAX_AD_LEN];    /* additional data for AEAD mode */
-    size_t                  adlen;    /* length of additional data, including chunk idx */
-    size_t                  chunklen; /* length of the AEAD chunk in bytes */
-    size_t                  chunkout; /* how many bytes from the chunk were written out */
-    size_t                  chunkidx; /* index of the current AEAD chunk */
-    size_t                  cachelen; /* how many bytes are in cache, for AEAD */
-    uint8_t                 cache[PGP_AEAD_CACHE_LEN]; /* pre-allocated cache for encryption */
+    pgp_dest_packet_param_t    pkt;     /* underlying packet-related params */
+    rnp_ctx_t *                ctx;     /* rnp operation context with additional parameters */
+    bool                       has_mdc; /* encrypted with mdc, i.e. tag 18 */
+    bool                       aead;    /* we use AEAD encryption */
+    pgp_crypt_t                encrypt; /* encrypting crypto */
+    std::unique_ptr<rnp::Hash> mdc;     /* mdc SHA1 hash */
+    pgp_aead_alg_t             aalg;    /* AEAD algorithm used */
+    uint8_t                    iv[PGP_AEAD_MAX_NONCE_LEN]; /* iv for AEAD mode */
+    uint8_t                    ad[PGP_AEAD_MAX_AD_LEN];    /* additional data for AEAD mode */
+    size_t                     adlen;    /* length of additional data, including chunk idx */
+    size_t                     chunklen; /* length of the AEAD chunk in bytes */
+    size_t                     chunkout; /* how many bytes from the chunk were written out */
+    size_t                     chunkidx; /* index of the current AEAD chunk */
+    size_t                     cachelen; /* how many bytes are in cache, for AEAD */
+    uint8_t cache[PGP_AEAD_CACHE_LEN];   /* pre-allocated cache for encryption */
 } pgp_dest_encrypted_param_t;
 
 typedef struct pgp_dest_signer_info_t {
@@ -298,7 +298,7 @@ encrypted_dst_write_cfb(pgp_dest_t *dst, const void *buf, size_t len)
 
     if (param->has_mdc) {
         try {
-            param->mdc.add(buf, len);
+            param->mdc->add(buf, len);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return RNP_ERROR_BAD_STATE;
@@ -480,8 +480,9 @@ encrypted_dst_finish(pgp_dest_t *dst)
         mdcbuf[0] = MDC_PKT_TAG;
         mdcbuf[1] = MDC_V1_SIZE - 2;
         try {
-            param->mdc.add(mdcbuf, 2);
-            param->mdc.finish(&mdcbuf[2]);
+            param->mdc->add(mdcbuf, 2);
+            param->mdc->finish(&mdcbuf[2]);
+            param->mdc = nullptr;
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return RNP_ERROR_BAD_STATE;
@@ -758,7 +759,7 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         dst_write(param->pkt.writedst, &mdcver, 1);
 
         try {
-            param->mdc = rnp::Hash(PGP_HASH_SHA1);
+            param->mdc = rnp::Hash::create(PGP_HASH_SHA1);
         } catch (const std::exception &e) {
             RNP_LOG("cannot create sha1 hash: %s", e.what());
             return RNP_ERROR_GENERIC;
@@ -778,7 +779,7 @@ encrypted_start_cfb(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         enchdr[blsize + 1] = enchdr[blsize - 1];
 
         if (param->has_mdc) {
-            param->mdc.add(enchdr, blsize + 2);
+            param->mdc->add(enchdr, blsize + 2);
         }
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
@@ -1118,13 +1119,11 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
     sig.set_expiration(signer.sigexpire);
     sig.fill_hashed_data();
 
-    const rnp::Hash *listh = param.hashes.get(sig.halg);
+    auto listh = param.hashes.get(sig.halg);
     if (!listh) {
         RNP_LOG("failed to obtain hash");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    rnp::Hash hash;
-    listh->clone(hash);
 
     /* decrypt the secret key if needed */
     rnp::KeyLocker(*signer.key);
@@ -1134,7 +1133,7 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
         throw rnp::rnp_exception(RNP_ERROR_BAD_PASSWORD);
     }
     /* calculate the signature */
-    signature_calculate(sig, signer.key->material(), hash, *param.ctx->ctx);
+    signature_calculate(sig, signer.key->material(), *listh->clone(), *param.ctx->ctx);
 }
 
 static rnp_result_t
@@ -1365,7 +1364,7 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
     }
 
     /* Do we have any signatures? */
-    if (param->hashes.empty()) {
+    if (param->hashes.hashes.empty()) {
         ret = RNP_ERROR_BAD_PARAMETERS;
         goto finish;
     }
@@ -1376,10 +1375,10 @@ init_signed_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *write
         dst_write(param->writedst, ST_CRLF, strlen(ST_CRLF));
         dst_write(param->writedst, ST_HEADER_HASH, strlen(ST_HEADER_HASH));
 
-        for (const auto &hash : param->hashes.hashes()) {
-            auto hname = rnp::Hash::name(hash.alg());
+        for (const auto &hash : param->hashes.hashes) {
+            auto hname = rnp::Hash::name(hash->alg());
             dst_write(param->writedst, hname, strlen(hname));
-            if (&hash != &param->hashes.hashes().back()) {
+            if (&hash != &param->hashes.hashes.back()) {
                 dst_write(param->writedst, ST_COMMA, 1);
             }
         }

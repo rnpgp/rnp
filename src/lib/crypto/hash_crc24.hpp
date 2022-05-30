@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,16 +24,24 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef CRYPTO_HASH_SHA1CD_H_
-#define CRYPTO_HASH_SHA1CD_H_
-#include <stdint.h>
+#ifndef CRYPTO_HASH_CRC24_HPP_
+#define CRYPTO_HASH_CRC24_HPP_
 
-void *hash_sha1cd_create();
+#include "hash.h"
 
-void hash_sha1cd_add(void *ctx, const void *buf, size_t len);
+namespace rnp {
+class CRC24_RNP : public CRC24 {
+    uint32_t state_;
+    CRC24_RNP();
 
-void *hash_sha1cd_clone(void *ctx);
+  public:
+    virtual ~CRC24_RNP();
 
-int hash_sha1cd_finish(void *ctx, uint8_t *digest);
+    static std::unique_ptr<CRC24_RNP> create();
+
+    void                   add(const void *buf, size_t len) override;
+    std::array<uint8_t, 3> finish() override;
+};
+} // namespace rnp
 
 #endif

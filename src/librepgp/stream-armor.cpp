@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -58,14 +58,14 @@ typedef struct pgp_source_armored_param_t {
     char *            charset;         /* Charset: header if any */
     uint8_t  rest[ARMORED_BLOCK_SIZE]; /* unread decoded bytes, makes implementation easier */
     unsigned restlen;                  /* number of bytes in rest */
-    unsigned restpos;     /* index of first unread byte in rest, restpos <= restlen */
-    uint8_t  brest[3];    /* decoded 6-bit tail bytes */
-    unsigned brestlen;    /* number of bytes in brest */
-    bool     eofb64;      /* end of base64 stream reached */
-    uint8_t  readcrc[3];  /* crc-24 from the armored data */
-    bool     has_crc;     /* message contains CRC line */
-    rnp::CRC24 crc_ctx;   /* CTX used to calculate CRC */
-    bool       noheaders; /* only base64 data, no headers */
+    unsigned restpos;    /* index of first unread byte in rest, restpos <= restlen */
+    uint8_t  brest[3];   /* decoded 6-bit tail bytes */
+    unsigned brestlen;   /* number of bytes in brest */
+    bool     eofb64;     /* end of base64 stream reached */
+    uint8_t  readcrc[3]; /* crc-24 from the armored data */
+    bool     has_crc;    /* message contains CRC line */
+    std::unique_ptr<rnp::CRC24> crc_ctx;   /* CTX used to calculate CRC */
+    bool                        noheaders; /* only base64 data, no headers */
 } pgp_source_armored_param_t;
 
 typedef struct pgp_dest_armored_param_t {
@@ -76,7 +76,7 @@ typedef struct pgp_dest_armored_param_t {
     unsigned          llen;    /* length of the base64 line, defaults to 76 as per RFC */
     uint8_t           tail[2]; /* bytes which didn't fit into 3-byte boundary */
     unsigned          tailc;   /* number of bytes in tail */
-    rnp::CRC24        crc_ctx; /* CTX used to calculate CRC */
+    std::unique_ptr<rnp::CRC24> crc_ctx; /* CTX used to calculate CRC */
 } pgp_dest_armored_param_t;
 
 /*
@@ -270,13 +270,12 @@ armored_update_crc(pgp_source_armored_param_t *param,
         return true;
     }
     try {
-        param->crc_ctx.add(buf, len);
+        param->crc_ctx->add(buf, len);
         if (!finish) {
             return true;
         }
-        uint8_t crc_fin[5];
-        param->crc_ctx.finish(crc_fin);
-        if (param->has_crc && memcmp(param->readcrc, crc_fin, 3)) {
+        auto crc = param->crc_ctx->finish();
+        if (param->has_crc && memcmp(param->readcrc, crc.data(), 3)) {
             RNP_LOG("Warning: CRC mismatch");
         }
         return true;
@@ -312,7 +311,7 @@ armored_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             memcpy(bufptr, &param->rest[param->restpos], len);
             param->restpos += len;
             try {
-                param->crc_ctx.add(bufptr, len);
+                param->crc_ctx->add(bufptr, len);
             } catch (const std::exception &e) {
                 RNP_LOG("%s", e.what());
                 return false;
@@ -820,6 +819,8 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
         return RNP_SUCCESS;
     }
 
+    /* initialize crc context */
+    param->crc_ctx = rnp::CRC24::create();
     /* parsing armored header */
     rnp_result_t errcode = RNP_ERROR_GENERIC;
     if (!armor_parse_header(src)) {
@@ -940,7 +941,7 @@ armored_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
     bool base64 = param->type == PGP_ARMORED_BASE64;
     if (!base64) {
         try {
-            param->crc_ctx.add(buf, len);
+            param->crc_ctx->add(buf, len);
         } catch (const std::exception &e) {
             RNP_LOG("%s", e.what());
             return RNP_ERROR_BAD_STATE;
@@ -1054,14 +1055,13 @@ armored_dst_finish(pgp_dest_t *dst)
 
     /* writing CRC and EOL */
     // At this point crc_ctx is initialized, so call can't fail
-    uint8_t crcbuf[3];
+    buf[0] = CH_EQ;
     try {
-        param->crc_ctx.finish(crcbuf);
+        auto crc = param->crc_ctx->finish();
+        armored_encode3(&buf[1], crc.data());
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
     }
-    buf[0] = CH_EQ;
-    armored_encode3(&buf[1], crcbuf);
     dst_write(param->writedst, buf, 5);
     armor_write_eol(param);
 
@@ -1116,6 +1116,8 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
         param->llen = 256;
         return RNP_SUCCESS;
     }
+    /* create crc context */
+    param->crc_ctx = rnp::CRC24::create();
     param->eol[0] = CH_CR;
     param->eol[1] = CH_LF;
     param->llen = 76; /* must be multiple of 4 */

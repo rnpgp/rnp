@@ -27,7 +27,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
-#include "hash.h"
+#include "hash_crc24.hpp"
 
 static const uint32_t T0[256] = {
   0x00000000, 0x00FB4C86, 0x000DD58A, 0x00F6990C, 0x00E1E693, 0x001AAA15, 0x00EC3319,
@@ -252,28 +252,37 @@ crc24_final(uint32_t crc)
 
 namespace rnp {
 
-CRC24::CRC24()
+CRC24_RNP::CRC24_RNP()
 {
     state_ = CRC24_FAST_INIT;
 }
 
+CRC24_RNP::~CRC24_RNP()
+{
+}
+
+std::unique_ptr<CRC24_RNP>
+CRC24_RNP::create()
+{
+    return std::unique_ptr<CRC24_RNP>(new CRC24_RNP());
+}
+
 void
-CRC24::add(const void *buf, size_t len)
+CRC24_RNP::add(const void *buf, size_t len)
 {
     state_ = crc24_update(state_, static_cast<const uint8_t *>(buf), len);
 }
 
-size_t
-CRC24::finish(uint8_t *crc)
+std::array<uint8_t, 3>
+CRC24_RNP::finish()
 {
     uint32_t crc_fin = crc24_final(state_);
     state_ = 0;
-    if (crc) {
-        crc[0] = (crc_fin >> 16) & 0xff;
-        crc[1] = (crc_fin >> 8) & 0xff;
-        crc[2] = crc_fin & 0xff;
-    }
-    return 3;
+    std::array<uint8_t, 3> res;
+    res[0] = (crc_fin >> 16) & 0xff;
+    res[1] = (crc_fin >> 8) & 0xff;
+    res[2] = crc_fin & 0xff;
+    return res;
 }
 
 }; // namespace rnp
