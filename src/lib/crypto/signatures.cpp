@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,13 +52,13 @@ signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf
     hlen = hash.finish(hbuf);
 }
 
-void
-signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp::Hash &hash)
+std::unique_ptr<rnp::Hash>
+signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg)
 {
-    hash = rnp::Hash(hash_alg);
+    auto hash = rnp::Hash::create(hash_alg);
     if (key.alg == PGP_PKA_SM2) {
 #if defined(ENABLE_SM2)
-        rnp_result_t r = sm2_compute_za(key.ec, hash);
+        rnp_result_t r = sm2_compute_za(key.ec, *hash);
         if (r != RNP_SUCCESS) {
             RNP_LOG("failed to compute SM2 ZA field");
             throw rnp::rnp_exception(r);
@@ -68,6 +68,7 @@ signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp::Hash
         throw rnp::rnp_exception(RNP_ERROR_NOT_IMPLEMENTED);
 #endif
     }
+    return hash;
 }
 
 void

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -34,6 +34,7 @@
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#include "hash_ossl.hpp"
 
 static RSA *
 rsa_load_public_key(const pgp_rsa_key_t *key)
@@ -183,7 +184,7 @@ rsa_setup_context(EVP_PKEY_CTX *ctx, pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN)
     if (hash_alg == PGP_HASH_UNKNOWN) {
         return true;
     }
-    const char *hash_name = rnp::Hash::name_backend(hash_alg);
+    const char *hash_name = rnp::Hash_OpenSSL::name(hash_alg);
     if (!hash_name) {
         RNP_LOG("Unknown hash: %d", (int) hash_alg);
         return false;

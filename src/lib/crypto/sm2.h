@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2017 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,7 @@ typedef struct pgp_sm2_encrypted_t {
 
 namespace rnp {
 class Hash;
-}
+} // namespace rnp
 
 #if defined(ENABLE_SM2)
 rnp_result_t sm2_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);

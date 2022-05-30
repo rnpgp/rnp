@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021 Ribose Inc.
+ * Copyright (c) 2017-2022 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -24,15 +24,9 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <stdio.h>
-#include <memory>
-#include <botan/hash.h>
-#include "hash.h"
-#include "types.h"
-#include "utils.h"
-#include "str-utils.h"
-#include "defaults.h"
-#include "sha1cd/hash_sha1cd.h"
+#include "hash_botan.hpp"
+#include "logging.h"
+#include <cassert>
 
 static const id_str_pair botan_alg_map[] = {
   {PGP_HASH_MD5, "MD5"},
@@ -50,151 +44,115 @@ static const id_str_pair botan_alg_map[] = {
 
 namespace rnp {
 
-Hash::Hash(pgp_hash_alg_t alg)
+Hash_Botan::Hash_Botan(pgp_hash_alg_t alg) : Hash(alg)
 {
-    if (alg == PGP_HASH_SHA1) {
-        /* todo: avoid duplication here and in the OpenSSL backend */
-        handle_ = hash_sha1cd_create();
-        if (!handle_) {
-            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-        }
-        alg_ = alg;
-        size_ = rnp::Hash::size(alg);
-        return;
-    }
-
-    const char *name = Hash::name_backend(alg);
+    auto name = Hash_Botan::name_backend(alg);
     if (!name) {
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    auto hash_fn = Botan::HashFunction::create(name);
-    if (!hash_fn) {
+    fn_ = Botan::HashFunction::create(name);
+    if (!fn_) {
         RNP_LOG("Error creating hash object for '%s'", name);
         throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    size_ = hash_fn->output_length();
-    if (!size_) {
-        RNP_LOG("output_length() call failed");
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
+    assert(size_ == fn_->output_length());
+}
+
+Hash_Botan::Hash_Botan(const Hash_Botan &src) : Hash(src.alg_)
+{
+    if (!src.fn_) {
+        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    handle_ = hash_fn.release();
-    alg_ = alg;
+    fn_ = src.fn_->copy_state();
+}
+
+Hash_Botan::~Hash_Botan()
+{
+}
+
+std::unique_ptr<Hash_Botan>
+Hash_Botan::create(pgp_hash_alg_t alg)
+{
+    return std::unique_ptr<Hash_Botan>(new Hash_Botan(alg));
+}
+
+std::unique_ptr<Hash>
+Hash_Botan::clone() const
+{
+    return std::unique_ptr<Hash>(new Hash_Botan(*this));
 }
 
 void
-Hash::add(const void *buf, size_t len)
+Hash_Botan::add(const void *buf, size_t len)
 {
-    if (!handle_) {
+    if (!fn_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
-    if (alg_ == PGP_HASH_SHA1) {
-        hash_sha1cd_add(handle_, buf, len);
-        return;
-    }
-    static_cast<Botan::HashFunction *>(handle_)->update(static_cast<const uint8_t *>(buf),
-                                                        len);
+    fn_->update(static_cast<const uint8_t *>(buf), len);
 }
 
 size_t
-Hash::finish(uint8_t *digest)
+Hash_Botan::finish(uint8_t *digest)
 {
-    if (!handle_) {
+    if (!fn_) {
         return 0;
     }
-    if (alg_ == PGP_HASH_SHA1) {
-        int res = hash_sha1cd_finish(handle_, digest);
-        handle_ = NULL;
-        size_ = 0;
-        if (res) {
-            throw rnp_exception(RNP_ERROR_BAD_STATE);
-        }
-        return 20;
-    }
-
-    auto hash_fn =
-      std::unique_ptr<Botan::HashFunction>(static_cast<Botan::HashFunction *>(handle_));
-    if (!hash_fn) {
-        RNP_LOG("Hash finalization failed");
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
     size_t outlen = size_;
-    handle_ = NULL;
-    size_ = 0;
-
     if (digest) {
-        hash_fn->final(digest);
+        fn_->final(digest);
     }
+    fn_ = nullptr;
+    size_ = 0;
     return outlen;
 }
 
-void
-Hash::clone(Hash &dst) const
-{
-    if (!handle_) {
-        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-
-    if (dst.handle_) {
-        dst.finish();
-    }
-
-    if (alg_ == PGP_HASH_SHA1) {
-        dst.handle_ = hash_sha1cd_clone(handle_);
-        if (!dst.handle_) {
-            throw rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-        }
-        dst.size_ = size_;
-        dst.alg_ = alg_;
-        return;
-    }
-
-    auto hash_fn = static_cast<Botan::HashFunction *>(handle_);
-    if (!hash_fn) {
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    auto copy = hash_fn->copy_state();
-    if (!copy) {
-        RNP_LOG("Failed to clone hash.");
-        throw rnp_exception(RNP_ERROR_BAD_STATE);
-    }
-
-    dst.size_ = size_;
-    dst.alg_ = alg_;
-    dst.handle_ = copy.release();
-}
-
-Hash::~Hash()
-{
-    if (!handle_) {
-        return;
-    }
-    if (alg_ == PGP_HASH_SHA1) {
-        hash_sha1cd_finish(handle_, NULL);
-    } else {
-        delete static_cast<Botan::HashFunction *>(handle_);
-    }
-}
-
-CRC24::CRC24()
-{
-    auto hash_fn = Botan::HashFunction::create("CRC24");
-    if (!hash_fn) {
-        RNP_LOG("Error creating hash object for 'CRC24'");
-        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
-
-    size_ = 3;
-    alg_ = PGP_HASH_UNKNOWN;
-    handle_ = hash_fn.release();
-}
-
 const char *
-Hash::name_backend(pgp_hash_alg_t alg)
+Hash_Botan::name_backend(pgp_hash_alg_t alg)
 {
     return id_str_pair::lookup(botan_alg_map, alg);
 }
+
+CRC24_Botan::CRC24_Botan()
+{
+    fn_ = Botan::HashFunction::create("CRC24");
+    if (!fn_) {
+        RNP_LOG("Error creating CRC24 object");
+        throw rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+    assert(3 == fn_->output_length());
+}
+
+CRC24_Botan::~CRC24_Botan()
+{
+}
+
+std::unique_ptr<CRC24_Botan>
+CRC24_Botan::create()
+{
+    return std::unique_ptr<CRC24_Botan>(new CRC24_Botan());
+}
+
+void
+CRC24_Botan::add(const void *buf, size_t len)
+{
+    if (!fn_) {
+        throw rnp_exception(RNP_ERROR_NULL_POINTER);
+    }
+    fn_->update(static_cast<const uint8_t *>(buf), len);
+}
+
+std::array<uint8_t, 3>
+CRC24_Botan::finish()
+{
+    if (!fn_) {
+        throw rnp_exception(RNP_ERROR_NULL_POINTER);
+    }
+    std::array<uint8_t, 3> crc;
+    fn_->final(crc.data());
+    fn_ = nullptr;
+    return crc;
+}
+
 } // namespace rnp

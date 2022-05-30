@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -36,7 +36,8 @@
  * @param hash_alg the digest algo to be used
  * @param hash digest object that will be initialized
  */
-void signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg, rnp::Hash &hash);
+std::unique_ptr<rnp::Hash> signature_init(const pgp_key_material_t &key,
+                                          pgp_hash_alg_t            hash_alg);
 
 /**
  * @brief Calculate signature with pre-populated hash

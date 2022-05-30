@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1267,9 +1267,9 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
             RNP_LOG("Failed to write s_exp");
             return false;
         }
-        rnp::Hash hash(PGP_HASH_SHA1);
-        hash.add(memdst.memory(), memdst.writeb());
-        hash.finish(checksum);
+        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+        hash->add(memdst.memory(), memdst.writeb());
+        hash->finish(checksum);
         return true;
     } catch (const std::exception &e) {
         RNP_LOG("Failed to build s_exp: %s", e.what());

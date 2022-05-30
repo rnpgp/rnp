@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -566,11 +566,11 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         /* calculate and check sha1 hash of the cleartext */
         uint8_t hval[PGP_SHA1_HASH_SIZE];
         try {
-            rnp::Hash hash(PGP_HASH_SHA1);
-            assert(hash.size() == sizeof(hval));
+            auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+            assert(hash->size() == sizeof(hval));
             len -= PGP_SHA1_HASH_SIZE;
-            hash.add(mpis, len);
-            if (hash.finish(hval) != PGP_SHA1_HASH_SIZE) {
+            hash->add(mpis, len);
+            if (hash->finish(hval) != PGP_SHA1_HASH_SIZE) {
                 return RNP_ERROR_BAD_STATE;
             }
         } catch (const std::exception &e) {
@@ -762,11 +762,11 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     }
 
     /* add sha1 hash */
-    rnp::Hash hash(PGP_HASH_SHA1);
-    hash.add(body.data(), body.size());
+    auto hash = rnp::Hash::create(PGP_HASH_SHA1);
+    hash->add(body.data(), body.size());
     uint8_t hval[PGP_SHA1_HASH_SIZE];
-    assert(sizeof(hval) == hash.size());
-    if (hash.finish(hval) != PGP_SHA1_HASH_SIZE) {
+    assert(sizeof(hval) == hash->size());
+    if (hash->finish(hval) != PGP_SHA1_HASH_SIZE) {
         RNP_LOG("failed to finish hash");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }

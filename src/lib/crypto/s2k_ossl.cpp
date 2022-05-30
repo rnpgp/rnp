@@ -62,24 +62,24 @@ pgp_s2k_iterated(pgp_hash_alg_t alg,
 
         while (output_len) {
             /* create hash context */
-            rnp::Hash hash(alg);
+            auto hash = rnp::Hash::create(alg);
             /* add leading zeroes */
             for (size_t z = 0; z < zeroes; z++) {
                 uint8_t zero = 0;
-                hash.add(&zero, 1);
+                hash->add(&zero, 1);
             }
             if (!data.empty()) {
                 /* if iteration is 1 then still hash the whole data chunk */
                 size_t left = std::max(data.size(), iterations);
                 while (left) {
                     size_t to_hash = std::min(left, data.size());
-                    hash.add(data.data(), to_hash);
+                    hash->add(data.data(), to_hash);
                     left -= to_hash;
                 }
             }
             rnp::secure_vector<uint8_t> dgst(hash_len);
             size_t                      out_cpy = std::min(dgst.size(), output_len);
-            if (hash.finish(dgst.data()) != dgst.size()) {
+            if (hash->finish(dgst.data()) != dgst.size()) {
                 RNP_LOG("Unexpected digest size.");
                 return 1;
             }
