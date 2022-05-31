@@ -27,8 +27,7 @@
 #ifndef RNP_SIGNATURES_H_
 #define RNP_SIGNATURES_H_
 
-#include "types.h"
-#include "crypto/hash.h"
+#include "crypto/hash.hpp"
 
 /**
  * @brief Initialize a signature computation.

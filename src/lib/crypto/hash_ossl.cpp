@@ -30,7 +30,6 @@
 #include <cassert>
 #include <openssl/err.h>
 #include "config.h"
-#include "hash.h"
 #include "types.h"
 #include "utils.h"
 #include "str-utils.h"
@@ -70,7 +69,7 @@ Hash_OpenSSL::Hash_OpenSSL(pgp_hash_alg_t alg) : Hash(alg)
         EVP_MD_CTX_free(fn_);
         throw rnp_exception(RNP_ERROR_BAD_STATE);
     }
-    assert(size_ == EVP_MD_size(hash_tp));
+    assert(size_ == (size_t) EVP_MD_size(hash_tp));
 }
 
 Hash_OpenSSL::Hash_OpenSSL(const Hash_OpenSSL &src) : Hash(src.alg_)

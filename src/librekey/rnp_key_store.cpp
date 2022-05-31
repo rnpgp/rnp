@@ -57,7 +57,7 @@
 
 #include "pgp-key.h"
 #include "fingerprint.h"
-#include "crypto/hash.h"
+#include "crypto/hash.hpp"
 #include "crypto/mem.h"
 #include "file-utils.h"
 #ifdef _WIN32

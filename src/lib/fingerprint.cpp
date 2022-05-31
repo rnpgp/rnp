@@ -31,7 +31,7 @@
 
 #include <string.h>
 #include "fingerprint.h"
-#include "crypto/hash.h"
+#include "crypto/hash.hpp"
 #include <librepgp/stream-key.h>
 #include <librepgp/stream-sig.h>
 #include <librepgp/stream-packet.h>

@@ -27,7 +27,7 @@
 #ifndef CRYPTO_HASH_SHA1CD_HPP_
 #define CRYPTO_HASH_SHA1CD_HPP_
 
-#include "hash.h"
+#include "hash.hpp"
 #include "sha1cd/sha1.h"
 
 namespace rnp {
