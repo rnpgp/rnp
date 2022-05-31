@@ -25,7 +25,7 @@
  */
 
 #include "config.h"
-#include "hash.h"
+#include "hash.hpp"
 #include "types.h"
 #include "utils.h"
 #include "str-utils.h"

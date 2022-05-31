@@ -30,7 +30,6 @@
 #include "ffi-priv-types.h"
 #include "rnp_tests.h"
 #include "support.h"
-#include "crypto/hash.h"
 #include <fstream>
 
 TEST_F(rnp_tests, test_key_unlock_pgp)

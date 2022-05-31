@@ -26,7 +26,6 @@
 
 #include <string.h>
 #include "sm2.h"
-#include "hash.h"
 #include "utils.h"
 
 rnp_result_t

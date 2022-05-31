@@ -80,7 +80,6 @@
 #include <botan/ffi.h>
 #include "hash_botan.hpp"
 #include "crypto/rsa.h"
-#include "hash.h"
 #include "config.h"
 #include "utils.h"
 #include "bn.h"

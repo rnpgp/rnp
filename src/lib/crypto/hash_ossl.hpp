@@ -27,7 +27,7 @@
 #ifndef CRYPTO_HASH_OSSL_HPP_
 #define CRYPTO_HASH_OSSL_HPP_
 
-#include "hash.h"
+#include "hash.hpp"
 #include <openssl/evp.h>
 
 namespace rnp {

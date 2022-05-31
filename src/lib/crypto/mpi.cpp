@@ -27,7 +27,6 @@
 #include <string.h>
 #include <stdlib.h>
 #include "mpi.h"
-#include "hash.h"
 #include "mem.h"
 #include "utils.h"
 

@@ -80,7 +80,6 @@
 #include <botan/ffi.h>
 #include <rnp/rnp_def.h>
 #include "dsa.h"
-#include "hash.h"
 #include "bn.h"
 #include "utils.h"
 

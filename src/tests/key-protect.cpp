@@ -29,7 +29,6 @@
 
 #include "rnp_tests.h"
 #include "support.h"
-#include "crypto/hash.h"
 #include "crypto.h"
 
 /* This test loads a .gpg keyring and tests protect/unprotect functionality.

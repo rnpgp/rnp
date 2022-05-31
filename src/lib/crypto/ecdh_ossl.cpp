@@ -29,7 +29,7 @@
 #include "ecdh.h"
 #include "ecdh_utils.h"
 #include "ec_ossl.h"
-#include "hash.h"
+#include "hash.hpp"
 #include "symmetric.h"
 #include "types.h"
 #include "utils.h"

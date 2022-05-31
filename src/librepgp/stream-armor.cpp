@@ -34,13 +34,11 @@
 #endif
 #include <string.h>
 #include <algorithm>
-#include <rnp/rnp_def.h>
 #include "stream-def.h"
 #include "stream-armor.h"
 #include "stream-packet.h"
 #include "str-utils.h"
-#include "crypto/hash.h"
-#include "types.h"
+#include "crypto/hash.hpp"
 #include "utils.h"
 
 #define ARMORED_BLOCK_SIZE (4096)

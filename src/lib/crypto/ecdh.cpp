@@ -29,7 +29,6 @@
 #include "hash_botan.hpp"
 #include "ecdh.h"
 #include "ecdh_utils.h"
-#include "hash.h"
 #include "symmetric.h"
 #include "types.h"
 #include "utils.h"
