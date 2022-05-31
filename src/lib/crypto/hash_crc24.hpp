@@ -27,7 +27,7 @@
 #ifndef CRYPTO_HASH_CRC24_HPP_
 #define CRYPTO_HASH_CRC24_HPP_
 
-#include "hash.h"
+#include "hash.hpp"
 
 namespace rnp {
 class CRC24_RNP : public CRC24 {

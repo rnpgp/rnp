@@ -27,7 +27,7 @@
 #ifndef CRYPTO_HASH_BOTAN_HPP_
 #define CRYPTO_HASH_BOTAN_HPP_
 
-#include "hash.h"
+#include "hash.hpp"
 #include <botan/hash.h>
 
 namespace rnp {

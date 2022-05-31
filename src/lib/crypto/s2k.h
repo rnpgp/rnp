@@ -32,7 +32,7 @@
 #define RNP_S2K_H_
 
 #include <cstdint>
-#include "hash.h"
+#include "repgp/repgp_def.h"
 
 typedef struct pgp_s2k_t pgp_s2k_t;
 

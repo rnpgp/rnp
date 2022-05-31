@@ -28,6 +28,7 @@
 #include <vector>
 #include <algorithm>
 #include <openssl/evp.h>
+#include "hash.hpp"
 #include "s2k.h"
 #include "mem.h"
 #include "logging.h"
