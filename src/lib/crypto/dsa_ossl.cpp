@@ -30,7 +30,6 @@
 #include "bn.h"
 #include "dsa.h"
 #include "dl_ossl.h"
-#include "hash.h"
 #include "utils.h"
 #include <openssl/dsa.h>
 #include <openssl/dh.h>

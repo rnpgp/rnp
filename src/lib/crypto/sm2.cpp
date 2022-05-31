@@ -28,7 +28,6 @@
 #include <botan/ffi.h>
 #include "hash_botan.hpp"
 #include "sm2.h"
-#include "hash.h"
 #include "utils.h"
 #include "bn.h"
 

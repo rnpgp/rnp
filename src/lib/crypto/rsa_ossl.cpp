@@ -27,7 +27,6 @@
 #include <string>
 #include <cstring>
 #include "crypto/rsa.h"
-#include "hash.h"
 #include "config.h"
 #include "utils.h"
 #include "bn.h"

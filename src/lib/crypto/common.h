@@ -42,7 +42,7 @@
 /* symmetric crypto */
 #include "symmetric.h"
 /* hash */
-#include "hash.h"
+#include "hash.hpp"
 /* s2k */
 #include "s2k.h"
 /* backend name and version */
