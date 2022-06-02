@@ -2157,6 +2157,26 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_output_to_stdout(rnp_output_t *output)
+try {
+    if (!output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    rnp_output_t res = (rnp_output_t) calloc(1, sizeof(*res));
+    if (!res) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    rnp_result_t ret = init_stdout_dest(&res->dst);
+    if (ret) {
+        free(res);
+        return ret;
+    }
+    *output = res;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_output_to_memory(rnp_output_t *output, size_t max_alloc)
 try {
     // checks
