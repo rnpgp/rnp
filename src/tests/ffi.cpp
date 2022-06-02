@@ -2818,6 +2818,26 @@ TEST_F(rnp_tests, test_ffi_file_output)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_ffi_stdout_output)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    assert_true(load_keys_gpg(ffi, "data/test_stream_key_load/ecc-p256-pub.asc"));
+
+    rnp_key_handle_t k256 = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &k256));
+
+    rnp_output_t output = NULL;
+    assert_rnp_failure(rnp_output_to_stdout(NULL));
+    assert_rnp_success(rnp_output_to_stdout(&output));
+    assert_rnp_success(rnp_key_export(
+      k256, output, RNP_KEY_EXPORT_PUBLIC | RNP_KEY_EXPORT_ARMORED | RNP_KEY_EXPORT_SUBKEYS));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_key_handle_destroy(k256));
+    rnp_ffi_destroy(ffi);
+}
+
 /* shrink the length to 1 packet
  * set packet length type as PGP_PTAG_OLD_LEN_1 and remove one octet from length header
  */

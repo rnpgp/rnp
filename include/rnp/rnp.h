@@ -2578,6 +2578,15 @@ RNP_API rnp_result_t rnp_output_to_file(rnp_output_t *output,
                                         uint32_t      flags);
 
 /**
+ * @brief Initialize structure to write to the stdout.
+ *
+ * @param output pointer to the opaque output structure. After use you must free it using the
+ *               rnp_output_destroy() function.
+ * @return RNP_SUCCESS if output was initialized successfully or error code otherwise.
+ */
+RNP_API rnp_result_t rnp_output_to_stdout(rnp_output_t *output);
+
+/**
  * @brief Initialize output structure to write to the memory.
  *
  * @param output pointer to the opaque output structure.

@@ -2054,19 +2054,6 @@ stdin_reader(void *app_ctx, void *buf, size_t len, size_t *readres)
     return true;
 }
 
-/* This produces
-   runtime error: call to function stdout_writer(void*, void const*, unsigned long) through
-   pointer to incorrect function type 'bool (*)(void *, const void *, unsigned long)' */
-#if defined(__clang__)
-__attribute__((no_sanitize("undefined")))
-#endif
-static bool
-stdout_writer(void *app_ctx, const void *buf, size_t len)
-{
-    ssize_t wlen = write(STDOUT_FILENO, buf, len);
-    return (wlen >= 0) && (size_t) wlen == len;
-}
-
 static bool
 is_stdinout_spec(const std::string &spec)
 {
@@ -2114,7 +2101,7 @@ cli_rnp_output_to_specifier(cli_rnp_t &rnp, const std::string &spec, bool discar
     if (discard) {
         res = rnp_output_to_null(&output);
     } else if (is_stdinout_spec(spec)) {
-        res = rnp_output_to_callback(&output, stdout_writer, NULL, NULL);
+        res = rnp_output_to_stdout(&output);
     } else if (!rnp_get_output_filename(spec, path, rnp)) {
         if (spec.empty()) {
             ERR_MSG("Operation failed: no output filename specified");
