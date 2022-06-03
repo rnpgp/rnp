@@ -405,23 +405,15 @@ TEST_F(rnp_tests, test_ffi_clear_keys)
 
 TEST_F(rnp_tests, test_ffi_save_keys)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_output_t output = NULL;
-    char *       temp_dir = NULL;
-    char *       pub_path = NULL;
-    char *       sec_path = NULL;
-    char *       both_path = NULL;
-    size_t       count;
-
-    temp_dir = make_temp_dir();
-
+    rnp_ffi_t ffi = NULL;
     // setup FFI
     test_ffi_init(&ffi);
+    char *temp_dir = make_temp_dir();
     // save pubring
-    pub_path = rnp_compose_path(temp_dir, "pubring.gpg", NULL);
-    assert_false(rnp_file_exists(pub_path));
-    assert_rnp_success(rnp_output_to_path(&output, pub_path));
+    auto pub_path = rnp::path::append(temp_dir, "pubring.gpg");
+    assert_false(rnp::path::exists(pub_path));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, pub_path.c_str()));
     assert_rnp_failure(rnp_save_keys(NULL, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, NULL, output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_failure(rnp_save_keys(ffi, "GPG", NULL, RNP_LOAD_SAVE_PUBLIC_KEYS));
@@ -430,26 +422,26 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(pub_path));
+    assert_true(rnp::path::exists(pub_path));
     // save secring
-    sec_path = rnp_compose_path(temp_dir, "secring.gpg", NULL);
-    assert_false(rnp_file_exists(sec_path));
-    assert_rnp_success(rnp_output_to_path(&output, sec_path));
+    auto sec_path = rnp::path::append(temp_dir, "secring.gpg");
+    assert_false(rnp::path::exists(sec_path));
+    assert_rnp_success(rnp_output_to_path(&output, sec_path.c_str()));
     assert_rnp_success(rnp_save_keys(ffi, "GPG", output, RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(sec_path));
+    assert_true(rnp::path::exists(sec_path));
     // save pubring && secring
-    both_path = rnp_compose_path(temp_dir, "bothring.gpg", NULL);
-    assert_false(rnp_file_exists(both_path));
-    assert_rnp_success(rnp_output_to_path(&output, both_path));
+    auto both_path = rnp::path::append(temp_dir, "bothring.gpg");
+    assert_false(rnp::path::exists(both_path));
+    assert_rnp_success(rnp_output_to_path(&output, both_path.c_str()));
     assert_int_equal(
       RNP_SUCCESS,
       rnp_save_keys(
         ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(both_path));
+    assert_true(rnp::path::exists(both_path));
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
@@ -458,7 +450,7 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     // load pubring & secring
     assert_true(load_keys_gpg(ffi, pub_path, sec_path));
     // check the counts
-    count = 0;
+    size_t count = 0;
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(7, count);
     count = 0;
@@ -470,7 +462,8 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     // load both keyrings from the single file
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     // load pubring
-    assert_rnp_success(rnp_input_from_path(&input, both_path));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, both_path.c_str()));
     assert_non_null(input);
     assert_int_equal(
       RNP_SUCCESS,
@@ -488,9 +481,6 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
-    free(pub_path);
-    free(sec_path);
-    free(both_path);
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
@@ -498,28 +488,27 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     assert_true(load_keys_kbx_g10(
       ffi, "data/keyrings/3/pubring.kbx", "data/keyrings/3/private-keys-v1.d"));
     // save pubring
-    pub_path = rnp_compose_path(temp_dir, "pubring.kbx", NULL);
-    assert_rnp_success(rnp_output_to_path(&output, pub_path));
+    pub_path = rnp::path::append(temp_dir, "pubring.kbx");
+    assert_rnp_success(rnp_output_to_path(&output, pub_path.c_str()));
     assert_rnp_success(rnp_save_keys(ffi, "KBX", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(pub_path));
+    assert_true(rnp::path::exists(pub_path));
     // save secring to file - will fail for G10
-    sec_path = rnp_compose_path(temp_dir, "secring.file", NULL);
-    assert_rnp_success(rnp_output_to_path(&output, sec_path));
+    sec_path = rnp::path::append(temp_dir, "secring.file");
+    assert_rnp_success(rnp_output_to_path(&output, sec_path.c_str()));
     assert_rnp_failure(rnp_save_keys(ffi, "G10", output, RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    free(sec_path);
     // save secring
-    sec_path = rnp_compose_path(temp_dir, "private-keys-v1.d", NULL);
-    assert_false(rnp_dir_exists(sec_path));
-    assert_int_equal(0, RNP_MKDIR(sec_path, S_IRWXU));
-    assert_rnp_success(rnp_output_to_path(&output, sec_path));
+    sec_path = rnp::path::append(temp_dir, "private-keys-v1.d");
+    assert_false(rnp::path::exists(sec_path, true));
+    assert_int_equal(0, RNP_MKDIR(sec_path.c_str(), S_IRWXU));
+    assert_rnp_success(rnp_output_to_path(&output, sec_path.c_str()));
     assert_rnp_success(rnp_save_keys(ffi, "G10", output, RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_dir_exists(sec_path));
+    assert_true(rnp::path::exists(sec_path, true));
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
@@ -536,9 +525,6 @@ TEST_F(rnp_tests, test_ffi_save_keys)
     assert_int_equal(2, count);
     // cleanup
     rnp_ffi_destroy(ffi);
-    ffi = NULL;
-    free(pub_path);
-    free(sec_path);
 
     // final cleanup
     free(temp_dir);
@@ -546,37 +532,32 @@ TEST_F(rnp_tests, test_ffi_save_keys)
 
 TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
 {
-    rnp_ffi_t    ffi = NULL;
-    rnp_input_t  input = NULL;
-    rnp_output_t output = NULL;
-    char *       temp_dir = NULL;
-    char *       pub_path = NULL;
-    char *       sec_path = NULL;
-    char *       both_path = NULL;
-    size_t       count;
-    const char   kbx_pubring_utf8_filename[] = "pubring_\xC2\xA2.kbx";
-    const char   g10_secring_utf8_dirname[] = "private-keys-\xC2\xA2.d";
-    const char   utf8_filename[] = "bothring_\xC2\xA2.gpg";
-    temp_dir = make_temp_dir();
+    const char kbx_pubring_utf8_filename[] = "pubring_\xC2\xA2.kbx";
+    const char g10_secring_utf8_dirname[] = "private-keys-\xC2\xA2.d";
+    const char utf8_filename[] = "bothring_\xC2\xA2.gpg";
 
     // setup FFI
+    rnp_ffi_t ffi = NULL;
     test_ffi_init(&ffi);
+    auto temp_dir = make_temp_dir();
     // save pubring && secring
-    both_path = rnp_compose_path(temp_dir, utf8_filename, NULL);
-    assert_false(rnp_file_exists(both_path));
-    assert_rnp_success(rnp_output_to_path(&output, both_path));
+    auto both_path = rnp::path::append(temp_dir, utf8_filename);
+    assert_false(rnp::path::exists(both_path));
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_path(&output, both_path.c_str()));
     assert_rnp_success(rnp_save_keys(
       ffi, "GPG", output, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(both_path));
+    assert_true(rnp::path::exists(both_path));
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
     // start over (read from the saved locations)
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     // load both keyrings from the single file
-    assert_rnp_success(rnp_input_from_path(&input, both_path));
+    rnp_input_t input = NULL;
+    assert_rnp_success(rnp_input_from_path(&input, both_path.c_str()));
     assert_non_null(input);
     assert_rnp_success(
       rnp_load_keys(ffi, "GPG", input, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS));
@@ -584,7 +565,7 @@ TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
     input = NULL;
     // check the counts. We should get both secret and public keys, since public keys are
     // extracted from the secret ones.
-    count = 0;
+    size_t count = 0;
     assert_rnp_success(rnp_get_public_key_count(ffi, &count));
     assert_int_equal(7, count);
     count = 0;
@@ -593,9 +574,6 @@ TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
-    free(pub_path);
-    free(sec_path);
-    free(both_path);
 
     // setup FFI
     assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
@@ -603,21 +581,21 @@ TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
     assert_true(load_keys_kbx_g10(
       ffi, "data/keyrings/3/pubring.kbx", "data/keyrings/3/private-keys-v1.d"));
     // save pubring
-    pub_path = rnp_compose_path(temp_dir, kbx_pubring_utf8_filename, NULL);
-    assert_rnp_success(rnp_output_to_path(&output, pub_path));
+    auto pub_path = rnp::path::append(temp_dir, kbx_pubring_utf8_filename);
+    assert_rnp_success(rnp_output_to_path(&output, pub_path.c_str()));
     assert_rnp_success(rnp_save_keys(ffi, "KBX", output, RNP_LOAD_SAVE_PUBLIC_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_file_exists(pub_path));
+    assert_true(rnp::path::exists(pub_path));
     // save secring
-    sec_path = rnp_compose_path(temp_dir, g10_secring_utf8_dirname, NULL);
-    assert_false(rnp_dir_exists(sec_path));
-    assert_int_equal(0, RNP_MKDIR(sec_path, S_IRWXU));
-    assert_rnp_success(rnp_output_to_path(&output, sec_path));
+    auto sec_path = rnp::path::append(temp_dir, g10_secring_utf8_dirname);
+    assert_false(rnp::path::exists(sec_path, true));
+    assert_int_equal(0, RNP_MKDIR(sec_path.c_str(), S_IRWXU));
+    assert_rnp_success(rnp_output_to_path(&output, sec_path.c_str()));
     assert_rnp_success(rnp_save_keys(ffi, "G10", output, RNP_LOAD_SAVE_SECRET_KEYS));
     assert_rnp_success(rnp_output_destroy(output));
     output = NULL;
-    assert_true(rnp_dir_exists(sec_path));
+    assert_true(rnp::path::exists(sec_path, true));
     // cleanup
     rnp_ffi_destroy(ffi);
     ffi = NULL;
@@ -634,9 +612,6 @@ TEST_F(rnp_tests, test_ffi_load_save_keys_to_utf8_path)
     assert_int_equal(2, count);
     // cleanup
     rnp_ffi_destroy(ffi);
-    ffi = NULL;
-    free(pub_path);
-    free(sec_path);
 
     // final cleanup
     free(temp_dir);
