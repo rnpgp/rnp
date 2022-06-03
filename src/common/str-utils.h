@@ -46,6 +46,7 @@ bool str_case_eq(const std::string &s1, const std::string &s2);
  */
 char *lowercase(char *s);
 bool  str_to_int(const std::string &s, int &val);
+bool  is_slash(char c);
 } // namespace rnp
 #ifdef _WIN32
 #include <string>

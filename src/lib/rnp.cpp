@@ -821,7 +821,8 @@ try {
     if (!home) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    if (!rnp_compose_path_ex(homedir, NULL, home, ".rnp", NULL)) {
+    *homedir = strdup(rnp::path::append(home, ".rnp").c_str());
+    if (!*homedir) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
@@ -832,10 +833,6 @@ rnp_result_t
 rnp_detect_homedir_info(
   const char *homedir, char **pub_format, char **pub_path, char **sec_format, char **sec_path)
 try {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    char *       path = NULL;
-    size_t       path_size = 0;
-
     // checks
     if (!homedir || !pub_format || !pub_path || !sec_format || !sec_path) {
         return RNP_ERROR_NULL_POINTER;
@@ -849,79 +846,44 @@ try {
     *sec_format = NULL;
     *sec_path = NULL;
 
-    const char *pub_format_guess = NULL;
-    const char *pub_path_guess = NULL;
-    const char *sec_format_guess = NULL;
-    const char *sec_path_guess = NULL;
-    // check for pubring.kbx file
-    if (!rnp_compose_path_ex(&path, &path_size, homedir, "pubring.kbx", NULL)) {
-        goto done;
-    }
-    if (rnp_file_exists(path)) {
-        // we have a pubring.kbx, now check for private-keys-v1.d dir
-        if (!rnp_compose_path_ex(&path, &path_size, homedir, "private-keys-v1.d", NULL)) {
-            goto done;
-        }
-        if (rnp_dir_exists(path)) {
-            pub_format_guess = "KBX";
-            pub_path_guess = "pubring.kbx";
-            sec_format_guess = "G10";
-            sec_path_guess = "private-keys-v1.d";
-        }
+    // check for pubring.kbx file and for private-keys-v1.d dir
+    std::string pub = rnp::path::append(homedir, "pubring.kbx");
+    std::string sec = rnp::path::append(homedir, "private-keys-v1.d");
+    if (rnp::path::exists(pub) && rnp::path::exists(sec, true)) {
+        *pub_format = strdup("KBX");
+        *sec_format = strdup("G10");
     } else {
-        // check for pubring.gpg
-        if (!rnp_compose_path_ex(&path, &path_size, homedir, "pubring.gpg", NULL)) {
-            goto done;
-        }
-        if (rnp_file_exists(path)) {
-            // we have a pubring.gpg, now check for secring.gpg
-            if (!rnp_compose_path_ex(&path, &path_size, homedir, "secring.gpg", NULL)) {
-                goto done;
-            }
-            if (rnp_file_exists(path)) {
-                pub_format_guess = "GPG";
-                pub_path_guess = "pubring.gpg";
-                sec_format_guess = "GPG";
-                sec_path_guess = "secring.gpg";
-            }
+        // check for pubring.gpg and secring.gpg
+        pub = rnp::path::append(homedir, "pubring.gpg");
+        sec = rnp::path::append(homedir, "secring.gpg");
+        if (rnp::path::exists(pub) && rnp::path::exists(sec)) {
+            *pub_format = strdup("GPG");
+            *sec_format = strdup("GPG");
+        } else {
+            // we leave the *formats as NULL if we were not able to determine the format
+            // (but no error occurred)
+            return RNP_SUCCESS;
         }
     }
 
-    // set our results
-    if (pub_format_guess) {
-        *pub_format = strdup(pub_format_guess);
-        *pub_path = rnp_compose_path(homedir, pub_path_guess, NULL);
-        if (!*pub_format || !*pub_path) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-    }
-    if (sec_format_guess) {
-        *sec_format = strdup(sec_format_guess);
-        *sec_path = rnp_compose_path(homedir, sec_path_guess, NULL);
-        if (!*sec_format || !*sec_path) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-    }
-    // we leave the *formats as NULL if we were not able to determine the format
-    // (but no error occurred)
+    // set pathes
+    *pub_path = strdup(pub.c_str());
+    *sec_path = strdup(sec.c_str());
 
-    ret = RNP_SUCCESS;
-done:
-    if (ret) {
-        free(*pub_format);
-        *pub_format = NULL;
-        free(*pub_path);
-        *pub_path = NULL;
-
-        free(*sec_format);
-        *sec_format = NULL;
-        free(*sec_path);
-        *sec_path = NULL;
+    // check for allocation failures
+    if (*pub_format && *pub_path && *sec_format && *sec_path) {
+        return RNP_SUCCESS;
     }
-    free(path);
-    return ret;
+
+    free(*pub_format);
+    *pub_format = NULL;
+    free(*pub_path);
+    *pub_path = NULL;
+    free(*sec_format);
+    *sec_format = NULL;
+    free(*sec_path);
+    *sec_path = NULL;
+    return RNP_ERROR_OUT_OF_MEMORY;
 }
 FFI_GUARD
 
