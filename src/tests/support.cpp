@@ -235,22 +235,22 @@ delete_recursively(const char *path)
 #else
       *path != '/';
 #endif
-    char *fullpath = const_cast<char *>(path);
+    std::string fullpath = path;
     if (relative) {
         char *cwd = getcwd(NULL, 0);
-        fullpath = rnp_compose_path(cwd, path, NULL);
+        fullpath = rnp::path::append(cwd, fullpath);
         free(cwd);
     }
     /* sanity check, we should only be purging things from /tmp/ */
-    assert_true(is_tmp_path(fullpath));
+    assert_true(is_tmp_path(fullpath.c_str()));
 
 #ifdef WINSHELLAPI
     SHFILEOPSTRUCTA fileOp = {};
     fileOp.fFlags = FOF_NOCONFIRMATION;
-    assert_true(strlen(fullpath) < MAX_PATH);
+    assert_true(fullpath.size() < MAX_PATH);
     char newFrom[MAX_PATH + 1];
-    strcpy_s(newFrom, fullpath);
-    newFrom[strlen(fullpath) + 1] = NULL; // two NULLs are required
+    strcpy_s(newFrom, fullpath.c_str());
+    newFrom[fullpath.size() + 1] = NULL; // two NULLs are required
     fileOp.pFrom = newFrom;
     fileOp.pTo = NULL;
     fileOp.wFunc = FO_DELETE;
@@ -260,9 +260,6 @@ delete_recursively(const char *path)
     assert_int_equal(0, SHFileOperationA(&fileOp));
 #else
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
-    if (*path != '/') {
-        free(fullpath);
-    }
 #endif
 }
 
