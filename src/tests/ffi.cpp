@@ -78,6 +78,34 @@ TEST_F(rnp_tests, test_ffi_homedir)
     // check paths
     assert_string_equal(pub_path, "data/keyrings/1/pubring.gpg");
     assert_string_equal(sec_path, "data/keyrings/1/secring.gpg");
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
+// detect windows-style slashes
+#ifdef _WIN32
+    assert_rnp_success(rnp_detect_homedir_info(
+      "data\\keyrings\\1", &pub_format, &pub_path, &sec_format, &sec_path));
+    // check formats
+    assert_string_equal(pub_format, "GPG");
+    assert_string_equal(sec_format, "GPG");
+    // check paths
+    assert_string_equal(pub_path, "data\\keyrings\\1\\pubring.gpg");
+    assert_string_equal(sec_path, "data\\keyrings\\1\\secring.gpg");
+    rnp_buffer_destroy(pub_format);
+    rnp_buffer_destroy(pub_path);
+    rnp_buffer_destroy(sec_format);
+    rnp_buffer_destroy(sec_path);
+#endif
+    // detect with the trailing slash
+    assert_rnp_success(rnp_detect_homedir_info(
+      "data/keyrings/1/", &pub_format, &pub_path, &sec_format, &sec_path));
+    // check formats
+    assert_string_equal(pub_format, "GPG");
+    assert_string_equal(sec_format, "GPG");
+    // check paths
+    assert_string_equal(pub_path, "data/keyrings/1/pubring.gpg");
+    assert_string_equal(sec_path, "data/keyrings/1/secring.gpg");
     // setup FFI with wrong parameters
     assert_rnp_failure(rnp_ffi_create(NULL, "GPG", "GPG"));
     assert_rnp_failure(rnp_ffi_create(&ffi, "GPG", NULL));

@@ -65,7 +65,6 @@ std::string rnp_readdir_name(DIR *dir);
 #endif
 
 char *rnp_compose_path(const char *first, ...);
-char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
 
 /** @private
  *  generate a temporary file name based on TMPL.  TMPL must match the
@@ -77,5 +76,13 @@ char *rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...);
  *  @return file descriptor of newly created and opened file, or -1 on error
  **/
 int rnp_mkstemp(char *tmpl);
+
+namespace rnp {
+namespace path {
+inline char separator();
+bool        exists(const std::string &path, bool is_dir = false);
+std::string append(const std::string &path, const std::string &name);
+} // namespace path
+} // namespace rnp
 
 #endif
