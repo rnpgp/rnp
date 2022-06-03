@@ -123,6 +123,12 @@ str_to_int(const std::string &s, int &val)
     return true;
 }
 
+bool
+is_slash(char c)
+{
+    return (c == '/') || (c == '\\');
+}
+
 } // namespace rnp
 
 #ifdef _WIN32
