@@ -39,9 +39,10 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #endif // !_MSC_VER
+#include "str-utils.h"
+#include <algorithm>
 #ifdef _WIN32
 #include <random> // for rnp_mkstemp
-#include "str-utils.h"
 #define CATCH_AND_RETURN(v) \
     catch (...)             \
     {                       \
@@ -359,41 +360,42 @@ rnp_compose_path(const char *first, ...)
     return path;
 }
 
-/** compose a path from one or more components
- *
- *  This version is useful when a function is composing
- *  multiple paths and wants to try to avoid unnecessary
- *  allocations.
- *
- *  Notes:
- *  - The final argument must be NULL.
- *  - The caller must free the returned buffer.
- *  - The returned buffer is always NULL-terminated.
- *
- *  @code
- *  char *buf = NULL;
- *  size_t buf_len = 0;
- *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", dir1, file1, NULL);
- *  // the calls below will realloc the buffer if needed
- *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", dir3, NULL);
- *  rnp_compose_path_ex(&buf, &buf_len, "/tmp", something, NULL);
- *  free(buf);
- *  @endcode
- *
- *  @param buf pointer to the buffer where the result will be stored.
- *         If buf is NULL, the caller must use the returned value.
- *         If *buf is NULL, a new buffer will be allocated.
- *  @param buf_len pointer to the allocated buffer size.
- *         Can be NULL.
- *  @param first the first path component
- *  @return the composed path buffer. The caller must free it.
- */
-char *
-rnp_compose_path_ex(char **buf, size_t *buf_len, const char *first, ...)
+namespace rnp {
+namespace path {
+inline char
+separator()
 {
-    va_list ap;
-    va_start(ap, first);
-    char *path = vcompose_path(buf, buf_len, first, ap);
-    va_end(ap);
-    return path;
+#ifdef _WIN32
+    return '\\';
+#else
+    return '/';
+#endif
 }
+
+bool
+exists(const std::string &path, bool is_dir)
+{
+    return is_dir ? rnp_dir_exists(path.c_str()) : rnp_file_exists(path.c_str());
+}
+
+static bool
+has_forward_slash(const std::string &path)
+{
+    return std::find(path.begin(), path.end(), '/') != path.end();
+}
+
+std::string
+append(const std::string &path, const std::string &name)
+{
+    bool no_sep = path.empty() || name.empty() || (rnp::is_slash(path.back())) ||
+                  (rnp::is_slash(name.front()));
+    if (no_sep) {
+        return path + name;
+    }
+    /* Use forward slash if there is at least one in the path/name. */
+    char sep = has_forward_slash(path) || has_forward_slash(name) ? '/' : separator();
+    return path + sep + name;
+}
+
+} // namespace path
+} // namespace rnp
