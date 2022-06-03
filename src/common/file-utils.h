@@ -64,8 +64,6 @@ std::string rnp_readdir_name(DIR *dir);
 #define F_OK 0 /* Test for existence.  */
 #endif
 
-char *rnp_compose_path(const char *first, ...);
-
 /** @private
  *  generate a temporary file name based on TMPL.  TMPL must match the
  *  rules for mk[s]temp (i.e. end in "XXXXXX").  The name constructed
