@@ -1306,7 +1306,7 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
     const pgp_key_provider_t key_provider = {.callback = rnp_key_provider_chained,
                                              .userdata = key_providers};
 
-    if (input->src_directory) {
+    if (!input->src_directory.empty()) {
         // load the keys
         store->path = input->src_directory;
         if (!rnp_key_store_load_from_path(store, &key_provider)) {
@@ -1487,7 +1487,7 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
     if (!input) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (input->src_directory) {
+    if (!input->src_directory.empty()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     bool require_armor = false;
@@ -1499,9 +1499,9 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
         }
         /* eof - probably next we have another armored message */
         src_close(&input->src);
-        void *app_ctx = input->app_ctx;
-        *input = *(rnp_input_t) app_ctx;
-        free(app_ctx);
+        rnp_input_st *base = (rnp_input_st *) input->app_ctx;
+        *input = std::move(*base);
+        delete base;
         /* we should not mix armored data with binary */
         require_armor = true;
     }
@@ -1513,22 +1513,17 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
         return require_armor ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
     }
 
-    rnp_input_t app_ctx = (rnp_input_t) calloc(1, sizeof(*input));
-    if (!app_ctx) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
-    *app_ctx = *input;
+    /* Store original input in app_ctx and replace src/app_ctx with armored data */
+    rnp_input_t app_ctx = new rnp_input_st();
+    *app_ctx = std::move(*input);
 
-    pgp_source_t armored;
-    rnp_result_t ret = init_armored_src(&armored, &app_ctx->src, noheaders);
+    rnp_result_t ret = init_armored_src(&input->src, &app_ctx->src, noheaders);
     if (ret) {
         /* original src may be changed during init_armored_src call, so copy it back */
-        input->src = app_ctx->src;
-        free(app_ctx);
+        *input = std::move(*app_ctx);
+        delete app_ctx;
         return ret;
     }
-
-    input->src = armored;
     input->app_ctx = app_ctx;
     return RNP_SUCCESS;
 }
@@ -1920,33 +1915,56 @@ try {
 }
 FFI_GUARD
 
+rnp_input_st::rnp_input_st() : reader(NULL), closer(NULL), app_ctx(NULL)
+{
+    memset(&src, 0, sizeof(src));
+}
+
+rnp_input_st &
+rnp_input_st::operator=(rnp_input_st &&input)
+{
+    src_close(&src);
+    src = std::move(input.src);
+    memset(&input.src, 0, sizeof(input.src));
+    reader = input.reader;
+    input.reader = NULL;
+    closer = input.closer;
+    input.closer = NULL;
+    app_ctx = input.app_ctx;
+    input.app_ctx = NULL;
+    src_directory = std::move(input.src_directory);
+    return *this;
+}
+
+rnp_input_st::~rnp_input_st()
+{
+    bool armored = src.type == PGP_STREAM_ARMORED;
+    src_close(&src);
+    if (armored) {
+        rnp_input_t armored = (rnp_input_t) app_ctx;
+        delete armored;
+        app_ctx = NULL;
+    }
+}
+
 rnp_result_t
 rnp_input_from_path(rnp_input_t *input, const char *path)
 try {
-    struct rnp_input_st *ob = NULL;
-    struct stat          st = {0};
-
     if (!input || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    ob = (rnp_input_st *) calloc(1, sizeof(*ob));
-    if (!ob) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    rnp_input_st *ob = new rnp_input_st();
+    struct stat   st = {0};
     if (rnp_stat(path, &st) == 0 && S_ISDIR(st.st_mode)) {
         // a bit hacky, just save the directory path
-        ob->src_directory = strdup(path);
-        if (!ob->src_directory) {
-            free(ob);
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
+        ob->src_directory = path;
         // return error on attempt to read from this source
         (void) init_null_src(&ob->src);
     } else {
         // simple input from a file
         rnp_result_t ret = init_file_src(&ob->src, path);
         if (ret) {
-            free(ob);
+            delete ob;
             return ret;
         }
     }
@@ -1964,15 +1982,12 @@ try {
     if (!buf_len) {
         return RNP_ERROR_SHORT_BUFFER;
     }
-    *input = (rnp_input_t) calloc(1, sizeof(**input));
-    if (!*input) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
+    *input = new rnp_input_st();
     uint8_t *data = (uint8_t *) buf;
     if (do_copy) {
         data = (uint8_t *) malloc(buf_len);
         if (!data) {
-            free(*input);
+            delete *input;
             *input = NULL;
             return RNP_ERROR_OUT_OF_MEMORY;
         }
@@ -1983,7 +1998,7 @@ try {
         if (do_copy) {
             free(data);
         }
-        free(*input);
+        delete *input;
         *input = NULL;
         return ret;
     }
@@ -2016,13 +2031,11 @@ rnp_input_from_callback(rnp_input_t *       input,
                         rnp_input_closer_t *closer,
                         void *              app_ctx)
 try {
-    struct rnp_input_st *obj = NULL;
-
     // checks
     if (!input || !reader) {
         return RNP_ERROR_NULL_POINTER;
     }
-    obj = (rnp_input_st *) calloc(1, sizeof(*obj));
+    rnp_input_st *obj = new rnp_input_st();
     if (!obj) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2031,7 +2044,7 @@ try {
     obj->closer = closer;
     obj->app_ctx = app_ctx;
     if (!init_src_common(src, 0)) {
-        free(obj);
+        delete obj;
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     src->param = obj;
@@ -2046,15 +2059,7 @@ FFI_GUARD
 rnp_result_t
 rnp_input_destroy(rnp_input_t input)
 try {
-    if (input) {
-        bool armored = input->src.type == PGP_STREAM_ARMORED;
-        src_close(&input->src);
-        if (armored) {
-            rnp_input_destroy((rnp_input_t) input->app_ctx);
-        }
-        free(input->src_directory);
-        free(input);
-    }
+    delete input;
     return RNP_SUCCESS;
 }
 FFI_GUARD
