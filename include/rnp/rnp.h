@@ -380,18 +380,19 @@ RNP_API rnp_result_t rnp_ffi_set_pass_provider(rnp_ffi_t       ffi,
  */
 RNP_API rnp_result_t rnp_get_default_homedir(char **homedir);
 
-/** try to detect the formats and paths of the homedir keyrings
- *
+/** Try to detect the formats and paths of the homedir keyrings.
  * @param homedir the path to the home directory (example: /home/user/.rnp)
  * @param pub_format pointer that will be set to the format of the public keyring.
  *        The caller should free this with rnp_buffer_destroy.
+ *        Note: this and below may be set to NULL in case of no known format is found.
  * @param pub_path pointer that will be set to the path to the public keyring.
  *        The caller should free this with rnp_buffer_destroy.
  * @param sec_format pointer that will be set to the format of the secret keyring.
  *        The caller should free this with rnp_buffer_destroy.
  * @param sec_path pointer that will be set to the path to the secret keyring.
  *        The caller should free this with rnp_buffer_destroy.
- * @return RNP_SUCCESS on success, or any other value on error
+ * @return RNP_SUCCESS on success (even if no known format was found), or any other value on
+ *         error.
  */
 RNP_API rnp_result_t rnp_detect_homedir_info(
   const char *homedir, char **pub_format, char **pub_path, char **sec_format, char **sec_path);
