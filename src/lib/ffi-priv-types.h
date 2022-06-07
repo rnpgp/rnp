@@ -89,10 +89,18 @@ struct rnp_ffi_st {
 struct rnp_input_st {
     /* either src or src_directory are valid, not both */
     pgp_source_t        src;
-    char *              src_directory;
+    std::string         src_directory;
     rnp_input_reader_t *reader;
     rnp_input_closer_t *closer;
     void *              app_ctx;
+
+    rnp_input_st();
+    rnp_input_st(const rnp_input_st &) = delete;
+    rnp_input_st(rnp_input_st &&) = delete;
+    ~rnp_input_st();
+
+    rnp_input_st &operator=(const rnp_input_st &) = delete;
+    rnp_input_st &operator=(rnp_input_st &&src);
 };
 
 struct rnp_output_st {
