@@ -36,7 +36,9 @@ static const id_str_pair botan_alg_map[] = {
   {PGP_HASH_SHA384, "SHA-384"},
   {PGP_HASH_SHA512, "SHA-512"},
   {PGP_HASH_SHA224, "SHA-224"},
+#if defined(ENABLE_SM2)
   {PGP_HASH_SM3, "SM3"},
+#endif
   {PGP_HASH_SHA3_256, "SHA-3(256)"},
   {PGP_HASH_SHA3_512, "SHA-3(512)"},
   {0, NULL},
