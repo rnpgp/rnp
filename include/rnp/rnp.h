@@ -2526,6 +2526,15 @@ RNP_API void rnp_buffer_clear(void *ptr, size_t size);
 RNP_API rnp_result_t rnp_input_from_path(rnp_input_t *input, const char *path);
 
 /**
+ * @brief Initialize input struct to read from the stdin
+ *
+ * @param input pointer to the input opaque structure
+ * @return RNP_SUCCESS if operation succeeded and input struct is ready to read, or error code
+ *         otherwise
+ */
+RNP_API rnp_result_t rnp_input_from_stdin(rnp_input_t *input);
+
+/**
  * @brief Initialize input struct to read from memory
  *
  * @param input pointer to the input opaque structure
