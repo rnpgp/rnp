@@ -2048,17 +2048,6 @@ cli_cfg_set_keystore_info(rnp_cfg &cfg)
 }
 
 static bool
-stdin_reader(void *app_ctx, void *buf, size_t len, size_t *readres)
-{
-    ssize_t res = read(STDIN_FILENO, buf, len);
-    if (res < 0) {
-        return false;
-    }
-    *readres = res;
-    return true;
-}
-
-static bool
 is_stdinout_spec(const std::string &spec)
 {
     return spec.empty() || (spec == "-");
@@ -2072,7 +2061,7 @@ cli_rnp_input_from_specifier(cli_rnp_t &rnp, const std::string &spec, bool *is_p
     bool         path = false;
     if (is_stdinout_spec(spec)) {
         /* input from stdin */
-        res = rnp_input_from_callback(&input, stdin_reader, NULL, NULL);
+        res = rnp_input_from_stdin(&input);
     } else if ((spec.size() > 4) && (spec.compare(0, 4, "env:") == 0)) {
         /* input from an environment variable */
         const char *envval = getenv(spec.c_str() + 4);
