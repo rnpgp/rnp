@@ -149,7 +149,7 @@ CRC24_Botan::finish()
     if (!fn_) {
         throw rnp_exception(RNP_ERROR_NULL_POINTER);
     }
-    std::array<uint8_t, 3> crc;
+    std::array<uint8_t, 3> crc{};
     fn_->final(crc.data());
     fn_ = nullptr;
     return crc;
