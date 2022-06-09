@@ -1832,34 +1832,6 @@ done:
     return res;
 }
 
-/** @brief compose path from dir, subdir and filename, and return it.
- *  @param dir [in] directory path
- *  @param subddir [in] subdirectory to add to the path, can be empty
- *  @param filename [in] filename (or path/filename)
- *
- *  @return constructed path
- **/
-static std::string
-rnp_path_compose(const std::string &dir,
-                 const std::string &subdir,
-                 const std::string &filename)
-{
-    std::string res = dir;
-    if (!subdir.empty()) {
-        if (!res.empty() && (res.back() != '/')) {
-            res.push_back('/');
-        }
-        res.append(subdir);
-    }
-
-    if (!res.empty() && (res.back() != '/')) {
-        res.push_back('/');
-    }
-
-    res.append(filename);
-    return res;
-}
-
 static bool
 rnp_cfg_set_ks_info(rnp_cfg &cfg)
 {
@@ -1881,67 +1853,77 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         defhomedir = true;
     }
 
+    /* Check whether $HOME or homedir exists */
     struct stat st;
-
     if (rnp_stat(homedir.c_str(), &st) || rnp_access(homedir.c_str(), R_OK | W_OK)) {
         ERR_MSG("Home directory '%s' does not exist or is not writable!", homedir.c_str());
         return false;
     }
 
-    /* detecting key storage format */
-    std::string subdir = defhomedir ? SUBDIRECTORY_RNP : "";
-    std::string pubpath;
-    std::string secpath;
-    std::string ks_format = cfg.get_str(CFG_KEYSTOREFMT);
-
-    if (ks_format.empty()) {
-        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
-        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
-
-        bool pubpath_exists = !rnp_stat(pubpath.c_str(), &st);
-        bool secpath_exists = !rnp_stat(secpath.c_str(), &st);
-
-        if (pubpath_exists && secpath_exists) {
-            ks_format = RNP_KEYSTORE_GPG21;
-        } else if (secpath_exists) {
-            ks_format = RNP_KEYSTORE_G10;
-        } else if (pubpath_exists) {
-            ks_format = RNP_KEYSTORE_KBX;
-        } else {
-            ks_format = RNP_KEYSTORE_GPG;
+    /* creating home dir if needed */
+    if (defhomedir) {
+        char *rnphome = NULL;
+        if (rnp_get_default_homedir(&rnphome)) {
+            ERR_MSG("Failed to obtain default home directory.");
+            return false;
+        }
+        homedir = rnphome;
+        rnp_buffer_destroy(rnphome);
+        if (!rnp::path::exists(homedir, true) && RNP_MKDIR(homedir.c_str(), 0700) == -1 &&
+            errno != EEXIST) {
+            ERR_MSG("cannot mkdir '%s' errno = %d", homedir.c_str(), errno);
+            return false;
         }
     }
 
-    /* creating home dir if needed */
-    if (!subdir.empty()) {
-        pubpath = rnp_path_compose(homedir, "", subdir);
-        if (RNP_MKDIR(pubpath.c_str(), 0700) == -1 && errno != EEXIST) {
-            ERR_MSG("cannot mkdir '%s' errno = %d", pubpath.c_str(), errno);
-            return false;
+    /* detecting key storage format */
+    std::string ks_format = cfg.get_str(CFG_KEYSTOREFMT);
+    if (ks_format.empty()) {
+        char *pub_format = NULL;
+        char *sec_format = NULL;
+        char *pubpath = NULL;
+        char *secpath = NULL;
+        rnp_detect_homedir_info(homedir.c_str(), &pub_format, &pubpath, &sec_format, &secpath);
+        bool detected = pub_format && sec_format && pubpath && secpath;
+        if (detected) {
+            cfg.set_str(CFG_KR_PUB_FORMAT, pub_format);
+            cfg.set_str(CFG_KR_SEC_FORMAT, sec_format);
+            cfg.set_str(CFG_KR_PUB_PATH, pubpath);
+            cfg.set_str(CFG_KR_SEC_PATH, secpath);
+        } else {
+            /* default to GPG */
+            ks_format = RNP_KEYSTORE_GPG;
+        }
+        rnp_buffer_destroy(pub_format);
+        rnp_buffer_destroy(sec_format);
+        rnp_buffer_destroy(pubpath);
+        rnp_buffer_destroy(secpath);
+        if (detected) {
+            return true;
         }
     }
 
     std::string pub_format = RNP_KEYSTORE_GPG;
     std::string sec_format = RNP_KEYSTORE_GPG;
+    std::string pubpath;
+    std::string secpath;
 
     if (ks_format == RNP_KEYSTORE_GPG) {
-        pubpath = rnp_path_compose(homedir, subdir, PUBRING_GPG);
-        secpath = rnp_path_compose(homedir, subdir, SECRING_GPG);
-        pub_format = RNP_KEYSTORE_GPG;
-        sec_format = RNP_KEYSTORE_GPG;
+        pubpath = rnp::path::append(homedir, PUBRING_GPG);
+        secpath = rnp::path::append(homedir, SECRING_GPG);
     } else if (ks_format == RNP_KEYSTORE_GPG21) {
-        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
-        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
+        pubpath = rnp::path::append(homedir, PUBRING_KBX);
+        secpath = rnp::path::append(homedir, SECRING_G10);
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_G10;
     } else if (ks_format == RNP_KEYSTORE_KBX) {
-        pubpath = rnp_path_compose(homedir, subdir, PUBRING_KBX);
-        secpath = rnp_path_compose(homedir, subdir, SECRING_KBX);
+        pubpath = rnp::path::append(homedir, PUBRING_KBX);
+        secpath = rnp::path::append(homedir, SECRING_KBX);
         pub_format = RNP_KEYSTORE_KBX;
         sec_format = RNP_KEYSTORE_KBX;
     } else if (ks_format == RNP_KEYSTORE_G10) {
-        pubpath = rnp_path_compose(homedir, subdir, PUBRING_G10);
-        secpath = rnp_path_compose(homedir, subdir, SECRING_G10);
+        pubpath = rnp::path::append(homedir, PUBRING_G10);
+        secpath = rnp::path::append(homedir, SECRING_G10);
         pub_format = RNP_KEYSTORE_G10;
         sec_format = RNP_KEYSTORE_G10;
     } else {
