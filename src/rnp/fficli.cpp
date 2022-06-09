@@ -184,7 +184,7 @@ set_pass_fd(FILE **file, int passfd)
     }
     *file = rnp_fdopen(passfd, "r");
     if (!*file) {
-        ERR_MSG("cannot open fd %d for reading", passfd);
+        ERR_MSG("Cannot open fd %d for reading", passfd);
         return false;
     }
     return true;
@@ -562,7 +562,7 @@ cli_rnp_t::init(const rnp_cfg &cfg)
     } else if (ress == "<stdout>") {
         resfp = stdout;
     } else if (!(resfp = rnp_fopen(ress.c_str(), "w"))) {
-        ERR_MSG("cannot open results %s for writing", ress.c_str());
+        ERR_MSG("Cannot open results %s for writing", ress.c_str());
         return false;
     }
 
@@ -574,7 +574,7 @@ cli_rnp_t::init(const rnp_cfg &cfg)
         return false;
     }
     if (rnp_ffi_create(&ffi, pformat.c_str(), sformat.c_str())) {
-        ERR_MSG("failed to initialize FFI");
+        ERR_MSG("Failed to initialize FFI");
         return false;
     }
 
