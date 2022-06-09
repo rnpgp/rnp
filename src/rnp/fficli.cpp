@@ -1938,80 +1938,13 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
     return true;
 }
 
-/* read any gpg config file */
-static bool
-conffile(const std::string &homedir, std::string &userid)
-{
-    char  buf[BUFSIZ];
-    FILE *fp;
-
-#ifndef RNP_USE_STD_REGEX
-    regmatch_t matchv[10];
-    regex_t    keyre;
-#else
-    static std::regex keyre("^[ \t]*default-key[ \t]+([0-9a-zA-F]+)",
-                            std::regex_constants::extended);
-#endif
-    (void) snprintf(buf, sizeof(buf), "%s/.gnupg/gpg.conf", homedir.c_str());
-    if ((fp = rnp_fopen(buf, "r")) == NULL) {
-        return false;
-    }
-#ifndef RNP_USE_STD_REGEX
-    (void) memset(&keyre, 0x0, sizeof(keyre));
-    if (regcomp(&keyre, "^[ \t]*default-key[ \t]+([0-9a-zA-F]+)", REG_EXTENDED) != 0) {
-        ERR_MSG("failed to compile regular expression");
-        fclose(fp);
-        return false;
-    }
-#endif
-    while (fgets(buf, (int) sizeof(buf), fp) != NULL) {
-#ifndef RNP_USE_STD_REGEX
-        if (regexec(&keyre, buf, 10, matchv, 0) == 0) {
-            userid =
-              std::string(&buf[(int) matchv[1].rm_so], matchv[1].rm_eo - matchv[1].rm_so);
-            ERR_MSG("rnp: default key set to \"%s\"", userid.c_str());
-        }
-#else
-        std::smatch result;
-        std::string input = buf;
-        if (std::regex_search(input, result, keyre)) {
-            userid = result[1].str();
-            ERR_MSG("rnp: default key set to \"%s\"", userid.c_str());
-        }
-#endif
-    }
-    (void) fclose(fp);
-#ifndef RNP_USE_STD_REGEX
-    regfree(&keyre);
-#endif
-    return true;
-}
-
 static void
 rnp_cfg_set_defkey(rnp_cfg &cfg)
 {
-    bool        defhomedir = false;
-    std::string homedir = cfg.get_str(CFG_HOMEDIR);
-    if (homedir.empty()) {
-        const char *home = getenv("HOME");
-        homedir = home ? home : "";
-        defhomedir = true;
-    }
-
     /* If a userid has been given, we'll use it. */
     std::string userid = cfg.get_count(CFG_USERID) ? cfg.get_str(CFG_USERID, 0) : "";
     if (!userid.empty()) {
         cfg.set_str(CFG_KR_DEF_KEY, userid);
-        return;
-    }
-    /* also search in config file for default id */
-    if (defhomedir) {
-        std::string id;
-        if (conffile(homedir, id) && !id.empty()) {
-            cfg.unset(CFG_USERID);
-            cfg.add_str(CFG_USERID, id);
-            cfg.set_str(CFG_KR_DEF_KEY, id);
-        }
     }
 }
 
