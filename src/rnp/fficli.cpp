@@ -2172,7 +2172,6 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
         return false;
     }
     rnp_output_t output = NULL;
-    rnp_output_t armored = NULL;
     bool         result = false;
 
     output = cli_rnp_output_to_specifier(*rnp, rnp->cfg().get_str(CFG_OUTFILE));
@@ -2180,19 +2179,13 @@ cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
         goto done;
     }
 
-    /* export it armored by default */
-    if (rnp_output_to_armor(output, &armored, "public key")) {
-        goto done;
-    }
-
     result = !rnp_key_export_revocation(keys[0],
-                                        armored,
-                                        0,
+                                        output,
+                                        RNP_KEY_EXPORT_ARMORED,
                                         rnp->cfg().get_cstr(CFG_HASH),
                                         rnp->cfg().get_cstr(CFG_REV_TYPE),
                                         rnp->cfg().get_cstr(CFG_REV_REASON));
 done:
-    rnp_output_destroy(armored);
     rnp_output_destroy(output);
     clear_key_handles(keys);
     return result;
