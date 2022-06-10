@@ -4058,6 +4058,8 @@ try {
     if (!key || !key->ffi || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
+    bool need_armor = flags & RNP_KEY_EXPORT_ARMORED;
+    flags &= ~RNP_KEY_EXPORT_ARMORED;
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -4079,9 +4081,16 @@ try {
         return ret;
     }
 
-    sig.write(output->dst);
-    ret = output->dst.werr;
-    dst_flush(&output->dst);
+    if (need_armor) {
+        rnp::ArmoredDest armor(output->dst, PGP_ARMORED_PUBLIC_KEY);
+        sig.write(armor.dst());
+        ret = armor.werr();
+        dst_flush(&armor.dst());
+    } else {
+        sig.write(output->dst);
+        ret = output->dst.werr;
+        dst_flush(&output->dst);
+    }
     output->keep = !ret;
     return ret;
 }

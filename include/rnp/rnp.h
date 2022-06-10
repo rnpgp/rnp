@@ -1059,7 +1059,7 @@ RNP_API rnp_result_t rnp_key_export_autocrypt(rnp_key_handle_t key,
  *            searched for the authorized to issue revocation signature secret key. If secret
  *            key is locked then password will be asked via password provider.
  * @param output signature contents will be saved here.
- * @param flags currently must be 0.
+ * @param flags must be RNP_KEY_EXPORT_ARMORED or 0.
  * @param hash hash algorithm used to calculate signature. Pass NULL for default algorithm
  *             selection.
  * @param code reason for revocation code. Possible values: 'no', 'superseded', 'compromised',
