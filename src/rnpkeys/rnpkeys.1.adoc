@@ -400,6 +400,13 @@ To import all secret keys the following command should be used (please note, tha
 
 *gpg* *-a* *--export-secret-keys* | *rnpkeys* *--import* _-_
 
+=== EXAMPLE 2: GENERATE A NEW KEY
+
+This example generates a new key with specified userid and expiration.
+Also it enables "expert" mode, allowing the selection of key/subkey algorithms.
+
+*rnpkeys* *--generate* *--userid* *"john@doe.com"* *--expert* *--expiration* *1y*
+
 == BUGS
 
 Please report _issues_ via the RNP public issue tracker at:
