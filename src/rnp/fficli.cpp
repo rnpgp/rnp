@@ -640,20 +640,15 @@ cli_rnp_t::end()
 bool
 cli_rnp_t::load_keyring(bool secret)
 {
-    const char *path = secret ? secpath().c_str() : pubpath().c_str();
-    bool        dir = secret && (secformat() == RNP_KEYSTORE_G10);
-    if (dir && !rnp_dir_exists(path)) {
-        ERR_MSG("warning: keyring directory at '%s' doesn't exist.", path);
-        return true;
-    }
-    if (!dir && !rnp_file_exists(path)) {
-        ERR_MSG("warning: keyring at path '%s' doesn't exist.", path);
+    const std::string &path = secret ? secpath() : pubpath();
+    bool               dir = secret && (secformat() == RNP_KEYSTORE_G10);
+    if (!rnp::path::exists(path, dir)) {
         return true;
     }
 
     rnp_input_t keyin = NULL;
-    if (rnp_input_from_path(&keyin, path)) {
-        ERR_MSG("warning: failed to open keyring at path '%s' for reading.", path);
+    if (rnp_input_from_path(&keyin, path.c_str())) {
+        ERR_MSG("Warning: failed to open keyring at path '%s' for reading.", path.c_str());
         return true;
     }
 
@@ -661,7 +656,7 @@ cli_rnp_t::load_keyring(bool secret)
     uint32_t     flags = secret ? RNP_LOAD_SAVE_SECRET_KEYS : RNP_LOAD_SAVE_PUBLIC_KEYS;
     rnp_result_t ret = rnp_load_keys(ffi, format, keyin, flags);
     if (ret) {
-        ERR_MSG("error: failed to load keyring from '%s'", path);
+        ERR_MSG("Error: failed to load keyring from '%s'", path.c_str());
     }
     rnp_input_destroy(keyin);
 
@@ -676,7 +671,7 @@ cli_rnp_t::load_keyring(bool secret)
         (void) rnp_get_public_key_count(ffi, &keycount);
     }
     if (!keycount) {
-        ERR_MSG("warning: no keys were loaded from the keyring '%s'.", path);
+        ERR_MSG("Warning: no keys were loaded from the keyring '%s'.", path.c_str());
     }
     return true;
 }
@@ -1848,8 +1843,7 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
     bool        defhomedir = false;
     std::string homedir = cfg.get_str(CFG_HOMEDIR);
     if (homedir.empty()) {
-        const char *home = getenv("HOME");
-        homedir = home ? home : "";
+        homedir = rnp::path::HOME();
         defhomedir = true;
     }
 
@@ -1871,7 +1865,7 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         rnp_buffer_destroy(rnphome);
         if (!rnp::path::exists(homedir, true) && RNP_MKDIR(homedir.c_str(), 0700) == -1 &&
             errno != EEXIST) {
-            ERR_MSG("cannot mkdir '%s' errno = %d", homedir.c_str(), errno);
+            ERR_MSG("Cannot mkdir '%s' errno = %d", homedir.c_str(), errno);
             return false;
         }
     }
@@ -1927,8 +1921,15 @@ rnp_cfg_set_ks_info(rnp_cfg &cfg)
         pub_format = RNP_KEYSTORE_G10;
         sec_format = RNP_KEYSTORE_G10;
     } else {
-        ERR_MSG("unsupported keystore format: \"%s\"", ks_format.c_str());
+        ERR_MSG("Unsupported keystore format: \"%s\"", ks_format.c_str());
         return false;
+    }
+
+    /* Check whether homedir is empty */
+    if (rnp::path::empty(homedir)) {
+        ERR_MSG("Keyring directory '%s' is empty.\nUse \"rnpkeys\" command to generate a new "
+                "key or import existing keys from the file or GnuPG keyrings.",
+                homedir.c_str());
     }
 
     cfg.set_str(CFG_KR_PUB_PATH, pubpath);
@@ -1953,7 +1954,6 @@ cli_cfg_set_keystore_info(rnp_cfg &cfg)
 {
     /* detecting keystore paths and format */
     if (!rnp_cfg_set_ks_info(cfg)) {
-        ERR_MSG("cannot obtain keystore path(s)");
         return false;
     }
 

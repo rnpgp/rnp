@@ -2194,6 +2194,7 @@ class Misc(unittest.TestCase):
 
     def test_pubring_loading(self):
         NO_PUBRING = r'(?s)^.*warning: keyring at path \'.*/pubring.gpg\' doesn\'t exist.*$'
+        EMPTY_HOME = r'(?s)^.*Keyring directory .* is empty.*rnpkeys.*GnuPG.*'
         NO_USERID = 'No userid or default key for operation'
 
         test_dir = tempfile.mkdtemp(prefix='rnpctmp')
@@ -2202,19 +2203,22 @@ class Misc(unittest.TestCase):
         params = ['--symmetric', '--password', 'pass', '--homedir', test_dir, test_data, '--output', output]
         ret, _, err = run_proc(RNP, ['--encrypt'] + params)
         self.assertEqual(ret, 1, 'encrypt w/o pubring didn\'t fail')
-        self.assertRegex(err, NO_PUBRING, 'wrong no-keyring message')
+        self.assertNotRegex(err, NO_PUBRING, 'wrong no-keyring message')
+        self.assertRegex(err, EMPTY_HOME)
         self.assertIn(NO_USERID, err, 'Unexpected no key output')
         self.assertIn('Failed to build recipients key list', err, 'Unexpected key list output')
 
         ret, _, err = run_proc(RNP, ['--sign'] + params)
         self.assertEqual(ret, 1, 'sign w/o pubring didn\'t fail')
-        self.assertRegex(err, NO_PUBRING, 'wrong failure output')
+        self.assertNotRegex(err, NO_PUBRING, 'wrong failure output')
+        self.assertRegex(err, EMPTY_HOME)
         self.assertIn(NO_USERID, err, 'wrong no userid message')
         self.assertIn('Failed to build signing keys list', err, 'wrong signing list failure message')
 
         ret, _, err = run_proc(RNP, ['--clearsign'] + params)
         self.assertEqual(ret, 1, 'clearsign w/o pubring didn\'t fail')
-        self.assertRegex(err, NO_PUBRING, 'wrong clearsign no pubring message')
+        self.assertNotRegex(err, NO_PUBRING, 'wrong clearsign no pubring message')
+        self.assertRegex(err, EMPTY_HOME)
         self.assertIn(NO_USERID, err, 'Unexpected clearsign no key output')
         self.assertIn('Failed to build signing keys list', err, 'Unexpected clearsign key list output')
 
@@ -2224,18 +2228,24 @@ class Misc(unittest.TestCase):
         shutil.rmtree(test_dir)
 
     def test_homedir_accessibility(self):
-        ret, _, _ = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'non-existing'), '--generate', '--password=none'])
+        ret, _, err = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'non-existing'), '--generate', '--password=none'])
         self.assertNotEqual(ret, 0, 'failed to check for homedir accessibility')
+        self.assertRegex(err, r'(?s)^.*Home directory .*.rnp.non-existing.* does not exist or is not writable!')
+        self.assertRegex(err, r'(?s)^.*fatal: cannot set keystore info')
         os.mkdir(os.path.join(RNPDIR, 'existing'), 0o700)
-        ret, _, _ = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'existing'), '--generate', '--password=none'])
+        ret, _, err = run_proc(RNPK, ['--homedir', os.path.join(RNPDIR, 'existing'), '--generate', '--password=none'])
         self.assertEqual(ret, 0, 'failed to use writeable and existing homedir')
+        self.assertNotRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
+        self.assertNotRegex(err, r'(?s)^.*fatal: cannot set keystore info')
 
     def test_no_home_dir(self):
         home = os.environ['HOME']
         del os.environ['HOME']
-        ret, _, _ = run_proc(RNP, ['-v', 'non-existing.pgp'])
+        ret, _, err = run_proc(RNP, ['-v', 'non-existing.pgp'])
         os.environ['HOME'] = home
         self.assertEqual(ret, 2, 'failed to run without HOME env variable')
+        self.assertRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
+        self.assertRegex(err, r'(?s)^.*fatal: cannot set keystore info')
 
     def test_exit_codes(self):
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--help'])
@@ -2358,15 +2368,15 @@ class Misc(unittest.TestCase):
 
     def test_empty_keyrings(self):
         NO_KEYRING = r'(?s)^.*' \
-        r'warning: keyring at path \'.*/\.rnp/pubring.gpg\' doesn\'t exist.*' \
-        r'warning: keyring at path \'.*/\.rnp/secring.gpg\' doesn\'t exist.*$'
+        r'warning: keyring at path \'.*.\.rnp.pubring\.gpg\' doesn\'t exist.*' \
+        r'warning: keyring at path \'.*.\.rnp.secring\.gpg\' doesn\'t exist.*$'
         EMPTY_KEYRING = r'(?s)^.*' \
-        r'warning: no keys were loaded from the keyring \'.*/\.rnp/pubring.gpg\'.*' \
-        r'warning: no keys were loaded from the keyring \'.*/\.rnp/secring.gpg\'.*$'
+        r'Warning: no keys were loaded from the keyring \'.*.\.rnp.pubring\.gpg\'.*' \
+        r'Warning: no keys were loaded from the keyring \'.*.\.rnp.secring\.gpg\'.*$'
         PUB_IMPORT= r'(?s)^.*pub\s+255/EdDSA 0451409669ffde3c .* \[SC\].*$'
-        EMPTY_SECRING = r'(?s)^.*' \
-        r'warning: no keys were loaded from the keyring \'.*/\.rnp/secring.gpg\'.*$'
+        EMPTY_SECRING = r'(?s)^.*Warning: no keys were loaded from the keyring \'.*\.rnp.secring.gpg\'.*$'
         SEC_IMPORT= r'(?s)^.*sec\s+255/EdDSA 0451409669ffde3c .* \[SC\].*$'
+        EMPTY_HOME = r'(?s)^.*Keyring directory .* is empty.*rnpkeys.*GnuPG.*'
 
         os.rename(RNPDIR, RNPDIR + '-old')
         home = os.environ['HOME']
@@ -2381,20 +2391,23 @@ class Misc(unittest.TestCase):
             self.assertNotRegex(err, NO_KEYRING, 'No keyring msg in encryption output')
             ret, _, err = run_proc(RNP, ['-d', enc, '--password', 'password', '--output', dec])
             self.assertEqual(ret, 0, 'Symmetric decryption without home failed')
-            self.assertRegex(err, NO_KEYRING, 'No keyring msg in decryption output')
+            self.assertNotRegex(err, NO_KEYRING, 'No keyring msg in decryption output')
+            self.assertRegex(err, EMPTY_HOME)
             self.assertIn(WORKDIR, err, 'No workdir in decryption output')
             compare_files(src, dec, DEC_DIFFERS)
             remove_files(enc, dec)
             # Import key without .rnp home directory
             ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_PUB)])
             self.assertEqual(ret, 0, 'Key import failed without home')
-            self.assertRegex(err, NO_KEYRING, 'No keyring msg in key import output')
+            self.assertNotRegex(err, NO_KEYRING, 'No keyring msg in key import output')
+            self.assertRegex(err, EMPTY_HOME)
             self.assertIn(WORKDIR, err, 'No workdir in key import output')
             self.assertRegex(out, PUB_IMPORT, 'Wrong key import output')
             ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_SEC)])
             self.assertEqual(ret, 0, 'Secret key import without home failed')
             self.assertNotRegex(err, NO_KEYRING, 'no keyring message in key import output')
-            self.assertRegex(err, EMPTY_SECRING, 'no empty secrin in key import output')
+            self.assertNotRegex(err, EMPTY_HOME)
+            self.assertRegex(err, EMPTY_SECRING, 'no empty secring in key import output')
             self.assertIn(WORKDIR, err, 'no workdir in key import output')
             self.assertRegex(out, SEC_IMPORT, 'Wrong secret key import output')
             # Run with empty .rnp home directory
@@ -2405,20 +2418,23 @@ class Misc(unittest.TestCase):
             self.assertNotRegex(err, NO_KEYRING)
             ret, out, err = run_proc(RNP, ['-d', enc, '--password', 'password', '--output', dec])
             self.assertEqual(ret, 0, 'Symmetric decryption failed')
-            self.assertRegex(err, NO_KEYRING, 'No keyring message in decryption output')
+            self.assertRegex(err, EMPTY_HOME)
+            self.assertNotRegex(err, NO_KEYRING, 'No keyring message in decryption output')
             self.assertIn(WORKDIR, err, 'No workdir in decryption output')
             compare_files(src, dec, DEC_DIFFERS)
             remove_files(enc, dec)
             # Import key with empty .rnp home directory
             ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_PUB)])
             self.assertEqual(ret, 0, 'Public key import with empty home failed')
-            self.assertRegex(err, NO_KEYRING, 'No keyring message in key import output')
+            self.assertNotRegex(err, NO_KEYRING, 'No keyring message in key import output')
+            self.assertRegex(err, EMPTY_HOME)
             self.assertIn(WORKDIR, err, 'No workdir in key import output')
             self.assertRegex(out, PUB_IMPORT, 'Wrong pub key import output')
             ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_SEC)])
             self.assertEqual(ret, 0, 'Secret key import failed')
             self.assertNotRegex(err, NO_KEYRING, 'No-keyring message in secret key import output')
             self.assertRegex(err, EMPTY_SECRING, 'No empty secring msg in secret key import output')
+            self.assertNotRegex(err, EMPTY_HOME)
             self.assertIn(WORKDIR, err, 'No workdir in secret key import output')
             self.assertRegex(out, SEC_IMPORT, 'wrong secret key import output')
             # Run with .rnp home directory with empty keyrings
