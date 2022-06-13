@@ -80,6 +80,8 @@ namespace rnp {
 namespace path {
 inline char separator();
 bool        exists(const std::string &path, bool is_dir = false);
+bool        empty(const std::string &path);
+std::string HOME(const std::string &sdir = "");
 std::string append(const std::string &path, const std::string &name);
 } // namespace path
 } // namespace rnp

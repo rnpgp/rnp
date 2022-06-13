@@ -314,6 +314,26 @@ exists(const std::string &path, bool is_dir)
     return is_dir ? rnp_dir_exists(path.c_str()) : rnp_file_exists(path.c_str());
 }
 
+bool
+empty(const std::string &path)
+{
+    auto dir = rnp_opendir(path.c_str());
+    bool empty = !dir || rnp_readdir_name(dir).empty();
+    rnp_closedir(dir);
+    return empty;
+}
+
+std::string
+HOME(const std::string &sdir)
+{
+    const char *home = getenv("HOME");
+    std::string res = home ? home : "";
+    if (!sdir.empty()) {
+        res = append(res, sdir);
+    }
+    return res;
+}
+
 static bool
 has_forward_slash(const std::string &path)
 {
