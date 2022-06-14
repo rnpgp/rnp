@@ -817,11 +817,11 @@ try {
     }
 
     // get the users home dir
-    char *home = getenv("HOME");
-    if (!home) {
+    auto home = rnp::path::HOME(".rnp");
+    if (home.empty()) {
         return RNP_ERROR_NOT_SUPPORTED;
     }
-    *homedir = strdup(rnp::path::append(home, ".rnp").c_str());
+    *homedir = strdup(home.c_str());
     if (!*homedir) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
