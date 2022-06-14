@@ -2437,6 +2437,40 @@ class Misc(unittest.TestCase):
             self.assertNotRegex(err, EMPTY_HOME)
             self.assertIn(WORKDIR, err, 'No workdir in secret key import output')
             self.assertRegex(out, SEC_IMPORT, 'wrong secret key import output')
+            if not is_windows():
+                # Attempt ro run with non-writable HOME
+                newhome = os.path.join(WORKDIR, 'new')
+                os.mkdir(newhome, 0o400)
+                os.environ['HOME'] = newhome
+                ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_PUB)])
+                self.assertEqual(ret, 1)
+                self.assertRegex(err, r'(?s)^.*Home directory \'.*new\' does not exist or is not writable!')
+                self.assertRegex(err, r'(?s)^.*fatal: cannot set keystore info')
+                self.assertIn(WORKDIR, err)
+                os.environ['HOME'] = WORKDIR
+                shutil.rmtree(newhome, ignore_errors=True)
+                # Attempt to load keyring with invalid permissions
+                os.chmod(os.path.join(RNPDIR, PUBRING), 0o000)
+                ret, out, err = run_proc(RNPK, ['--list-keys'])
+                self.assertEqual(ret, 0)
+                self.assertRegex(err, r'(?s)^.*Warning: failed to open keyring at path \'.*pubring\.gpg\' for reading.')
+                self.assertRegex(out, r'(?s)^.*Alice <alice@rnp>')
+                os.chmod(os.path.join(RNPDIR, SECRING), 0o000)
+                ret, out, err = run_proc(RNPK, ['--list-keys'])
+                self.assertEqual(ret, 1)
+                self.assertRegex(err, r'(?s)^.*Warning: failed to open keyring at path \'.*pubring\.gpg\' for reading.')
+                self.assertRegex(err, r'(?s)^.*Warning: failed to open keyring at path \'.*secring\.gpg\' for reading.')
+                self.assertRegex(out, r'(?s)^.*Key\(s\) not found.')
+            # Attempt to load keyring with random data
+            shutil.rmtree(RNPDIR, ignore_errors=True)
+            os.mkdir(RNPDIR, 0o700)
+            random_text(os.path.join(RNPDIR, PUBRING), 1000)
+            random_text(os.path.join(RNPDIR, SECRING), 1000)
+            ret, out, err = run_proc(RNPK, ['--list-keys'])
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*Error: failed to load keyring from \'.*pubring\.gpg\'')
+            self.assertNotRegex(err, r'(?s)^.*Error: failed to load keyring from \'.*secring\.gpg\'')
+            self.assertRegex(out, r'(?s)^.*Key\(s\) not found.')
             # Run with .rnp home directory with empty keyrings
             shutil.rmtree(RNPDIR, ignore_errors=True)
             os.mkdir(RNPDIR, 0o700)
@@ -3100,6 +3134,27 @@ class Misc(unittest.TestCase):
 
         shutil.rmtree(RNP2, ignore_errors=True)
         clear_workfiles()
+
+    def test_wrong_passfd(self):
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', '999', '--userid',
+                                      'test_wrong_passfd', '--generate-key', '--expert'], '22\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Cannot open fd 999 for reading')
+        self.assertRegex(err, r'(?s)^.*fatal: failed to initialize rnpkeys')
+
+    def test_keystore_formats(self):
+        # Use wrong keystore format
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--keystore-format', 'WRONG', '--list-keys'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Unsupported keystore format: "WRONG"')
+        # Use G10 keystore format
+        ret, _, err = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--keystore-format', 'G10', '--list-keys'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Warning: no keys were loaded from the keyring \'.*private-keys-v1.d\'')
+        # Use G21 keystore format
+        ret, out, _ = run_proc(RNPK, ['--homedir', data_path('keyrings/3'), '--keystore-format', 'GPG21', '--list-keys'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*2 keys found')
 
 class Encryption(unittest.TestCase):
     '''
