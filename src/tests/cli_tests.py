@@ -167,8 +167,9 @@ r'Secret subkey packet.*' \
 r'secret key material:.*' \
 r'encrypted secret key data:.*$'
 
-RE_RNP_REVOCATION_SIG = r'(?s)^.*' \
-r'packet header .* \(tag 2, len .*' \
+RE_RNP_REVOCATION_SIG = r'(?s)' \
+r':armored input\n' \
+r':off 0: packet header .* \(tag 2, len .*' \
 r'Signature packet.*' \
 r'version: 4.*' \
 r'type: 32 \(Key revocation signature\).*' \
@@ -1272,6 +1273,8 @@ class Keystore(unittest.TestCase):
         os.close(pipe)
         self.assertEqual(ret, 0)
         self.assertTrue(os.path.isfile(OUT_ALICE_REV))
+        with open(OUT_ALICE_REV, "rb") as armored:
+            self.assertRegex(armored.read().decode('utf-8'), r'-----END PGP PUBLIC KEY BLOCK-----\r\n$', 'Armor tail not found')
         # Check revocation contents
         ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', OUT_ALICE_REV])
         self.assertEqual(ret, 0)
@@ -1333,6 +1336,8 @@ class Keystore(unittest.TestCase):
             self.assertEqual(ret, 0, 'Failed to export revocation with code ' + revcode)
             self.assertTrue(os.path.isfile(OUT_ALICE_REV), 'Failed to export revocation with code ' + revcode)
             # Check revocation contents
+            with open(OUT_ALICE_REV, "rb") as armored:
+                self.assertRegex(armored.read().decode('utf-8'), r'-----END PGP PUBLIC KEY BLOCK-----\r\n$', 'Armor tail not found')
             ret, out, _ = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', OUT_ALICE_REV])
             self.assertEqual(ret, 0, 'Failed to list exported revocation packets')
             self.assertNotEqual(len(out), 0, 'Failed to list exported revocation packets')
