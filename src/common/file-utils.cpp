@@ -110,6 +110,16 @@ rnp_fopen(const char *filename, const char *mode)
 #endif
 }
 
+FILE *
+rnp_fdopen(int fildes, const char *mode)
+{
+#ifdef _WIN32
+    return _fdopen(fildes, mode);
+#else
+    return fdopen(fildes, mode);
+#endif
+}
+
 int
 rnp_access(const char *path, int mode)
 {

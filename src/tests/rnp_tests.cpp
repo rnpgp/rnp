@@ -28,6 +28,10 @@
 #include <crypto/rng.h>
 #include "rnp_tests.h"
 #include "support.h"
+#ifdef _WIN32
+#include <cstdlib>
+#include <crtdbg.h>
+#endif
 
 static char original_dir[PATH_MAX];
 
@@ -35,6 +39,18 @@ static char original_dir[PATH_MAX];
  * Handler used to access DRBG.
  */
 rnp::SecurityContext global_ctx;
+
+#ifdef _WIN32
+void
+rnpInvalidParameterHandler(const wchar_t *expression,
+                           const wchar_t *function,
+                           const wchar_t *file,
+                           unsigned int   line,
+                           uintptr_t      pReserved)
+{
+    wprintf(L"%s:%d %s: invalid param: %s.\n", file, line, function, expression);
+}
+#endif
 
 rnp_tests::rnp_tests() : m_dir(make_temp_dir())
 {
@@ -49,6 +65,11 @@ rnp_tests::rnp_tests() : m_dir(make_temp_dir())
     /* fully specified path works correctly here with cp and xcopy */
     std::string data_str = std::string(m_dir) + "/data";
     copy_recursively(getenv("RNP_TEST_DATA"), data_str.c_str());
+#ifdef _WIN32
+    _invalid_parameter_handler handler = rnpInvalidParameterHandler;
+    _set_invalid_parameter_handler(handler);
+    _CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
 }
 
 rnp_tests::~rnp_tests()

@@ -5636,11 +5636,7 @@ TEST_F(rnp_tests, test_ffi_set_log_fd)
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
     assert_rnp_failure(rnp_ffi_set_log_fd(NULL, 0));
-#ifndef _WIN32
-    /* on windows one below will terminate processing due to invalid parameters to fdopen()
-     * until we use _set_invalid_parameter_handler */
     assert_rnp_failure(rnp_ffi_set_log_fd(ffi, 100));
-#endif
     int file_fd = rnp_open("tests.txt", O_RDWR | O_CREAT | O_TRUNC, 0777);
     assert_true(file_fd > 0);
     assert_rnp_success(rnp_ffi_set_log_fd(ffi, file_fd));

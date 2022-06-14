@@ -587,7 +587,7 @@ try {
     }
 
     // open
-    FILE *errs = fdopen(fd, "a");
+    FILE *errs = rnp_fdopen(fd, "a");
     if (!errs) {
         return RNP_ERROR_ACCESS;
     }
