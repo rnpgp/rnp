@@ -182,7 +182,7 @@ set_pass_fd(FILE **file, int passfd)
     if (!file) {
         return false;
     }
-    *file = fdopen(passfd, "r");
+    *file = rnp_fdopen(passfd, "r");
     if (!*file) {
         ERR_MSG("cannot open fd %d for reading", passfd);
         return false;

@@ -37,6 +37,7 @@ bool    rnp_dir_exists(const char *path);
 int64_t rnp_filemtime(const char *path);
 int     rnp_open(const char *filename, int oflag, int pmode);
 FILE *  rnp_fopen(const char *filename, const char *mode);
+FILE *  rnp_fdopen(int fildes, const char *mode);
 int     rnp_access(const char *path, int mode);
 int     rnp_stat(const char *filename, struct stat *statbuf);
 int     rnp_rename(const char *oldpath, const char *newpath);
