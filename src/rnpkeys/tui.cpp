@@ -35,6 +35,7 @@
 #include "rnp/rnpcfg.h"
 #include "rnpkeys.h"
 #include "defaults.h"
+#include "file-utils.h"
 #include "logging.h"
 
 /* -----------------------------------------------------------------------------
@@ -270,7 +271,7 @@ cli_rnp_set_generate_params(rnp_cfg &cfg)
         if (cfg.has(CFG_USERINPUTFD)) {
             int inputfd = dup(cfg.get_int(CFG_USERINPUTFD));
             if (inputfd != -1) {
-                input = fdopen(inputfd, "r");
+                input = rnp_fdopen(inputfd, "r");
                 if (!input) {
                     close(inputfd);
                 }
