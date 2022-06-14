@@ -327,11 +327,10 @@ std::string
 HOME(const std::string &sdir)
 {
     const char *home = getenv("HOME");
-    std::string res = home ? home : "";
-    if (!sdir.empty()) {
-        res = append(res, sdir);
+    if (!home) {
+        return "";
     }
-    return res;
+    return sdir.empty() ? home : append(home, sdir);
 }
 
 static bool
