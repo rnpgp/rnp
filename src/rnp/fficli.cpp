@@ -52,7 +52,10 @@
 #endif
 #endif
 
-#include "config.h"
+#ifdef _WIN32
+#include <crtdbg.h>
+#endif
+
 #include "fficli.h"
 #include "str-utils.h"
 #include "file-utils.h"
@@ -100,9 +103,7 @@ disable_core_dumps(void)
 #endif
 
 #ifdef _WIN32
-#include "str-utils.h"
 #include <windows.h>
-#include <vector>
 #include <stdexcept>
 
 static std::vector<std::string>
@@ -522,6 +523,18 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
     return true;
 }
 
+#ifdef _WIN32
+void
+rnpffiInvalidParameterHandler(const wchar_t *expression,
+                              const wchar_t *function,
+                              const wchar_t *file,
+                              unsigned int   line,
+                              uintptr_t      pReserved)
+{
+    // do nothing as within release CRT all params are NULL
+}
+#endif
+
 bool
 cli_rnp_t::init(const rnp_cfg &cfg)
 {
@@ -552,6 +565,13 @@ cli_rnp_t::init(const rnp_cfg &cfg)
     if (coredumps) {
         ERR_MSG("warning: core dumps may be enabled, sensitive data may be leaked to disk");
     }
+#endif
+
+#ifdef _WIN32
+    /* Setup invalid parameter handler for Windows */
+    _invalid_parameter_handler handler = rnpffiInvalidParameterHandler;
+    _set_invalid_parameter_handler(handler);
+    _CrtSetReportMode(_CRT_ASSERT, 0);
 #endif
 
     /* Configure the results stream. */
