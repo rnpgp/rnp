@@ -286,11 +286,11 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     assert_false(test_cli_g10_key_sign("02a5715c3537717e"));   // fail - encrypting subkey
     assert_true(test_cli_g10_key_encrypt("02a5715c3537717e")); // success
 
-    /* check rsa/rsa key, key is SC while subkey is E. Must fail as uses SHA1 */
-    assert_false(test_cli_g10_key_sign("2fb9179118898e8b"));
-    assert_false(test_cli_g10_key_encrypt("2fb9179118898e8b"));
+    /* check rsa/rsa key, key is SC while subkey is E. Must succeed till year 2024 */
+    assert_true(test_cli_g10_key_sign("2fb9179118898e8b"));
+    assert_true(test_cli_g10_key_encrypt("2fb9179118898e8b"));
     assert_false(test_cli_g10_key_sign("6e2f73008f8b8d6e"));
-    assert_false(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
+    assert_true(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
 
     /* check new rsa/rsa key, key is SC while subkey is E. */
     /* Now fails since we cannot parse new S-exps */

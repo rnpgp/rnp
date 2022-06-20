@@ -1879,6 +1879,17 @@ class Misc(unittest.TestCase):
         _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '--userid', '2fcadf05ffa501bb'])
         compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
 
+    def test_rnpkeys_list_invalid_keys(self):
+        RNPDIR2 = RNPDIR + '2'
+        os.mkdir(RNPDIR2, 0o700)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR2, '--import', data_path('test_forged_keys/eddsa-2012-md5-pub.pgp')])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR2, '--list-keys', '--with-sigs'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)2 keys found.*8801eafbd906bd21.*\[INVALID\].*expired-md5-key-sig.*\[INVALID\].*sig.*\[unknown\] \[invalid\]')
+        self.assertRegex(err, r'(?s)Insecure hash algorithm 1, marking signature as invalid')
+        shutil.rmtree(RNPDIR2, ignore_errors=True)
+
     def test_rnpkeys_g10_list_order(self):
         ret, out, _ = run_proc(RNPK, ['--homedir', data_path(SECRING_G10), '--list-keys'])
         self.assertEqual(ret, 0)
@@ -3784,8 +3795,8 @@ class EncryptElgamal(Encrypt):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        # DSA 1024 key uses SHA-1 as hash so verification would fail
-        self._encrypt_decrypt(self.gpg, self.rnp, sign_key_size <= 1024, sign_key_size <= 1024)
+        # DSA 1024 key uses SHA-1 as hash but verification would succeed till 2024
+        self._encrypt_decrypt(self.gpg, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
@@ -3804,8 +3815,8 @@ class EncryptElgamal(Encrypt):
     def test_generate_elgamal_key1024_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 1024, self.gpg.userid)
         self.operation_key_gencmd = cmd
-        # Will fail since 1024-bit DSA key uses SHA-1 as hash.
-        self._encrypt_decrypt(self.gpg, self.rnp, True, True)
+        # Will not fail till 2024 since 1024-bit DSA key uses SHA-1 as hash.
+        self._encrypt_decrypt(self.gpg, self.rnp)
 
     def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)
@@ -3981,14 +3992,14 @@ class SignDSA(Sign):
         pfx = SignDSA.key_pfx(p_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        # DSA 1024-bit key uses SHA-1 so verification would fail
-        self._sign_verify(self.rnp, self.gpg, p_size <= 1024, p_size <= 1024)
+        # DSA 1024-bit key uses SHA-1 so verification would not fail till 2024
+        self._sign_verify(self.rnp, self.gpg)
 
     def do_test_verify(self, p_size):
         pfx = SignDSA.key_pfx(p_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
-        # DSA 1024-bit key uses SHA-1 so verification would fail
+        # DSA 1024-bit key uses SHA-1, but verification would fail since SHA1 is used by GnuPG
         self._sign_verify(self.gpg, self.rnp, False, p_size <= 1024)
 
     def test_sign_P1024_Q160(self): self.do_test_sign(1024)
