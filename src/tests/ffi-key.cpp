@@ -4135,8 +4135,9 @@ is_weak_signature(rnp_ffi_t ffi, rnp_signature_handle_t sig)
     rnp_signature_get_hash_alg(sig, &hash);
     rnp_signature_get_creation(sig, &creation);
     /* This approach would be more general, however hardcoding MD5/SHA1 may be used as well */
+    uint32_t flags = RNP_SECURITY_VERIFY_KEY;
     uint32_t level = 0;
-    rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, hash, creation, NULL, NULL, &level);
+    rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, hash, creation, &flags, NULL, &level);
     bool res = level < RNP_SECURITY_DEFAULT;
     if (res) {
         printf(
@@ -4245,14 +4246,14 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
 {
     rnp_ffi_t ffi = NULL;
     assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
-    /* This key has SHA1 self signature, made after the cut-off date */
+    /* This key has SHA1 self signature, made before the cut-off date */
     assert_true(import_pub_keys(ffi, "data/test_stream_key_load/rsa-rsa-pub.asc"));
     rnp_key_handle_t key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fb9179118898e8b", &key));
     /* Check key validity */
-    bool valid = true;
+    bool valid = false;
     assert_rnp_success(rnp_key_is_valid(key, &valid));
-    assert_false(valid);
+    assert_true(valid);
     size_t count = 0;
     /* Check uid validity */
     assert_rnp_success(rnp_key_get_uid_count(key, &count));
@@ -4260,7 +4261,7 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     rnp_uid_handle_t uid = NULL;
     assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
     assert_rnp_success(rnp_uid_is_valid(uid, &valid));
-    assert_false(valid);
+    assert_true(valid);
     rnp_uid_handle_destroy(uid);
     /* Check subkey validity */
     assert_rnp_success(rnp_key_get_subkey_count(key, &count));
@@ -4268,23 +4269,48 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     rnp_key_handle_t sub = NULL;
     assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
     assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_true(valid);
+    /* Check weak signature count */
+    assert_int_equal(key_weak_self_signatures_count(ffi, key), 0);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+
+    /* Check the key which has SHA1 self signature, made after the cut-off date */
+    assert_rnp_success(rnp_set_timestamp(ffi, SHA1_KEY_FROM + 10));
+    assert_true(import_pub_keys(ffi, "data/test_forged_keys/eddsa-2024-pub.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "980e3741f632212c", &key));
+    /* Check key validity */
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_false(valid);
+    /* Check uid validity */
+    assert_rnp_success(rnp_key_get_uid_count(key, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    rnp_uid_handle_destroy(uid);
+    /* Check subkey validity */
+    assert_rnp_success(rnp_key_get_subkey_count(key, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
     assert_false(valid);
     /* Check weak signature count */
     assert_int_equal(key_weak_self_signatures_count(ffi, key), 2);
     rnp_key_handle_destroy(sub);
     rnp_key_handle_destroy(key);
-
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
     /* Now allow the SHA1 hash */
     assert_rnp_success(rnp_add_security_rule(ffi,
                                              RNP_FEATURE_HASH_ALG,
                                              "SHA1",
                                              RNP_SECURITY_OVERRIDE,
-                                             1547856000,
+                                             SHA1_KEY_FROM + 1,
                                              RNP_SECURITY_DEFAULT));
 
-    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/rsa-rsa-pub.asc"));
-    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2fb9179118898e8b", &key));
+    assert_true(import_pub_keys(ffi, "data/test_forged_keys/eddsa-2024-pub.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "980e3741f632212c", &key));
     /* Check key validity */
     assert_rnp_success(rnp_key_is_valid(key, &valid));
     assert_true(valid);
@@ -4299,6 +4325,26 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     assert_true(valid);
     /* Check weak signature count */
     assert_int_equal(key_weak_self_signatures_count(ffi, key), 0);
+    rnp_key_handle_destroy(sub);
+    rnp_key_handle_destroy(key);
+
+    /* Check the key which has MD5 self signature, made after the cut-off date */
+    assert_true(import_pub_keys(ffi, "data/test_forged_keys/eddsa-2012-md5-pub.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8801eafbd906bd21", &key));
+    /* Check key validity */
+    assert_rnp_success(rnp_key_is_valid(key, &valid));
+    assert_false(valid);
+    /* Check uid validity */
+    assert_rnp_success(rnp_key_get_uid_handle_at(key, 0, &uid));
+    assert_rnp_success(rnp_uid_is_valid(uid, &valid));
+    assert_false(valid);
+    rnp_uid_handle_destroy(uid);
+    /* Check subkey validity */
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &sub));
+    assert_rnp_success(rnp_key_is_valid(sub, &valid));
+    assert_false(valid);
+    /* Check weak signature count */
+    assert_int_equal(key_weak_self_signatures_count(ffi, key), 2);
     rnp_key_handle_destroy(sub);
     rnp_key_handle_destroy(key);
 

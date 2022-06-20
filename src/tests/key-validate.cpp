@@ -274,14 +274,16 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
     /* load valid rsa/rsa keypair */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub.pgp");
-    /* it is invalid since SHA1 hash is used for signatures */
-    assert_false(key_check(pubring, "2FB9179118898E8B", true));
-    assert_false(key_check(pubring, "6E2F73008F8B8D6E", true));
-    /* allow SHA1 within further checks */
-    rnp::SecurityRule allow_sha1(
-      rnp::FeatureType::Hash, PGP_HASH_SHA1, rnp::SecurityLevel::Default, 1547856001);
-    global_ctx.profile.add_rule(allow_sha1);
-
+    /* it is valid only till year 2024 since SHA1 hash is used for signatures */
+    assert_true(key_check(pubring, "2FB9179118898E8B", true));
+    assert_true(key_check(pubring, "6E2F73008F8B8D6E", true));
+    rnp_key_store_clear(pubring);
+    /* load eddsa key which uses SHA1 signature and is created after the cutoff date */
+    global_ctx.set_time(SHA1_KEY_FROM + 10);
+    key_store_add(pubring, DATA_PATH "eddsa-2024-pub.pgp");
+    assert_false(key_check(pubring, "980E3741F632212C", true));
+    assert_false(key_check(pubring, "6DA00BF7F8B59B53", true));
+    global_ctx.set_time(0);
     rnp_key_store_clear(pubring);
 
     /* load rsa/rsa key with forged self-signature. Valid because of valid binding. */
@@ -312,9 +314,6 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_true(key_check(pubring, "3D032D00EE1EC3F5", false));
     assert_true(key_check(pubring, "021085B640CE8DCE", false));
     rnp_key_store_clear(pubring);
-
-    /* remove SHA1 rule */
-    assert_true(global_ctx.profile.del_rule(allow_sha1));
 
     /* load eddsa/rsa keypair with certification with future creation date - valid because of
      * binding. */
