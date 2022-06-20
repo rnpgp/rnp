@@ -5672,8 +5672,6 @@ TEST_F(rnp_tests, test_ffi_set_log_fd)
 
 TEST_F(rnp_tests, test_ffi_security_profile)
 {
-#define MD5_FROM 1325376000
-#define SHA1_FROM 1547856000
     rnp_ffi_t ffi = NULL;
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* check predefined rules */
@@ -5794,14 +5792,57 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_int_equal(removed, 1);
     assert_rnp_success(rnp_get_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "MD5", time(NULL), &flags, &from, &level));
-    assert_int_equal(from, 1325376000);
+    assert_int_equal(from, MD5_FROM);
     assert_int_equal(level, RNP_SECURITY_INSECURE);
     assert_int_equal(flags, 0);
+    /* Add for data sigs only */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_HASH_ALG,
+                                             "MD5",
+                                             RNP_SECURITY_VERIFY_DATA,
+                                             MD5_FROM + 1,
+                                             RNP_SECURITY_DEFAULT));
+    flags = RNP_SECURITY_VERIFY_DATA;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "MD5", time(NULL), &flags, &from, &level));
+    assert_int_equal(from, MD5_FROM + 1);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_DATA);
+    assert_int_equal(level, RNP_SECURITY_DEFAULT);
+    /* Add for key sigs only */
+    assert_rnp_success(rnp_add_security_rule(ffi,
+                                             RNP_FEATURE_HASH_ALG,
+                                             "MD5",
+                                             RNP_SECURITY_VERIFY_KEY,
+                                             MD5_FROM + 2,
+                                             RNP_SECURITY_DEFAULT));
+    flags = RNP_SECURITY_VERIFY_KEY;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "MD5", time(NULL), &flags, &from, &level));
+    assert_int_equal(from, MD5_FROM + 2);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_KEY);
+    assert_int_equal(level, RNP_SECURITY_DEFAULT);
+    /* Remove added two rules */
+    assert_rnp_success(rnp_remove_security_rule(ffi,
+                                                RNP_FEATURE_HASH_ALG,
+                                                "MD5",
+                                                RNP_SECURITY_DEFAULT,
+                                                RNP_SECURITY_VERIFY_DATA,
+                                                MD5_FROM + 1,
+                                                &removed));
+    assert_int_equal(removed, 1);
+    assert_rnp_success(rnp_remove_security_rule(ffi,
+                                                RNP_FEATURE_HASH_ALG,
+                                                "MD5",
+                                                RNP_SECURITY_DEFAULT,
+                                                RNP_SECURITY_VERIFY_KEY,
+                                                MD5_FROM + 2,
+                                                &removed));
+    assert_int_equal(removed, 1);
     /* Remove all */
     removed = 0;
     assert_rnp_failure(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0x17, 0, &removed));
     assert_rnp_success(rnp_remove_security_rule(ffi, NULL, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 2);
+    assert_int_equal(removed, 3);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for hash */
@@ -5810,7 +5851,7 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     removed = 0;
     assert_rnp_success(
       rnp_remove_security_rule(ffi, RNP_FEATURE_HASH_ALG, NULL, 0, 0, 0, &removed));
-    assert_int_equal(removed, 2);
+    assert_int_equal(removed, 3);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
     /* Remove all rules for specific hash */
@@ -5819,23 +5860,53 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_int_equal(removed, 1);
     assert_rnp_success(rnp_remove_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "SHA1", 0, RNP_SECURITY_REMOVE_ALL, 0, &removed));
-    assert_int_equal(removed, 1);
+    assert_int_equal(removed, 2);
     rnp_ffi_destroy(ffi);
     rnp_ffi_create(&ffi, "GPG", "GPG");
-    /* SHA1 */
+    /* SHA1 - ancient times */
     from = 256;
+    flags = 0;
     assert_rnp_success(
       rnp_get_security_rule(ffi, RNP_FEATURE_HASH_ALG, "SHA1", 0, &flags, &from, &level));
     assert_int_equal(from, 0);
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+    assert_int_equal(flags, 0);
+    /* SHA1 - now, data verify disabled, key sig verify is enabled */
+    flags = 0;
     assert_rnp_success(rnp_get_security_rule(
       ffi, RNP_FEATURE_HASH_ALG, "SHA1", time(NULL), &flags, &from, &level));
-    assert_int_equal(from, SHA1_FROM);
+    assert_int_equal(from, SHA1_DATA_FROM);
     assert_int_equal(level, RNP_SECURITY_INSECURE);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_DATA);
+    flags = 0;
     assert_rnp_success(rnp_get_security_rule(
-      ffi, RNP_FEATURE_HASH_ALG, "SHA1", SHA1_FROM - 1, &flags, &from, &level));
+      ffi, RNP_FEATURE_HASH_ALG, "SHA1", SHA1_DATA_FROM - 1, &flags, &from, &level));
     assert_int_equal(from, 0);
     assert_int_equal(level, RNP_SECURITY_DEFAULT);
+    flags = RNP_SECURITY_VERIFY_DATA;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "SHA1", time(NULL), &flags, &from, &level));
+    assert_int_equal(from, SHA1_DATA_FROM);
+    assert_int_equal(level, RNP_SECURITY_INSECURE);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_DATA);
+    flags = RNP_SECURITY_VERIFY_KEY;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "SHA1", time(NULL), &flags, &from, &level));
+    assert_int_equal(from, 0);
+    assert_int_equal(level, RNP_SECURITY_DEFAULT);
+    assert_int_equal(flags, 0);
+    flags = RNP_SECURITY_VERIFY_KEY;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "SHA1", SHA1_KEY_FROM + 5, &flags, &from, &level));
+    assert_int_equal(from, SHA1_KEY_FROM);
+    assert_int_equal(level, RNP_SECURITY_INSECURE);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_KEY);
+    flags = 0;
+    assert_rnp_success(rnp_get_security_rule(
+      ffi, RNP_FEATURE_HASH_ALG, "SHA1", SHA1_KEY_FROM + 5, &flags, &from, &level));
+    assert_int_equal(from, SHA1_KEY_FROM);
+    assert_int_equal(level, RNP_SECURITY_INSECURE);
+    assert_int_equal(flags, RNP_SECURITY_VERIFY_KEY);
 
     rnp_ffi_destroy(ffi);
 }
