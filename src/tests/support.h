@@ -295,4 +295,8 @@ rnp_round_up(size_t n, size_t align_to)
     return n;
 }
 
+#define MD5_FROM 1325376000
+#define SHA1_DATA_FROM 1547856000
+#define SHA1_KEY_FROM 1705629600
+
 #endif /* SUPPORT_H_ */
