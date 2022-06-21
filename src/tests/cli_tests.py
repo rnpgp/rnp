@@ -1955,7 +1955,7 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--export', 'Alice'])
         self.assertEqual(ret, 0, 'key export failed')
         pubpath = os.path.join(RNPDIR, 'Alice-export-test.asc')
-        with open(pubpath, 'wb+') as f:
+        with open(pubpath, 'w+') as f:
             f.write(out)
         # List exported key packets
         params = ['--list-packets', pubpath]
