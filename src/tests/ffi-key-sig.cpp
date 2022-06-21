@@ -488,14 +488,12 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_rnp_success(rnp_key_export_revocation(
       key_handle, output, 0, "SHA256", "superseded", "test key revocation"));
     assert_rnp_success(rnp_output_destroy(output));
-    assert_rnp_success(rnp_output_to_path(&output, "alice-revocation.asc"));
-    assert_rnp_success(rnp_key_export_revocation(key_handle,
-                                                 output,
-                                                 RNP_KEY_EXPORT_ARMORED,
-                                                 "SHA256",
-                                                 "superseded",
-                                                 "test key revocation"));
-    assert_rnp_success(rnp_output_destroy(output));
+
+    /* check that the output is binary or armored as requested */
+    std::string data = file_to_str("alice-revocation.pgp");
+    assert_false(starts_with(data, "-----BEGIN PGP PUBLIC KEY BLOCK-----"));
+    assert_false(ends_with(strip_eol(data), "-----END PGP PUBLIC KEY BLOCK-----"));
+
     /* make sure FFI locks key back */
     bool locked = false;
     assert_rnp_success(rnp_key_is_locked(key_handle, &locked));
@@ -533,18 +531,51 @@ TEST_F(rnp_tests, test_ffi_export_revocation)
     assert_int_equal(sig.revocation_code(), PGP_REVOCATION_SUPERSEDED);
     assert_string_equal(sig.revocation_reason().c_str(), "test key revocation");
 
+    assert_int_equal(rnp_unlink("alice-revocation.pgp"), 0);
     assert_rnp_success(rnp_ffi_destroy(ffi));
 
-    /* check that the output is binary or armored as requested */
-    std::string data = file_to_str("alice-revocation.pgp");
-    assert_false(starts_with(data, "-----BEGIN PGP PUBLIC KEY BLOCK-----"));
-    assert_false(ends_with(strip_eol(data), "-----END PGP PUBLIC KEY BLOCK-----"));
-    assert_int_equal(rnp_unlink("alice-revocation.pgp"), 0);
+    /* testing armored revocation generation */
+
+    // load initial keyring
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_sec_keys(ffi, "data/test_key_validity/alice-sec.asc"));
+
+    key_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+
+    // export revocation
+    assert_rnp_success(rnp_output_to_path(&output, "alice-revocation.asc"));
+    assert_rnp_success(rnp_key_unlock(key_handle, "password"));
+    assert_rnp_success(rnp_key_export_revocation(key_handle,
+                                                 output,
+                                                 RNP_KEY_EXPORT_ARMORED,
+                                                 "SHA256",
+                                                 "superseded",
+                                                 "test key revocation"));
+    assert_rnp_success(rnp_output_destroy(output));
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
 
     data = file_to_str("alice-revocation.asc");
     assert_true(starts_with(data, "-----BEGIN PGP PUBLIC KEY BLOCK-----"));
     assert_true(ends_with(strip_eol(data), "-----END PGP PUBLIC KEY BLOCK-----"));
+
+    // import it back
+    assert_true(check_import_sigs(ffi, &jso, &jsosigs, "alice-revocation.asc"));
+    assert_int_equal(json_object_array_length(jsosigs), 1);
+    jsosig = json_object_array_get_idx(jsosigs, 0);
+    assert_true(
+      check_sig_status(jsosig, "new", "new", "73edcc9119afc8e2dbbdcde50451409669ffde3c"));
+    json_object_put(jso);
+
+    // make sure that key becomes revoked
+    key_handle = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "Alice <alice@rnp>", &key_handle));
+    assert_rnp_success(rnp_key_is_revoked(key_handle, &revoked));
+    assert_true(revoked);
+    assert_rnp_success(rnp_key_handle_destroy(key_handle));
+
     assert_int_equal(rnp_unlink("alice-revocation.asc"), 0);
+    assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
 #define KEYSIG_PATH "data/test_key_validity/"
