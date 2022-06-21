@@ -69,7 +69,7 @@ def random_text(path, size):
 
 def file_text(path, encoding = CONSOLE_ENCODING):
     with open(path, 'rb') as f:
-        return f.read().decode(encoding)
+        return f.read().decode(encoding).replace('\r\r', '\r')
 
 def find_utility(name, exitifnone = True):
     path = distutils.spawn.find_executable(name)
