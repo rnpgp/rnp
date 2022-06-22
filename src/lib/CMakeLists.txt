@@ -75,7 +75,7 @@ if(CRYPTO_BACKEND_BOTAN)
       # base
       BIGINT FFI HEX_CODEC PGP_S2K
       # symmetric ciphers
-      BLOCK_CIPHER AES BLOWFISH CAMELLIA CAST_128 DES IDEA
+      BLOCK_CIPHER AES BLOWFISH CAMELLIA CAST_128 DES
       # cipher modes
       MODE_CBC MODE_CFB
       # RNG
@@ -101,6 +101,9 @@ if(CRYPTO_BACKEND_BOTAN)
   if (ENABLE_TWOFISH)
     list(APPEND _botan_required_features TWOFISH)
   endif()
+  if (ENABLE_IDEA)
+    list(APPEND _botan_required_features IDEA)
+  endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
     if (NOT _botan_has_${feature})
@@ -115,7 +118,7 @@ if(CRYPTO_BACKEND_OPENSSL)
     # symmetric ciphers
     AES-128-ECB AES-192-ECB AES-256-ECB AES-128-CBC AES-192-CBC AES-256-CBC
     BF-ECB CAMELLIA-128-ECB CAMELLIA-192-ECB CAMELLIA-256-ECB CAST5-ECB
-    DES-EDE3 IDEA-ECB IDEA-CBC
+    DES-EDE3
     # hashes
     MD5 SHA1 SHA224 SHA256 SHA384 SHA512 SHA3-256 SHA3-512 RIPEMD160
     # curves
@@ -130,6 +133,9 @@ if(CRYPTO_BACKEND_OPENSSL)
   # Brainpool curves
   if (ENABLE_BRAINPOOL)
     list(APPEND _openssl_required_features BRAINPOOLP256R1 BRAINPOOLP384R1 BRAINPOOLP512R1)
+  endif()
+  if (ENABLE_IDEA)
+    list(APPEND _openssl_required_features IDEA-ECB IDEA-CBC)
   endif()
   foreach(feature ${_openssl_required_features})
     message(STATUS "Looking for OpenSSL feature ${feature}")
