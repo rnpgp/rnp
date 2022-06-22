@@ -60,6 +60,7 @@ option(ENABLE_SM2 "Enable SM2/SM3/SM4 algorithms support." On)
 option(ENABLE_AEAD "Enable AEAD ciphers support." On)
 option(ENABLE_TWOFISH "Enable Twofish cipher support." On)
 option(ENABLE_BRAINPOOL "Enable Brainpool curves support." On)
+option(ENABLE_IDEA "Enable IDEA algorithm support." On)
 
 # tri-state options
 set(TRISTATE_VALUES On Off Auto)
