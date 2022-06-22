@@ -45,7 +45,7 @@ env:
 
 jobs:
   tests:
-    name: ${{ matrix.env.IMAGE }} [CC ${{ matrix.env.CC }}; GnuPG stable]
+    name: ${{ matrix.env.IMAGE }} [CC ${{ matrix.env.CC }}; ${{ matrix.env.CPU }}; backend ${{ matrix.env.CRYPTO_BACKEND }}; GnuPG stable]
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     container:
@@ -59,10 +59,43 @@ jobs:
             CXX: g++
             CPU: i386
             IMAGE: "i386/debian:11"
+            CRYPTO_BACKEND: botan
           - CC: clang
             CXX: clang++
             CPU: i386
             IMAGE: "i386/debian:11"
+            CRYPTO_BACKEND: botan
+          - CC: gcc
+            CXX: g++
+            CPU: x86_64
+            IMAGE: "amd64/debian:11"
+            CRYPTO_BACKEND: botan
+          - CC: clang
+            CXX: clang++
+            CPU: x86_64
+            IMAGE: "amd64/debian:11"
+            CRYPTO_BACKEND: botan
+
+          - CC: gcc
+            CXX: g++
+            CPU: i386
+            IMAGE: "i386/debian:11"
+            CRYPTO_BACKEND: openssl
+          - CC: clang
+            CXX: clang++
+            CPU: i386
+            IMAGE: "i386/debian:11"
+            CRYPTO_BACKEND: openssl
+          - CC: gcc
+            CXX: g++
+            CPU: x86_64
+            IMAGE: "amd64/debian:11"
+            CRYPTO_BACKEND: openssl
+          - CC: clang
+            CXX: clang++
+            CPU: x86_64
+            IMAGE: "amd64/debian:11"
+            CRYPTO_BACKEND: openssl
     env: ${{ matrix.env }}
     steps:
       - name: Install prerequisites
