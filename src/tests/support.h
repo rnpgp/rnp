@@ -120,17 +120,6 @@ void copy_recursively(const char *src, const char *dst);
  */
 char *make_temp_dir(void);
 
-/** get an absolute directory from a file path
- *
- *  @param file_path the path to the file, which must not be NULL. This can be absolute
- *         or relative (if reldir is supplied)
- *  @param reldir a directory that will be used to construct a full path from a relative
- *         one. Can be NULL if file_path is absolute.
- *  @return if there is no error, it returns an absolute path to the directory.
- *          Otherwise, it returns NULL.
- **/
-char *directory_from_file_path(const char *file_path, const char *reldir);
-
 /* check whether bin value is equals hex string */
 bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 
