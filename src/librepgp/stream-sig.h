@@ -85,6 +85,12 @@ typedef struct pgp_signature_t {
         type_ = atype;
     };
 
+    bool
+    is_document() const
+    {
+        return (type_ == PGP_SIG_BINARY) || (type_ == PGP_SIG_TEXT);
+    };
+
     /** @brief Calculate the unique signature identifier by hashing signature's fields. */
     pgp_sig_id_t get_id() const;
 

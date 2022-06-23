@@ -204,10 +204,8 @@ signature_validate(const pgp_signature_t &     sig,
     }
 
     /* Check signature security */
-    auto action = rnp::SecurityAction::VerifyKey;
-    if ((sig.type() == PGP_SIG_BINARY) || (sig.type() == PGP_SIG_TEXT)) {
-        action = rnp::SecurityAction::VerifyData;
-    }
+    auto action =
+      sig.is_document() ? rnp::SecurityAction::VerifyData : rnp::SecurityAction::VerifyKey;
     if (ctx.profile.hash_level(sig.halg, sig.creation(), action) <
         rnp::SecurityLevel::Default) {
         RNP_LOG("Insecure hash algorithm %d, marking signature as invalid.", sig.halg);
