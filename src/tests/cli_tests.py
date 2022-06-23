@@ -3738,6 +3738,12 @@ class SignDefault(unittest.TestCase):
 
         clear_workfiles()
 
+    def test_verify_bad_sig_class(self):
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(KEY_ALICE_SEC), '--verify', data_path('test_messages/message.txt.signed-class19')])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Invalid document signature type: 19.*')
+        self.assertNotRegex(err, r'(?s)^.*Good signature.*')
+        self.assertRegex(err, r'(?s)^.*BAD signature.*Signature verification failure: 1 invalid signature')
 
 class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
     def _encrypt_decrypt(self, e1, e2, failenc = False, faildec = False):

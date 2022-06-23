@@ -1341,14 +1341,14 @@ TEST_F(rnp_tests, test_ffi_signatures_dump)
       rnp_input_from_path(&signature, "data/test_stream_signatures/signature-timestamp.asc"));
     /* call verify detached to obtain signatures */
     assert_rnp_success(rnp_op_verify_detached_create(&verify, ffi, input, signature));
-    assert_rnp_success(rnp_op_verify_execute(verify));
+    assert_int_equal(rnp_op_verify_execute(verify), RNP_ERROR_SIGNATURE_INVALID);
     /* get signature and check it */
     sig_count = 0;
     assert_rnp_success(rnp_op_verify_get_signature_count(verify, &sig_count));
     assert_int_equal(sig_count, 1);
     /* get signature handle  */
     assert_rnp_success(rnp_op_verify_get_signature_at(verify, 0, &sig));
-    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_KEY_NOT_FOUND);
+    assert_int_equal(rnp_op_verify_signature_get_status(sig), RNP_ERROR_SIGNATURE_INVALID);
     assert_rnp_success(rnp_op_verify_signature_get_handle(sig, &sighandle));
     assert_non_null(sighandle);
     /* check signature type */

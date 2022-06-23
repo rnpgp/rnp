@@ -780,6 +780,12 @@ get_hash_for_sig(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 static void
 signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t &sinfo)
 {
+    /* Check signature type */
+    if (!sinfo.sig->is_document()) {
+        RNP_LOG("Invalid document signature type: %d", (int) sinfo.sig->type());
+        sinfo.valid = false;
+        return;
+    }
     /* Find signing key */
     pgp_key_request_ctx_t keyctx = {
       .op = PGP_OP_VERIFY, .secret = false, .search = {.type = PGP_KEY_SEARCH_FINGERPRINT}};
