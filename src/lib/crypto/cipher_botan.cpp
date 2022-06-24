@@ -46,6 +46,12 @@ static const id_str_pair cipher_map[] = {
 Cipher_Botan *
 Cipher_Botan::create(pgp_symm_alg_t alg, const std::string &name, bool encrypt)
 {
+#if !defined(ENABLE_IDEA)
+    if (alg == PGP_SA_IDEA) {
+        RNP_LOG("IDEA support has been disabled");
+        return nullptr;
+    }
+#endif
     auto cipher = Botan::Cipher_Mode::create(
       name, encrypt ? Botan::Cipher_Dir::ENCRYPTION : Botan::Cipher_Dir::DECRYPTION);
     if (!cipher) {
