@@ -941,6 +941,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     assert_rnp_failure(rnp_key_get_protection_iterations(sub, &iterations));
     rnp_key_handle_destroy(sub);
 
+#if defined(ENABLE_IDEA)
     /* v3 secret key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_true(import_pub_keys(ffi, "data/keyrings/4/pubring.pgp"));
@@ -971,6 +972,7 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     assert_rnp_failure(rnp_key_get_protection_hash(key, &hash));
     assert_rnp_failure(rnp_key_get_protection_iterations(key, &iterations));
     rnp_key_handle_destroy(key);
+#endif
 
     /* G10 keys */
     rnp_ffi_destroy(ffi);

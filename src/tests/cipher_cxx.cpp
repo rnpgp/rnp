@@ -66,7 +66,8 @@ test_cipher(pgp_symm_alg_t    alg,
     const std::vector<uint8_t> pt(decode_hex(pt_hex));
     const std::vector<uint8_t> expected_ct(decode_hex(expected_ct_hex));
 
-    auto                 enc = Cipher::encryption(alg, mode, tag_size, disable_padding);
+    auto enc = Cipher::encryption(alg, mode, tag_size, disable_padding);
+    assert_non_null(enc);
     const size_t         block_size = enc->block_size();
     const size_t         ud = enc->update_granularity();
     std::vector<uint8_t> ct;
@@ -195,6 +196,8 @@ test_cipher(pgp_symm_alg_t    alg,
 
 TEST_F(rnp_tests, test_cipher_idea)
 {
+#if defined(ENABLE_IDEA)
+    assert_true(idea_enabled());
     // OpenSSL do_crypt man page example
     test_cipher(PGP_SA_IDEA,
                 PGP_CIPHER_MODE_CBC,
@@ -205,6 +208,10 @@ TEST_F(rnp_tests, test_cipher_idea)
                 NULL,
                 "536f6d652043727970746f2054657874",
                 "8974b718d0cb68b44e27c480546dfcc7a33895f461733219");
+#else
+    assert_false(idea_enabled());
+    assert_null(Cipher::encryption(PGP_SA_IDEA, PGP_CIPHER_MODE_CBC, 0, false));
+#endif
 }
 
 TEST_F(rnp_tests, test_cipher_aes_128_ocb)

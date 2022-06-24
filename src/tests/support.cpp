@@ -1228,6 +1228,16 @@ twofish_enabled()
 }
 
 bool
+idea_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
 brainpool_enabled()
 {
     bool enabled = false;

@@ -43,11 +43,18 @@ static const id_str_pair cipher_map[] = {
 };
 
 EVP_CIPHER_CTX *
-Cipher_OpenSSL::create(const std::string &name,
+Cipher_OpenSSL::create(pgp_symm_alg_t     alg,
+                       const std::string &name,
                        bool               encrypt,
                        size_t             tag_size,
                        bool               disable_padding)
 {
+#if !defined(ENABLE_IDEA)
+    if (alg == PGP_SA_IDEA) {
+        RNP_LOG("IDEA support has been disabled");
+        return nullptr;
+    }
+#endif
     const EVP_CIPHER *cipher = EVP_get_cipherbyname(name.c_str());
     if (!cipher) {
         RNP_LOG("Unsupported cipher: %s", name.c_str());
@@ -94,11 +101,13 @@ Cipher_OpenSSL::encryption(pgp_symm_alg_t    cipher,
                            size_t            tag_size,
                            bool              disable_padding)
 {
-    return std::unique_ptr<Cipher_OpenSSL>(new (std::nothrow) Cipher_OpenSSL(
-      cipher,
-      create(make_name(cipher, mode), true, tag_size, disable_padding),
-      tag_size,
-      true));
+    EVP_CIPHER_CTX *ossl_ctx =
+      create(cipher, make_name(cipher, mode), true, tag_size, disable_padding);
+    if (!ossl_ctx) {
+        return NULL;
+    }
+    return std::unique_ptr<Cipher_OpenSSL>(new (std::nothrow)
+                                             Cipher_OpenSSL(cipher, ossl_ctx, tag_size, true));
 }
 
 std::unique_ptr<Cipher_OpenSSL>
@@ -107,11 +116,13 @@ Cipher_OpenSSL::decryption(pgp_symm_alg_t    cipher,
                            size_t            tag_size,
                            bool              disable_padding)
 {
-    return std::unique_ptr<Cipher_OpenSSL>(new (std::nothrow) Cipher_OpenSSL(
-      cipher,
-      create(make_name(cipher, mode), false, tag_size, disable_padding),
-      tag_size,
-      false));
+    EVP_CIPHER_CTX *ossl_ctx =
+      create(cipher, make_name(cipher, mode), false, tag_size, disable_padding);
+    if (!ossl_ctx) {
+        return NULL;
+    }
+    return std::unique_ptr<Cipher_OpenSSL>(
+      new (std::nothrow) Cipher_OpenSSL(cipher, ossl_ctx, tag_size, false));
 }
 
 bool

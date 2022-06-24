@@ -273,6 +273,7 @@ bool sm2_enabled();
 bool aead_eax_enabled();
 bool aead_ocb_enabled();
 bool twofish_enabled();
+bool idea_enabled();
 bool brainpool_enabled();
 
 inline size_t
