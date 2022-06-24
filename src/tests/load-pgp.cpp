@@ -62,6 +62,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     // cleanup
     delete key_store;
 
+#if defined(ENABLE_IDEA)
     // load secret keyring and decrypt the key
 
     key_store = new rnp_key_store_t(global_ctx);
@@ -89,6 +90,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     // cleanup
     delete seckey;
     delete key_store;
+#endif
 }
 
 /* This test loads a .gpg pubring with multiple V4 keys,

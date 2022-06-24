@@ -148,7 +148,9 @@ static const id_str_pair pubkey_alg_map[] = {
 
 static const id_str_pair symm_alg_map[] = {
   {PGP_SA_PLAINTEXT, "Plaintext"},
+#if defined(ENABLE_IDEA)
   {PGP_SA_IDEA, "IDEA"},
+#endif
   {PGP_SA_TRIPLEDES, "TripleDES"},
   {PGP_SA_CAST5, "CAST5"},
   {PGP_SA_BLOWFISH, "Blowfish"},
