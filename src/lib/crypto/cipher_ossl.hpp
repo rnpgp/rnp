@@ -70,7 +70,8 @@ class Cipher_OpenSSL : public Cipher {
     size_t          m_tag_size;
     bool            m_encrypt;
 
-    static EVP_CIPHER_CTX *create(const std::string &name,
+    static EVP_CIPHER_CTX *create(pgp_symm_alg_t     alg,
+                                  const std::string &name,
                                   bool               encrypt,
                                   size_t             tag_size,
                                   bool               disable_padding);

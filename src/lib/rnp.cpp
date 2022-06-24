@@ -300,6 +300,11 @@ str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
         return false;
     }
 #endif
+#if !defined(ENABLE_IDEA)
+    if (alg == PGP_SA_IDEA) {
+        return false;
+    }
+#endif
     *cipher = alg;
     return true;
 }
@@ -1047,7 +1052,10 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
-        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_AES_256);
+#if defined(ENABLE_IDEA)
+        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_IDEA);
+#endif
+        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_TRIPLEDES, PGP_SA_AES_256);
 #if defined(ENABLE_TWOFISH)
         ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_TWOFISH, PGP_SA_TWOFISH);
 #endif

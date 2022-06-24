@@ -129,12 +129,14 @@ TEST_F(rnp_tests, test_key_validate)
     assert_false(all_keys_valid(pubring));
     delete pubring;
 
+#if defined(ENABLE_IDEA)
     /* secret keyring doesn't have certifications - so marked as invalid */
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/secring.pgp", global_ctx);
     assert_true(rnp_key_store_load_from_path(secring, NULL));
     assert_false(all_keys_valid(secring));
     delete secring;
+#endif
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/5/pubring.gpg", global_ctx);

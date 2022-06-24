@@ -37,6 +37,7 @@ TEST_WORKFILES = []
 RNP_TWOFISH = True
 RNP_BRAINPOOL = True
 RNP_AEAD = True
+RNP_IDEA = True
 
 if sys.version_info >= (3,):
     unichr = chr
@@ -826,7 +827,7 @@ def gpg_check_features():
     GPG_NO_OLD = not match.group(5) or (int(match.group(5)) >= 1598)
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_IDEA
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
@@ -836,6 +837,8 @@ def rnp_check_features():
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out)
     # Brainpool curves
     RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
+
+    RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out)
     # Check that everything is enabled for Botan:
     if re.match(r'(?s)^.*Backend:\s+Botan.*', out) and (not RNP_AEAD or not RNP_TWOFISH or not RNP_BRAINPOOL):
         raise_err('Something is wrong with features detection.')
@@ -1723,6 +1726,8 @@ class Misc(unittest.TestCase):
 
         if not RNP_TWOFISH:
             ciphers.remove('TWOFISH')
+        if not RNP_IDEA:
+            ciphers.remove('IDEA')
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
             params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, 
@@ -2638,6 +2643,8 @@ class Encryption(unittest.TestCase):
         gpg_import_secring()
         if not RNP_TWOFISH:
             Encryption.CIPHERS.remove('TWOFISH')
+        if not RNP_IDEA:
+            Encryption.CIPHERS.remove('IDEA')
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
