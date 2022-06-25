@@ -74,7 +74,7 @@ static pgp_key_t *get_key_require_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_require_secret(rnp_key_handle_t handle);
 
-static bool locator_to_str(const pgp_key_search_t *locator,
+static bool locator_to_str(const pgp_key_search_t &locator,
                            const char **           identifier_type,
                            char *                  identifier,
                            size_t                  identifier_size);
@@ -87,36 +87,17 @@ static bool rnp_password_cb_bounce(const pgp_password_ctx_t *ctx,
 static rnp_result_t rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result);
 
 static pgp_key_t *
-find_key(rnp_ffi_t               ffi,
-         const pgp_key_search_t *search,
-         key_type_t              key_type,
-         bool                    try_key_provider)
+find_key(rnp_ffi_t ffi, const pgp_key_search_t &search, bool secret, bool try_key_provider)
 {
-    pgp_key_t *key = NULL;
-
-    switch (key_type) {
-    case KEY_TYPE_PUBLIC:
-        key = rnp_key_store_search(ffi->pubring, search, NULL);
-        break;
-    case KEY_TYPE_SECRET:
-        key = rnp_key_store_search(ffi->secring, search, NULL);
-        break;
-    default:
-        assert(false);
-        break;
-    }
+    pgp_key_t *key = rnp_key_store_search(secret ? ffi->secring : ffi->pubring, &search, NULL);
     if (!key && ffi->getkeycb && try_key_provider) {
         char        identifier[RNP_LOCATOR_MAX_SIZE];
         const char *identifier_type = NULL;
 
         if (locator_to_str(search, &identifier_type, identifier, sizeof(identifier))) {
-            ffi->getkeycb(ffi,
-                          ffi->getkeycb_ctx,
-                          identifier_type,
-                          identifier,
-                          key_type == KEY_TYPE_SECRET);
+            ffi->getkeycb(ffi, ffi->getkeycb_ctx, identifier_type, identifier, secret);
             // recurse and try the store search above once more
-            return find_key(ffi, search, key_type, false);
+            return find_key(ffi, search, secret, false);
         }
     }
     return key;
@@ -126,7 +107,7 @@ static pgp_key_t *
 ffi_key_provider(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     rnp_ffi_t ffi = (rnp_ffi_t) userdata;
-    return find_key(ffi, &ctx->search, ctx->secret ? KEY_TYPE_SECRET : KEY_TYPE_PUBLIC, true);
+    return find_key(ffi, ctx->search, ctx->secret, true);
 }
 
 static void
@@ -3743,35 +3724,33 @@ str_to_locator(rnp_ffi_t         ffi,
 }
 
 static bool
-locator_to_str(const pgp_key_search_t *locator,
+locator_to_str(const pgp_key_search_t &locator,
                const char **           identifier_type,
                char *                  identifier,
                size_t                  identifier_size)
 {
     // find the identifier type string with the map
-    *identifier_type = id_str_pair::lookup(identifier_type_map, locator->type, NULL);
+    *identifier_type = id_str_pair::lookup(identifier_type_map, locator.type, NULL);
     if (!*identifier_type) {
         return false;
     }
     // fill in the actual identifier
-    switch (locator->type) {
+    switch (locator.type) {
     case PGP_KEY_SEARCH_USERID:
-        if (snprintf(identifier, identifier_size, "%s", locator->by.userid) >=
+        if (snprintf(identifier, identifier_size, "%s", locator.by.userid) >=
             (int) identifier_size) {
             return false;
         }
         break;
     case PGP_KEY_SEARCH_KEYID:
-        if (!rnp::hex_encode(locator->by.keyid.data(),
-                             locator->by.keyid.size(),
-                             identifier,
-                             identifier_size)) {
+        if (!rnp::hex_encode(
+              locator.by.keyid.data(), locator.by.keyid.size(), identifier, identifier_size)) {
             return false;
         }
         break;
     case PGP_KEY_SEARCH_FINGERPRINT:
-        if (!rnp::hex_encode(locator->by.fingerprint.fingerprint,
-                             locator->by.fingerprint.length,
+        if (!rnp::hex_encode(locator.by.fingerprint.fingerprint,
+                             locator.by.fingerprint.length,
                              identifier,
                              identifier_size)) {
             return false;
@@ -3779,7 +3758,7 @@ locator_to_str(const pgp_key_search_t *locator,
         break;
     case PGP_KEY_SEARCH_GRIP:
         if (!rnp::hex_encode(
-              locator->by.grip.data(), locator->by.grip.size(), identifier, identifier_size)) {
+              locator.by.grip.data(), locator.by.grip.size(), identifier, identifier_size)) {
             return false;
         }
         break;
@@ -6796,7 +6775,7 @@ try {
 
     pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
     search.by.fingerprint = pkey->primary_fp();
-    pgp_key_t *prim_sec = find_key(key->ffi, &search, KEY_TYPE_SECRET, true);
+    pgp_key_t *prim_sec = find_key(key->ffi, search, true, true);
     if (!prim_sec) {
         FFI_LOG(key->ffi, "Primary secret key not found.");
         return RNP_ERROR_KEY_NOT_FOUND;
@@ -6806,7 +6785,7 @@ try {
         return RNP_ERROR_GENERIC;
     }
     prim_sec->revalidate(*key->ffi->secring);
-    pgp_key_t *prim_pub = find_key(key->ffi, &search, KEY_TYPE_PUBLIC, true);
+    pgp_key_t *prim_pub = find_key(key->ffi, search, false, true);
     if (prim_pub) {
         prim_pub->revalidate(*key->ffi->pubring);
     }
