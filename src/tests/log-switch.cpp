@@ -113,6 +113,15 @@ TEST_F(rnp_tests, test_log_switch)
         fflush(stream);
         assert_int_equal(sz, ftell(stream));
     }
+    // make sure this continues logging
+    {
+        // check C++ object helper
+        rnp::LogStop log_stop(false);
+        RNP_LOG_FD(stream, "y");
+        fflush(stream);
+        assert_true(sz < ftell(stream));
+        sz = ftell(stream);
+    }
     // combine multiple log_stop calls
     rnp_log_stop();
     {
