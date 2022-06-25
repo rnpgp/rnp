@@ -40,14 +40,20 @@ void rnp_log_continue();
 
 namespace rnp {
 class LogStop {
+    bool stop_;
+
   public:
-    LogStop()
+    LogStop(bool stop = true) : stop_(stop)
     {
-        rnp_log_stop();
+        if (stop_) {
+            rnp_log_stop();
+        }
     }
     ~LogStop()
     {
-        rnp_log_continue();
+        if (stop_) {
+            rnp_log_continue();
+        }
     }
 };
 } // namespace rnp
