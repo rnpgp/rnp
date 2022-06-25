@@ -89,8 +89,9 @@
 #define CFG_FIX_25519_BITS "fix-25519-bits"   /* fix Cv25519 secret key via --edit-key */
 #define CFG_CHK_25519_BITS "check-25519-bits" /* check Cv25519 secret key bits */
 #define CFG_SOURCE "source"                   /* source for the detached signature */
-#define CFG_NOWRAP "no-wrap"  /* do not wrap the output in a literal data packet */
-#define CFG_CURTIME "curtime" /* date or timestamp to override the system's time */
+#define CFG_NOWRAP "no-wrap"            /* do not wrap the output in a literal data packet */
+#define CFG_CURTIME "curtime"           /* date or timestamp to override the system's time */
+#define CFG_ALLOW_HIDDEN "allow-hidden" /* allow hidden recipients */
 
 /* rnp keyring setup variables */
 #define CFG_KR_PUB_FORMAT "kr-pub-format"
