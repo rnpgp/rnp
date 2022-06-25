@@ -136,6 +136,7 @@ typedef uint32_t rnp_result_t;
  */
 #define RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT (1U << 0)
 #define RNP_VERIFY_REQUIRE_ALL_SIGS (1U << 1)
+#define RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT (1U << 2)
 
 /**
  * Return a constant string describing the result code
@@ -311,6 +312,10 @@ typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
  *  to verify a signature, the signer's keyid may be used first to request the key.
  *  If that is not successful, the signer's fingerprint (if available) may be used.
  *
+ *  Please note that there is a special case with 'hidden' recipient, with all-zero keyid. In
+ *  this case implementation should load all available secret keys for the decryption attempt
+ *  (or do nothing, in this case decryption to the hidden recipient would fail).
+ *
  *  Situations in which this callback would be used include:
  *   - When decrypting data that includes a public-key encrypted session key,
  *     and the key is not found in the keyrings.
@@ -371,6 +376,17 @@ RNP_API rnp_result_t rnp_ffi_create(rnp_ffi_t * ffi,
 RNP_API rnp_result_t rnp_ffi_destroy(rnp_ffi_t ffi);
 
 RNP_API rnp_result_t rnp_ffi_set_log_fd(rnp_ffi_t ffi, int fd);
+
+/**
+ * @brief Set key provider callback. This callback would be called in case when required public
+ *        or secret key is not loaded to the keyrings.
+ *
+ * @param ffi initialized ffi object, cannot be NULL.
+ * @param getkeycb callback function. See rnp_get_key_cb documentation for details.
+ * @param getkeycb_ctx implementation-specific context, which would be passed to the getkeycb
+ *                      on invocation.
+ * @return RNP_SUCCESS on success, or any other value on error.
+ */
 RNP_API rnp_result_t rnp_ffi_set_key_provider(rnp_ffi_t      ffi,
                                               rnp_get_key_cb getkeycb,
                                               void *         getkeycb_ctx);
@@ -2271,6 +2287,11 @@ RNP_API rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
  *                unknown key(s).
  *              RNP_VERIFY_REQUIRE_ALL_SIGS - require that all signatures (if any) must be
  *                valid for successful run of rnp_op_verify_execute().
+ *              RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT - allow hidden recipient during the
+ *                decryption.
+ *
+ *              Note: all flags are set at once, if some flag is not present in the subsequent
+ *              call then it will be unset.
  * @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags);
