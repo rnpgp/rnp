@@ -2032,20 +2032,11 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
-    rnp_result_t                  errcode = RNP_ERROR_GENERIC;
-    pgp_source_encrypted_param_t *param;
-    pgp_key_t *                   seckey = NULL;
-    pgp_key_pkt_t *               decrypted_seckey = NULL;
-    int                           intres;
-    bool                          have_key = false;
-
     if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    try {
-        param = new pgp_source_encrypted_param_t();
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
+    pgp_source_encrypted_param_t *param = new (std::nothrow) pgp_source_encrypted_param_t();
+    if (!param) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     src->param = param;
@@ -2057,16 +2048,14 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     src->type = PGP_STREAM_ENCRYPTED;
 
     /* Read the packet-related information */
-    errcode = encrypted_read_packet_data(param);
-    if (errcode != RNP_SUCCESS) {
+    rnp_result_t errcode = encrypted_read_packet_data(param);
+    if (errcode) {
         goto finish;
     }
 
     src->read = param->aead ? encrypted_src_read_aead : encrypted_src_read_cfb;
 
     /* Obtaining the symmetric key */
-    have_key = false;
-
     if (!handler->password_provider) {
         RNP_LOG("no password provider");
         errcode = RNP_ERROR_BAD_PARAMETERS;
@@ -2078,6 +2067,8 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         handler->on_recipients(param->pubencs, param->symencs, handler->param);
     }
 
+    bool have_key;
+    have_key = false;
     /* Trying public-key decryption */
     if (!param->pubencs.empty()) {
         if (!handler->key_provider) {
@@ -2091,39 +2082,25 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         for (auto &pubenc : param->pubencs) {
             keyctx.search.by.keyid = pubenc.key_id;
             /* Get the key if any */
-            if (!(seckey = pgp_request_key(handler->key_provider, &keyctx))) {
+            pgp_key_t *seckey = pgp_request_key(handler->key_provider, &keyctx);
+            if (!seckey) {
                 errcode = RNP_ERROR_NO_SUITABLE_KEY;
                 continue;
             }
             /* Decrypt key */
-            if (seckey->encrypted()) {
-                pgp_password_ctx_t pass_ctx(PGP_OP_DECRYPT, seckey);
-                decrypted_seckey =
-                  pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
-                if (!decrypted_seckey) {
-                    errcode = RNP_ERROR_BAD_PASSWORD;
-                    continue;
-                }
-            } else {
-                decrypted_seckey = &seckey->pkt();
+            rnp::KeyLocker seclock(*seckey);
+            if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
+                errcode = RNP_ERROR_BAD_PASSWORD;
+                continue;
             }
 
             /* Try to initialize the decryption */
-            if (encrypted_try_key(param, &pubenc, decrypted_seckey, *handler->ctx->ctx)) {
+            if (encrypted_try_key(param, &pubenc, &seckey->pkt(), *handler->ctx->ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
                 if (handler->on_decryption_start) {
                     handler->on_decryption_start(&pubenc, NULL, handler->param);
                 }
-            }
-
-            /* Destroy decrypted key */
-            if (seckey->encrypted()) {
-                delete decrypted_seckey;
-                decrypted_seckey = NULL;
-            }
-
-            if (have_key) {
                 break;
             }
         }
@@ -2139,7 +2116,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
-        intres = encrypted_try_password(param, password.data());
+        int intres = encrypted_try_password(param, password.data());
         if (intres > 0) {
             have_key = true;
         } else if (intres < 0) {
