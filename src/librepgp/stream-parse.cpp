@@ -2029,6 +2029,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     return RNP_SUCCESS;
 }
 
+#define MAX_HIDDEN_TRIES 64
+
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
@@ -2077,14 +2079,30 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
-        pgp_key_request_ctx_t keyctx(PGP_OP_DECRYPT_SYM, true, PGP_KEY_SEARCH_KEYID);
+        pgp_key_request_ctx_t keyctx(PGP_OP_DECRYPT, true, PGP_KEY_SEARCH_KEYID);
 
-        for (auto &pubenc : param->pubencs) {
+        size_t pubidx = 0;
+        size_t hidden_tries = 0;
+        errcode = RNP_ERROR_NO_SUITABLE_KEY;
+        while (pubidx < param->pubencs.size()) {
+            auto &pubenc = param->pubencs[pubidx];
             keyctx.search.by.keyid = pubenc.key_id;
             /* Get the key if any */
             pgp_key_t *seckey = pgp_request_key(handler->key_provider, &keyctx);
             if (!seckey) {
-                errcode = RNP_ERROR_NO_SUITABLE_KEY;
+                pubidx++;
+                continue;
+            }
+            /* Check whether key fits our needs */
+            bool hidden = pubenc.key_id == pgp_key_id_t({});
+            if (!hidden || (++hidden_tries >= MAX_HIDDEN_TRIES)) {
+                pubidx++;
+            }
+            if (!seckey->has_secret() || !seckey->can_encrypt()) {
+                continue;
+            }
+            /* Check whether key is of required algorithm for hidden keyid */
+            if (hidden && seckey->alg() != pubenc.alg) {
                 continue;
             }
             /* Decrypt key */
@@ -2095,6 +2113,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
 
             /* Try to initialize the decryption */
+            rnp::LogStop logstop(hidden);
             if (encrypted_try_key(param, &pubenc, &seckey->pkt(), *handler->ctx->ctx)) {
                 have_key = true;
                 /* inform handler that we used this pubenc */
