@@ -74,6 +74,7 @@ rnp_tests::rnp_tests() : m_dir(make_temp_dir())
 
 rnp_tests::~rnp_tests()
 {
+    clean_temp_dir(m_dir);
     free(m_dir);
 }
 
