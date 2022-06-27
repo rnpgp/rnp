@@ -120,6 +120,8 @@ void copy_recursively(const char *src, const char *dst);
  */
 char *make_temp_dir(void);
 
+void clean_temp_dir(const char *path);
+
 /* check whether bin value is equals hex string */
 bool bin_eq_hex(const uint8_t *data, size_t len, const char *val);
 

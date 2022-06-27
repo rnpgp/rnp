@@ -66,6 +66,7 @@ test_issue_1030(const char *keystore)
         close(pipefd[0]);
     }
     rnp.end();
+    clean_temp_dir(home);
     free(home);
 }
 
