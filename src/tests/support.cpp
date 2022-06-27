@@ -352,6 +352,14 @@ make_temp_dir()
 #error Unsupported platform
 #endif
 
+void
+clean_temp_dir(const char *path)
+{
+    if (!getenv("RNP_KEEP_TEMP")) {
+        delete_recursively(path);
+    }
+}
+
 bool
 bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 {
