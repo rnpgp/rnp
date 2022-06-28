@@ -6302,6 +6302,37 @@ try {
 }
 FFI_GUARD
 
+static rnp_result_t
+write_signature(rnp_signature_handle_t sig, pgp_dest_t &dst)
+{
+    sig->sig->rawpkt.write(dst);
+    dst_flush(&dst);
+    return dst.werr;
+}
+
+rnp_result_t
+rnp_signature_export(rnp_signature_handle_t sig, rnp_output_t output, uint32_t flags)
+try {
+    if (!sig || !sig->sig || !output) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    bool need_armor = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
+    if (flags) {
+        FFI_LOG(sig->ffi, "Invalid flags: %" PRIu32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    rnp_result_t ret;
+    if (need_armor) {
+        rnp::ArmoredDest armor(output->dst, PGP_ARMORED_PUBLIC_KEY);
+        ret = write_signature(sig, armor.dst());
+    } else {
+        ret = write_signature(sig, output->dst);
+    }
+    output->keep = !ret;
+    return ret;
+}
+FFI_GUARD
+
 rnp_result_t
 rnp_signature_handle_destroy(rnp_signature_handle_t sig)
 try {
