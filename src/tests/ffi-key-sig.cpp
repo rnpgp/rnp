@@ -32,6 +32,11 @@
 #include "rnp_tests.h"
 #include "support.h"
 
+static bool check_sig_status(json_object *sig,
+                             const char * pub,
+                             const char * sec,
+                             const char * fp);
+
 TEST_F(rnp_tests, test_ffi_key_signatures)
 {
     rnp_ffi_t ffi = NULL;
@@ -109,6 +114,52 @@ TEST_F(rnp_tests, test_ffi_key_signatures)
     assert_rnp_success(rnp_key_get_signature_count(subkey, &sigs));
     assert_int_equal(sigs, 1);
     assert_rnp_success(rnp_key_get_signature_at(subkey, 0, &sig));
+    // check signature export
+    rnp_output_t output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_failure(rnp_signature_export(NULL, output, 0));
+    assert_rnp_failure(rnp_signature_export(sig, NULL, 0));
+    assert_rnp_failure(rnp_signature_export(sig, output, 0x333));
+    assert_rnp_success(rnp_signature_export(sig, output, 0));
+    uint8_t *buf = NULL;
+    size_t   len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 154);
+    rnp_input_t input;
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
+    char *json = NULL;
+    assert_rnp_success(rnp_import_signatures(ffi, input, 0, &json));
+    assert_non_null(json);
+    json_object *jso = json_tokener_parse(json);
+    assert_non_null(jso);
+    assert_true(json_object_is_type(jso, json_type_object));
+    json_object *jsigs = NULL;
+    assert_true(json_object_object_get_ex(jso, "sigs", &jsigs));
+    assert_true(json_object_is_type(jsigs, json_type_array));
+    assert_int_equal(json_object_array_length(jsigs), 1);
+    json_object *jsig = json_object_array_get_idx(jsigs, 0);
+    assert_true(check_sig_status(jsig, "none", "none", NULL));
+    json_object_put(jso);
+    rnp_buffer_destroy(json);
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+
+    output = NULL;
+    assert_rnp_success(rnp_output_to_memory(&output, 0));
+    assert_rnp_success(rnp_signature_export(sig, output, RNP_KEY_EXPORT_ARMORED));
+    buf = NULL;
+    len = 0;
+    assert_rnp_success(rnp_output_memory_get_buf(output, &buf, &len, false));
+    assert_int_equal(len, 297);
+    std::string data((const char *) buf, len);
+    assert_true(starts_with(data, "-----BEGIN PGP PUBLIC KEY BLOCK-----"));
+    assert_true(ends_with(strip_eol(data), "-----END PGP PUBLIC KEY BLOCK-----"));
+
+    assert_rnp_success(rnp_input_from_memory(&input, buf, len, false));
+    assert_rnp_success(rnp_import_signatures(ffi, input, 0, NULL));
+    assert_rnp_success(rnp_input_destroy(input));
+    assert_rnp_success(rnp_output_destroy(output));
+
     assert_rnp_success(rnp_signature_get_type(sig, &type));
     assert_string_equal(type, "subkey binding");
     rnp_buffer_destroy(type);
