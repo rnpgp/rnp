@@ -26,3 +26,6 @@ fi
 BOTAN_MODULES=$(<ci/botan-modules tr '\n' ',')
 
 export BOTAN_MODULES
+
+# Don't clean up tempdirs when in CI runners to save time. Unset to disable.
+export RNP_KEEP_TEMP=1
