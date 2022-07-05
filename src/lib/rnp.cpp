@@ -5318,16 +5318,7 @@ try {
     }
 
     /* TODO: should we do these checks here or may leave it up till generate call? */
-    bool flag = false;
-    if (rnp_key_have_secret(primary, &flag) || !flag) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (rnp_key_is_primary(primary, &flag) || !flag) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-
-    if (!primary->sec->can_sign()) {
+    if (!primary->sec || !primary->sec->usable_for(PGP_OP_ADD_SUBKEY)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
