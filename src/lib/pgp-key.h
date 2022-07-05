@@ -217,6 +217,15 @@ struct pgp_key_t {
     bool             can_sign() const;
     bool             can_certify() const;
     bool             can_encrypt() const;
+    bool             has_secret() const;
+    /**
+     * @brief Check whether key is usable for the specified operation.
+     *
+     * @param op operation to check.
+     * @param if_secret check whether secret part of this key could be usable for op.
+     * @return true if key (or corresponding secret key) is usable or false otherwise.
+     */
+    bool usable_for(pgp_op_t op, bool if_secret = false) const;
     /** @brief Get key's expiration time in seconds. If 0 then it doesn't expire. */
     uint32_t expiration() const;
     /** @brief Check whether key is expired. Must be validated before that. */

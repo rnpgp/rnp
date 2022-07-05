@@ -1187,6 +1187,55 @@ pgp_key_t::can_encrypt() const
     return flags_ & PGP_KF_ENCRYPT;
 }
 
+bool
+pgp_key_t::has_secret() const
+{
+    if (!is_secret()) {
+        return false;
+    }
+    if ((format == PGP_KEY_STORE_GPG) && !pkt_.sec_len) {
+        return false;
+    }
+    if (pkt_.sec_protection.s2k.usage == PGP_S2KU_NONE) {
+        return true;
+    }
+    switch (pkt_.sec_protection.s2k.specifier) {
+    case PGP_S2KS_SIMPLE:
+    case PGP_S2KS_SALTED:
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool
+pgp_key_t::usable_for(pgp_op_t op, bool if_secret) const
+{
+    switch (op) {
+    case PGP_OP_ADD_SUBKEY:
+        return is_primary() && can_sign() && (if_secret || has_secret());
+    case PGP_OP_SIGN:
+        return can_sign() && valid() && (if_secret || has_secret());
+    case PGP_OP_CERTIFY:
+        return can_certify() && valid() && (if_secret || has_secret());
+    case PGP_OP_DECRYPT:
+        return can_encrypt() && valid() && (if_secret || has_secret());
+    case PGP_OP_UNLOCK:
+    case PGP_OP_PROTECT:
+    case PGP_OP_UNPROTECT:
+        return has_secret();
+    case PGP_OP_VERIFY:
+        return can_sign() && valid();
+    case PGP_OP_ADD_USERID:
+        return is_primary() && can_sign() && (if_secret || has_secret());
+    case PGP_OP_ENCRYPT:
+        return can_encrypt() && valid();
+    default:
+        return false;
+    }
+}
+
 uint32_t
 pgp_key_t::expiration() const
 {
