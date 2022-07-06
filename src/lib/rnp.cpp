@@ -2441,8 +2441,8 @@ rnp_op_add_signature(rnp_ffi_t                 ffi,
     pgp_key_t *signkey = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
     if (signkey && !signkey->is_secret()) {
-        pgp_key_request_ctx_t keyctx(PGP_OP_SIGN, true, PGP_KEY_SEARCH_GRIP);
-        keyctx.search.by.grip = signkey->grip();
+        pgp_key_request_ctx_t keyctx(PGP_OP_SIGN, true, PGP_KEY_SEARCH_FINGERPRINT);
+        keyctx.search.by.fingerprint = signkey->fp();
         signkey = pgp_request_key(&key->ffi->key_provider, &keyctx);
     }
     if (!signkey) {
