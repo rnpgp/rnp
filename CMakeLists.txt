@@ -93,10 +93,6 @@ if(CRYPTO_BACKEND STREQUAL "botan")
   # Default value;
   set(CRYPTO_BACKEND_BOTAN 1)
 elseif(CRYPTO_BACKEND STREQUAL "openssl")
-  # Do not allow OpenSSL backend in release builds yet.
-  if (NOT CMAKE_BUILD_TYPE STREQUAL "Debug")
-    message(WARNING "OpenSSL backend should be used only at debug mode and not ready for release yet!")
-  endif()
   # Disable all unsupported features and leave lines below for the future.
   set(ENABLE_SM2 Off CACHE BOOL "" FORCE)
   set(ENABLE_AEAD Off CACHE BOOL "" FORCE)
