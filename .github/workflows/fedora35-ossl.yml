@@ -1,0 +1,126 @@
+name: fedora35-openssl
+
+on:
+  push:
+    branches:
+      - master
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/fedora35-ossl.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+env:
+  CORES: 2
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  USE_STATIC_DEPENDENCIES: yes
+  DOWNLOAD_RUBYRNP: Off
+  CRYPTO_BACKEND: openssl
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container:
+      image: fedora:35
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - BUILD_MODE: normal
+            RNP_TESTS: rnp_tests
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: sanitize
+            RNP_TESTS: rnp_tests
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: normal
+            RNP_TESTS: cli_tests
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: sanitize
+            RNP_TESTS: cli_tests
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: normal
+            RNP_TESTS: rnp_tests
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: sanitize
+            RNP_TESTS: rnp_tests
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: normal
+            RNP_TESTS: cli_tests
+            CC: clang
+            CXX: clang++
+          - BUILD_MODE: sanitize
+            RNP_TESTS: cli_tests
+            CC: clang
+            CXX: clang++
+    env: ${{ matrix.env }}
+    name: fedora35 OpenSSL [test type ${{ matrix.env.RNP_TESTS }}; mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
+    steps:
+      - run: |
+          yum -y install git
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Add rnpuser
+        run: |
+          useradd rnpuser
+          yum -y -q install sudo
+          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+      - name: Setup environment
+        run: |
+          . ci/gha/setup-env.inc.sh
+          exec su rnpuser -c ci/install_noncacheable_dependencies.sh
+      - name: Cache
+        id: cache
+        uses: actions/cache@v2
+        with:
+          path: ${{ env.CACHE_DIR }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+      - name: Build cache
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ci/install_cacheable_dependencies.sh
+      - name: Install OpenSSL-devel
+        run: |
+          yum -y install openssl-devel openssl
+          openssl help
+          openssl ecparam -list_curves
+      - name: tests
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ci/run.sh
