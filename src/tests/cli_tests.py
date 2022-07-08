@@ -841,9 +841,6 @@ def rnp_check_features():
     RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
 
     RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out)
-    # Check that everything is enabled for Botan:
-    if re.match(r'(?s)^.*Backend:\s+Botan.*', out) and (not RNP_AEAD or not RNP_TWOFISH or not RNP_BRAINPOOL):
-        raise_err('Something is wrong with features detection.')
 
 def setup(loglvl):
     # Setting up directories.
@@ -2773,7 +2770,7 @@ class Misc(unittest.TestCase):
             ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sub-sec.pgp')])
             self.assertEqual(ret, 0)
             # Decrypt already existing file
-            if RNP_AEAD:
+            if RNP_AEAD and RNP_BRAINPOOL:
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', srcenc, '--output', dec])
                 self.assertEqual(ret, 0)
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -2786,7 +2783,7 @@ class Misc(unittest.TestCase):
                 gpg_decrypt_file(srcenc, dec, PASSWORD)
                 self.assertEqual(file_text(srctxt), file_text(dec))
                 os.remove(dec)
-            if RNP_AEAD:
+            if RNP_AEAD and RNP_BRAINPOOL:
                 # Encrypt with RNP
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
@@ -3549,7 +3546,7 @@ class Encryption(unittest.TestCase):
         clear_workfiles()
 
     def test_encryption_aead_defs(self):
-        if not RNP_AEAD:
+        if not RNP_AEAD or not RNP_BRAINPOOL:
             return
         # Encrypt with RNP
         pubkey = data_path(KEY_ALICE_SUB_PUB)
