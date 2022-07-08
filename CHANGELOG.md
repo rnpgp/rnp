@@ -1,5 +1,9 @@
 ## Changelog
 
+### 0.16.1 [2022-07-08]
+
+* Bogus update to check CI status on the release branch
+
 ### 0.16.0 [2022-01-20]
 
 #### General
