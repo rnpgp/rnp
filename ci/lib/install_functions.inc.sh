@@ -152,8 +152,11 @@ linux_install_centos() {
     centos-8)
       linux_install_centos8
       ;;
+    centos-9)
+      linux_install_centos8
+      ;;
     *)
-      >&2 echo "Error: unsupported CentOS version \"${DIST_VERSION_ID}\" (supported: 7, 8).  Aborting."
+      >&2 echo "Error: unsupported CentOS version \"${DIST_VERSION_ID}\" (supported: 7, 8, 9).  Aborting."
       exit 1
   esac
 }
