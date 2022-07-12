@@ -613,6 +613,36 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_rnp_success(rnp_ffi_destroy(ffi));
 }
 
+TEST_F(rnp_tests, test_ffi_sec_key_offline_operations)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+
+    /* generate subkey for offline secret key */
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-1-subs.pgp"));
+    rnp_key_handle_t primary = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &primary));
+    rnp_op_generate_t subop = NULL;
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDSA"));
+    /* unlock/unprotect offline secret key */
+    assert_rnp_failure(rnp_key_unlock(primary, "password"));
+    assert_rnp_failure(rnp_key_unprotect(primary, "password"));
+    /* add userid */
+    assert_int_equal(rnp_key_add_uid(primary, "new_uid", "SHA256", 2147317200, 0x00, false),
+                     RNP_ERROR_NO_SUITABLE_KEY);
+    rnp_key_handle_destroy(primary);
+    /* generate subkey for offline secret key on card */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-2-card.pgp"));
+    primary = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &primary));
+    subop = NULL;
+    assert_rnp_failure(rnp_op_generate_subkey_create(&subop, ffi, primary, "ECDSA"));
+    rnp_key_handle_destroy(primary);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_ffi_key_generate_rsa)
 {
     rnp_ffi_t ffi = NULL;
@@ -3991,7 +4021,6 @@ TEST_F(rnp_tests, test_ffi_key_export_autocrypt)
     /* export secret key: make sure public is exported */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_true(import_all_keys(ffi, "data/test_key_validity/alice-sub-sec.pgp"));
-    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
     assert_rnp_success(rnp_output_to_memory(&output, 0));
     assert_rnp_success(rnp_key_export_autocrypt(key, NULL, NULL, output, 0));
