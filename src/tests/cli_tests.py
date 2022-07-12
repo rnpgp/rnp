@@ -3158,7 +3158,7 @@ class Misc(unittest.TestCase):
         # Encrypt with the expired key
         ret, _, err = run_proc(RNP, ['--homedir', RNP2, '-r', 'key-2015', '-e', src, '--output', enc])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*Operation failed: No suitable key.*$')
+        self.assertRegex(err, r'(?s)^.*Failed to add recipient.*$')
         ret, _, _ = run_proc(RNP, ['--homedir', RNP2, '-r', 'key-2015', '--current-time', '2015-02-03', '-e', src, '--output', enc])
         self.assertEqual(ret, 0)
         # Decrypt with the expired key

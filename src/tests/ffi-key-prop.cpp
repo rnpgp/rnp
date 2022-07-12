@@ -1223,8 +1223,40 @@ TEST_F(rnp_tests, test_ffi_key_default_subkey)
     assert_string_equal(keyid, "C2E243E872C1FE50");
     rnp_buffer_destroy(keyid);
     rnp_key_handle_destroy(def_key);
-
     rnp_key_handle_destroy(primary);
+
+    /* offline primary key - must select a subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-1-subs.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &primary));
+    def_key = NULL;
+    assert_rnp_success(rnp_key_get_default_key(primary, "sign", 0, &def_key));
+    assert_rnp_success(rnp_key_get_keyid(def_key, &keyid));
+    assert_string_equal(keyid, "22F3A217C0E439CB");
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_destroy(def_key);
+    rnp_key_handle_destroy(primary);
+    /* offline primary key, stored on card - must select a subkey */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-2-card.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &primary));
+    def_key = NULL;
+    assert_rnp_success(rnp_key_get_default_key(primary, "sign", 0, &def_key));
+    assert_rnp_success(rnp_key_get_keyid(def_key, &keyid));
+    assert_string_equal(keyid, "22F3A217C0E439CB");
+    rnp_buffer_destroy(keyid);
+    rnp_key_handle_destroy(def_key);
+    rnp_key_handle_destroy(primary);
+    /* offline primary key without the signing subkey - fail */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(
+      import_all_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-no-sign-sub.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669FFDE3C", &primary));
+    def_key = NULL;
+    assert_int_equal(rnp_key_get_default_key(primary, "sign", 0, &def_key),
+                     RNP_ERROR_NO_SUITABLE_KEY);
+    rnp_key_handle_destroy(primary);
+
     rnp_ffi_destroy(ffi);
 }
 
