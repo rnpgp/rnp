@@ -153,7 +153,7 @@ linux_install_centos() {
       linux_install_centos8
       ;;
     centos-9)
-      linux_install_centos8
+      linux_install_centos9
       ;;
     *)
       >&2 echo "Error: unsupported CentOS version \"${DIST_VERSION_ID}\" (supported: 7, 8, 9).  Aborting."
@@ -252,6 +252,20 @@ linux_install_centos7() {
 
 linux_install_centos8() {
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
+  yum_prepare_repos epel-release
+  yum_install_build_dependencies \
+    cmake \
+    texinfo
+
+  yum_install_dynamic_build_dependencies_if_needed
+
+  ensure_automake
+  ensure_cmake
+  ensure_ruby
+  rubygem_install_build_dependencies
+}
+
+linux_install_centos9() {
   yum_prepare_repos epel-release
   yum_install_build_dependencies \
     cmake \
