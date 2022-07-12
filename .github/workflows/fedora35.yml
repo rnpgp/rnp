@@ -56,11 +56,11 @@ jobs:
             CC: gcc
             CXX: g++
             ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: beta
-            CC: gcc
-            CXX: g++
-            ENABLE_SM2: On
+          #- BUILD_MODE: normal
+          #  GPG_VERSION: beta
+          #  CC: gcc
+          #  CXX: g++
+          #  ENABLE_SM2: On
           - BUILD_MODE: normal
             GPG_VERSION: 2.3.1
             CC: gcc
@@ -71,11 +71,11 @@ jobs:
             CC: clang
             CXX: clang++
             ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: beta
-            CC: clang
-            CXX: clang++
-            ENABLE_SM2: On
+          #- BUILD_MODE: normal
+          #  GPG_VERSION: beta
+          #  CC: clang
+          #  CXX: clang++
+          #  ENABLE_SM2: On
           - BUILD_MODE: normal
             GPG_VERSION: 2.3.1
             CC: clang
@@ -83,12 +83,12 @@ jobs:
             ENABLE_SM2: On
 # Coverage can only been tested with the GNU compiler
 # Upload only single report to the codecov to avoid mess
-          - BUILD_MODE: coverage
-            GPG_VERSION: beta
-            RNP_TESTS: ".*"
-            CC: gcc
-            CXX: g++
-            ENABLE_SM2: On
+          #- BUILD_MODE: coverage
+          #  GPG_VERSION: beta
+          #  RNP_TESTS: ".*"
+          #  CC: gcc
+          #  CXX: g++
+          #  ENABLE_SM2: On
 # Sanitize is only tested with the clang compiler
 # see env-common.inc.sh
           - BUILD_MODE: sanitize
@@ -96,11 +96,11 @@ jobs:
             CC: clang
             CXX: clang++
             ENABLE_SM2: On
-          - BUILD_MODE: sanitize
-            GPG_VERSION: beta
-            CC: clang
-            CXX: clang++
-            ENABLE_SM2: On
+          #- BUILD_MODE: sanitize
+          #  GPG_VERSION: beta
+          #  CC: clang
+          #  CXX: clang++
+          #  ENABLE_SM2: On
           - BUILD_MODE: normal
             GPG_VERSION: stable
             CC: gcc
