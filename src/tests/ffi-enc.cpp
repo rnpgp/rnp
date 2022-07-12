@@ -650,6 +650,19 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, NULL));
     rnp_key_handle_destroy(key);
     key = NULL;
+    // attempt to add signature from the public key
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-pub.asc"));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_rnp_failure(rnp_op_encrypt_add_signature(op, key, &signsig));
+    rnp_key_handle_destroy(key);
+    key = NULL;
+    // attempt to add signature by the offline secret key
+    assert_true(
+      import_pub_keys(ffi, "data/test_key_edge_cases/alice-s2k-101-no-sign-sub.pgp"));
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "0451409669ffde3c", &key));
+    assert_rnp_failure(rnp_op_encrypt_add_signature(op, key, &signsig));
+    rnp_key_handle_destroy(key);
+    key = NULL;
     // add second signature with different hash/issued/expiration
     assert_rnp_success(rnp_locate_key(ffi, "userid", "key1-uid2", &key));
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, &signsig));
@@ -894,7 +907,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_subkey_selection)
     assert_rnp_success(rnp_op_encrypt_create(&op, ffi, input, output));
     key = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "keyid", "7bc6709b15c23a4a", &key));
-    assert_rnp_success(rnp_op_encrypt_add_recipient(op, key));
+    assert_int_equal(rnp_op_encrypt_add_recipient(op, key), RNP_ERROR_NO_SUITABLE_KEY);
     rnp_key_handle_destroy(key);
     assert_rnp_failure(rnp_op_encrypt_execute(op));
     rnp_op_encrypt_destroy(op);
