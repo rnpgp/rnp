@@ -435,23 +435,42 @@ pgp_key_t *
 find_suitable_key(pgp_op_t            op,
                   pgp_key_t *         key,
                   pgp_key_provider_t *key_provider,
-                  uint8_t             desired_usage,
                   bool                no_primary)
 {
-    assert(desired_usage);
     if (!key) {
         return NULL;
     }
-    if (!no_primary && key->valid() && (key->flags() & desired_usage)) {
+    bool secret = false;
+    switch (op) {
+    case PGP_OP_ENCRYPT:
+        break;
+    case PGP_OP_SIGN:
+    case PGP_OP_CERTIFY:
+        secret = true;
+        break;
+    default:
+        RNP_LOG("Unsupported operation: %d", (int) op);
+        return NULL;
+    }
+    /* Return if specified primary key fits our needs */
+    if (!no_primary && key->usable_for(op)) {
         return key;
     }
-    pgp_key_request_ctx_t ctx(op, key->is_secret(), PGP_KEY_SEARCH_FINGERPRINT);
-
+    /* Check for the case when we need to look up for a secret key */
+    pgp_key_request_ctx_t ctx(op, secret, PGP_KEY_SEARCH_FINGERPRINT);
+    if (!no_primary && secret && key->is_public() && key->usable_for(op, true)) {
+        ctx.search.by.fingerprint = key->fp();
+        pgp_key_t *sec = pgp_request_key(key_provider, &ctx);
+        if (sec && sec->usable_for(op)) {
+            return sec;
+        }
+    }
+    /* Now look up for subkeys */
     pgp_key_t *subkey = NULL;
     for (auto &fp : key->subkey_fps()) {
         ctx.search.by.fingerprint = fp;
         pgp_key_t *cur = pgp_request_key(key_provider, &ctx);
-        if (!cur || !(cur->flags() & desired_usage) || !cur->valid()) {
+        if (!cur || !cur->usable_for(op)) {
             continue;
         }
         if (!subkey || (cur->creation() > subkey->creation())) {
@@ -1474,8 +1493,7 @@ bool
 pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
 {
     // sanity checks
-    if (!is_secret()) {
-        RNP_LOG("key is not a secret key");
+    if (!usable_for(PGP_OP_UNLOCK)) {
         return false;
     }
     // see if it's already unlocked

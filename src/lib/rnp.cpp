@@ -2438,13 +2438,8 @@ rnp_op_add_signature(rnp_ffi_t                 ffi,
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_key_t *signkey = find_suitable_key(
-      PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
-    if (signkey && !signkey->is_secret()) {
-        pgp_key_request_ctx_t keyctx(PGP_OP_SIGN, true, PGP_KEY_SEARCH_FINGERPRINT);
-        keyctx.search.by.fingerprint = signkey->fp();
-        signkey = pgp_request_key(&key->ffi->key_provider, &keyctx);
-    }
+    pgp_key_t *signkey =
+      find_suitable_key(PGP_OP_SIGN, get_key_require_secret(key), &key->ffi->key_provider);
     if (!signkey) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
@@ -2578,12 +2573,10 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    pgp_key_t *key = find_suitable_key(PGP_OP_ENCRYPT,
-                                       get_key_prefer_public(handle),
-                                       &handle->ffi->key_provider,
-                                       PGP_KF_ENCRYPT);
+    pgp_key_t *key = find_suitable_key(
+      PGP_OP_ENCRYPT, get_key_prefer_public(handle), &handle->ffi->key_provider);
     if (!key) {
-        key = get_key_prefer_public(handle);
+        return RNP_ERROR_NO_SUITABLE_KEY;
     }
     op->rnpctx.recipients.push_back(key);
     return RNP_SUCCESS;
@@ -4012,23 +4005,15 @@ try {
     }
     /* Get the primary key */
     pgp_key_t *primary = get_key_prefer_public(key);
-    if (!primary || !primary->is_primary() || !primary->valid() || !primary->can_sign()) {
+    if (!primary || !primary->is_primary() || !primary->usable_for(PGP_OP_VERIFY)) {
         FFI_LOG(key->ffi, "No valid signing primary key");
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* Get encrypting subkey */
-    pgp_key_t *sub = NULL;
-    if (subkey) {
-        sub = get_key_prefer_public(subkey);
-        if (sub && (!sub->valid() || !sub->can_encrypt())) {
-            FFI_LOG(key->ffi, "Invalid or non-encrypting subkey");
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-    } else {
-        sub = find_suitable_key(
-          PGP_OP_ENCRYPT, primary, &key->ffi->key_provider, PGP_KF_ENCRYPT, true);
-    }
-    if (!sub || sub->is_primary()) {
+    pgp_key_t *sub =
+      subkey ? get_key_prefer_public(subkey) :
+               find_suitable_key(PGP_OP_ENCRYPT, primary, &key->ffi->key_provider, true);
+    if (!sub || sub->is_primary() || !sub->usable_for(PGP_OP_ENCRYPT)) {
         FFI_LOG(key->ffi, "No encrypting subkey");
         return RNP_ERROR_KEY_NOT_FOUND;
     }
@@ -5893,7 +5878,7 @@ try {
 
     /* obtain and unlok secret key */
     pgp_key_t *secret_key = get_key_require_secret(handle);
-    if (!secret_key) {
+    if (!secret_key || !secret_key->usable_for(PGP_OP_ADD_USERID)) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
     pgp_key_t *public_key = get_key_prefer_public(handle);
@@ -6503,12 +6488,29 @@ try {
         FFI_LOG(primary_key->ffi, "Invalid flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
     }
+    pgp_op_t op = PGP_OP_UNKNOWN;
+    bool     secret = false;
+    switch (keyflag) {
+    case PGP_KF_SIGN:
+        op = PGP_OP_SIGN;
+        secret = true;
+        break;
+    case PGP_KF_CERTIFY:
+        op = PGP_OP_CERTIFY;
+        secret = true;
+        break;
+    case PGP_KF_ENCRYPT:
+        op = PGP_OP_ENCRYPT;
+        break;
+    default:
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
     pgp_key_t *key = get_key_prefer_public(primary_key);
     if (!key) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_t *defkey = find_suitable_key(
-      PGP_OP_UNKNOWN, key, &primary_key->ffi->key_provider, keyflag, no_primary);
+    pgp_key_t *defkey =
+      find_suitable_key(op, key, &primary_key->ffi->key_provider, no_primary);
     if (!defkey) {
         *default_key = NULL;
         return RNP_ERROR_NO_SUITABLE_KEY;
@@ -6517,14 +6519,11 @@ try {
     pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
     search.by.fingerprint = defkey->fp();
 
-    bool         require_secret = keyflag != PGP_KF_ENCRYPT;
-    rnp_result_t ret =
-      rnp_locate_key_int(primary_key->ffi, search, default_key, require_secret);
+    rnp_result_t ret = rnp_locate_key_int(primary_key->ffi, search, default_key, secret);
 
     if (!*default_key && !ret) {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
-
     return ret;
 }
 FFI_GUARD
