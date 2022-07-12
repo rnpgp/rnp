@@ -634,7 +634,7 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
                                const pgp_password_provider_t &prov,
                                rnp::SecurityContext &         ctx);
 
-/** find a key suitable for a particular operation
+/** Find a key or it's subkey, suitable for a particular operation
  *
  *  If the key passed is suitable, it will be returned.
  *  Otherwise, its subkeys (if it is a primary w/subs)
@@ -643,7 +643,6 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
  *
  *  @param op the operation for which the key should be suitable
  *  @param key the key
- *  @param desired_usage
  *  @param key_provider the key provider. This will be used
  *         if/when subkeys are checked.
  *  @param no_primary set true if only subkeys must be returned
@@ -654,7 +653,6 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
 pgp_key_t *find_suitable_key(pgp_op_t            op,
                              pgp_key_t *         key,
                              pgp_key_provider_t *key_provider,
-                             uint8_t             desired_usage,
                              bool                no_primary = false);
 
 /*

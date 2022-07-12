@@ -527,13 +527,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     rnp_result_t                ret = RNP_ERROR_GENERIC;
 
     /* Use primary key if good for encryption, otherwise look in subkey list */
-    userkey =
-      find_suitable_key(PGP_OP_ENCRYPT_SYM, userkey, handler->key_provider, PGP_KF_ENCRYPT);
+    userkey = find_suitable_key(PGP_OP_ENCRYPT, userkey, handler->key_provider);
     if (!userkey) {
-        return RNP_ERROR_NO_SUITABLE_KEY;
-    }
-    if (!userkey->valid()) {
-        RNP_LOG("attempt to use invalid key as recipient");
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
