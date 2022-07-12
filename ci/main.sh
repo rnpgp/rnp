@@ -80,6 +80,11 @@ main() {
   mkdir -p "${LOCAL_BUILDS}/rnp-build"
   pushd "${LOCAL_BUILDS}/rnp-build"
 
+  if [[ "${CRYPTO_BACKEND:-}" == openssl ]]; then
+    : "${ENABLE_SM2:=Off}"
+    : "${ENABLE_TWOFISH:=Off}"
+  fi
+
   cmakeopts=(
     -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs.
     -DBUILD_SHARED_LIBS=yes
@@ -87,6 +92,7 @@ main() {
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
     -DENABLE_SM2="${ENABLE_SM2:-On}"
     -DENABLE_IDEA="${ENABLE_IDEA:-On}"
+    -DENABLE_TWOFISH="${ENABLE_TWOFISH:-On}"
   )
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
