@@ -125,7 +125,7 @@ ec_generate(rnp::RNG *             rng,
         EVP_PKEY_free(pkey);
         return ret;
     }
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
+    const EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
     if (!ec) {
         RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
         goto done;
@@ -329,7 +329,7 @@ ec_write_pubkey(EVP_PKEY *pkey, pgp_mpi_t &mpi, pgp_curve_t curve)
         mpi.len++;
         return true;
     }
-    EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
+    const EC_KEY *ec = EVP_PKEY_get0_EC_KEY(pkey);
     if (!ec) {
         RNP_LOG("Failed to retrieve EC key: %lu", ERR_peek_last_error());
         return false;

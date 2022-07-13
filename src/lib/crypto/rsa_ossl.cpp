@@ -352,7 +352,7 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
     }
 
     rnp_result_t  ret = RNP_ERROR_GENERIC;
-    RSA *         rsa = NULL;
+    const RSA *   rsa = NULL;
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
     bignum_t *    u = NULL;

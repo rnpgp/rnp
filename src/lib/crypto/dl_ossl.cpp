@@ -101,7 +101,7 @@ done:
 static rnp_result_t
 dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
 {
-    DH *dh = EVP_PKEY_get0_DH(dlkey);
+    const DH *dh = EVP_PKEY_get0_DH(dlkey);
     assert(dh);
     const bignum_t *p = DH_get0_p(dh);
     const bignum_t *q = DH_get0_q(dh);
@@ -175,8 +175,7 @@ dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
         /* ElGamal specification doesn't seem to restrict P to the safe prime */
         auto err = ERR_peek_last_error();
         DHerr(DH_F_DH_CHECK_EX, DH_R_CHECK_P_NOT_SAFE_PRIME);
-        if ((ERR_GET_FUNC(err) == DH_F_DH_CHECK_EX) &&
-            (ERR_GET_REASON(err) == DH_R_CHECK_P_NOT_SAFE_PRIME)) {
+        if ((ERR_GET_REASON(err) == DH_R_CHECK_P_NOT_SAFE_PRIME)) {
             RNP_LOG("Warning! P is not a safe prime.");
         } else {
             goto done;

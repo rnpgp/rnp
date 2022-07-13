@@ -335,7 +335,7 @@ elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits)
     }
 
     rnp_result_t  ret = RNP_ERROR_GENERIC;
-    DH *          dh = NULL;
+    const DH *    dh = NULL;
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY *    parmkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
