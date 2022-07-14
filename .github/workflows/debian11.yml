@@ -42,7 +42,6 @@ env:
   SUDO: ""
   USE_STATIC_DEPENDENCIES: yes
   RNP_LOG_CONSOLE: 1
-  ENABLE_IDEA: Off
 
 jobs:
   tests:
