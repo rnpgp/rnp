@@ -52,63 +52,13 @@ jobs:
       matrix:
         env:
           - BUILD_MODE: normal
-            GPG_VERSION: stable
             CC: gcc
             CXX: g++
-            ENABLE_SM2: On
-          # GPG beta was seen to fail to build
-          #- BUILD_MODE: normal
-          #  GPG_VERSION: beta
-          #  CC: gcc
-          #  CXX: g++
-          #  ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: 2.3.1
-            CC: gcc
-            CXX: g++
-            ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: stable
-            CC: clang
-            CXX: clang++
-            ENABLE_SM2: On
-          #- BUILD_MODE: normal
-          #  GPG_VERSION: beta
-          #  CC: clang
-          #  CXX: clang++
-          #  ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: 2.3.1
-            CC: clang
-            CXX: clang++
-            ENABLE_SM2: On
-# Coverage can only been tested with the GNU compiler
-# Upload only single report to the codecov to avoid mess
-            #- BUILD_MODE: coverage
-            #  GPG_VERSION: beta
-            #  RNP_TESTS: ".*"
-            #  CC: gcc
-            #  CXX: g++
-            #  ENABLE_SM2: On
-# Sanitize is only tested with the clang compiler
-# see env-common.inc.sh
           - BUILD_MODE: sanitize
-            GPG_VERSION: stable
             CC: clang
             CXX: clang++
-            ENABLE_SM2: On
-          #- BUILD_MODE: sanitize
-          #  GPG_VERSION: beta
-          #  CC: clang
-          #  CXX: clang++
-          #  ENABLE_SM2: On
-          - BUILD_MODE: normal
-            GPG_VERSION: stable
-            CC: gcc
-            CXX: g++
-            ENABLE_SM2: Off
     env: ${{ matrix.env }}
-    name: fedora36 Botan [test type ${{ matrix.env.RNP_TESTS }}; mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}; SM2 ${{ matrix.env.ENABLE_SM2 }}]
+    name: fedora36 Botan [mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}; SM2 ${{ matrix.env.ENABLE_SM2 }}]
     steps:
       - run: |
           yum -y install git
