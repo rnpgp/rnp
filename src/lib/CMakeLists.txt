@@ -64,9 +64,60 @@ check_cxx_symbol_exists(_O_BINARY fcntl.h HAVE__O_BINARY)
 check_cxx_symbol_exists(_tempnam stdio.h HAVE__TEMPNAM)
 set(HAVE_ZLIB_H "${ZLIB_FOUND}")
 set(HAVE_BZLIB_H "${BZIP2_FOUND}")
-configure_file(config.h.in config.h)
 # generate a version.h
 configure_file(version.h.in version.h)
+
+# Checks feature in CRYPTO_BACKEND and puts the result into variable whose name is stored in RESULT_VARNAME variable.
+function(backend_has_feature FEATURE RESULT_VARNAME)
+  if (CRYPTO_BACKEND STREQUAL "botan")
+    check_cxx_symbol_exists("BOTAN_HAS_${FEATURE}" botan/build.h ${RESULT_VARNAME})
+  else()
+    OpenSSLHasFeature(FEATURE RESULT_VARNAME)
+  endif()
+endfunction()
+
+function(resolve_feature_state RNP_FEATURE BACKEND_FEATURES)
+  if (NOT ${RNP_FEATURE}) # User has explicitly disabled this feature
+    return()
+  endif()
+
+  string(TOLOWER "${${RNP_FEATURE}}" ${RNP_FEATURE})
+  if (${RNP_FEATURE} STREQUAL "auto")
+    set(MESSAGE_TYPE "NOTICE")
+    set(OUTCOME "Disabling")
+  else() # User has explicitly enabled this feature
+    set(MESSAGE_TYPE "FATAL_ERROR")
+    set(OUTCOME "Aborting")
+  endif()
+
+  foreach(feature ${BACKEND_FEATURES})
+    backend_has_feature("${feature}" _has_${feature})
+    if (NOT _has_${feature})
+      set(${RNP_FEATURE} Off CACHE STRING "Autodetected" FORCE)
+      message(${MESSAGE_TYPE} "${RNP_FEATURE} requires ${CRYPTO_BACKEND} feature which is missing: ${feature}. ${OUTCOME}.")
+      return()
+    endif()
+  endforeach()
+  set(${RNP_FEATURE} On CACHE STRING "Autodetected" FORCE)
+endfunction()
+
+function(openssl_nope RNP_FEATURE REASON)
+  if (NOT ${RNP_FEATURE}) # User has explicitly disabled this feature
+    return()
+  endif()
+
+  string(TOLOWER "${${RNP_FEATURE}}" ${RNP_FEATURE})
+  if (${RNP_FEATURE} STREQUAL "auto")
+    set(MESSAGE_TYPE "NOTICE")
+    set(OUTCOME "Disabling")
+  else() # User has explicitly enabled this feature
+    set(MESSAGE_TYPE "FATAL_ERROR")
+    set(OUTCOME "Aborting")
+  endif()
+
+  set(${RNP_FEATURE} Off CACHE STRING "Auto -> Off as no support" FORCE)
+  message(${MESSAGE_TYPE} "${RNP_FEATURE} doesn't work with OpenSSL backend (${REASON}). ${OUTCOME}.")
+endfunction()
 
 if(CRYPTO_BACKEND_BOTAN)
   # check botan's enabled features
@@ -89,27 +140,18 @@ if(CRYPTO_BACKEND_BOTAN)
       # public-key operations etc
       EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
   )
-  # SM2 algorithms suite
-  if (ENABLE_SM2)
-    list(APPEND _botan_required_features SM2 SM3 SM4)
-  endif()
-  # AEAD algorithms
-  if (ENABLE_AEAD)
-    list(APPEND _botan_required_features AEAD_EAX AEAD_OCB)
-  endif()
-  # Twofish
-  if (ENABLE_TWOFISH)
-    list(APPEND _botan_required_features TWOFISH)
-  endif()
-  if (ENABLE_IDEA)
-    list(APPEND _botan_required_features IDEA)
-  endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
     if (NOT _botan_has_${feature})
       message(FATAL_ERROR "A required botan feature is missing: ${feature}")
     endif()
   endforeach()
+
+  resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4")
+  resolve_feature_state(ENABLE_AEAD "AEAD_EAX;AEAD_OCB")
+  resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
+  resolve_feature_state(ENABLE_IDEA "IDEA")
+  resolve_feature_state(ENABLE_BRAINPOOL "")
   set(CMAKE_REQUIRED_INCLUDES)
 endif()
 if(CRYPTO_BACKEND_OPENSSL)
@@ -126,20 +168,6 @@ if(CRYPTO_BACKEND_OPENSSL)
     # public key
     RSAENCRYPTION DSAENCRYPTION DHKEYAGREEMENT ID-ECPUBLICKEY X25519 ED25519
   )
-  # SM2 algorithms suite
-  if (ENABLE_SM2)
-    list(APPEND _openssl_required_features SM2 SM3 SM4-ECB)
-  endif()
-  # Brainpool curves
-  if (ENABLE_BRAINPOOL)
-    list(APPEND _openssl_required_features BRAINPOOLP256R1 BRAINPOOLP384R1 BRAINPOOLP512R1)
-  endif()
-  if (ENABLE_IDEA)
-    list(APPEND _openssl_required_features IDEA-ECB IDEA-CBC)
-  endif()
-  if (ENABLE_AEAD)
-    list(APPEND _openssl_required_features AES-128-OCB AES-192-OCB AES-256-OCB)
-  endif()
   foreach(feature ${_openssl_required_features})
     message(STATUS "Looking for OpenSSL feature ${feature}")
     OpenSSLHasFeature("${feature}" _openssl_has_${feature})
@@ -148,7 +176,16 @@ if(CRYPTO_BACKEND_OPENSSL)
     endif()
     message(STATUS "Looking for OpenSSL feature ${feature} - found")
   endforeach()
+
+  resolve_feature_state(ENABLE_BRAINPOOL "BRAINPOOLP256R1;BRAINPOOLP384R1;BRAINPOOLP512R1")
+  resolve_feature_state(ENABLE_IDEA "IDEA-ECB;IDEA-CBC")
+  openssl_nope(ENABLE_SM2 "it's on our roadmap, see https://github.com/rnpgp/rnp/issues/1877")
+  #resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4-ECB")
+  openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
+  openssl_nope(ENABLE_AEAD "it's on our roadmap, see https://github.com/rnpgp/rnp/issues/1642")
 endif()
+
+configure_file(config.h.in config.h)
 
 if(CRYPTO_BACKEND_OPENSSL)
   set(CRYPTO_SOURCES

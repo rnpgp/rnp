@@ -49,6 +49,9 @@ project(RNP
   DESCRIPTION "${PACKAGE_DESCRIPTION_SHORT}"
 )
 
+# tri-state options
+set(TRISTATE_VALUES On Off Auto)
+
 # options
 option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
@@ -56,14 +59,16 @@ option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 # crypto components
-option(ENABLE_SM2 "Enable SM2/SM3/SM4 algorithms support." On)
-option(ENABLE_AEAD "Enable AEAD ciphers support." On)
-option(ENABLE_TWOFISH "Enable Twofish cipher support." On)
-option(ENABLE_BRAINPOOL "Enable Brainpool curves support." On)
-option(ENABLE_IDEA "Enable IDEA algorithm support." On)
-
-# tri-state options
-set(TRISTATE_VALUES On Off Auto)
+set(ENABLE_SM2 Auto CACHE STRING "Enable SM2/SM3/SM4 algorithms support.")
+set_property(CACHE ENABLE_SM2 PROPERTY STRINGS ${TRISTATE_VALUES})
+set(ENABLE_AEAD Auto CACHE STRING "Enable AEAD ciphers support.")
+set_property(CACHE ENABLE_AEAD PROPERTY STRINGS ${TRISTATE_VALUES})
+set(ENABLE_TWOFISH Auto CACHE STRING "Enable Twofish cipher support.")
+set_property(CACHE ENABLE_TWOFISH PROPERTY STRINGS ${TRISTATE_VALUES})
+set(ENABLE_BRAINPOOL Auto CACHE STRING "Enable Brainpool curves support.")
+set_property(CACHE ENABLE_BRAINPOOL PROPERTY STRINGS ${TRISTATE_VALUES})
+set(ENABLE_IDEA Auto CACHE STRING "Enable IDEA algorithm support.")
+set_property(CACHE ENABLE_IDEA PROPERTY STRINGS ${TRISTATE_VALUES})
 
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
@@ -93,12 +98,6 @@ if(CRYPTO_BACKEND STREQUAL "botan")
   # Default value;
   set(CRYPTO_BACKEND_BOTAN 1)
 elseif(CRYPTO_BACKEND STREQUAL "openssl")
-  if (ENABLE_SM2)
-    message(FATAL_ERROR "OpenSSL backend doesn't support SM2/SM3/SM4 algorithms yet.")
-  endif()
-  if (ENABLE_TWOFISH)
-    message(FATAL_ERROR "OpenSSL doesn't support Twofish.")
-  endif()
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
   message(FATAL_ERROR "Invalid crypto backend: ${CRYPTO_BACKEND}")
