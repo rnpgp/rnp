@@ -52,6 +52,7 @@
 
 #cmakedefine CRYPTO_BACKEND_BOTAN
 #cmakedefine CRYPTO_BACKEND_OPENSSL
+#cmakedefine CRYPTO_BACKEND_OPENSSL3
 
 #cmakedefine ENABLE_SM2
 #cmakedefine ENABLE_AEAD
