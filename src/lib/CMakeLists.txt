@@ -38,6 +38,9 @@ if (CRYPTO_BACKEND_OPENSSL)
   include(FindOpenSSL)
   find_package(OpenSSL 1.1.1 REQUIRED)
   include(FindOpenSSLFeatures)
+  if("${OPENSSL_VERSION}" VERSION_GREATER_EQUAL "3.0.0")
+    set(CRYPTO_BACKEND_OPENSSL3 1)
+  endif()
 endif()
 
 # generate a config.h

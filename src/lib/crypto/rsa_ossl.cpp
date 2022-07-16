@@ -33,8 +33,19 @@
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#ifdef CRYPTO_BACKEND_OPENSSL3
+#include <openssl/param_build.h>
+#include <openssl/core_names.h>
+#endif
 #include "hash_ossl.hpp"
 
+static inline const char *
+ossl_latest_err()
+{
+    return ERR_error_string(ERR_peek_last_error(), NULL);
+}
+
+#ifndef CRYPTO_BACKEND_OPENSSL3
 static RSA *
 rsa_load_public_key(const pgp_rsa_key_t *key)
 {
@@ -137,18 +148,152 @@ done:
     EVP_PKEY_free(evpkey);
     return ctx;
 }
+#else
+static OSSL_PARAM *
+rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
+{
+    OSSL_PARAM *    params = NULL;
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    bignum_t *      n = mpi2bn(&key->n);
+    bignum_t *      e = mpi2bn(&key->e);
+    bignum_t *      d = NULL;
+    bignum_t *      p = NULL;
+    bignum_t *      q = NULL;
+    bignum_t *      u = NULL;
+    BN_CTX *        bnctx = NULL;
+
+    if (!n || !e || !bld) {
+        RNP_LOG("Out of memory");
+        goto done;
+    }
+
+    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e)) {
+        RNP_LOG("Failed to push RSA params.");
+        goto done;
+    }
+    if (secret) {
+        d = mpi2bn(&key->d);
+        /* As we have u = p^-1 mod q, and qInv = q^-1 mod p, we need to replace one with
+         * another */
+        p = mpi2bn(&key->q);
+        q = mpi2bn(&key->p);
+        u = mpi2bn(&key->u);
+        if (!d || !p || !q || !u) {
+            goto done;
+        }
+        /* We need to calculate exponents manually */
+        bnctx = BN_CTX_new();
+        if (!bnctx) {
+            RNP_LOG("Failed to allocate BN_CTX.");
+            goto done;
+        }
+        bignum_t *p1 = BN_CTX_get(bnctx);
+        bignum_t *q1 = BN_CTX_get(bnctx);
+        bignum_t *dp = BN_CTX_get(bnctx);
+        bignum_t *dq = BN_CTX_get(bnctx);
+        if (!BN_copy(p1, p) || !BN_sub_word(p1, 1) || !BN_copy(q1, q) || !BN_sub_word(q1, 1) ||
+            !BN_mod(dp, d, p1, bnctx) || !BN_mod(dq, d, q1, bnctx)) {
+            RNP_LOG("Failed to calculate dP or dQ.");
+        }
+        /* Push params */
+        if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_D, d) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR1, p) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR2, q) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT1, dp) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT2, dq) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u)) {
+            RNP_LOG("Failed to push RSA secret params.");
+            goto done;
+        }
+    }
+    params = OSSL_PARAM_BLD_to_param(bld);
+    if (!params) {
+        RNP_LOG("Failed to build RSA params: %s.", ossl_latest_err());
+    }
+done:
+    bn_free(n);
+    bn_free(e);
+    bn_free(d);
+    bn_free(p);
+    bn_free(q);
+    bn_free(u);
+    BN_CTX_free(bnctx);
+    OSSL_PARAM_BLD_free(bld);
+    return params;
+}
+
+static EVP_PKEY *
+rsa_load_key(const pgp_rsa_key_t *key, bool secret)
+{
+    /* Build params */
+    OSSL_PARAM *params = rsa_bld_params(key, secret);
+    if (!params) {
+        return NULL;
+    }
+    /* Create context for key creation */
+    EVP_PKEY *    res = NULL;
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %s", ossl_latest_err());
+        goto done;
+    }
+    /* Create key */
+    if (EVP_PKEY_fromdata_init(ctx) <= 0) {
+        RNP_LOG("Failed to initialize key creation: %s", ossl_latest_err());
+        goto done;
+    }
+    if (EVP_PKEY_fromdata(
+          ctx, &res, secret ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) <= 0) {
+        RNP_LOG("Failed to create RSA key: %s", ossl_latest_err());
+    }
+done:
+    EVP_PKEY_CTX_free(ctx);
+    OSSL_PARAM_free(params);
+    return res;
+}
+
+static EVP_PKEY_CTX *
+rsa_init_context(const pgp_rsa_key_t *key, bool secret)
+{
+    EVP_PKEY *pkey = rsa_load_key(key, secret);
+    if (!pkey) {
+        return NULL;
+    }
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new(pkey, NULL);
+    if (!ctx) {
+        RNP_LOG("Context allocation failed: %s", ossl_latest_err());
+    }
+    EVP_PKEY_free(pkey);
+    return ctx;
+}
+#endif
 
 rnp_result_t
 rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
 {
+#ifdef CRYPTO_BACKEND_OPENSSL3
+    EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
+    if (!ctx) {
+        RNP_LOG("Failed to init context: %s", ossl_latest_err());
+        return RNP_ERROR_GENERIC;
+    }
+    int res = secret ? EVP_PKEY_pairwise_check(ctx) : EVP_PKEY_public_check(ctx);
+    if (res <= 0) {
+        RNP_LOG("Key validation error: %s", ossl_latest_err());
+    }
+    EVP_PKEY_CTX_free(ctx);
+    return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
+#else
     if (secret) {
         EVP_PKEY_CTX *ctx = rsa_init_context(key, secret);
         if (!ctx) {
+            RNP_LOG("Failed to init context: %s", ossl_latest_err());
             return RNP_ERROR_GENERIC;
         }
         int res = EVP_PKEY_check(ctx);
-        if (res < 0) {
-            RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
+        if (res <= 0) {
+            RNP_LOG("Key validation error: %s", ossl_latest_err());
         }
         EVP_PKEY_CTX_free(ctx);
         return res > 0 ? RNP_SUCCESS : RNP_ERROR_GENERIC;
@@ -171,6 +316,7 @@ done:
     bn_free(n);
     bn_free(e);
     return ret;
+#endif
 }
 
 static bool
