@@ -724,8 +724,19 @@ rnp_result_to_string(rnp_result_t result)
         return "No suitable key";
     case RNP_ERROR_DECRYPT_FAILED:
         return "Decryption failed";
+    case RNP_ERROR_RNG:
+        return "Failure of random number generator";
+    case RNP_ERROR_SIGNING_FAILED:
+        return "Signing failed";
     case RNP_ERROR_NO_SIGNATURES_FOUND:
         return "No signatures found cannot verify";
+
+    case RNP_ERROR_SIGNATURE_EXPIRED:
+        return "Expired signature";
+    case RNP_ERROR_VERIFICATION_FAILED:
+        return "Signature verification failed cannot verify";
+    case RNP_ERROR_SIGNATURE_UNKNOWN:
+        return "Unknown signature";
 
     case RNP_ERROR_NOT_ENOUGH_DATA:
         return "Not enough data";
