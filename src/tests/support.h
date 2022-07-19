@@ -284,6 +284,9 @@ bool aead_ocb_enabled();
 bool twofish_enabled();
 bool idea_enabled();
 bool brainpool_enabled();
+bool blowfish_enabled();
+bool cast5_enabled();
+bool ripemd160_enabled();
 
 inline size_t
 rnp_round_up(size_t n, size_t align_to)
