@@ -57,6 +57,18 @@ Cipher_OpenSSL::create(pgp_symm_alg_t     alg,
         return nullptr;
     }
 #endif
+#if !defined(ENABLE_BLOWFISH)
+    if (alg == PGP_SA_BLOWFISH) {
+        RNP_LOG("Blowfish support has been disabled");
+        return nullptr;
+    }
+#endif
+#if !defined(ENABLE_CAST5)
+    if (alg == PGP_SA_CAST5) {
+        RNP_LOG("CAST5 support has been disabled");
+        return nullptr;
+    }
+#endif
     const EVP_CIPHER *cipher = EVP_get_cipherbyname(name.c_str());
     if (!cipher) {
         RNP_LOG("Unsupported cipher: %s", name.c_str());
