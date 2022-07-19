@@ -30,6 +30,7 @@
 #include "config.h"
 #include "utils.h"
 #include "bn.h"
+#include "ossl_common.h"
 #include <openssl/rsa.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
@@ -38,12 +39,6 @@
 #include <openssl/core_names.h>
 #endif
 #include "hash_ossl.hpp"
-
-static inline const char *
-ossl_latest_err()
-{
-    return ERR_error_string(ERR_peek_last_error(), NULL);
-}
 
 #ifndef CRYPTO_BACKEND_OPENSSL3
 static RSA *
