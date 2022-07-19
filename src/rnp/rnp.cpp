@@ -53,7 +53,7 @@
 #include "logging.h"
 
 static const char *usage =
-  "Sign, verify, encrypt, decrypt, investigate OpenPGP data.\n"
+  "Sign, verify, encrypt, decrypt, inspect OpenPGP data.\n"
   "Usage: rnp --command [options] [files]\n"
   "Commands:\n"
   "  -h, --help           This help message.\n"
