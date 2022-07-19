@@ -52,6 +52,18 @@ Cipher_Botan::create(pgp_symm_alg_t alg, const std::string &name, bool encrypt)
         return nullptr;
     }
 #endif
+#if !defined(ENABLE_BLOWFISH)
+    if (alg == PGP_SA_BLOWFISH) {
+        RNP_LOG("Blowfish support has been disabled");
+        return nullptr;
+    }
+#endif
+#if !defined(ENABLE_CAST5)
+    if (alg == PGP_SA_CAST5) {
+        RNP_LOG("CAST5 support has been disabled");
+        return nullptr;
+    }
+#endif
     auto cipher = Botan::Cipher_Mode::create(
       name, encrypt ? Botan::Cipher_Dir::ENCRYPTION : Botan::Cipher_Dir::DECRYPTION);
     if (!cipher) {

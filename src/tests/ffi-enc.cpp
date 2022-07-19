@@ -198,7 +198,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
     assert_rnp_failure(rnp_op_encrypt_set_cipher(NULL, "CAST5"));
     assert_rnp_failure(rnp_op_encrypt_set_cipher(op, NULL));
     assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "WRONG"));
-    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    } else {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+    }
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
 
@@ -309,13 +314,13 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass_provider)
     if (!sm2_enabled() && !twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
         assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, "SHA256", 12345, "TWOFISH"));
-        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SHA256", 12345, "BLOWFISH"));
+        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, NULL, 12345, NULL));
     } else if (!sm2_enabled() && twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
         assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SHA256", 12345, "TWOFISH"));
     } else if (sm2_enabled() && !twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
-        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "BLOWFISH"));
+        assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, NULL));
     } else {
         assert_rnp_success(rnp_op_encrypt_add_password(op, NULL, "SM3", 12345, "TWOFISH"));
     }
@@ -402,7 +407,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     rnp_key_handle_destroy(key);
     key = NULL;
     // set the data encryption cipher
-    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    } else {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+    }
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
 
@@ -523,7 +533,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_key_provider)
     assert_rnp_success(rnp_key_handle_destroy(key));
     key = NULL;
     // set the data encryption cipher
-    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    } else {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+    }
     // execute the operation
     assert_rnp_success(rnp_op_encrypt_execute(op));
     // make sure the output file was created
@@ -631,7 +646,12 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     rnp_key_handle_destroy(key);
     key = NULL;
     // set the data encryption cipher
-    assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    if (cast5_enabled()) {
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "CAST5"));
+    } else {
+        assert_rnp_failure(rnp_op_encrypt_set_cipher(op, "CAST5"));
+        assert_rnp_success(rnp_op_encrypt_set_cipher(op, "AES256"));
+    }
     // enable armoring
     assert_rnp_failure(rnp_op_encrypt_set_armor(NULL, true));
     assert_rnp_success(rnp_op_encrypt_set_armor(op, true));
@@ -668,6 +688,9 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     assert_rnp_success(rnp_op_encrypt_add_signature(op, key, &signsig));
     assert_rnp_success(rnp_op_sign_signature_set_creation_time(signsig, issued2));
     assert_rnp_success(rnp_op_sign_signature_set_expiration_time(signsig, expires2));
+    assert_rnp_failure(rnp_op_sign_signature_set_hash(signsig, NULL));
+    assert_rnp_failure(rnp_op_sign_signature_set_hash(NULL, "SHA512"));
+    assert_rnp_failure(rnp_op_sign_signature_set_hash(signsig, "UNKNOWN"));
     assert_rnp_success(rnp_op_sign_signature_set_hash(signsig, "SHA512"));
     rnp_key_handle_destroy(key);
     key = NULL;

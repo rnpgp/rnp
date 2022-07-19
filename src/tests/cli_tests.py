@@ -39,6 +39,9 @@ RNP_TWOFISH = True
 RNP_BRAINPOOL = True
 RNP_AEAD = True
 RNP_IDEA = True
+RNP_BLOWFISH = True
+RNP_CAST5 = True
+RNP_RIPEMD160 = True
 
 if sys.version_info >= (3,):
     unichr = chr
@@ -356,7 +359,7 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     ret, _, err = run_proc(RNP, params)
     if passwords: os.close(pipe)
     if ret != 0:
-        raise_err('rnp encryption failed', err)
+        raise_err('rnp encryption failed with ' + cipher, err)
 
 def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
                               aead=None, cipher=None, z=None, armor=False):
@@ -846,7 +849,7 @@ def gpg_check_features():
     GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out)
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_IDEA
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
@@ -858,6 +861,9 @@ def rnp_check_features():
     RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
     # IDEA encryption algorithm
     RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out)
+    RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out)
+    RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out)
+    RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out)
 
 def setup(loglvl):
     # Setting up directories.
@@ -1627,67 +1633,68 @@ class Keystore(unittest.TestCase):
         self.assertNotEqual(ret, 0, 'should have failed on too long id')
 
     def test_key_remove(self):
-        MSG_KEYS_NOT_FOUND = r'Key\(s\) not found\.'
-        clear_keyrings()
-        # Import public keyring
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
-        self.assertEqual(ret, 0)
-        # Remove without parameters
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key'])
-        self.assertNotEqual(ret, 0)
-        # Remove all imported public keys with subkeys
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
-        self.assertEqual(ret, 0)
-        # Check that keyring is empty
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Invalid no-keys output')
-        # Import secret keyring
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/secring.gpg')])
-        self.assertEqual(ret, 0, 'Secret keyring import failed')
-        # Remove all secret keys with subkeys
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb', '--force'])
-        self.assertEqual(ret, 0, 'Failed to remove 2 secret keys')
-        # Check that keyring is empty
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to remove secret keys')
-        # Import public keyring
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
-        self.assertEqual(ret, 0, 'Public keyring import failed')
-        # Remove all subkeys
-        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key',
-                                        '326ef111425d14a5', '54505a936a4a970e', '8a05b89fad5aded1', '1d7e8a5393c997a8', '1ed63ee56fadc34d'])
-        self.assertEqual(ret, 0, 'Failed to remove 5 keys')
-        # Check that subkeys are removed
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
-        self.assertEqual(ret, 0)
-        self.assertRegex(out, r'2 keys found', 'Failed to remove subkeys')
-        self.assertFalse(re.search('326ef111425d14a5|54505a936a4a970e|8a05b89fad5aded1|1d7e8a5393c997a8|1ed63ee56fadc34d', out))
-        # Remove remaining public keys
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
-        self.assertEqual(ret, 0, 'Failed to remove public keys')
-        # Try to remove again
-        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'Key matching \'7bc6709b15c23a4a\' not found\.', 'Unexpected result')
-        # Check that keyring is empty
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
-        self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to list empty keyring')
-        # Import public keyring
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
-        self.assertEqual(ret, 0, 'Public keyring import failed')
-        # Try to remove by uid substring, should match multiple keys and refuse to remove
-        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'uid0'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'Ambiguous input: too many keys found for \'uid0\'\.', 'Unexpected result')
-        # Remove keys by uids
-        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'key0-uid0', 'key1-uid1'])
-        self.assertEqual(ret, 0, 'Failed to remove keys')
-        # Check that keyring is empty
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to remove keys')
+        if RNP_CAST5:
+            MSG_KEYS_NOT_FOUND = r'Key\(s\) not found\.'
+            clear_keyrings()
+            # Import public keyring
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
+            self.assertEqual(ret, 0)
+            # Remove without parameters
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key'])
+            self.assertNotEqual(ret, 0)
+            # Remove all imported public keys with subkeys
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
+            self.assertEqual(ret, 0)
+            # Check that keyring is empty
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Invalid no-keys output')
+            # Import secret keyring
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('keyrings/1/secring.gpg')])
+            self.assertEqual(ret, 0, 'Secret keyring import failed')
+            # Remove all secret keys with subkeys
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb', '--force'])
+            self.assertEqual(ret, 0, 'Failed to remove 2 secret keys')
+            # Check that keyring is empty
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to remove secret keys')
+            # Import public keyring
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
+            self.assertEqual(ret, 0, 'Public keyring import failed')
+            # Remove all subkeys
+            ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key',
+                                            '326ef111425d14a5', '54505a936a4a970e', '8a05b89fad5aded1', '1d7e8a5393c997a8', '1ed63ee56fadc34d'])
+            self.assertEqual(ret, 0, 'Failed to remove 5 keys')
+            # Check that subkeys are removed
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out, r'2 keys found', 'Failed to remove subkeys')
+            self.assertFalse(re.search('326ef111425d14a5|54505a936a4a970e|8a05b89fad5aded1|1d7e8a5393c997a8|1ed63ee56fadc34d', out))
+            # Remove remaining public keys
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a', '2fcadf05ffa501bb'])
+            self.assertEqual(ret, 0, 'Failed to remove public keys')
+            # Try to remove again
+            ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', '7bc6709b15c23a4a'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'Key matching \'7bc6709b15c23a4a\' not found\.', 'Unexpected result')
+            # Check that keyring is empty
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+            self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to list empty keyring')
+            # Import public keyring
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(PUBRING_1)])
+            self.assertEqual(ret, 0, 'Public keyring import failed')
+            # Try to remove by uid substring, should match multiple keys and refuse to remove
+            ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'uid0'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'Ambiguous input: too many keys found for \'uid0\'\.', 'Unexpected result')
+            # Remove keys by uids
+            ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--remove-key', 'key0-uid0', 'key1-uid1'])
+            self.assertEqual(ret, 0, 'Failed to remove keys')
+            # Check that keyring is empty
+            ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to remove keys')
 
     def test_additional_subkeys_default(self):
         '''
@@ -1919,6 +1926,12 @@ class Misc(unittest.TestCase):
             ciphers.remove('TWOFISH')
         if not RNP_IDEA:
             ciphers.remove('IDEA')
+        if not RNP_BLOWFISH:
+            ciphers.remove('BLOWFISH')
+        if not RNP_CAST5:
+            ciphers.remove('CAST5')
+        if not RNP_RIPEMD160:
+            hashes.remove('RIPEMD160')
 
         def rnp_encryption_s2k_gpg(cipher, hash_alg, s2k=None, iterations=None):
             params = ['--homedir', GPGHOME, '-c', '--s2k-cipher-algo', cipher, 
@@ -2013,15 +2026,16 @@ class Misc(unittest.TestCase):
         KEYRING_5 = data_path('keyrings/5')
         path = data_path('test_cli_rnpkeys') + '/'
 
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '--list-keys'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys'), out, 'keyring 1 key listing failed')
-        _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '-l', '--with-sigs'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs'), out, 'keyring 1 sig listing failed')
-        _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '--list-keys', '--secret'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys_sec'), out, 'keyring 1 sec key listing failed')
-        _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '--list-keys',
-                                    '--secret', '--with-sigs'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs_sec'), out, 'keyring 1 sec sig listing failed')
+        if RNP_CAST5:
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '--list-keys'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys'), out, 'keyring 1 key listing failed')
+            _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '-l', '--with-sigs'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs'), out, 'keyring 1 sig listing failed')
+            _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '--list-keys', '--secret'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_keys_sec'), out, 'keyring 1 sec key listing failed')
+            _, out, _ = run_proc(RNPK, ['--home', KEYRING_1, '--list-keys',
+                                        '--secret', '--with-sigs'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'keyring_1_list_sigs_sec'), out, 'keyring 1 sec sig listing failed')
 
         _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_2, '--list-keys'])
         compare_file(path + 'keyring_2_list_keys', out, 'keyring 2 key listing failed')
@@ -2061,22 +2075,23 @@ class Misc(unittest.TestCase):
         #compare_file(path + 'test_stream_key_load_sigs_sec', out,
         #             'g10 sec keyring sig listing failed')
 
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '2fcadf05ffa501bb'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l',
-                                    '--with-sigs', '2fcadf05ffa501bb'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sig'), out, 'list sig 2fcadf05ffa501bb failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l',
-                                    '--secret', '2fcadf05ffa501bb'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sec'), out, 'list sec 2fcadf05ffa501bb failed')
+        if RNP_CAST5:
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '2fcadf05ffa501bb'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l',
+                                        '--with-sigs', '2fcadf05ffa501bb'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sig'), out, 'list sig 2fcadf05ffa501bb failed')
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l',
+                                        '--secret', '2fcadf05ffa501bb'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb_sec'), out, 'list sec 2fcadf05ffa501bb failed')
 
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '00000000'])
-        compare_file(path + 'getkey_00000000', out, 'list key 00000000 failed')
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', 'zzzzzzzz'])
-        compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '00000000'])
+            compare_file(path + 'getkey_00000000', out, 'list key 00000000 failed')
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', 'zzzzzzzz'])
+            compare_file(path + 'getkey_zzzzzzzz', out, 'list key zzzzzzzz failed')
 
-        _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '--userid', '2fcadf05ffa501bb'])
-        compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
+            _, out, _ = run_proc(RNPK, ['--homedir', KEYRING_1, '-l', '--userid', '2fcadf05ffa501bb'])
+            compare_file_any(allow_y2k38_on_32bit(path + 'getkey_2fcadf05ffa501bb'), out, 'list key 2fcadf05ffa501bb failed')
 
     def test_rnpkeys_list_invalid_keys(self):
         RNPDIR2 = RNPDIR + '2'
@@ -2401,7 +2416,8 @@ class Misc(unittest.TestCase):
                         'key-malf-sig json listing mismatch')
 
     def test_debug_log(self):
-        run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_1), '--list-keys', '--debug', '--all'])
+        if RNP_CAST5:
+            run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_1), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path('keyrings/2'), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_3), '--list-keys', '--debug', '--all'])
         run_proc(RNPK, ['--homedir', data_path(SECRING_G10),
@@ -2813,15 +2829,16 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 0)
         self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*symmetric algorithm: 2 \(TripleDES\).*$')
         remove_files(enc)
-        # Use ripemd-160 hash instead of RIPEMD160
-        ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'ripemd-160', '--password', 'password'])
-        self.assertEqual(ret, 0)
-        self.assertNotRegex(err, r'(?s)^.*Unsupported hash algorithm: ripemd-160.*$')
-        # Make sure RIPEMD160 was used
-        ret, out, _ = run_proc(RNP, ['--list-packets', enc])
-        self.assertEqual(ret, 0)
-        self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*s2k hash algorithm: 3 \(RIPEMD160\).*$')
-        remove_files(enc)
+        if RNP_RIPEMD160:
+            # Use ripemd-160 hash instead of RIPEMD160
+            ret, _, err = run_proc(RNP, ['-c', src, '--hash', 'ripemd-160', '--password', 'password'])
+            self.assertEqual(ret, 0)
+            self.assertNotRegex(err, r'(?s)^.*Unsupported hash algorithm: ripemd-160.*$')
+            # Make sure RIPEMD160 was used
+            ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out,r'(?s)^.*Symmetric-key encrypted session key packet.*s2k hash algorithm: 3 \(RIPEMD160\).*$')
+            remove_files(enc)
 
     def test_core_dumps(self):
         CORE_DUMP = r'(?s)^.*warning: core dumps may be enabled, sensitive data may be leaked to disk.*$'
@@ -3144,58 +3161,59 @@ class Misc(unittest.TestCase):
         clear_workfiles()
     
     def test_verify_detached_source(self):
-        # Test --source parameter for the detached signature verification.
-        src = data_path(MSG_TXT)
-        sig = data_path(MSG_TXT + '.sig')
-        sigasc = data_path(MSG_TXT + '.asc')
-        keys = data_path(KEYRING_DIR_1)
-        # Just verify
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig])
-        self.assertEqual(ret, 0)
-        R_GOOD = r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*'
-        self.assertRegex(err, R_GOOD)
-        # Verify .asc
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sigasc])
-        self.assertEqual(ret, 0)
-        self.assertRegex(err, R_GOOD)
-        # Do not provide source
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
-        self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--source.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
-        # Verify by specifying the correct path
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
-        self.assertEqual(ret, 0)
-        self.assertRegex(err, R_GOOD)
-        # Verify by specifying the incorrect path
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src + '.wrong', '-v', sig])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Failed to open source for detached signature verification.*')
-        # Verify detached signature with non-asc/sig extension
-        [csig] = reg_workfiles('message', '.dat')
-        shutil.copy(sig, csig)
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', csig])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Unsupported detached signature extension. Use --source to override.*')
-        # Verify by reading data from stdin
-        srcdata = ""
-        with open(src, "rb") as srcf:
-            srcdata = srcf.read().decode('utf-8')
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v', csig], srcdata)
-        self.assertEqual(ret, 0)
-        self.assertRegex(err, R_GOOD)
-        # Verify by reading data from env
-        os.environ["SIGNED_DATA"] = srcdata
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', 'env:SIGNED_DATA', '-v', csig])
-        self.assertEqual(ret, 0)
-        self.assertRegex(err, R_GOOD)
-        del os.environ["SIGNED_DATA"]
-        # Attempt to verify by specifying bot sig and data from stdin
-        sigtext = file_text(sigasc)
-        ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v'], sigtext)
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*Detached signature and signed source cannot be both stdin.*')
+        if RNP_CAST5:
+            # Test --source parameter for the detached signature verification.
+            src = data_path(MSG_TXT)
+            sig = data_path(MSG_TXT + '.sig')
+            sigasc = data_path(MSG_TXT + '.asc')
+            keys = data_path(KEYRING_DIR_1)
+            # Just verify
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig])
+            self.assertEqual(ret, 0)
+            R_GOOD = r'(?s)^.*Good signature made.*e95a3cbf583aa80a2ccc53aa7bc6709b15c23a4a.*'
+            self.assertRegex(err, R_GOOD)
+            # Verify .asc
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sigasc])
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, R_GOOD)
+            # Do not provide source
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--source.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
+            # Verify by specifying the correct path
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, R_GOOD)
+            # Verify by specifying the incorrect path
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src + '.wrong', '-v', sig])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Failed to open source for detached signature verification.*')
+            # Verify detached signature with non-asc/sig extension
+            [csig] = reg_workfiles('message', '.dat')
+            shutil.copy(sig, csig)
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', csig])
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Unsupported detached signature extension. Use --source to override.*')
+            # Verify by reading data from stdin
+            srcdata = ""
+            with open(src, "rb") as srcf:
+                srcdata = srcf.read().decode('utf-8')
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v', csig], srcdata)
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, R_GOOD)
+            # Verify by reading data from env
+            os.environ["SIGNED_DATA"] = srcdata
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', 'env:SIGNED_DATA', '-v', csig])
+            self.assertEqual(ret, 0)
+            self.assertRegex(err, R_GOOD)
+            del os.environ["SIGNED_DATA"]
+            # Attempt to verify by specifying bot sig and data from stdin
+            sigtext = file_text(sigasc)
+            ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', '-', '-v'], sigtext)
+            self.assertNotEqual(ret, 0)
+            self.assertRegex(err, r'(?s)^.*Detached signature and signed source cannot be both stdin.*')
 
-        clear_workfiles()
+            clear_workfiles()
 
     def test_onepass_edge_cases(self):
         key = data_path('test_key_validity/alice-pub.asc')
@@ -3689,6 +3707,11 @@ class Encryption(unittest.TestCase):
             Encryption.CIPHERS.remove('TWOFISH')
         if not RNP_IDEA:
             Encryption.CIPHERS.remove('IDEA')
+        if not RNP_BLOWFISH:
+            Encryption.CIPHERS.remove('BLOWFISH')
+        if not RNP_CAST5:
+            Encryption.CIPHERS.remove('CAST5')
+
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
