@@ -93,12 +93,14 @@ class SecurityProfile {
 class SecurityContext {
     std::unordered_map<int, size_t> s2k_iterations_;
     uint64_t                        time_;
+    void *                          prov_state_;
 
   public:
     SecurityProfile profile;
     RNG             rng;
 
     SecurityContext();
+    ~SecurityContext();
 
     size_t s2k_iterations(pgp_hash_alg_t halg);
 

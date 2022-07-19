@@ -31,6 +31,10 @@
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
+#include "ossl_common.h"
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+#include <openssl/provider.h>
+#endif
 #include <string.h>
 #include "config.h"
 #ifndef RNP_USE_STD_REGEX
@@ -101,5 +105,68 @@ backend_version()
 #error "Unknown backend"
 #endif
 }
+
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+typedef struct openssl3_state {
+    OSSL_PROVIDER *legacy;
+    OSSL_PROVIDER *def;
+} openssl3_state;
+
+bool
+backend_init(void **param)
+{
+    if (!param) {
+        return false;
+    }
+
+    *param = NULL;
+    openssl3_state *state = (openssl3_state *) calloc(1, sizeof(openssl3_state));
+    if (!state) {
+        RNP_LOG("Allocation failure.");
+        return false;
+    }
+    /* Load default crypto provider */
+    state->def = OSSL_PROVIDER_load(NULL, "default");
+    if (!state->def) {
+        RNP_LOG("Failed to load default crypto provider: %s", ossl_latest_err());
+        free(state);
+        return false;
+    }
+    /* Load legacy crypto provider */
+    state->legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    if (!state->legacy) {
+        RNP_LOG("Failed to load legacy crypto provider: %s", ossl_latest_err());
+        OSSL_PROVIDER_unload(state->def);
+        free(state);
+        return false;
+    }
+    *param = state;
+    return true;
+}
+
+void
+backend_finish(void *param)
+{
+    if (!param) {
+        return;
+    }
+    openssl3_state *state = (openssl3_state *) param;
+    OSSL_PROVIDER_unload(state->def);
+    OSSL_PROVIDER_unload(state->legacy);
+    free(state);
+}
+#else
+bool
+backend_init(void **param)
+{
+    return true;
+}
+
+void
+backend_finish(void *param)
+{
+    // Do nothing
+}
+#endif
 
 } // namespace rnp
