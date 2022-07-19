@@ -492,13 +492,12 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    const RSA *   rsa = NULL;
-    EVP_PKEY *    pkey = NULL;
-    EVP_PKEY_CTX *ctx = NULL;
-    bignum_t *    u = NULL;
-    bignum_t *    nq = NULL;
-    BN_CTX *      bnctx = NULL;
+    rnp_result_t    ret = RNP_ERROR_GENERIC;
+    const RSA *     rsa = NULL;
+    EVP_PKEY *      pkey = NULL;
+    EVP_PKEY_CTX *  ctx = NULL;
+    const bignum_t *u = NULL;
+    BN_CTX *        bnctx = NULL;
 
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx) {
@@ -543,28 +542,35 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
     }
     /* OpenSSL doesn't care whether p < q */
     if (BN_cmp(p, q) > 0) {
+        /* In this case we have u, as iqmp is inverse of q mod p, and we exchange them */
         const bignum_t *tmp = p;
         p = q;
         q = tmp;
+        u = RSA_get0_iqmp(rsa);
+    } else {
+        /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse
+         * of q mod p, and doesn't care of p < q */
+        bnctx = BN_CTX_new();
+        if (!bnctx) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        BN_CTX_start(bnctx);
+        bignum_t *nu = BN_CTX_get(bnctx);
+        bignum_t *nq = BN_CTX_get(bnctx);
+        if (!nu || !nq) {
+            ret = RNP_ERROR_OUT_OF_MEMORY;
+            goto done;
+        }
+        BN_with_flags(nq, q, BN_FLG_CONSTTIME);
+        /* calculate inverse of p mod q */
+        if (!BN_mod_inverse(nu, p, nq, bnctx)) {
+            RNP_LOG("Failed to calculate u");
+            ret = RNP_ERROR_BAD_STATE;
+            goto done;
+        }
+        u = nu;
     }
-    /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse of q
-     * mod p, and doesn't care of p < q */
-    bnctx = BN_CTX_new();
-    u = BN_new();
-    nq = BN_new();
-    if (!ctx || !u || !nq) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-    BN_with_flags(nq, q, BN_FLG_CONSTTIME);
-    /* calculate inverse of p mod q */
-    if (!BN_mod_inverse(u, p, nq, bnctx)) {
-        bn_free(nq);
-        RNP_LOG("Failed to calculate u");
-        ret = RNP_ERROR_BAD_STATE;
-        goto done;
-    }
-    bn_free(nq);
     bn2mpi(n, &key->n);
     bn2mpi(e, &key->e);
     bn2mpi(p, &key->p);
@@ -576,6 +582,5 @@ done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
     BN_CTX_free(bnctx);
-    bn_free(u);
     return ret;
 }
