@@ -234,6 +234,12 @@ cipher_supported(const std::string &cipher)
     if (!twofish_enabled() && lowercase(cipher) == "twofish") {
         return false;
     }
+    if (!blowfish_enabled() && lowercase(cipher) == "blowfish") {
+        return false;
+    }
+    if (!cast5_enabled() && lowercase(cipher) == "cast5") {
+        return false;
+    }
     return true;
 }
 

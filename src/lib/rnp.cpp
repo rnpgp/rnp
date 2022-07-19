@@ -270,8 +270,12 @@ symm_alg_supported(int alg)
     case PGP_SA_IDEA:
 #endif
     case PGP_SA_TRIPLEDES:
+#if defined(ENABLE_CAST5)
     case PGP_SA_CAST5:
+#endif
+#if defined(ENABLE_BLOWFISH)
     case PGP_SA_BLOWFISH:
+#endif
     case PGP_SA_AES_128:
     case PGP_SA_AES_192:
     case PGP_SA_AES_256:
@@ -296,7 +300,9 @@ hash_alg_supported(int alg)
     switch (alg) {
     case PGP_HASH_MD5:
     case PGP_HASH_SHA1:
+#if defined(ENABLE_RIPEMD160)
     case PGP_HASH_RIPEMD:
+#endif
     case PGP_HASH_SHA256:
     case PGP_HASH_SHA384:
     case PGP_HASH_SHA512:
@@ -2902,7 +2908,7 @@ FFI_GUARD
 rnp_result_t
 rnp_op_sign_signature_set_hash(rnp_op_sign_signature_t sig, const char *hash)
 try {
-    if (!sig) {
+    if (!sig || !hash) {
         return RNP_ERROR_NULL_POINTER;
     }
     if (!str_to_hash_alg(hash, &sig->signer.halg)) {

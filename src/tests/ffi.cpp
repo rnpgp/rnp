@@ -728,11 +728,18 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     assert_int_equal(
       RNP_SUCCESS, rnp_key_add_uid(key_handle, new_userid, "SHA256", 2147317200, 0x00, false));
 
-    assert_rnp_success(
-      rnp_key_add_uid(key_handle, ripemd_hash_userid, "RIPEMD160", 2147317200, 0, false));
+    int uid_count_expected = 3;
+    int res =
+      rnp_key_add_uid(key_handle, ripemd_hash_userid, "RIPEMD160", 2147317200, 0, false);
+    if (ripemd160_enabled()) {
+        assert_rnp_success(res);
+        uid_count_expected++;
+    } else {
+        assert_rnp_failure(res);
+    }
 
     assert_rnp_success(rnp_key_get_uid_count(key_handle, &count));
-    assert_int_equal(4, count);
+    assert_int_equal(uid_count_expected, count);
 
     rnp_key_handle_t key_handle2 = NULL;
     assert_rnp_success(rnp_locate_key(ffi, "userid", new_userid, &key_handle2));
@@ -2125,6 +2132,14 @@ TEST_F(rnp_tests, test_ffi_backend_version)
     assert_true(strlen(rnp_backend_version()) > 0 && strlen(rnp_backend_version()) < 255);
 }
 
+void check_loaded_keys(const char *                    format,
+                       bool                            armored,
+                       uint8_t *                       buf,
+                       size_t                          buf_len,
+                       const char *                    id_type,
+                       const std::vector<std::string> &expected_ids,
+                       bool                            secret);
+
 TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
 {
     rnp_ffi_t             ffi = NULL;
@@ -3010,7 +3025,9 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     bool has_brainpool = brainpool_enabled();
     bool has_idea = idea_enabled();
     assert_true(
-      check_features(RNP_FEATURE_SYMM_ALG, features, 9 + has_sm2 + has_tf + has_idea));
+      check_features(RNP_FEATURE_SYMM_ALG,
+                     features,
+                     7 + has_sm2 + has_tf + has_idea + blowfish_enabled() + cast5_enabled()));
     rnp_buffer_destroy(features);
     bool supported = false;
     assert_rnp_failure(rnp_supports_feature(NULL, "IDEA", &supported));
@@ -3022,9 +3039,9 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TRIPLEDES", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAST5", &supported));
-    assert_true(supported);
+    assert_int_equal(supported, cast5_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "BLOWFISH", &supported));
-    assert_true(supported);
+    assert_int_equal(supported, blowfish_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "AES128", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "AES192", &supported));
@@ -3046,9 +3063,9 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "tripledes", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "cast5", &supported));
-    assert_true(supported);
+    assert_true(supported == cast5_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "blowfish", &supported));
-    assert_true(supported);
+    assert_true(supported == blowfish_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "aes128", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "aes192", &supported));
@@ -3129,14 +3146,15 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     /* hash algorithm */
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_HASH_ALG, &features));
     assert_non_null(features);
-    assert_true(check_features(RNP_FEATURE_HASH_ALG, features, 9 + has_sm2));
+    assert_true(
+      check_features(RNP_FEATURE_HASH_ALG, features, 8 + has_sm2 + ripemd160_enabled()));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "MD5", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SHA1", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "RIPEMD160", &supported));
-    assert_true(supported);
+    assert_true(supported == ripemd160_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SHA256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "SHA384", &supported));
@@ -3156,7 +3174,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sha1", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "ripemd160", &supported));
-    assert_true(supported);
+    assert_true(supported == ripemd160_enabled());
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sha256", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_HASH_ALG, "sha384", &supported));

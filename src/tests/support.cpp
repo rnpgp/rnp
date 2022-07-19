@@ -1226,6 +1226,36 @@ brainpool_enabled()
 }
 
 bool
+blowfish_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "BLOWFISH", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
+cast5_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAST5", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
+ripemd160_enabled()
+{
+    bool enabled = false;
+    if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, "RIPEMD160", &enabled)) {
+        return false;
+    }
+    return enabled;
+}
+
+bool
 test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
 {
     pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);

@@ -1180,7 +1180,7 @@ TEST_F(rnp_tests, test_ffi_key_generate_ex)
     /* preferred ciphers */
     assert_rnp_success(rnp_op_generate_clear_pref_ciphers(keygen));
     assert_rnp_failure(rnp_op_generate_add_pref_cipher(keygen, "unknown"));
-    assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "BLOWFISH"));
+    assert_true(!rnp_op_generate_add_pref_cipher(keygen, "BLOWFISH") == blowfish_enabled());
     assert_rnp_success(rnp_op_generate_clear_pref_ciphers(keygen));
     assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "CAMELLIA256"));
     assert_rnp_success(rnp_op_generate_add_pref_cipher(keygen, "AES256"));
@@ -4383,5 +4383,60 @@ TEST_F(rnp_tests, test_ffi_sha1_self_signatures)
     rnp_key_handle_destroy(sub);
     rnp_key_handle_destroy(key);
 
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_reprotect_keys)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* Cast5-encrypted keys */
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring-cast5.gpg"));
+
+    rnp_identifier_iterator_t it = NULL;
+    assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+    assert_non_null(it);
+    const char *ident = NULL;
+    do {
+        ident = NULL;
+        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
+        if (!ident) {
+            break;
+        }
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", ident, &key));
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_key_unprotect(key, "password"));
+            assert_rnp_success(rnp_key_protect(key, "password", "AES256", NULL, NULL, 65536));
+        } else {
+            assert_rnp_failure(rnp_key_unprotect(key, "password"));
+        }
+        rnp_key_handle_destroy(key);
+    } while (1);
+    assert_rnp_success(rnp_identifier_iterator_destroy(it));
+    /* AES-encrypted keys */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    assert_true(
+      load_keys_gpg(ffi, "data/keyrings/1/pubring.gpg", "data/keyrings/1/secring.gpg"));
+    assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+    assert_non_null(it);
+    do {
+        ident = NULL;
+        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
+        if (!ident) {
+            break;
+        }
+        rnp_key_handle_t key = NULL;
+        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", ident, &key));
+        assert_rnp_success(rnp_key_unprotect(key, "password"));
+        if (cast5_enabled()) {
+            assert_rnp_success(rnp_key_protect(key, "password", "CAST5", NULL, NULL, 65536));
+        } else {
+            assert_rnp_success(rnp_key_protect(key, "password", "AES128", NULL, NULL, 65536));
+        }
+        rnp_key_handle_destroy(key);
+    } while (1);
+    assert_rnp_success(rnp_identifier_iterator_destroy(it));
     rnp_ffi_destroy(ffi);
 }
