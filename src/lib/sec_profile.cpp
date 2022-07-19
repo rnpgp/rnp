@@ -176,8 +176,12 @@ SecurityProfile::def_level() const
     return SecurityLevel::Default;
 };
 
-SecurityContext::SecurityContext() : time_(0), rng(RNG::Type::DRBG)
+SecurityContext::SecurityContext() : time_(0), prov_state_(NULL), rng(RNG::Type::DRBG)
 {
+    /* Initialize crypto provider if needed (currently only for OpenSSL 3.0) */
+    if (!rnp::backend_init(&prov_state_)) {
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
     /* Mark SHA-1 data signature insecure since 2019-01-19, as GnuPG does */
     profile.add_rule({FeatureType::Hash,
                       PGP_HASH_SHA1,
@@ -192,6 +196,11 @@ SecurityContext::SecurityContext() : time_(0), rng(RNG::Type::DRBG)
                       SecurityAction::VerifyKey});
     /* Mark MD5 insecure since 2012-01-01 */
     profile.add_rule({FeatureType::Hash, PGP_HASH_MD5, SecurityLevel::Insecure, 1325376000});
+}
+
+SecurityContext::~SecurityContext()
+{
+    rnp::backend_finish(prov_state_);
 }
 
 size_t

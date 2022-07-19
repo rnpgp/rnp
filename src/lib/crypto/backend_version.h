@@ -35,6 +35,10 @@ const char *backend_string();
 
 const char *backend_version();
 
+bool backend_init(void **param);
+
+void backend_finish(void *param);
+
 } // namespace rnp
 
 #endif // CRYPTO_BACKEND_VERSION_H_
