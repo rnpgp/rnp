@@ -27,6 +27,8 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <set>
+#include <utility>
 
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
@@ -5922,4 +5924,37 @@ TEST_F(rnp_tests, test_ffi_security_profile)
     assert_int_equal(flags, RNP_SECURITY_VERIFY_KEY);
 
     rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_result_to_string)
+{
+    const char *          result_string = NULL;
+    rnp_result_t          code;
+    std::set<std::string> stringset;
+
+    result_string = rnp_result_to_string(RNP_SUCCESS);
+    assert_string_equal(result_string, "Success");
+
+    /* Cover all defined error code ranges,
+     * check that each defined
+     * code has corresponding unique string */
+
+    std::vector<std::pair<rnp_result_t, rnp_result_t>> error_codes = {
+      {RNP_ERROR_GENERIC, RNP_ERROR_NULL_POINTER},
+      {RNP_ERROR_ACCESS, RNP_ERROR_WRITE},
+      {RNP_ERROR_BAD_STATE, RNP_ERROR_SIGNATURE_UNKNOWN},
+      {RNP_ERROR_NOT_ENOUGH_DATA, RNP_ERROR_EOF}};
+
+    for (auto &range : error_codes) {
+        for (code = range.first; code <= range.second; code++) {
+            result_string = rnp_result_to_string(code);
+
+            auto search = stringset.find(result_string);
+
+            /* Make sure returned error string is not already returned for other codes */
+            assert_true(search == stringset.end());
+
+            stringset.insert(result_string);
+        }
+    }
 }
