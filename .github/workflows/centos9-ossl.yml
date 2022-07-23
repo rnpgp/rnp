@@ -1,0 +1,93 @@
+name: centos9-ossl
+
+on:
+  push:
+    branches:
+      - master
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/centos9-ossl.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+env:
+  CORES: 2
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  USE_STATIC_DEPENDENCIES: yes
+  DOWNLOAD_RUBYRNP: Off
+  CRYPTO_BACKEND: openssl
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container:
+      image: quay.io/centos/centos:stream9
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - BUILD_MODE: normal
+            CC: gcc
+            CXX: g++
+          - BUILD_MODE: normal
+            CC: clang
+            CXX: clang++
+# Sanitize is only tested with the clang compiler
+# see env-common.inc.sh
+          - BUILD_MODE: sanitize
+            CC: clang
+            CXX: clang++
+    env: ${{ matrix.env }}
+    name: centos:stream9 OpenSSL [mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }};]
+    steps:
+      - run: |
+          dnf -y install git
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 1
+      - name: Add rnpuser
+        run: |
+          useradd rnpuser
+          yum -y -q install sudo
+          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+      - name: Install required components
+        run: |
+          dnf -y -q install sudo wget git
+          sudo dnf -y update
+          sudo dnf -y -q install clang llvm gcc gcc-c++ make autoconf automake libtool bzip2 gzip ncurses-devel bzip2-devel zlib-devel byacc gettext-devel bison python3 ruby-devel cmake
+          sudo dnf -y -q install epel-release && \
+            sudo dnf -y -q install 'dnf-command(config-manager)' && \
+            sudo dnf config-manager --set-enabled crb
+          sudo dnf -y -q install openssl-devel json-c-devel gtest-devel libasan libubsan
+      - name: Tests
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ci/run.sh
