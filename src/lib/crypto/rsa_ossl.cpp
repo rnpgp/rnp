@@ -26,6 +26,7 @@
 
 #include <string>
 #include <cstring>
+#include <cassert>
 #include "crypto/rsa.h"
 #include "config.h"
 #include "utils.h"
@@ -315,15 +316,24 @@ done:
 }
 
 static bool
-rsa_setup_context(EVP_PKEY_CTX *ctx, pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN)
+rsa_setup_context(EVP_PKEY_CTX *ctx)
 {
     if (EVP_PKEY_CTX_set_rsa_padding(ctx, RSA_PKCS1_PADDING) <= 0) {
         RNP_LOG("Failed to set padding: %lu", ERR_peek_last_error());
         return false;
     }
-    if (hash_alg == PGP_HASH_UNKNOWN) {
-        return true;
-    }
+    return true;
+}
+
+static const uint8_t PKCS1_SHA1_ENCODING[15] = {
+  0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14};
+
+static bool
+rsa_setup_signature_hash(EVP_PKEY_CTX *  ctx,
+                         pgp_hash_alg_t  hash_alg,
+                         const uint8_t *&enc,
+                         size_t &        enc_size)
+{
     const char *hash_name = rnp::Hash_OpenSSL::name(hash_alg);
     if (!hash_name) {
         RNP_LOG("Unknown hash: %d", (int) hash_alg);
@@ -335,8 +345,15 @@ rsa_setup_context(EVP_PKEY_CTX *ctx, pgp_hash_alg_t hash_alg = PGP_HASH_UNKNOWN)
         return false;
     }
     if (EVP_PKEY_CTX_set_signature_md(ctx, hash_tp) <= 0) {
-        RNP_LOG("Failed to set digest: %lu", ERR_peek_last_error());
-        return false;
+        if ((hash_alg != PGP_HASH_SHA1)) {
+            RNP_LOG("Failed to set digest %s: %s", hash_name, ossl_latest_err());
+            return false;
+        }
+        enc = &PKCS1_SHA1_ENCODING[0];
+        enc_size = sizeof(PKCS1_SHA1_ENCODING);
+    } else {
+        enc = NULL;
+        enc_size = 0;
     }
     return true;
 }
@@ -384,12 +401,26 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     if (!ctx) {
         return ret;
     }
+    const uint8_t *hash_enc = NULL;
+    size_t         hash_enc_size = 0;
+    uint8_t        hash_enc_buf[PGP_MAX_HASH_SIZE + 32] = {0};
+    assert(hash_len + hash_enc_size <= sizeof(hash_enc_buf));
+
     if (EVP_PKEY_verify_init(ctx) <= 0) {
         RNP_LOG("Failed to initialize verification: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx, hash_alg)) {
+    if (!rsa_setup_context(ctx) ||
+        !rsa_setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
         goto done;
+    }
+    /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
+     */
+    if (hash_enc_size) {
+        memcpy(hash_enc_buf, hash_enc, hash_enc_size);
+        memcpy(&hash_enc_buf[hash_enc_size], hash, hash_len);
+        hash = hash_enc_buf;
+        hash_len += hash_enc_size;
     }
     int res;
     if (sig->s.len < key->n.len) {
@@ -406,8 +437,7 @@ rsa_verify_pkcs1(const pgp_rsa_signature_t *sig,
     if (res > 0) {
         ret = RNP_SUCCESS;
     } else {
-        RNP_LOG("RSA verification failure: %s",
-                ERR_reason_error_string(ERR_peek_last_error()));
+        RNP_LOG("RSA verification failure: %s", ossl_latest_err());
     }
 done:
     EVP_PKEY_CTX_free(ctx);
@@ -431,12 +461,25 @@ rsa_sign_pkcs1(rnp::RNG *           rng,
     if (!ctx) {
         return ret;
     }
+    const uint8_t *hash_enc = NULL;
+    size_t         hash_enc_size = 0;
+    uint8_t        hash_enc_buf[PGP_MAX_HASH_SIZE + 32] = {0};
+    assert(hash_len + hash_enc_size <= sizeof(hash_enc_buf));
     if (EVP_PKEY_sign_init(ctx) <= 0) {
         RNP_LOG("Failed to initialize signing: %lu", ERR_peek_last_error());
         goto done;
     }
-    if (!rsa_setup_context(ctx, hash_alg)) {
+    if (!rsa_setup_context(ctx) ||
+        !rsa_setup_signature_hash(ctx, hash_alg, hash_enc, hash_enc_size)) {
         goto done;
+    }
+    /* Check whether we need to workaround on unsupported SHA1 for RSA signature verification
+     */
+    if (hash_enc_size) {
+        memcpy(hash_enc_buf, hash_enc, hash_enc_size);
+        memcpy(&hash_enc_buf[hash_enc_size], hash, hash_len);
+        hash = hash_enc_buf;
+        hash_len += hash_enc_size;
     }
     sig->s.len = PGP_MPINT_SIZE;
     if (EVP_PKEY_sign(ctx, sig->s.mpi, &sig->s.len, hash, hash_len) <= 0) {
