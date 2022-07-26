@@ -1,0 +1,22 @@
+#!/bin/bash
+
+rm -rf /tmp/rnp*
+
+cat > run-this <<EOF
+#!/bin/bash
+set -e
+set -x
+
+export USE_STATIC_DEPENDENCIES=no DOWNLOAD_RUBYRNP=Off
+
+export BUILD_MODE=normal CC=gcc CXX=g++ CRYPTO_BACKEND=openssl
+#export BUILD_MODE=sanitize CC=clang CXX=clang++ CRYPTO_BACKEND=botan
+
+cp -a /rnp /rnp.container
+cd /rnp.container
+chown -R rnpuser:rnpuser .
+su rnpuser -c ci/run.sh || bash -i
+EOF
+chmod a+x run-this
+
+docker run -v $PWD:/rnp -it andreyutkin/rnp-ci-fedora:35 /rnp/run-this
