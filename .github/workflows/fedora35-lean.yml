@@ -1,0 +1,72 @@
+name: fedora35-lean
+
+on:
+  push:
+    branches:
+      - master
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/fedora35-lean.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+env:
+  CORES: 2
+  CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  USE_STATIC_DEPENDENCIES: no
+  DOWNLOAD_RUBYRNP: Off
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    container:
+      image: andreyutkin/rnp-ci-fedora:35
+    timeout-minutes: 70
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - BUILD_MODE: normal
+            CC: gcc
+            CXX: g++
+            CRYPTO_BACKEND: openssl
+          - BUILD_MODE: sanitize
+            CC: clang
+            CXX: clang++
+            CRYPTO_BACKEND: botan
+    env: ${{ matrix.env }}
+    name: fedora35 [${{ CRYPTO_BACKEND }} mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: tests
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser .
+          exec su rnpuser -c ci/run.sh
