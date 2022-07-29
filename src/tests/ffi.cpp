@@ -5949,6 +5949,8 @@ TEST_F(rnp_tests, test_result_to_string)
         for (code = range.first; code <= range.second; code++) {
             result_string = rnp_result_to_string(code);
 
+            assert_int_not_equal(strcmp("Unsupported error code", result_string), 0);
+
             auto search = stringset.find(result_string);
 
             /* Make sure returned error string is not already returned for other codes */
