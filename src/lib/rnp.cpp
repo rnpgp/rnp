@@ -750,7 +750,7 @@ rnp_result_to_string(rnp_result_t result)
         return "EOF detected";
     }
 
-    return "Unknown error";
+    return "Unsupported error code";
 }
 
 const char *
