@@ -47,11 +47,16 @@ elseif (NOT DOWNLOAD_GTEST)
   find_package(GTest REQUIRED)
   set(GTestMain GTest::Main)
 else()
+  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS_EQUAL "4.8.5")
+    set(GTEST_GIT_TAG "c43f710")
+  else()
+    set(GTEST_GIT_TAG "HEAD")
+  endif()
   # download and build googletest
   include(FetchContent)
   FetchContent_Declare(googletest
     GIT_REPOSITORY  https://github.com/google/googletest.git
-    GIT_TAG         c43f710
+    GIT_TAG         "${GTEST_GIT_TAG}"
   )
   # maintain compiler/linker settings on Windows
   set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
