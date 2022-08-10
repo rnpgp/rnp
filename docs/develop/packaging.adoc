@@ -44,6 +44,7 @@ yum -y install bzip2-devel zlib-devel json-c12-devel
 
 # botan
 rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
 curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
 yum -y install botan2-devel
 --
