@@ -118,6 +118,7 @@ netbsd_install() {
 
 linux_prepare_ribose_yum_repo() {
   "${SUDO}" rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages.pub
+  "${SUDO}" rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
   "${SUDO}" curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo \
     -o /etc/yum.repos.d/ribose.repo
 }
