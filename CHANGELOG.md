@@ -1,5 +1,46 @@
 ## Changelog
 
+### 0.16.1 [2022-09-06]
+
+#### General
+
+* Ensure support for RHEL9/CentOS Stream 9/Fedora 36, updating OpenSSL backend support for v3.0.
+* Optional import and export of base64-encoded keys.
+* Optional raw encryption of the data.
+* Optional overriding of the current timestamp.
+* Do not fail completely on unknown signature versions.
+* Do not fail completely on unknown PKESK/SKESK packet versions.
+* Support armored messages without empty line after the headers.
+* Added automatic feature detection based on backend.
+
+#### Security
+
+* Separate security rules for the data and key signatures, extending SHA1 key signature support till the Jan, 19 2024.
+* Set default key expiration time to 2 years.
+* Limit maximum AEAD chunk bits to 16.
+
+#### FFI
+
+* Changed behaviour of `rnp_op_verify_execute()`: now it requires single valid signature to succeed.
+* Added function `rnp_op_verify_set_flags()` to override default behaviour of verification.
+* Added function `rnp_key_is_expired()`.
+* Added function `rnp_op_encrypt_set_flags()` and flag `RNP_ENCRYPT_NOWRAP` to allow raw encryption.
+* Added flag `RNP_LOAD_SAVE_BASE64` to the function `rnp_import_keys()`.
+* Added flag `RNP_KEY_EXPORT_BASE64` to the function `rnp_key_export_autocrypt()`.
+* Added function `rnp_set_timestamp()` to allow to override current time.
+* Update security rules functions with flags `RNP_SECURITY_VERIFY_KEY` and `RNP_SECURITY_VERIFY_DATA`.
+
+#### CLI
+
+* Make password request more verbose.
+* Print `RSA` instead of `RSA (Encrypt and Sign)` in the key listing to avoid confusion.
+* Added option `--source` to specify detached signature's source file.
+* Added option `--no-wrap` to allow raw data encryption.
+* Added option `--current-time` to allow to override current timestamp.
+* Strip known extensions (like `.pgp`, `.asc`, etc.) when decrypting or verifying data.
+* Display key and signature validity status in the key listing.
+* Do not attempt to use GnuPG's config to set default key.
+
 ### 0.16.0 [2022-01-20]
 
 #### General
