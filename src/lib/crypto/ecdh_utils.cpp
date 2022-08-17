@@ -39,14 +39,14 @@ static const struct ecdh_params_t {
     pgp_hash_alg_t hash;     /* Hash used by kdf */
     pgp_symm_alg_t wrap_alg; /* Symmetric algorithm used to wrap KEK*/
 } ecdh_params[] = {
-  {.curve = PGP_CURVE_NIST_P_256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
-  {.curve = PGP_CURVE_NIST_P_384, .hash = PGP_HASH_SHA384, .wrap_alg = PGP_SA_AES_192},
-  {.curve = PGP_CURVE_NIST_P_521, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
-  {.curve = PGP_CURVE_BP256, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
-  {.curve = PGP_CURVE_BP384, .hash = PGP_HASH_SHA384, .wrap_alg = PGP_SA_AES_192},
-  {.curve = PGP_CURVE_BP512, .hash = PGP_HASH_SHA512, .wrap_alg = PGP_SA_AES_256},
-  {.curve = PGP_CURVE_25519, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
-  {.curve = PGP_CURVE_P256K1, .hash = PGP_HASH_SHA256, .wrap_alg = PGP_SA_AES_128},
+  {PGP_CURVE_NIST_P_256, PGP_HASH_SHA256, PGP_SA_AES_128},
+  {PGP_CURVE_NIST_P_384, PGP_HASH_SHA384, PGP_SA_AES_192},
+  {PGP_CURVE_NIST_P_521, PGP_HASH_SHA512, PGP_SA_AES_256},
+  {PGP_CURVE_BP256, PGP_HASH_SHA256, PGP_SA_AES_128},
+  {PGP_CURVE_BP384, PGP_HASH_SHA384, PGP_SA_AES_192},
+  {PGP_CURVE_BP512, PGP_HASH_SHA512, PGP_SA_AES_256},
+  {PGP_CURVE_25519, PGP_HASH_SHA256, PGP_SA_AES_128},
+  {PGP_CURVE_P256K1, PGP_HASH_SHA256, PGP_SA_AES_128},
 };
 
 // "Anonymous Sender " in hex

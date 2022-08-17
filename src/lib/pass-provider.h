@@ -34,6 +34,8 @@ typedef struct pgp_key_t pgp_key_t;
 typedef struct pgp_password_ctx_t {
     uint8_t          op;
     const pgp_key_t *key;
+
+    pgp_password_ctx_t(uint8_t anop, const pgp_key_t *akey = NULL) : op(anop), key(akey){};
 } pgp_password_ctx_t;
 
 typedef bool pgp_password_callback_t(const pgp_password_ctx_t *ctx,
@@ -44,6 +46,8 @@ typedef bool pgp_password_callback_t(const pgp_password_ctx_t *ctx,
 typedef struct pgp_password_provider_t {
     pgp_password_callback_t *callback;
     void *                   userdata;
+    pgp_password_provider_t(pgp_password_callback_t *cb = NULL, void *ud = NULL)
+        : callback(cb), userdata(ud){};
 } pgp_password_provider_t;
 
 bool pgp_request_password(const pgp_password_provider_t *provider,

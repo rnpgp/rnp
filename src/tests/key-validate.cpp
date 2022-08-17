@@ -101,8 +101,7 @@ TEST_F(rnp_tests, test_key_validate)
 
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
-    pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store,
-                                       .userdata = pubring};
+    pgp_key_provider_t key_provider(rnp_key_provider_store, pubring);
     assert_true(rnp_key_store_load_from_path(secring, &key_provider));
     assert_true(all_keys_valid(secring));
     delete pubring;
@@ -646,8 +645,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     sig.set_keyfp(key->fp());
     sig.set_keyid(key->keyid());
 
-    pgp_password_provider_t pprov = {.callback = string_copy_password_callback,
-                                     .userdata = (void *) "password"};
+    pgp_password_provider_t pprov(string_copy_password_callback, (void *) "password");
     key->unlock(pprov);
     key->sign_direct(key->pkt(), sig, global_ctx);
     key->add_sig(sig, PGP_UID_NONE);
