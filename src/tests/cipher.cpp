@@ -347,7 +347,7 @@ TEST_F(rnp_tests, ecdh_decryptionNegativeCases)
     rnp_keygen_crypto_params_t key_desc;
     key_desc.key_alg = PGP_PKA_ECDH;
     key_desc.hash_alg = PGP_HASH_SHA512;
-    key_desc.ecc = {.curve = PGP_CURVE_NIST_P_256};
+    key_desc.ecc.curve = PGP_CURVE_NIST_P_256;
     key_desc.ctx = &global_ctx;
 
     pgp_key_pkt_t ecdh_key1;
@@ -398,7 +398,7 @@ TEST_F(rnp_tests, sm2_roundtrip)
     rnp_keygen_crypto_params_t key_desc;
     key_desc.key_alg = PGP_PKA_SM2;
     key_desc.hash_alg = PGP_HASH_SM3;
-    key_desc.ecc = {.curve = PGP_CURVE_SM2_P_256};
+    key_desc.ecc.curve = PGP_CURVE_SM2_P_256;
     key_desc.ctx = &global_ctx;
 
     global_ctx.rng.get(key, sizeof(key));

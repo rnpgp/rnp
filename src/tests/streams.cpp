@@ -400,8 +400,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     hash = hash_orig->clone();
     assert_throw(signature_calculate(sig, key->material(), *hash, global_ctx));
     /* now unlock the key and sign */
-    pgp_password_provider_t pswd_prov = {.callback = rnp_password_provider_string,
-                                         .userdata = (void *) "password"};
+    pgp_password_provider_t pswd_prov(rnp_password_provider_string, (void *) "password");
     assert_true(key->unlock(pswd_prov));
     hash = hash_orig->clone();
     signature_calculate(sig, key->material(), *hash, global_ctx);
