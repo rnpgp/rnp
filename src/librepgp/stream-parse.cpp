@@ -787,8 +787,7 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         return;
     }
     /* Find signing key */
-    pgp_key_request_ctx_t keyctx = {
-      .op = PGP_OP_VERIFY, .secret = false, .search = {.type = PGP_KEY_SEARCH_FINGERPRINT}};
+    pgp_key_request_ctx_t keyctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_FINGERPRINT);
 
     /* Get signer's fp or keyid */
     if (sinfo.sig->has_keyfp()) {
@@ -2091,10 +2090,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
-        pgp_key_request_ctx_t keyctx = {};
-        keyctx.op = PGP_OP_DECRYPT_SYM;
-        keyctx.secret = true;
-        keyctx.search.type = PGP_KEY_SEARCH_KEYID;
+        pgp_key_request_ctx_t keyctx(PGP_OP_DECRYPT_SYM, true, PGP_KEY_SEARCH_KEYID);
 
         for (auto &pubenc : param->pubencs) {
             keyctx.search.by.keyid = pubenc.key_id;
@@ -2105,7 +2101,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
             /* Decrypt key */
             if (seckey->encrypted()) {
-                pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT, .key = seckey};
+                pgp_password_ctx_t pass_ctx(PGP_OP_DECRYPT, seckey);
                 decrypted_seckey =
                   pgp_decrypt_seckey(*seckey, *handler->password_provider, pass_ctx);
                 if (!decrypted_seckey) {
@@ -2140,7 +2136,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     /* Trying password-based decryption */
     if (!have_key && !param->symencs.empty()) {
         rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
-        pgp_password_ctx_t pass_ctx{.op = PGP_OP_DECRYPT_SYM, .key = NULL};
+        pgp_password_ctx_t                           pass_ctx(PGP_OP_DECRYPT_SYM);
         if (!pgp_request_password(
               handler->password_provider, &pass_ctx, password.data(), password.size())) {
             errcode = RNP_ERROR_BAD_PASSWORD;

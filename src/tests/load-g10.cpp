@@ -40,8 +40,7 @@ test_load_g10_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
     if (!(key = rnp_tests_get_key_by_id(sec, id))) {
         return false;
     }
-    pgp_password_provider_t pswd_prov = {.callback = string_copy_password_callback,
-                                         .userdata = (void *) "password"};
+    pgp_password_provider_t pswd_prov(string_copy_password_callback, (void *) "password");
     return key->is_protected() && key->unlock(pswd_prov) && key->lock();
 }
 
@@ -52,7 +51,7 @@ TEST_F(rnp_tests, test_load_g10)
 {
     rnp_key_store_t *  pub_store = NULL;
     rnp_key_store_t *  sec_store = NULL;
-    pgp_key_provider_t key_provider = {.callback = rnp_key_provider_store, .userdata = NULL};
+    pgp_key_provider_t key_provider(rnp_key_provider_store);
 
     // load pubring
     pub_store =

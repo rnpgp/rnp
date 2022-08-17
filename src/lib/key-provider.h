@@ -47,12 +47,22 @@ typedef struct pgp_key_search_t {
         pgp_fingerprint_t fingerprint;
         char              userid[MAX_ID_LENGTH + 1];
     } by;
+
+    pgp_key_search_t(pgp_key_search_type_t atype = PGP_KEY_SEARCH_UNKNOWN) : type(atype){};
 } pgp_key_search_t;
 
 typedef struct pgp_key_request_ctx_t {
     pgp_op_t         op;
     bool             secret;
     pgp_key_search_t search;
+
+    pgp_key_request_ctx_t(pgp_op_t              anop = PGP_OP_UNKNOWN,
+                          bool                  sec = false,
+                          pgp_key_search_type_t tp = PGP_KEY_SEARCH_UNKNOWN)
+        : op(anop), secret(sec)
+    {
+        search.type = tp;
+    }
 } pgp_key_request_ctx_t;
 
 typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
@@ -60,6 +70,9 @@ typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *us
 typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
     void *              userdata;
+
+    pgp_key_provider_t(pgp_key_callback_t *cb = NULL, void *ud = NULL)
+        : callback(cb), userdata(ud){};
 } pgp_key_provider_t;
 
 /** checks if a key matches search criteria

@@ -1360,14 +1360,9 @@ FFI_GUARD
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 {
-    pgp_key_provider_t chained;
-    chained.callback = rnp_key_provider_store;
-    chained.userdata = store;
-
+    pgp_key_provider_t        chained(rnp_key_provider_store, store);
     const pgp_key_provider_t *key_providers[] = {&chained, &ffi->key_provider, NULL};
-
-    const pgp_key_provider_t key_provider = {.callback = rnp_key_provider_chained,
-                                             .userdata = key_providers};
+    const pgp_key_provider_t  key_provider(rnp_key_provider_chained, key_providers);
 
     if (!input->src_directory.empty()) {
         // load the keys
@@ -2446,8 +2441,7 @@ rnp_op_add_signature(rnp_ffi_t                 ffi,
     pgp_key_t *signkey = find_suitable_key(
       PGP_OP_SIGN, get_key_prefer_public(key), &key->ffi->key_provider, PGP_KF_SIGN);
     if (signkey && !signkey->is_secret()) {
-        pgp_key_request_ctx_t keyctx = {.op = PGP_OP_SIGN, .secret = true};
-        keyctx.search.type = PGP_KEY_SEARCH_GRIP;
+        pgp_key_request_ctx_t keyctx(PGP_OP_SIGN, true, PGP_KEY_SEARCH_GRIP);
         keyctx.search.by.grip = signkey->grip();
         signkey = pgp_request_key(&key->ffi->key_provider, &keyctx);
     }
@@ -2675,7 +2669,7 @@ try {
     }
     rnp::secure_vector<char> ask_pass(MAX_PASSWORD_LENGTH, '\0');
     if (!password) {
-        pgp_password_ctx_t pswdctx = {.op = PGP_OP_ENCRYPT_SYM, .key = NULL};
+        pgp_password_ctx_t pswdctx(PGP_OP_ENCRYPT_SYM);
         if (!pgp_request_password(
               &op->ffi->pass_provider, &pswdctx, ask_pass.data(), ask_pass.size())) {
             return RNP_ERROR_BAD_PASSWORD;
@@ -3631,15 +3625,13 @@ FFI_GUARD
 rnp_result_t
 rnp_op_verify_signature_get_key(rnp_op_verify_signature_t sig, rnp_key_handle_t *key)
 try {
-    rnp_ffi_t        ffi = sig->ffi;
-    pgp_key_search_t search = {};
-
     if (!sig->sig_pkt.has_keyid()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    search.by.keyid = sig->sig_pkt.keyid();
+    rnp_ffi_t ffi = sig->ffi;
     // create a search (since we'll use this later anyways)
-    search.type = PGP_KEY_SEARCH_KEYID;
+    pgp_key_search_t search(PGP_KEY_SEARCH_KEYID);
+    search.by.keyid = sig->sig_pkt.keyid();
 
     // search the stores
     pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &search, NULL);
@@ -3863,7 +3855,7 @@ try {
     }
 
     // figure out the identifier type
-    pgp_key_search_t locator = {(pgp_key_search_type_t) 0};
+    pgp_key_search_t locator;
     rnp_result_t     ret = str_to_locator(ffi, &locator, identifier_type, identifier);
     if (ret) {
         return ret;
@@ -5018,7 +5010,7 @@ try {
             return RNP_ERROR_BAD_STATE;
         }
 
-        pgp_key_search_t locator = {};
+        pgp_key_search_t locator;
         rnp_result_t     tmpret = str_to_locator(ffi, &locator, identifier_type, identifier);
         if (tmpret) {
             return tmpret;
@@ -5664,7 +5656,7 @@ try {
     rnp_result_t            ret = RNP_ERROR_GENERIC;
     pgp_key_t               pub;
     pgp_key_t               sec;
-    pgp_password_provider_t prov = {.callback = NULL};
+    pgp_password_provider_t prov;
 
     if (op->primary) {
         rnp_keygen_primary_desc_t keygen = {};
@@ -5700,10 +5692,9 @@ try {
 
     /* encrypt secret key if requested */
     if (!op->password.empty()) {
-        prov = {.callback = rnp_password_provider_string,
-                .userdata = (void *) op->password.data()};
+        prov = {rnp_password_provider_string, (void *) op->password.data()};
     } else if (op->request_password) {
-        prov = {.callback = rnp_password_cb_bounce, .userdata = op->ffi};
+        prov = {rnp_password_cb_bounce, op->ffi};
     }
     if (prov.callback && !sec.protect(op->protection, prov, op->ffi->context)) {
         FFI_LOG(op->ffi, "failed to encrypt the key");
@@ -6275,8 +6266,7 @@ try {
         *key = NULL;
         return RNP_SUCCESS;
     }
-    pgp_key_search_t locator = {};
-    locator.type = PGP_KEY_SEARCH_KEYID;
+    pgp_key_search_t locator(PGP_KEY_SEARCH_KEYID);
     locator.by.keyid = sig->sig->sig.keyid();
     return rnp_locate_key_int(sig->ffi, locator, key);
 }
@@ -6468,8 +6458,7 @@ try {
     if (idx >= key->subkey_count()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    pgp_key_search_t locator = {};
-    locator.type = PGP_KEY_SEARCH_FINGERPRINT;
+    pgp_key_search_t locator(PGP_KEY_SEARCH_FINGERPRINT);
     locator.by.fingerprint = key->get_subkey_fp(idx);
     return rnp_locate_key_int(handle->ffi, locator, subkey);
 }
@@ -6508,8 +6497,7 @@ try {
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
-    pgp_key_search_t search = {(pgp_key_search_type_t) 0};
-    search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
     search.by.fingerprint = defkey->fp();
 
     bool         require_secret = keyflag != PGP_KF_ENCRYPT;
@@ -6866,8 +6854,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_key_search_t search = {};
-    search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    pgp_key_search_t search(PGP_KEY_SEARCH_FINGERPRINT);
     search.by.fingerprint = pkey->primary_fp();
     pgp_key_t *prim_sec = find_key(key->ffi, &search, KEY_TYPE_SECRET, true);
     if (!prim_sec) {
@@ -7120,9 +7107,8 @@ try {
     }
     bool ok = false;
     if (password) {
-        pgp_password_provider_t prov = {
-          .callback = rnp_password_provider_string,
-          .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
+        pgp_password_provider_t prov(rnp_password_provider_string,
+                                     reinterpret_cast<void *>(const_cast<char *>(password)));
         ok = key->unlock(prov);
     } else {
         ok = key->unlock(handle->ffi->pass_provider);
@@ -7187,7 +7173,7 @@ try {
     pgp_key_pkt_t *   decrypted_key = NULL;
     const std::string pass = password;
     if (key->encrypted()) {
-        pgp_password_ctx_t ctx = {.op = PGP_OP_PROTECT, .key = key};
+        pgp_password_ctx_t ctx(PGP_OP_PROTECT, key);
         decrypted_key = pgp_decrypt_seckey(*key, handle->ffi->pass_provider, ctx);
         if (!decrypted_key) {
             return RNP_ERROR_GENERIC;
@@ -7215,9 +7201,8 @@ try {
     }
     bool ok = false;
     if (password) {
-        pgp_password_provider_t prov = {
-          .callback = rnp_password_provider_string,
-          .userdata = reinterpret_cast<void *>(const_cast<char *>(password))};
+        pgp_password_provider_t prov(rnp_password_provider_string,
+                                     reinterpret_cast<void *>(const_cast<char *>(password)));
         ok = key->unprotect(prov, handle->ffi->context);
     } else {
         ok = key->unprotect(handle->ffi->pass_provider, handle->ffi->context);

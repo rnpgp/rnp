@@ -943,16 +943,10 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         /* copy public key fields if any */
         pgp_key_t key;
         if (key_provider) {
-            pgp_key_search_t search = {.type = PGP_KEY_SEARCH_GRIP};
-            if (!rnp_key_store_get_key_grip(&seckey.material, search.by.grip)) {
+            pgp_key_request_ctx_t req_ctx(PGP_OP_MERGE_INFO, false, PGP_KEY_SEARCH_GRIP);
+            if (!rnp_key_store_get_key_grip(&seckey.material, req_ctx.search.by.grip)) {
                 return false;
             }
-
-            pgp_key_request_ctx_t req_ctx;
-            memset(&req_ctx, 0, sizeof(req_ctx));
-            req_ctx.op = PGP_OP_MERGE_INFO;
-            req_ctx.secret = false;
-            req_ctx.search = search;
 
             const pgp_key_t *pubkey = pgp_request_key(key_provider, &req_ctx);
             if (!pubkey) {

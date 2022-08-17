@@ -129,17 +129,15 @@ pgp_decrypt_seckey(const pgp_key_t &              key,
 pgp_key_t *
 pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
 {
-    pgp_key_request_ctx_t ctx = {};
+    pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
     /* if we have fingerprint let's check it */
     if (sig.sig.has_keyfp()) {
         ctx.search.by.fingerprint = sig.sig.keyfp();
         ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-    }
-    if ((ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) && sig.sig.has_keyid()) {
+    } else if (sig.sig.has_keyid()) {
         ctx.search.by.keyid = sig.sig.keyid();
         ctx.search.type = PGP_KEY_SEARCH_KEYID;
-    }
-    if (ctx.search.type == PGP_KEY_SEARCH_UNKNOWN) {
+    } else {
         RNP_LOG("No way to search for the signer.");
         return NULL;
     }
@@ -148,9 +146,6 @@ pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_pr
     if (key || !prov) {
         return key;
     }
-
-    ctx.op = PGP_OP_VERIFY;
-    ctx.secret = false;
     return pgp_request_key(prov, &ctx);
 }
 
@@ -450,8 +445,7 @@ find_suitable_key(pgp_op_t            op,
     if (!no_primary && key->valid() && (key->flags() & desired_usage)) {
         return key;
     }
-    pgp_key_request_ctx_t ctx{.op = op, .secret = key->is_secret()};
-    ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    pgp_key_request_ctx_t ctx(op, key->is_secret(), PGP_KEY_SEARCH_FINGERPRINT);
 
     pgp_key_t *subkey = NULL;
     for (auto &fp : key->subkey_fps()) {
@@ -1440,7 +1434,7 @@ pgp_key_t::unlock(const pgp_password_provider_t &provider, pgp_op_t op)
         return true;
     }
 
-    pgp_password_ctx_t ctx = {.op = (uint8_t) op, .key = this};
+    pgp_password_ctx_t ctx(op, this);
     pgp_key_pkt_t *    decrypted_seckey = pgp_decrypt_seckey(*this, provider, ctx);
     if (!decrypted_seckey) {
         return false;
@@ -1478,10 +1472,7 @@ pgp_key_t::protect(const rnp_key_protection_params_t &protection,
                    const pgp_password_provider_t &    password_provider,
                    rnp::SecurityContext &             sctx)
 {
-    pgp_password_ctx_t ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.op = PGP_OP_PROTECT;
-    ctx.key = this;
+    pgp_password_ctx_t ctx(PGP_OP_PROTECT, this);
 
     // ask the provider for a password
     rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
@@ -1550,10 +1541,7 @@ pgp_key_t::unprotect(const pgp_password_provider_t &password_provider,
         return write_sec_rawpkt(pkt_, "", secctx);
     }
 
-    pgp_password_ctx_t ctx;
-    memset(&ctx, 0, sizeof(ctx));
-    ctx.op = PGP_OP_UNPROTECT;
-    ctx.key = this;
+    pgp_password_ctx_t ctx(PGP_OP_UNPROTECT, this);
 
     pgp_key_pkt_t *decrypted_seckey = pgp_decrypt_seckey(*this, password_provider, ctx);
     if (!decrypted_seckey) {
