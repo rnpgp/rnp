@@ -105,9 +105,7 @@ load_generated_g10_key(pgp_key_t *           dst,
     key_ptrs.push_back(pubkey);
 
     rnp::MemorySource  memsrc(memdst.memory(), memdst.writeb(), false);
-    pgp_key_provider_t prov = {};
-    prov.callback = rnp_key_provider_key_ptr_list;
-    prov.userdata = &key_ptrs;
+    pgp_key_provider_t prov(rnp_key_provider_key_ptr_list, &key_ptrs);
     if (!rnp_key_store_g10_from_src(key_store.get(), &memsrc.src(), &prov)) {
         return false;
     }

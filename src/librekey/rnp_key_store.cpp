@@ -421,7 +421,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
 pgp_key_t *
 rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
 {
-    pgp_key_search_t search = {};
+    pgp_key_search_t search;
     // prefer using the issuer fingerprint when available
     if (sig->has_keyfp()) {
         search.by.fingerprint = sig->keyfp();
