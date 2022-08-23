@@ -31,6 +31,10 @@ on:
       - '**.nix'
       - 'flake.lock'
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 env:
   CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
@@ -88,6 +92,7 @@ jobs:
     name: centos:stream8 OpenSSL [test type ${{ matrix.env.RNP_TESTS }}; mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
     steps:
       - run: |
+          yum -y update
           yum -y install git
       - uses: actions/checkout@v2
         with:
