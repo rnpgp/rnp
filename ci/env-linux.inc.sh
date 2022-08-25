@@ -13,16 +13,14 @@ export DIST
 export DIST_VERSION
 export DIST_VERSION_ID
 
+if command -v dnf >/dev/null; then
+  export YUM=dnf
+elif command -v yum >/dev/null; then
+  export YUM=yum
+fi
+
 case "${DIST}" in
-  fedora|centos)
-    if command -v dnf >/dev/null; then
-      export YUM=dnf
-    else
-      export YUM=yum
-    fi
-    export SUDO=sudo
-    ;;
-  ubuntu)
+  fedora|centos|rhel|ubuntu)
     export SUDO=sudo
     ;;
 esac
