@@ -2125,14 +2125,13 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
      * non-expired binding signature, and is not revoked. */
     validity_.reset();
     validity_.validated = true;
-    if (!primary || !primary->valid()) {
-        return;
+    if (primary) {
+        validate_self_signatures(*primary, ctx);
     }
-    /* validate signatures if needed */
-    validate_self_signatures(*primary, ctx);
 
     bool has_binding = false;
     bool has_expired = false;
+    bool revoked = false;
     for (auto &sigid : sigs_) {
         pgp_subsig_t &sig = get_sig(sigid);
         if (!sig.valid()) {
@@ -2147,12 +2146,14 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
             }
             has_binding = true;
         } else if (is_revocation(sig)) {
-            return;
+            bool revoked = true;
+            return; // what to do with this?
         }
     }
-    validity_.valid = has_binding;
-    if (!validity_.valid) {
-        validity_.expired = has_expired;
+    validity_.expired = has_expired;
+    validity_.valid = has_binding && !revoked;
+    if (primary) {
+        validity_.valid &= primary->valid();
     }
 }
 
