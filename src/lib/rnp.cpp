@@ -3277,6 +3277,34 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    /* Allow to decrypt without valid signatures */
+    if (flags & RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT) {
+        op->ignore_sigs = true;
+        flags &= ~RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT;
+    } else {
+        op->ignore_sigs = false;
+    }
+    /* Strict mode: require all signatures to be valid */
+    if (flags & RNP_VERIFY_REQUIRE_ALL_SIGS) {
+        op->require_all_sigs = true;
+        flags &= ~RNP_VERIFY_REQUIRE_ALL_SIGS;
+    } else {
+        op->require_all_sigs = false;
+    }
+    if (flags) {
+        FFI_LOG(op->ffi, "Unknown operation flags: %x", flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_op_verify_execute(rnp_op_verify_t op)
 try {
     if (!op) {
@@ -3298,6 +3326,19 @@ try {
     handler.ctx = &op->rnpctx;
 
     rnp_result_t ret = process_pgp_source(&handler, op->input->src);
+    /* Allow to decrypt data ignoring the signatures check if requested */
+    if (op->ignore_sigs && op->validated && (ret == RNP_ERROR_SIGNATURE_INVALID)) {
+        ret = RNP_SUCCESS;
+    }
+    /* Allow to require all signatures be valid */
+    if (op->require_all_sigs && !ret) {
+        for (size_t i = 0; i < op->signature_count; i++) {
+            if (op->signatures[i].verify_status) {
+                ret = RNP_ERROR_SIGNATURE_INVALID;
+                break;
+            }
+        }
+    }
     if (op->output) {
         dst_flush(&op->output->dst);
         op->output->keep = ret == RNP_SUCCESS;
@@ -3669,18 +3710,6 @@ try {
 }
 FFI_GUARD
 
-static bool
-rnp_decrypt_dest_provider(pgp_parse_handler_t *handler,
-                          pgp_dest_t **        dst,
-                          bool *               closedst,
-                          const char *         filename,
-                          uint32_t             mtime)
-{
-    *dst = &((rnp_output_t) handler->param)->dst;
-    *closedst = false;
-    return true;
-}
-
 rnp_result_t
 rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output)
 try {
@@ -3689,19 +3718,16 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    rnp_ctx_t rnpctx;
-    rnp_ctx_init_ffi(rnpctx, ffi);
-    pgp_parse_handler_t handler;
-    memset(&handler, 0, sizeof(handler));
-    handler.password_provider = &ffi->pass_provider;
-    handler.key_provider = &ffi->key_provider;
-    handler.dest_provider = rnp_decrypt_dest_provider;
-    handler.param = output;
-    handler.ctx = &rnpctx;
-
-    rnp_result_t ret = process_pgp_source(&handler, input->src);
-    dst_flush(&output->dst);
-    output->keep = (ret == RNP_SUCCESS);
+    rnp_op_verify_t op = NULL;
+    rnp_result_t    ret = rnp_op_verify_create(&op, ffi, input, output);
+    if (ret) {
+        return ret;
+    }
+    ret = rnp_op_verify_set_flags(op, RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT);
+    if (!ret) {
+        ret = rnp_op_verify_execute(op);
+    }
+    rnp_op_verify_destroy(op);
     return ret;
 }
 FFI_GUARD
