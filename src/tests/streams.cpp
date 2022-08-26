@@ -1298,7 +1298,7 @@ TEST_F(rnp_tests, test_y2k38)
     /* verify */
     rnpcfg.set_str(CFG_INFILE, "data/test_messages/future.pgp");
     rnpcfg.set_bool(CFG_OVERWRITE, true);
-    assert_true(cli_rnp_process_file(&rnp));
+    assert_false(cli_rnp_process_file(&rnp));
 
     /* clean up and flush the file */
     rnp.end();

@@ -2883,12 +2883,24 @@ cli_rnp_process_file(cli_rnp_t *rnp)
         }
 
         ret = rnp_op_verify_detached_create(&verify, rnp->ffi, source, input);
+        if (!ret) {
+            /* Currently CLI requires all signatures to be valid for success */
+            ret = rnp_op_verify_set_flags(verify, RNP_VERIFY_REQUIRE_ALL_SIGS);
+        }
     } else {
         if (!rnp->init_io(Operation::Verify, NULL, &output)) {
             ERR_MSG("Failed to create output stream.");
             goto done;
         }
         ret = rnp_op_verify_create(&verify, rnp->ffi, input, output);
+        if (!ret && !rnp->cfg().get_bool(CFG_NO_OUTPUT)) {
+            /* This would happen if user requested decryption instead of verification */
+            ret = rnp_op_verify_set_flags(verify, RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT);
+        }
+        if (!ret && rnp->cfg().get_bool(CFG_NO_OUTPUT)) {
+            /* Currently CLI requires all signatures to be valid for success */
+            ret = rnp_op_verify_set_flags(verify, RNP_VERIFY_REQUIRE_ALL_SIGS);
+        }
     }
     if (ret) {
         ERR_MSG("Failed to initialize verification/decryption operation.");
