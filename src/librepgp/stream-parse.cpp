@@ -1071,16 +1071,12 @@ signed_src_finish(pgp_source_t *src)
     }
 
     /* checking the validation results */
-    ret = RNP_SUCCESS;
+    ret = RNP_ERROR_SIGNATURE_INVALID;
     for (auto &sinfo : param->siginfos) {
-        if (sinfo.no_signer && param->handler->ctx->discard) {
-            /* if output is discarded then we interested in verification */
-            ret = RNP_ERROR_SIGNATURE_INVALID;
-            continue;
-        }
-        if (!sinfo.no_signer && (!sinfo.valid || (sinfo.expired))) {
-            /* do not report error if signer not found */
-            ret = RNP_ERROR_SIGNATURE_INVALID;
+        if (sinfo.valid) {
+            /* If we have at least one valid signature then data is safe to process */
+            ret = RNP_SUCCESS;
+            break;
         }
     }
 

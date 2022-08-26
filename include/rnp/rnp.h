@@ -132,6 +132,12 @@ typedef uint32_t rnp_result_t;
 #define RNP_ENCRYPT_NOWRAP (1U << 0)
 
 /**
+ * Decryption/verification flags
+ */
+#define RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT (1U << 0)
+#define RNP_VERIFY_REQUIRE_ALL_SIGS (1U << 1)
+
+/**
  * Return a constant string describing the result code
  */
 RNP_API const char *rnp_result_to_string(rnp_result_t result);
@@ -2226,8 +2232,9 @@ RNP_API rnp_result_t rnp_op_sign_destroy(rnp_op_sign_t op);
 /* Verification */
 
 /** @brief Create verification operation context. This method should be used for embedded
- *         signatures or cleartext signed data. For detached verification corresponding
- *         function should be used.
+ *         signatures, cleartext signed data and encrypted (and possibly signed) data.
+ *         For the detached signature verification the function rnp_op_verify_detached_create()
+ *         should be used.
  *  @param op pointer to opaque verification context
  *  @param ffi
  *  @param input stream with signed data. Could not be NULL.
@@ -2252,12 +2259,32 @@ RNP_API rnp_result_t rnp_op_verify_detached_create(rnp_op_verify_t *op,
                                                    rnp_input_t      input,
                                                    rnp_input_t      signature);
 
+/**
+ * @brief Set additional flags which control data verification/decryption process.
+ *
+ * @param op pointer to opaque verification context.
+ * @param flags verification flags. OR-ed combination of RNP_VERIFY_* values.
+ *              Following flags are supported:
+ *              RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT - ignore invalid signatures for the encrypted
+ *                and signed data. If this flag is set then rnp_op_verify_execute() call will
+ *                succeed and output data even if all signatures are invalid or issued by the
+ *                unknown key(s).
+ *              RNP_VERIFY_REQUIRE_ALL_SIGS - require that all signatures (if any) must be
+ *                valid for successful run of rnp_op_verify_execute().
+ * @return RNP_SUCCESS or error code if failed
+ */
+RNP_API rnp_result_t rnp_op_verify_set_flags(rnp_op_verify_t op, uint32_t flags);
+
 /** @brief Execute previously initialized verification operation.
  *  @param op opaque verification context. Must be successfully initialized.
- *  @return RNP_SUCCESS if data was processed successfully and all signatures are valid.
- *          Otherwise error code is returned. After rnp_op_verify_execute()
- *          rnp_op_verify_get_* functions may be used to query information about the
- *          signature(s).
+ *  @return RNP_SUCCESS if data was processed successfully and output may be used. By default
+ *          this means at least one valid signature for the signed data, or successfully
+ *          decrypted data if no signatures are present.
+ *          This behaviour may be overriden via rnp_op_verify_set_flags() call.
+ *
+ *          To check number of signatures and their verification status use functions
+ *          rnp_op_verify_get_signature_count() and rnp_op_verify_get_signature_at().
+ *          To check data encryption status use function rnp_op_verify_get_protection_info().
  */
 RNP_API rnp_result_t rnp_op_verify_execute(rnp_op_verify_t op);
 
