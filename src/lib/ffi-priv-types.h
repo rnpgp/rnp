@@ -172,6 +172,8 @@ struct rnp_op_verify_st {
     bool           validated{};
     pgp_aead_alg_t aead{};
     pgp_symm_alg_t salg{};
+    bool           ignore_sigs{};
+    bool           require_all_sigs{};
     /* recipient/symenc information */
     rnp_recipient_handle_t recipients{};
     size_t                 recipient_count{};
