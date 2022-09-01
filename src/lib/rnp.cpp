@@ -93,6 +93,7 @@ find_key(rnp_ffi_t               ffi,
          bool                    try_key_provider)
 {
     pgp_key_t *key = NULL;
+    key = NULL; // bogus change to trigger CI
 
     switch (key_type) {
     case KEY_TYPE_PUBLIC:
