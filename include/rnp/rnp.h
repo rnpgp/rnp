@@ -2921,6 +2921,19 @@ RNP_API rnp_result_t rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t
 RNP_API rnp_result_t rnp_op_encrypt_execute(rnp_op_encrypt_t op);
 RNP_API rnp_result_t rnp_op_encrypt_destroy(rnp_op_encrypt_t op);
 
+/**
+ * @brief Decrypt encrypted data in input and write it to the output on success.
+ *        If data is additionally signed then signatures are ignored.
+ *        For more control over the decryption process see functions rnp_op_verify_create() and
+ *        rnp_op_verify_execute(), which allows to verify signatures as well as decrypt data
+ *        and retrieve encryption-related information.
+ *
+ * @param ffi initialized FFI object. Cannot be NULL.
+ * @param input source with encrypted data. Cannot be NULL.
+ * @param output on success decrypted data will be written here. Cannot be NULL.
+ * @return RNP_SUCCESS if data was successfully decrypted and written to the output, or any
+ *         other value on error.
+ */
 RNP_API rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
 
 /** retrieve the raw data for a public key
