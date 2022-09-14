@@ -85,9 +85,6 @@ main() {
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
     -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
-    -DENABLE_SM2="${ENABLE_SM2:-Auto}"
-    -DENABLE_IDEA="${ENABLE_IDEA:-Auto}"
-    -DENABLE_TWOFISH="${ENABLE_TWOFISH:-Auto}"
   )
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
@@ -96,6 +93,10 @@ main() {
   [ -n "${DOWNLOAD_GTEST:-}" ] && cmakeopts+=(-DDOWNLOAD_GTEST="${DOWNLOAD_GTEST}")
   [ -n "${DOWNLOAD_RUBYRNP:-}" ] && cmakeopts+=(-DDOWNLOAD_RUBYRNP="${DOWNLOAD_RUBYRNP}")
   [ -n "${CRYPTO_BACKEND:-}" ] && cmakeopts+=(-DCRYPTO_BACKEND="${CRYPTO_BACKEND}")
+  [ -n "${ENABLE_SM2:-}" ] && cmakeopts+=(-DENABLE_SM2="${ENABLE_SM2}")
+  [ -n "${ENABLE_IDEA:-}" ] && cmakeopts+=(-DENABLE_IDEA="${ENABLE_IDEA}")
+  [ -n "${ENABLE_TWOFISH:-}" ] && cmakeopts+=(-DENABLE_TWOFISH="${ENABLE_TWOFISH}")
+  [ -n "${ENABLE_BRAINPOOL:-}" ] && cmakeopts+=(-DENABLE_BRAINPOOL="${ENABLE_BRAINPOOL}")
 
   if [[ "${OS}" = "msys" ]]; then
     cmakeopts+=(-G "MSYS Makefiles")
