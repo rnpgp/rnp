@@ -148,6 +148,38 @@ jobs:
           [ $(grep -c dst_close exports) == "0" ]
           [ $(grep -c Botan exports) == "0" ]
           [ $(grep -c rnp_version_string_full exports) == "1" ]
+      - name: supported-features
+        run: |
+          set -euxo pipefail
+          export LD_LIBRARY_PATH="${BOTAN_INSTALL}/lib64:${JSONC_INSTALL}/lib64:${RNP_INSTALL}/lib64"
+          $RNP_INSTALL/bin/rnp --version > rnp-version
+          # Make sure that we support all features which should be supported
+          supported=( RSA ELGAMAL DSA ECDH ECDSA EDDSA \
+            IDEA TRIPLEDES CAST5 BLOWFISH AES128 AES192 AES256 TWOFISH CAMELLIA128 CAMELLIA192 CAMELLIA256 \
+            EAX OCB \
+            MD5 SHA1 RIPEMD160 SHA256 SHA384 SHA512 SHA224 SHA3-256 SHA3-512 \
+            ZIP ZLIB BZip2 \
+            "NIST P-256" "NIST P-384" "NIST P-521" Ed25519 Curve25519 secp256k1 )
+          unsupported=( )
+          sm2=( SM2 SM4 SM3 "SM2 P-256" )
+          bp=( brainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
+          # SM2
+          if [[ "$ENABLE_SM2" == "On" ]] ;then
+            supported+=("${sm2[@]}")
+          else
+            unsupported+=("${sm2[@]}")
+          fi
+          # Brainpool curves - supported by Botan by default 
+          supported+=("${bp[@]}")
+          for feature in "${supported[@]}"
+          do
+            [ $(grep -ci "$feature" rnp-version) -ge "1" ]
+          done
+          for feature in "${unsupported[@]}"
+          do
+            [ $(grep -ci "$feature" rnp-version) == "0" ]
+          done
+
   pkgconfig-cmake-target:
     runs-on: ubuntu-latest
     # TODO: re-enable when the following can pass
