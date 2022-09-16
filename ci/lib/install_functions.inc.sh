@@ -312,7 +312,10 @@ install_static_cacheable_build_dependencies() {
 
   mkdir -p "$LOCAL_BUILDS"
 
-  local default=(botan jsonc gpg)
+  local default=(jsonc gpg)
+  if [ "${CRYPTO_BACKEND:-}" != "openssl" ]; then
+    default=(botan "${default[@]}")
+  fi
   local items=("${@:-${default[@]}}")
   for item in "${items[@]}"; do
     install_"$item"
