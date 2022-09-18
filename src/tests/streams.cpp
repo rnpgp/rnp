@@ -496,7 +496,6 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_false(cmp_keyid(keyid, "1D0BC10E933404C9"));
     src_close(&keysrc);
 
-#if defined(ENABLE_IDEA)
     /* armored v3 secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
@@ -505,7 +504,6 @@ TEST_F(rnp_tests, test_stream_key_load)
     assert_rnp_success(pgp_keyid(keyid, key->key));
     assert_true(cmp_keyid(keyid, "7D0BC10E933404C9"));
     src_close(&keysrc);
-#endif
 
     /* rsa/rsa public key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/rsa-rsa-pub.asc"));
@@ -846,15 +844,17 @@ TEST_F(rnp_tests, test_stream_key_decrypt)
     }
     src_close(&keysrc);
 
-#if defined(ENABLE_IDEA)
     /* armored v3 secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/keyrings/4/rsav3-s.asc"));
     assert_rnp_success(process_pgp_keys(keysrc, keyseq, false));
     assert_non_null(key = &keyseq.keys.front());
     assert_rnp_failure(decrypt_secret_key(&key->key, "passw0rd"));
+#if defined(ENABLE_IDEA)
     assert_rnp_success(decrypt_secret_key(&key->key, "password"));
-    src_close(&keysrc);
+#else
+    assert_rnp_failure(decrypt_secret_key(&key->key, "password"));
 #endif
+    src_close(&keysrc);
 
     /* rsa/rsa secret key */
     assert_rnp_success(init_file_src(&keysrc, "data/test_stream_key_load/rsa-rsa-sec.asc"));

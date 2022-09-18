@@ -332,9 +332,7 @@ unsigned
 pgp_block_size(pgp_symm_alg_t alg)
 {
     switch (alg) {
-#if defined(ENABLE_IDEA)
     case PGP_SA_IDEA:
-#endif
     case PGP_SA_TRIPLEDES:
     case PGP_SA_CAST5:
     case PGP_SA_BLOWFISH:
@@ -362,9 +360,7 @@ pgp_key_size(pgp_symm_alg_t alg)
     static_assert(32 == MAX_SYMM_KEY_SIZE, "MAX_SYMM_KEY_SIZE must be updated");
 
     switch (alg) {
-#if defined(ENABLE_IDEA)
     case PGP_SA_IDEA:
-#endif
     case PGP_SA_CAST5:
     case PGP_SA_BLOWFISH:
     case PGP_SA_AES_128:

@@ -3024,11 +3024,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_failure(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", NULL));
     assert_rnp_failure(rnp_supports_feature("WRONG", "IDEA", &supported));
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &supported));
-#if defined(ENABLE_IDEA)
-    assert_true(supported);
-#else
-    assert_false(supported);
-#endif
+    assert_true(supported == has_idea);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "TRIPLEDES", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAST5", &supported));
@@ -3052,11 +3048,7 @@ TEST_F(rnp_tests, test_ffi_supported_features)
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "SM4", &supported));
     assert_true(supported == has_sm2);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "idea", &supported));
-#if defined(ENABLE_IDEA)
-    assert_true(supported);
-#else
-    assert_false(supported);
-#endif
+    assert_true(supported == has_idea);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "tripledes", &supported));
     assert_true(supported);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "cast5", &supported));
