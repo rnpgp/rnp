@@ -53,39 +53,16 @@ jobs:
       matrix:
         env:
           - BUILD_MODE: normal
-            RNP_TESTS: rnp_tests
-            CC: gcc
-            CXX: g++
-          - BUILD_MODE: sanitize
-            RNP_TESTS: rnp_tests
             CC: gcc
             CXX: g++
           - BUILD_MODE: normal
-            RNP_TESTS: cli_tests
-            CC: gcc
-            CXX: g++
-          - BUILD_MODE: sanitize
-            RNP_TESTS: cli_tests
-            CC: gcc
-            CXX: g++
-          - BUILD_MODE: normal
-            RNP_TESTS: rnp_tests
             CC: clang
             CXX: clang++
           - BUILD_MODE: sanitize
-            RNP_TESTS: rnp_tests
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: normal
-            RNP_TESTS: cli_tests
-            CC: clang
-            CXX: clang++
-          - BUILD_MODE: sanitize
-            RNP_TESTS: cli_tests
             CC: clang
             CXX: clang++
     env: ${{ matrix.env }}
-    name: centos:stream8 OpenSSL [test type ${{ matrix.env.RNP_TESTS }}; mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.env.GPG_VERSION }}]
+    name: centos:stream8 OpenSSL [test mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
     steps:
       - run: |
           yum -y install git
@@ -107,7 +84,7 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
       - name: Build cache
         if: steps.cache.outputs.cache-hit != 'true'
         run: |
