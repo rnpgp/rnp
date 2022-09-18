@@ -2308,38 +2308,6 @@ TEST_F(rnp_tests, test_ffi_key_iter)
         assert_rnp_success(rnp_identifier_iterator_destroy(it));
     }
 
-    // test with both rings empty
-    // keyid
-    {
-        rnp_identifier_iterator_t it = NULL;
-        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "keyid"));
-        assert_non_null(it);
-        const char *ident = NULL;
-        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
-        assert_null(ident);
-        assert_rnp_success(rnp_identifier_iterator_destroy(it));
-    }
-    // grip
-    {
-        rnp_identifier_iterator_t it = NULL;
-        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "grip"));
-        assert_non_null(it);
-        const char *ident = NULL;
-        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
-        assert_null(ident);
-        assert_rnp_success(rnp_identifier_iterator_destroy(it));
-    }
-    // userid
-    {
-        rnp_identifier_iterator_t it = NULL;
-        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "userid"));
-        assert_non_null(it);
-        const char *ident = NULL;
-        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
-        assert_null(ident);
-        assert_rnp_success(rnp_identifier_iterator_destroy(it));
-    }
-
     // load our keyrings
     assert_true(load_keys_gpg(ffi, pub_path, sec_path));
     // free formats+paths
