@@ -55,14 +55,25 @@ jobs:
           - BUILD_MODE: normal
             CC: gcc
             CXX: g++
+            ENABLE_IDEA: On
+          - BUILD_MODE: normal
+            CC: gcc
+            CXX: g++
+            ENABLE_IDEA: Off
           - BUILD_MODE: normal
             CC: clang
             CXX: clang++
+            ENABLE_IDEA: On
 # Sanitize is only tested with the clang compiler
 # see env-common.inc.sh
           - BUILD_MODE: sanitize
             CC: clang
             CXX: clang++
+            ENABLE_IDEA: On
+          - BUILD_MODE: sanitize
+            CC: clang
+            CXX: clang++
+            ENABLE_IDEA: Off
     env: ${{ matrix.env }}
     name: centos:stream9 OpenSSL [mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }};]
     steps:
@@ -99,7 +110,7 @@ jobs:
           /home/rnpuser/local-installs/rnp-install/bin/rnp --version > rnp-version
           # Make sure that we support all features which should be supported
           supported=( RSA ELGAMAL DSA ECDH ECDSA EDDSA \
-            IDEA TRIPLEDES CAST5 BLOWFISH AES128 AES192 AES256 CAMELLIA128 CAMELLIA192 CAMELLIA256 \
+            TRIPLEDES CAST5 BLOWFISH AES128 AES192 AES256 CAMELLIA128 CAMELLIA192 CAMELLIA256 \
             MD5 SHA1 RIPEMD160 SHA256 SHA384 SHA512 SHA224 SHA3-256 SHA3-512 \
             ZIP ZLIB BZip2 \
             "NIST P-256" "NIST P-384" "NIST P-521" Ed25519 Curve25519 secp256k1 )
@@ -108,6 +119,11 @@ jobs:
           bp=( brainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
           # SM2
           unsupported+=("${sm2[@]}")
+          if [[ "$ENABLE_IDEA" == "On" ]] ;then
+            supported+=(IDEA)
+          else
+            unsupported+=(IDEA)
+          fi
           unsupported+=("${bp[@]}")
           for feature in "${supported[@]}"
           do
