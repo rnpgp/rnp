@@ -2979,7 +2979,7 @@ RNP_API rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, ch
  *
  *  @param ffi
  *  @param it pointer that will be set to the created iterator
- *  @param identifier_type the type of identifier ("userid", "keyid", "grip")
+ *  @param identifier_type the type of identifier ("userid", "keyid", "grip", "fingerprint")
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_identifier_iterator_create(rnp_ffi_t                  ffi,
