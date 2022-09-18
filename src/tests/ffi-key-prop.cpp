@@ -941,7 +941,6 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     assert_rnp_failure(rnp_key_get_protection_iterations(sub, &iterations));
     rnp_key_handle_destroy(sub);
 
-#if defined(ENABLE_IDEA)
     /* v3 secret key */
     assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
     assert_true(import_pub_keys(ffi, "data/keyrings/4/pubring.pgp"));
@@ -961,18 +960,27 @@ TEST_F(rnp_tests, test_ffi_key_get_protection_info)
     rnp_buffer_destroy(hash);
     assert_rnp_success(rnp_key_get_protection_iterations(key, &iterations));
     assert_int_equal(iterations, 1);
-    assert_rnp_success(rnp_key_unprotect(key, "password"));
-    assert_rnp_success(rnp_key_get_protection_type(key, &type));
-    assert_string_equal(type, "None");
-    rnp_buffer_destroy(type);
-    assert_rnp_success(rnp_key_get_protection_mode(key, &mode));
-    assert_string_equal(mode, "None");
-    rnp_buffer_destroy(mode);
-    assert_rnp_failure(rnp_key_get_protection_cipher(key, &cipher));
-    assert_rnp_failure(rnp_key_get_protection_hash(key, &hash));
-    assert_rnp_failure(rnp_key_get_protection_iterations(key, &iterations));
+    if (idea_enabled()) {
+        assert_rnp_success(rnp_key_unprotect(key, "password"));
+        assert_rnp_success(rnp_key_get_protection_type(key, &type));
+        assert_string_equal(type, "None");
+        rnp_buffer_destroy(type);
+        assert_rnp_success(rnp_key_get_protection_mode(key, &mode));
+        assert_string_equal(mode, "None");
+        rnp_buffer_destroy(mode);
+        assert_rnp_failure(rnp_key_get_protection_cipher(key, &cipher));
+        assert_rnp_failure(rnp_key_get_protection_hash(key, &hash));
+        assert_rnp_failure(rnp_key_get_protection_iterations(key, &iterations));
+    } else {
+        assert_rnp_failure(rnp_key_unprotect(key, "password"));
+        assert_rnp_success(rnp_key_get_protection_type(key, &type));
+        assert_string_equal(type, "Encrypted");
+        rnp_buffer_destroy(type);
+        assert_rnp_success(rnp_key_get_protection_mode(key, &mode));
+        assert_string_equal(mode, "CFB");
+        rnp_buffer_destroy(mode);
+    }
     rnp_key_handle_destroy(key);
-#endif
 
     /* G10 keys */
     rnp_ffi_destroy(ffi);
