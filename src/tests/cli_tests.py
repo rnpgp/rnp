@@ -87,6 +87,7 @@ AT_EXAMPLE = '@example.com'
 PUBRING = 'pubring.gpg'
 SECRING = 'secring.gpg'
 PUBRING_1 = 'keyrings/1/pubring.gpg'
+SECRING_1 = 'keyrings/1/secring.gpg'
 KEYRING_DIR_1 = 'keyrings/1'
 KEYRING_DIR_3 = 'keyrings/3'
 SECRING_G10 = 'test_stream_key_load/g10'
@@ -850,7 +851,7 @@ def rnp_check_features():
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out)
     # Brainpool curves
     RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
-
+    # IDEA encryption algorithm
     RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out)
 
 def setup(loglvl):
@@ -1943,34 +1944,34 @@ class Misc(unittest.TestCase):
         # Verifying large packet file with GnuPG
         kpath = path_for_gpg(data_path(PUBRING_1))
         dpath = path_for_gpg(data_path('test_large_packet/4g.bzip2.gpg'))
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', dpath])
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', dpath])
         self.assertEqual(ret, 0, 'large packet verification failed')
 
     def test_partial_length_signature(self):
         # Verifying partial length signature with GnuPG
         kpath = path_for_gpg(data_path(PUBRING_1))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-signed'))
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertNotEqual(ret, 0, 'partial length signature packet should result in failure but did not')
 
     def test_partial_length_public_key(self):
         # Reading keyring that has a public key packet with partial length using GnuPG
         kpath = data_path('test_partial_length/pubring.gpg.partial')
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--list-keys'])
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--list-keys'])
         self.assertNotEqual(ret, 0, 'partial length public key packet should result in failure but did not')
 
     def test_partial_length_zero_last_chunk(self):
         # Verifying message in partial packets having 0-size last chunk with GnuPG
         kpath = path_for_gpg(data_path(PUBRING_1))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-zero-last'))
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message in partial packets having 0-size last chunk verification failed')
 
     def test_partial_length_largest(self):
         # Verifying message having largest possible partial packet with GnuPG
         kpath = path_for_gpg(data_path(PUBRING_1))
         mpath = path_for_gpg(data_path('test_partial_length/message.txt.partial-1g'))
-        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--keyring', kpath, '--verify', mpath])
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--keyring', kpath, '--verify', mpath])
         self.assertEqual(ret, 0, 'message having largest possible partial packet verification failed')
 
     def test_rnp_single_export(self):
@@ -3188,6 +3189,80 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_3), '--keystore-format', 'GPG21', '--list-keys'])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*2 keys found')
+
+    def test_no_twofish(self):
+        if (RNP_TWOFISH):
+            return
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.pgp', '.dec')
+        random_text(src, 100)
+        # Attempt to encrypt to twofish
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--cipher', 'twofish', '--output', dst, '-e', src])
+        self.assertEqual(ret, 2)
+        self.assertFalse(os.path.isfile(dst))
+        self.assertRegex(err, r'(?s)^.*Unsupported encryption algorithm: twofish')
+        # Symmetrically encrypt with GnuPG
+        gpg_symencrypt_file(src, dst, 'TWOFISH')
+        # Attempt to decrypt
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', dec, '-d', dst])
+        self.assertEqual(ret, 1)
+        self.assertFalse(os.path.isfile(dec))
+        self.assertRegex(err, r'(?s)^.*failed to start cipher')
+        # Public-key encrypt with GnuPG
+        kpath = path_for_gpg(data_path(PUBRING_1))
+        os.remove(dst)
+        ret, _, _ = run_proc(GPG, ['--homedir', GPGHOME, '--no-default-keyring', '--batch', '--keyring', kpath, '-r', 'key0-uid0',
+                                   '--trust-model', 'always', '--cipher-algo', 'TWOFISH', '--output', dst, '-e', src])
+        self.assertEqual(ret, 0)
+        # Attempt to decrypt
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--output', dec, '-d', dst])
+        self.assertEqual(ret, 1)
+        self.assertFalse(os.path.isfile(dec))
+        self.assertRegex(err, r'(?s)^.*unsupported symmetric algorithm 10')
+        clear_workfiles()
+
+    def test_no_idea(self):
+        if (RNP_IDEA):
+            return
+        src, dst, dec = reg_workfiles('cleartext', '.txt', '.pgp', '.dec')
+        random_text(src, 100)
+        # Attempt to encrypt to twofish
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--cipher', 'idea', '--output', dst, '-e', src])
+        self.assertEqual(ret, 2)
+        self.assertFalse(os.path.isfile(dst))
+        self.assertRegex(err, r'(?s)^.*Unsupported encryption algorithm: idea')
+        # Symmetrically encrypt with GnuPG
+        gpg_symencrypt_file(src, dst, 'IDEA')
+        # Attempt to decrypt
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', dec, '-d', dst])
+        self.assertEqual(ret, 1)
+        self.assertFalse(os.path.isfile(dec))
+        self.assertRegex(err, r'(?s)^.*failed to start cipher')
+        # Public-key encrypt with GnuPG
+        kpath = path_for_gpg(data_path(PUBRING_1))
+        os.remove(dst)
+        params = ['--no-default-keyring', '--batch', '--keyring', kpath, '-r', 'key0-uid0', '--trust-model', 'always', '--cipher-algo', 'IDEA', '--output', dst, '-e', src]
+        if GPG_NO_OLD:
+            params.insert(1, '--allow-old-cipher-algos')
+        ret, _, _ = run_proc(GPG, params)
+        self.assertEqual(ret, 0)
+        # Attempt to decrypt
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--output', dec, '-d', dst])
+        self.assertEqual(ret, 1)
+        self.assertFalse(os.path.isfile(dec))
+        self.assertRegex(err, r'(?s)^.*unsupported symmetric algorithm 1')
+        # List secret key, encrypted with IDEA
+        ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', data_path('keyrings/4/rsav3-s.asc')])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(out, r'(?s)^.*failed to process packet')
+        self.assertRegex(out, r'(?s)^.*secret key material.*symmetric algorithm: 1 .IDEA.')
+        # Import secret key - must succeed.
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('keyrings/4/rsav3-s.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*sec.*7d0bc10e933404c9.*INVALID')
+        shutil.rmtree(RNP2, ignore_errors=True)
+        clear_workfiles()
 
 class Encryption(unittest.TestCase):
     '''
