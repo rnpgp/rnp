@@ -2307,6 +2307,16 @@ TEST_F(rnp_tests, test_ffi_key_iter)
         assert_null(ident);
         assert_rnp_success(rnp_identifier_iterator_destroy(it));
     }
+    // fingerprint
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+        assert_non_null(it);
+        const char *ident = NULL;
+        assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
+        assert_null(ident);
+        assert_rnp_success(rnp_identifier_iterator_destroy(it));
+    }
 
     // load our keyrings
     assert_true(load_keys_gpg(ffi, pub_path, sec_path));
@@ -2386,6 +2396,34 @@ TEST_F(rnp_tests, test_ffi_key_iter)
               "key0-uid0", "key0-uid1", "key0-uid2", "key1-uid0", "key1-uid2", "key1-uid1"};
             size_t      i = 0;
             const char *ident = NULL;
+            do {
+                ident = NULL;
+                assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
+                if (ident) {
+                    assert_true(rnp::str_case_eq(expected[i], ident));
+                    i++;
+                }
+            } while (ident);
+            assert_int_equal(i, ARRAY_SIZE(expected));
+        }
+        assert_rnp_success(rnp_identifier_iterator_destroy(it));
+    }
+
+    // fingerprint
+    {
+        rnp_identifier_iterator_t it = NULL;
+        assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
+        assert_non_null(it);
+        {
+            static const char *expected[] = {"E95A3CBF583AA80A2CCC53AA7BC6709B15C23A4A",
+                                             "E332B27CAF4742A11BAA677F1ED63EE56FADC34D",
+                                             "C5B15209940A7816A7AF3FB51D7E8A5393C997A8",
+                                             "5CD46D2A0BD0B8CFE0B130AE8A05B89FAD5ADED1",
+                                             "BE1C4AB951F4C2F6B604C7F82FCADF05FFA501BB",
+                                             "A3E94DE61A8CB229413D348E54505A936A4A970E",
+                                             "57F8ED6E5C197DB63C60FFAF326EF111425D14A5"};
+            size_t             i = 0;
+            const char *       ident = NULL;
             do {
                 ident = NULL;
                 assert_rnp_success(rnp_identifier_iterator_next(it, &ident));
