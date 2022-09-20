@@ -1,5 +1,11 @@
 ## Changelog
 
+### 0.16.2 [2022-09-20]
+
+#### General
+
+* Fixed CMake issues with ENABLE_IDEA and ENABLE_BRAINPOOL
+
 ### 0.16.1 [2022-09-06]
 
 #### General
