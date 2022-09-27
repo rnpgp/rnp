@@ -1694,24 +1694,18 @@ pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
         RNP_LOG("No valid binding for subkey");
         return false;
     }
+    if (is_secret() || sub.is_secret()) {
+        RNP_LOG("Public key required");
+        return false;
+    }
 
     try {
         /* write all or nothing */
         rnp::MemoryDest memdst;
-        if (is_secret()) {
-            pgp_key_pkt_t pkt(pkt_, true);
-            pkt.write(memdst.dst());
-        } else {
-            pkt().write(memdst.dst());
-        }
+        pkt().write(memdst.dst());
         get_uid(uid).pkt.write(memdst.dst());
         cert->sig.write(memdst.dst());
-        if (sub.is_secret()) {
-            pgp_key_pkt_t pkt(sub.pkt(), true);
-            pkt.write(memdst.dst());
-        } else {
-            sub.pkt().write(memdst.dst());
-        }
+        sub.pkt().write(memdst.dst());
         binding->sig.write(memdst.dst());
         dst_write(&dst, memdst.memory(), memdst.writeb());
         return !dst.werr;
