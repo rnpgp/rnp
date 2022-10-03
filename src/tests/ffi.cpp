@@ -3548,6 +3548,7 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     assert_rnp_failure(rnp_op_encrypt_set_aead_bits(NULL, 10));
     assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, -1));
     assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, 60));
+    assert_rnp_failure(rnp_op_encrypt_set_aead_bits(op, 17));
     assert_rnp_success(rnp_op_encrypt_set_aead_bits(op, 10));
     // add password (using all defaults)
     assert_rnp_success(rnp_op_encrypt_add_password(op, "pass1", NULL, 0, NULL));

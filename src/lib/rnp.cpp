@@ -2720,7 +2720,7 @@ try {
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if ((bits < 0) || (bits > 56)) {
+    if ((bits < 0) || (bits > 16)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     op->rnpctx.abits = bits;
