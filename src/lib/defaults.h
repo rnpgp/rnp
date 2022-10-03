@@ -44,7 +44,7 @@
 #define DEFAULT_Z_LEVEL 6
 
 /* Default AEAD algorithm */
-#define DEFAULT_AEAD_ALG PGP_AEAD_EAX
+#define DEFAULT_AEAD_ALG PGP_AEAD_OCB
 
 /* Default AEAD chunk bits, equals to 256K chunks */
 #define DEFAULT_AEAD_CHUNK_BITS 12

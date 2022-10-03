@@ -3656,7 +3656,7 @@ class Encryption(unittest.TestCase):
         # List packets
         ret, out, _ = run_proc(RNP, ['--list-packets', enc])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*tag 20, partial len.*AEAD-encrypted data packet.*version: 1.*AES-256.*EAX.*chunk size: 12.*')
+        self.assertRegex(out, r'(?s)^.*tag 20, partial len.*AEAD-encrypted data packet.*version: 1.*AES-256.*OCB.*chunk size: 12.*')
         # Attempt to encrypt with too high AEAD bits value
         ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-r', 'alice', '--aead', '--aead-chunk-bits', '17', '-e', src, '--output', enc])
         self.assertEqual(ret, 2)
