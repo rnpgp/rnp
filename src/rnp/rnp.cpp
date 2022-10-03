@@ -437,9 +437,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_AEAD: {
         std::string argstr = arg ? arg : "";
-        if (argstr.empty() || (argstr == "1") || rnp::str_case_eq(argstr, "eax")) {
+        if ((argstr == "1") || rnp::str_case_eq(argstr, "eax")) {
             argstr = "EAX";
-        } else if ((argstr == "2") || rnp::str_case_eq(argstr, "ocb")) {
+        } else if (argstr.empty() || (argstr == "2") || rnp::str_case_eq(argstr, "ocb")) {
             argstr = "OCB";
         } else {
             ERR_MSG("Wrong AEAD algorithm: %s", argstr.c_str());
