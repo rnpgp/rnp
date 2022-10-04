@@ -3273,6 +3273,23 @@ class Misc(unittest.TestCase):
         shutil.rmtree(RNP2, ignore_errors=True)
         clear_workfiles()
 
+    def test_subkey_binding_on_uid(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+
+        # Import key with deleted subkey packet (so subkey binding is attached to the uid)
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('test_key_edge_cases/alice-uid-binding.pgp')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*pub.*0451409669ffde3c.*alice@rnp.*$')
+        # List keys - make sure rnp doesn't attempt to validate wrong sig
+        ret, out, err = run_proc(RNPK, ['--homedir', RNP2, '--list-keys', '--with-sigs'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*wrong lbits.*$')
+        self.assertRegex(err, r'(?s)^.*Invalid binding signature key type.*$')
+        self.assertRegex(out, r'(?s)^.*sig.*alice@rnp.*.*sig.*alice@rnp.*invalid.*$')
+
+        shutil.rmtree(RNP2, ignore_errors=True)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
