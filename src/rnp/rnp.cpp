@@ -167,7 +167,7 @@ static struct option options[] = {
   {"verify-cat", no_argument, NULL, CMD_VERIFY_CAT},
   {"symmetric", no_argument, NULL, CMD_SYM_ENCRYPT},
   {"dearmor", no_argument, NULL, CMD_DEARMOR},
-  {"enarmor", required_argument, NULL, CMD_ENARMOR},
+  {"enarmor", optional_argument, NULL, CMD_ENARMOR},
   /* file listing commands */
   {"list-packets", no_argument, NULL, CMD_LIST_PACKETS},
   /* debugging commands */
@@ -310,8 +310,8 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
         cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
         break;
     case CMD_ENARMOR: {
-        std::string msgt = arg;
-        if (msgt == "msg") {
+        std::string msgt = arg ? arg : "";
+        if (msgt.empty() || (msgt == "msg")) {
             msgt = "message";
         } else if (msgt == "pubkey") {
             msgt = "public key";
