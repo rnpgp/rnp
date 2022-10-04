@@ -2024,6 +2024,11 @@ pgp_key_t::validate_binding(pgp_signature_info_t &      sinfo,
                             const pgp_key_t &           subkey,
                             const rnp::SecurityContext &ctx) const
 {
+    if (!is_primary() || !subkey.is_subkey()) {
+        RNP_LOG("Invalid binding signature key type(s)");
+        sinfo.valid = false;
+        return;
+    }
     auto hash = signature_hash_binding(*sinfo.sig, pkt(), subkey.pkt());
     validate_sig(sinfo, *hash, ctx);
     if (!sinfo.valid || !(sinfo.sig->key_flags() & PGP_KF_SIGN)) {
