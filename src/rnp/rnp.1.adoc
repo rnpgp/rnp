@@ -172,7 +172,7 @@ or to _stdout_. +
 The following OpenPGP headers may be specified:
 +
 --
-*msg*::: _-----BEGIN PGP MESSAGE-----_
+*msg* (default) ::: _-----BEGIN PGP MESSAGE-----_
 *pubkey*::: _-----BEGIN PGP PUBLIC KEY BLOCK-----_
 *seckey*::: _-----BEGIN PGP SECRET KEY BLOCK-----_
 *sign*::: _-----BEGIN PGP SIGNATURE-----_
