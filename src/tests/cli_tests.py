@@ -1776,17 +1776,26 @@ class Misc(unittest.TestCase):
         armor_types = [('msg', 'MESSAGE'), ('pubkey', 'PUBLIC KEY BLOCK'),
                        ('seckey', 'PRIVATE KEY BLOCK'), ('sign', 'SIGNATURE')]
 
+        random_text(src_beg, 1000)
         # Wrong armor type
-        ret, _, err = run_proc(RNP, ['--enarmor', 'wrong', src_beg, '--output', dst_beg])
+        ret, _, err = run_proc(RNP, ['--enarmor=wrong', src_beg, '--output', dst_beg])
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*Wrong enarmor argument: wrong.*$')
 
+        # Default armor type
+        ret, _, _ = run_proc(RNP, ['--enarmor', src_beg, '--output', dst_beg])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong enarmor argument: wrong.*$')
+        txt = file_text(dst_beg).strip('\r\n')
+        self.assertTrue(txt.startswith('-----BEGIN PGP MESSAGE-----'), 'wrong armor header')
+        self.assertTrue(txt.endswith('-----END PGP MESSAGE-----'), 'wrong armor trailer')
+        remove_files(dst_beg)
+
         for data_type, header in armor_types:
-            random_text(src_beg, 1000)
             prefix = '-----BEGIN PGP ' + header + '-----'
             suffix = '-----END PGP ' + header + '-----'
 
-            ret, _, _ = run_proc(RNP, ['--enarmor', data_type, src_beg, '--output', dst_beg])
+            ret, _, _ = run_proc(RNP, ['--enarmor=' + data_type, src_beg, '--output', dst_beg])
             self.assertEqual(ret, 0)
             txt = file_text(dst_beg).strip('\r\n')
 
@@ -1795,7 +1804,7 @@ class Misc(unittest.TestCase):
 
             ret, _, _ = run_proc(RNP, ['--dearmor', dst_beg, '--output', dst_mid])
             self.assertEqual(ret, 0)
-            ret, _, _ = run_proc(RNP, ['--enarmor', data_type, dst_mid, '--output', dst_fin])
+            ret, _, _ = run_proc(RNP, ['--enarmor=' + data_type, dst_mid, '--output', dst_fin])
             self.assertEqual(ret, 0)
 
             compare_files(dst_beg, dst_fin, "RNP armor/dearmor test failed")
