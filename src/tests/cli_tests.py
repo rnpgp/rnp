@@ -2405,6 +2405,62 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*init_file_dest.*failed to create file.*output.pgp.*Error 2.*$')
 
+    def test_literal_filename(self):
+        EMPTY_FNAME = r'(?s)^.*literal data packet.*mode b.*created 0, name="".*$'
+        HELLO_FNAME = r'(?s)^.*literal data packet.*mode b.*created 0, name="hello".*$'
+        src, enc, dec = reg_workfiles('source', '.txt', EXT_PGP, '.dec')
+        with open(src, 'w+') as f:
+            f.write('Literal filename check')
+        # Encrypt file and make sure it's name is stored in literal data packet
+        ret, out, _ = run_proc(RNP, ['-c', src, '--password', 'password'])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
+        remove_files(enc)
+        # Encrypt file, overriding it's name
+        ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', src, '--password', 'password'])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, HELLO_FNAME)
+        remove_files(enc)
+        # Encrypt file, using empty name
+        ret, out, _ = run_proc(RNP, ['--set-filename', '', '-c', src, '--password', 'password'])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, EMPTY_FNAME)
+        remove_files(enc)
+        # Encrypt stdin, making sure empty name is stored
+        ret, out, _ = run_proc(RNP, ['-c', '--password', 'password', '--output', enc], 'Data from stdin')
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, EMPTY_FNAME)
+        remove_files(enc)
+        # Encrypt stdin, setting the file name
+        ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', '--password', 'password', '--output', enc], 'Data from stdin')
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, HELLO_FNAME)
+        remove_files(enc)
+        # Encrypt env, making sure empty name is stored
+        ret, out, _ = run_proc(RNP, ['-c', 'env:HOME', '--password', 'password', '--output', enc])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, EMPTY_FNAME)
+        remove_files(enc)
+        # Encrypt env, setting the file name
+        ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', 'env:HOME', '--password', 'password', '--output', enc])
+        self.assertEqual(ret, 0)
+        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, HELLO_FNAME)
+        remove_files(enc)
+
     def test_empty_keyrings(self):
         NO_KEYRING = r'(?s)^.*' \
         r'warning: keyring at path \'.*.\.rnp.pubring\.gpg\' doesn\'t exist.*' \
