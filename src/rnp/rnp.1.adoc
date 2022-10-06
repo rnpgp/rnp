@@ -326,6 +326,12 @@ By default RNP uses system's time in all signature/key checks, however in some s
 +
 *TIME* may be specified in the same way as *--creation*.
 
+*--set-filename* _FNAME_::
+Override or set a file name, stored inside of OpenPGP message. +
++
+By default RNP will store input filename (or empty string for *stdin*/*env* input) in the resulting OpenPGP message during encryption or embedded signing.
+This option allows to override this. Special value *_CONSOLE* may be used for "for your eyes only"-message. Refer OpenPGP documentation for the details.
+
 == EXIT STATUS
 
 _0_::

@@ -43,6 +43,7 @@
 #define CFG_OUTFILE "outfile"            /* name/path of the output file */
 #define CFG_NO_OUTPUT "no_output"        /* do not output any data - just verify or process */
 #define CFG_INFILE "infile"              /* name/path of the input file */
+#define CFG_SETFNAME "setfname"          /* file name to embed into the literal data packet */
 #define CFG_RESULTS "results"            /* name/path for results, not used right now */
 #define CFG_KEYSTOREFMT "keystorefmt"    /* keyring format : GPG, G10, KBX */
 #define CFG_COREDUMPS "coredumps"        /* enable/disable core dumps. 1 or 0. */

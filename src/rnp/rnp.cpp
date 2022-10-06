@@ -93,6 +93,7 @@ static const char *usage =
   "  --pass-fd num        Read password(s) from the file descriptor.\n"
   "  --notty              Do not output anything to the TTY.\n"
   "  --current-time       Override system's time.\n"
+  "  --set-filename       Override file name, stored inside of OpenPGP message.\n"
   "\n"
   "See man page for a detailed listing and explanation.\n"
   "\n";
@@ -150,6 +151,7 @@ enum optdefs {
     OPT_SOURCE,
     OPT_NOWRAP,
     OPT_CURTIME,
+    OPT_SETFNAME,
 
     /* debug */
     OPT_DEBUG
@@ -213,6 +215,7 @@ static struct option options[] = {
   {"source", required_argument, NULL, OPT_SOURCE},
   {"no-wrap", no_argument, NULL, OPT_NOWRAP},
   {"current-time", required_argument, NULL, OPT_CURTIME},
+  {"set-filename", required_argument, NULL, OPT_SETFNAME},
 
   {NULL, 0, NULL, 0},
 };
@@ -484,6 +487,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_CURTIME:
         cfg.set_str(CFG_CURTIME, arg);
+        return true;
+    case OPT_SETFNAME:
+        cfg.set_str(CFG_SETFNAME, arg);
         return true;
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
