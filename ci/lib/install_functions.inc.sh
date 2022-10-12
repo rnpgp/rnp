@@ -664,7 +664,6 @@ msys_install() {
                clang64/mingw-w64-clang-x86_64-openmp
                clang64/mingw-w64-clang-x86_64-libc++
                clang64/mingw-w64-clang-x86_64-libbotan
-               clang64/mingw-w64-clang-x86_64-libssp
                clang64/mingw-w64-clang-x86_64-json-c
                clang64/mingw-w64-clang-x86_64-libsystre
     )
