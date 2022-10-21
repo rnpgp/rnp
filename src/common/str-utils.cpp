@@ -99,6 +99,51 @@ str_case_eq(const std::string &s1, const std::string &s2)
     return str_case_eq(s1.c_str(), s2.c_str());
 }
 
+static size_t
+hex_prefix_len(const std::string &str)
+{
+    if ((str.length() >= 2) && (str[0] == '0') && ((str[1] == 'x') || (str[1] == 'X'))) {
+        return 2;
+    }
+    return 0;
+}
+
+bool
+is_hex(const std::string &s)
+{
+    for (size_t i = hex_prefix_len(s); i < s.length(); i++) {
+        auto &ch = s[i];
+        if ((ch >= '0') && (ch <= '9')) {
+            continue;
+        }
+        if ((ch >= 'a') && (ch <= 'f')) {
+            continue;
+        }
+        if ((ch >= 'A') && (ch <= 'F')) {
+            continue;
+        }
+        if ((ch == ' ') || (ch == '\t')) {
+            continue;
+        }
+        return false;
+    }
+    return true;
+}
+
+std::string
+strip_hex(const std::string &s)
+{
+    std::string res = "";
+    for (size_t idx = hex_prefix_len(s); idx < s.length(); idx++) {
+        auto ch = s[idx];
+        if ((ch == ' ') || (ch == '\t')) {
+            continue;
+        }
+        res.push_back(ch);
+    }
+    return res;
+}
+
 char *
 lowercase(char *s)
 {
