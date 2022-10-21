@@ -59,6 +59,7 @@ class cli_rnp_t {
     bool        reuse_password_for_subkey{};
     std::string reuse_primary_fprint;
     char *      reused_password{};
+    bool        hidden_msg{}; /* true if hidden recipient message was displayed */
 
     bool init(const rnp_cfg &cfg);
     void end();
