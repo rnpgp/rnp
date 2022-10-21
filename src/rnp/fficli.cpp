@@ -1508,50 +1508,6 @@ done:
     return res;
 }
 
-static size_t
-hex_prefix_len(const std::string &str)
-{
-    if ((str.length() >= 2) && (str[0] == '0') && ((str[1] == 'x') || (str[1] == 'X'))) {
-        return 2;
-    }
-    return 0;
-}
-
-static bool
-str_is_hex(const std::string &hexid)
-{
-    for (size_t i = hex_prefix_len(hexid); i < hexid.length(); i++) {
-        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
-            continue;
-        }
-        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
-            continue;
-        }
-        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
-            continue;
-        }
-        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
-            continue;
-        }
-        return false;
-    }
-    return true;
-}
-
-static std::string
-strip_hex_str(const std::string &str)
-{
-    std::string res = "";
-    for (size_t idx = hex_prefix_len(str); idx < str.length(); idx++) {
-        char ch = str[idx];
-        if ((ch == ' ') || (ch == '\t')) {
-            continue;
-        }
-        res.push_back(ch);
-    }
-    return res;
-}
-
 static bool
 key_matches_string(rnp_key_handle_t handle, const std::string &str)
 {
@@ -1571,8 +1527,8 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
         matches = true;
         goto done;
     }
-    if (str_is_hex(str) && (len >= RNP_KEYID_SIZE)) {
-        std::string hexstr = strip_hex_str(str);
+    if (rnp::is_hex(str) && (len >= RNP_KEYID_SIZE)) {
+        std::string hexstr = rnp::strip_hex(str);
 
         /* check whether it's key id */
         if ((len == RNP_KEYID_SIZE * 2) || (len == RNP_KEYID_SIZE)) {

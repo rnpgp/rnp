@@ -26,7 +26,7 @@
 
 #include "support.h"
 #include "rnp_tests.h"
-#include "file-utils.h"
+#include "str-utils.h"
 #include <librepgp/stream-ctx.h>
 #include "pgp-key.h"
 #include "librepgp/stream-armor.h"
@@ -783,38 +783,10 @@ check_json_pkt_type(json_object *pkt, int tag)
     return check_json_field_int(hdr, "tag", tag);
 }
 
-static bool
-ishex(const std::string &hexid)
-{
-    /* duplicates str_is_hex from fficli.cpp */
-    size_t hexlen = hexid.length();
-    size_t hexidx = 0;
-    if ((hexlen >= 2) && (hexid[0] == '0') && ((hexid[1] == 'x') || (hexid[1] == 'X'))) {
-        hexidx += 2;
-    }
-
-    for (size_t i = hexidx; i < hexlen; i++) {
-        if ((hexid[i] >= '0') && (hexid[i] <= '9')) {
-            continue;
-        }
-        if ((hexid[i] >= 'a') && (hexid[i] <= 'f')) {
-            continue;
-        }
-        if ((hexid[i] >= 'A') && (hexid[i] <= 'F')) {
-            continue;
-        }
-        if ((hexid[i] == ' ') || (hexid[i] == '\t')) {
-            continue;
-        }
-        return false;
-    }
-    return true;
-}
-
 pgp_key_t *
 rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_key_t *after)
 {
-    if (!keyring || keyid.empty() || !ishex(keyid)) {
+    if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
     }
     pgp_key_id_t keyid_bin = {};
@@ -830,7 +802,7 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
 pgp_key_t *
 rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip)
 {
-    if (!keyring || grip.empty() || !ishex(grip)) {
+    if (!keyring || grip.empty() || !rnp::is_hex(grip)) {
         return NULL;
     }
     pgp_key_grip_t grip_bin = {};
@@ -855,7 +827,7 @@ rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 pgp_key_t *
 rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
 {
-    if (!keyring || keyid.empty() || !ishex(keyid)) {
+    if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
     }
     std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);

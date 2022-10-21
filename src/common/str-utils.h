@@ -41,6 +41,10 @@ bool strip_eol(std::string &s);
 bool is_blank_line(const char *line, size_t len);
 bool str_case_eq(const char *s1, const char *s2);
 bool str_case_eq(const std::string &s1, const std::string &s2);
+
+bool        is_hex(const std::string &s);
+std::string strip_hex(const std::string &s);
+
 /**
  * @brief Convert string to lowercase and return it.
  */
