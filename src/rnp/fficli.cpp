@@ -523,6 +523,26 @@ ffi_pass_callback_string(rnp_ffi_t        ffi,
     return true;
 }
 
+static void
+ffi_key_callback(rnp_ffi_t   ffi,
+                 void *      app_ctx,
+                 const char *identifier_type,
+                 const char *identifier,
+                 bool        secret)
+{
+    cli_rnp_t *rnp = static_cast<cli_rnp_t *>(app_ctx);
+
+    if (rnp::str_case_eq(identifier_type, "keyid") &&
+        rnp::str_case_eq(identifier, "0000000000000000")) {
+        if (rnp->hidden_msg) {
+            return;
+        }
+        ERR_MSG("This message has hidden recipient. Will attempt to use all secret keys for "
+                "decryption.");
+        rnp->hidden_msg = true;
+    }
+}
+
 #ifdef _WIN32
 void
 rnpffiInvalidParameterHandler(const wchar_t *expression,
@@ -600,6 +620,11 @@ cli_rnp_t::init(const rnp_cfg &cfg)
 
     // by default use stdin password provider
     if (rnp_ffi_set_pass_provider(ffi, ffi_pass_callback_stdin, this)) {
+        goto done;
+    }
+
+    // set key provider, currently for informational purposes only
+    if (rnp_ffi_set_key_provider(ffi, ffi_key_callback, this)) {
         goto done;
     }
 
@@ -2803,6 +2828,29 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
     }
 }
 
+static void
+cli_rnp_inform_of_hidden_recipient(rnp_op_verify_t op)
+{
+    size_t recipients = 0;
+    rnp_op_verify_get_recipient_count(op, &recipients);
+    if (!recipients) {
+        return;
+    }
+    for (size_t idx = 0; idx < recipients; idx++) {
+        rnp_recipient_handle_t recipient = NULL;
+        rnp_op_verify_get_recipient_at(op, idx, &recipient);
+        char *keyid = NULL;
+        rnp_recipient_get_keyid(recipient, &keyid);
+        bool hidden = keyid && !strcmp(keyid, "0000000000000000");
+        rnp_buffer_destroy(keyid);
+        if (hidden) {
+            ERR_MSG("Warning: message has hidden recipient, but it was ignored. Use "
+                    "--allow-hidden to override this.");
+            break;
+        }
+    }
+}
+
 bool
 cli_rnp_process_file(cli_rnp_t *rnp)
 {
@@ -2862,13 +2910,20 @@ cli_rnp_process_file(cli_rnp_t *rnp)
             goto done;
         }
         ret = rnp_op_verify_create(&verify, rnp->ffi, input, output);
-        if (!ret && !rnp->cfg().get_bool(CFG_NO_OUTPUT)) {
-            /* This would happen if user requested decryption instead of verification */
-            ret = rnp_op_verify_set_flags(verify, RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT);
-        }
-        if (!ret && rnp->cfg().get_bool(CFG_NO_OUTPUT)) {
-            /* Currently CLI requires all signatures to be valid for success */
-            ret = rnp_op_verify_set_flags(verify, RNP_VERIFY_REQUIRE_ALL_SIGS);
+        if (!ret) {
+            uint32_t flags = 0;
+            if (!rnp->cfg().get_bool(CFG_NO_OUTPUT)) {
+                /* This would happen if user requested decryption instead of verification */
+                flags = flags | RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT;
+            } else {
+                /* Currently CLI requires all signatures to be valid for success */
+                flags = flags | RNP_VERIFY_REQUIRE_ALL_SIGS;
+            }
+            if (rnp->cfg().get_bool(CFG_ALLOW_HIDDEN)) {
+                /* Allow hidden recipient */
+                flags = flags | RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT;
+            }
+            ret = rnp_op_verify_set_flags(verify, flags);
         }
     }
     if (ret) {
@@ -2877,6 +2932,11 @@ cli_rnp_process_file(cli_rnp_t *rnp)
     }
 
     res = !rnp_op_verify_execute(verify);
+
+    /* Check whether we had hidden recipient on verification/decryption failure */
+    if (!res && !rnp->cfg().get_bool(CFG_ALLOW_HIDDEN)) {
+        cli_rnp_inform_of_hidden_recipient(verify);
+    }
 
     rnp_op_verify_get_signature_count(verify, &scount);
     if (!scount) {

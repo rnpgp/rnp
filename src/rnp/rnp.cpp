@@ -152,6 +152,7 @@ enum optdefs {
     OPT_NOWRAP,
     OPT_CURTIME,
     OPT_SETFNAME,
+    OPT_ALLOW_HIDDEN,
 
     /* debug */
     OPT_DEBUG
@@ -216,6 +217,7 @@ static struct option options[] = {
   {"no-wrap", no_argument, NULL, OPT_NOWRAP},
   {"current-time", required_argument, NULL, OPT_CURTIME},
   {"set-filename", required_argument, NULL, OPT_SETFNAME},
+  {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
 
   {NULL, 0, NULL, 0},
 };
@@ -490,6 +492,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_SETFNAME:
         cfg.set_str(CFG_SETFNAME, arg);
+        return true;
+    case OPT_ALLOW_HIDDEN:
+        cfg.set_bool(CFG_ALLOW_HIDDEN, true);
         return true;
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
