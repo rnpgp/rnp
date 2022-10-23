@@ -3407,6 +3407,72 @@ class Misc(unittest.TestCase):
         remove_files(sig)
         clear_workfiles()
 
+    def test_hidden_recipient(self):
+        seckey = data_path(SECRING_1)
+        msg1 = data_path('test_messages/message.txt.enc-hidden-1')
+        msg2 = data_path('test_messages/message.txt.enc-hidden-2')
+        pswd = 'password\n'
+        pswds = 'password\npassword\npassword\npassword\n'
+        R_MSG = r'(?s)^.*This is test message to be signed.*'
+        H_MSG1 = r'(?s)^.*Warning: message has hidden recipient, but it was ignored. Use --allow-hidden to override this.*'
+        H_MSG2 = r'(?s)^.*This message has hidden recipient. Will attempt to use all secret keys for decryption.*'
+        # Try to decrypt message without valid key
+        ret, out, err = run_proc(RNP, ['--keyfile', data_path(KEY_ALICE_SUB_SEC), '--notty', '-d', msg1], pswd)
+        self.assertEqual(ret, 1)
+        self.assertNotRegex(out, R_MSG)
+        self.assertNotRegex(out, r'(?s)^.*Enter password for key.*')
+        self.assertRegex(err, H_MSG1)
+        # Try to decrypt message with first recipient hidden, it must not be asked for
+        ret, out, _ = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', msg1], pswd)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_MSG)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x326EF111425D14A5 to decrypt.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*')
+        # Try to decrypt message with first recipient hidden, providing wrong password
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', msg1], '123\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x326EF111425D14A5 to decrypt.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*')
+        self.assertRegex(err, H_MSG1)
+        # Try to decrypt message with second recipient hidden
+        ret, out, _ = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', msg2], pswd)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, R_MSG)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x8A05B89FAD5ADED1 to decrypt.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*')
+        # Try to decrypt message with second recipient hidden, wrong password
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '-d', msg2], '123\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x8A05B89FAD5ADED1 to decrypt.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*')
+        self.assertRegex(err, H_MSG1)
+        # Allow hidden recipient, specifying valid password
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', msg1], pswds)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, H_MSG2)
+        self.assertRegex(out, R_MSG)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x1ED63EE56FADC34D.*0x8A05B89FAD5ADED1.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*Enter password.*')
+        # Allow hidden recipient, specifying all wrong passwords
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', msg1], '1\n1\n1\n1\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, H_MSG2)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x1ED63EE56FADC34D.*0x8A05B89FAD5ADED1.*0x326EF111425D14A5.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*Enter password.*Enter password.*')
+        # Allow hidden recipient, specifying invalid password for first recipient and valid password for hidden, message 2
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', msg2], '1\npassword\npassword\n')
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, H_MSG2)
+        self.assertRegex(out, R_MSG)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x8A05B89FAD5ADED1.*0x54505A936A4A970E.*0x326EF111425D14A5.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*Enter password.*Enter password.*')
+        # Allow hidden recipient, specifying invalid password for all, message 2
+        ret, out, err = run_proc(RNP, ['--keyfile', seckey, '--notty', '--allow-hidden', '-d', msg2], '1\n1\n1\n1\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, H_MSG2)
+        self.assertRegex(out, r'(?s)^.*Enter password for key 0x8A05B89FAD5ADED1.*0x54505A936A4A970E.*0x326EF111425D14A5.*')
+        self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*Enter password.*Enter password.*')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
