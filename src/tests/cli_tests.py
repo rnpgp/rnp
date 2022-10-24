@@ -3346,6 +3346,67 @@ class Misc(unittest.TestCase):
 
         shutil.rmtree(RNP2, ignore_errors=True)
 
+    def test_key_locate(self):
+        seckey = data_path(SECRING_1)
+        pubkey = data_path(PUBRING_1)
+        src, sig = reg_workfiles('cleartext', '.txt', '.sig')
+        random_text(src, 1200)
+        # Try non-existing key
+        ret, _, err = run_proc(RNP, ['--keyfile', seckey, '-u', 'alice', '--sign', src, '--output', sig])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Cannot find key matching "alice".*')
+        # Match via partial uid
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', 'key0', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*7bc6709b15c23a4a.*Signature\(s\) verified successfully.*')
+        remove_files(sig)
+        R_GOOD_SIG = r'(?s)^.*Good signature made.*2fcadf05ffa501bb.*Signature\(s\) verified successfully.*'
+        # Match via keyid with hex prefix
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', '0x2fcadf05ffa501bb', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        # Match via keyid with spaces/tabs
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', '0X 2FCA DF05\tFFA5\t01BB', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        # Match via half of the keyid
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', 'FFA501BB', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        # Match via fingerprint
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', 'be1c4ab9 51F4C2F6 b604c7f8 2FCADF05 ffa501bb', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        # Match via grip
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', '0xb2a7f6c34aa2c15484783e9380671869a977a187', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        # Match via regexp
+        ret, _, _ = run_proc(RNP, ['--keyfile', seckey, '-u', 'key[12].uid.', '--password', PASSWORD, '--sign', src, '--output', sig])
+        self.assertEqual(ret, 0)
+        ret, _, err = run_proc(RNP, ['--keyfile', pubkey, '-v', sig])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, R_GOOD_SIG)
+        remove_files(sig)
+        clear_workfiles()
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
