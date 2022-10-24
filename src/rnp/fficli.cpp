@@ -1514,7 +1514,6 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
     bool   matches = false;
     char * id = NULL;
     size_t idlen = 0;
-    size_t len = str.length();
 #ifndef RNP_USE_STD_REGEX
     regex_t r = {};
 #else
@@ -1527,8 +1526,9 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
         matches = true;
         goto done;
     }
-    if (rnp::is_hex(str) && (len >= RNP_KEYID_SIZE)) {
+    if (rnp::is_hex(str) && (str.length() >= RNP_KEYID_SIZE)) {
         std::string hexstr = rnp::strip_hex(str);
+        size_t      len = hexstr.length();
 
         /* check whether it's key id */
         if ((len == RNP_KEYID_SIZE * 2) || (len == RNP_KEYID_SIZE)) {
