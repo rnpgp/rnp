@@ -197,8 +197,10 @@ Set the `VCPKG_ROOT` environment variable to the `vcpkg` root folder.
 
 [source,console]
 ----
-vcpkg install bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
+vcpkg install --triplet x64-windows bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
 ----
+
+If you need to target 32-bit platform you'll need to to replace `x64-windows` with `x86-windows`.
 
 There are two ways to compile and install:
 
