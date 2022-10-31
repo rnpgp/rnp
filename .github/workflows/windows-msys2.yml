@@ -74,7 +74,7 @@ jobs:
 # The code below kept here for potential need to build some dependencies locally
 #      - name: Cache
 #        id: cache
-#        uses: actions/cache@v2
+#        uses: actions/cache@v3
 #        with:
 #          path: ${{ env.CACHE_DIR }}
 #          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}

@@ -62,7 +62,7 @@ jobs:
     steps:
       - run: |
           yum -y install git
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Add rnpuser
@@ -77,7 +77,7 @@ jobs:
           exec su rnpuser -c ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ matrix.env.GPG_VERSION }}-sm2-${{ matrix.env.ENABLE_SM2 }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
@@ -116,7 +116,7 @@ jobs:
     steps:
       - run: |
           yum -y install git
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Test
