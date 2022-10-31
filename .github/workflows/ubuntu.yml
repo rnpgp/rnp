@@ -54,7 +54,7 @@ jobs:
     env: ${{ matrix.env }}
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Setup environment
@@ -63,7 +63,7 @@ jobs:
           ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
@@ -89,7 +89,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Setup environment
@@ -99,7 +99,7 @@ jobs:
           sudo apt-get -y install googletest
       - name: Cache
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
@@ -123,7 +123,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Setup environment
@@ -133,7 +133,7 @@ jobs:
           sudo apt-get -y install googletest
       - name: Cache
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ${{ env.CACHE_DIR }}
@@ -166,7 +166,7 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
       - name: Setup environment
@@ -175,7 +175,7 @@ jobs:
           ci/install_noncacheable_dependencies.sh
       - name: Cache
         id: cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ${{ env.CACHE_DIR }}
           key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
@@ -196,12 +196,12 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 1
           path: rnp
       - name: Download latest version.cmake
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           repository: rnpgp/cmake-versioning
           fetch-depth: 1
