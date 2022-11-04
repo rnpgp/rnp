@@ -1,10 +1,21 @@
 License for OCB Usage
 =====================
 
+Last updated: November 1, 2022
+
 This license has been graciously granted by Professor Phillip Rogaway to allow
 users of [`rnp`](https://github.com/rnpgp/rnp) to utilize the patented
 [OCB](http://web.cs.ucdavis.edu/~rogaway/ocb/) blockcipher mode of operation,
 which simultaneously provides privacy and authenticity.
+
+While the license is irrevocable and does not expire, it is no longer necessary,
+since Professor Phillip Rogaway confirmed that the OCB patents are now in the
+public domain and officially abandoned, announced at the link below:
+
+* https://mailarchive.ietf.org/arch/msg/cfrg/qLTveWOdTJcLn4HP3ev-vrj05Vg/
+
+This license text remains in RNP as an acknowledgement of kindness given by
+Professor Phillip Rogaway to make OCB available for RNP users.
 
 The license text is presented below in plain text form purely for referential
 purposes. The original signed license is available on request from Ribose Inc.,
@@ -12,6 +23,7 @@ reachable at open.source@ribose.com.
 
 This file adheres to the formatting guidelines of
 [readable-licenses](https://github.com/nevir/readable-licenses).
+
 
 OCB Patent License for Ribose Inc.
 ----------------------------------
