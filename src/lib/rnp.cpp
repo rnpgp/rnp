@@ -1140,6 +1140,14 @@ get_feature_sec_level(rnp_ffi_t ffi, uint32_t flevel, rnp::SecurityLevel &level)
     return true;
 }
 
+static bool
+extract_flag(uint32_t &flags, uint32_t flag)
+{
+    bool res = flags & flag;
+    flags &= ~flag;
+    return res;
+}
+
 rnp_result_t
 rnp_add_security_rule(rnp_ffi_t   ffi,
                       const char *type,
@@ -1160,12 +1168,9 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     /* check flags */
-    bool rule_override = flags & RNP_SECURITY_OVERRIDE;
-    flags &= ~RNP_SECURITY_OVERRIDE;
-    bool verify_key = flags & RNP_SECURITY_VERIFY_KEY;
-    flags &= ~RNP_SECURITY_VERIFY_KEY;
-    bool verify_data = flags & RNP_SECURITY_VERIFY_DATA;
-    flags &= ~RNP_SECURITY_VERIFY_DATA;
+    bool rule_override = extract_flag(flags, RNP_SECURITY_OVERRIDE);
+    bool verify_key = extract_flag(flags, RNP_SECURITY_VERIFY_KEY);
+    bool verify_data = extract_flag(flags, RNP_SECURITY_VERIFY_DATA);
     if (flags) {
         FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1277,13 +1282,10 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     /* check flags */
-    bool remove_all = flags & RNP_SECURITY_REMOVE_ALL;
-    flags &= ~RNP_SECURITY_REMOVE_ALL;
-    bool rule_override = flags & RNP_SECURITY_OVERRIDE;
-    flags &= ~RNP_SECURITY_OVERRIDE;
+    bool                remove_all = extract_flag(flags, RNP_SECURITY_REMOVE_ALL);
+    bool                rule_override = extract_flag(flags, RNP_SECURITY_OVERRIDE);
     rnp::SecurityAction action = get_security_action(flags);
-    flags &= ~RNP_SECURITY_VERIFY_DATA;
-    flags &= ~RNP_SECURITY_VERIFY_KEY;
+    extract_flag(flags, RNP_SECURITY_VERIFY_DATA | RNP_SECURITY_VERIFY_KEY);
     if (flags) {
         FFI_LOG(ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1479,13 +1481,13 @@ flags_to_key_type(uint32_t *flags)
     // figure out what type of keys to operate on, based on flags
     if ((*flags & RNP_LOAD_SAVE_PUBLIC_KEYS) && (*flags & RNP_LOAD_SAVE_SECRET_KEYS)) {
         type = KEY_TYPE_ANY;
-        *flags &= ~(RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
+        extract_flag(*flags, RNP_LOAD_SAVE_PUBLIC_KEYS | RNP_LOAD_SAVE_SECRET_KEYS);
     } else if (*flags & RNP_LOAD_SAVE_PUBLIC_KEYS) {
         type = KEY_TYPE_PUBLIC;
-        *flags &= ~RNP_LOAD_SAVE_PUBLIC_KEYS;
+        extract_flag(*flags, RNP_LOAD_SAVE_PUBLIC_KEYS);
     } else if (*flags & RNP_LOAD_SAVE_SECRET_KEYS) {
         type = KEY_TYPE_SECRET;
-        *flags &= ~RNP_LOAD_SAVE_SECRET_KEYS;
+        extract_flag(*flags, RNP_LOAD_SAVE_SECRET_KEYS);
     }
     return type;
 }
@@ -1625,35 +1627,15 @@ try {
     if (!ffi || !input) {
         return RNP_ERROR_NULL_POINTER;
     }
-    bool sec = false;
-    bool pub = false;
-    if (flags & RNP_LOAD_SAVE_SECRET_KEYS) {
-        sec = true;
-        flags &= ~RNP_LOAD_SAVE_SECRET_KEYS;
-    }
-    if (flags & RNP_LOAD_SAVE_PUBLIC_KEYS) {
-        pub = true;
-        flags &= ~RNP_LOAD_SAVE_PUBLIC_KEYS;
-    }
+    bool sec = extract_flag(flags, RNP_LOAD_SAVE_SECRET_KEYS);
+    bool pub = extract_flag(flags, RNP_LOAD_SAVE_PUBLIC_KEYS);
     if (!pub && !sec) {
         FFI_LOG(ffi, "bad flags: need to specify public and/or secret keys");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    bool skipbad = false;
-    if (flags & RNP_LOAD_SAVE_PERMISSIVE) {
-        skipbad = true;
-        flags &= ~RNP_LOAD_SAVE_PERMISSIVE;
-    }
-    bool single = false;
-    if (flags & RNP_LOAD_SAVE_SINGLE) {
-        single = true;
-        flags &= ~RNP_LOAD_SAVE_SINGLE;
-    }
-    bool base64 = false;
-    if (flags & RNP_LOAD_SAVE_BASE64) {
-        base64 = true;
-        flags &= ~RNP_LOAD_SAVE_BASE64;
-    }
+    bool skipbad = extract_flag(flags, RNP_LOAD_SAVE_PERMISSIVE);
+    bool single = extract_flag(flags, RNP_LOAD_SAVE_SINGLE);
+    bool base64 = extract_flag(flags, RNP_LOAD_SAVE_BASE64);
     if (flags) {
         FFI_LOG(ffi, "unexpected flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -2178,16 +2160,8 @@ try {
     if (!output || !path) {
         return RNP_ERROR_NULL_POINTER;
     }
-    bool overwrite = false;
-    bool random = false;
-    if (flags & RNP_OUTPUT_FILE_OVERWRITE) {
-        overwrite = true;
-        flags &= ~RNP_OUTPUT_FILE_OVERWRITE;
-    }
-    if (flags & RNP_OUTPUT_FILE_RANDOM) {
-        random = true;
-        flags &= ~RNP_OUTPUT_FILE_RANDOM;
-    }
+    bool overwrite = extract_flag(flags, RNP_OUTPUT_FILE_OVERWRITE);
+    bool random = extract_flag(flags, RNP_OUTPUT_FILE_RANDOM);
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -2518,12 +2492,7 @@ rnp_op_set_expiration_time(rnp_ctx_t &ctx, uint32_t expire)
 static rnp_result_t
 rnp_op_set_flags(rnp_ffi_t ffi, rnp_ctx_t &ctx, uint32_t flags)
 {
-    if (flags & RNP_ENCRYPT_NOWRAP) {
-        ctx.no_wrap = true;
-        flags &= ~RNP_ENCRYPT_NOWRAP;
-    } else {
-        ctx.no_wrap = false;
-    }
+    ctx.no_wrap = extract_flag(flags, RNP_ENCRYPT_NOWRAP);
     if (flags) {
         FFI_LOG(ffi, "Unknown operation flags: %x", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -3276,19 +3245,9 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     /* Allow to decrypt without valid signatures */
-    if (flags & RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT) {
-        op->ignore_sigs = true;
-        flags &= ~RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT;
-    } else {
-        op->ignore_sigs = false;
-    }
+    op->ignore_sigs = extract_flag(flags, RNP_VERIFY_IGNORE_SIGS_ON_DECRYPT);
     /* Strict mode: require all signatures to be valid */
-    if (flags & RNP_VERIFY_REQUIRE_ALL_SIGS) {
-        op->require_all_sigs = true;
-        flags &= ~RNP_VERIFY_REQUIRE_ALL_SIGS;
-    } else {
-        op->require_all_sigs = false;
-    }
+    op->require_all_sigs = extract_flag(flags, RNP_VERIFY_REQUIRE_ALL_SIGS);
     if (flags) {
         FFI_LOG(op->ffi, "Unknown operation flags: %x", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -3887,12 +3846,8 @@ FFI_GUARD
 rnp_result_t
 rnp_key_export(rnp_key_handle_t handle, rnp_output_t output, uint32_t flags)
 try {
-    pgp_dest_t *     dst = NULL;
-    pgp_dest_t       armordst = {};
-    pgp_key_t *      key = NULL;
-    rnp_key_store_t *store = NULL;
-    bool             export_subs = false;
-    bool             armored = false;
+    pgp_dest_t *dst = NULL;
+    pgp_dest_t  armordst = {};
 
     // checks
     if (!handle || !output) {
@@ -3905,26 +3860,22 @@ try {
     }
 
     // handle flags
-    if (flags & RNP_KEY_EXPORT_ARMORED) {
-        flags &= ~RNP_KEY_EXPORT_ARMORED;
-        armored = true;
-    }
+    bool             armored = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
+    pgp_key_t *      key = NULL;
+    rnp_key_store_t *store = NULL;
     if (flags & RNP_KEY_EXPORT_PUBLIC) {
-        flags &= ~RNP_KEY_EXPORT_PUBLIC;
+        extract_flag(flags, RNP_KEY_EXPORT_PUBLIC);
         key = get_key_require_public(handle);
         store = handle->ffi->pubring;
     } else if (flags & RNP_KEY_EXPORT_SECRET) {
-        flags &= ~RNP_KEY_EXPORT_SECRET;
+        extract_flag(flags, RNP_KEY_EXPORT_SECRET);
         key = get_key_require_secret(handle);
         store = handle->ffi->secring;
     } else {
         FFI_LOG(handle->ffi, "must specify public or secret key for export");
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (flags & RNP_KEY_EXPORT_SUBKEYS) {
-        flags &= ~RNP_KEY_EXPORT_SUBKEYS;
-        export_subs = true;
-    }
+    bool export_subs = extract_flag(flags, RNP_KEY_EXPORT_SUBKEYS);
     // check for any unrecognized flags
     if (flags) {
         FFI_LOG(handle->ffi, "unrecognized flags remaining: 0x%X", flags);
@@ -3994,11 +3945,7 @@ try {
     if (!key || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    bool base64 = false;
-    if (flags & RNP_KEY_EXPORT_BASE64) {
-        base64 = true;
-        flags &= ~RNP_KEY_EXPORT_BASE64;
-    }
+    bool base64 = extract_flag(flags, RNP_KEY_EXPORT_BASE64);
     if (flags) {
         FFI_LOG(key->ffi, "Unknown flags remaining: 0x%X", flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -4124,8 +4071,7 @@ try {
     if (!key || !key->ffi || !output) {
         return RNP_ERROR_NULL_POINTER;
     }
-    bool need_armor = flags & RNP_KEY_EXPORT_ARMORED;
-    flags &= ~RNP_KEY_EXPORT_ARMORED;
+    bool need_armor = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
@@ -4251,21 +4197,9 @@ try {
     if (!key || !key->ffi) {
         return RNP_ERROR_NULL_POINTER;
     }
-    bool pub = false;
-    if (flags & RNP_KEY_REMOVE_PUBLIC) {
-        pub = true;
-        flags &= ~RNP_KEY_REMOVE_PUBLIC;
-    }
-    bool sec = false;
-    if (flags & RNP_KEY_REMOVE_SECRET) {
-        sec = true;
-        flags &= ~RNP_KEY_REMOVE_SECRET;
-    }
-    bool sub = false;
-    if (flags & RNP_KEY_REMOVE_SUBKEYS) {
-        sub = true;
-        flags &= ~RNP_KEY_REMOVE_SUBKEYS;
-    }
+    bool pub = extract_flag(flags, RNP_KEY_REMOVE_PUBLIC);
+    bool sec = extract_flag(flags, RNP_KEY_REMOVE_SECRET);
+    bool sub = extract_flag(flags, RNP_KEY_REMOVE_SUBKEYS);
     if (flags) {
         FFI_LOG(key->ffi, "Unknown flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -4409,15 +4343,9 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     uint32_t origflags = flags;
-    if (flags & RNP_KEY_SIGNATURE_INVALID) {
-        flags &= ~RNP_KEY_SIGNATURE_INVALID;
-    }
-    if (flags & RNP_KEY_SIGNATURE_NON_SELF_SIG) {
-        flags &= ~RNP_KEY_SIGNATURE_NON_SELF_SIG;
-    }
-    if (flags & RNP_KEY_SIGNATURE_UNKNOWN_KEY) {
-        flags &= ~RNP_KEY_SIGNATURE_UNKNOWN_KEY;
-    }
+    extract_flag(flags,
+                 RNP_KEY_SIGNATURE_INVALID | RNP_KEY_SIGNATURE_NON_SELF_SIG |
+                   RNP_KEY_SIGNATURE_UNKNOWN_KEY);
     if (flags) {
         FFI_LOG(handle->ffi, "Invalid flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -6476,14 +6404,10 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     uint8_t keyflag = 0;
-    bool    no_primary = false;
     if (!str_to_key_flag(usage, &keyflag)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (flags & RNP_KEY_SUBKEYS_ONLY) {
-        no_primary = true;
-        flags &= ~RNP_KEY_SUBKEYS_ONLY;
-    }
+    bool no_primary = extract_flag(flags, RNP_KEY_SUBKEYS_ONLY);
     if (flags) {
         FFI_LOG(primary_key->ffi, "Invalid flags: %" PRIu32, flags);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -7984,26 +7908,16 @@ static rnp_result_t
 rnp_dump_src_to_json(pgp_source_t *src, uint32_t flags, char **result)
 {
     rnp_dump_ctx_t dumpctx = {};
-    json_object *  jso = NULL;
-    rnp_result_t   ret = RNP_ERROR_GENERIC;
 
-    if (flags & RNP_JSON_DUMP_MPI) {
-        dumpctx.dump_mpi = true;
-        flags &= ~RNP_JSON_DUMP_MPI;
-    }
-    if (flags & RNP_JSON_DUMP_RAW) {
-        dumpctx.dump_packets = true;
-        flags &= ~RNP_JSON_DUMP_RAW;
-    }
-    if (flags & RNP_JSON_DUMP_GRIP) {
-        dumpctx.dump_grips = true;
-        flags &= ~RNP_JSON_DUMP_GRIP;
-    }
+    dumpctx.dump_mpi = extract_flag(flags, RNP_JSON_DUMP_MPI);
+    dumpctx.dump_packets = extract_flag(flags, RNP_JSON_DUMP_RAW);
+    dumpctx.dump_grips = extract_flag(flags, RNP_JSON_DUMP_GRIP);
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    ret = stream_dump_packets_json(&dumpctx, src, &jso);
+    json_object *jso = NULL;
+    rnp_result_t ret = stream_dump_packets_json(&dumpctx, src, &jso);
     if (ret) {
         goto done;
     }
@@ -8061,19 +7975,9 @@ try {
     }
 
     rnp_dump_ctx_t dumpctx = {};
-
-    if (flags & RNP_DUMP_MPI) {
-        dumpctx.dump_mpi = true;
-        flags &= ~RNP_DUMP_MPI;
-    }
-    if (flags & RNP_DUMP_RAW) {
-        dumpctx.dump_packets = true;
-        flags &= ~RNP_DUMP_RAW;
-    }
-    if (flags & RNP_DUMP_GRIP) {
-        dumpctx.dump_grips = true;
-        flags &= ~RNP_DUMP_GRIP;
-    }
+    dumpctx.dump_mpi = extract_flag(flags, RNP_DUMP_MPI);
+    dumpctx.dump_packets = extract_flag(flags, RNP_DUMP_RAW);
+    dumpctx.dump_grips = extract_flag(flags, RNP_DUMP_GRIP);
     if (flags) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
