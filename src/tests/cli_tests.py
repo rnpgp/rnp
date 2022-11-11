@@ -551,7 +551,7 @@ def gpg_verify_file(src, dst, signer=None):
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
     if not match:
         raise_err('wrong gpg verification output', err)
-    if signer and (not match.group(1) == signer):
+    if signer and (match.group(1) != signer):
         raise_err('gpg verification failed, wrong signer')
 
 
@@ -566,7 +566,7 @@ def gpg_verify_detached(src, sig, signer=None):
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
     if not match:
         raise_err('wrong gpg detached verification output', err)
-    if signer and (not match.group(1) == signer):
+    if signer and (match.group(1) != signer):
         raise_err('gpg detached verification failed, wrong signer')
 
 
@@ -580,7 +580,7 @@ def gpg_verify_cleartext(src, signer=None):
     match = re.match(RE_GPG_GOOD_SIGNATURE, err)
     if not match:
         raise_err('wrong gpg verification output', err)
-    if signer and (not match.group(1) == signer):
+    if signer and (match.group(1) != signer):
         raise_err('gpg verification failed, wrong signer')
 
 
@@ -3247,13 +3247,17 @@ class Misc(unittest.TestCase):
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*Unsupported keystore format: "WRONG"')
         # Use G10 keystore format
-        ret, _, err = run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_3), '--keystore-format', 'G10', '--list-keys'])
+        RNPG10 = RNPDIR + '/g10'
+        #os.mkdir(RNPG10, 0o700)
+        kring = shutil.copytree(data_path(KEYRING_DIR_3), RNPG10)
+        ret, _, err = run_proc(RNPK, ['--homedir', kring, '--keystore-format', 'G10', '--list-keys'])
         self.assertEqual(ret, 1)
         self.assertRegex(err, r'(?s)^.*Warning: no keys were loaded from the keyring \'.*private-keys-v1.d\'')
         # Use G21 keystore format
-        ret, out, _ = run_proc(RNPK, ['--homedir', data_path(KEYRING_DIR_3), '--keystore-format', 'GPG21', '--list-keys'])
+        ret, out, _ = run_proc(RNPK, ['--homedir', kring, '--keystore-format', 'GPG21', '--list-keys'])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*2 keys found')
+        shutil.rmtree(RNPG10, ignore_errors=True)
 
     def test_no_twofish(self):
         if (RNP_TWOFISH):
