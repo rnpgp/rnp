@@ -167,7 +167,7 @@ pacman -Syu --noconfirm --needed
 pacman -Syu --noconfirm --needed
 
 # Install packages
-pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper gnupg2 make pkg-config mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
+pacman --noconfirm -S --needed tar zlib-devel libbz2-devel git automake autoconf libtool automake-wrapper make pkg-config mingw64/mingw-w64-x86_64-cmake mingw64/mingw-w64-x86_64-gcc mingw64/mingw-w64-x86_64-json-c mingw64/mingw-w64-x86_64-libbotan mingw64/mingw-w64-x86_64-python3
 ----
 
 Then clone the RNP repository and build it.
@@ -182,7 +182,7 @@ cd rnp-build
 export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PWD/bin:$PATH"
 
 # Run CMake
-cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" ../rnp
+cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" -DBUILD_TESTING=off ../rnp
 
 # Compile and install
 make && make install
@@ -215,7 +215,7 @@ There are two ways to compile and install:
 # CMake encourages out-of source builds.
 mkdir rnp-build
 cd rnp-build
-cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release ../rnp
+cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off ../rnp
 cmake --build . --config Release
 cmake --install .
 ----
