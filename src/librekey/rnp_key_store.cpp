@@ -68,21 +68,19 @@ bool
 rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                              const pgp_key_provider_t *key_provider)
 {
-    bool         rc;
     pgp_source_t src = {};
-    std::string  dirname;
 
     if (key_store->format == PGP_KEY_STORE_G10) {
         auto dir = rnp_opendir(key_store->path.c_str());
-        if (dir == NULL) {
+        if (!dir) {
             RNP_LOG(
               "Can't open G10 directory %s: %s", key_store->path.c_str(), strerror(errno));
             return false;
         }
 
-        errno = 0;
+        std::string dirname;
         while (!((dirname = rnp_readdir_name(dir)).empty())) {
-            std::string path = key_store->path + '/' + dirname;
+            std::string path = rnp::path::append(key_store->path, dirname);
 
             if (init_file_src(&src, path.c_str())) {
                 RNP_LOG("failed to read file %s", path.c_str());
@@ -95,7 +93,7 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
             src_close(&src);
         }
         rnp_closedir(dir);
-        return errno ? false : true;
+        return true;
     }
 
     /* init file source and load from it */
@@ -104,7 +102,7 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
         return false;
     }
 
-    rc = rnp_key_store_load_from_src(key_store, &src, key_provider);
+    bool rc = rnp_key_store_load_from_src(key_store, &src, key_provider);
     src_close(&src);
     return rc;
 }
