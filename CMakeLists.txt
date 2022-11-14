@@ -33,6 +33,7 @@ cmake_minimum_required(VERSION 3.14)
 
 # contact email, other info
 include(cmake/info.cmake)
+include(FetchContent)
 
 # determine version
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
@@ -166,6 +167,21 @@ if (ENABLE_DOC)
   include(AdocMan)
 endif()
 
+# download and build sexp library
+message(STATUS "Downloading SEXP library")
+FetchContent_Declare(sexp
+  GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
+  GIT_TAG         v0.3.0
+)
+
+set(WITH_SEXP_TESTS OFF CACHE BOOL "" FORCE)
+set(WITH_SEXP_CLI OFF CACHE BOOL "" FORCE)
+
+FetchContent_MakeAvailable(sexp)
+
+include_directories("${sexp_SOURCE_DIR}/include")
+set(SEXP_LIBRARY_DIR ${sexp_BINARY_DIR})
+
 # everything else is in subdirs
 add_subdirectory(src/examples)
 if (ENABLE_FUZZERS)
@@ -195,4 +211,3 @@ endif()
 
 # cpack packaging (RPM etc)
 include(cmake/packaging.cmake)
-
