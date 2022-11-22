@@ -246,7 +246,7 @@ delete_recursively(const char *path)
 
 #ifdef WINSHELLAPI
     SHFILEOPSTRUCTA fileOp = {};
-    fileOp.fFlags = FOF_NOCONFIRMATION;
+    fileOp.fFlags = FOF_SILENT | FOF_NOCONFIRMATION | FOF_NOERRORUI;
     assert_true(fullpath.size() < MAX_PATH);
     char newFrom[MAX_PATH + 1];
     strcpy_s(newFrom, fullpath.c_str());
@@ -257,7 +257,7 @@ delete_recursively(const char *path)
     fileOp.hNameMappings = NULL;
     fileOp.hwnd = NULL;
     fileOp.lpszProgressTitle = NULL;
-    assert_int_equal(0, SHFileOperationA(&fileOp));
+    SHFileOperationA(&fileOp);
 #else
     nftw(path, remove_cb, 64, FTW_DEPTH | FTW_PHYS);
 #endif
