@@ -42,8 +42,6 @@
 #include "pgp-key.h"
 #include "g10_sexp.hpp"
 
-#include "sexp/sexp-error.h"
-
 #define G10_CBC_IV_SIZE 16
 
 #define G10_OCB_NONCE_SIZE 12
@@ -169,56 +167,45 @@ parse_format(const char *format, size_t format_len)
 }
 
 void
-s_exp_t::add(std::unique_ptr<s_exp_element_t> sptr)
-{
-    push_back(std::move(sptr));
-}
-
-void
 s_exp_t::add(const std::string &str)
 {
-    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(str)));
+    push_back(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(str)));
 }
 
 void
 s_exp_t::add(const uint8_t *data, size_t size)
 {
-    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(data, size)));
+    push_back(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(data, size)));
 }
 
 void
 s_exp_t::add(unsigned u)
 {
-    add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(u)));
+    push_back(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(u)));
 }
 
 s_exp_t &
 s_exp_t::add_sub()
 {
     s_exp_t *res = new s_exp_t();
-    add(std::unique_ptr<s_exp_t>(res));
+    push_back(std::unique_ptr<s_exp_t>(res));
     return *res;
 }
 
 /*
  * Parse G10 S-exp.
- *
- * Supported format: (1:a2:ab(3:asd1:a))
- * It should be parsed to:
- *   - a
- *   - ab
- *   + - asd
- *     - a
- *
+ * sexp library support canonical and advanced transport formats
+ * as well as base64 encoding of canonical
+ * https://people.csail.mit.edu/rivest/Sexp.txt
  */
 
 bool
-s_exp_t::parse(const char **r_bytes, size_t *r_length, size_t depth)
+s_exp_t::parse(const char *r_bytes, size_t r_length, size_t depth)
 {
     bool res = false;
-    std::istringstream iss(std::string(*r_bytes, *r_length));
+    std::istringstream iss(std::string(r_bytes, r_length));
     try {
-        sexp::sexp_input_stream_t sis(&iss);
+        sexp::sexp_input_stream_t sis(&iss, depth);
         sexp::sexp_list_t::parse(sis.set_byte_size(8)->get_char());
         res = true;
     }
@@ -227,7 +214,6 @@ s_exp_t::parse(const char **r_bytes, size_t *r_length, size_t depth)
     }
     return res;
 }
-
 
 #define STR_HELPER(x) #x
 #define STR(x) STR_HELPER(x)
@@ -243,9 +229,8 @@ s_exp_block_t::s_exp_block_t(const pgp_mpi_t &mpi)
         return;
     }
     if (mpi.mpi[idx] & 0x80) {
-        data_string = (const uint8_t *)"x";
+        data_string.append(0);
         data_string.std::basic_string<uint8_t>::append(mpi.mpi + idx, len - idx);
-        data_string[0] = 0;
         return;
     }
     data_string.assign(mpi.mpi + idx, mpi.mpi + len);
@@ -266,7 +251,7 @@ lookup_var(const sexp::sexp_list_t *list, const std::string &name) noexcept
     // that:
     //  -- has at least two SEXP elements (condition 2)
     //  -- has a SEXP string at 0 postion (condition 3)
-    //     matching give name             (condition 4)
+    //     matching given name            (condition 4)
     auto match = [name] (const std::unique_ptr<sexp::sexp_object_t> &ptr)
     {
         bool r = false;
@@ -341,8 +326,8 @@ void
 s_exp_t::add_mpi(const std::string &name, const pgp_mpi_t &val)
 {
     s_exp_t &sub_s_exp = add_sub();
-    sub_s_exp.add(name);
-    sub_s_exp.add(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(val)));
+    sub_s_exp.push_back(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(name)));
+    sub_s_exp.push_back(std::unique_ptr<s_exp_block_t>(new s_exp_block_t(val)));
 }
 
 void
@@ -533,7 +518,7 @@ decrypt_protected_section(const sexp::sexp_simple_string_t &encrypted_data,
 
     // parse and validate the decrypted s-exp
 
-    if (!r_s_exp.parse(&decrypted_bytes, &s_exp_len)) {
+    if (!r_s_exp.parse(decrypted_bytes, s_exp_len, SXP_MAX_DEPTH)) {
         goto done;
     }
     if (!r_s_exp.size() || r_s_exp.at(0)->is_sexp_string()) {
@@ -597,7 +582,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
         return false;
     }
     auto &hash_bt = alg->sexp_string_at(0)->get_string();
-    if (!(hash_bt == "sha1")) {
+    if (hash_bt!= "sha1") {
         RNP_LOG("Wrong hashing algorithm, should be sha1 but %.*s\n",
                 (int) hash_bt.size(),
                 (const char *) hash_bt.data());
@@ -680,12 +665,12 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
         }
 
         auto &hkey = sub_el->sexp_string_at(0)->get_string();
-        if (!(hkey=="hash")) {
+        if (hkey != "hash") {
             RNP_LOG("Has got wrong hash block at encrypted key data.");
             return false;
         }
         auto &halg = sub_el->sexp_string_at(1)->get_string();
-        if (!(halg == "sha1")) {
+        if (halg != "sha1") {
             RNP_LOG("Supported only sha1 hash at encrypted private key.");
             return false;
         }
@@ -713,7 +698,7 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
 {
     s_exp_t     s_exp;
     const char *bytes = (const char *) data;
-    if (!s_exp.parse(&bytes, &data_len)) {
+    if (!s_exp.parse(bytes, data_len, SXP_MAX_DEPTH)) {
 
         RNP_LOG("Failed to parse s-exp.");
         return false;
@@ -921,53 +906,6 @@ s_exp_t::write(pgp_dest_t &dst) const noexcept
 
     return res;
 }
-
-/*
-#define MAX_SIZE_T_LEN ((3 * sizeof(size_t) * CHAR_BIT / 8) + 2)
-
-bool
-s_exp_block_t::write(const s_exp_block_t &s_exp, pgp_dest_t &dst) noexcept
-{
-    char   blen[MAX_SIZE_T_LEN + 1] = {0};
-    size_t len = snprintf(blen, sizeof(blen), "%zu:", s_exp.get_string().size());
-    dst_write(&dst, blen, len);
-    dst_write(&dst, s_exp.get_string().data(), s_exp.get_string().size());
-    return dst.werr == RNP_SUCCESS;
-}
-*/
-/*
- * Write G10 S-exp to buffer
- *
- * Supported format: (1:a2:ab(3:asd1:a))
- */
-/*
-bool
-s_exp_t::write(const s_exp_t &s_exp, pgp_dest_t &dst) noexcept
-{
-    dst_write(&dst, "(", 1);
-    if (dst.werr) {
-        return false;
-    }
-
-    for (auto &ptr : s_exp) {
-        if (ptr->is_sexp_string()) {
-            auto p1 = dynamic_cast<const s_exp_block_t *>(ptr->sexp_string_view());
-            if (!s_exp_block_t::write(*p1, dst)) return false;
-        }
-        else if (ptr->is_sexp_list()) {
-            auto p2 = dynamic_cast<const s_exp_t *>(ptr->sexp_list_view());
-            if (!s_exp_t::write(*p2, dst)) return false;
-        }
-        else {
-            return false;
-        }
-
-    }
-    dst_write(&dst, ")", 1);
-    return !dst.werr;
-}
-*/
-
 
 void
 s_exp_t::add_pubkey(const pgp_key_pkt_t &key)

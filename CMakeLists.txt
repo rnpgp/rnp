@@ -171,7 +171,7 @@ endif()
 message(STATUS "Downloading SEXP library")
 FetchContent_Declare(sexp
   GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
-  GIT_TAG         v0.3.0
+  GIT_TAG         v0.5.0
 )
 
 set(WITH_SEXP_TESTS OFF CACHE BOOL "" FORCE)
