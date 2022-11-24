@@ -60,7 +60,7 @@ jobs:
             CXX: clang++
             CRYPTO_BACKEND: botan
     env: ${{ matrix.env }}
-    name: fedora35 [${{ CRYPTO_BACKEND }} mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
+    name: fedora35 [${{ matrix.env.CRYPTO_BACKEND }} mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
     steps:
       - uses: actions/checkout@v3
         with:
