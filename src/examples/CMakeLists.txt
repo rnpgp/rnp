@@ -55,7 +55,6 @@ target_include_directories(generate
 target_link_libraries(generate
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 add_executable(encrypt encrypt.c)
@@ -69,7 +68,6 @@ target_include_directories(encrypt
 target_link_libraries(encrypt
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 add_executable(decrypt decrypt.c)
@@ -83,7 +81,6 @@ target_include_directories(decrypt
 target_link_libraries(decrypt
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 add_executable(sign sign.c)
@@ -97,7 +94,6 @@ target_include_directories(sign
 target_link_libraries(sign
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 add_executable(verify verify.c)
@@ -111,7 +107,6 @@ target_include_directories(verify
 target_link_libraries(verify
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 add_executable(dump dump.c)
@@ -125,7 +120,6 @@ target_include_directories(dump
 target_link_libraries(dump
   PRIVATE
     librnp
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 
 if(MSVC)

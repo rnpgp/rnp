@@ -102,7 +102,7 @@ jobs:
       - name: supported-features
         run: |
           set -euxo pipefail
-          export LD_LIBRARY_PATH="${JSONC_INSTALL}/lib64:${RNP_INSTALL}/lib64"
+          export LD_LIBRARY_PATH="${JSONC_INSTALL}/lib64:${SEXP_INSTALL}/lib64:${RNP_INSTALL}/lib64"
           $RNP_INSTALL/bin/rnp --version > rnp-version
           # Make sure that we support all features which should be supported
           supported=( RSA ELGAMAL DSA ECDH ECDSA EDDSA \

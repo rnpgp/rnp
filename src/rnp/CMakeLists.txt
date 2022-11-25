@@ -77,7 +77,6 @@ target_link_libraries(rnp
   PRIVATE
     librnp
     JSON-C::JSON-C
-    ${SEXP_LIBRARY_DIR}/libsexp.a
 )
 if(MSVC)
   target_link_libraries(rnp

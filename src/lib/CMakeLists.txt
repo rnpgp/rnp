@@ -314,6 +314,7 @@ target_include_directories(librnp-obj
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
+    "${SEXP_INCLUDE_DIR}"
 )
 target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
 if (CRYPTO_BACKEND_BOTAN)
@@ -321,6 +322,8 @@ if (CRYPTO_BACKEND_BOTAN)
 elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
+
+target_link_libraries(librnp-obj PRIVATE Sexp::Sexp)
 
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
@@ -395,7 +398,7 @@ install(TARGETS librnp
     DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
     COMPONENT runtime
     ${namelink_component}
-  ARCHIVE 
+  ARCHIVE
     DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
     COMPONENT development
 )

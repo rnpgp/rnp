@@ -167,20 +167,7 @@ if (ENABLE_DOC)
   include(AdocMan)
 endif()
 
-# download and build sexp library
-message(STATUS "Downloading SEXP library")
-FetchContent_Declare(sexp
-  GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
-  GIT_TAG         v0.5.0
-)
-
-set(WITH_SEXP_TESTS OFF CACHE BOOL "" FORCE)
-set(WITH_SEXP_CLI OFF CACHE BOOL "" FORCE)
-
-FetchContent_MakeAvailable(sexp)
-
-include_directories("${sexp_SOURCE_DIR}/include")
-set(SEXP_LIBRARY_DIR ${sexp_BINARY_DIR})
+find_package(Sexp REQUIRED)
 
 # everything else is in subdirs
 add_subdirectory(src/examples)

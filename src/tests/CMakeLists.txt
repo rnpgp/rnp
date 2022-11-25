@@ -170,12 +170,13 @@ target_include_directories(rnp_tests
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
     "${BOTAN2_INCLUDE_DIRS}"
+    "${SEXP_INCLUDE_DIRS}"
 )
 target_link_libraries(rnp_tests
   PRIVATE
     librnp-static
     JSON-C::JSON-C
-    ${SEXP_LIBRARY_DIR}/libsexp.a
+    Sexp::Sexp
     ${GTestMain}
 )
 if (CRYPTO_BACKEND STREQUAL "openssl")
