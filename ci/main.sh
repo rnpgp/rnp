@@ -32,7 +32,7 @@ prepare_build_prerequisites() {
 prepare_test_env() {
   prepare_build_tool_env
 
-  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${SEXP_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
+  export LD_LIBRARY_PATH="${GPG_INSTALL}/lib:${BOTAN_INSTALL}/lib:${JSONC_INSTALL}/lib:${RNP_INSTALL}/lib:$LD_LIBRARY_PATH"
 
   # update dll search path for windows
   if [[ "${OS}" = "msys" ]]; then
@@ -91,6 +91,7 @@ main() {
   [[ "${BUILD_MODE}" = "sanitize" ]] && cmakeopts+=(-DENABLE_SANITIZERS=yes)
   [ -n "${GTEST_SOURCES:-}" ] && cmakeopts+=(-DGTEST_SOURCES="${GTEST_SOURCES}")
   [ -n "${DOWNLOAD_GTEST:-}" ] && cmakeopts+=(-DDOWNLOAD_GTEST="${DOWNLOAD_GTEST}")
+  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
   [ -n "${DOWNLOAD_RUBYRNP:-}" ] && cmakeopts+=(-DDOWNLOAD_RUBYRNP="${DOWNLOAD_RUBYRNP}")
   [ -n "${CRYPTO_BACKEND:-}" ] && cmakeopts+=(-DCRYPTO_BACKEND="${CRYPTO_BACKEND}")
   [ -n "${ENABLE_SM2:-}" ] && cmakeopts+=(-DENABLE_SM2="${ENABLE_SM2}")

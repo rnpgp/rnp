@@ -202,14 +202,13 @@ s_exp_t::add_sub()
 bool
 s_exp_t::parse(const char *r_bytes, size_t r_length, size_t depth)
 {
-    bool res = false;
+    bool               res = false;
     std::istringstream iss(std::string(r_bytes, r_length));
     try {
         sexp::sexp_input_stream_t sis(&iss, depth);
         sexp::sexp_list_t::parse(sis.set_byte_size(8)->get_char());
         res = true;
-    }
-    catch(sexp::sexp_exception_t &e) {
+    } catch (sexp::sexp_exception_t &e) {
         RNP_LOG("%s", e.what());
     }
     return res;
@@ -252,13 +251,12 @@ lookup_var(const sexp::sexp_list_t *list, const std::string &name) noexcept
     //  -- has at least two SEXP elements (condition 2)
     //  -- has a SEXP string at 0 postion (condition 3)
     //     matching given name            (condition 4)
-    auto match = [name] (const std::unique_ptr<sexp::sexp_object_t> &ptr)
-    {
+    auto match = [name](const std::unique_ptr<sexp::sexp_object_t> &ptr) {
         bool r = false;
         auto r1 = ptr->sexp_list_view();
-        if (r1 && r1->size() >= 2) {  // conditions (1) and (2)
+        if (r1 && r1->size() >= 2) { // conditions (1) and (2)
             auto r2 = r1->sexp_string_at(0);
-            if (r2 && r2 == name)     // conditions (3) and (4)
+            if (r2 && r2 == name) // conditions (3) and (4)
                 r = true;
         }
         return r;
@@ -449,9 +447,9 @@ parse_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *s_exp, pgp_pubkey_a
 
 static bool
 decrypt_protected_section(const sexp::sexp_simple_string_t &encrypted_data,
-                          const pgp_key_pkt_t &       seckey,
-                          const std::string &         password,
-                          s_exp_t &                   r_s_exp)
+                          const pgp_key_pkt_t &             seckey,
+                          const std::string &               password,
+                          s_exp_t &                         r_s_exp)
 {
     const format_info *     info = NULL;
     unsigned                keysize = 0;
@@ -536,7 +534,9 @@ done:
 }
 
 static bool
-parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, const char *password)
+parse_protected_seckey(pgp_key_pkt_t &          seckey,
+                       const sexp::sexp_list_t *list,
+                       const char *             password)
 {
     // find and validate the protected section
     const sexp::sexp_list_t *protected_key = lookup_var(list, "protected");
@@ -569,7 +569,8 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
 
     // locate and validate the protection parameters
     auto params = protected_key->sexp_list_at(2);
-    if (params->size() != 2 || params->at(0)->is_sexp_string() || !params->at(1)->is_sexp_string()) {
+    if (params->size() != 2 || params->at(0)->is_sexp_string() ||
+        !params->at(1)->is_sexp_string()) {
         RNP_LOG("Wrong params format, expected: ((hash salt no_of_iterations) iv)\n");
         return false;
     }
@@ -582,7 +583,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
         return false;
     }
     auto &hash_bt = alg->sexp_string_at(0)->get_string();
-    if (hash_bt!= "sha1") {
+    if (hash_bt != "sha1") {
         RNP_LOG("Wrong hashing algorithm, should be sha1 but %.*s\n",
                 (int) hash_bt.size(),
                 (const char *) hash_bt.data());
@@ -634,7 +635,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
         return false;
     }
     // see if we have a protected-at section
-    char           protected_at[G10_PROTECTED_AT_SIZE] = {0};
+    char protected_at[G10_PROTECTED_AT_SIZE] = {0};
     auto protected_at_data = lookup_var_data(list, "protected-at");
     if (protected_at_data) {
         if (protected_at_data->get_string().size() != G10_PROTECTED_AT_SIZE) {
@@ -643,8 +644,9 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
                     G10_PROTECTED_AT_SIZE);
             return false;
         }
-        memcpy(
-          protected_at, protected_at_data->get_string().data(), protected_at_data->get_string().size());
+        memcpy(protected_at,
+               protected_at_data->get_string().data(),
+               protected_at_data->get_string().size());
     }
     // parse MPIs
     if (!parse_seckey(seckey, decrypted_s_exp.sexp_list_at(0), seckey.alg)) {
@@ -658,8 +660,8 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp::sexp_list_t *list, con
             return false;
         }
         auto sub_el = decrypted_s_exp.sexp_list_at(1);
-        if (sub_el->size() < 3 || !sub_el->at(0)->is_sexp_string() || !sub_el->at(1)->is_sexp_string() ||
-            !sub_el->at(2)->is_sexp_string()) {
+        if (sub_el->size() < 3 || !sub_el->at(0)->is_sexp_string() ||
+            !sub_el->at(1)->is_sexp_string() || !sub_el->at(2)->is_sexp_string()) {
             RNP_LOG("Wrong hash block structure.");
             return false;
         }
@@ -699,7 +701,6 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
     s_exp_t     s_exp;
     const char *bytes = (const char *) data;
     if (!s_exp.parse(bytes, data_len, SXP_MAX_DEPTH)) {
-
         RNP_LOG("Failed to parse s-exp.");
         return false;
     }
@@ -718,7 +719,7 @@ g10_parse_seckey(pgp_key_pkt_t &seckey,
         return false;
     }
 
-    bool  is_protected = false;
+    bool is_protected = false;
 
     auto &name = s_exp.sexp_string_at(0)->get_string();
     if (name == "private-key") {
@@ -891,17 +892,15 @@ s_exp_t::write(pgp_dest_t &dst) const noexcept
 {
     bool res = false;
     try {
-        std::ostringstream   oss(std::ios_base::binary);
+        std::ostringstream         oss(std::ios_base::binary);
         sexp::sexp_output_stream_t os(&oss);
         print_canonical(&os);
         const std::string &s = oss.str();
-        const char* ss = s.c_str();
+        const char *       ss = s.c_str();
         dst_write(&dst, ss, s.size());
         res = (dst.werr == RNP_SUCCESS);
 
-    }
-    catch (...) {
-
+    } catch (...) {
     }
 
     return res;

@@ -125,9 +125,9 @@ install_sexp() {
     wget https://github.com/rnpgp/sexp/archive/refs/tags/v"$SEXP_VERSION".tar.gz -O sexp.tar.gz
     tar xzf sexp.tar.gz --strip 1
 
-    cmake . -Bbuild -DCMAKE_INSTALL_PREFIX=${SEXP_INSTALL} \
-                    -DCMAKE_BUILD_TYPE=Release             \
-                    -DWITH_SEXP_TESTS=OFF                  \
+    cmake . -Bbuild -DCMAKE_INSTALL_PREFIX="${SEXP_INSTALL}"  \
+                    -DCMAKE_BUILD_TYPE=Release                \
+                    -DWITH_SEXP_TESTS=OFF                     \
                     -DWITH_SEXP_CLI=OFF
 
     cmake --build build --config Release

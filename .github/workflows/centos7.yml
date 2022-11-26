@@ -31,6 +31,10 @@ on:
       - '**.nix'
       - 'flake.lock'
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 env:
   CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad

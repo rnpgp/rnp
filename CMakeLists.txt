@@ -33,7 +33,6 @@ cmake_minimum_required(VERSION 3.14)
 
 # contact email, other info
 include(cmake/info.cmake)
-include(FetchContent)
 
 # determine version
 if (NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/cmake/version.cmake")
@@ -58,6 +57,7 @@ option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
+option(DOWNLOAD_SEXP "Use FetchContent to download sexp library" Off)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 # crypto components
 set(ENABLE_SM2 Auto CACHE STRING "Enable SM2/SM3/SM4 algorithms support.")
@@ -79,6 +79,7 @@ set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake/Modules")
 
 # required modules
 include(CTest)
+include(FetchContent)
 
 # default to a release build
 if (NOT CMAKE_BUILD_TYPE)
@@ -167,7 +168,14 @@ if (ENABLE_DOC)
   include(AdocMan)
 endif()
 
-find_package(Sexp REQUIRED)
+
+#download and build sexp library
+if(DOWNLOAD_SEXP)
+  message(STATUS "Downloading SEXP library")
+  include(DownloadSexp)
+else(DOWNLOAD_SEXP)
+  find_package(Sexp REQUIRED)
+endif(DOWNLOAD_SEXP)
 
 # everything else is in subdirs
 add_subdirectory(src/examples)

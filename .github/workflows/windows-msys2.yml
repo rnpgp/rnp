@@ -30,10 +30,15 @@ on:
       - '**.nix'
       - 'flake.lock'
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   GTEST_SOURCES: googletest-src
+  DOWNLOAD_SEXP: on
   CORES: 2
 
 jobs:

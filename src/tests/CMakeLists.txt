@@ -170,7 +170,7 @@ target_include_directories(rnp_tests
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
     "${BOTAN2_INCLUDE_DIRS}"
-    "${SEXP_INCLUDE_DIRS}"
+    "${SEXP_INCLUDE_DIR}"
 )
 target_link_libraries(rnp_tests
   PRIVATE

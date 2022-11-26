@@ -20,16 +20,11 @@ jobs:
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     steps:
       - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
       - uses: DoozyX/clang-format-lint-action@v0.11
         with:
           clangFormatVersion: 11
-      - uses: EndBug/add-and-commit@v4
-        with:
-          author_name: A robot on behalf of Maxim Samsonov
-          author_email: m.samsonov@computer.org
-          message: 'Committing clang-format changes'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   shellcheck:
     runs-on: ubuntu-latest
     steps:

@@ -324,6 +324,11 @@ elseif (CRYPTO_BACKEND_OPENSSL)
 endif()
 
 target_link_libraries(librnp-obj PRIVATE Sexp::Sexp)
+# If sexp library is downloaded and built from CMake ensure that
+# it is ready
+if(TARGET sexp)
+  add_dependencies(librnp-obj sexp)
+endif(TARGET sexp)
 
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
