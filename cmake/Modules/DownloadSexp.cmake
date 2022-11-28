@@ -50,7 +50,7 @@
 
 FetchContent_Declare(sexp
 GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
-GIT_TAG         v0.6.0pre
+GIT_TAG         v0.6.0
 )
 
 set(WITH_SEXP_TESTS OFF CACHE BOOL "" FORCE)
@@ -59,7 +59,7 @@ set(WITH_SEXP_CLI OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sexp)
 
 set(SEXP_FOUND true)
-set(SEXP_VERSION "v0.6.0pre")
+set(SEXP_VERSION "v0.6.0")
 set(SEXP_INCLUDE_DIR "${sexp_SOURCE_DIR}/include")
 if(MSVC)
   set(SEXP_LIBRARY "${sexp_BINARY_DIR}/${CMAKE_BUILD_TYPE}/sexp.lib")
