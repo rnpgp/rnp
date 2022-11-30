@@ -49,7 +49,9 @@
 #   SEXP_INCLUDE_DIR    - where to find headers
 #   SEXP_LIBRARY        - a library to link
 
-set(SEXP_VERSION 0.6.0)
+if(NOT SEXP_VERSION)
+  set(SEXP_VERSION "0.7.0")
+endif()
 
 FetchContent_Declare(sexp
   GIT_REPOSITORY  https://github.com/rnpgp/sexp.git

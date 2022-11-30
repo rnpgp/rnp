@@ -23,6 +23,7 @@
  * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
+#include <iostream>
 #include <sstream>
 #include <cassert>
 #include <botan/aead.h>
@@ -217,8 +218,8 @@ Cipher_Botan::finish(uint8_t *      output,
         *output_written += final_block.size();
         *input_consumed += input_length;
     } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return false;
+         RNP_LOG("%s", e.what());
+         return false;
     }
     return true;
 }

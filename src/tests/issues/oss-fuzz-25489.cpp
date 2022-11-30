@@ -26,14 +26,14 @@
 
 #include "../rnp_tests.h"
 #include "../support.h"
-#include "librekey/g10_sexp.hpp"
+#include "librekey/g23_sexp.hpp"
 
 TEST_F(rnp_tests, test_sxp_depth)
 {
-    s_exp_t     sxp = {};
-    const char *bytes;
-    size_t      len;
-    auto        mksxp = [](size_t depth) {
+    gnupg_sexp_t sxp = {};
+    const char * bytes;
+    size_t       len;
+    auto         mksxp = [](size_t depth) {
         std::string data;
         for (size_t i = 0; i < depth; i++) {
             data += "(1:a";
@@ -48,21 +48,21 @@ TEST_F(rnp_tests, test_sxp_depth)
         std::string data(mksxp(1));
         bytes = &data[0];
         len = data.size();
-        s_exp_t sexp;
+        gnupg_sexp_t sexp;
         assert_true(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH));
         bytes = &data[0];
         len = data.size();
-        s_exp_t sexp;
+        gnupg_sexp_t sexp;
         assert_true(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH + 1));
         bytes = &data[0];
         len = data.size();
-        s_exp_t sexp;
+        gnupg_sexp_t sexp;
         assert_false(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
 }
