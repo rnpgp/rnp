@@ -214,6 +214,67 @@ TEST_F(rnp_tests, test_cipher_idea)
 #endif
 }
 
+
+void
+test_xxx(pgp_symm_alg_t    alg,
+            pgp_cipher_mode_t mode,
+            size_t            tag_size,
+            bool              disable_padding,
+            const char *      key_hex,
+            const char *      iv_hex,
+            const char *      ct_hex)
+{
+    size_t output_written, input_consumed, nonfinal_bytes, written, consumed, ud;
+
+    ud = 256; //???
+
+    const std::vector<uint8_t> key(decode_hex(key_hex));
+    const std::vector<uint8_t> iv(decode_hex(iv_hex));
+    const std::vector<uint8_t> ct(decode_hex(ct_hex));
+
+    // decrypt
+    auto dec = Cipher::decryption(alg, mode, tag_size, disable_padding);
+    assert_true(dec->set_key(key.data(), key.size()));
+    assert_true(dec->set_iv(iv.data(), iv.size()));
+    // decrypt in pieces
+    std::vector<uint8_t> decrypted(ct.size());
+    // all except the last block
+    nonfinal_bytes = rnp_round_up(ct.size(), ud) - ud;
+    output_written = 0;
+    input_consumed = 0;
+    while (input_consumed != nonfinal_bytes) {
+        assert_true(dec->update(decrypted.data() + output_written,
+                                decrypted.size() - output_written,
+                                &written,
+                                (const uint8_t *) ct.data() + input_consumed,
+                                ud,
+                                &consumed));
+        output_written += written;
+        input_consumed += consumed;
+    }
+    assert_true(dec->finish(decrypted.data() + output_written,
+                            decrypted.size() - output_written,
+                            &written,
+                            (const uint8_t *) ct.data() + input_consumed,
+                            ct.size() - input_consumed,
+                            &consumed));
+    output_written += written;
+    decrypted.resize(output_written);
+}
+
+
+
+/*TEST_F(rnp_tests, test_cipher_xxx)
+{
+    test_xxx(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                true,
+                "AE514E620172B90CBA6D913D082F789A",
+                "2D16E46DC89AAF535496AED5",
+                "CEB1738EB01C4CD60E59F0FC7BF5A761722922CEB1118E976B39B85AB8C5F6594F3394AB771FDDE89BD2724346D542A329AE6B82C91F89407AB2D7358D9398AA26E6EB9BE965B6");
+}
+*/
 TEST_F(rnp_tests, test_cipher_aes_128_ocb)
 {
     // RFC 7253
