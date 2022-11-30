@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
     "-DBUILD_SHARED_LIBS=on"
     "-DBUILD_TESTING=on"
     "-DDOWNLOAD_GTEST=off"
+    "-DDOWNLOAD_SEXP=off"
     "-DDOWNLOAD_RUBYRNP=off"
   ];
 
