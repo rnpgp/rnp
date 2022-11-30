@@ -163,7 +163,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
                 return false;
             }
 
-            if (!rnp_key_store_g10_key_to_dst(&key, &keydst)) {
+            if (!rnp_key_store_gnupg_sexp_to_dst(&key, &keydst)) {
                 RNP_LOG("failed to write key to file");
                 dst_close(&keydst, true);
                 return false;

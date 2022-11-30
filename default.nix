@@ -7,8 +7,8 @@ let
   sexpSource = fetchgit {
     name = "sexp";
     url = "https://github.com/rnpgp/sexp.git";
-    rev = "refs/tags/v0.6.0";
-    sha256 = "oWOzVn7j2pYr4CxyN8O5f1n0tUxCIQ5YG5GZFvLMeGA=";
+    rev = "refs/tags/v0.7.0";
+    sha256 = "MA54sKyHBFB6ZAGQCHFswIeiVn/TgTjGhP1dE+fS+sU=";
   };
 in
 stdenv.mkDerivation rec {
@@ -26,6 +26,7 @@ stdenv.mkDerivation rec {
     "-DBUILD_SHARED_LIBS=on"
     "-DBUILD_TESTING=on"
     "-DDOWNLOAD_GTEST=off"
+    "-DDOWNLOAD_SEXP=off"
     "-DDOWNLOAD_RUBYRNP=off"
   ];
 
