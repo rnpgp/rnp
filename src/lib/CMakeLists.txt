@@ -408,6 +408,11 @@ install(TARGETS librnp
     COMPONENT development
 )
 
+install(FILES ${SEXP_LIBRARY}
+  DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+  COMPONENT development
+)
+
 # install dll only for windows
 if (WIN32)
   install(TARGETS librnp

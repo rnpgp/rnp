@@ -67,7 +67,7 @@ else(MSVC)
   set(SEXP_LIBRARY "${sexp_BINARY_DIR}/libsexp.a")
 endif(MSVC)
 
-add_library(Sexp::Sexp UNKNOWN IMPORTED)
+add_library(Sexp::Sexp STATIC IMPORTED)
 # set the required include dirs for the target
 set_target_properties(Sexp::Sexp
 PROPERTIES

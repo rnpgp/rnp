@@ -141,12 +141,13 @@ jobs:
       image: centos:7
     timeout-minutes: 10
     strategy:
+      fail-fast: false
       matrix:
         env:
           - BUILD_SHARED_LIBS: yes
           - BUILD_SHARED_LIBS: no
     env: ${{ matrix.env }}
-    continue-on-error: true
+    continue-on-error: false
     steps:
       - run: |
           yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm

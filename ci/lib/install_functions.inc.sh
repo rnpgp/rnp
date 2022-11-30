@@ -877,6 +877,10 @@ build_and_install() {
     -DCMAKE_INSTALL_PREFIX="${1:-/tmp}"
   )
 
+  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
+  [ -n "${SEXP_INSTALL:-}" ] && cmakeopts+=(-DCMAKE_PREFIX_PATH="${SEXP_INSTALL}")
+
+
   if [[ $# -gt 0 ]]; then
     shift
   fi
@@ -976,6 +980,7 @@ build_example_pkgconfig() {
 EOF
 
   cat <<"EOF" > CMakeLists.txt
+  project(mytest)
   set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
   find_package(BZip2 REQUIRED)
   find_package(ZLIB REQUIRED)

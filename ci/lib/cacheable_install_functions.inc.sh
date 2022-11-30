@@ -111,9 +111,7 @@ install_jsonc() {
 
 install_sexp() {
   local sexp_build=${LOCAL_BUILDS}/sexp
-  if [[ ! -e "${SEXP_INSTALL}/lib/sexp.so" ]] && \
-     [[ ! -e "${SEXP_INSTALL}/lib/sexp.dylib" ]] && \
-     [[ ! -e "${SEXP_INSTALL}/lib/sexp.a" ]]; then
+  if [[ ! -e "${SEXP_INSTALL}/lib/sexp.a" ]]; then
 
      if [ -d "${sexp_build}" ]; then
        rm -rf "${sexp_build}"

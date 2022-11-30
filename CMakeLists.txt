@@ -174,7 +174,7 @@ if(DOWNLOAD_SEXP)
   message(STATUS "Downloading SEXP library")
   include(DownloadSexp)
 else(DOWNLOAD_SEXP)
-  find_package(Sexp REQUIRED)
+  find_package(Sexp)
 endif(DOWNLOAD_SEXP)
 
 # everything else is in subdirs

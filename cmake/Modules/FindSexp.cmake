@@ -80,7 +80,7 @@ endif()
 
 if (SEXP_FOUND AND NOT TARGET Sexp::Sexp)
   # create the new library target
-  add_library(Sexp::Sexp UNKNOWN IMPORTED)
+  add_library(Sexp::Sexp STATIC IMPORTED)
   # set the required include dirs for the target
   if (SEXP_INCLUDE_DIR)
     set_target_properties(Sexp::Sexp
