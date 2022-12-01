@@ -42,15 +42,18 @@
 # This module defines the following variables:
 #
 # ::
-#
+# Param:
+#   SEXP_VERSION        - library version that we aim to download
+# Out:
 #   SEXP_FOUND          - true if the headers and library were found
 #   SEXP_INCLUDE_DIR    - where to find headers
 #   SEXP_LIBRARY        - a library to link
-#   SEXP_VERSION        - library version that was found, if any
+
+set(SEXP_VERSION 0.6.0)
 
 FetchContent_Declare(sexp
-GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
-GIT_TAG         v0.6.0
+  GIT_REPOSITORY  https://github.com/rnpgp/sexp.git
+  GIT_TAG         "v${SEXP_VERSION}"
 )
 
 set(WITH_SEXP_TESTS OFF CACHE BOOL "" FORCE)
@@ -59,7 +62,7 @@ set(WITH_SEXP_CLI OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(sexp)
 
 set(SEXP_FOUND true)
-set(SEXP_VERSION "v0.6.0")
+set(SEXP_VERSION "v${SEXP_VERSION}")
 set(SEXP_INCLUDE_DIR "${sexp_SOURCE_DIR}/include")
 if(MSVC)
   set(SEXP_LIBRARY "${sexp_BINARY_DIR}/${CMAKE_BUILD_TYPE}/sexp.lib")

@@ -970,7 +970,7 @@ build_example_pkgconfig() {
   mkdir rnp-project
   pushd rnp-project || return 1
 
-  cat <<"EOF" > mytest.cpp
+  cat <<"EOF" > find_package_test.cpp
   #include <rnp/rnp.h>
 
   int main(int argc, char *argv[]) {
@@ -980,7 +980,7 @@ build_example_pkgconfig() {
 EOF
 
   cat <<"EOF" > CMakeLists.txt
-  project(mytest)
+  project(find_package_test)
   set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
   find_package(BZip2 REQUIRED)
   find_package(ZLIB REQUIRED)
@@ -989,14 +989,14 @@ EOF
   find_package(rnp REQUIRED)
 
   cmake_minimum_required(VERSION 3.12)
-  add_executable(mytest mytest.cpp)
-  target_link_libraries(mytest rnp::librnp)
+  add_executable(find_package_test find_package_test.cpp)
+  target_link_libraries(find_package_test rnp::librnp)
 EOF
 
   cp "${rnpsrc}"/cmake/Modules/* .
   cmake .
   make VERBOSE="${VERBOSE}"
-  ./mytest
+  ./find_package_test
   popd
   popd
 }

@@ -408,6 +408,8 @@ install(TARGETS librnp
     COMPONENT development
 )
 
+# If a client application uses shared rnp library, sexp is statically linked to librnp.so
+# If a client application uses static rnp library, it still needs libsexp.a
 install(FILES ${SEXP_LIBRARY}
   DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
   COMPONENT development
