@@ -25,7 +25,7 @@ extraction:
       build_command:
         - pwd
         - mkdir rnp-build; pushd rnp-build
-        - cmake $LGTM_SRC -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off -DDOWNLOAD_RUBYRNP=Off
+        - cmake $LGTM_SRC -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off -DDOWNLOAD_RUBYRNP=Off -DDOWNLOAD_SEXP=ON
         - make -j2
   python:
     python_setup:
