@@ -68,6 +68,7 @@ const char *usage =
   "  --revoke-key           Revoke a key specified.\n"
   "  --remove-key           Remove a key specified.\n"
   "  --edit-key             Edit key properties.\n"
+  "    --add-subkey         Add new subkey.\n"
   "    --check-cv25519-bits Check whether Cv25519 subkey bits are correct.\n"
   "    --fix-cv25519-bits   Fix Cv25519 subkey bits.\n"
   "\n"
@@ -133,6 +134,7 @@ struct option options[] = {
   {"notty", no_argument, NULL, OPT_NOTTY},
   {"fix-cv25519-bits", no_argument, NULL, OPT_FIX_25519_BITS},
   {"check-cv25519-bits", no_argument, NULL, OPT_CHK_25519_BITS},
+  {"add-subkey", no_argument, NULL, OPT_ADD_SUBKEY},
   {"current-time", required_argument, NULL, OPT_CURTIME},
   {NULL, 0, NULL, 0},
 };
@@ -572,6 +574,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_CURTIME:
         cfg.set_str(CFG_CURTIME, arg);
+        return true;
+    case OPT_ADD_SUBKEY:
+        cfg.set_bool(CFG_ADD_SUBKEY, true);
         return true;
     default:
         *cmd = CMD_HELP;

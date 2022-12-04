@@ -153,6 +153,28 @@ ask_rsa_bitlen(FILE *input_fp)
 }
 
 static long
+ask_elgamal_bitlen(FILE *input_fp)
+{
+    do {
+        printf(
+          "Please provide bit length of the ElGamal key (between %d and %d):\n(default %d) > ",
+          ELGAMAL_MIN_P_BITLEN,
+          ELGAMAL_MAX_P_BITLEN,
+          DEFAULT_ELGAMAL_NUMBITS);
+        long result = DEFAULT_ELGAMAL_NUMBITS;
+        if (!rnp_secure_get_long_from_fd(input_fp, result)) {
+            continue;
+        }
+        if ((result >= ELGAMAL_MIN_P_BITLEN) && (result <= ELGAMAL_MAX_P_BITLEN)) {
+            // round up to multiple of 32
+            result = ((result + 31) / 32) * 32;
+            printf("Bitlen of the key will be %lu\n", result);
+            return result;
+        }
+    } while (1);
+}
+
+static long
 ask_dsa_bitlen(FILE *input_fp)
 {
     do {
@@ -250,8 +272,83 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
     return true;
 }
 
+static bool
+rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
+{
+    long option = 0;
+    do {
+        printf("Please select subkey algorithm you want:\n"
+               "\t(1)  RSA\n"
+               "\t(16) ElGamal\n"
+               "\t(17) DSA\n"
+               "\t(18) ECDH\n"
+               "\t(19) ECDSA\n"
+               "\t(22) EDDSA\n"
+               "\t(99) SM2"
+               "> ");
+        if (!rnp_secure_get_long_from_fd(input_fp, option, false)) {
+            option = 0;
+            continue;
+        }
+        switch (option) {
+        case 1: {
+            int bits = ask_rsa_bitlen(input_fp);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA);
+            cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
+            break;
+        }
+        case 16: {
+            int bits = ask_elgamal_bitlen(input_fp);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ELGAMAL);
+            cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
+            break;
+        }
+        case 17: {
+            int bits = ask_dsa_bitlen(input_fp);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_DSA);
+            cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
+            break;
+        }
+        case 18: {
+            const char *curve = ask_curve_name(input_fp);
+            if (!curve) {
+                return false;
+            }
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH);
+            cfg.set_str(CFG_KG_SUBKEY_CURVE, curve);
+            break;
+        }
+        case 19: {
+            const char *curve = ask_curve_name(input_fp);
+            if (!curve) {
+                return false;
+            }
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDSA);
+            cfg.set_str(CFG_KG_SUBKEY_CURVE, curve);
+            break;
+        }
+        case 22: {
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_EDDSA);
+            break;
+        }
+        case 99: {
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_SM2);
+            if (!cfg.has(CFG_KG_HASH)) {
+                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SM3);
+            }
+            break;
+        }
+        default:
+            option = 0;
+            break;
+        }
+    } while (!option);
+
+    return true;
+}
+
 bool
-cli_rnp_set_generate_params(rnp_cfg &cfg)
+cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey)
 {
     bool res = true;
     // hash algorithms for signing and protection
@@ -280,7 +377,11 @@ cli_rnp_set_generate_params(rnp_cfg &cfg)
         if (!input) {
             return false;
         }
-        res = rnpkeys_ask_generate_params(cfg, input);
+        if (subkey) {
+            res = rnpkeys_ask_generate_params_subkey(cfg, input);
+        } else {
+            res = rnpkeys_ask_generate_params(cfg, input);
+        }
         if (input != stdin) {
             fclose(input);
         }

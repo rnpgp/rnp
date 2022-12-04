@@ -61,6 +61,11 @@
 /* Default RSA key length */
 #define DEFAULT_RSA_NUMBITS 2048
 
+/* Default ElGamal key length */
+#define DEFAULT_ELGAMAL_NUMBITS 2048
+#define ELGAMAL_MIN_P_BITLEN 1024
+#define ELGAMAL_MAX_P_BITLEN 4096
+
 /* Default, min and max DSA key length */
 #define DSA_MIN_P_BITLEN 1024
 #define DSA_MAX_P_BITLEN 3072
