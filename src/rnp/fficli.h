@@ -108,6 +108,8 @@ class cli_rnp_t {
 
     bool fix_cv25519_subkey(const std::string &key, bool checkonly = false);
 
+    bool add_new_subkey(const std::string &key);
+
     bool edit_key(const std::string &key);
 };
 
@@ -163,7 +165,7 @@ rnp_output_t cli_rnp_output_to_specifier(cli_rnp_t &        rnp,
 bool cli_rnp_save_keyrings(cli_rnp_t *rnp);
 void cli_rnp_print_key_info(
   FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecret, bool psigs);
-bool cli_rnp_set_generate_params(rnp_cfg &cfg);
+bool cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey = false);
 bool cli_rnp_generate_key(cli_rnp_t *rnp, const char *username);
 /**
  * @brief Find key(s) matching set of flags and search string.

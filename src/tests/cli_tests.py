@@ -147,6 +147,12 @@ r'.+uid\s+2@rnp-multiple' \
 r'.+uid\s+3@rnp-multiple' \
 r'.+uid\s+4@rnp-multiple.*$'
 
+RE_MULTIPLE_SUBKEY_3 = r'(?s)^\s*' \
+r'3 keys found.*$'
+
+RE_MULTIPLE_SUBKEY_8 = r'(?s)^\s*' \
+r'8 keys found.*$'
+
 RE_GPG_SINGLE_RSA_KEY = r'(?s)^\s*' \
 r'.+-+\s*' \
 r'pub\s+rsa.+' \
@@ -1683,6 +1689,133 @@ class Keystore(unittest.TestCase):
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
         self.assertNotEqual(ret, 0)
         self.assertRegex(out, MSG_KEYS_NOT_FOUND, 'Failed to remove keys')
+
+    def test_additional_subkeys_default(self):
+        '''
+        Generate default key (primary + sub) then add more subkeys.
+        '''
+        # Open pipe for password
+        pipe = pswd_pipe(PASSWORD)
+        # Run key generation
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                        '--userid', 'primary_for_many_subs@rnp', '--generate-key'])
+        os.close(pipe)
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # Edit generated key, generate & add one more subkey with default parameters
+        pipe = pswd_pipe(PASSWORD)
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                        '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertEqual(ret, 0, 'Failed to add new subkey')
+        # list keys, check result
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        self.assertEqual(ret, 0, KEY_LIST_FAILED)
+        self.assertRegex(out, RE_MULTIPLE_SUBKEY_3, KEY_LIST_WRONG)
+        clear_keyrings()
+
+    def test_additional_subkeys_invalid_parameters(self):
+        # Run primary key generation
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password=',
+                                        '--userid', 'primary_for_many_subs@rnp', '--generate-key'])
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # Pass invalid numbits
+        ret, _, err = run_proc(RNPK, ['--numbits', 'wrong', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', 'wrong', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong bits value: wrong.*')
+        # Too small
+        ret, _, err = run_proc(RNPK, ['--numbits', '768', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', '768', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*wrong bits value: 768.*')
+        # Wrong hash algorithm
+        ret, _, err = run_proc(RNPK, ['--hash', 'BAD_HASH', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', 'bad_hash', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported hash algorithm: BAD_HASH.*')
+        # Wrong S2K iterations
+        ret, _, err = run_proc(RNPK, ['--s2k-iterations', 'WRONG_ITER', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', 'wrong_iter', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong iterations value: WRONG_ITER.*')
+        # Wrong S2K msec
+        ret, _, err = run_proc(RNPK, ['--s2k-msec', 'WRONG_MSEC', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', 'wrong_msec', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Invalid s2k msec value: WRONG_MSEC.*')
+        # Wrong cipher
+        ret, _, err = run_proc(RNPK, ['--cipher', 'WRONG_AES', '--homedir', RNPDIR, '--password', 'password',
+                                      '--userid', 'wrong_aes', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Unsupported encryption algorithm: WRONG_AES.*Failed to process argument --cipher.*')
+        clear_keyrings()
+
+    def test_additional_subkeys_expert_mode(self):
+        # Run primary key generation
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password=',
+                                        '--userid', 'primary_for_many_subs@rnp', '--generate-key'])
+        # RSA subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n1\n1023\n4097\n3072\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # ElGamal subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n16\n1023\n4097\n1025\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # DSA subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n17\n1023\n3073\n1025\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # ECDH subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n18\n0\n8\n1\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # ECDSA subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n19\n0\n8\n1\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # EDDSA subkey
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password=', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '\n\n0\n101\n22\n')
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # list keys, check result
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--list-keys'])
+        self.assertEqual(ret, 0, KEY_LIST_FAILED)
+        self.assertRegex(out, RE_MULTIPLE_SUBKEY_8, KEY_LIST_WRONG)
+
+        clear_keyrings()
+
+    def test_additional_subkeys_reuse_password(self):
+        pipe = pswd_pipe('primarypassword')
+        # Primary key with password
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--pass-fd', str(pipe),
+                                        '--userid', 'primary_for_many_subs@rnp', '--generate-key'])
+        os.close(pipe)
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # Provide password to add subkey, reuse password for subkey, say "yes"
+        stdinstr = 'primarypassword\ny\n'
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'],
+                             stdinstr)
+        self.assertEqual(ret, 0, 'Failed to add new subkey')
+        # Do not reuse same password for subkey, say "no"
+        stdinstr = 'primarypassword\nN\nsubkeypassword\nsubkeypassword\n'
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'],
+                             stdinstr)
+        self.assertEqual(ret, 0)
+        # Primary key with empty password
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password=',
+                                        '--userid', 'primary_with_empty_password@rnp', '--generate-key'])
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        # Set empty password for generated subkey
+        stdinstr = '\n\ny\n'
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--edit-key', '--add-subkey', 'primary_with_empty_password@rnp'],
+                             stdinstr)
+        self.assertEqual(ret, 0)
+        # Set password for generated subkey
+        stdinstr = 'subkeypassword\nsubkeypassword\n'
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--notty', '--edit-key', '--add-subkey', 'primary_with_empty_password@rnp'],
+                             stdinstr)
+        self.assertEqual(ret, 0)
+        clear_keyrings()
 
 class Misc(unittest.TestCase):
 
