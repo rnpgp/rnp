@@ -383,6 +383,7 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
     char *     buffer = NULL;
     bool       ok = false;
     bool       protect = false;
+    bool       add_subkey = false;
     bool       decrypt_symmetric = false;
     bool       encrypt_symmetric = false;
     bool       is_primary = false;
@@ -394,6 +395,8 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
 
     if (!strcmp(pgp_context, "protect")) {
         protect = true;
+    } else if (!strcmp(pgp_context, "add subkey")) {
+        add_subkey = true;
     } else if (!strcmp(pgp_context, "decrypt (symmetric)")) {
         decrypt_symmetric = true;
     } else if (!strcmp(pgp_context, "encrypt (symmetric)")) {
@@ -407,7 +410,7 @@ ffi_pass_callback_stdin(rnp_ffi_t        ffi,
         (void) rnp_key_is_primary(key, &is_primary);
     }
 
-    if (protect && rnp->reuse_password_for_subkey && !is_primary) {
+    if ((protect || add_subkey) && rnp->reuse_password_for_subkey && !is_primary) {
         char *primary_fprint = NULL;
         if (rnp_key_get_primary_fprint(key, &primary_fprint) == RNP_SUCCESS &&
             !rnp->reuse_primary_fprint.empty() &&
@@ -463,7 +466,7 @@ start:
             }
         }
     }
-    if (protect && is_primary) {
+    if ((protect || add_subkey) && is_primary) {
         if (cli_rnp_get_confirmation(
               rnp, "Would you like to use the same password to protect subkey(s)?")) {
             char *primary_fprint = NULL;
@@ -984,6 +987,94 @@ done:
 }
 
 bool
+cli_rnp_t::add_new_subkey(const std::string &key)
+{
+    rnp_cfg &lcfg = cfg();
+    if (!cli_rnp_set_generate_params(lcfg, true)) {
+        ERR_MSG("Subkey generation setup failed.");
+        return false;
+    }
+    std::vector<rnp_key_handle_t> keys;
+    if (!cli_rnp_keys_matching_string(this, keys, key, CLI_SEARCH_SECRET)) {
+        ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
+        return false;
+    }
+    bool              res = false;
+    rnp_op_generate_t genkey = NULL;
+    rnp_key_handle_t  subkey = NULL;
+    char *            password = NULL;
+
+    if (keys.size() > 1) {
+        ERR_MSG("Ambiguous input: too many keys found for '%s'.", key.c_str());
+        goto done;
+    }
+    if (rnp_op_generate_subkey_create(
+          &genkey, ffi, keys[0], cfg().get_cstr(CFG_KG_SUBKEY_ALG))) {
+        ERR_MSG("Failed to initialize subkey generation.");
+        goto done;
+    }
+    if (cfg().has(CFG_KG_SUBKEY_BITS) &&
+        rnp_op_generate_set_bits(genkey, cfg().get_int(CFG_KG_SUBKEY_BITS))) {
+        ERR_MSG("Failed to set subkey bits.");
+        goto done;
+    }
+    if (cfg().has(CFG_KG_SUBKEY_CURVE) &&
+        rnp_op_generate_set_curve(genkey, cfg().get_cstr(CFG_KG_SUBKEY_CURVE))) {
+        ERR_MSG("Failed to set subkey curve.");
+        goto done;
+    }
+    if (cfg().has(CFG_KG_SUBKEY_EXPIRATION)) {
+        uint32_t expiration = 0;
+        if (!cfg().get_expiration(CFG_KG_SUBKEY_EXPIRATION, expiration) ||
+            rnp_op_generate_set_expiration(genkey, expiration)) {
+            ERR_MSG("Failed to set subkey expiration.");
+            goto done;
+        }
+    }
+    // TODO : set DSA qbits
+    if (rnp_op_generate_set_hash(genkey, cfg().get_cstr(CFG_KG_HASH))) {
+        ERR_MSG("Failed to set hash algorithm.");
+        goto done;
+    }
+    if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {
+        ERR_MSG("Subkey generation failed.");
+        goto done;
+    }
+    if (rnp_request_password(ffi, subkey, "protect", &password)) {
+        ERR_MSG("Failed to obtain protection password.");
+        goto done;
+    }
+    if (*password) {
+        rnp_result_t ret = rnp_key_protect(subkey,
+                                           password,
+                                           cfg().get_cstr(CFG_KG_PROT_ALG),
+                                           NULL,
+                                           cfg().get_cstr(CFG_KG_PROT_HASH),
+                                           cfg().get_int(CFG_KG_PROT_ITERATIONS));
+        rnp_buffer_clear(password, strlen(password) + 1);
+        rnp_buffer_destroy(password);
+        if (ret) {
+            ERR_MSG("Failed to protect key.");
+            goto done;
+        }
+    } else {
+        rnp_buffer_destroy(password);
+    }
+    res = cli_rnp_save_keyrings(this);
+done:
+    if (res) {
+        cli_rnp_print_key_info(stdout, ffi, keys[0], true, false);
+        if (subkey) {
+            cli_rnp_print_key_info(stdout, ffi, subkey, true, false);
+        }
+    }
+    clear_key_handles(keys);
+    rnp_op_generate_destroy(genkey);
+    rnp_key_handle_destroy(subkey);
+    return res;
+}
+
+bool
 cli_rnp_t::edit_key(const std::string &key)
 {
     if (cfg().get_bool(CFG_CHK_25519_BITS)) {
@@ -991,6 +1082,10 @@ cli_rnp_t::edit_key(const std::string &key)
     }
     if (cfg().get_bool(CFG_FIX_25519_BITS)) {
         return fix_cv25519_subkey(key, false);
+    }
+
+    if (cfg().get_bool(CFG_ADD_SUBKEY)) {
+        return add_new_subkey(key);
     }
 
     /* more options, like --passwd, --unprotect, --expiration are to come */

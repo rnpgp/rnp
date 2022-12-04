@@ -233,6 +233,10 @@ Edit or update information, associated with a key. Should be accompanied with ed
 +
 Currently the following options are available: +
 +
+*--add-subkey*:::
+Generate and add a new subkey to the existing primary key. All additional options for the
+*--generate-key* command apply for subkey generation as well, except *--userid*.
+
 *--check-cv25519-bits*:::
 Check whether least significant/most significant bits of Curve25519 ECDH subkey are correctly set.
 RNP internally sets those bits to required values (3 least significant bits and most significant bit must be zero) during decryption,

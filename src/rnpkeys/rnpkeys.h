@@ -54,6 +54,7 @@ typedef enum {
     OPT_FIX_25519_BITS,
     OPT_CHK_25519_BITS,
     OPT_CURTIME,
+    OPT_ADD_SUBKEY,
 
     /* debug */
     OPT_DEBUG
