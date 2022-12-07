@@ -27,6 +27,17 @@
 include(CMakeFindDependencyMacro)
 
 if(NOT TARGET rnp::librnp)
+  add_library(Sexp::Sexp STATIC IMPORTED)
+  if(MSVC)
+    set(SEXP_INSTALL_LIBRARY "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/@CMAKE_BUILD_TYPE@/sexp.lib")
+  else(MSVC)
+    set(SEXP_INSTALL_LIBRARY "${PACKAGE_PREFIX_DIR}/@CMAKE_INSTALL_LIBDIR@/libsexp.a")
+  endif(MSVC)
+  set_target_properties(Sexp::Sexp
+    PROPERTIES
+      IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+      IMPORTED_LOCATION "${SEXP_INSTALL_LIBRARY}"
+  )
+  message(STATUS "Using S-expression library at ${SEXP_INSTALL_LIBRARY}")
   include("${CMAKE_CURRENT_LIST_DIR}/rnp-targets.cmake")
 endif()
-

@@ -24,6 +24,7 @@
 : "${FALLBACK_BUNDLER_VERSION:=2.3.26}"
 : "${FALLBACK_BUNDLER_RUBY_VERSION:=2.6.0}"
 
+: "${RECOMMENDED_SEXP_VERSION:=0.6.0}"
 : "${RECOMMENDED_BOTAN_VERSION_MSYS:=${RECOMMENDED_BOTAN_VERSION}-1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
@@ -34,6 +35,7 @@
 # fi
 : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
 : "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
+: "${SEXP_VERSION:=${RECOMMENDED_SEXP_VERSION}}"
 : "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
 : "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
 
@@ -896,6 +898,10 @@ build_and_install() {
     -DCMAKE_INSTALL_PREFIX="${1:-/tmp}"
   )
 
+  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
+  [ -n "${SEXP_INSTALL:-}" ] && cmakeopts+=(-DCMAKE_PREFIX_PATH="${SEXP_INSTALL}")
+
+
   if [[ $# -gt 0 ]]; then
     shift
   fi
@@ -985,7 +991,7 @@ build_example_pkgconfig() {
   mkdir rnp-project
   pushd rnp-project || return 1
 
-  cat <<"EOF" > mytest.cpp
+  cat <<"EOF" > find_package_test.cpp
   #include <rnp/rnp.h>
 
   int main(int argc, char *argv[]) {
@@ -995,6 +1001,7 @@ build_example_pkgconfig() {
 EOF
 
   cat <<"EOF" > CMakeLists.txt
+  project(find_package_test)
   set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
   find_package(BZip2 REQUIRED)
   find_package(ZLIB REQUIRED)
@@ -1003,14 +1010,14 @@ EOF
   find_package(rnp REQUIRED)
 
   cmake_minimum_required(VERSION 3.12)
-  add_executable(mytest mytest.cpp)
-  target_link_libraries(mytest rnp::librnp)
+  add_executable(find_package_test find_package_test.cpp)
+  target_link_libraries(find_package_test rnp::librnp)
 EOF
 
   cp "${rnpsrc}"/cmake/Modules/* .
   cmake .
   make VERBOSE="${VERBOSE}"
-  ./mytest
+  ./find_package_test
   popd
   popd
 }

@@ -86,7 +86,7 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
                 RNP_LOG("failed to read file %s", path.c_str());
                 continue;
             }
-            // G10 may don't read one file, so, ignore it!
+            // G10 may fail to read one file, so ignore it!
             if (!rnp_key_store_g10_from_src(key_store, &src, key_provider)) {
                 RNP_LOG("Can't parse file: %s", path.c_str()); // TODO: %S ?
             }

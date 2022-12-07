@@ -109,6 +109,33 @@ install_jsonc() {
   fi
 }
 
+install_sexp() {
+  local sexp_build=${LOCAL_BUILDS}/sexp
+  if [[ ! -e "${SEXP_INSTALL}/lib/sexp.a" ]]; then
+
+     if [ -d "${sexp_build}" ]; then
+       rm -rf "${sexp_build}"
+     fi
+
+    mkdir -p "${sexp_build}"
+    pushd "${sexp_build}"
+
+    wget https://github.com/rnpgp/sexp/archive/refs/tags/v"$SEXP_VERSION".tar.gz -O sexp.tar.gz
+    tar xzf sexp.tar.gz --strip 1
+
+    cmake . -Bbuild -DCMAKE_INSTALL_PREFIX="${SEXP_INSTALL}"  \
+                    -DCMAKE_BUILD_TYPE=Release                \
+                    -DWITH_SEXP_TESTS=OFF                     \
+                    -DWITH_SEXP_CLI=OFF
+
+    cmake --build build --config Release
+    cmake --install build
+
+    popd
+  fi
+}
+
+
 _install_gpg() {
   local VERSION_SWITCH=$1
   local NPTH_VERSION=$2
