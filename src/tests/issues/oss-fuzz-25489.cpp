@@ -49,20 +49,20 @@ TEST_F(rnp_tests, test_sxp_depth)
         bytes = &data[0];
         len = data.size();
         s_exp_t sexp;
-        assert_true(sexp.parse(&bytes, &len));
+        assert_true(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH));
         bytes = &data[0];
         len = data.size();
         s_exp_t sexp;
-        assert_true(sexp.parse(&bytes, &len));
+        assert_true(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
     {
         std::string data(mksxp(SXP_MAX_DEPTH + 1));
         bytes = &data[0];
         len = data.size();
         s_exp_t sexp;
-        assert_false(sexp.parse(&bytes, &len));
+        assert_false(sexp.parse(bytes, len, SXP_MAX_DEPTH));
     }
 }

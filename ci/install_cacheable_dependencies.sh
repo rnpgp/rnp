@@ -5,3 +5,4 @@ set -exu
 . ci/env.inc.sh
 
 install_static_cacheable_build_dependencies_if_needed "$@"
+install_sexp

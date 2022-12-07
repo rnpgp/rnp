@@ -53,7 +53,6 @@ else()
     set(GTEST_GIT_TAG "HEAD")
   endif()
   # download and build googletest
-  include(FetchContent)
   FetchContent_Declare(googletest
     GIT_REPOSITORY  https://github.com/google/googletest.git
     GIT_TAG         "${GTEST_GIT_TAG}"
@@ -171,11 +170,13 @@ target_include_directories(rnp_tests
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
     "${BOTAN2_INCLUDE_DIRS}"
+    "${SEXP_INCLUDE_DIR}"
 )
 target_link_libraries(rnp_tests
   PRIVATE
     librnp-static
     JSON-C::JSON-C
+    Sexp::Sexp
     ${GTestMain}
 )
 if (CRYPTO_BACKEND STREQUAL "openssl")
@@ -289,4 +290,3 @@ string(REGEX REPLACE "\n" ";" suitelist "${suitelist}")
 foreach(suite IN LISTS suitelist)
   add_cli_test("${suite}")
 endforeach()
-

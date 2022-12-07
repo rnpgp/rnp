@@ -138,4 +138,3 @@ if (ENABLE_SANITIZERS)
     set_target_properties(${tgt} PROPERTIES LINKER_LANGUAGE CXX)
   endforeach()
 endif()
-

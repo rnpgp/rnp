@@ -95,6 +95,9 @@ class id_str_pair {
     static int         lookup(const id_str_pair           pair[],
                               const std::vector<uint8_t> &bytes,
                               int                         notfound = 0);
+    static int         lookup(const id_str_pair                 pair[],
+                              const std::basic_string<uint8_t> &bytes,
+                              int                               notfound = 0);
 };
 
 /** pgp_fingerprint_t */

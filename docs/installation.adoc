@@ -50,8 +50,7 @@ yum install -y rnp
 
 == On Ubuntu
 
-Prerequisite: please ensure `git` is installed on the system.
-
+Prerequisites: please ensure `git` is installed on the system
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
@@ -75,7 +74,7 @@ cd rnp-build
 
 # Run CMake
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on \
-  -DBUILD_TESTING=off ../rnp/
+  -DBUILD_TESTING=off -DDOWNLOAD_SEXP=on ../rnp/
 
 # Compile
 make
@@ -106,7 +105,7 @@ cd rnp-build
 
 # Cmake it
 cmake -DCMAKE_INSTALL_PREFIX=/usr -DBUILD_SHARED_LIBS=on \
-  -DBUILD_TESTING=off ../rnp/
+  -DBUILD_TESTING=off -DDOWNLOAD_SEXP=on ../rnp/
 
 # Compile and install
 sudo make install
@@ -147,7 +146,7 @@ Enter the source folder and run the following commands:
 [source,console]
 ----
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on \
-  -DBUILD_TESTING=off .
+  -DBUILD_TESTING=off -DDOWNLOAD_SEXP=on .
 
 make install
 ----
@@ -182,7 +181,7 @@ cd rnp-build
 export PATH="/c/msys64/mingw64/lib:/c/msys64/mingw64/bin:$PWD/bin:$PATH"
 
 # Run CMake
-cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" -DBUILD_TESTING=off ../rnp
+cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" -DDOWNLOAD_SEXP=on -DBUILD_TESTING=off ../rnp
 
 # Compile and install
 make && make install
@@ -215,7 +214,7 @@ There are two ways to compile and install:
 # CMake encourages out-of source builds.
 mkdir rnp-build
 cd rnp-build
-cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off ../rnp
+cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off ../rnp -DDOWNLOAD_SEXP=on
 cmake --build . --config Release
 cmake --install .
 ----
@@ -234,3 +233,31 @@ executables):
 
 You may check dependencies and their paths via `ntldd.exe` in the MSYS command
 prompt.
+
+
+== Compile from source without access to github.com
+
+Download the latest release from https://github.com/rnpgp/sexp and expand it
+Enter the source folder and run the following commands:
+
+[source,console]
+----
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DWITH_SEXP_TESTS=off -DWITH_SEXP_CLI=off ..
+cmake --build build
+cmake --install build
+----
+
+Download a release from https://github.com/rnpgp/rnp and expand it
+Enter the source folder and run the following commands:
+
+[source,console]
+----
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DBUILD_SHARED_LIBS=on \
+  -DBUILD_TESTING=off -DDOWNLOAD_SEXP=off ..
+cmake --build build
+cmake --install build
+----
