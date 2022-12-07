@@ -31,6 +31,10 @@ on:
       - '**.nix'
       - 'flake.lock'
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 env:
   CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
@@ -39,6 +43,7 @@ env:
   LC_LANG: C.UTF-8
   USE_STATIC_DEPENDENCIES: no
   DOWNLOAD_RUBYRNP: Off
+  DOWNLOAD_SEXP: On
 
 jobs:
   tests:
@@ -60,11 +65,11 @@ jobs:
             CXX: clang++
             CRYPTO_BACKEND: botan
     env: ${{ matrix.env }}
-    name: fedora35 [${{ CRYPTO_BACKEND }} mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
+    name: fedora35 [${{ matrix.env.CRYPTO_BACKEND }} mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}]
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 0
+          fetch-depth: 1
       - name: tests
         run: |
           set -x

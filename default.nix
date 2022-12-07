@@ -1,15 +1,25 @@
 { pkgs ? import <nixpkgs> { }
 , lib ? pkgs.lib
 , stdenv ? pkgs.stdenv
+, fetchgit
 }:
-
+let
+  sexpSource = fetchgit {
+    name = "sexp";
+    url = "https://github.com/rnpgp/sexp.git";
+    rev = "refs/tags/v0.6.0";
+    sha256 = "oWOzVn7j2pYr4CxyN8O5f1n0tUxCIQ5YG5GZFvLMeGA=";
+  };
+in
 stdenv.mkDerivation rec {
   pname = "rnp";
   version = "unstable";
 
   src = ./.;
 
-  buildInputs = with pkgs; [ zlib bzip2 json_c botan2 ];
+  sexp = import sexpSource { inherit pkgs; };
+
+  buildInputs = with pkgs; [ zlib bzip2 json_c botan2 sexp ];
 
   cmakeFlags = [
     "-DCMAKE_INSTALL_PREFIX=${placeholder "out"}"

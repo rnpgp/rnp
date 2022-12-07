@@ -21,6 +21,9 @@ CPackSourceConfig.cmake
 DartConfiguration.tcl
 _CPack_Packages/
 
+# VSCode
+.vscode/
+
 # Nix
 result
 
@@ -195,7 +198,8 @@ flycheck_*.el
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
+
 
 # Thumbnails
 ._*

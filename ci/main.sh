@@ -84,13 +84,14 @@ main() {
     -DCMAKE_BUILD_TYPE=Release   # RelWithDebInfo -- DebInfo commented out to speed up recurring CI runs.
     -DBUILD_SHARED_LIBS=yes
     -DCMAKE_INSTALL_PREFIX="${RNP_INSTALL}"
-    -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL}"
+    -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL};${JSONC_INSTALL};${GPG_INSTALL};${SEXP_INSTALL}"
   )
   [[ ${SKIP_TESTS} = 1 ]] && cmakeopts+=(-DBUILD_TESTING=OFF)
   [[ "${BUILD_MODE}" = "coverage" ]] && cmakeopts+=(-DENABLE_COVERAGE=yes)
   [[ "${BUILD_MODE}" = "sanitize" ]] && cmakeopts+=(-DENABLE_SANITIZERS=yes)
   [ -n "${GTEST_SOURCES:-}" ] && cmakeopts+=(-DGTEST_SOURCES="${GTEST_SOURCES}")
   [ -n "${DOWNLOAD_GTEST:-}" ] && cmakeopts+=(-DDOWNLOAD_GTEST="${DOWNLOAD_GTEST}")
+  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
   [ -n "${DOWNLOAD_RUBYRNP:-}" ] && cmakeopts+=(-DDOWNLOAD_RUBYRNP="${DOWNLOAD_RUBYRNP}")
   [ -n "${CRYPTO_BACKEND:-}" ] && cmakeopts+=(-DCRYPTO_BACKEND="${CRYPTO_BACKEND}")
   [ -n "${ENABLE_SM2:-}" ] && cmakeopts+=(-DENABLE_SM2="${ENABLE_SM2}")

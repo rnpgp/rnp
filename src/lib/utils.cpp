@@ -63,3 +63,18 @@ id_str_pair::lookup(const id_str_pair pair[], const std::vector<uint8_t> &bytes,
     }
     return notfound;
 }
+
+int
+id_str_pair::lookup(const id_str_pair                 pair[],
+                    const std::basic_string<uint8_t> &bytes,
+                    int                               notfound)
+{
+    while (pair && pair->str) {
+        if ((strlen(pair->str) == bytes.size()) &&
+            !memcmp(pair->str, bytes.data(), bytes.size())) {
+            return pair->id;
+        }
+        pair++;
+    }
+    return notfound;
+}

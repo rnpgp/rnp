@@ -28,6 +28,10 @@ on:
       - '**.nix'
       - 'flake.lock'
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 jobs:
   build_and_test:
     name: ${{ matrix.os }} msvc [arch ${{ matrix.arch }}]
@@ -52,6 +56,7 @@ jobs:
         with:
           submodules: true
           lfs: true
+          fetch-depth: 1
       - name: Cache vcpkg
         uses: actions/cache@v3
         with:
@@ -69,7 +74,10 @@ jobs:
         run: |
           set -eux
           mkdir build
-          cmake -B ./build -G "Visual Studio 16 2019" -A ${{ matrix.arch }} -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
+          cmake -B ./build -G "Visual Studio 16 2019" \
+                           -A ${{ matrix.arch }}      \
+                           -DDOWNLOAD_SEXP=on         \
+                           -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
       - name: Compile
         shell: bash
         run: cmake --build ./build --config "Release" -j 2
