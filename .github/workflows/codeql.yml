@@ -1,0 +1,73 @@
+name: "CodeQL"
+
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+  schedule:
+    - cron: "21 15 * * 6"
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [ python, cpp ]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Install Packages (cpp)
+        if: ${{ matrix.language == 'cpp' }}
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes libjson-c-dev
+
+      - name: After Prepare (cpp)
+        if: ${{ matrix.language == 'cpp' }}
+        run: |
+          pwd
+          mkdir botan_build
+          mkdir botan_install
+          export BOTAN_INSTALL=$(pwd)/botan_install && echo "BOTAN_INSTALL=$BOTAN_INSTALL" >> $GITHUB_ENV
+          git clone --depth 1 --branch 2.17.3 https://github.com/randombit/botan botan_build
+          pushd botan_build
+          export BOTAN_MODULES=$(<${LGTM_SRC}/ci/botan-modules tr '\n' ',') && echo "BOTAN_MODULES=$BOTAN_MODULES" >> $GITHUB_ENV
+          ./configure.py --prefix=${BOTAN_INSTALL} --with-debug-info --cxxflags="-fno-omit-frame-pointer" --without-documentation --without-openssl --build-targets=shared --minimized-build --enable-modules="$BOTAN_MODULES"
+          make -j2 install
+          popd
+          mkdir cmake314
+          wget --quiet -O - https://cmake.org/files/v3.14/cmake-3.14.7-Linux-x86_64.tar.gz | tar --strip-components=1 -xz -C cmake314
+          export PATH=$(pwd)/cmake314/bin:${PATH} && echo "PATH=$PATH" >> $GITHUB_ENV
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v2
+        with:
+          languages: ${{ matrix.language }}
+          queries: +security-and-quality
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@v2
+        if: ${{ matrix.language == 'python' }}
+
+      - name: Build cpp
+        if: ${{ matrix.language == 'cpp' }}
+        run: |
+          pwd
+          mkdir rnp-build; pushd rnp-build
+          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off -DDOWNLOAD_RUBYRNP=Off -DDOWNLOAD_SEXP=ON
+          make -j2
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v2
+        with:
+          category: "/language:${{ matrix.language }}"
