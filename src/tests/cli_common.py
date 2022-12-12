@@ -22,6 +22,10 @@ class CLIError(Exception):
     def __str__(self):
         return self.message + '\n' + self.log
 
+def set_workdir(dir):
+    global WORKDIR
+    WORKDIR = dir
+
 def is_windows():
     return sys.platform.startswith('win') or sys.platform.startswith('msys')
 
@@ -115,7 +119,9 @@ def run_proc_windows(proc, params, stdin=None):
         if idx < len(params):
             passfd = int(params[idx+1])
             passfo = os.fdopen(passfd, 'r', closefd=False)
-    except (ValueError, OSError): pass
+    except (ValueError, OSError):
+        # Ignore if pass-fd is invalid/could not be opened
+        pass
     # We may use pipes here (ensuring we use dup to inherit handles), but those have limited buffer
     # so we'll need to poll process
     if stdin:
@@ -124,6 +130,11 @@ def run_proc_windows(proc, params, stdin=None):
         stdin_fl = os.open(stdin_path, os.O_RDONLY | os.O_BINARY)
         stdin_no = sys.stdin.fileno()
         stdin_cp = os.dup(stdin_no)
+    else:
+        stdin_fl = None
+        stdin_no = -1
+        stdin_cp = None
+
     stdout_fl = os.open(stdout_path, os.O_CREAT | os.O_RDWR | os.O_BINARY)
     stdout_no = sys.stdout.fileno()
     stdout_cp = os.dup(stdout_no)
