@@ -3197,7 +3197,8 @@ class Misc(unittest.TestCase):
         # List keys
         ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--list-keys'])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*pub.*2015-02-0.*EXPIRED 2017.*sub.*2015-02-0.*\[INVALID\] \[EXPIRES 2017.*$')
+        self.assertRegex(out, r'(?s)^.*pub.*2015-02-0.*EXPIRED 2017.*sub.*2015-02-0.* \[EXPIRED 2017.*$')
+        self.assertNotRegex(out, r'(?s)^.*\[INVALID\].*$')
         ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--notty', '--current-time', '2015-02-04', '--list-keys'])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*pub.*2015-02-0.*EXPIRES 2017.*sub.*2015-02-0.*EXPIRES 2017.*$')
