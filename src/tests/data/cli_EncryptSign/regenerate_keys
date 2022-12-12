@@ -33,7 +33,7 @@ class KeyFormatter(object):
         return self
 
     def format(self, gen_obj):
-        raise NotImplemented("not implemented in base")
+        raise NotImplementedError("not implemented in base")
 
 class RnpRsaKeyFormatter(KeyFormatter):
     RNP_GENERATE_RSA_PATTERN = "1\n{0}\n"
@@ -99,9 +99,9 @@ def keygen(obj, formatter):
     obj.userid = key_name+USERID_PFX
 
     # generate and export
-    if not obj.generate_key_batch(formatter.format(obj)): raise "Generation failed"
-    if not obj.export_key(key_name+"-sec.gpg", True): raise "Generation failed"
-    if not obj.export_key(key_name+".gpg", False): raise "Generation failed"
+    if not obj.generate_key_batch(formatter.format(obj)): raise RuntimeError("Generation failed")
+    if not obj.export_key(key_name+"-sec.gpg", True): raise RuntimeError("Secret key export failed")
+    if not obj.export_key(key_name+".gpg", False): raise RuntimeError("Public key export failed")
 
 
 # Lists of tuples (sign key size, encryption key size)

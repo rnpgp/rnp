@@ -11,10 +11,10 @@ import time
 import unittest
 from platform import architecture
 
-import cli_common
 from cli_common import (file_text, find_utility, is_windows, list_upto,
                         path_for_gpg, pswd_pipe, raise_err, random_text,
-                        run_proc, decode_string_escape, CONSOLE_ENCODING)
+                        run_proc, decode_string_escape, CONSOLE_ENCODING,
+                        set_workdir)
 from gnupg import GnuPG as GnuPG
 from rnp import Rnp as Rnp
 
@@ -287,6 +287,7 @@ def remove_files(*args):
         try:
             os.remove(fpath)
         except Exception:
+            # Ignore if file cannot be removed            
             pass
 
 def reg_workfiles(mainname, *exts):
@@ -301,16 +302,10 @@ def reg_workfiles(mainname, *exts):
         res += [fpath]
     return res
 
-
 def clear_workfiles():
     global TEST_WORKFILES
-    for fpath in TEST_WORKFILES:
-        try:
-            os.remove(fpath)
-        except (OSError):
-            pass
+    remove_files(*TEST_WORKFILES)
     TEST_WORKFILES = []
-
 
 def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
     pipe = pswd_pipe(pswd)
@@ -866,11 +861,11 @@ def setup(loglvl):
     logging.basicConfig(stream=sys.stderr, format="%(message)s")
     logging.getLogger().setLevel(loglvl)
     WORKDIR = tempfile.mkdtemp(prefix='rnpctmp')
+    set_workdir(WORKDIR)
     RMWORKDIR = True
 
     logging.info('Running in ' + WORKDIR)
 
-    cli_common.WORKDIR = WORKDIR
     RNPDIR = os.path.join(WORKDIR, '.rnp')
     RNP = os.getenv('RNP_TESTS_RNP_PATH') or 'rnp'
     RNPK = os.getenv('RNP_TESTS_RNPKEYS_PATH') or 'rnpkeys'
@@ -1489,8 +1484,8 @@ class Keystore(unittest.TestCase):
         clear_keyrings()
         tracker_beginning = 'tracker'
         tracker_end = '@rnp'
-        tracker_1 = tracker_beginning + ''.join(map(lambda x : chr(x), range(1,0x10))) + tracker_end
-        tracker_2 = tracker_beginning + ''.join(map(lambda x : chr(x), range(0x10,0x20))) + tracker_end
+        tracker_1 = tracker_beginning + ''.join(map(chr, range(1,0x10))) + tracker_end
+        tracker_2 = tracker_beginning + ''.join(map(chr, range(0x10,0x20))) + tracker_end
         #Run key generation
         rnp_genkey_rsa(tracker_1, 1024)
         rnp_genkey_rsa(tracker_2, 1024)
@@ -4252,6 +4247,7 @@ class Encrypt(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
         clear_workfiles()
 
     def setUp(self):
+        KeyLocationChooserMixin.__init__(self)
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGHOME, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
@@ -4396,6 +4392,7 @@ class Sign(unittest.TestCase, TestIdMixin, KeyLocationChooserMixin):
         clear_workfiles()
 
     def setUp(self):
+        KeyLocationChooserMixin.__init__(self)
         self.rnp = Rnp(RNPDIR, RNP, RNPK)
         self.gpg = GnuPG(GPGHOME, GPG)
         self.rnp.password = self.gpg.password = PASSWORD
@@ -4618,6 +4615,7 @@ if __name__ == '__main__':
                 shutil.rmtree(RNPDIR)
                 shutil.rmtree(GPGDIR)
         except Exception:
+            # Ignore exception if something cannot be deleted
             pass
 
     sys.exit(not res.result.wasSuccessful())
