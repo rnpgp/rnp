@@ -2191,7 +2191,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
      * non-expired binding signature, and is not revoked. */
     validity_.reset();
     validity_.validated = true;
-    if (!primary || !primary->valid()) {
+    if (!primary || (!primary->valid() && !primary->expired())) {
         return;
     }
     /* validate signatures if needed */
@@ -2216,7 +2216,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
             return;
         }
     }
-    validity_.valid = has_binding;
+    validity_.valid = has_binding && primary->valid();
     if (!validity_.valid) {
         validity_.expired = has_expired;
     }
