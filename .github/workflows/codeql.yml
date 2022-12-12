@@ -30,18 +30,18 @@ jobs:
         if: ${{ matrix.language == 'cpp' }}
         run: |
           sudo apt-get update
-          sudo apt-get install --yes libjson-c-dev
+          sudo apt-get install --yes libjson-c-dev libgtest-dev
 
       - name: After Prepare (cpp)
         if: ${{ matrix.language == 'cpp' }}
         run: |
-          pwd
+          set -eux
           mkdir botan_build
           mkdir botan_install
           export BOTAN_INSTALL=$(pwd)/botan_install && echo "BOTAN_INSTALL=$BOTAN_INSTALL" >> $GITHUB_ENV
+          export BOTAN_MODULES=$(<$(pwd)/ci/botan-modules tr '\n' ',') && echo "BOTAN_MODULES=$BOTAN_MODULES" >> $GITHUB_ENV
           git clone --depth 1 --branch 2.17.3 https://github.com/randombit/botan botan_build
           pushd botan_build
-          export BOTAN_MODULES=$(<${LGTM_SRC}/ci/botan-modules tr '\n' ',') && echo "BOTAN_MODULES=$BOTAN_MODULES" >> $GITHUB_ENV
           ./configure.py --prefix=${BOTAN_INSTALL} --with-debug-info --cxxflags="-fno-omit-frame-pointer" --without-documentation --without-openssl --build-targets=shared --minimized-build --enable-modules="$BOTAN_MODULES"
           make -j2 install
           popd
