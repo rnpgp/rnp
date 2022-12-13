@@ -492,7 +492,7 @@ build_and_install_automake() {
   automake_build=${LOCAL_BUILDS}/automake
   mkdir -p "${automake_build}"
   pushd "${automake_build}"
-  curl -L -o automake.tar.xz https://ftp.gnu.org/gnu/automake/automake-${AUTOMAKE_VERSION}.tar.xz
+  curl -L -o automake.tar.xz "https://ftp.gnu.org/gnu/automake/automake-${AUTOMAKE_VERSION}.tar.xz"
   tar -xf automake.tar.xz --strip 1
   ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && ${SUDO} make install
   popd
@@ -747,7 +747,7 @@ ensure_ruby() {
       ;;
     *)
       # TODO: handle ubuntu?
-      >&2 echo Error: Need to install ruby ${MINIMUM_RUBY_VERSION}+
+      >&2 echo "Error: Need to install ruby ${MINIMUM_RUBY_VERSION}+"
       exit 1
   esac
 }
@@ -931,7 +931,7 @@ build_example_pkgconfig() {
   local rnpsrc="$PWD"
   pushd "$(mktemp -d)" || return 1
 
-  # shellcheck disable=SC2046
+  # shellcheck disable=SC2046,SC2086
   gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
   ./generate
   readelf -d generate
