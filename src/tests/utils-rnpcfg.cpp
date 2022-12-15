@@ -27,6 +27,7 @@
 #include "rnp_tests.h"
 #include "support.h"
 #include <rnp/rnpcfg.h>
+#include "time-utils.h"
 
 TEST_F(rnp_tests, test_rnpcfg)
 {
@@ -114,17 +115,18 @@ TEST_F(rnp_tests, test_rnpcfg)
 
 TEST_F(rnp_tests, test_rnpcfg_get_expiration)
 {
-    time_t     basetime = time(NULL);
-    time_t     rawtime = basetime + 604800;
-    struct tm *timeinfo = localtime(&rawtime);
+    time_t    basetime = time(NULL);
+    time_t    rawtime = basetime + 604800;
+    struct tm timeinfo;
+    rnp_localtime(rawtime, timeinfo);
     // clear hours, minutes and seconds
-    timeinfo->tm_hour = 0;
-    timeinfo->tm_min = 0;
-    timeinfo->tm_sec = 0;
-    rawtime = mktime(timeinfo);
-    auto    year = timeinfo->tm_year + 1900;
-    auto    mon = timeinfo->tm_mon + 1;
-    auto    day = timeinfo->tm_mday;
+    timeinfo.tm_hour = 0;
+    timeinfo.tm_min = 0;
+    timeinfo.tm_sec = 0;
+    rawtime = mktime(&timeinfo);
+    auto    year = timeinfo.tm_year + 1900;
+    auto    mon = timeinfo.tm_mon + 1;
+    auto    day = timeinfo.tm_mday;
     rnp_cfg cfg;
     cfg.set_str("expiry-", fmt("%d-%02d-%02d", year, mon, day));
     cfg.set_str("expiry/", fmt("%d/%02d/%02d", year, mon, day));

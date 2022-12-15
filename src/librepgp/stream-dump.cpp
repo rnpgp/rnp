@@ -469,14 +469,16 @@ dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 static void
 dst_print_time(pgp_dest_t *dst, const char *name, uint32_t time)
 {
-    char buf[26] = {0};
     if (!name) {
         name = "time";
     }
-    strncpy(buf, rnp_ctime(time), sizeof(buf));
-    buf[24] = '\0';
-    dst_printf(
-      dst, "%s: %zu (%s%s)\n", name, (size_t) time, rnp_y2k38_warning(time) ? ">=" : "", buf);
+    auto str = rnp_ctime(time).substr(0, 24);
+    dst_printf(dst,
+               "%s: %zu (%s%s)\n",
+               name,
+               (size_t) time,
+               rnp_y2k38_warning(time) ? ">=" : "",
+               str.c_str());
 }
 
 static void
