@@ -48,18 +48,39 @@ rnp_mktime(struct tm *tm)
     return adjust_time32(mktime(tm));
 }
 
-struct tm *
-rnp_gmtime(time_t t)
+void
+rnp_gmtime(time_t t, struct tm &tm)
 {
     time_t adjusted = adjust_time32(t);
-    return gmtime(&adjusted);
+#ifndef _WIN32
+    gmtime_r(&adjusted, &tm);
+#else
+    (void) gmtime_s(&tm, &adjusted);
+#endif
 }
 
-char *
-rnp_ctime(time_t t)
+void
+rnp_localtime(time_t t, struct tm &tm)
 {
     time_t adjusted = adjust_time32(t);
-    return ctime(&adjusted);
+#ifndef _WIN32
+    localtime_r(&adjusted, &tm);
+#else
+    (void) localtime_s(&tm, &adjusted);
+#endif
+}
+
+std::string
+rnp_ctime(time_t t)
+{
+    char   time_buf[26];
+    time_t adjusted = adjust_time32(t);
+#ifndef _WIN32
+    (void) ctime_r(&adjusted, time_buf);
+#else
+    (void) ctime_s(time_buf, sizeof(time_buf), &adjusted);
+#endif
+    return std::string(time_buf);
 }
 
 time_t

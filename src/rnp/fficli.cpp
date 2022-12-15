@@ -194,16 +194,15 @@ set_pass_fd(FILE **file, int passfd)
 static char *
 ptimestr(char *dest, size_t size, time_t t)
 {
-    struct tm *tm;
-
-    tm = rnp_gmtime(t);
+    struct tm tm = {};
+    rnp_gmtime(t, tm);
     (void) snprintf(dest,
                     size,
                     "%s%04d-%02d-%02d",
                     rnp_y2k38_warning(t) ? ">=" : "",
-                    tm->tm_year + 1900,
-                    tm->tm_mon + 1,
-                    tm->tm_mday);
+                    tm.tm_year + 1900,
+                    tm.tm_mon + 1,
+                    tm.tm_mday);
     return dest;
 }
 
@@ -2868,17 +2867,17 @@ cli_rnp_print_signatures(cli_rnp_t *rnp, const std::vector<rnp_op_verify_signatu
         rnp_op_verify_signature_get_times(sig, &create, &expiry);
 
         time_t crtime = create;
+        auto   str = rnp_ctime(crtime);
         fprintf(resfp,
                 "%s made %s%s",
                 title.c_str(),
                 rnp_y2k38_warning(crtime) ? ">=" : "",
-                rnp_ctime(crtime));
+                str.c_str());
         if (expiry) {
             crtime = rnp_timeadd(crtime, expiry);
-            fprintf(resfp,
-                    "Valid until %s%s\n",
-                    rnp_y2k38_warning(crtime) ? ">=" : "",
-                    rnp_ctime(crtime));
+            str = rnp_ctime(crtime);
+            fprintf(
+              resfp, "Valid until %s%s\n", rnp_y2k38_warning(crtime) ? ">=" : "", str.c_str());
         }
 
         rnp_signature_handle_t handle = NULL;

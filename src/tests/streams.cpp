@@ -1340,14 +1340,11 @@ TEST_F(rnp_tests, test_stream_dumper_y2k38)
     auto   last = written + dst.writeb;
     time_t timestamp = 2958774690;
     // regenerate time for the current timezone
-    char buf[26] = {0};
-    strncpy(buf, rnp_ctime(timestamp), sizeof(buf));
-    buf[24] = '\0';
     std::string correct = "creation time: 2958774690 (";
     if (rnp_y2k38_warning(timestamp)) {
         correct += ">=";
     }
-    correct += buf;
+    correct += rnp_ctime(timestamp).substr(0, 24);
     correct += ')';
     assert_true(std::search(written, last, correct.begin(), correct.end()) != last);
     dst_close(&dst, false);
