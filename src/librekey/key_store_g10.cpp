@@ -41,6 +41,7 @@
 #include "crypto/cipher.hpp"
 #include "pgp-key.h"
 #include "g10_sexp.hpp"
+#include "time-utils.h"
 
 #define G10_CBC_IV_SIZE 16
 
@@ -1024,11 +1025,12 @@ s_exp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
     psub_s_exp->add_seckey(seckey);
 
     // calculate hash
-    time_t  now = ctx.time();
     char    protected_at[G10_PROTECTED_AT_SIZE + 1];
     uint8_t checksum[G10_SHA1_HASH_SIZE];
     // TODO: how critical is it if we have a skewed timestamp here due to y2k38 problem?
-    strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", gmtime(&now));
+    struct tm tm = {};
+    rnp_gmtime(ctx.time(), tm);
+    strftime(protected_at, sizeof(protected_at), "%Y%m%dT%H%M%S", &tm);
     if (!g10_calculated_hash(seckey, protected_at, checksum)) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
