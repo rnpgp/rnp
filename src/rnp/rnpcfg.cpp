@@ -511,8 +511,8 @@ bool
 rnp_cfg::parse_date(const std::string &s, uint64_t &t) const
 {
     /* fill time zone information */
-    const time_t now = ::time(NULL);
-    struct tm    tm = *localtime(&now);
+    struct tm tm;
+    rnp_localtime(::time(NULL), tm);
     tm.tm_hour = 0;
     tm.tm_min = 0;
     tm.tm_sec = 0;

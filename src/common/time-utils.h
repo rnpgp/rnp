@@ -28,9 +28,11 @@
 #define RNP_TIME_UTILS_H_
 
 #include <time.h>
-time_t     rnp_mktime(struct tm *tm);
-struct tm *rnp_gmtime(time_t t);
-bool       rnp_y2k38_warning(time_t t);
-char *     rnp_ctime(time_t t);
-time_t     rnp_timeadd(time_t t1, time_t t2);
+#include <string>
+time_t      rnp_mktime(struct tm *tm);
+void        rnp_gmtime(time_t t, struct tm &tm);
+void        rnp_localtime(time_t t, struct tm &tm);
+bool        rnp_y2k38_warning(time_t t);
+std::string rnp_ctime(time_t t);
+time_t      rnp_timeadd(time_t t1, time_t t2);
 #endif
