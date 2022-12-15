@@ -1739,6 +1739,13 @@ class Keystore(unittest.TestCase):
         self.assertEqual(ret, 1)
         self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
         self.assertRegex(err, r'(?s)Subkey generation setup failed')
+        # Attempt to generate ECDSA subkey with invalid curve
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD, '--edit-key', '--add-subkey', 
+                                      'primary_for_many_subs@rnp', '--expert'], 
+                                      '19\n-10\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n0\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        self.assertRegex(err, r'(?s)Subkey generation setup failed')
         # Pass invalid numbits
         ret, _, err = run_proc(RNPK, ['--numbits', 'wrong', '--homedir', RNPDIR, '--password', PASSWORD,
                                       '--userid', 'wrong', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
@@ -1749,6 +1756,11 @@ class Keystore(unittest.TestCase):
                                       '--userid', '768', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*wrong bits value: 768.*')
+        # ElGamal too large and wrong numbits
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', 'wrong', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp',
+                                        '--expert'], '16\n2048zzz\n99999999999999999999999999\n2048\n')
+        self.assertRegex(err, r'(?s)Unexpected end of line.*Number out of range.*')
+        self.assertEqual(ret, 1)
         # Wrong hash algorithm
         ret, _, err = run_proc(RNPK, ['--hash', 'BAD_HASH', '--homedir', RNPDIR, '--password', PASSWORD,
                                       '--userid', 'bad_hash', '--edit-key', '--add-subkey', 'primary_for_many_subs@rnp'])
