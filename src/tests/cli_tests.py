@@ -329,7 +329,7 @@ def rnp_params_insert_aead(params, pos, aead):
             params[pos + 1:pos + 1] = ['--aead-chunk-bits=' + str(aead[1])]
 
 def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, cipher=None,
-                        z=None, armor=False):
+                        z=None, armor=False, s2k_iter=False, s2k_msec=False):
     params = ['--homedir', RNPDIR, src, '--output', dst]
     # Recipients. None disables PK encryption, [] to use default key. Otherwise list of ids.
     if recipients != None:
@@ -340,6 +340,10 @@ def rnp_encrypt_file_ex(src, dst, recipients=None, passwords=None, aead=None, ci
     if passwords:
         if recipients is None:
             params[2:2] = ['-c']
+        if s2k_iter != False:
+            params += ['--s2k-iterations', str(s2k_iter)]
+        if s2k_msec != False:
+            params += ['--s2k-msec', str(s2k_msec)]
         pipe = pswd_pipe('\n'.join(passwords))
         params[2:2] = ['--pass-fd', str(pipe), '--passwords', str(len(passwords))]
 
@@ -692,13 +696,13 @@ def rnp_sym_encryption_gpg_to_rnp(filesize, cipher = None, z = None):
     clear_workfiles()
 
 
-def rnp_sym_encryption_rnp_to_gpg(filesize, cipher = None, z = None):
+def rnp_sym_encryption_rnp_to_gpg(filesize, cipher = None, z = None, s2k_iter = False, s2k_msec = False):
     src, dst, enc = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
     # Generate random file of required size
     random_text(src, filesize)
     for armor in [False, True]:
         # Encrypt cleartext file with RNP
-        rnp_encrypt_file_ex(src, enc, None, [PASSWORD], None, cipher, z, armor)
+        rnp_encrypt_file_ex(src, enc, None, [PASSWORD], None, cipher, z, armor, s2k_iter, s2k_msec)
         # Decrypt encrypted file with GPG
         gpg_decrypt_file(enc, dst, PASSWORD)
         compare_files(src, dst, GPG_DATA_DIFFERS)
@@ -3715,7 +3719,76 @@ class Encryption(unittest.TestCase):
     def test_sym_encryption__rnp_to_gpg(self):
         # Encrypt cleartext with RNP and decrypt with GPG
         for size, cipher, z in zip(Encryption.SIZES_R, Encryption.CIPHERS_R, Encryption.Z_R):
-            rnp_sym_encryption_rnp_to_gpg(size, cipher, z)
+            rnp_sym_encryption_rnp_to_gpg(size, cipher, z, 1024)
+
+    def test_sym_encryption_s2k_iter(self):
+        src, enc = reg_workfiles('cleartext', '.txt', '.gpg')
+        # Generate random file of required size
+        random_text(src, 20)
+        def s2k_iter_run(input_iterations, expected_iterations):
+            # Encrypt cleartext file with RNP
+            ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--output', enc, '--password', PASSWORD, '-c', '--s2k-iterations', str(input_iterations), src])
+            if ret != 0:
+                raise_err('rnp encryption failed', err)
+            ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out, r'(?s)^.*s2k iterations: [0-9]+ \(encoded as [0-9]+\).*')
+            matches = re.findall(r'(?s)^.*s2k iterations: ([0-9]+) \(encoded as [0-9]+\).*', out)
+            if int(matches[0]) != expected_iterations:
+                raise_err('unexpected iterations number', matches[0])
+            remove_files(enc)
+
+        for iters in [1024, 1088, 0x3e00000]:
+            s2k_iter_run(iters, iters)
+        clear_workfiles()
+
+    def test_sym_encryption_s2k_msec(self):
+        src, enc = reg_workfiles('cleartext', '.txt', '.gpg')
+        # Generate random file of required size
+        random_text(src, 20)
+        def s2k_msec_iters(msec):
+            # Encrypt cleartext file with RNP
+            ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--output', enc, '--password', PASSWORD, '-c', '--s2k-msec', str(msec), src])
+            if ret != 0:
+                raise_err('rnp encryption failed', err)
+            ret, out, _ = run_proc(RNP, ['--list-packets', enc])
+            self.assertEqual(ret, 0)
+            self.assertRegex(out, r'(?s)^.*s2k iterations: [0-9]+ \(encoded as [0-9]+\).*')
+            matches = re.findall(r'(?s)^.*s2k iterations: ([0-9]+) \(encoded as [0-9]+\).*', out)
+            remove_files(enc)
+            return int(matches[0])
+
+        iters1msec = s2k_msec_iters(1)
+        iters10msec = s2k_msec_iters(10)
+        iters100msec = s2k_msec_iters(100)
+
+        self.assertGreaterEqual(iters10msec, iters1msec)
+        self.assertGreaterEqual(iters100msec, iters10msec)
+        clear_workfiles()
+
+    def test_sym_encryption_wrong_s2k(self):
+        src, dst, enc = reg_workfiles('cleartext', '.txt', '.rnp', '.enc')
+        random_text(src, 1001)
+        # Wrong S2K iterations
+        ret, _, err = run_proc(RNP, ['--s2k-iterations', 'WRONG_ITER', '--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--output', enc, '-c', src])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong iterations value: WRONG_ITER.*')
+        # Wrong S2K msec
+        ret, _, err = run_proc(RNP, ['--s2k-msec', 'WRONG_MSEC', '--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--output', enc, '-c', src])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Invalid s2k msec value: WRONG_MSEC.*')
+        # Overflow
+        ret, _, err = run_proc(RNP, ['--s2k-iterations', '999999999999', '--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--output', enc, '-c', src])
+        self.assertNotEqual(ret, 0)
+
+        ret, _, err = run_proc(RNP, ['--s2k-msec', '999999999999', '--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--output', enc, '-c', src])
+        self.assertNotEqual(ret, 0)
+
+        remove_files(src, dst, enc)
 
     def test_sym_encryption__rnp_aead(self):
         if not RNP_AEAD:

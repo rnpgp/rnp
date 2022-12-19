@@ -2692,9 +2692,19 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     if (cfg.get_bool(CFG_ENCRYPT_SK)) {
         std::string halg = cfg.get_hashalg();
         std::string ealg = cfg.get_str(CFG_CIPHER);
+        size_t      iterations = cfg.get_int(CFG_S2K_ITER);
+        size_t      msec = cfg.get_int(CFG_S2K_MSEC);
+
+        if (msec != DEFAULT_S2K_MSEC) {
+            if (rnp_calculate_iterations(halg.c_str(), msec, &iterations)) {
+                ERR_MSG("Failed to calculate S2K iterations");
+                goto done;
+            }
+        }
 
         for (int i = 0; i < cfg.get_int(CFG_PASSWORDC, 1); i++) {
-            if (rnp_op_encrypt_add_password(op, NULL, halg.c_str(), 0, ealg.c_str())) {
+            if (rnp_op_encrypt_add_password(
+                  op, NULL, halg.c_str(), iterations, ealg.c_str())) {
                 ERR_MSG("Failed to add encrypting password");
                 goto done;
             }
