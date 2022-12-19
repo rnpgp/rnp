@@ -91,6 +91,9 @@ static const char *usage =
   "  --overwrite          Overwrite output file without a prompt.\n"
   "  --password           Password used during operation.\n"
   "  --pass-fd num        Read password(s) from the file descriptor.\n"
+  "  --s2k-iterations     Set the number of iterations for the S2K process.\n"
+  "  --s2k-msec           Calculate S2K iterations value based on a provided time in "
+  "milliseconds.\n"
   "  --notty              Do not output anything to the TTY.\n"
   "  --current-time       Override system's time.\n"
   "  --set-filename       Override file name, stored inside of OpenPGP message.\n"
@@ -153,6 +156,8 @@ enum optdefs {
     OPT_CURTIME,
     OPT_SETFNAME,
     OPT_ALLOW_HIDDEN,
+    OPT_S2K_ITER,
+    OPT_S2K_MSEC,
 
     /* debug */
     OPT_DEBUG
@@ -218,6 +223,8 @@ static struct option options[] = {
   {"current-time", required_argument, NULL, OPT_CURTIME},
   {"set-filename", required_argument, NULL, OPT_SETFNAME},
   {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
+  {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
+  {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
 
   {NULL, 0, NULL, 0},
 };
@@ -496,6 +503,24 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_ALLOW_HIDDEN:
         cfg.set_bool(CFG_ALLOW_HIDDEN, true);
         return true;
+    case OPT_S2K_ITER: {
+        int iterations = 0;
+        if (!rnp::str_to_int(arg, iterations) || !iterations) {
+            ERR_MSG("Wrong iterations value: %s", arg);
+            return false;
+        }
+        cfg.set_int(CFG_S2K_ITER, iterations);
+        return true;
+    }
+    case OPT_S2K_MSEC: {
+        int msec = 0;
+        if (!rnp::str_to_int(arg, msec) || !msec) {
+            ERR_MSG("Invalid s2k msec value: %s", arg);
+            return false;
+        }
+        cfg.set_int(CFG_S2K_MSEC, msec);
+        return true;
+    }
     case OPT_DEBUG:
         ERR_MSG("Option --debug is deprecated, ignoring.");
         return true;
