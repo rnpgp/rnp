@@ -2089,9 +2089,6 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     rnp_input_st *obj = new rnp_input_st();
-    if (!obj) {
-        return RNP_ERROR_OUT_OF_MEMORY;
-    }
     pgp_source_t *src = &obj->src;
     obj->reader = reader;
     obj->closer = closer;
