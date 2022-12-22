@@ -71,6 +71,11 @@ macos_install() {
   rm /usr/local/Cellar/openssl || true
   # homebrew fails to update python 3.9.1 to 3.9.1.1 due to unlinking failure
   rm /usr/local/bin/2to3 || true
+  # homebrew fails to update python from 3.9 to 3.10 due to another unlinking failure
+  rm /usr/local/bin/idle3 || true
+  rm /usr/local/bin/pydoc3 || true
+  rm /usr/local/bin/python3 || true
+  rm /usr/local/bin/python3-config || true
   # homebrew fails to update openssl@1.1 1.1.1l to 1.1.1l_1 due to linking failure of nghttp2.h
   brew unlink nghttp2 || true
   brew update
