@@ -263,6 +263,104 @@ static const id_str_pair revocation_code_map[] = {
   {0, NULL}};
 
 static bool
+symm_alg_supported(int alg)
+{
+    switch (alg) {
+#if defined(ENABLE_IDEA)
+    case PGP_SA_IDEA:
+#endif
+    case PGP_SA_TRIPLEDES:
+    case PGP_SA_CAST5:
+    case PGP_SA_BLOWFISH:
+    case PGP_SA_AES_128:
+    case PGP_SA_AES_192:
+    case PGP_SA_AES_256:
+#if defined(ENABLE_TWOFISH)
+    case PGP_SA_TWOFISH:
+#endif
+    case PGP_SA_CAMELLIA_128:
+    case PGP_SA_CAMELLIA_192:
+    case PGP_SA_CAMELLIA_256:
+#if defined(ENABLE_SM2)
+    case PGP_SA_SM4:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
+hash_alg_supported(int alg)
+{
+    switch (alg) {
+    case PGP_HASH_MD5:
+    case PGP_HASH_SHA1:
+    case PGP_HASH_RIPEMD:
+    case PGP_HASH_SHA256:
+    case PGP_HASH_SHA384:
+    case PGP_HASH_SHA512:
+    case PGP_HASH_SHA224:
+    case PGP_HASH_SHA3_256:
+    case PGP_HASH_SHA3_512:
+#if defined(ENABLE_SM2)
+    case PGP_HASH_SM3:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
+aead_alg_supported(int alg)
+{
+    switch (alg) {
+    case PGP_AEAD_NONE:
+#if defined(ENABLE_AEAD)
+    case PGP_AEAD_EAX:
+    case PGP_AEAD_OCB:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
+pub_alg_supported(int alg)
+{
+    switch (alg) {
+    case PGP_PKA_RSA:
+    case PGP_PKA_ELGAMAL:
+    case PGP_PKA_DSA:
+    case PGP_PKA_ECDH:
+    case PGP_PKA_ECDSA:
+    case PGP_PKA_EDDSA:
+#if defined(ENABLE_SM2)
+    case PGP_PKA_SM2:
+#endif
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
+z_alg_supported(int alg)
+{
+    switch (alg) {
+    case PGP_C_NONE:
+    case PGP_C_ZIP:
+    case PGP_C_ZLIB:
+    case PGP_C_BZIP2:
+        return true;
+    default:
+        return false;
+    }
+}
+
+static bool
 curve_str_to_type(const char *str, pgp_curve_t *value)
 {
     *value = find_curve_by_name(str);
@@ -283,73 +381,44 @@ curve_type_to_str(pgp_curve_t type, const char **str)
 static bool
 str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
 {
-    auto alg =
-      static_cast<pgp_symm_alg_t>(id_str_pair::lookup(symm_alg_map, str, PGP_SA_UNKNOWN));
-    if (alg == PGP_SA_UNKNOWN) {
+    auto alg = id_str_pair::lookup(symm_alg_map, str, PGP_SA_UNKNOWN);
+    if (!symm_alg_supported(alg)) {
         return false;
     }
-#if !defined(ENABLE_SM2)
-    if (alg == PGP_SA_SM4) {
-        return false;
-    }
-#endif
-#if !defined(ENABLE_TWOFISH)
-    if (alg == PGP_SA_TWOFISH) {
-        return false;
-    }
-#endif
-#if !defined(ENABLE_IDEA)
-    if (alg == PGP_SA_IDEA) {
-        return false;
-    }
-#endif
-    *cipher = alg;
+    *cipher = static_cast<pgp_symm_alg_t>(alg);
     return true;
 }
 
 static bool
 str_to_hash_alg(const char *str, pgp_hash_alg_t *hash_alg)
 {
-    auto alg =
-      static_cast<pgp_hash_alg_t>(id_str_pair::lookup(hash_alg_map, str, PGP_HASH_UNKNOWN));
-    if (alg == PGP_HASH_UNKNOWN) {
+    auto alg = id_str_pair::lookup(hash_alg_map, str, PGP_HASH_UNKNOWN);
+    if (!hash_alg_supported(alg)) {
         return false;
     }
-#if !defined(ENABLE_SM2)
-    if (alg == PGP_HASH_SM3) {
-        return false;
-    }
-#endif
-    *hash_alg = alg;
+    *hash_alg = static_cast<pgp_hash_alg_t>(alg);
     return true;
 }
 
 static bool
 str_to_aead_alg(const char *str, pgp_aead_alg_t *aead_alg)
 {
-    pgp_aead_alg_t alg =
-      static_cast<pgp_aead_alg_t>(id_str_pair::lookup(aead_alg_map, str, PGP_AEAD_UNKNOWN));
-    if (alg == PGP_AEAD_UNKNOWN) {
+    auto alg = id_str_pair::lookup(aead_alg_map, str, PGP_AEAD_UNKNOWN);
+    if (!aead_alg_supported(alg)) {
         return false;
     }
-#if !defined(ENABLE_AEAD)
-    if (alg != PGP_AEAD_NONE) {
-        return false;
-    }
-#endif
-    *aead_alg = alg;
+    *aead_alg = static_cast<pgp_aead_alg_t>(alg);
     return true;
 }
 
 static bool
 str_to_compression_alg(const char *str, pgp_compression_type_t *zalg)
 {
-    pgp_compression_type_t alg = static_cast<pgp_compression_type_t>(
-      id_str_pair::lookup(compress_alg_map, str, PGP_C_UNKNOWN));
-    if (alg == PGP_C_UNKNOWN) {
+    auto alg = id_str_pair::lookup(compress_alg_map, str, PGP_C_UNKNOWN);
+    if (!z_alg_supported(alg)) {
         return false;
     }
-    *zalg = alg;
+    *zalg = static_cast<pgp_compression_type_t>(alg);
     return true;
 }
 
@@ -381,17 +450,11 @@ str_to_cipher_mode(const char *str, pgp_cipher_mode_t *mode)
 static bool
 str_to_pubkey_alg(const char *str, pgp_pubkey_alg_t *pub_alg)
 {
-    pgp_pubkey_alg_t alg =
-      static_cast<pgp_pubkey_alg_t>(id_str_pair::lookup(pubkey_alg_map, str, PGP_PKA_NOTHING));
-    if (alg == PGP_PKA_NOTHING) {
+    auto alg = id_str_pair::lookup(pubkey_alg_map, str, PGP_PKA_NOTHING);
+    if (!pub_alg_supported(alg)) {
         return false;
     }
-#if !defined(ENABLE_SM2)
-    if (alg == PGP_PKA_SM2) {
-        return false;
-    }
-#endif
-    *pub_alg = alg;
+    *pub_alg = static_cast<pgp_pubkey_alg_t>(alg);
     return true;
 }
 
@@ -994,13 +1057,10 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-json_array_add_id_str(json_object *arr, const id_str_pair *map, int from, int to)
+json_array_add_id_str(json_object *arr, const id_str_pair *map, bool (*check)(int))
 {
-    while (map->str && (map->id < from)) {
-        map++;
-    }
-    while (map->str && (map->id <= to)) {
-        if (!array_add_element_json(arr, json_object_new_string(map->str))) {
+    while (map->str) {
+        if (check(map->id) && !array_add_element_json(arr, json_object_new_string(map->str))) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         map++;
@@ -1023,41 +1083,18 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
-#if defined(ENABLE_IDEA)
-        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_IDEA, PGP_SA_IDEA);
-#endif
-        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_TRIPLEDES, PGP_SA_AES_256);
-#if defined(ENABLE_TWOFISH)
-        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_TWOFISH, PGP_SA_TWOFISH);
-#endif
-        ret = json_array_add_id_str(
-          features, symm_alg_map, PGP_SA_CAMELLIA_128, PGP_SA_CAMELLIA_256);
-#if defined(ENABLE_SM2)
-        ret = json_array_add_id_str(features, symm_alg_map, PGP_SA_SM4, PGP_SA_SM4);
-#endif
+        ret = json_array_add_id_str(features, symm_alg_map, symm_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_AEAD_ALG)) {
-#if defined(ENABLE_AEAD)
-        ret = json_array_add_id_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_OCB);
-#else
-        ret = json_array_add_id_str(features, aead_alg_map, PGP_AEAD_NONE, PGP_AEAD_NONE);
-#endif
+        ret = json_array_add_id_str(features, aead_alg_map, aead_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_PROT_MODE)) {
         ret = json_array_add_id_str(
-          features, cipher_mode_map, PGP_CIPHER_MODE_CFB, PGP_CIPHER_MODE_CFB);
+          features, cipher_mode_map, [](int alg) { return alg == PGP_CIPHER_MODE_CFB; });
     } else if (rnp::str_case_eq(type, RNP_FEATURE_PK_ALG)) {
-        // workaround to avoid duplicates, maybe there is a better solution
-        (void) json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_RSA, PGP_PKA_RSA);
-        ret = json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_DSA, PGP_PKA_EDDSA);
-#if defined(ENABLE_SM2)
-        ret = json_array_add_id_str(features, pubkey_alg_map, PGP_PKA_SM2, PGP_PKA_SM2);
-#endif
+        ret = json_array_add_id_str(features, pubkey_alg_map, pub_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_HASH_ALG)) {
-        ret = json_array_add_id_str(features, hash_alg_map, PGP_HASH_MD5, PGP_HASH_SHA3_512);
-#if defined(ENABLE_SM2)
-        ret = json_array_add_id_str(features, hash_alg_map, PGP_HASH_SM3, PGP_HASH_SM3);
-#endif
+        ret = json_array_add_id_str(features, hash_alg_map, hash_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_COMP_ALG)) {
-        ret = json_array_add_id_str(features, compress_alg_map, PGP_C_NONE, PGP_C_BZIP2);
+        ret = json_array_add_id_str(features, compress_alg_map, z_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_CURVE)) {
         for (pgp_curve_t curve = PGP_CURVE_NIST_P_256; curve < PGP_CURVE_MAX;
              curve = (pgp_curve_t)(curve + 1)) {
