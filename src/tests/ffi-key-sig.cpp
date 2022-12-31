@@ -1292,7 +1292,7 @@ key_packets(rnp_key_handle_t key)
     return res;
 }
 
-void
+static void
 sigremove_leave(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, uint32_t *action)
 {
     assert_true((*(int *) app_ctx) == 48);
@@ -1302,7 +1302,7 @@ sigremove_leave(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, uint32
     *action = RNP_KEY_SIGNATURE_KEEP;
 }
 
-void
+static void
 sigremove_unchanged(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, uint32_t *action)
 {
     assert_true((*(int *) app_ctx) == 48);
@@ -1311,14 +1311,14 @@ sigremove_unchanged(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, ui
     assert_non_null(ffi);
 }
 
-void
+static void
 sigremove_remove(rnp_ffi_t ffi, void *app_ctx, rnp_signature_handle_t sig, uint32_t *action)
 {
     assert_true((*(int *) app_ctx) == 48);
     *action = RNP_KEY_SIGNATURE_REMOVE;
 }
 
-void
+static void
 sigremove_revocation(rnp_ffi_t              ffi,
                      void *                 app_ctx,
                      rnp_signature_handle_t sig,

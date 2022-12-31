@@ -2125,14 +2125,6 @@ TEST_F(rnp_tests, test_ffi_backend_version)
     assert_true(strlen(rnp_backend_version()) > 0 && strlen(rnp_backend_version()) < 255);
 }
 
-void check_loaded_keys(const char *                    format,
-                       bool                            armored,
-                       uint8_t *                       buf,
-                       size_t                          buf_len,
-                       const char *                    id_type,
-                       const std::vector<std::string> &expected_ids,
-                       bool                            secret);
-
 TEST_F(rnp_tests, test_ffi_key_export_customized_enarmor)
 {
     rnp_ffi_t             ffi = NULL;
