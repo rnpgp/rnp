@@ -62,43 +62,28 @@ TEST_F(rnp_tests, test_load_g23)
     key_provider.userdata = pub_store;
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
-    /* dsa/eg key */
-//    assert_true(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
-
-// #7BECAE09D88411CB4904F24475D1085950C1B90AA8D89381881E172FFEB12E74CFD8FAA03BF7DDE08847838A0BE855708AC71667E9F7DA1EEF9DBEC8#
-
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "02A5715C3537717E"));
+    /* dsa/elg key */
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "740AB758FAF0D5B7"));
 
     /* rsa/rsa key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "2FB9179118898E8B"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "6E2F73008F8B8D6E"));
-
-    /* rsa/rsa new key. Now fails since uses new s-exp syntax */
-    //assert_false(test_load_g23_check_key(pub_store, sec_store, "BD860A52D1899C0F"));
-    //assert_false(test_load_g23_check_key(pub_store, sec_store, "8E08D46A37414996"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "D1EF5C27C1F76F88"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "1F4E4EBC86A6E667"));
 
     /* ed25519 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "CC786278981B0728"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "4F92A7A7B285CA0F"));
 
-    /* ed25519/x25519 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "941822A0FC1B30A5"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "C711187E594376AF"));
+    /* ed25519/cv25519 key */
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "0C96377D972E906C"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "8270B09D57420327"));
 
     /* p-256/p-256 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "23674F21B2441527"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "37E285E9E9851491"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "AA1DEBEA6C10FCC6"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "8F511690EADC47F8"));
 
     /* p-384/p-384 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "242A3AA5EA85F44A"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "E210E3D554A4FAD9"));
-
-    /* p-521/p-521 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "2092CA8324263B6A"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "9853DF2F6D297442"));
-
-    /* p256k1/p156k1 key */
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "3EA5BB6F9692C1A0"));
-    //assert_true(test_load_g23_check_key(pub_store, sec_store, "7635401F90D3E533"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "62774CDB7B085FB6"));
+    assert_true(test_load_g23_check_key(pub_store, sec_store, "F0D076E2A3876399"));
 
     delete pub_store;
     delete sec_store;
