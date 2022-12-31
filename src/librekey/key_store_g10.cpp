@@ -61,8 +61,8 @@ typedef struct format_info {
     size_t            cipher_block_size;
     const char *      g10_type;
     size_t            iv_size;
-    size_t            tag_length;   // bytes, meaningful for OCB mode only
-    bool              disable_padding;
+    size_t            tag_length; // bytes, meaningful for OCB mode only
+    bool              with_associated_data;
 } format_info;
 
 static bool g10_calculated_hash(const pgp_key_pkt_t &key,
@@ -76,7 +76,7 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-sha1-aes-cbc",
                                        G10_CBC_IV_SIZE,
                                        0,
-                                       true},
+                                       false},
                                       {PGP_SA_AES_256,
                                        PGP_CIPHER_MODE_CBC,
                                        PGP_HASH_SHA1,
@@ -84,7 +84,7 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-sha1-aes256-cbc",
                                        G10_CBC_IV_SIZE,
                                        0,
-                                       true},
+                                       false},
                                       {PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_OCB,
                                        PGP_HASH_SHA1,
@@ -92,7 +92,7 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE,
                                        16,
-                                       false}};
+                                       true}};
 
 static const id_str_pair g10_alg_aliases[] = {
   {PGP_PKA_RSA, "rsa"},
@@ -465,7 +465,9 @@ static bool
 decrypt_protected_section(const sexp_simple_string_t &encrypted_data,
                           const pgp_key_pkt_t &       seckey,
                           const std::string &         password,
-                          gnupg_sexp_t &              r_s_exp)
+                          gnupg_sexp_t &              r_s_exp,
+                          uint8_t *                   associated_data,
+                          size_t                      associated_data_len)
 {
     const format_info *     info = NULL;
     unsigned                keysize = 0;
@@ -514,8 +516,17 @@ decrypt_protected_section(const sexp_simple_string_t &encrypted_data,
         RNP_LOG("can't allocate memory");
         goto done;
     }
-    dec = Cipher::decryption(info->cipher, info->cipher_mode, info->tag_length, info->disable_padding);
-    if (!dec || !dec->set_key(derived_key, keysize) || !dec->set_iv(prot.iv, info->iv_size)) {
+    dec = Cipher::decryption(info->cipher, info->cipher_mode, info->tag_length, true);
+    if (!dec || !dec->set_key(derived_key, keysize)) {
+        goto done;
+    }
+    if (associated_data != nullptr && associated_data_len != 0) {
+        if (!dec->set_ad(associated_data, associated_data_len)) {
+            goto done;
+        }
+    }
+    // Nonce shall be the last chunk of associated data
+    if (!dec->set_iv(prot.iv, info->iv_size)) {
         goto done;
     }
     if (!dec->finish(decrypted_data,
@@ -645,7 +656,33 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *list, const cha
     // password was provided, so decrypt
     auto &       enc_bt = protected_key->sexp_string_at(3)->get_string();
     gnupg_sexp_t decrypted_s_exp;
-    if (!decrypt_protected_section(enc_bt, seckey, password, decrypted_s_exp)) {
+
+    // Build associated data (AD) that is not included in the ciphertext but that should be
+    // authenticated. gnupg builds AD as follows  (file 'protect.c' do_encryption/do_decryption
+    // functions)
+    //  -- "protected-private-key" section content
+    //  -- less "protected" subsection
+    //  -- serialized in canonical format
+    std::string associated_data;
+    if (format->with_associated_data) {
+        std::ostringstream   oss(std::ios_base::binary);
+        sexp_output_stream_t os(&oss);
+        os.var_put_char('(');
+        for_each(list->begin(), list->end(), [&](const std::unique_ptr<sexp_object_t> &obj) {
+            if (obj->sexp_list_view() != protected_key)
+                obj->print_canonical(&os);
+        });
+        os.var_put_char(')');
+        associated_data = oss.str();
+    }
+
+    if (!decrypt_protected_section(
+          enc_bt,
+          seckey,
+          password,
+          decrypted_s_exp,
+          format->with_associated_data ? (uint8_t *) associated_data.data() : nullptr,
+          format->with_associated_data ? associated_data.length() : 0)) {
         return false;
     }
     // see if we have a protected-at section
@@ -911,7 +948,7 @@ gnupg_sexp_t::write(pgp_dest_t &dst) const noexcept
 {
     bool res = false;
     try {
-        std::ostringstream oss(std::ios_base::binary);
+        std::ostringstream   oss(std::ios_base::binary);
         sexp_output_stream_t os(&oss);
         print_canonical(&os);
         const std::string &s = oss.str();

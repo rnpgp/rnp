@@ -4182,7 +4182,7 @@ is_weak_signature(rnp_ffi_t ffi, rnp_signature_handle_t sig)
     return res;
 }
 
-const std::string
+static const std::string
 get_uid_str(rnp_uid_handle_t uid)
 {
     uint32_t type = 0;
