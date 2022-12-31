@@ -267,6 +267,13 @@ size_t   get_key_uids(rnp_key_handle_t key);
 bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
 bool     check_uid_valid(rnp_key_handle_t key, size_t idx, bool valid);
 bool     check_uid_primary(rnp_key_handle_t key, size_t idx, bool primary);
+void     check_loaded_keys(const char *                    format,
+                           bool                            armored,
+                           uint8_t *                       buf,
+                           size_t                          buf_len,
+                           const char *                    id_type,
+                           const std::vector<std::string> &expected_ids,
+                           bool                            secret);
 
 /* create bogus key handle with NULL pub/sec keys */
 rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
@@ -281,7 +288,7 @@ bool brainpool_enabled();
 inline size_t
 rnp_round_up(size_t n, size_t align_to)
 {
-    if (n % align_to) {
+    if (n % align_to || n == 0) {
         n += align_to - (n % align_to);
     }
     return n;

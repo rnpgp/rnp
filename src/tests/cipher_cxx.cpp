@@ -49,7 +49,7 @@ decode_hex(const char *hex)
     return data;
 }
 
-void
+static void
 test_cipher(pgp_symm_alg_t    alg,
             pgp_cipher_mode_t mode,
             size_t            tag_size,
@@ -214,70 +214,50 @@ TEST_F(rnp_tests, test_cipher_idea)
 #endif
 }
 
-
-void
-test_xxx(pgp_symm_alg_t    alg,
-            pgp_cipher_mode_t mode,
-            size_t            tag_size,
-            bool              disable_padding,
-            const char *      key_hex,
-            const char *      iv_hex,
-            const char *      ct_hex)
-{
-    size_t output_written, input_consumed, nonfinal_bytes, written, consumed, ud;
-
-    ud = 256; //???
-
-    const std::vector<uint8_t> key(decode_hex(key_hex));
-    const std::vector<uint8_t> iv(decode_hex(iv_hex));
-    const std::vector<uint8_t> ct(decode_hex(ct_hex));
-
-    // decrypt
-    auto dec = Cipher::decryption(alg, mode, tag_size, disable_padding);
-    assert_true(dec->set_key(key.data(), key.size()));
-    assert_true(dec->set_iv(iv.data(), iv.size()));
-    // decrypt in pieces
-    std::vector<uint8_t> decrypted(ct.size());
-    // all except the last block
-    nonfinal_bytes = rnp_round_up(ct.size(), ud) - ud;
-    output_written = 0;
-    input_consumed = 0;
-    while (input_consumed != nonfinal_bytes) {
-        assert_true(dec->update(decrypted.data() + output_written,
-                                decrypted.size() - output_written,
-                                &written,
-                                (const uint8_t *) ct.data() + input_consumed,
-                                ud,
-                                &consumed));
-        output_written += written;
-        input_consumed += consumed;
-    }
-    assert_true(dec->finish(decrypted.data() + output_written,
-                            decrypted.size() - output_written,
-                            &written,
-                            (const uint8_t *) ct.data() + input_consumed,
-                            ct.size() - input_consumed,
-                            &consumed));
-    output_written += written;
-    decrypted.resize(output_written);
-}
-
-
-
-/*TEST_F(rnp_tests, test_cipher_xxx)
-{
-    test_xxx(PGP_SA_AES_128,
-                PGP_CIPHER_MODE_OCB,
-                16,
-                true,
-                "AE514E620172B90CBA6D913D082F789A",
-                "2D16E46DC89AAF535496AED5",
-                "CEB1738EB01C4CD60E59F0FC7BF5A761722922CEB1118E976B39B85AB8C5F6594F3394AB771FDDE89BD2724346D542A329AE6B82C91F89407AB2D7358D9398AA26E6EB9BE965B6");
-}
-*/
 TEST_F(rnp_tests, test_cipher_aes_128_ocb)
 {
-    // RFC 7253
+    // RFC 7253 -- Appendix A -- Sample Results
+    // ( The first ten test sets )
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F", // key
+                "BBAA99887766554433221100",         // nounce
+                nullptr,                            // ad
+                nullptr,                            // data
+                "785407BFFFC8AD9EDCC5520AC9111EE6");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221101",
+                "0001020304050607",
+                "0001020304050607",
+                "6820B3657B6F615A5725BDA0D3B4EB3A257C9AF1F8F03009");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221102",
+                "0001020304050607",
+                nullptr,
+                "81017F8203F081277152FADE694A0A00");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221103",
+                nullptr,
+                "0001020304050607",
+                "45DD69F8F5AAE72414054CD1F35D82760B2CD00D2F99BFA9");
+
     test_cipher(PGP_SA_AES_128,
                 PGP_CIPHER_MODE_OCB,
                 16,
@@ -287,6 +267,58 @@ TEST_F(rnp_tests, test_cipher_aes_128_ocb)
                 "000102030405060708090A0B0C0D0E0F",
                 "000102030405060708090A0B0C0D0E0F",
                 "571D535B60B277188BE5147170A9A22C3AD7A4FF3835B8C5701C1CCEC8FC3358");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221105",
+                "000102030405060708090A0B0C0D0E0F",
+                nullptr,
+                "8CF761B6902EF764462AD86498CA6B97");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221106",
+                nullptr,
+                "000102030405060708090A0B0C0D0E0F",
+                "5CE88EC2E0692706A915C00AEB8B2396F40E1C743F52436BDF06D8FA1ECA343D");
+
+    test_cipher(
+      PGP_SA_AES_128,
+      PGP_CIPHER_MODE_OCB,
+      16,
+      false,
+      "000102030405060708090A0B0C0D0E0F",
+      "BBAA99887766554433221107",
+      "000102030405060708090A0B0C0D0E0F1011121314151617",
+      "000102030405060708090A0B0C0D0E0F1011121314151617",
+      "1CA2207308C87C010756104D8840CE1952F09673A448A122C92C62241051F57356D7F3C90BB0E07F");
+
+    test_cipher(PGP_SA_AES_128,
+                PGP_CIPHER_MODE_OCB,
+                16,
+                false,
+                "000102030405060708090A0B0C0D0E0F",
+                "BBAA99887766554433221108",
+                "000102030405060708090A0B0C0D0E0F1011121314151617",
+                nullptr,
+                "6DC225A071FC1B9F7C69F93B0F1E10DE");
+
+    test_cipher(
+      PGP_SA_AES_128,
+      PGP_CIPHER_MODE_OCB,
+      16,
+      false,
+      "000102030405060708090A0B0C0D0E0F",
+      "BBAA99887766554433221109",
+      nullptr,
+      "000102030405060708090A0B0C0D0E0F1011121314151617",
+      "221BD0DE7FA6FE993ECCD769460A0AF2D6CDED0C395B1C3CE725F32494B9F914D85C0B1EB38357FF");
 }
 
 TEST_F(rnp_tests, test_cipher_aes_128_cbc)
