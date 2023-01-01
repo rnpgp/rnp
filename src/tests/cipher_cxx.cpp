@@ -134,8 +134,20 @@ test_cipher(pgp_symm_alg_t    alg,
     }
     // decrypt in pieces
     std::vector<uint8_t> decrypted(ct.size());
-    // all except the last block
+    // all except the last block but see below for openssl
     nonfinal_bytes = rnp_round_up(ct.size(), ud) - ud;
+#ifdef CRYPTO_BACKEND_OPENSSL
+    /* Since ossl backend sets tag explicitly tag bytes cannot be
+       split between two blocks.
+       The issue may easily occur is (for example)
+          us = 16
+          ct.size() = 24
+          tag_size=16
+    */
+    if (ct.size() - nonfinal_bytes < tag_size) {
+        nonfinal_bytes = ct.size() - tag_size;
+    }
+#endif // CRYPTO_BACKEND_OPENSSL
     output_written = 0;
     input_consumed = 0;
     while (input_consumed != nonfinal_bytes) {
@@ -143,7 +155,8 @@ test_cipher(pgp_symm_alg_t    alg,
                                 decrypted.size() - output_written,
                                 &written,
                                 (const uint8_t *) ct.data() + input_consumed,
-                                ud,
+                                // ++++                                    ud,
+                                std::min(ud, nonfinal_bytes - input_consumed),
                                 &consumed));
         output_written += written;
         input_consumed += consumed;
@@ -160,7 +173,7 @@ test_cipher(pgp_symm_alg_t    alg,
     assert_memory_equal(decrypted.data(), pt.data(), pt.size());
 
     // decrypt with a bad tag
-    if (tag_size) {
+    if (tag_size != 0) {
         dec.reset(Cipher::decryption(alg, mode, tag_size, disable_padding).release());
         assert_true(dec->set_key(key.data(), key.size()));
         assert_true(dec->set_iv(iv.data(), iv.size()));
@@ -169,8 +182,14 @@ test_cipher(pgp_symm_alg_t    alg,
         }
         // decrypt in pieces
         std::vector<uint8_t> decrypted(ct.size());
-        // all except the last block
+        // all except the last block but see above for openssl
         nonfinal_bytes = rnp_round_up(ct.size(), ud) - ud;
+#ifdef CRYPTO_BACKEND_OPENSSL
+        if (ct.size() - nonfinal_bytes < tag_size) {
+            nonfinal_bytes = ct.size() - tag_size;
+        }
+#endif // CRYPTO_BACKEND_OPENSSL
+
         output_written = 0;
         input_consumed = 0;
         while (input_consumed != nonfinal_bytes) {
@@ -178,7 +197,8 @@ test_cipher(pgp_symm_alg_t    alg,
                                     decrypted.size() - output_written,
                                     &written,
                                     (const uint8_t *) ct.data() + input_consumed,
-                                    ud,
+                                    // ++++                                    ud,
+                                    std::min(ud, nonfinal_bytes - input_consumed),
                                     &consumed));
             output_written += written;
             input_consumed += consumed;

@@ -61,8 +61,9 @@ typedef struct format_info {
     size_t            cipher_block_size;
     const char *      g10_type;
     size_t            iv_size;
-    size_t            tag_length; // bytes, meaningful for OCB mode only
+    size_t            tag_length;
     bool              with_associated_data;
+    bool              disable_padding;
 } format_info;
 
 static bool g10_calculated_hash(const pgp_key_pkt_t &key,
@@ -76,7 +77,8 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-sha1-aes-cbc",
                                        G10_CBC_IV_SIZE,
                                        0,
-                                       false},
+                                       false,
+                                       true},
                                       {PGP_SA_AES_256,
                                        PGP_CIPHER_MODE_CBC,
                                        PGP_HASH_SHA1,
@@ -84,7 +86,8 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-sha1-aes256-cbc",
                                        G10_CBC_IV_SIZE,
                                        0,
-                                       false},
+                                       false,
+                                       true},
                                       {PGP_SA_AES_128,
                                        PGP_CIPHER_MODE_OCB,
                                        PGP_HASH_SHA1,
@@ -92,6 +95,7 @@ static const format_info formats[] = {{PGP_SA_AES_128,
                                        "openpgp-s2k3-ocb-aes",
                                        G10_OCB_NONCE_SIZE,
                                        16,
+                                       true,
                                        true}};
 
 static const id_str_pair g10_alg_aliases[] = {
@@ -516,7 +520,8 @@ decrypt_protected_section(const sexp_simple_string_t &encrypted_data,
         RNP_LOG("can't allocate memory");
         goto done;
     }
-    dec = Cipher::decryption(info->cipher, info->cipher_mode, info->tag_length, true);
+    dec = Cipher::decryption(
+      info->cipher, info->cipher_mode, info->tag_length, info->disable_padding);
     if (!dec || !dec->set_key(derived_key, keysize)) {
         goto done;
     }
