@@ -358,9 +358,9 @@ rnp_cfg::get_expiration(const std::string &key, uint32_t &seconds) const
     if (!std::regex_search(val, result, re)) {
         return false;
     }
-    std::string delta_stdstr = result[1].str();
-    const char *delta_str = delta_stdstr.c_str();
-    char        mult = result[2].str()[0];
+    std::string       delta_stdstr = result[1].str();
+    const char *      delta_str = delta_stdstr.c_str();
+    char              mult = result[2].str()[0];
 #endif
     errno = 0;
     delta = strtoul(delta_str, NULL, 10);
