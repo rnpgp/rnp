@@ -44,7 +44,7 @@ test_load_g23_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *
     return key->is_protected() && key->unlock(pswd_prov) && key->lock();
 }
 
-/* This test loads G23 keyring and verifies certain properties
+/* This test loads G23 keyring and verifies that certain properties
  * of the keys are correct.
  */
 TEST_F(rnp_tests, test_load_g23)
@@ -62,6 +62,10 @@ TEST_F(rnp_tests, test_load_g23)
     key_provider.userdata = pub_store;
     assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
 
+#ifdef CRYPTO_BACKEND_BOTAN
+    /*  GnuPG extended key format requires AEAD support that is available for BOTAN backend
+       only https://github.com/rnpgp/rnp/issues/1642 (???)
+    */
     /* dsa/elg key */
     assert_true(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
     assert_true(test_load_g23_check_key(pub_store, sec_store, "740AB758FAF0D5B7"));
@@ -84,6 +88,9 @@ TEST_F(rnp_tests, test_load_g23)
     /* p-384/p-384 key */
     assert_true(test_load_g23_check_key(pub_store, sec_store, "62774CDB7B085FB6"));
     assert_true(test_load_g23_check_key(pub_store, sec_store, "F0D076E2A3876399"));
+#else
+    assert_false(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
+#endif // CRYPTO_BACKEND_BOTAN
 
     delete pub_store;
     delete sec_store;
