@@ -19,6 +19,11 @@
 : "${RECOMMENDED_CMAKE_VERSION:=3.20.5}"
 : "${RECOMMENDED_PYTHON_VERSION:=3.9.2}"
 : "${RECOMMENDED_RUBY_VERSION:=2.5.8}"
+# Bundler version to use if Ruby version is less then 
+# FALLBACK_BUNDLER_RUBY_VERSION
+: "${FALLBACK_BUNDLER_VERSION:=2.1.4}"
+: "${FALLBACK_BUNDLER_RUBY_VERSION:=2.6.0}"
+
 : "${RECOMMENDED_BOTAN_VERSION_MSYS:=${RECOMMENDED_BOTAN_VERSION}-1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
@@ -692,7 +697,11 @@ run_in_python_venv() {
 
 # ruby-rnp
 install_bundler() {
-  gem_install bundler bundle
+  if is_version_at_least ruby "${FALLBACK_BUNDLER_RUBY_VERSION}" command ruby -e 'puts RUBY_VERSION'; then
+    gem_install bundler bundle
+  else
+    gem_install "bundler:${FALLBACK_BUNDLER_VERSION}" bundle
+  fi
 }
 
 install_asciidoctor() {
