@@ -222,11 +222,11 @@ if (DOWNLOAD_RUBYRNP AND NOT ENABLE_SANITIZERS AND BUILD_SHARED_LIBS AND NOT WIN
     GIT_SHALLOW yes
     SOURCE_DIR "${_sourcedir}"
     BUILD_IN_SOURCE yes
-    CONFIGURE_COMMAND ""
+    CONFIGURE_COMMAND bundle config set --local path '.'
     BUILD_COMMAND
       COMMAND bundle add ffi --version 1.15.5
       COMMAND bundle show parallel_tests || bundle add parallel_tests
-      COMMAND bundle install --path .
+      COMMAND bundle install
     INSTALL_COMMAND ""
     TEST_COMMAND ""
   )
