@@ -397,6 +397,7 @@ ensure_cmake() {
   pushd "$(mktemp -d)" || return 1
 
   install_prebuilt_cmake Linux-x86_64
+#  build_and_install_cmake
 
   command -v cmake
 
@@ -628,7 +629,7 @@ linux_install_debian() {
 
   ensure_automake
   ensure_ruby
-  build_and_install_cmake
+  ensure_cmake
 }
 
 linux_install() {
@@ -823,8 +824,8 @@ is_version_at_least() {
     installed_version_minor="${installed_version_minor:-0}"
     installed_version_patch="${installed_version#${installed_version_major}.}"
     installed_version_patch="${installed_version_patch#${installed_version_minor}}"
-    installed_version_patch="${installed_version_patch#.}"
-    installed_version_patch="${installed_version_patch%%.*}"
+    installed_version_patch="${installed_version_patch#[.-]}"
+    installed_version_patch="${installed_version_patch%%[.-]*}"
     installed_version_patch="${installed_version_patch:-0}"
 
     local need_version_major
