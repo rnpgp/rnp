@@ -1,0 +1,135 @@
+name: debian
+
+on:
+  push:
+    branches:
+      - master
+      - 'release/**'
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+      - '.github/workflows/*.yml'
+      - '!.github/workflows/debian.yml'
+  pull_request:
+    paths-ignore:
+      - '/*.sh'
+      - '/.*'
+      - '/_*'
+      - '/vcpkg.txt'
+      - 'Brewfile'
+      - 'docs/**'
+      - '**.adoc'
+      - '**.md'
+      - '**.nix'
+      - 'flake.lock'
+
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
+env:
+  CORES: 2
+  LANG: C.UTF-8
+  LC_ALL: C.UTF-8
+  LC_LANG: C.UTF-8
+  CMAKE_VER: '3.20.6-2'
+  DOWNLOAD_RUBYRNP: Off
+  BUILD_MODE: normal
+  GPG_VERSION: stable
+  SUDO: ""
+  USE_STATIC_DEPENDENCIES: yes
+  RNP_LOG_CONSOLE: 1
+
+jobs:
+  tests:
+    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG stable]
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - { container: 'i386/debian:11',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
+          - { container: 'i386/debian:11',  cpu: 'i386',   arch: 'ia32',   backend: 'openssl' }
+          - { container: 'amd64/debian:11', cpu: 'x86_64', arch: 'x64',    backend: 'botan'   }
+          - { container: 'amd64/debian:11', cpu: 'x86_64', arch: 'x64',    backend: 'openssl' }
+          - { container: 'i386/debian:9',   cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
+        env:
+          - { CC: 'gcc',   CXX: 'g++'     }
+          - { CC: 'clang', CXX: 'clang++' }
+
+    container: ${{ matrix.image.container }}
+
+    env: ${{ matrix.env }}
+    steps:
+      - name: Install prerequisites
+        run: |
+          apt update
+          apt -y install git sudo wget
+
+      - name: Setup environment
+        shell: bash
+        # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
+        run: |
+          set -x
+          echo IMAGE=${{ matrix.image.container }} >> $GITHUB_ENV
+          echo CPU=${{ matrix.image.cpu }} >> $GITHUB_ENV
+          echo CRYPTO_BACKEND=${{ matrix.image.backend }} >> $GITHUB_ENV
+          echo "SUDO=sudo" >> $GITHUB_ENV
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+
+# I386: actions/checkout@v3,  actions/cache@v3
+#       give error about OCI container [https://github.com/actions/checkout/issues/334]
+#                                      [https://github.com/actions/runner/issues/1011]
+      - name: Checkout
+        uses: actions/checkout@v1
+
+      - name: Install cmake
+        run: |
+          wget -nv https://github.com/xpack-dev-tools/cmake-xpack/releases/download/v${{ env.CMAKE_VER }}/xpack-cmake-${{ env.CMAKE_VER }}-linux-${{ matrix.image.arch }}.tar.gz
+          tar -zxf xpack-cmake-${{ env.CMAKE_VER }}-linux-${{ matrix.image.arch }}.tar.gz --directory /usr/local --strip-components=1 --skip-old-files
+
+      - name: Setup noncacheable dependencies
+        shell: bash
+        run: |
+          . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
+
+      - name: Cache
+        id: cache
+        uses: actions/cache@v3
+        if: env.CPU == 'x86_64'
+        with:
+          path: ${{github.workspace}}/${{ env.CACHE_DIR }}
+          key: ${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+
+      - name: Setup cacheable dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          ci/install_cacheable_dependencies.sh
+
+      - name: Build and Test
+        shell: bash
+        run: |
+          set -x
+          chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c ci/run.sh
+
+      - name: Package
+        run: |
+          set -x
+          cd ${LOCAL_BUILDS}/rnp-build
+          cpack -G DEB -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
