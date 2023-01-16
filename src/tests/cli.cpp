@@ -292,11 +292,16 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     assert_false(test_cli_g10_key_sign("6e2f73008f8b8d6e"));
     assert_true(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
 
+#ifdef CRYPTO_BACKEND_BOTAN
+    /*  GnuPG extended key format requires AEAD support that is available for BOTAN backend
+       only https://github.com/rnpgp/rnp/issues/1642 (???)
+    */
     /* check new rsa/rsa key, key is SC while subkey is E. */
     assert_true(test_cli_g10_key_sign("bd860a52d1899c0f"));
     assert_true(test_cli_g10_key_encrypt("bd860a52d1899c0f"));
     assert_false(test_cli_g10_key_sign("8e08d46a37414996"));
     assert_true(test_cli_g10_key_encrypt("8e08d46a37414996"));
+#endif
 
     /* check ed25519 key */
     assert_true(test_cli_g10_key_sign("cc786278981b0728"));

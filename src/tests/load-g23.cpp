@@ -78,6 +78,9 @@ TEST_F(rnp_tests, test_load_g23)
     assert_false(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
 #endif // CRYPTO_BACKEND_BOTAN
 
+    /* No public key */
+    assert_false(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF6"));
+
     delete pub_store;
     delete sec_store;
 }
