@@ -294,6 +294,11 @@ rnp_round_up(size_t n, size_t align_to)
     return n;
 }
 
+/* load g10/g23 gpg key and verify that it can be
+   unprotected/protected
+*/
+bool test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id);
+
 #define MD5_FROM 1325376000
 #define SHA1_DATA_FROM 1547856000
 #define SHA1_KEY_FROM 1705629600
