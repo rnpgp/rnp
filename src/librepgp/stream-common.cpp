@@ -994,7 +994,7 @@ mem_dst_write(pgp_dest_t *dst, const void *buf, size_t len)
         if (!newalloc) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
-        if (param->secure) {
+        if (param->secure && param->memory) {
             memcpy(newalloc, param->memory, dst->writeb);
             secure_clear(param->memory, dst->writeb);
             free(param->memory);
