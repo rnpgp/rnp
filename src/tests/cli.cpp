@@ -293,11 +293,10 @@ TEST_F(rnp_tests, test_cli_g10_operations)
     assert_true(test_cli_g10_key_encrypt("6e2f73008f8b8d6e"));
 
     /* check new rsa/rsa key, key is SC while subkey is E. */
-    /* Now fails since we cannot parse new S-exps */
-    assert_false(test_cli_g10_key_sign("bd860a52d1899c0f"));
-    assert_false(test_cli_g10_key_encrypt("bd860a52d1899c0f"));
+    assert_true(test_cli_g10_key_sign("bd860a52d1899c0f"));
+    assert_true(test_cli_g10_key_encrypt("bd860a52d1899c0f"));
     assert_false(test_cli_g10_key_sign("8e08d46a37414996"));
-    assert_false(test_cli_g10_key_encrypt("8e08d46a37414996"));
+    assert_true(test_cli_g10_key_encrypt("8e08d46a37414996"));
 
     /* check ed25519 key */
     assert_true(test_cli_g10_key_sign("cc786278981b0728"));
