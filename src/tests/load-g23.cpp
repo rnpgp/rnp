@@ -30,20 +30,6 @@
 #include "rnp_tests.h"
 #include "support.h"
 
-static bool
-test_load_g23_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
-{
-    pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);
-    if (!key) {
-        return false;
-    }
-    if (!(key = rnp_tests_get_key_by_id(sec, id))) {
-        return false;
-    }
-    pgp_password_provider_t pswd_prov(string_copy_password_callback, (void *) "password");
-    return key->is_protected() && key->unlock(pswd_prov) && key->lock();
-}
-
 /* This test loads G23 keyring and verifies that certain properties
  * of the keys are correct.
  */
@@ -67,29 +53,29 @@ TEST_F(rnp_tests, test_load_g23)
        only https://github.com/rnpgp/rnp/issues/1642 (???)
     */
     /* dsa/elg key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "740AB758FAF0D5B7"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "740AB758FAF0D5B7"));
 
     /* rsa/rsa key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "D1EF5C27C1F76F88"));
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "1F4E4EBC86A6E667"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "D1EF5C27C1F76F88"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "1F4E4EBC86A6E667"));
 
     /* ed25519 key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "4F92A7A7B285CA0F"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "4F92A7A7B285CA0F"));
 
     /* ed25519/cv25519 key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "0C96377D972E906C"));
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "8270B09D57420327"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "0C96377D972E906C"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "8270B09D57420327"));
 
     /* p-256/p-256 key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "AA1DEBEA6C10FCC6"));
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "8F511690EADC47F8"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "AA1DEBEA6C10FCC6"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "8F511690EADC47F8"));
 
     /* p-384/p-384 key */
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "62774CDB7B085FB6"));
-    assert_true(test_load_g23_check_key(pub_store, sec_store, "F0D076E2A3876399"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "62774CDB7B085FB6"));
+    assert_true(test_load_gpg_check_key(pub_store, sec_store, "F0D076E2A3876399"));
 #else
-    assert_false(test_load_g23_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
+    assert_false(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
 #endif // CRYPTO_BACKEND_BOTAN
 
     delete pub_store;
