@@ -112,7 +112,7 @@ jobs:
         if: env.CPU == 'x86_64'
         with:
           path: ${{github.workspace}}/${{ env.CACHE_DIR }}
-          key: ${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
+          key: ${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ matrix.image.backend }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/debian.yml') }}
 
       - name: Setup cacheable dependencies
         if: steps.cache.outputs.cache-hit != 'true'
