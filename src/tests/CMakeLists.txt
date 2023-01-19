@@ -66,10 +66,10 @@ else()
 endif()
 
 find_package(JSON-C 0.11 REQUIRED)
-if (CRYPTO_BACKEND STREQUAL "botan")
+if (CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
   find_package(Botan2 2.14.0 REQUIRED)
 endif()
-if (CRYPTO_BACKEND STREQUAL "openssl")
+if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   find_package(OpenSSL 1.1.1 REQUIRED)
 endif()
 
@@ -180,7 +180,7 @@ target_link_libraries(rnp_tests
     Sexp::Sexp
     ${GTestMain}
 )
-if (CRYPTO_BACKEND STREQUAL "openssl")
+if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   target_link_libraries(rnp_tests PRIVATE OpenSSL::Crypto)
 endif()
 if (WIN32 AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
