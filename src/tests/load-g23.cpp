@@ -78,8 +78,11 @@ TEST_F(rnp_tests, test_load_g23)
     assert_false(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF5"));
 #endif // CRYPTO_BACKEND_BOTAN
 
-    /* No public key */
+    /* Wrong id -- no public key*/
     assert_false(test_load_gpg_check_key(pub_store, sec_store, "2651229E2D4DADF6"));
+
+    /* Correct id but no private key*/
+    assert_false(test_load_gpg_check_key(pub_store, sec_store, "25810145A8D4699A"));
 
     delete pub_store;
     delete sec_store;
