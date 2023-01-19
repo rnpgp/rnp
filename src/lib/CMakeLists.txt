@@ -72,7 +72,7 @@ configure_file(version.h.in version.h)
 
 # Checks feature in CRYPTO_BACKEND and puts the result into variable whose name is stored in RESULT_VARNAME variable.
 function(backend_has_feature FEATURE RESULT_VARNAME)
-  if (CRYPTO_BACKEND STREQUAL "botan")
+  if (CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
     check_cxx_symbol_exists("BOTAN_HAS_${FEATURE}" botan/build.h ${RESULT_VARNAME})
   else()
   message(STATUS "Looking for OpenSSL feature ${FEATURE}")

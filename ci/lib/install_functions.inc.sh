@@ -252,11 +252,13 @@ yum_install_build_dependencies() {
 
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl
-  yum_install_build_dependencies \
-    cmake3 \
-    rh-ruby25 rh-ruby25-ruby-devel \
-    llvm-toolset-7.0
 
+  extra_dep=(cmake3 llvm-toolset-7.0)
+  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+    extra_dep+=(openssl-devel)
+  fi
+
+  yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
 
   ensure_automake
@@ -268,10 +270,13 @@ linux_install_centos7() {
 linux_install_centos8() {
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
   yum_prepare_repos epel-release
-  yum_install_build_dependencies \
-    cmake \
-    texinfo
 
+  extra_dep=(cmake texinfo)
+  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+    extra_dep+=(openssl-devel)
+  fi
+
+  yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
 
   ensure_automake
@@ -282,10 +287,13 @@ linux_install_centos8() {
 
 linux_install_centos9() {
   yum_prepare_repos epel-release
-  yum_install_build_dependencies \
-    cmake \
-    texinfo
 
+  extra_dep=(cmake texinfo)
+  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+    extra_dep+=(openssl-devel)
+  fi
+
+  yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
 
   ensure_automake
@@ -327,7 +335,7 @@ install_static_cacheable_build_dependencies() {
   mkdir -p "$LOCAL_BUILDS"
 
   local default=(jsonc gpg)
-  if [ "${CRYPTO_BACKEND:-}" != "openssl" ]; then
+  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" != "openssl" ]; then
     default=(botan "${default[@]}")
   fi
   local items=("${@:-${default[@]}}")
