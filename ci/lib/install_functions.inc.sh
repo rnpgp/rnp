@@ -52,6 +52,7 @@ fi
 if [[ "${OS}" = "freebsd" ]] || \
    [[ "${DIST}" = "ubuntu" ]] || \
    [[ "${DIST}" = "centos" ]] || \
+   [[ "${DIST}" = "rhel"   ]] || \
    [[ "${DIST}" = "fedora" ]]
 then
   SUDO="${SUDO:-sudo}"
@@ -157,6 +158,10 @@ linux_install_fedora() {
   ensure_cmake
   ensure_ruby
   rubygem_install_build_dependencies
+}
+
+linux_install_rhel() {
+  linux_install_fedora
 }
 
 linux_install_centos() {
