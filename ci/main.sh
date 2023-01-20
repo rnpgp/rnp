@@ -60,7 +60,7 @@ build_tests() {
 
   local run=run
   case "${DIST_VERSION}" in
-    centos-8|fedora-*)
+    centos-8|centos-9|fedora-*)
       run=run_in_python_venv
       ;;
   esac
