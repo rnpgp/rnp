@@ -54,7 +54,7 @@ test_supported_features() {
         unsupported+=("${sm2[@]}")
     elif [[ "$ENABLE_SM2" == "On" ]]; then
         supported+=("${sm2[@]}")
-    elif [[ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]]; then
+    elif [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${sm2[@]}")
     else
         supported+=("${sm2[@]}")
@@ -67,7 +67,7 @@ test_supported_features() {
         supported+=(IDEA)
     fi
 
-    if [[ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]]; then
+    if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${botan_only[@]}")
         library_path="${BOTAN_INSTALL}/lib64:${JSONC_INSTALL}/lib64:${RNP_INSTALL}/lib64"
     else

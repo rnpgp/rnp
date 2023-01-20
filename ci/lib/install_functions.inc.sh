@@ -149,8 +149,12 @@ yum_prepare_repos() {
 
 linux_install_fedora() {
   yum_prepare_repos
-  yum_install_build_dependencies \
-    cmake
+  extra_dep=(cmake)
+  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
+    extra_dep+=(openssl-devel)
+  fi
+
+  yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
 
   ensure_automake
@@ -254,7 +258,7 @@ linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl
 
   extra_dep=(cmake3 llvm-toolset-7.0)
-  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
 
@@ -273,7 +277,7 @@ linux_install_centos8() {
   yum_prepare_repos epel-release
 
   extra_dep=(cmake texinfo)
-  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
 
@@ -290,7 +294,7 @@ linux_install_centos9() {
   yum_prepare_repos epel-release
 
   extra_dep=(cmake texinfo)
-  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" == "openssl" ]; then
+  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
 
@@ -336,7 +340,7 @@ install_static_cacheable_build_dependencies() {
   mkdir -p "$LOCAL_BUILDS"
 
   local default=(jsonc gpg)
-  if [ "$(echo "${CRYPTO_BACKEND:-}" | tr '[:upper:]' '[:lower:]')" != "openssl" ]; then
+  if [[ "${CRYPTO_BACKEND:-}" != "openssl" ]]; then
     default=(botan "${default[@]}")
   fi
   local items=("${@:-${default[@]}}")
