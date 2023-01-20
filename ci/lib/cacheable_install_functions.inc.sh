@@ -49,7 +49,7 @@ install_botan() {
         ;;
       linux)
         case "${DIST_VERSION}" in
-          centos-8|fedora-*|debian-*)
+          centos-8|centos-9|fedora-*|debian-*)
             run=run_in_python_venv
             ;;
         esac
