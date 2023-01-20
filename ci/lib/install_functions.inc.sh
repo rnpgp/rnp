@@ -149,7 +149,7 @@ yum_prepare_repos() {
 
 linux_install_fedora() {
   yum_prepare_repos
-  extra_dep=(cmake)
+  extra_dep=(cmake json-c12-devel)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -214,10 +214,7 @@ declare build_dependencies_yum=(
 declare dynamic_build_dependencies_yum=(
   botan2
   botan2-devel
-  json-c12-devel
-  # python2-devel # TODO: needed?
 )
-
 
 apt_install() {
   local apt_command=(apt-get -y -q install "$@")
@@ -257,7 +254,7 @@ yum_install_build_dependencies() {
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl
 
-  extra_dep=(cmake3 llvm-toolset-7.0)
+  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -275,7 +272,7 @@ linux_install_centos8() {
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo)
+  extra_dep=(cmake texinfo json-c12-devel)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -290,9 +287,11 @@ linux_install_centos8() {
 }
 
 linux_install_centos9() {
+  "${SUDO}" "${YUM}" -y -q install 'dnf-command(config-manager)'
+  "${SUDO}" "${YUM}" config-manager --set-enabled crb
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo)
+  extra_dep=(cmake texinfo json-c-devel)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
