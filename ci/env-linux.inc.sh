@@ -14,7 +14,7 @@ export DIST_VERSION
 export DIST_VERSION_ID
 
 case "${DIST}" in
-  fedora|centos)
+  centos|fedora)
     if command -v dnf >/dev/null; then
       export YUM=dnf
     else
@@ -50,13 +50,13 @@ esac
 post_build_tool_install_set_env() {
   case "${DIST}" in
     centos)
-      if rpm --quiet -q ribose-automake116 && [[ "$PATH" != */opt/ribose/ribose-automake116/root/usr/bin* ]]; then
-        # set ACLOCAL_PATH if using ribose-automake116
-        ACLOCAL_PATH=$(scl enable ribose-automake116 -- aclocal --print-ac-dir):$(rpm --eval '%{_datadir}/aclocal')
-        export ACLOCAL_PATH
-        # set path etc
-        . /opt/ribose/ribose-automake116/enable
-      fi
+#      if rpm --quiet -q ribose-automake116 && [[ "$PATH" != */opt/ribose/ribose-automake116/root/usr/bin* ]]; then
+#        # set ACLOCAL_PATH if using ribose-automake116
+#        ACLOCAL_PATH=$(scl enable ribose-automake116 -- aclocal --print-ac-dir):$(rpm --eval '%{_datadir}/aclocal')
+#        export ACLOCAL_PATH
+#        # set path etc
+#        . /opt/ribose/ribose-automake116/enable
+#      fi
 
       # use rh-ruby25 if installed
       if rpm --quiet -q rh-ruby25 && [[ "$PATH" != */opt/rh/rh-ruby25/root/usr/bin* ]]; then

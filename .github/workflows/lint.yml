@@ -13,9 +13,6 @@ on:
       - '**.md'
       - '**.nix'
       - 'flake.lock'
-  push:
-    branches:
-      - maxirmx-squash-centos
 
 jobs:
   clang-format:
