@@ -37,9 +37,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  CORES: 2
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
-  USE_STATIC_DEPENDENCIES: yes
   DOWNLOAD_RUBYRNP: Off
 
 jobs:
@@ -50,26 +48,33 @@ jobs:
     timeout-minutes: 70
     strategy:
       fail-fast: false
-# ???      max-parallel: 2
       matrix:
         env:
-          - { CC: gcc,   CXX: g++,     BUILD_MODE: normal }
-          - { CC: clang, CXX: clang++, BUILD_MODE: normal }
+          - { CC: gcc,   CXX: g++,     BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
+#   normal --> Release build; sanitize --> Debug build
+#   so theoretically test conditions are different
+#         - { CC: clang, CXX: clang++, BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
+          - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, USE_STATIC_DEPENDENCIES: yes }
 
         image:
-          - { name: 'CentOS 7', container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 7', container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 9', container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
-          - { name: 'CentOS 9', container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
+          - { name: 'CentOS 7',   container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
+          - { name: 'CentOS 7',   container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
+          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: On,           locale: C.UTF-8     }
+          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
+          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
+          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
+          - { name: 'CentOS 9',   container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+          - { name: 'CentOS 9',   container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
+          - { name: 'CentOS 9',   container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
+          - { name: 'Fedora 3.5', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+          - { name: 'Fedora 3.5', container: 'fedora:35',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+          - { name: 'Fedora 3.6', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+          - { name: 'Fedora 3.6', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
 
         include:
           - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: Botan, sm2: On, locale: C.UTF-8 }
-            env: { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*" }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
 
     env: ${{ matrix.env }}
     name: ${{ matrix.image.name }} ${{ matrix.image.backend }} [test mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.image.gpg_ver }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
@@ -83,14 +88,16 @@ jobs:
 
       - name: Setup environment
         run: |
-          set -x
+          set -o errexit -o pipefail -o noclobber -o nounset
           echo LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
           echo LC_ALL=${{ matrix.image.locale }} >> $GITHUB_ENV
           echo LC_LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
           echo GPG_VERSION=${{ matrix.image.gpg_ver }} >> $GITHUB_ENV
           echo ENABLE_SM2=${{ matrix.image.sm2 }} >> $GITHUB_ENV
           echo ENABLE_IDEA=${{ matrix.image.idea }} >> $GITHUB_ENV
-          echo CRYPTO_BACKEND=${{ matrix.image.backend }} >> $GITHUB_ENV
+          backend=${{ matrix.image.backend }}
+          backend="$(echo "${backend:-}" | tr '[:upper:]' '[:lower:]')"
+          echo CRYPTO_BACKEND="$backend" >> $GITHUB_ENV
           echo BOTAN_VERSION=${{ matrix.image.botan_ver }} >> $GITHUB_ENV
           useradd rnpuser
           echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
@@ -113,7 +120,7 @@ jobs:
 
       - name: Adjust folder ownership
         run: |
-          set -x
+          set -o errexit -o pipefail -o noclobber -o nounset
           chown -R rnpuser:rnpuser $PWD
 
       - name: Build cache
@@ -124,60 +131,51 @@ jobs:
         run: exec su rnpuser -c ci/run.sh
 
       - name: Checkout shell test framework
-        if: matrix.env.BUILD_MODE == 'normal'
         uses: actions/checkout@v3
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2
 
       - name: Run additional ci tests
-        if: matrix.env.BUILD_MODE == 'normal'
         run:  ci/tests/tests.sh
 
-  sanitize:
+  packaging-tests:
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    # TODO: re-enable when the following can pass
+    if: "${{ !contains(github.event.head_commit.message, 'skip ci') }}"
     container: ${{ matrix.image.container }}
-    timeout-minutes: 70
+    timeout-minutes: 10
     strategy:
-      fail-fast: false
       matrix:
-        env:  [ { CC: clang, CXX: clang++, BUILD_MODE: sanitize } ]
         image:
-          - { name: 'CentOS 7', container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 7', container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'CentOS 8', container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 9', container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
-          - { name: 'CentOS 9', container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
-
+          - { name: 'CentOS 7',   container: 'centos:7',               backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
+#          - { name: 'CentOS 8',   container: 'tgagor/centos:stream8', backend: Botan,                       locale: C.UTF-8     }
+#          - { name: 'Fedora 3.5', container: 'fedora:35',             backend: Botan,                      locale: C.UTF-8     }
+#          - { name: 'Fedora 3.6', container: 'fedora:36',             backend: Botan,                      locale: C.UTF-8     }
+        env:
+          - { BUILD_SHARED_LIBS: yes, USE_STATIC_DEPENDENCIES: no }
+          - { BUILD_SHARED_LIBS: no,  USE_STATIC_DEPENDENCIES: no }
     env: ${{ matrix.env }}
-    name: ${{ matrix.image.name }} ${{ matrix.image.backend }} [test mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.image.gpg_ver }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
+    continue-on-error: true
+    name: Packaging test on ${{ matrix.image.name }} ${{ matrix.image.backend }} [Shared libraries ${{ matrix.env.BUILD_SHARED_LIBS }}]
     steps:
       - name: Install prerequisites for prerequisites
         if: matrix.image.container == 'centos:7'
         run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
 
       - name: Install prerequisites
-        run:  yum -y install git sudo
+        run:  yum -y install git rpm-build
 
       - name: Setup environment
         run: |
-          set -x
+          set -o errexit -o pipefail -o noclobber -o nounset
           echo LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
           echo LC_ALL=${{ matrix.image.locale }} >> $GITHUB_ENV
           echo LC_LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo BUILD_MODE=${{ matrix.mode }} >> $GITHUB_ENV
-          echo GPG_VERSION=${{ matrix.image.gpg_ver }} >> $GITHUB_ENV
-          echo ENABLE_SM2=${{ matrix.image.sm2 }} >> $GITHUB_ENV
-          echo ENABLE_IDEA=${{ matrix.image.idea }} >> $GITHUB_ENV
-          echo CRYPTO_BACKEND=${{ matrix.image.backend }} >> $GITHUB_ENV
+          backend=${{ matrix.image.backend }}
+          backend="$(echo "${backend:-}" | tr '[:upper:]' '[:lower:]')"
+          echo CRYPTO_BACKEND="$backend" >> $GITHUB_ENV
           echo BOTAN_VERSION=${{ matrix.image.botan_ver }} >> $GITHUB_ENV
-          useradd rnpuser
-          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
-          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -185,66 +183,27 @@ jobs:
       - name: Setup noncacheable dependencies
         run: |
           . ci/gha/setup-env.inc.sh
-          exec su rnpuser -c ci/install_noncacheable_dependencies.sh
+          ci/install_noncacheable_dependencies.sh
 
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ matrix.image.container }}-${{ matrix.image.backend }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-${{ matrix.image.gpg_ver }}-${{ matrix.image.sm2 }}-${{ matrix.image.idea }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/centos-and-fedora.yml') }}
-
-      - name: Adjust folder ownership
-        run: |
-          set -x
-          chown -R rnpuser:rnpuser $PWD
-
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: exec su rnpuser -c ci/install_cacheable_dependencies.sh
-
-      - name: Run tests
-        run: exec su rnpuser -c ci/run.sh
-
-  pkgconfig-cmake-target:
-    runs-on: ubuntu-latest
-    # TODO: re-enable when the following can pass
-    if: "${{ false && !contains(github.event.head_commit.message, 'skip ci') }}"
-    container:
-      image: tgagor/centos:stream8
-    timeout-minutes: 10
-    strategy:
-      matrix:
-        env:
-          - BUILD_SHARED_LIBS: yes
-          - BUILD_SHARED_LIBS: no
-    env: ${{ matrix.env }}
-    continue-on-error: true
-    steps:
-      - run: |
-          yum -y install git
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-      - name: Test
-        run: |
+#      - name: Test
+#        run: |
 
           # cmake
-          set -euxo pipefail
-          export USE_STATIC_DEPENDENCIES=no
-          ci/install_noncacheable_dependencies.sh
-          ci/install_cacheable_dependencies.sh
+#          set -euxo pipefail
+#          export USE_STATIC_DEPENDENCIES=no
+#          ci/install_noncacheable_dependencies.sh
+#          ci/install_cacheable_dependencies.sh
 
-          . ci/env.inc.sh
+#          . ci/env.inc.sh
 
           # build+install
-          build_and_install /usr
+#          build_and_install /usr
 
           # check for install issues
-          check_build
-          build_example_pkgconfig
-      - name: Package
-        run: |
-          set -euxo pipefail
-          yum install -y rpm-build
-          cpack -G RPM
+#          check_build
+#          build_example_pkgconfig
+#      - name: Package
+#        run: |
+#          set -euxo pipefail
+#          yum install -y rpm-build
+#          cpack -G RPM
