@@ -5,7 +5,6 @@ on:
     branches:
       - master
       - 'release/**'
-      - maxirmx-squash-centos
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -146,7 +145,7 @@ jobs:
       matrix:
         image:
           - { name: 'CentOS 7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
-# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries
+# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
 # https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         backend: Botan, flags: -D_GLIBCXX_USE_CXX11_ABI=0, locale: C.UTF-8     }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', backend: Botan,                                    locale: C.UTF-8     }
