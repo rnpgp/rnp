@@ -107,8 +107,16 @@ backend_version()
 }
 
 #if defined(CRYPTO_BACKEND_OPENSSL3)
+
+#if defined(ENABLE_IDEA) || defined(ENABLE_CAST5) || defined(ENABLE_BLOWFISH) || \
+  defined(ENABLE_RIPEMD160)
+#define OPENSSL_LOAD_LEGACY
+#endif
+
 typedef struct openssl3_state {
+#if defined(OPENSSL_LOAD_LEGACY)
     OSSL_PROVIDER *legacy;
+#endif
     OSSL_PROVIDER *def;
 } openssl3_state;
 
@@ -132,7 +140,8 @@ backend_init(void **param)
         free(state);
         return false;
     }
-    /* Load legacy crypto provider */
+    /* Load legacy crypto provider if needed */
+#if defined(OPENSSL_LOAD_LEGACY)
     state->legacy = OSSL_PROVIDER_load(NULL, "legacy");
     if (!state->legacy) {
         RNP_LOG("Failed to load legacy crypto provider: %s", ossl_latest_err());
@@ -140,6 +149,7 @@ backend_init(void **param)
         free(state);
         return false;
     }
+#endif
     *param = state;
     return true;
 }
@@ -152,7 +162,9 @@ backend_finish(void *param)
     }
     openssl3_state *state = (openssl3_state *) param;
     OSSL_PROVIDER_unload(state->def);
+#if defined(OPENSSL_LOAD_LEGACY)
     OSSL_PROVIDER_unload(state->legacy);
+#endif
     free(state);
 }
 #else
