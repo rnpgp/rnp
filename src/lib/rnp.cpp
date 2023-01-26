@@ -263,38 +263,6 @@ static const id_str_pair revocation_code_map[] = {
   {0, NULL}};
 
 static bool
-symm_alg_supported(int alg)
-{
-    switch (alg) {
-#if defined(ENABLE_IDEA)
-    case PGP_SA_IDEA:
-#endif
-    case PGP_SA_TRIPLEDES:
-#if defined(ENABLE_CAST5)
-    case PGP_SA_CAST5:
-#endif
-#if defined(ENABLE_BLOWFISH)
-    case PGP_SA_BLOWFISH:
-#endif
-    case PGP_SA_AES_128:
-    case PGP_SA_AES_192:
-    case PGP_SA_AES_256:
-#if defined(ENABLE_TWOFISH)
-    case PGP_SA_TWOFISH:
-#endif
-    case PGP_SA_CAMELLIA_128:
-    case PGP_SA_CAMELLIA_192:
-    case PGP_SA_CAMELLIA_256:
-#if defined(ENABLE_SM2)
-    case PGP_SA_SM4:
-#endif
-        return true;
-    default:
-        return false;
-    }
-}
-
-static bool
 hash_alg_supported(int alg)
 {
     switch (alg) {
@@ -388,7 +356,7 @@ static bool
 str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
 {
     auto alg = id_str_pair::lookup(symm_alg_map, str, PGP_SA_UNKNOWN);
-    if (!symm_alg_supported(alg)) {
+    if (!pgp_is_sa_supported(alg)) {
         return false;
     }
     *cipher = static_cast<pgp_symm_alg_t>(alg);
@@ -1089,7 +1057,7 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
-        ret = json_array_add_id_str(features, symm_alg_map, symm_alg_supported);
+        ret = json_array_add_id_str(features, symm_alg_map, pgp_is_sa_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_AEAD_ALG)) {
         ret = json_array_add_id_str(features, aead_alg_map, aead_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_PROT_MODE)) {
