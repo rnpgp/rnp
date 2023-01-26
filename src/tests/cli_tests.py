@@ -3481,7 +3481,7 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--output', dec, '-d', dst])
         self.assertEqual(ret, 1)
         self.assertFalse(os.path.isfile(dec))
-        self.assertRegex(err, r'(?s)^.*unsupported symmetric algorithm 10')
+        self.assertRegex(err, r'(?s)^.*Unsupported symmetric algorithm 10')
         clear_workfiles()
 
     def test_no_idea(self):
@@ -3513,7 +3513,7 @@ class Misc(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--output', dec, '-d', dst])
         self.assertEqual(ret, 1)
         self.assertFalse(os.path.isfile(dec))
-        self.assertRegex(err, r'(?s)^.*unsupported symmetric algorithm 1')
+        self.assertRegex(err, r'(?s)^.*Unsupported symmetric algorithm 1')
         # List secret key, encrypted with IDEA
         ret, out, err = run_proc(RNP, ['--homedir', RNPDIR, '--list-packets', data_path('keyrings/4/rsav3-s.asc')])
         self.assertEqual(ret, 0)

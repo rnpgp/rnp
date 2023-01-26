@@ -1495,13 +1495,12 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 
     /* Check algorithm and key length */
-    pgp_symm_alg_t salg = (pgp_symm_alg_t) decbuf[0];
-    if (!pgp_is_sa_supported(salg)) {
-        RNP_LOG("unsupported symmetric algorithm %d", (int) salg);
+    if (!pgp_is_sa_supported(decbuf[0])) {
         return false;
     }
 
-    size_t keylen = pgp_key_size(salg);
+    pgp_symm_alg_t salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
+    size_t         keylen = pgp_key_size(salg);
     if (declen != keylen + 3) {
         RNP_LOG("invalid symmetric key length");
         return false;
