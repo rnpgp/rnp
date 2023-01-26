@@ -36,7 +36,7 @@
 #include "utils.h"
 
 static const char *
-pgp_sa_to_openssl_string(pgp_symm_alg_t alg)
+pgp_sa_to_openssl_string(int alg)
 {
     switch (alg) {
 #if defined(ENABLE_IDEA)
@@ -45,18 +45,24 @@ pgp_sa_to_openssl_string(pgp_symm_alg_t alg)
 #endif
     case PGP_SA_TRIPLEDES:
         return "des-ede3";
+#if defined(ENABLE_CAST5)
     case PGP_SA_CAST5:
         return "cast5-ecb";
+#endif
+#if defined(ENABLE_BLOWFISH)
     case PGP_SA_BLOWFISH:
         return "bf-ecb";
+#endif
     case PGP_SA_AES_128:
         return "aes-128-ecb";
     case PGP_SA_AES_192:
         return "aes-192-ecb";
     case PGP_SA_AES_256:
         return "aes-256-ecb";
+#if defined(ENABLE_SM2)
     case PGP_SA_SM4:
         return "sm4-ecb";
+#endif
     case PGP_SA_CAMELLIA_128:
         return "camellia-128-ecb";
     case PGP_SA_CAMELLIA_192:
@@ -64,7 +70,7 @@ pgp_sa_to_openssl_string(pgp_symm_alg_t alg)
     case PGP_SA_CAMELLIA_256:
         return "camellia-256-ecb";
     default:
-        RNP_LOG("Unsupported PGP symmetric alg %d", (int) alg);
+        RNP_LOG("Unsupported symmetric algorithm %d", alg);
         return NULL;
     }
 }
@@ -381,14 +387,9 @@ pgp_key_size(pgp_symm_alg_t alg)
 }
 
 bool
-pgp_is_sa_supported(pgp_symm_alg_t alg)
+pgp_is_sa_supported(int alg)
 {
-    const char *cipher_name = pgp_sa_to_openssl_string(alg);
-    if (cipher_name) {
-        return true;
-    }
-    RNP_LOG("Warning: cipher %d not supported", (int) alg);
-    return false;
+    return pgp_sa_to_openssl_string(alg);
 }
 
 #if defined(ENABLE_AEAD)
