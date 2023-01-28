@@ -89,6 +89,7 @@
 #define CFG_FIX_25519_BITS "fix-25519-bits"   /* fix Cv25519 secret key via --edit-key */
 #define CFG_CHK_25519_BITS "check-25519-bits" /* check Cv25519 secret key bits */
 #define CFG_ADD_SUBKEY "add-subkey"           /* add subkey to existing primary */
+#define CFG_SET_KEY_EXPIRE "key-expire"       /* set/update key expiration time */
 #define CFG_SOURCE "source"                   /* source for the detached signature */
 #define CFG_NOWRAP "no-wrap"            /* do not wrap the output in a literal data packet */
 #define CFG_CURTIME "curtime"           /* date or timestamp to override the system's time */
