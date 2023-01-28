@@ -55,6 +55,7 @@ typedef enum {
     OPT_CHK_25519_BITS,
     OPT_CURTIME,
     OPT_ADD_SUBKEY,
+    OPT_SET_EXPIRE,
 
     /* debug */
     OPT_DEBUG

@@ -71,6 +71,7 @@ const char *usage =
   "    --add-subkey         Add new subkey.\n"
   "    --check-cv25519-bits Check whether Cv25519 subkey bits are correct.\n"
   "    --fix-cv25519-bits   Fix Cv25519 subkey bits.\n"
+  "    --set-expire         Set key expiration time.\n"
   "\n"
   "Other options:\n"
   "  --homedir              Override home directory (default is ~/.rnp/).\n"
@@ -135,6 +136,7 @@ struct option options[] = {
   {"fix-cv25519-bits", no_argument, NULL, OPT_FIX_25519_BITS},
   {"check-cv25519-bits", no_argument, NULL, OPT_CHK_25519_BITS},
   {"add-subkey", no_argument, NULL, OPT_ADD_SUBKEY},
+  {"set-expire", required_argument, NULL, OPT_SET_EXPIRE},
   {"current-time", required_argument, NULL, OPT_CURTIME},
   {NULL, 0, NULL, 0},
 };
@@ -577,6 +579,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         return true;
     case OPT_ADD_SUBKEY:
         cfg.set_bool(CFG_ADD_SUBKEY, true);
+        return true;
+    case OPT_SET_EXPIRE:
+        cfg.set_str(CFG_SET_KEY_EXPIRE, arg);
         return true;
     default:
         *cmd = CMD_HELP;
