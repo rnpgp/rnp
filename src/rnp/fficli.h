@@ -110,6 +110,8 @@ class cli_rnp_t {
 
     bool add_new_subkey(const std::string &key);
 
+    bool set_key_expire(const std::string &key);
+
     bool edit_key(const std::string &key);
 };
 

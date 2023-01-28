@@ -986,6 +986,35 @@ done:
 }
 
 bool
+cli_rnp_t::set_key_expire(const std::string &key)
+{
+    std::vector<rnp_key_handle_t> keys;
+    if (!cli_rnp_keys_matching_string(
+          this, keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
+        ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
+        return false;
+    }
+    bool     res = false;
+    uint32_t expiration = 0;
+    if (keys.size() > 1) {
+        ERR_MSG("Ambiguous input: too many keys found for '%s'.", key.c_str());
+        goto done;
+    }
+    if (!cfg().get_expiration(CFG_SET_KEY_EXPIRE, expiration) ||
+        rnp_key_set_expiration(keys[0], expiration)) {
+        ERR_MSG("Failed to set key expiration.");
+        goto done;
+    }
+    res = cli_rnp_save_keyrings(this);
+done:
+    if (res) {
+        cli_rnp_print_key_info(stdout, ffi, keys[0], true, false);
+    }
+    clear_key_handles(keys);
+    return res;
+}
+
+bool
 cli_rnp_t::add_new_subkey(const std::string &key)
 {
     rnp_cfg &lcfg = cfg();
@@ -1085,6 +1114,10 @@ cli_rnp_t::edit_key(const std::string &key)
 
     if (cfg().get_bool(CFG_ADD_SUBKEY)) {
         return add_new_subkey(key);
+    }
+
+    if (cfg().has(CFG_SET_KEY_EXPIRE)) {
+        return set_key_expire(key);
     }
 
     /* more options, like --passwd, --unprotect, --expiration are to come */

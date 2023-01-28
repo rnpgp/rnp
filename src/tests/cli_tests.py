@@ -1867,6 +1867,81 @@ class Keystore(unittest.TestCase):
         self.assertEqual(ret, 0)
         clear_keyrings()
 
+    def test_set_expire(self):
+        kpath = os.path.join(RNPDIR, PUBRING)
+        # Primary key with empty password
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password=',
+                                    '--userid', 'primary_with_empty_password@rnp', '--generate-key'])
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+
+        # Wrong expiration argument
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '-1', 'primary_with_empty_password@rnp'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'Failed to set key expiration.')
+
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        matches = re.findall(r'(key expiration time: 63072000 seconds \(730 days\))', out)
+        self.assertEqual(len(matches), 2)
+
+        # Non-existing key argument
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '0', 'wrongkey'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'Secret keys matching \'wrongkey\' not found.')
+
+        # Remove expiration date
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '0', 'primary_with_empty_password@rnp'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(out, r'(?s)^.*\[EXPIRES .*', 'Failed to remove expiration!')
+
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        matches = re.findall(r'(key expiration time: 63072000 seconds \(730 days\))', out)
+        self.assertEqual(len(matches), 1)
+
+        # Expires in 10 seconds
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10', 'primary_with_empty_password@rnp'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
+
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*key expiration time: 10 seconds \(0 days\).*')
+
+        # Expires in 10 hours
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10h', 'primary_with_empty_password@rnp'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*key expiration time: 36000 seconds \(0 days\).*')
+
+        # Expires in 10 months
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10m', 'primary_with_empty_password@rnp'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*key expiration time: 26784000 seconds \(310 days\).*')
+
+        # Expires in 10 years
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10y', 'primary_with_empty_password@rnp'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
+        ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*key expiration time: 315360000 seconds \(3650 days\).*')
+
+        # Additional primary for ambiguous key uid
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password=',
+                                    '--userid', 'primary2@rnp', '--generate-key'])
+        self.assertEqual(ret, 0, KEY_GEN_FAILED)
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '0', 'primary'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'Ambiguous input: too many keys found for \'primary\'')
+
+        clear_keyrings()
+
 class Misc(unittest.TestCase):
 
     @classmethod
