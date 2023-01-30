@@ -298,7 +298,9 @@ aead_alg_supported(int alg)
     switch (alg) {
     case PGP_AEAD_NONE:
 #if defined(ENABLE_AEAD)
+#if !defined(CRYPTO_BACKEND_OPENSSL)
     case PGP_AEAD_EAX:
+#endif
     case PGP_AEAD_OCB:
 #endif
         return true;
