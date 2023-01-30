@@ -33,6 +33,7 @@
 #include <assert.h>
 #include <openssl/evp.h>
 #include <openssl/err.h>
+#include "mem.h"
 #include "utils.h"
 
 static const char *
@@ -395,6 +396,30 @@ pgp_is_sa_supported(int alg, bool silent)
 }
 
 #if defined(ENABLE_AEAD)
+
+static const char *
+openssl_aead_name(pgp_symm_alg_t ealg, pgp_aead_alg_t aalg)
+{
+    switch (aalg) {
+    case PGP_AEAD_OCB:
+        break;
+    default:
+        RNP_LOG("Only OCB mode is supported by the OpenSSL backend.");
+        return NULL;
+    }
+    switch (ealg) {
+    case PGP_SA_AES_128:
+        return "AES-128-OCB";
+    case PGP_SA_AES_192:
+        return "AES-192-OCB";
+    case PGP_SA_AES_256:
+        return "AES-256-OCB";
+    default:
+        RNP_LOG("Only AES-OCB is supported by the OpenSSL backend.");
+        return NULL;
+    }
+}
+
 bool
 pgp_cipher_aead_init(pgp_crypt_t *  crypt,
                      pgp_symm_alg_t ealg,
@@ -402,7 +427,36 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
                      const uint8_t *key,
                      bool           decrypt)
 {
-    return false;
+    memset(crypt, 0x0, sizeof(*crypt));
+    /* OpenSSL backend currently supports only AES-OCB */
+    const char *algname = openssl_aead_name(ealg, aalg);
+    if (!algname) {
+        return false;
+    }
+    auto cipher = EVP_get_cipherbyname(algname);
+    if (!cipher) {
+        RNP_LOG("Cipher %s is not supported.", algname);
+        return false;
+    }
+    /* Create and setup context */
+    EVP_CIPHER_CTX *ctx = EVP_CIPHER_CTX_new();
+    if (!ctx) {
+        RNP_LOG("Failed to create cipher context: %lu", ERR_peek_last_error());
+        return false;
+    }
+
+    crypt->aead.key = new rnp::secure_vector<uint8_t>(key, key + pgp_key_size(ealg));
+    crypt->alg = ealg;
+    crypt->blocksize = pgp_block_size(ealg);
+    crypt->aead.cipher = cipher;
+    crypt->aead.obj = ctx;
+    crypt->aead.alg = aalg;
+    crypt->aead.decrypt = decrypt;
+    crypt->aead.granularity = crypt->blocksize;
+    crypt->aead.taglen = PGP_AEAD_EAX_OCB_TAG_LEN;
+    crypt->aead.ad_len = 0;
+    crypt->aead.n_len = pgp_cipher_aead_nonce_len(aalg);
+    return true;
 }
 
 size_t
@@ -441,37 +495,118 @@ pgp_cipher_aead_tag_len(pgp_aead_alg_t aalg)
 bool
 pgp_cipher_aead_set_ad(pgp_crypt_t *crypt, const uint8_t *ad, size_t len)
 {
-    return false;
+    assert(len <= sizeof(crypt->aead.ad));
+    memcpy(crypt->aead.ad, ad, len);
+    crypt->aead.ad_len = len;
+    return true;
 }
 
 bool
 pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
 {
-    return false;
+    auto &aead = crypt->aead;
+    auto  ctx = aead.obj;
+    int   enc = aead.decrypt ? 0 : 1;
+    assert(len == aead.n_len);
+    /* This call would also reset ctx if it was setup previously */
+    if (EVP_CipherInit(ctx, aead.cipher, NULL, NULL, enc) != 1) {
+        RNP_LOG("Failed to initialize cipher: %lu", ERR_peek_last_error());
+        return false;
+    }
+    if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_IVLEN, aead.n_len, NULL) != 1) {
+        RNP_LOG("Failed to set nonce length: %lu", ERR_peek_last_error());
+        return false;
+    }
+    if (EVP_CipherInit(ctx, NULL, aead.key->data(), nonce, enc) != 1) {
+        RNP_LOG("Failed to start cipher: %lu", ERR_peek_last_error());
+        return false;
+    }
+    int adlen = 0;
+    if (EVP_CipherUpdate(ctx, NULL, &adlen, aead.ad, aead.ad_len) != 1) {
+        RNP_LOG("Failed to set AD: %lu", ERR_peek_last_error());
+        return false;
+    }
+    return true;
 }
 
 bool
 pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
 {
-    return false;
+    if (!len) {
+        return true;
+    }
+    int  out_len = 0;
+    bool res = EVP_CipherUpdate(crypt->aead.obj, out, &out_len, in, len) == 1;
+    if (!res) {
+        RNP_LOG("Failed to update cipher: %lu", ERR_peek_last_error());
+    }
+    assert(out_len == (int) len);
+    return res;
 }
 
 void
 pgp_cipher_aead_reset(pgp_crypt_t *crypt)
 {
-    ;
+    /* Do nothing as subsequent pgp_cipher_aead_start() call will reset context */
 }
 
 bool
 pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size_t len)
 {
-    return false;
+    auto &aead = crypt->aead;
+    auto  ctx = aead.obj;
+    if (aead.decrypt) {
+        assert(len >= aead.taglen);
+        if (len < aead.taglen) {
+            RNP_LOG("Invalid state: too few input bytes.");
+            return false;
+        }
+        size_t data_len = len - aead.taglen;
+        int    out_len = 0;
+        if (EVP_CipherUpdate(ctx, out, &out_len, in, data_len) != 1) {
+            RNP_LOG("Failed to update cipher: %lu", ERR_peek_last_error());
+            return false;
+        }
+        uint8_t tag[PGP_AEAD_MAX_TAG_LEN] = {0};
+        memcpy(tag, in + data_len, aead.taglen);
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_SET_TAG, aead.taglen, tag) != 1) {
+            RNP_LOG("Failed to set tag: %lu", ERR_peek_last_error());
+            return false;
+        }
+        int out_len2 = 0;
+        if (EVP_CipherFinal_ex(ctx, out + out_len, &out_len2) != 1) {
+            RNP_LOG("Failed to finish AEAD decryption: %lu", ERR_peek_last_error());
+            return false;
+        }
+        assert(out_len + out_len2 == (int) (len - aead.taglen));
+    } else {
+        int out_len = 0;
+        if (EVP_CipherUpdate(ctx, out, &out_len, in, len) != 1) {
+            RNP_LOG("Failed to update cipher: %lu", ERR_peek_last_error());
+            return false;
+        }
+        int out_len2 = 0;
+        if (EVP_CipherFinal_ex(ctx, out + out_len, &out_len2) != 1) {
+            RNP_LOG("Failed to finish AEAD encryption: %lu", ERR_peek_last_error());
+            return false;
+        }
+        assert(out_len + out_len2 == (int) len);
+        if (EVP_CIPHER_CTX_ctrl(ctx, EVP_CTRL_AEAD_GET_TAG, aead.taglen, out + len) != 1) {
+            RNP_LOG("Failed to get tag: %lu", ERR_peek_last_error());
+            return false;
+        }
+    }
+    return true;
 }
 
 void
 pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
 {
-    ;
+    if (crypt->aead.obj) {
+        EVP_CIPHER_CTX_free(crypt->aead.obj);
+    }
+    delete crypt->aead.key;
+    memset(crypt, 0x0, sizeof(*crypt));
 }
 
 size_t
