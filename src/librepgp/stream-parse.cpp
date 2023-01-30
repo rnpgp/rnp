@@ -32,6 +32,7 @@
 #include <string>
 #include <vector>
 #include <time.h>
+#include <cinttypes>
 #include <rnp/rnp_def.h>
 #include "stream-ctx.h"
 #include "stream-def.h"
@@ -1496,6 +1497,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 
     /* Check algorithm and key length */
     if (!pgp_is_sa_supported(decbuf[0])) {
+        RNP_LOG("Unsupported symmetric algorithm %" PRIu8, decbuf[0]);
         return false;
     }
 
