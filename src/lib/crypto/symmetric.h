@@ -117,7 +117,7 @@ typedef struct pgp_crypt_t {
 
 unsigned pgp_block_size(pgp_symm_alg_t);
 unsigned pgp_key_size(pgp_symm_alg_t);
-bool     pgp_is_sa_supported(int alg);
+bool     pgp_is_sa_supported(int alg, bool silent = false);
 size_t   pgp_cipher_block_size(pgp_crypt_t *crypt);
 
 /**

@@ -60,7 +60,7 @@
 #include "utils.h"
 
 static const char *
-pgp_sa_to_botan_string(int alg)
+pgp_sa_to_botan_string(int alg, bool silent = false)
 {
     switch (alg) {
 #if defined(BOTAN_HAS_IDEA) && defined(ENABLE_IDEA)
@@ -112,7 +112,9 @@ pgp_sa_to_botan_string(int alg)
 #endif
 
     default:
-        RNP_LOG("Unsupported symmetric algorithm %d", alg);
+        if (!silent) {
+            RNP_LOG("Unsupported symmetric algorithm %d", alg);
+        }
         return NULL;
     }
 }
@@ -442,9 +444,9 @@ pgp_key_size(pgp_symm_alg_t alg)
 }
 
 bool
-pgp_is_sa_supported(int alg)
+pgp_is_sa_supported(int alg, bool silent)
 {
-    return pgp_sa_to_botan_string(alg);
+    return pgp_sa_to_botan_string(alg, silent);
 }
 
 #if defined(ENABLE_AEAD)

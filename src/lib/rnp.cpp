@@ -263,6 +263,12 @@ static const id_str_pair revocation_code_map[] = {
   {0, NULL}};
 
 static bool
+symm_alg_supported(int alg)
+{
+    return pgp_is_sa_supported(alg, true);
+}
+
+static bool
 hash_alg_supported(int alg)
 {
     switch (alg) {
@@ -356,7 +362,7 @@ static bool
 str_to_cipher(const char *str, pgp_symm_alg_t *cipher)
 {
     auto alg = id_str_pair::lookup(symm_alg_map, str, PGP_SA_UNKNOWN);
-    if (!pgp_is_sa_supported(alg)) {
+    if (!symm_alg_supported(alg)) {
         return false;
     }
     *cipher = static_cast<pgp_symm_alg_t>(alg);
@@ -1057,7 +1063,7 @@ try {
     rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
-        ret = json_array_add_id_str(features, symm_alg_map, pgp_is_sa_supported);
+        ret = json_array_add_id_str(features, symm_alg_map, symm_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_AEAD_ALG)) {
         ret = json_array_add_id_str(features, aead_alg_map, aead_alg_supported);
     } else if (rnp::str_case_eq(type, RNP_FEATURE_PROT_MODE)) {
