@@ -2883,7 +2883,7 @@ class Misc(unittest.TestCase):
         match = re.match(BOTAN_BACKEND_VERSION, out) or re.match(OPENSSL_BACKEND_VERSION, out)
         self.assertTrue(match)
         # Run with version parameters
-        ret, out, _ = run_proc(RNP, ['--version'])
+        ret, out, err = run_proc(RNP, ['--version'])
         self.assertEqual(ret, 0)
         match = re.match(BOTAN_BACKEND_VERSION, out)
         backend_prog = 'botan'
@@ -2891,6 +2891,9 @@ class Misc(unittest.TestCase):
             match = re.match(OPENSSL_BACKEND_VERSION, out)
             backend_prog = 'openssl'
         self.assertTrue(match)
+        # check there is no unexpected output
+        self.assertNotRegex(err, r'(?is)^.*Unsupported.*$')
+        self.assertNotRegex(err, r'(?is)^.*pgp_sa_to_openssl_string.*$')
         # check that botan or openssl executable binary exists in $PATH
         backen_prog_ext = shutil.which(backend_prog)
         if backen_prog_ext is not None:
