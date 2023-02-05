@@ -1873,6 +1873,16 @@ class Keystore(unittest.TestCase):
         self.assertEqual(ret, 0)
         clear_keyrings()
 
+    def test_edit_key_single_option(self):
+        ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_25519_NOTWEAK_SEC)])
+        self.assertEqual(ret, 0)
+        # Try to pass multiple  --edit-key sub-options at once
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--check-cv25519-bits', '--fix-cv25519-bits',
+                                      '--add-subkey', '--set-expire', '0', '3176fc1486aa2528'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Only one key edit option can be executed at a time..*$')
+        clear_keyrings()
+
     def test_set_expire(self):
         kpath = os.path.join(RNPDIR, PUBRING)
         # Primary key with empty password
@@ -3039,7 +3049,7 @@ class Misc(unittest.TestCase):
         self.assertRegex(err, r'(?s)^.*You need to specify a key or subkey to edit.*$')
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '3176fc1486aa2528'])
         self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*You should specify at least one editing option for --edit-key.*$')
+        self.assertRegex(err, r'(?s)^.*You should specify one of the editing options for --edit-key.*$')
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--check-cv25519-bits'])
         self.assertNotEqual(ret, 0)
         self.assertRegex(err, r'(?s)^.*You need to specify a key or subkey to edit.*$')
