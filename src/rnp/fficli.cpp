@@ -1105,6 +1105,30 @@ done:
 bool
 cli_rnp_t::edit_key(const std::string &key)
 {
+    int edit_options = 0;
+
+    if (cfg().get_bool(CFG_CHK_25519_BITS)) {
+        edit_options++;
+    }
+    if (cfg().get_bool(CFG_FIX_25519_BITS)) {
+        edit_options++;
+    }
+    if (cfg().get_bool(CFG_ADD_SUBKEY)) {
+        edit_options++;
+    }
+    if (cfg().has(CFG_SET_KEY_EXPIRE)) {
+        edit_options++;
+    }
+
+    if (!edit_options) {
+        ERR_MSG("You should specify one of the editing options for --edit-key.");
+        return false;
+    }
+    if (edit_options > 1) {
+        ERR_MSG("Only one key edit option can be executed at a time.");
+        return false;
+    }
+
     if (cfg().get_bool(CFG_CHK_25519_BITS)) {
         return fix_cv25519_subkey(key, true);
     }
@@ -1120,8 +1144,6 @@ cli_rnp_t::edit_key(const std::string &key)
         return set_key_expire(key);
     }
 
-    /* more options, like --passwd, --unprotect, --expiration are to come */
-    ERR_MSG("You should specify at least one editing option for --edit-key.");
     return false;
 }
 
