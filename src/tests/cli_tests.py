@@ -37,6 +37,9 @@ TEST_WORKFILES = []
 # Supported features
 RNP_TWOFISH = True
 RNP_BRAINPOOL = True
+RNP_AEAD_EAX = True
+RNP_AEAD_OCB = True
+RNP_AEAD_OCB_AES = False
 RNP_AEAD = True
 RNP_IDEA = True
 RNP_BLOWFISH = True
@@ -849,12 +852,15 @@ def gpg_check_features():
     GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out)
 
 def rnp_check_features():
-    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
+    global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
     # AEAD
-    RNP_AEAD = re.match(r'(?s)^.*AEAD:.*EAX,.*OCB.*', out)
+    RNP_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out)
+    RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out)
+    RNP_AEAD = RNP_AEAD_EAX or RNP_AEAD_OCB
+    RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out)
     # Twofish
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out)
     # Brainpool curves
@@ -3113,13 +3119,22 @@ class Misc(unittest.TestCase):
         try:
             dec, enc = reg_workfiles('cleartext', '.dec', '.enc')
             srctxt = data_path('test_messages/message.aead-last-zero-chunk.txt')
-            srcenc = data_path('test_messages/message.aead-last-zero-chunk.enc')
+            srceax = data_path('test_messages/message.aead-last-zero-chunk.enc')
+            srcocb = data_path('test_messages/message.aead-last-zero-chunk.enc-ocb')
+            eax_size = os.path.getsize(srceax)
+            ocb_size = os.path.getsize(srcocb)
+            self.assertEqual(eax_size - 1, ocb_size)
             # Import Alice's key
             ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_SEC)])
             self.assertEqual(ret, 0)
             # Decrypt already existing file
-            if RNP_AEAD and RNP_BRAINPOOL:
-                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', srcenc, '--output', dec])
+            if RNP_AEAD_EAX and RNP_BRAINPOOL:
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', srceax, '--output', dec])
+                self.assertEqual(ret, 0)
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+            if RNP_AEAD_OCB and RNP_BRAINPOOL:
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', srcocb, '--output', dec])
                 self.assertEqual(ret, 0)
                 self.assertEqual(file_text(srctxt), file_text(dec))
                 os.remove(dec)
@@ -3128,13 +3143,33 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
                                         GPGHOME, '--import', data_path(KEY_ALICE_SUB_SEC)])
                 self.assertEqual(ret, 0, GPG_IMPORT_FAILED)
-                gpg_decrypt_file(srcenc, dec, PASSWORD)
+                gpg_decrypt_file(srceax, dec, PASSWORD)
                 self.assertEqual(file_text(srctxt), file_text(dec))
                 os.remove(dec)
-            if RNP_AEAD and RNP_BRAINPOOL:
+                gpg_decrypt_file(srcocb, dec, PASSWORD)
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+            if RNP_AEAD_EAX and RNP_BRAINPOOL:
                 # Encrypt with RNP
-                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax', 
+                                           '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
                 self.assertEqual(ret, 0)
+                self.assertEqual(os.path.getsize(enc), eax_size)
+                # Decrypt with RNP again
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
+                self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(dec)
+                if GPG_AEAD and GPG_BRAINPOOL:
+                    # Decrypt with GnuPG
+                    gpg_decrypt_file(enc, dec, PASSWORD)
+                    self.assertEqual(file_text(srctxt), file_text(dec))
+                os.remove(enc)
+            if RNP_AEAD_OCB and RNP_BRAINPOOL:
+                # Encrypt with RNP
+                ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=ocb', 
+                                           '--set-filename', 'cleartext-z0.txt', '--aead-chunk-bits=1', '-e', srctxt, '--output', enc])
+                self.assertEqual(ret, 0)
+                self.assertEqual(os.path.getsize(enc), ocb_size)
                 # Decrypt with RNP again
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3896,10 +3931,15 @@ class Encryption(unittest.TestCase):
             print('AEAD is not available for RNP - skipping.')
             return
         CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+        AEADS = [None, 'eax', 'ocb']
         if not RNP_TWOFISH:
             CIPHERS.remove('TWOFISH')
+        if RNP_AEAD_OCB_AES:
+            CIPHERS = ['AES', 'AES192', 'AES256']
+        if not RNP_AEAD_EAX:
+            AEADS.remove('eax')
         AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
-        AEAD_M = list_upto([None, 'eax', 'ocb'], Encryption.RUNS)
+        AEAD_M = list_upto(AEADS, Encryption.RUNS)
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
 
         # Encrypt and decrypt cleartext using the AEAD
@@ -3915,14 +3955,38 @@ class Encryption(unittest.TestCase):
         # Cover lines from src_skip() where > 16 bytes must be skipped
         random_text(src, 1001)
         ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+        if RNP_AEAD_EAX:
+            self.assertEqual(ret, 0)
+            rnp_decrypt_file(enc, dst)
+            remove_files(dst, enc)
+        else:
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*Invalid AEAD algorithm: EAX')
+        # Check non-AES OCB mode
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--cipher', 'CAMELLIA192', '--aead=ocb', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+        if RNP_AEAD_OCB_AES:
+            self.assertEqual(ret, 1)
+            self.assertRegex(err, r'(?s)^.*Only AES-OCB is supported by the OpenSSL backend')
+        else:
+            self.assertEqual(ret, 0)
+            rnp_decrypt_file(enc, dst)
+            remove_files(dst, enc)            
+        # Check default (AES) OCB
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=ocb', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
         self.assertEqual(ret, 0)
         rnp_decrypt_file(enc, dst)
         remove_files(src, dst, enc)
         # Cover case with AEAD chunk start on the data end
         random_text(src, 1002)
-        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
-        self.assertEqual(ret, 0)
-        rnp_decrypt_file(enc, dst)
+        if RNP_AEAD_EAX:
+            ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead=eax', '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+            self.assertEqual(ret, 0)
+            rnp_decrypt_file(enc, dst)
+            remove_files(dst, enc)
+        if RNP_AEAD_OCB:
+            ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '--output', enc, '--aead-chunk-bits', '2', '-z', '0', '-c', src])
+            self.assertEqual(ret, 0)
+            rnp_decrypt_file(enc, dst)
         remove_files(src, dst, enc)
 
     def test_encryption_multiple_recipients(self):
