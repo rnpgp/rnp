@@ -1196,6 +1196,15 @@ aead_ocb_enabled()
 }
 
 bool
+aead_ocb_aes_only()
+{
+    if (!aead_ocb_enabled()) {
+        return false;
+    }
+    return !strcmp(rnp_backend_string(), "OpenSSL");
+}
+
+bool
 twofish_enabled()
 {
     bool enabled = false;
