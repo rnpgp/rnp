@@ -4346,7 +4346,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb"));
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
-    if (!aead_ocb_enabled()) {
+    if (!aead_ocb_enabled() || aead_ocb_aes_only()) {
         assert_rnp_failure(rnp_op_verify_execute(verify));
     } else {
         assert_rnp_success(rnp_op_verify_execute(verify));
@@ -4357,6 +4357,29 @@ TEST_F(rnp_tests, test_ffi_op_verify_get_protection_info)
     assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
     assert_string_equal(mode, "aead-ocb");
     assert_string_equal(cipher, "CAMELLIA192");
+    assert_true(valid == (aead_ocb_enabled() && !aead_ocb_aes_only()));
+    rnp_buffer_destroy(mode);
+    rnp_buffer_destroy(cipher);
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-OCB AES-192 */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb-aes"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    if (!aead_ocb_enabled()) {
+        assert_rnp_failure(rnp_op_verify_execute(verify));
+    } else {
+        assert_rnp_success(rnp_op_verify_execute(verify));
+    }
+    mode = NULL;
+    cipher = NULL;
+    valid = false;
+    assert_rnp_success(rnp_op_verify_get_protection_info(verify, &mode, &cipher, &valid));
+    assert_string_equal(mode, "aead-ocb");
+    assert_string_equal(cipher, "AES192");
     assert_true(valid == aead_ocb_enabled());
     rnp_buffer_destroy(mode);
     rnp_buffer_destroy(cipher);
@@ -4573,7 +4596,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
       rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb"));
     assert_rnp_success(rnp_output_to_null(&output));
     assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
-    if (!aead_ocb_enabled()) {
+    if (!aead_ocb_enabled() || aead_ocb_aes_only()) {
         assert_rnp_failure(rnp_op_verify_execute(verify));
     } else {
         assert_rnp_success(rnp_op_verify_execute(verify));
@@ -4611,7 +4634,7 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
     assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
     assert_int_equal(iterations, 30408704);
     assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
-    if (!aead_ocb_enabled()) {
+    if (!aead_ocb_enabled() || aead_ocb_aes_only()) {
         assert_null(symenc);
     } else {
         assert_non_null(symenc);
@@ -4634,6 +4657,49 @@ TEST_F(rnp_tests, test_ffi_op_verify_recipients_info)
         iterations = 0;
         assert_rnp_success(rnp_symenc_get_s2k_iterations(symenc, &iterations));
         assert_int_equal(iterations, 30408704);
+    }
+    rnp_op_verify_destroy(verify);
+    rnp_input_destroy(input);
+    rnp_output_destroy(output);
+
+    /* message with AEAD-OCB-AES: single password */
+    assert_rnp_success(
+      rnp_input_from_path(&input, "data/test_messages/message.txt.enc-aead-ocb-aes"));
+    assert_rnp_success(rnp_output_to_null(&output));
+    assert_rnp_success(rnp_op_verify_create(&verify, ffi, input, output));
+    if (!aead_ocb_enabled()) {
+        assert_rnp_failure(rnp_op_verify_execute(verify));
+    } else {
+        assert_rnp_success(rnp_op_verify_execute(verify));
+    }
+    count = 255;
+    assert_rnp_success(rnp_op_verify_get_recipient_count(verify, &count));
+    assert_int_equal(count, 0);
+    assert_rnp_success(rnp_op_verify_get_symenc_count(verify, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_op_verify_get_symenc_at(verify, 0, &symenc));
+    assert_non_null(symenc);
+    cipher = NULL;
+    assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+    assert_string_equal(cipher, "AES192");
+    rnp_buffer_destroy(cipher);
+    aead = NULL;
+    assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+    assert_string_equal(aead, "OCB");
+    rnp_buffer_destroy(aead);
+    assert_rnp_success(rnp_op_verify_get_used_symenc(verify, &symenc));
+    if (!aead_ocb_enabled()) {
+        assert_null(symenc);
+    } else {
+        assert_non_null(symenc);
+        cipher = NULL;
+        assert_rnp_success(rnp_symenc_get_cipher(symenc, &cipher));
+        assert_string_equal(cipher, "AES192");
+        rnp_buffer_destroy(cipher);
+        aead = NULL;
+        assert_rnp_success(rnp_symenc_get_aead_alg(symenc, &aead));
+        assert_string_equal(aead, "OCB");
+        rnp_buffer_destroy(aead);
     }
     rnp_op_verify_destroy(verify);
     rnp_input_destroy(input);

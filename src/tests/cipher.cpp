@@ -915,17 +915,18 @@ TEST_F(rnp_tests, test_aead_enabled)
     bool  supported = false;
     /* check whether FFI returns value which corresponds to defines */
 #if defined(ENABLE_AEAD)
-    assert_true(aead_eax_enabled());
-    assert_true(aead_ocb_enabled());
+    bool has_eax = aead_eax_enabled();
+    bool has_ocb = aead_ocb_enabled();
+    assert_true(has_eax || has_ocb);
     assert_rnp_success(rnp_supported_features(RNP_FEATURE_AEAD_ALG, &features));
     assert_non_null(features);
-    assert_true(std::string(features).find("EAX") != std::string::npos);
-    assert_true(std::string(features).find("OCB") != std::string::npos);
+    assert_true((std::string(features).find("EAX") != std::string::npos) == has_eax);
+    assert_true((std::string(features).find("OCB") != std::string::npos) == has_ocb);
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "EAX", &supported));
-    assert_true(supported);
+    assert_true(supported == has_eax);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "OCB", &supported));
-    assert_true(supported);
+    assert_true(supported == has_ocb);
 #else
     assert_false(aead_eax_enabled());
     assert_false(aead_ocb_enabled());
