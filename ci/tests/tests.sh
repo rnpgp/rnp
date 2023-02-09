@@ -41,12 +41,13 @@ test_supported_features() {
         TRIPLEDES CAST5 BLOWFISH AES128 AES192 AES256 CAMELLIA128 CAMELLIA192 CAMELLIA256 \
         MD5 SHA1 RIPEMD160 SHA256 SHA384 SHA512 SHA224 SHA3-256 SHA3-512 \
         ZIP ZLIB BZip2 \
-        "NIST P-256" "NIST P-384" "NIST P-521" Ed25519 Curve25519 secp256k1 )
+        "NIST P-256" "NIST P-384" "NIST P-521" Ed25519 Curve25519 secp256k1 \
+        OCB)
 
     # Old versions say ${unsupported[@]} is unbound if empty
     unsupported=( NOOP )
 
-    botan_only=( TWOFISH EAX OCB brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
+    botan_only=( TWOFISH EAX brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
     sm2=( SM2 SM4 SM3 "SM2 P-256" )
 
     # SM2
