@@ -116,7 +116,7 @@ rnpkeys_main(int argc, char **argv)
 
     /* now do the required action for each of the command line args */
     ret = EXIT_SUCCESS;
-    if (optind == argc) {
+    if (optind == argc || cmd == CMD_HELP || cmd == CMD_VERSION) {
         if (!rnp_cmd(&rnp, cmd, NULL)) {
             ret = EXIT_FAILURE;
         }
