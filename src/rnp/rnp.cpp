@@ -566,7 +566,7 @@ rnp_main(int argc, char **argv)
     optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
-    while ((ch = getopt_long(argc, argv, "S:Vdecr:su:vz:f:", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "S:Vdecr:su:vz:f:h", options, &optindex)) != -1) {
         if (ch >= CMD_ENCRYPT) {
             /* getopt_long returns 0 for long options */
             if (!setoption(cfg, options[optindex].val, optarg)) {
@@ -626,6 +626,8 @@ rnp_main(int argc, char **argv)
                 print_usage(usage);
                 ret = EXIT_FAILURE;
                 goto finish;
+            case 'h':
+                [[fallthrough]];
             default:
                 cmd = CMD_HELP;
                 break;
