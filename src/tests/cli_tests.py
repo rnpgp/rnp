@@ -3750,6 +3750,59 @@ class Misc(unittest.TestCase):
         self.assertRegex(out, r'(?s)^.*Enter password for key 0x8A05B89FAD5ADED1.*0x54505A936A4A970E.*0x326EF111425D14A5.*')
         self.assertNotRegex(out, r'(?s)^.*Enter password.*Enter password.*Enter password.*Enter password.*')
 
+    def test_allow_weak_hash(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        # rnpkeys, force weak hashes for key generation
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'MD5'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Hash algorithm \'MD5\' is cryptographically weak!.*Weak hash algorithm detected. Pass --allow-weak-hash option if you really want to use it\..*')
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'MD5', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'SHA1'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Hash algorithm \'SHA1\' is cryptographically weak!.*Weak hash algorithm detected. Pass --allow-weak-hash option if you really want to use it\..*')
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'SHA1', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+
+        # check non-weak hash
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'SHA3-512'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Hash algorithm \'SHA3\-512\' is cryptographically weak!.*')
+        ret, _, err = run_proc(RNPK, ['--homedir', RNP2, '-g', '--password=', '--hash', 'SHA3-512', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+
+        # rnp, force weak hashes for signature
+        src, sig = reg_workfiles('cleartext', '.txt', '.sig')
+        random_text(src, 120)
+
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'MD5'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Hash algorithm \'MD5\' is cryptographically weak!.*Weak hash algorithm detected. Pass --allow-weak-hash option if you really want to use it\..*')
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'MD5', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+        remove_files(sig)
+
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'SHA1'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Hash algorithm \'SHA1\' is cryptographically weak!.*Weak hash algorithm detected. Pass --allow-weak-hash option if you really want to use it\..*')
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'SHA1', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+        remove_files(sig)
+
+        # check non-weak hash
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'SHA3-512'])
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Hash algorithm \'SHA3\-512\' is cryptographically weak!.*')
+        remove_files(sig)
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--sign', src, '--output', sig, '--hash', 'SHA3-512', '--allow-weak-hash'])
+        self.assertEqual(ret, 0)
+        remove_files(sig)
+
+        clear_workfiles()
+        shutil.rmtree(RNP2, ignore_errors=True)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:

@@ -72,6 +72,7 @@ static const char *usage =
   "    --detach           Produce detached signature.\n"
   "    -u, --userid       Specify signing key(s) via uid/keyid/fingerprint.\n"
   "    --hash             Specify hash algorithm, used during signing.\n"
+  "    --allow-weak-hash  Allow usage of a weak hash algorithm.\n"
   "  --clearsign          Cleartext-sign data.\n"
   "  -d, --decrypt        Decrypt and output data, verifying signatures.\n"
   "  -v, --verify         Verify signatures, without outputting data.\n"
@@ -128,6 +129,7 @@ enum optdefs {
     OPT_HOMEDIR,
     OPT_DETACHED,
     OPT_HASH_ALG,
+    OPT_ALLOW_WEAK_HASH,
     OPT_OUTPUT,
     OPT_RESULTS,
     OPT_COREDUMPS,
@@ -225,6 +227,7 @@ static struct option options[] = {
   {"allow-hidden", no_argument, NULL, OPT_ALLOW_HIDDEN},
   {"s2k-iterations", required_argument, NULL, OPT_S2K_ITER},
   {"s2k-msec", required_argument, NULL, OPT_S2K_MSEC},
+  {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
 
   {NULL, 0, NULL, 0},
 };
@@ -404,6 +407,9 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
         return true;
     case OPT_HASH_ALG:
         return cli_rnp_set_hash(cfg, arg);
+    case OPT_ALLOW_WEAK_HASH:
+        cfg.set_bool(CFG_WEAK_HASH, true);
+        return true;
     case OPT_PASSWDFD:
         cfg.set_str(CFG_PASSFD, arg);
         return true;
@@ -656,6 +662,12 @@ rnp_main(int argc, char **argv)
 
     if (!rnp.init(cfg)) {
         ERR_MSG("fatal: cannot initialise");
+        goto finish;
+    }
+
+    if (!cli_rnp_check_weak_hash(&rnp)) {
+        ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
+                "want to use it.");
         goto finish;
     }
 
