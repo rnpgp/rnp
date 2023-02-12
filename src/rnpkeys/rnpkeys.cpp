@@ -53,6 +53,7 @@ const char *usage =
   "    --expiration         Set key and subkey expiration time.\n"
   "    --cipher             Set cipher used to encrypt a secret key.\n"
   "    --hash               Set hash which is used for key derivation.\n"
+  "    --allow-weak-hash    Allow usage of a weak hash algorithm.\n"
   "  -l, --list-keys        List keys in the keyrings.\n"
   "    --secret             List secret keys instead of public ones.\n"
   "    --with-sigs          List signatures as well.\n"
@@ -138,6 +139,7 @@ struct option options[] = {
   {"add-subkey", no_argument, NULL, OPT_ADD_SUBKEY},
   {"set-expire", required_argument, NULL, OPT_SET_EXPIRE},
   {"current-time", required_argument, NULL, OPT_CURTIME},
+  {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
   {NULL, 0, NULL, 0},
 };
 
@@ -488,6 +490,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
         cfg.set_int(CFG_NUMBITS, bits);
         return true;
     }
+    case OPT_ALLOW_WEAK_HASH:
+        cfg.set_bool(CFG_WEAK_HASH, true);
+        return true;
     case OPT_HASH_ALG:
         return cli_rnp_set_hash(cfg, arg);
     case OPT_S2K_ITER: {
@@ -605,6 +610,11 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
     }
     if (!rnp->init(rnpcfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
+        goto end;
+    }
+    if (!cli_rnp_check_weak_hash(rnp)) {
+        ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
+                "want to use it.");
         goto end;
     }
     /* TODO: at some point we should check for error here */
