@@ -72,7 +72,7 @@ rnpkeys_main(int argc, char **argv)
     }
 #endif
 
-    while ((ch = getopt_long(argc, argv, "Vgl", options, &optindex)) != -1) {
+    while ((ch = getopt_long(argc, argv, "Vglh", options, &optindex)) != -1) {
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
             if (!setoption(cfg, &cmd, options[optindex].val, optarg)) {
@@ -95,6 +95,8 @@ rnpkeys_main(int argc, char **argv)
                 print_usage(usage);
                 ret = EXIT_FAILURE;
                 goto end;
+            case 'h':
+                [[fallthrough]];
             default:
                 cmd = CMD_HELP;
                 break;
