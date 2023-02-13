@@ -653,27 +653,19 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
                        bool                        singlepass)
 {
     pgp_sk_sesskey_t skey = {};
-    unsigned         s2keylen; /* length of the s2k key */
     pgp_crypt_t      kcrypt;
 
-    skey.alg = param->ctx->ealg;
     skey.s2k = pass->s2k;
 
     if (!param->aead) {
         skey.version = PGP_SKSK_V4;
-        /* Following algorithm may differ from ctx's one if not singlepass */
-        if (singlepass) {
-            s2keylen = keylen;
-        } else if ((s2keylen = pgp_key_size(skey.alg)) == 0) {
-            return RNP_ERROR_BAD_PARAMETERS;
-        }
-
         if (singlepass) {
             /* if there are no public keys then we do not encrypt session key in the packet */
+            skey.alg = param->ctx->ealg;
             skey.enckeylen = 0;
-            memcpy(key, pass->key.data(), s2keylen);
+            memcpy(key, pass->key.data(), keylen);
         } else {
-            /* Currently we are using the same sym algo for key and stream encryption */
+            /* We may use different algo for CEK and KEK */
             skey.enckeylen = keylen + 1;
             skey.enckey[0] = param->ctx->ealg;
             memcpy(&skey.enckey[1], key, keylen);
@@ -697,6 +689,7 @@ encrypted_add_password(rnp_symmetric_pass_info_t * pass,
         }
 
         skey.version = PGP_SKSK_V5;
+        skey.alg = pass->s2k_cipher;
         skey.aalg = param->ctx->aalg;
         skey.ivlen = pgp_cipher_aead_nonce_len(skey.aalg);
         skey.enckeylen = keylen + pgp_cipher_aead_tag_len(skey.aalg);
