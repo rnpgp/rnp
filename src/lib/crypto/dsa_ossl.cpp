@@ -265,10 +265,15 @@ dsa_generate(rnp::RNG *rng, pgp_dsa_key_t *key, size_t keylen, size_t qbits)
         RNP_LOG("Failed to set key bits: %lu", ERR_peek_last_error());
         goto done;
     }
+#if OPENSSL_VERSION_NUMBER < 0x1010105fL
+    EVP_PKEY_CTX_ctrl(
+      ctx, EVP_PKEY_DSA, EVP_PKEY_OP_PARAMGEN, EVP_PKEY_CTRL_DSA_PARAMGEN_Q_BITS, qbits, NULL);
+#else
     if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, qbits) <= 0) {
         RNP_LOG("Failed to set key qbits: %lu", ERR_peek_last_error());
         goto done;
     }
+#endif
     if (EVP_PKEY_paramgen(ctx, &parmkey) <= 0) {
         RNP_LOG("Failed to generate parameters: %lu", ERR_peek_last_error());
         goto done;
