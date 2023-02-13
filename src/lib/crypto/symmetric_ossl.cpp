@@ -508,8 +508,8 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
     auto  ctx = aead.obj;
     int   enc = aead.decrypt ? 0 : 1;
     assert(len == aead.n_len);
-    /* This call would also reset ctx if it was setup previously */
-    if (EVP_CipherInit(ctx, aead.cipher, NULL, NULL, enc) != 1) {
+    EVP_CIPHER_CTX_reset(ctx);
+    if (EVP_CipherInit_ex(ctx, aead.cipher, NULL, NULL, NULL, enc) != 1) {
         RNP_LOG("Failed to initialize cipher: %lu", ERR_peek_last_error());
         return false;
     }
@@ -517,7 +517,7 @@ pgp_cipher_aead_start(pgp_crypt_t *crypt, const uint8_t *nonce, size_t len)
         RNP_LOG("Failed to set nonce length: %lu", ERR_peek_last_error());
         return false;
     }
-    if (EVP_CipherInit(ctx, NULL, aead.key->data(), nonce, enc) != 1) {
+    if (EVP_CipherInit_ex(ctx, NULL, NULL, aead.key->data(), nonce, enc) != 1) {
         RNP_LOG("Failed to start cipher: %lu", ERR_peek_last_error());
         return false;
     }
@@ -575,7 +575,10 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         }
         int out_len2 = 0;
         if (EVP_CipherFinal_ex(ctx, out + out_len, &out_len2) != 1) {
-            RNP_LOG("Failed to finish AEAD decryption: %lu", ERR_peek_last_error());
+            /* Zero value if auth tag is incorrect */
+            if (ERR_peek_last_error()) {
+                RNP_LOG("Failed to finish AEAD decryption: %lu", ERR_peek_last_error());
+            }
             return false;
         }
         assert(out_len + out_len2 == (int) (len - aead.taglen));
