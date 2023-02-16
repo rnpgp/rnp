@@ -65,4 +65,20 @@ TEST_F(rnp_tests, test_utils_hex2bin)
         uint8_t buf[4];
         assert_int_equal(rnp::hex_decode("4be147bb22df1e60   ", buf, sizeof(buf)), 0);
     }
+    // wrong hex length
+    {
+        uint8_t buf[2];
+        assert_int_equal(rnp::hex_decode("0xA", buf, sizeof(buf)), 0);
+    }
+    // wrong hex chars
+    {
+        uint8_t buf[2];
+        assert_int_equal(rnp::hex_decode("0xYY", buf, sizeof(buf)), 0);
+    }
+    // too small buffer for encoding
+    {
+        uint8_t buf[2] = {0xAB, 0xCD};
+        char    hex[4];
+        assert_false(rnp::hex_encode(buf, sizeof(buf), hex, sizeof(hex), rnp::HEX_LOWERCASE));
+    }
 }
