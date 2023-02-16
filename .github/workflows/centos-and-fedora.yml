@@ -71,7 +71,14 @@ jobs:
           - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
 
         include:
+          # Coverage report for Botan backend
           - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: Botan, sm2: On, locale: C.UTF-8 }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+          # Coverage report for OpenSSL 1.1.1 backend
+          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8        }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+          # Coverage report for OpenSSL 3.0 backend
+          - image: { name: 'Fedora 36', container: 'fedora:36', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8                   }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
 
     env: ${{ matrix.env }}
