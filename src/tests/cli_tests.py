@@ -2888,7 +2888,7 @@ class Misc(unittest.TestCase):
         # Encrypt file but forget to pass cipher name
         ret, _, err = run_proc(RNP, ['-c', src, '--password', 'password', '--cipher'])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--cipher.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
+        self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--cipher.|) requires an argument.*')
         # Encrypt file using the unknown symmetric algorithm
         ret, _, err = run_proc(RNP, ['-c', src, '--cipher', 'bad', '--password', 'password'])
         self.assertNotEqual(ret, 0)
@@ -2991,6 +2991,28 @@ class Misc(unittest.TestCase):
             ret, out, _ = run_proc(backen_prog_ext, ['version'])
             self.assertEqual(ret, 0)
             self.assertIn(match.group(1), out)
+
+    def test_help_message(self):
+        # rnp help message
+        # short -h option
+        ret, out, _ = run_proc(RNP, ['-h'])
+        self.assertEqual(ret, 0)
+        short_h = out
+        # long --help option
+        ret, out, _ = run_proc(RNP, ['--help'])
+        self.assertEqual(ret, 0)
+        long_h = out
+        self.assertEqual(short_h, long_h)
+        # rnpkeys help message
+        # short -h option
+        ret, out, _ = run_proc(RNPK, ['-h'])
+        self.assertEqual(ret, 0)
+        short_h = out
+        # long --help options
+        ret, out, _ = run_proc(RNPK, ['--help'])
+        self.assertEqual(ret, 0)
+        long_h = out
+        self.assertEqual(short_h, long_h)
 
     def test_wrong_mpi_bit_count(self):
         WRONG_MPI_BITS = r'(?s)^.*Warning! Wrong mpi bit count: got [0-9]+, but actual is [0-9]+.*$'
@@ -3302,7 +3324,7 @@ class Misc(unittest.TestCase):
             # Do not provide source
             ret, _, err = run_proc(RNP, ['--homedir', keys, '-v', sig, '--source'])
             self.assertEqual(ret, 1)
-            self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--source.|) requires an argument.*Usage: rnp --command \[options\] \[files\].*')
+            self.assertRegex(err, r'(?s)^.*rnp(|\.exe): option( .--source.|) requires an argument.*')
             # Verify by specifying the correct path
             ret, _, err = run_proc(RNP, ['--homedir', keys, '--source', src, '-v', sig])
             self.assertEqual(ret, 0)
