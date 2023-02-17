@@ -28,6 +28,8 @@ GPGHOME = None
 PASSWORD = 'password'
 RMWORKDIR = True
 GPG_AEAD = False
+GPG_AEAD_EAX = False
+GPG_AEAD_OCB = False
 GPG_NO_OLD = False
 GPG_BRAINPOOL = False
 TESTS_SUCCEEDED = []
@@ -829,27 +831,33 @@ def rnp_cleartext_signing_gpg_to_rnp(filesize):
     clear_workfiles()
 
 def gpg_check_features():
-    global GPG_AEAD, GPG_NO_OLD, GPG_BRAINPOOL
+    global GPG_AEAD, GPG_AEAD_EAX, GPG_AEAD_OCB, GPG_NO_OLD, GPG_BRAINPOOL
     _, out, _ = run_proc(GPG, ["--version"])
     # AEAD
-    GPG_AEAD = re.match(r'(?s)^.*AEAD:\s+EAX,\s+OCB.*', out)
+    GPG_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
+    GPG_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     # Version 2.3.0-beta1598 and up drops support of 64-bit block algos
     match = re.match(r'(?s)^.*gpg \(GnuPG\) (\d+)\.(\d+)\.(\d+)(-beta(\d+))?.*$', out)
     if not match:
         raise_err('Failed to parse GnuPG version.')
-    # Version < 2.3.0
-    if (int(match.group(1)) < 2) or ((int(match.group(1)) == 2) and (int(match.group(2)) < 3)):
-        GPG_NO_OLD = False
-        return
-    # Version > 2.3.0
-    if (int(match.group(1)) > 2) or (int(match.group(2)) > 3) or (int(match.group(3)) > 0):
-        GPG_NO_OLD = True
-        return
-    # Version 2.3.0 release or beta
-    GPG_NO_OLD = not match.group(5) or (int(match.group(5)) >= 1598)
+    ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
+    beta = int(match.group(5)) if match.group(5) else 0
+    if not beta:
+        GPG_NO_OLD = ver >= [2, 3, 0]
+    else:
+        GPG_NO_OLD = ver == [2, 3, 0] and (beta >= 1598)
+    # Version 2.4.0 and up doesn't support EAX and doesn't has AEAD in output
+    if ver >= [2, 4, 0]:
+        GPG_AEAD_OCB = True
+        GPG_AEAD_EAX = False
+    GPG_AEAD = GPG_AEAD_OCB or GPG_AEAD_EAX
     # Check whether Brainpool curves are supported
     _, out, _ = run_proc(GPG, ["--with-colons", "--list-config", "curve"])
-    GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out)
+    GPG_BRAINPOOL = re.match(r'(?s)^.*brainpoolP256r1.*', out) is not None
+    print('GPG_AEAD_EAX: ' + str(GPG_AEAD_EAX))
+    print('GPG_AEAD_OCB: ' + str(GPG_AEAD_OCB))
+    print('GPG_NO_OLD: ' + str(GPG_NO_OLD))
+    print('GPG_BRAINPOOL: ' + str(GPG_BRAINPOOL))
 
 def rnp_check_features():
     global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
@@ -857,19 +865,28 @@ def rnp_check_features():
     if ret != 0:
         raise_err('Failed to get RNP version.')
     # AEAD
-    RNP_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out)
-    RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out)
+    RNP_AEAD_EAX = re.match(r'(?s)^.*AEAD:.*EAX.*', out) is not None
+    RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     RNP_AEAD = RNP_AEAD_EAX or RNP_AEAD_OCB
-    RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out)
+    RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out) is not None
     # Twofish
-    RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out)
+    RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out) is not None
     # Brainpool curves
-    RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out)
+    RNP_BRAINPOOL = re.match(r'(?s)^.*Curves:.*brainpoolP256r1.*brainpoolP384r1.*brainpoolP512r1.*', out) is not None
     # IDEA encryption algorithm
-    RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out)
-    RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out)
-    RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out)
-    RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out)
+    RNP_IDEA = re.match(r'(?s)^.*Encryption:.*IDEA.*', out) is not None
+    RNP_BLOWFISH = re.match(r'(?s)^.*Encryption:.*BLOWFISH.*', out) is not None
+    RNP_CAST5 = re.match(r'(?s)^.*Encryption:.*CAST5.*', out) is not None
+    RNP_RIPEMD160 = re.match(r'(?s)^.*Hash:.*RIPEMD160.*', out) is not None
+    print('RNP_TWOFISH: ' + str(RNP_TWOFISH))
+    print('RNP_BLOWFISH: ' + str(RNP_BLOWFISH))
+    print('RNP_IDEA: ' + str(RNP_IDEA))
+    print('RNP_CAST5: ' + str(RNP_CAST5))
+    print('RNP_RIPEMD160: ' + str(RNP_RIPEMD160))
+    print('RNP_BRAINPOOL: ' + str(RNP_BRAINPOOL))
+    print('RNP_AEAD_EAX: ' + str(RNP_AEAD_EAX))
+    print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
+    print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
 
 def setup(loglvl):
     # Setting up directories.
@@ -908,6 +925,25 @@ def key_path(file_base_name, secret):
     path=os.path.join(os.path.dirname(os.path.realpath(__file__)), 'data/cli_EncryptSign',
                       file_base_name)
     return ''.join([path, '-sec' if secret else '', '.gpg'])
+
+def rnp_supported_ciphers(aead = False):
+    ciphers = ['AES', 'AES192', 'AES256']
+    if aead and RNP_AEAD_OCB_AES:
+        return ciphers
+    ciphers += ['CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+    if RNP_TWOFISH:
+        ciphers += ['TWOFISH']
+    # AEAD supports only 128-bit block ciphers
+    if aead:
+        return ciphers
+    ciphers += ['3DES']
+    if RNP_IDEA:
+        ciphers += ['IDEA']
+    if RNP_BLOWFISH:
+        ciphers += ['BLOWFISH']
+    if RNP_CAST5:
+        ciphers += ['CAST5']
+    return ciphers
 
 class TestIdMixin(object):
 
@@ -2008,19 +2044,10 @@ class Misc(unittest.TestCase):
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.gpg', '.rnp')
         random_text(src, 1000)
 
-        ciphers = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
-                   'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+        ciphers = rnp_supported_ciphers(False)
         hashes = ['SHA1', 'RIPEMD160', 'SHA256', 'SHA384', 'SHA512', 'SHA224']
         s2kmodes = [0, 1, 3]
 
-        if not RNP_TWOFISH:
-            ciphers.remove('TWOFISH')
-        if not RNP_IDEA:
-            ciphers.remove('IDEA')
-        if not RNP_BLOWFISH:
-            ciphers.remove('BLOWFISH')
-        if not RNP_CAST5:
-            ciphers.remove('CAST5')
         if not RNP_RIPEMD160:
             hashes.remove('RIPEMD160')
 
@@ -3153,12 +3180,14 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(GPG, ['--batch', '--passphrase', PASSWORD, '--homedir',
                                         GPGHOME, '--import', data_path(KEY_ALICE_SUB_SEC)])
                 self.assertEqual(ret, 0, GPG_IMPORT_FAILED)
-                gpg_decrypt_file(srceax, dec, PASSWORD)
-                self.assertEqual(file_text(srctxt), file_text(dec))
-                os.remove(dec)
-                gpg_decrypt_file(srcocb, dec, PASSWORD)
-                self.assertEqual(file_text(srctxt), file_text(dec))
-                os.remove(dec)
+                if GPG_AEAD_EAX:
+                    gpg_decrypt_file(srceax, dec, PASSWORD)
+                    self.assertEqual(file_text(srctxt), file_text(dec))
+                    os.remove(dec)
+                if GPG_AEAD_OCB:
+                    gpg_decrypt_file(srcocb, dec, PASSWORD)
+                    self.assertEqual(file_text(srctxt), file_text(dec))
+                    os.remove(dec)
             if RNP_AEAD_EAX and RNP_BRAINPOOL:
                 # Encrypt with RNP
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-z', '0', '-r', 'alice', '--aead=eax', 
@@ -3169,7 +3198,7 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
                 os.remove(dec)
-                if GPG_AEAD and GPG_BRAINPOOL:
+                if GPG_AEAD_EAX and GPG_BRAINPOOL:
                     # Decrypt with GnuPG
                     gpg_decrypt_file(enc, dec, PASSWORD)
                     self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3184,7 +3213,7 @@ class Misc(unittest.TestCase):
                 ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--password', PASSWORD, '-d', enc, '--output', dec])
                 self.assertEqual(file_text(srctxt), file_text(dec))
                 os.remove(dec)
-                if GPG_AEAD and GPG_BRAINPOOL:
+                if GPG_AEAD_OCB and GPG_BRAINPOOL:
                     # Decrypt with GnuPG
                     gpg_decrypt_file(enc, dec, PASSWORD)
                     self.assertEqual(file_text(srctxt), file_text(dec))
@@ -3809,8 +3838,7 @@ class Encryption(unittest.TestCase):
         tested before your failing BLOWFISH
     '''
     # Ciphers list tro try during encryption. None will use default
-    CIPHERS = [None, 'AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192',
-               'CAMELLIA256', 'IDEA', '3DES', 'CAST5', 'BLOWFISH']
+    CIPHERS = [None]
     SIZES = [20, 40, 120, 600, 1000, 5000, 20000, 250000]
     # Compression parameters to try during encryption(s)
     Z = [[None, 0], ['zip'], ['zlib'], ['bzip2'], [None, 1], [None, 9]]
@@ -3826,15 +3854,7 @@ class Encryption(unittest.TestCase):
         rnp_genkey_rsa('dummy2@rnp', 1024)
         gpg_import_pubring()
         gpg_import_secring()
-        if not RNP_TWOFISH:
-            Encryption.CIPHERS.remove('TWOFISH')
-        if not RNP_IDEA:
-            Encryption.CIPHERS.remove('IDEA')
-        if not RNP_BLOWFISH:
-            Encryption.CIPHERS.remove('BLOWFISH')
-        if not RNP_CAST5:
-            Encryption.CIPHERS.remove('CAST5')
-
+        Encryption.CIPHERS += rnp_supported_ciphers(False)
         Encryption.CIPHERS_R = list_upto(Encryption.CIPHERS, Encryption.RUNS)
         Encryption.SIZES_R = list_upto(Encryption.SIZES, Encryption.RUNS)
         Encryption.Z_R = list_upto(Encryption.Z, Encryption.RUNS)
@@ -3940,12 +3960,8 @@ class Encryption(unittest.TestCase):
         if not RNP_AEAD:
             print('AEAD is not available for RNP - skipping.')
             return
-        CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
+        CIPHERS = rnp_supported_ciphers(True)
         AEADS = [None, 'eax', 'ocb']
-        if not RNP_TWOFISH:
-            CIPHERS.remove('TWOFISH')
-        if RNP_AEAD_OCB_AES:
-            CIPHERS = ['AES', 'AES192', 'AES256']
         if not RNP_AEAD_EAX:
             AEADS.remove('eax')
         AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
@@ -3999,6 +4015,23 @@ class Encryption(unittest.TestCase):
             rnp_decrypt_file(enc, dst)
         remove_files(src, dst, enc)
 
+    def fill_aeads(self, runs):
+        aead = [None, [None]]
+        if RNP_AEAD_EAX:
+            aead += [['eax']]
+        if RNP_AEAD_OCB:
+            aead += [['ocb']]
+        return list_upto(aead, runs)
+
+    def gpg_supports(self, aead):
+        if (aead == ['eax']) and not GPG_AEAD_EAX:
+            return False
+        if (aead == ['ocb']) and not GPG_AEAD_OCB:
+            return False
+        if (aead == [None]) and not GPG_AEAD_OCB:
+            return False
+        return True
+
     def test_encryption_multiple_recipients(self):
         USERIDS = ['key1@rnp', 'key2@rnp', 'key3@rnp']
         KEYPASS = ['key1pass', 'key2pass', 'key3pass']
@@ -4013,10 +4046,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if GPG_AEAD and RNP_AEAD:
-            AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
-        else:
-            AEADS = list_upto([None], Encryption.RUNS)
+        AEADS = self.fill_aeads(Encryption.RUNS)
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
@@ -4026,17 +4056,18 @@ class Encryption(unittest.TestCase):
             keynum, pswdnum = kpswd
             if (keynum == 0) and (pswdnum == 0):
                 continue
-            # For CFB mode there is ~5% probability that GnuPG will attempt to decrypt 
-            # message's SESK with a wrong password, see T3795 on dev.gnupg.org
-            skipgpg = not aead and ((pswdnum > 1) or ((pswdnum > 0) and (keynum > 0)))
             uids = USERIDS[:keynum] if keynum else None
             pswds = PASSWORDS[:pswdnum] if pswdnum else None
 
             rnp_encrypt_file_ex(src, dst, uids, pswds, aead)
 
             # Decrypt file with each of the keys, we have different password for each key
+            # For CFB mode there is ~5% probability that GnuPG will attempt to decrypt 
+            # message's SESK with a wrong password, see T3795 on dev.gnupg.org
+            first_pass = aead is None and ((pswdnum > 1) or ((pswdnum == 1) and (keynum > 0)))
+            try_gpg = self.gpg_supports(aead)
             for pswd in KEYPASS[:keynum]:
-                if not skipgpg:
+                if not first_pass and try_gpg:
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
@@ -4044,12 +4075,16 @@ class Encryption(unittest.TestCase):
                 remove_files(dec)
 
             # Decrypt file with each of the passwords (with gpg only first password is checked)
-            if skipgpg:
+            if first_pass and try_gpg:
                 gpg_decrypt_file(dst, dec, PASSWORDS[0])
                 gpg_agent_clear_cache()
                 remove_files(dec)
 
             for pswd in PASSWORDS[:pswdnum]:
+                if not first_pass and try_gpg:
+                    gpg_decrypt_file(dst, dec, pswd)
+                    gpg_agent_clear_cache()
+                    remove_files(dec)
                 rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
                 remove_files(dec)
 
@@ -4061,10 +4096,7 @@ class Encryption(unittest.TestCase):
         USERIDS = ['enc-sign1@rnp', 'enc-sign2@rnp', 'enc-sign3@rnp']
         KEYPASS = ['encsign1pass', 'encsign2pass', 'encsign3pass']
         PASSWORDS = ['password1', 'password2', 'password3']
-        CIPHERS = ['AES', 'AES192', 'AES256', 'TWOFISH', 'CAMELLIA128', 'CAMELLIA192', 'CAMELLIA256']
-        if not RNP_TWOFISH:
-            CIPHERS.remove('TWOFISH')
-        AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
+        AEAD_C = list_upto(rnp_supported_ciphers(True), Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
         for uid, pswd in zip(USERIDS, KEYPASS):
             rnp_genkey_rsa(uid, 1024, pswd)
@@ -4076,10 +4108,7 @@ class Encryption(unittest.TestCase):
         KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1)
                         for t2 in range(len(PASSWORDS) + 1))
         KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        if GPG_AEAD and RNP_AEAD:
-            AEADS = list_upto([None, [None], ['eax'], ['ocb']], Encryption.RUNS)
-        else:
-            AEADS = list_upto([None], Encryption.RUNS)
+        AEADS = self.fill_aeads(Encryption.RUNS)
         ZS = list_upto([None, [None, 0]], Encryption.RUNS)
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
@@ -4095,17 +4124,14 @@ class Encryption(unittest.TestCase):
             aead = AEADS[i]
             z = ZS[i]
             cipher = AEAD_C[i]
-            # For CFB mode there is ~5% probability that GnuPG will attempt to decrypt 
-            # message's SESK with a wrong password, see T3795 on dev.gnupg.org
-            skipgpg = not aead and ((pswdnum > 1) or ((pswdnum > 0) and (keynum > 0)))
+            first_pass = aead is None and ((pswdnum > 1) or ((pswdnum == 1) and (keynum > 0)))
+            try_gpg = self.gpg_supports(aead)
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
                                       signpswd, aead, cipher, z)
             # Decrypt file with each of the keys, we have different password for each key
-
-
             for pswd in KEYPASS[:keynum]:
-                if not skipgpg:
+                if not first_pass and try_gpg:
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
@@ -4113,14 +4139,14 @@ class Encryption(unittest.TestCase):
                 remove_files(dec)
 
             # GPG decrypts only with first password, see T3795
-            if skipgpg and pswdnum:
+            if first_pass and try_gpg:
                 gpg_decrypt_file(dst, dec, PASSWORDS[0])
                 gpg_agent_clear_cache()
                 remove_files(dec)
 
             # Decrypt file with each of the passwords
             for pswd in PASSWORDS[:pswdnum]:
-                if not skipgpg:
+                if not first_pass and try_gpg:
                     gpg_decrypt_file(dst, dec, pswd)
                     gpg_agent_clear_cache()
                     remove_files(dec)
