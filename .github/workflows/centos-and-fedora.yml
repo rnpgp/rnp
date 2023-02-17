@@ -57,9 +57,9 @@ jobs:
         image:
           - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
           - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: On,           locale: C.UTF-8     }
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
