@@ -356,7 +356,7 @@ void
 print_usage(const char *usagemsg)
 {
     cli_rnp_print_praise();
-    ERR_MSG("%s", usagemsg);
+    puts(usagemsg);
 }
 
 /* do a command once for a specified file 'f' */
