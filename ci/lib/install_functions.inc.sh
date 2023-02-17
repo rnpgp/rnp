@@ -37,7 +37,7 @@
 
 
 
-if [[ "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
+if [[ "${GPG_VERSION}" = stable || "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
   : "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
 else
   : "${MINIMUM_AUTOMAKE_VERSION:=1.16.1}"

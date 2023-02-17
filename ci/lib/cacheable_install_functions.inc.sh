@@ -195,6 +195,7 @@ _install_gpg() {
       "--disable-pinentry-tqt"
       "--disable-pinentry-fltk"
       "--enable-maintainer-mode"
+      "--enable-install-gpg-error-config"
       ${cpuparam+"${cpuparam[@]}"}
     )
 
@@ -260,8 +261,11 @@ install_gpg() {
     case "${GPG_VERSION}" in
       stable)
         #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
-        _install_gpg component-version 1.6  1.43         1.8.8     2.5.5     1.6.0   1.1.0    2.2.33
-        # _install_gpg component-version 1.6  1.42         1.9.2     2.5.5     1.5.0   1.1.1    2.2.27
+        _install_gpg component-version 1.6  1.46         1.10.1     2.5.5     1.6.3  1.2.1    2.4.0
+        ;;
+      lts)
+        #                              npth libgpg-error libgcrypt libassuan libksba pinentry gnupg
+        _install_gpg component-version 1.6  1.46         1.8.10    2.5.5     1.6.3   1.2.1    2.2.41
         ;;
       beta)
         #                              npth    libgpg-error libgcrypt libassuan libksba pinentry gnupg
