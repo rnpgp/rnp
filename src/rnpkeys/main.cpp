@@ -104,6 +104,15 @@ rnpkeys_main(int argc, char **argv)
         }
     }
 
+    ret = EXIT_SUCCESS;
+    /* No initialization required for these two commands. */
+    if (cmd == CMD_HELP || cmd == CMD_VERSION) {
+        if (!rnp_cmd(&rnp, cmd, NULL)) {
+            ret = EXIT_FAILURE;
+        }
+        return ret;
+    }
+
     if (!rnpkeys_init(&rnp, cfg)) {
         ret = EXIT_FAILURE;
         goto end;
@@ -115,8 +124,7 @@ rnpkeys_main(int argc, char **argv)
     }
 
     /* now do the required action for each of the command line args */
-    ret = EXIT_SUCCESS;
-    if (optind == argc || cmd == CMD_HELP || cmd == CMD_VERSION) {
+    if (optind == argc) {
         if (!rnp_cmd(&rnp, cmd, NULL)) {
             ret = EXIT_FAILURE;
         }
