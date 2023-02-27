@@ -21,29 +21,20 @@
 : "${RECOMMENDED_RUBY_VERSION:=3.1.1}"
 
 : "${RECOMMENDED_SEXP_VERSION:=0.7.0}"
-: "${RECOMMENDED_BOTAN_VERSION_MSYS:=${RECOMMENDED_BOTAN_VERSION}-1}"
 
 : "${CMAKE_VERSION:=${RECOMMENDED_CMAKE_VERSION}}"
-# if [[ "${OS}" = msys ]]; then
-#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION_MSYS}}"
-# else
-#   : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
-# fi
 : "${BOTAN_VERSION:=${RECOMMENDED_BOTAN_VERSION}}"
 : "${JSONC_VERSION:=${RECOMMENDED_JSONC_VERSION}}"
 : "${SEXP_VERSION:=${RECOMMENDED_SEXP_VERSION}}"
 : "${PYTHON_VERSION:=${RECOMMENDED_PYTHON_VERSION}}"
 : "${RUBY_VERSION:=${RECOMMENDED_RUBY_VERSION}}"
 
+# Should minimum automake version change
+# please consider release of Ribose RPM for it
+# [https://github.com/riboseinc/rpm-spec-automake116-automake]
 
-
-if [[ "${GPG_VERSION}" = stable || "${GPG_VERSION}" = 2.3.* || "${GPG_VERSION}" = beta ]]; then
-  : "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
-else
-  : "${MINIMUM_AUTOMAKE_VERSION:=1.16.1}"
-fi
+: "${MINIMUM_AUTOMAKE_VERSION:=1.16.3}"
 : "${RECOMMENDED_AUTOMAKE_VERSION:=1.16.4}"
-
 : "${AUTOMAKE_VERSION:=${RECOMMENDED_AUTOMAKE_VERSION}}"
 
 : "${VERBOSE:=1}"
@@ -193,10 +184,10 @@ declare basic_build_dependencies_yum=(
   gcc-c++
   make
   autoconf
-  automake
   libtool
   bzip2
   gzip
+  ribose-automake116
 )
 
 declare build_dependencies_yum=(
@@ -206,7 +197,6 @@ declare build_dependencies_yum=(
   gettext-devel
   ncurses-devel
   python3
-  ribose-automake116
   ruby-devel
   zlib-devel
 )
@@ -235,12 +225,8 @@ yum_install() {
 }
 
 prepare_build_tool_env() {
-  case "${DIST}" in
-    centos)
-      post_build_tool_install_set_env
-      ;;
-  esac
-
+  enable_llvm_toolset_7
+  enable_ribose_automake
   prepare_rbenv_env
 }
 
@@ -465,18 +451,21 @@ build_and_install_python() {
   popd
 }
 
-# Make sure automake is at least 1.16.3+ as required by GnuPG 2.3.
-# If not, build automake from source.
+# Make sure automake is at least $MINIMUM_AUTOMAKE_VERSION (1.16.3) as required by GnuPG 2.3
+# - We assume that on fedora/centos ribose rpm was used (see basic_build_dependencies_yum)
+# - If automake version is less then reuired automake build it from source
 ensure_automake() {
 
-  local automake_version
+  local using_ribose_automake=
+  enable_ribose_automake
+
+  local automake_version=
   automake_version=$({
     command -v automake >/dev/null && command automake --version
     } | head -n1 | cut -f4 -d' '
   )
 
   local need_to_build_automake=
-
   if ! is_version_at_least automake "${MINIMUM_AUTOMAKE_VERSION}" echo "${automake_version}"; then
     >&2 echo "automake version lower than ${MINIMUM_AUTOMAKE_VERSION}."
     need_to_build_automake=1
@@ -487,31 +476,42 @@ ensure_automake() {
     return
   fi
 
+  # Disable and automake116 from Ribose's repository as that may be too old.
+  if [[ "${using_ribose_automake}" == 1 ]]; then
+    >&2 echo "ribose-automake116 does not meet version requirements, disabling and removing."
+    . /opt/ribose/ribose-automake116/disable
+    "${SUDO}" rpm -e ribose-automake116
+    using_ribose_automake=0
+  fi
+
   >&2 echo "automake rebuild is needed."
-
   pushd "$(mktemp -d)" || return 1
-
   build_and_install_automake
 
-  # Disable automake116 from Ribose's repository as that may be too old.
-  case "${DIST}" in
-    centos)
-      if [[ -r /opt/ribose/ribose-automake116/disable ]]; then
-        >&2 echo "ribose-automake116 will be disabled."
-        . /opt/ribose/ribose-automake116/disable
-      fi
+  command -v automake
+  popd
+}
 
-      if rpm --quiet -q ribose-automake116; then
-        >&2 echo "ribose-automake116 is installed.  Removing."
-        # "${SUDO}" "${YUM}" remove -y ribose-automake116
-        "${SUDO}" rpm -e ribose-automake116
+enable_ribose_automake() {
+  case "${DIST}" in
+    centos|fedora)
+      if rpm --quiet -q ribose-automake116 && [[ "$PATH" != */opt/ribose/ribose-automake116/root/usr/bin* ]]; then
+        ACLOCAL_PATH=$(scl enable ribose-automake116 -- aclocal --print-ac-dir):$(rpm --eval '%{_datadir}/aclocal')
+        export ACLOCAL_PATH
+        . /opt/ribose/ribose-automake116/enable
+        >&2 echo "Ribose automake was enabled."
+        using_ribose_automake=1
       fi
       ;;
   esac
+}
 
-  command -v automake
-
-  popd
+enable_llvm_toolset_7() {
+  if [[ "${DIST_VERSION}" == "centos-7" ]] && \
+     rpm --quiet -q llvm-toolset-7.0 && \
+     [[ "$PATH" != */opt/rh/llvm-toolset-7.0/root/usr/bin* ]]; then
+    . /opt/rh/llvm-toolset-7.0/enable
+  fi
 }
 
 build_and_install_automake() {
@@ -521,7 +521,9 @@ build_and_install_automake() {
   pushd "${automake_build}"
   curl -L -o automake.tar.xz "https://ftp.gnu.org/gnu/automake/automake-${AUTOMAKE_VERSION}.tar.xz"
   tar -xf automake.tar.xz --strip 1
-  ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && ${SUDO} make install
+  ./configure --enable-optimizations --prefix=/usr
+  "${MAKE}" -j"${MAKE_PARALLEL}"
+  "${SUDO}" "${MAKE}" install
   popd
 }
 
@@ -722,21 +724,14 @@ install_asciidoctor() {
 }
 
 declare ruby_build_dependencies_yum=(
-  git-core
   zlib
   zlib-devel
-  gcc-c++
   patch
-  readline
   readline-devel
   libyaml-devel
   libffi-devel
   openssl-devel
-  make
   bzip2
-  autoconf
-  automake
-  libtool
   bison
   curl
   sqlite-devel
@@ -747,11 +742,6 @@ ensure_ruby() {
   if is_version_at_least ruby "${MINIMUM_RUBY_VERSION}" command ruby -e 'puts RUBY_VERSION'; then
     return
   fi
-
-  # XXX: Fedora20 seems to have problems installing ruby build dependencies in
-  # yum?
-  # "${YUM}" repolist all
-  # "${SUDO}" rpm -qa | sort
 
   if [[ "${DIST_VERSION}" = fedora-20 ]]; then
     ruby_build_dependencies_yum+=(--enablerepo=updates-testing)
@@ -764,7 +754,7 @@ ensure_ruby() {
       rbenv install -v "${RUBY_VERSION}"
       rbenv global "${RUBY_VERSION}"
       rbenv rehash
-      sudo chown -R "$(whoami)" "$(rbenv prefix)"
+      "${SUDO}" chown -R "$(whoami)" "$(rbenv prefix)"
       ;;
     debian)
       apt_install "${ruby_build_dependencies_deb[@]}"
@@ -850,14 +840,6 @@ is_version_at_least() {
     need_version_patch="${need_version_patch#.}"
     need_version_patch="${need_version_patch%%.*}"
     need_version_patch="${need_version_patch:-0}"
-
-    >&2 echo "
-    -> installed_version_major=${installed_version_major}
-    -> installed_version_minor=${installed_version_minor}
-    -> installed_version_patch=${installed_version_patch}
-    -> need_version_major=${need_version_major}
-    -> need_version_minor=${need_version_minor}
-    -> need_version_patch=${need_version_patch}"
 
     # Naive semver comparison
     if [[ "${installed_version_major}" -lt "${need_version_major}" ]] || \
