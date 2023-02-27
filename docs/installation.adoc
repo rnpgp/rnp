@@ -54,7 +54,7 @@ Prerequisites: please ensure `git` is installed on the system
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.16.3
+git clone https://github.com/rnpgp/rnp.git -b v0.17.0
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
@@ -91,7 +91,7 @@ Prerequisite: please ensure `git` is installed on the system.
 [source,console]
 ----
 # Clone the repository by version tag (or omit it to get the latest sources)
-git clone https://github.com/rnpgp/rnp.git -b v0.16.3
+git clone https://github.com/rnpgp/rnp.git -b v0.17.0
 
 Please ensure that you clone with submodules if you use a version higher then 0.16.2
 git clone https://github.com/rnpgp/rnp.git --recurse-submodules --shallow-submodules
