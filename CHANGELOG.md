@@ -1,5 +1,37 @@
 ## Changelog
 
+### 0.17.0 [2023-05-01]
+
+#### General
+
+* Added support for hidden recipient during decryption.
+* Added support for AEAD-OCB for OpenSSL backend.
+* Improve support for offline secret keys during default key selection.
+* Support for GnuPG 2.3+ secret key store format.
+* SExp parsing code is moved to separate library, https://github.com/rnpgp/sexp.
+* Mark subkeys as expired instead of invalid if primary key is expired.
+* AEAD: use OCB by default instead of EAX.
+* Do not attempt to validate signatures of unexpected types.
+* Use thread-safe time and date handling functions.
+* Added ENABLE_BLOWFISH, ENABLE_CAST5 and ENABLE_RIPEMD160 build time options.
+* Do not use `EVP_PKEY_CTX_set_dsa_paramgen_q_bits()` if OpenSSL backend version is < 1.1.1e.
+* Corrected usage of CEK/KEK algorithms if those differs.
+
+#### FFI
+
+* Added function `rnp_signature_export()`.
+* Added flag `RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT` to `rnp_op_verify_set_flags()`.
+
+#### CLI
+
+* Added default armor message type for `--enarmor` command.
+* Added command `--set-filename` to specify which file name should be stored in message.
+* Added `--add-subkey` subcommand to the `--edit-key`.
+* Added `set-expire` subcommand to the `--edit-key`.
+* Added `--s2k-iterations` and `--s2k-msec` options to the `rnp`.
+* Added `--allow-weak-hash` command to allow usage of weak hash algorithms.
+* Report number of new/updated keys during the key import.
+
 ### 0.16.3 [2023-04-11]
 
 #### Security
@@ -11,7 +43,7 @@
 
 #### General
 
-* Fixed CMake issues with ENABLE_IDEA and ENABLE_BRAINPOOL
+* Fixed CMake issues with ENABLE_IDEA and ENABLE_BRAINPOOL.
 
 ### 0.16.1 [2022-09-06]
 
