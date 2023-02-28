@@ -361,6 +361,11 @@ set_target_properties(librnp
 
 if (BUILD_SHARED_LIBS)
   add_library(librnp-static STATIC $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+  if (NOT WIN32)
+# On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
+# On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
+    set_target_properties(librnp-static PROPERTIES OUTPUT_NAME "rnp")
+  endif (NOT WIN32)
  # Limit symbols export only to rnp_* functions.
   if (APPLE)
     # use -export_symbols_list on Apple OSs
@@ -376,10 +381,14 @@ endif()
 
 foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERFACE_INCLUDE_DIRECTORIES)
   get_target_property(val librnp-obj ${prop})
-  set_property(TARGET librnp PROPERTY ${prop} ${val})
   if (BUILD_SHARED_LIBS)
     set_property(TARGET librnp-static PROPERTY ${prop} ${val})
+    list(REMOVE_ITEM val "$<LINK_ONLY:Sexp::Sexp>")
+    set_property(TARGET librnp PROPERTY ${prop} ${val})
+  else()
+    set_property(TARGET librnp PROPERTY ${prop} ${val})
   endif()
+
 endforeach()
 
 generate_export_header(librnp
@@ -404,6 +413,9 @@ else()
 endif()
 
 # add these to the rnp-targets export
+# On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
+# On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
+
 install(TARGETS librnp
   EXPORT rnp-targets
   LIBRARY
@@ -414,6 +426,15 @@ install(TARGETS librnp
     DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
     COMPONENT development
 )
+
+if (BUILD_SHARED_LIBS)
+  install(TARGETS librnp-static
+    EXPORT rnp-targets
+    ARCHIVE
+      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+      COMPONENT development
+  )
+endif(BUILD_SHARED_LIBS)
 
 # If a client application uses shared rnp library, sexp is statically linked to librnp.so
 # If a client application uses static rnp library, it still needs libsexp.a
@@ -429,7 +450,7 @@ if (WIN32)
       DESTINATION "${CMAKE_INSTALL_BINDIR}"
       COMPONENT runtime
   )
-endif()
+endif(WIN32)
 
 # install headers
 install(
