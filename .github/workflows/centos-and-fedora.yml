@@ -39,6 +39,17 @@ env:
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
   DOWNLOAD_RUBYRNP: Off
 
+#
+# Dependencies that are created during packaging
+#
+#      OS           botan   botan repository  json-c               json-c repository
+# ----------------------------------------------------------------------------
+#   CentOS 7        2.16.0   ribose            json-c12 (0.12.1)   ribose
+#   CentOS 8        2.16.0   ribose            0.13.1              el8
+#   CentOS 9        2.19.3   el9               0.14                el9
+#   Fedora 35       2.18.2   fc35              0.15                fc35
+#   Fedora 36       2.19.1   fc36              0.15                fc36
+#
 jobs:
   tests:
     runs-on: ubuntu-latest
@@ -54,21 +65,23 @@ jobs:
 #         - { CC: clang, CXX: clang++, BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
           - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, USE_STATIC_DEPENDENCIES: yes }
 
+# Should you add a new OS/version please consider adding its default version of botan2 and json-c to this test matrix
         image:
-          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
+          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.16.0, locale: en_US.UTF-8 }
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   botan_ver: 2.16.0, locale: C.UTF-8     }
+          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,   botan_ver: 2.19.3, locale: C.UTF-8     }
+          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.18.2, locale: C.UTF-8     }
+          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.19.1, locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
           - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
           - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+
 
         include:
           # Coverage report for Botan backend
@@ -142,47 +155,28 @@ jobs:
           path: ci/tests/shunit2
 
       - name: Run additional ci tests
-        run:  ci/tests/tests.sh
+        run:  ci/tests/ci-tests.sh
 
-  packaging-tests:
+  package-source:
     runs-on: ubuntu-latest
-    container: ${{ matrix.image.container }}
+#    needs: tests
+    container: ${{ matrix.env.container }}
     timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
-        image:
-          - { name: 'CentOS 7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
-# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
-# https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         backend: Botan, flags: -D_GLIBCXX_USE_CXX11_ABI=0, locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', backend: Botan,                                    locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     backend: Botan,                                    locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     backend: Botan,                                    locale: C.UTF-8     }
         env:
-          - { BUILD_SHARED_LIBS: yes, USE_STATIC_DEPENDENCIES: no }
-          - { BUILD_SHARED_LIBS: no,  USE_STATIC_DEPENDENCIES: no }
-    env: ${{ matrix.env }}
-    continue-on-error: true
-    name: Packaging test on ${{ matrix.image.name }} ${{ matrix.image.backend }} [shared libraries - ${{ matrix.env.BUILD_SHARED_LIBS }}]
-    steps:
-      - name: Install prerequisites for prerequisites
-        if: matrix.image.container == 'centos:7'
-        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+          - { name: 'CentOS 7',  container: 'centos:7',                      LC_ALL: en_US.UTF-8 }
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         LC_ALL: C.UTF-8     }
+          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', LC_ALL: C.UTF-8     }
+          - { name: 'Fedora 35', container: 'fedora:35',                     LC_ALL: C.UTF-8     }
+          - { name: 'Fedora 36', container: 'fedora:36',                     LC_ALL: C.UTF-8     }
+    name: Package ${{ matrix.env.name }} SRPM
+    env:  ${{ matrix.env }}
 
+    steps:
       - name: Install prerequisites
         run:  yum -y install git sudo rpm-build
-
-      - name: Setup environment
-        run: |
-          set -o errexit -o pipefail -o noclobber -o nounset
-          echo LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo LC_ALL=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo LC_LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
-          backend=${{ matrix.image.backend }}
-          backend="$(echo "${backend:-}" | tr '[:upper:]' '[:lower:]')"
-          echo CRYPTO_BACKEND="$backend" >> $GITHUB_ENV
-          echo BOTAN_VERSION=${{ matrix.image.botan_ver }} >> $GITHUB_ENV
-          echo CXXFLAGS=${{ matrix.image.flags }} >> $GITHUB_ENV
 
       - name: Checkout
         uses: actions/checkout@v3
@@ -192,30 +186,198 @@ jobs:
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
 
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
+      - name: Configure
+        run: cmake -B build -DDOWNLOAD_SEXP=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF
+
+      - name: Package SRPM
+        run:  cpack -B build/SRPM -G RPM --config build/CPackSourceConfig.cmake
+
+      - name: Upload SRPM
+        uses: actions/upload-artifact@v3
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: Packaging-${{ matrix.image.container }}-${{ matrix.image.backend }}-${{ matrix.env.BUILD_SHARED_LIBS }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/centos-and-fedora.yml') }}
+          name: 'SRPM ${{ matrix.env.name }}'
+          path: 'build/SRPM/*.src.rpm'
+          retention-days: 5
 
-      - name: Setup cacheable dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: ci/install_cacheable_dependencies.sh
+      - name: Stash packaging tests
+        uses: actions/upload-artifact@v3
+        with:
+          name: tests
+          path: 'ci/tests/**'
+          retention-days: 1
 
-      - name: Test
+  package:
+    runs-on: ubuntu-latest
+    needs: package-source
+    container: ${{ matrix.env.container }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - { name: 'CentOS 7',  container: 'centos:7',                                                               LC_ALL: en_US.UTF-8 }
+# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
+# https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0,    LC_ALL: C.UTF-8     }
+          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9',                                          LC_ALL: C.UTF-8     }
+          - { name: 'Fedora 35', container: 'fedora:35',                                                              LC_ALL: C.UTF-8     }
+          - { name: 'Fedora 36', container: 'fedora:36',                                                              LC_ALL: C.UTF-8     }
+    name: Package ${{ matrix.env.name }} RPM
+    env: ${{ matrix.env }}
+    steps:
+      - name: Install prerequisites for prerequisites
+        if: matrix.env.container == 'centos:7'
+        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+
+      - name: Install prerequisites
+        run:  yum -y install git sudo tar cpio rpm-build
+
+      - name: Download SRPM
+        uses: actions/download-artifact@v3
+        with:
+          name: 'SRPM ${{ matrix.env.name }}'
+          path: ~/rpmbuild/SRPMS
+
+      - name: Extract SRPM
         run: |
-          # cmake
-          set -euxo pipefail
-          . ci/env.inc.sh
+          rpm -i -v ~/rpmbuild/SRPMS/*.src.rpm
+          tar xzf ~/rpmbuild/SOURCES/*.tar.gz --strip 1 -C ~/rpmbuild/SOURCES
 
-          # build+install
-          build_and_install /usr
-
-          # check for install issues
-          check_build
-          build_example_pkgconfig
-      - name: Package
+      - name: Setup noncacheable dependencies
         run: |
-          set -euxo pipefail
-          cpack -G RPM
+          cd ~/rpmbuild/SOURCES/
+          . ci/gha/setup-env.inc.sh
+          ci/install_noncacheable_dependencies.sh
+
+      - name: Permanently enable rh-ruby30
+        if: matrix.env.container == 'centos:7'
+        run: bash -c "echo \"$(cut -f 2- -d ' ' /opt/rh/rh-ruby30/enable)\"">> $GITHUB_ENV
+
+      - name: Checkout sexp
+        uses: actions/checkout@v3
+        with:
+          repository: rnpgp/sexp
+          path: sexp
+
+      - name: Build and install sexp
+        run: |
+          cmake sexp -Bsexp/build -DWITH_SEXP_TESTS=OFF -DWITH_SEXP_CLI=OFF -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build sexp/build --config Release
+          cmake --install sexp/build
+
+      - name: Build rnp
+        run: |
+          cmake ~/rpmbuild/SOURCES -B ~/rpmbuild/SOURCES/BUILD -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF \
+                                   -DDOWNLOAD_SEXP=OFF -DCMAKE_INSTALL_PREFIX=/usr
+          cmake --build ~/rpmbuild/SOURCES/BUILD --config Release
+
+      - name: Package rpm
+        run: cpack -G RPM -B ~/rpmbuild/SOURCES/RPMS --config ~/rpmbuild/SOURCES/BUILD/CPackConfig.cmake
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: 'RPM ${{ matrix.env.name}}'
+          path: '~/rpmbuild/SOURCES/RPMS/*.rpm'
+          retention-days: 5
+
+# The main purpose of this step is to test the RPMS in a pristine environment (as for the end user).
+# ci-scripts are deliberately not used, as they recreate the development environment,
+# and this is something we proudly reject here
+
+  rpm-tests:
+    runs-on: ubuntu-latest
+    needs: package
+    container: ${{ matrix.env.container }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        env:
+          - { name: 'CentOS 7',  container: 'centos:7'                      }
+          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8'         }
+          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9' }
+          - { name: 'Fedora 35', container: 'fedora:35'                     }
+          - { name: 'Fedora 36', container: 'fedora:36'                     }
+    name: RPM test on ${{ matrix.env.name }}
+
+    steps:
+      - name: Install prerequisites
+        run:  yum -y install sudo wget binutils
+
+#   CentOS 7/8 packages depend on botan.so.16 that gets installed from ribose repo
+#   Fedora 35/36 packages depend on botan.so.19 that comes Fedora package, that is available by default
+#   CentOS 9 depend on botan.so.19 and needs EPEL9 repo that needs to be installed
+#   ribose repo is also a source of json-c (v12 aka json-c12) for CentOS 7
+
+      - name: Install ribose-packages
+        if: matrix.env.container == 'centos:7' || matrix.env.container == 'tgagor/centos:stream8'
+        run: |
+           sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
+           sudo wget https://github.com/riboseinc/yum/raw/master/ribose.repo -O /etc/yum.repos.d/ribose.repo
+
+      - name: Install epel-release
+        if: matrix.env.container == 'quay.io/centos/centos:stream9'
+        run: |
+           sudo dnf -y install 'dnf-command(config-manager)'
+           sudo dnf config-manager --set-enabled crb
+           sudo dnf -y install epel-release
+
+      - name: Install xargs
+        if: matrix.env.container == 'fedora:35'
+        run:  sudo yum -y install findutils
+
+      - name: Download rnp rpms
+        uses: actions/download-artifact@v3
+        with:
+          name: 'RPM ${{ matrix.env.name}}'
+
+      - name: Checkout shell test framework
+        uses: actions/checkout@v3
+        with:
+          repository: kward/shunit2
+          path: ci/tests/shunit2
+
+      - name: Unstash tests
+        uses: actions/download-artifact@v3
+        with:
+          name: tests
+          path: ci/tests
+
+      - name: Run rpm tests
+#  RPM tests
+#  - no source checkout or upload [we get only test scripts from the previous step using GHA artifacts]
+#  - no environment set up with rnp scripts
+#  - no dependencies setup, we test that yum can install whatever is required
+        run:  |
+          chmod +x ci/tests/rpm-tests.sh
+          ci/tests/rpm-tests.sh
+
+      - name: Run symbol visibility tests
+        run:  |
+          chmod +x ci/tests/ci-tests.sh
+          sudo yum -y localinstall librnp0-0*.*.rpm librnp0-devel-0*.*.rpm rnp0-0*.*.rpm
+          ci/tests/ci-tests.sh
+          sudo yum -y erase $(rpm -qa  | grep rnp)
+
+      - name: Setup minimalistic build environment
+        run:  |
+          sudo yum -y install make gcc gcc-c++ zlib-devel bzip2-devel botan2-devel
+          mkdir cmake
+          wget https://github.com/Kitware/CMake/releases/download/v3.12.0/cmake-3.12.0-Linux-x86_64.sh -O cmake/cmake.sh
+          sudo sh cmake/cmake.sh --skip-license --prefix=/usr/local
+
+# Ribose repo provides json-c12-devel for CentOS7;
+# el8, el9, fr35, fr36 provide json-c-devel (version 12+)
+      - name: Setup json-c12
+        if: matrix.env.container == 'centos:7'
+        run: sudo yum -y install json-c12-devel
+
+      - name: Setup json-c
+        if: matrix.env.container != 'centos:7'
+        run: sudo yum -y install json-c-devel
+
+      - name: Run packaging tests
+        run:  |
+          chmod +x ci/tests/pk-tests.sh
+          ci/tests/pk-tests.sh
