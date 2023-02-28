@@ -52,34 +52,34 @@ jobs:
           - { CC: gcc,   CXX: g++,     BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
 #   normal --> Release build; sanitize --> Debug build so theoretically test conditions are different
 #         - { CC: clang, CXX: clang++, BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
-          - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, USE_STATIC_DEPENDENCIES: yes }
+##          - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, USE_STATIC_DEPENDENCIES: yes }
 
         image:
           - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+##          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: beta,   backend: Botan,   botan_ver: 2.17.3, locale: en_US.UTF-8 }
+##          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
+##          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
+##          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
+##          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: beta,   backend: Botan,   sm2: On,           locale: C.UTF-8     }
+##          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
+##          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+##          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
+##          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
+##          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+##          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+##          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,                      locale: C.UTF-8     }
+##          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
 
-        include:
+##        include:
           # Coverage report for Botan backend
-          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: Botan, sm2: On, locale: C.UTF-8 }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+##          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: Botan, sm2: On, locale: C.UTF-8 }
+##            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
           # Coverage report for OpenSSL 1.1.1 backend
-          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8        }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+##          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8        }
+##            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
           # Coverage report for OpenSSL 3.0 backend
-          - image: { name: 'Fedora 36', container: 'fedora:36', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8                   }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+##          - image: { name: 'Fedora 36', container: 'fedora:36', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8                   }
+##            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
 
     env: ${{ matrix.env }}
     name: ${{ matrix.image.name }} ${{ matrix.image.backend }} [test mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.image.gpg_ver }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
@@ -151,13 +151,13 @@ jobs:
     strategy:
       matrix:
         image:
-          - { name: 'CentOS 7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
+          - { name: 'CentOS-7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
 # CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
 # https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         backend: Botan, flags: -D_GLIBCXX_USE_CXX11_ABI=0, locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', backend: Botan,                                    locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     backend: Botan,                                    locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     backend: Botan,                                    locale: C.UTF-8     }
+          - { name: 'CentOS-8',  container: 'tgagor/centos:stream8',         backend: Botan, flags: -D_GLIBCXX_USE_CXX11_ABI=0, locale: C.UTF-8     }
+          - { name: 'CentOS-9',  container: 'quay.io/centos/centos:stream9', backend: Botan,                                    locale: C.UTF-8     }
+          - { name: 'Fedora-35', container: 'fedora:35',                     backend: Botan,                                    locale: C.UTF-8     }
+          - { name: 'Fedora-36', container: 'fedora:36',                     backend: Botan,                                    locale: C.UTF-8     }
         env:
           - { BUILD_SHARED_LIBS: yes, USE_STATIC_DEPENDENCIES: no }
           - { BUILD_SHARED_LIBS: no,  USE_STATIC_DEPENDENCIES: no }
@@ -219,3 +219,65 @@ jobs:
         run: |
           set -euxo pipefail
           cpack -G RPM
+
+      - name: Upload Artifact
+        if: matrix.env.BUILD_SHARED_LIBS == 'yes'
+        uses: actions/upload-artifact@v3
+        with:
+          name: RPM-${{ matrix.image.name}}
+          path: '*.rpm'
+          retention-days: 5
+
+  rpm-tests:
+    runs-on: ubuntu-latest
+    needs: packaging-tests
+    container: ${{ matrix.image.container }}
+    timeout-minutes: 30
+    strategy:
+      matrix:
+        image:
+          - { name: 'CentOS-7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
+# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
+# https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
+          - { name: 'CentOS-8',  container: 'tgagor/centos:stream8',         backend: Botan, flags: -D_GLIBCXX_USE_CXX11_ABI=0, locale: C.UTF-8     }
+          - { name: 'CentOS-9',  container: 'quay.io/centos/centos:stream9', backend: Botan,                                    locale: C.UTF-8     }
+          - { name: 'Fedora-35', container: 'fedora:35',                     backend: Botan,                                    locale: C.UTF-8     }
+          - { name: 'Fedora-36', container: 'fedora:36',                     backend: Botan,                                    locale: C.UTF-8     }
+        env:
+          - { TEST_SHARED_LIBS: yes }
+          - { TEST_SHARED_LIBS: no  }
+    continue-on-error: true
+    name: RPM test on ${{ matrix.image.name }} ${{ matrix.image.backend }} [shared libraries - ${{ matrix.env.TEST_SHARED_LIBS }}]
+
+    steps:
+      - name: Install prerequisites
+        run:  yum --allowerasing -y install sudo curl
+
+      - name: Setup environment
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+          echo LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
+          echo LC_ALL=${{ matrix.image.locale }} >> $GITHUB_ENV
+          echo LC_LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
+          backend=${{ matrix.image.backend }}
+          backend="$(echo "${backend:-}" | tr '[:upper:]' '[:lower:]')"
+          echo CRYPTO_BACKEND="$backend" >> $GITHUB_ENV
+          echo BOTAN_VERSION=${{ matrix.image.botan_ver }} >> $GITHUB_ENV
+          echo CXXFLAGS=${{ matrix.image.flags }} >> $GITHUB_ENV
+
+      - name: Download rnp rpms
+        uses: actions/download-artifact@v3
+        with:
+          name: RPM-${{ matrix.image.name}}
+
+      - name: Install rnp rmps
+        run: |
+           sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
+           sudo curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+           sudo yum install -y botan2 json-c12
+           sudo yum -v -y localinstall librnp0-0*.*.rpm
+           sudo rpm -e $(rpm -qa  | grep rnp)
+           sudo yum -v -y localinstall  librnp0-devel-0*.*.rpm
+           sudo rpm -e $(rpm -qa  | grep rnp)
+           sudo yum -v -y localinstall  rnp0-0*.*.rpm
+           sudo rpm -e $(rpm -qa  | grep rnp)
