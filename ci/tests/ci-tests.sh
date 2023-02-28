@@ -27,12 +27,25 @@
 
 set -o errexit -o pipefail -o noclobber -o nounset
 
+DIR0="$( cd "$( dirname "$0" )" && pwd )"
+
+# Defaults applicable to 'normal' installation and not build environment
+: "${BOTAN_INSTALL:=/usr}"
+: "${JSONC_INSTALL:=/usr}"
+: "${RNP_INSTALL:=/usr}"
+: "${SEXP_INSTALL:=/usr}"
+
+: "${ENABLE_SM2:=}"
+: "${ENABLE_IDEA:=}"
+
 test_symbol_visibility() {
     nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
     assertEquals "Unexpected: 'dst_close' is in exports" 0 "$(grep -c dst_close exports)"
     assertEquals "Unexpected: 'Botan' is in exports" 0 "$(grep -c Botan exports)"
     assertEquals "Unexpected: 'OpenSSL' is in exports" 0 "$(grep -c OpenSSL exports)"
     assertEquals "Unexpected: 'rnp_version_string_full' is not in exports" 1 "$(grep -c rnp_version_string_full exports)"
+
+    rm -f exports
 }
 
 test_supported_features() {
@@ -53,8 +66,6 @@ test_supported_features() {
     # SM2
     if [[ "$ENABLE_SM2" == "Off" ]]; then
         unsupported+=("${sm2[@]}")
-    elif [[ "$ENABLE_SM2" == "On" ]]; then
-        supported+=("${sm2[@]}")
     elif [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${sm2[@]}")
     else
@@ -87,11 +98,10 @@ test_supported_features() {
         fea="$(grep -ci "$feature" rnp-version)"
         assertTrue "Unexpected supported feature: '$feature'" "[ $fea == 0 ]"
     done
+
+    rm -f rnp-version
 }
 
 # ......................................................................
-# main
-DIR0="$( cd "$( dirname "$0" )" && pwd )"
 
-# shellcheck source=/dev/null
 . "$DIR0"/shunit2/shunit2

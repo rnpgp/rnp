@@ -1,4 +1,4 @@
-# Copyright (c) 2018 Ribose Inc.
+# Copyright (c) 2018, 2023 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,8 @@ set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "${PACKAGE_DESCRIPTION_SHORT}")
 set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
 set(CPACK_PACKAGE_FILE_NAME "rnp-${CPACK_PACKAGE_VERSION}")
 set(CPACK_PACKAGE_NAME "rnp${PROJECT_VERSION_MAJOR}")
+
+set(CPACK_SOURCE_IGNORE_FILES "/installs/;/build/;/\\\\.git/;\\\\.#;/#")
 
 # deb-specific
 set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "${PACKAGE_URL}")
@@ -75,4 +77,3 @@ set(CPACK_FREEBSD_PACKAGE_CATEGORIES security)
 set(CPACK_FREEBSD_PACKAGE_DEPS bzip2 json-c botan2)
 
 include(CPack)
-

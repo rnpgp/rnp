@@ -140,7 +140,7 @@ yum_prepare_repos() {
 
 linux_install_fedora() {
   yum_prepare_repos
-  extra_dep=(cmake json-c12-devel)
+  extra_dep=(cmake json-c-devel ruby)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -150,7 +150,7 @@ linux_install_fedora() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
   rubygem_install_build_dependencies
 }
 
@@ -172,7 +172,7 @@ linux_install_centos() {
 }
 
 declare util_depedencies_yum=(
-  sudo # NOTE: Needed to avoid "sudo: command not found"
+  sudo
   wget
   git
 )
@@ -197,7 +197,7 @@ declare build_dependencies_yum=(
   gettext-devel
   ncurses-devel
   python3
-  ruby-devel
+#  ruby-devel
   zlib-devel
 )
 
@@ -226,8 +226,9 @@ yum_install() {
 
 prepare_build_tool_env() {
   enable_llvm_toolset_7
+  enable_rh_ruby30
   enable_ribose_automake
-  prepare_rbenv_env
+#  prepare_rbenv_env
 }
 
 yum_install_build_dependencies() {
@@ -238,9 +239,9 @@ yum_install_build_dependencies() {
 }
 
 linux_install_centos7() {
-  yum_prepare_repos epel-release centos-release-scl
+  yum_prepare_repos epel-release centos-release-scl centos-sclo-rh
 
-  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel)
+  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel rh-ruby30)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -250,15 +251,17 @@ linux_install_centos7() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
+  enable_rh_ruby30
   rubygem_install_build_dependencies
 }
 
 linux_install_centos8() {
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
+  "${SUDO}" "${YUM}" module reset ruby -y
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c12-devel)
+  extra_dep=(cmake texinfo json-c-devel @ruby:3.0)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -268,7 +271,8 @@ linux_install_centos8() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+# ensure_ruby
+  ensure_symlink_to_target /usr/bin/python3 /usr/bin/python
   rubygem_install_build_dependencies
 }
 
@@ -277,7 +281,7 @@ linux_install_centos9() {
   "${SUDO}" "${YUM}" config-manager --set-enabled crb
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c-devel)
+  extra_dep=(cmake texinfo json-c-devel ruby)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -287,7 +291,7 @@ linux_install_centos9() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
   rubygem_install_build_dependencies
 }
 
@@ -446,9 +450,11 @@ build_and_install_python() {
   curl -L -o python.tar.xz https://www.python.org/ftp/python/"${PYTHON_VERSION}"/Python-"${PYTHON_VERSION}".tar.xz
   tar -xf python.tar.xz --strip 1
   ./configure --enable-optimizations --prefix=/usr && ${MAKE} -j"${MAKE_PARALLEL}" && "${SUDO}" make install
-  ${SUDO} ln -sf /usr/bin/python3 /usr/bin/python
+  ensure_symlink_to_target /usr/bin/python3 /usr/bin/python
   popd
 }
+
+
 
 # Make sure automake is at least $MINIMUM_AUTOMAKE_VERSION (1.16.3) as required by GnuPG 2.3
 # - We assume that on fedora/centos ribose rpm was used (see basic_build_dependencies_yum)
@@ -510,6 +516,17 @@ enable_llvm_toolset_7() {
      rpm --quiet -q llvm-toolset-7.0 && \
      [[ "$PATH" != */opt/rh/llvm-toolset-7.0/root/usr/bin* ]]; then
     . /opt/rh/llvm-toolset-7.0/enable
+  fi
+}
+
+enable_rh_ruby30() {
+  if [[ "${DIST_VERSION}" == "centos-7" ]] && \
+     rpm --quiet -q rh-ruby30 && \
+     [[ "$PATH" != */opt/rh/rh-ruby30/root/usr/bin* ]]; then
+    . /opt/rh/rh-ruby30/enable
+    PATH=$HOME/bin:$PATH
+    export PATH
+    export SUDO_GEM="run"
   fi
 }
 
@@ -683,10 +700,6 @@ msys_install() {
 
   pacman --noconfirm -S --needed "${packages[@]}"
 
-  # msys includes ruby 2.6.1 while we need lower version
-  #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
-  #pacman --noconfirm --needed -U /tmp/ruby-2.5.3.pkg.tar.xz
-  #rm /tmp/ruby-2.5.3.pkg.tar.xz
 }
 
 # Mainly for all python scripts with shebangs pointing to
@@ -875,27 +888,6 @@ gem_install() {
   fi
 }
 
-# build+install
-build_and_install() {
-
-  export cmakeopts=(
-    -DBUILD_SHARED_LIBS="${BUILD_SHARED_LIBS}"
-    -DBUILD_TESTING=no
-    -DCMAKE_INSTALL_PREFIX="${1:-/tmp}"
-  )
-
-  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
-  [ -n "${SEXP_INSTALL:-}" ] && cmakeopts+=(-DCMAKE_PREFIX_PATH="${SEXP_INSTALL}")
-
-
-  if [[ $# -gt 0 ]]; then
-    shift
-  fi
-
-  build_rnp "$@"
-  make_install VERBOSE="${VERBOSE}"
-}
-
 build_rnp() {
   "${CMAKE:-cmake}" "${cmakeopts[@]}" "${1:-.}"
 }
@@ -917,93 +909,4 @@ is_true_cmake_bool() {
       >&2 echo "Warning: unrecognized boolean expression ($arg).  Continuing and interpreting as 'false' anyway."
       false
   esac
-}
-
-# check for install issues
-check_build() {
-  if is_true_cmake_bool "${BUILD_SHARED_LIBS}"; then
-    export pkgflags=
-    export gccflags=
-    if ! find /usr/lib64/ -maxdepth 1 -type f -name 'librnp*.so' | grep -q . || \
-         find /usr/lib64/ -maxdepth 1 -type f -name 'librnp*.a'  | grep -q .; then
-      >&2 echo "librnp installed libraries incorrect"
-    fi
-  else
-    export pkgflags=--static
-    export gccflags=-lstdc++
-    if  find /usr/lib64/ -maxdepth 1 -type f -name 'librnp*.so' | grep -q . || \
-      ! find /usr/lib64/ -maxdepth 1 -type f -name 'librnp*.a'  | grep -q .; then
-      >&2 echo "librnp installed libraries incorrect"
-    fi
-  fi
-}
-
-# build an example using pkg-config
-build_example_pkgconfig() {
-  local rnpsrc="$PWD"
-  pushd "$(mktemp -d)" || return 1
-
-  # shellcheck disable=SC2046,SC2086
-  gcc "${rnpsrc}/src/examples/generate.c" -ogenerate $(pkg-config --cflags --libs $pkgflags librnp) $gccflags
-  ./generate
-  readelf -d generate
-  if is_true_cmake_bool "${BUILD_SHARED_LIBS}"; then
-    readelf -d generate | grep -q 'librnp\>'
-  else
-    readelf -d generate | grep -qv 'librnp\>'
-  fi
-
-  # remove the pkgconfig for the next test
-  >&2 echo "Checking if librnp- is found in pkg-config list:"
-  pkg-config --list-all
-  pkg-config --list-all | grep -q '^librnp\>'
-
-  # XXX: debug
-  find /usr/lib64 -type f -name 'librnp*'
-  find /usr/lib -type f -name 'librnp*'
-
-  find /usr/lib64/pkgconfig -regextype sed -regex '.*librnp\>.*' -exec rm {} +
-
-  # XXX: debug
-  find /usr/lib64 -type f -name 'librnp*'
-  find /usr/lib -type f -name 'librnp*'
-
-  # should not be found
-  >&2 echo "Checking if librnp- is NOT found in pkg-config list:"
-  pkg-config --list-all
-  pkg-config --list-all | grep -qv '^librnp\>'
-
-  # build an example using cmake targets
-  mkdir rnp-project
-  pushd rnp-project || return 1
-
-  cat <<"EOF" > find_package_test.cpp
-  #include <rnp/rnp.h>
-
-  int main(int argc, char *argv[]) {
-      printf("RNP version: %s\n", rnp_version_string());
-      return 0;
-  }
-EOF
-
-  cat <<"EOF" > CMakeLists.txt
-  project(find_package_test)
-  set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}")
-  find_package(BZip2 REQUIRED)
-  find_package(ZLIB REQUIRED)
-  find_package(JSON-C 0.11 REQUIRED)
-  find_package(Botan2 2.14.0 REQUIRED)
-  find_package(rnp REQUIRED)
-
-  cmake_minimum_required(VERSION 3.12)
-  add_executable(find_package_test find_package_test.cpp)
-  target_link_libraries(find_package_test rnp::librnp)
-EOF
-
-  cp "${rnpsrc}"/cmake/Modules/* .
-  cmake .
-  make VERBOSE="${VERBOSE}"
-  ./find_package_test
-  popd
-  popd
 }
