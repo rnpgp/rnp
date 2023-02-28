@@ -30,7 +30,6 @@ esac
 # XXX: debug function for locale
 case "${DIST}" in
   fedora|centos)
-
     debuglocale() {
       locale -a
       localedef --list-archive

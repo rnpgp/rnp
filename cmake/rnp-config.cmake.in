@@ -38,6 +38,5 @@ if(NOT TARGET rnp::librnp)
       IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
       IMPORTED_LOCATION "${SEXP_INSTALL_LIBRARY}"
   )
-  message(STATUS "Using S-expression library at ${SEXP_INSTALL_LIBRARY}")
   include("${CMAKE_CURRENT_LIST_DIR}/rnp-targets.cmake")
 endif()
