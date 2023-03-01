@@ -149,6 +149,7 @@ jobs:
     container: ${{ matrix.image.container }}
     timeout-minutes: 30
     strategy:
+      fail-fast: false
       matrix:
         image:
           - { name: 'CentOS-7',  container: 'centos:7',                      backend: Botan, botan_ver: 2.17.3,                 locale: en_US.UTF-8 }
@@ -162,7 +163,6 @@ jobs:
           - { BUILD_SHARED_LIBS: yes, USE_STATIC_DEPENDENCIES: no }
           - { BUILD_SHARED_LIBS: no,  USE_STATIC_DEPENDENCIES: no }
     env: ${{ matrix.env }}
-    continue-on-error: true
     name: Packaging test on ${{ matrix.image.name }} ${{ matrix.image.backend }} [shared libraries - ${{ matrix.env.BUILD_SHARED_LIBS }}]
     steps:
       - name: Install prerequisites for prerequisites
@@ -187,21 +187,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Checkout sexp library
+        uses: actions/checkout@v3
+        with:
+          repository: rnpgp/sexp
+          path: sexp
+
       - name: Setup noncacheable dependencies
         run: |
           . ci/gha/setup-env.inc.sh
           ci/install_noncacheable_dependencies.sh
 
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: Packaging-${{ matrix.image.container }}-${{ matrix.image.backend }}-${{ matrix.env.BUILD_SHARED_LIBS }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/centos-and-fedora.yml') }}
+#      - name: Cache
+#        id: cache
+#        uses: actions/cache@v3
+#        with:
+#          path: ${{ env.CACHE_DIR }}
+#          key: Packaging-${{ matrix.image.container }}-${{ matrix.image.backend }}-${{ matrix.env.BUILD_SHARED_LIBS }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/centos-and-fedora.yml') }}
 
-      - name: Setup cacheable dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: ci/install_cacheable_dependencies.sh
+#      - name: Setup cacheable dependencies
+#        if: steps.cache.outputs.cache-hit != 'true'
+#        run: ci/install_cacheable_dependencies.sh
+
+      - name: Install Sexp
+        run: |
+          cd sexp
+          cmake . -Bbuild                                   \
+                  -DCMAKE_BUILD_TYPE=Release                \
+                  -DWITH_SEXP_TESTS=OFF                     \
+                  -DWITH_SEXP_CLI=OFF
+
+          cmake --build build --config Release
+          cmake --install build
 
       - name: Test
         run: |
@@ -253,6 +270,10 @@ jobs:
       - name: Install prerequisites
         run:  yum -y install sudo wget
 
+      - name: Install epel-release
+        if: matrix.image.container == 'quay.io/centos/centos:stream9'
+        run:  yum -y install epel-release
+
       - name: Setup environment
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
@@ -276,7 +297,6 @@ jobs:
            sudo wget https://github.com/riboseinc/yum/raw/master/ribose.repo -O /etc/yum.repos.d/ribose.repo
            sudo yum -v -y localinstall librnp0-0*.*.rpm
            sudo yum -v -y erase $(rpm -qa  | grep rnp)
-           sudo yum -v -y localinstall  librnp0-devel-0*.*.rpm
+           sudo yum -v -y localinstall  librnp0-0*.*.rpm librnp0-devel-0*.*.rpm
            sudo yum -v -y erase $(rpm -qa  | grep rnp)
-           sudo yum -v -y localinstall  rnp0-0*.*.rpm
-           sudo yum -v -y erase $(rpm -qa  | grep rnp)
+           sudo yum -v -y localinstall  librnp0-0*.*.rpm librnp0-devel-0*.*.rpm rnp0-0*.*.rpm

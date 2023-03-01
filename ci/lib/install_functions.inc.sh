@@ -140,7 +140,7 @@ yum_prepare_repos() {
 
 linux_install_fedora() {
   yum_prepare_repos
-  extra_dep=(cmake json-c12-devel)
+  extra_dep=(cmake json-c12-devel ruby)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -150,7 +150,7 @@ linux_install_fedora() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
   rubygem_install_build_dependencies
 }
 
@@ -197,7 +197,7 @@ declare build_dependencies_yum=(
   gettext-devel
   ncurses-devel
   python3
-  ruby-devel
+#  ruby-devel
   zlib-devel
 )
 
@@ -226,8 +226,9 @@ yum_install() {
 
 prepare_build_tool_env() {
   enable_llvm_toolset_7
+  enable_rh_ruby30
   enable_ribose_automake
-  prepare_rbenv_env
+#  prepare_rbenv_env
 }
 
 yum_install_build_dependencies() {
@@ -238,9 +239,9 @@ yum_install_build_dependencies() {
 }
 
 linux_install_centos7() {
-  yum_prepare_repos epel-release centos-release-scl
+  yum_prepare_repos epel-release centos-release-scl centos-sclo-rh
 
-  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel)
+  extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel rh-ruby30)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -250,15 +251,17 @@ linux_install_centos7() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
+  enable_rh_ruby30
   rubygem_install_build_dependencies
 }
 
 linux_install_centos8() {
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
+  "${SUDO}" "${YUM}" module reset ruby -y
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c12-devel)
+  extra_dep=(cmake texinfo json-c12-devel @ruby:3.0)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -268,7 +271,7 @@ linux_install_centos8() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+# ensure_ruby
   rubygem_install_build_dependencies
 }
 
@@ -277,7 +280,7 @@ linux_install_centos9() {
   "${SUDO}" "${YUM}" config-manager --set-enabled crb
   yum_prepare_repos epel-release
 
-  extra_dep=(cmake texinfo json-c-devel)
+  extra_dep=(cmake texinfo json-c-devel ruby)
   if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
     extra_dep+=(openssl-devel)
   fi
@@ -287,7 +290,7 @@ linux_install_centos9() {
 
   ensure_automake
   ensure_cmake
-  ensure_ruby
+#  ensure_ruby
   rubygem_install_build_dependencies
 }
 
@@ -513,6 +516,17 @@ enable_llvm_toolset_7() {
   fi
 }
 
+enable_rh_ruby30() {
+  if [[ "${DIST_VERSION}" == "centos-7" ]] && \
+     rpm --quiet -q rh-ruby30 && \
+     [[ "$PATH" != */opt/rh/rh-ruby30/root/usr/bin* ]]; then
+    . /opt/rh/rh-ruby30/enable
+    PATH=$HOME/bin:$PATH
+    export PATH
+    export SUDO_GEM="run"
+  fi
+}
+
 build_and_install_automake() {
   # automake
   automake_build=${LOCAL_BUILDS}/automake
@@ -683,10 +697,6 @@ msys_install() {
 
   pacman --noconfirm -S --needed "${packages[@]}"
 
-  # msys includes ruby 2.6.1 while we need lower version
-  #wget http://repo.msys2.org/mingw/x86_64/mingw-w64-x86_64-ruby-2.5.3-1-any.pkg.tar.xz -O /tmp/ruby-2.5.3.pkg.tar.xz
-  #pacman --noconfirm --needed -U /tmp/ruby-2.5.3.pkg.tar.xz
-  #rm /tmp/ruby-2.5.3.pkg.tar.xz
 }
 
 # Mainly for all python scripts with shebangs pointing to
@@ -881,12 +891,9 @@ build_and_install() {
   export cmakeopts=(
     -DBUILD_SHARED_LIBS="${BUILD_SHARED_LIBS}"
     -DBUILD_TESTING=no
+    -DDOWNLOAD_SEXP=no
     -DCMAKE_INSTALL_PREFIX="${1:-/tmp}"
   )
-
-  [ -n "${DOWNLOAD_SEXP:-}" ] && cmakeopts+=(-DDOWNLOAD_SEXP="${DOWNLOAD_SEXP}")
-  [ -n "${SEXP_INSTALL:-}" ] && cmakeopts+=(-DCMAKE_PREFIX_PATH="${SEXP_INSTALL}")
-
 
   if [[ $# -gt 0 ]]; then
     shift
