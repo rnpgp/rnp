@@ -251,7 +251,7 @@ jobs:
 
     steps:
       - name: Install prerequisites
-        run:  yum --allowerasing -y install sudo curl
+        run:  yum -y install sudo wget
 
       - name: Setup environment
         run: |
@@ -273,7 +273,7 @@ jobs:
       - name: Install rnp rmps
         run: |
            sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
-           sudo curl -L https://github.com/riboseinc/yum/raw/master/ribose.repo > /etc/yum.repos.d/ribose.repo
+           sudo wget https://github.com/riboseinc/yum/raw/master/ribose.repo -O /etc/yum.repos.d/ribose.repo
            sudo yum install -y botan2 json-c12
            sudo yum -v -y localinstall librnp0-0*.*.rpm
            sudo rpm -e $(rpm -qa  | grep rnp)
