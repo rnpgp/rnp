@@ -902,6 +902,8 @@ build_and_install() {
     shift
   fi
 
+  which ruby
+  which asciidoctor
   build_rnp "$@"
   make_install VERBOSE="${VERBOSE}"
 }

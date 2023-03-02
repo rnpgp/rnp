@@ -144,7 +144,7 @@ jobs:
       - name: Run additional ci tests
         run:  ci/tests/tests.sh
 
-  packaging-tests:
+  package:
     runs-on: ubuntu-latest
     container: ${{ matrix.image.container }}
     timeout-minutes: 30
@@ -163,7 +163,7 @@ jobs:
           - { BUILD_SHARED_LIBS: yes, USE_STATIC_DEPENDENCIES: no }
           - { BUILD_SHARED_LIBS: no,  USE_STATIC_DEPENDENCIES: no }
     env: ${{ matrix.env }}
-    name: Packaging test on ${{ matrix.image.name }} ${{ matrix.image.backend }} [shared libraries - ${{ matrix.env.BUILD_SHARED_LIBS }}]
+    name: Packaging on ${{ matrix.image.name }} ${{ matrix.image.backend }} [shared libraries - ${{ matrix.env.BUILD_SHARED_LIBS }}]
     steps:
       - name: Install prerequisites for prerequisites
         if: matrix.image.container == 'centos:7'
@@ -220,7 +220,7 @@ jobs:
           cmake --build build --config Release
           cmake --install build
 
-      - name: Test
+      - name: Package
         run: |
           # cmake
           set -euxo pipefail
@@ -232,7 +232,13 @@ jobs:
           # check for install issues
           check_build
           build_example_pkgconfig
-      - name: Package
+
+      - name: Package srpm
+        run:  |
+          cmake --build . --target package_source
+          ls -l
+
+      - name: Package rpm
         run: |
           set -euxo pipefail
           cpack -G RPM
