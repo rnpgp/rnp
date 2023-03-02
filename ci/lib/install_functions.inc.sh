@@ -654,7 +654,7 @@ linux_install_debian() {
   fi
 
   ensure_automake
-  # ensure_ruby
+  ensure_ruby
   ensure_cmake
 }
 
@@ -887,12 +887,15 @@ gem_install() {
 
 # build+install
 build_and_install() {
+  PATH=$HOME/bin:$PATH
+  export PATH
+
   export cmakeopts=(
     -DBUILD_SHARED_LIBS="${BUILD_SHARED_LIBS}"
     -DBUILD_TESTING=no
     -DDOWNLOAD_SEXP=no
     -DCMAKE_INSTALL_PREFIX="${1:-/tmp}"
-    -DCMAKE_PROGRAM_PATH="$HOME"/bin
+    -DCMAKE_PROGRAM_PATH=$HOME/bin
   )
 
   if [[ $# -gt 0 ]]; then
