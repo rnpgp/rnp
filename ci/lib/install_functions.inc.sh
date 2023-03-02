@@ -216,7 +216,7 @@ apt_install() {
 }
 
 yum_install() {
-  local yum_command=("${YUM}" -y -q install "$@")
+  local yum_command=("${YUM}" -y -v install "$@")
   if command -v sudo >/dev/null; then
     sudo "${yum_command[@]}"
   else
