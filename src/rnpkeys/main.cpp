@@ -73,23 +73,24 @@ rnpkeys_main(int argc, char **argv)
 #endif
 
     while ((ch = getopt_long(argc, argv, "Vglh", options, &optindex)) != -1) {
+        optdefs_t newcmd = cmd;
+
         if (ch >= CMD_LIST_KEYS) {
             /* getopt_long returns 0 for long options */
-            if (!setoption(cfg, &cmd, options[optindex].val, optarg)) {
+            if (!setoption(cfg, &newcmd, options[optindex].val, optarg)) {
                 ERR_MSG("Failed to process argument --%s", options[optindex].name);
                 goto end;
             }
         } else {
             switch (ch) {
             case 'V':
-                cli_rnp_print_praise();
-                ret = EXIT_SUCCESS;
-                goto end;
+                newcmd = CMD_VERSION;
+                break;
             case 'g':
-                cmd = CMD_GENERATE_KEY;
+                newcmd = CMD_GENERATE_KEY;
                 break;
             case 'l':
-                cmd = CMD_LIST_KEYS;
+                newcmd = CMD_LIST_KEYS;
                 break;
             case '?':
                 print_usage(usage);
@@ -98,10 +99,16 @@ rnpkeys_main(int argc, char **argv)
             case 'h':
                 [[fallthrough]];
             default:
-                cmd = CMD_HELP;
+                newcmd = CMD_HELP;
                 break;
             }
         }
+
+        if (cmd && newcmd != cmd) {
+            ERR_MSG("Conflicting commands!");
+            goto end;
+        }
+        cmd = newcmd;
     }
 
     ret = EXIT_SUCCESS;
