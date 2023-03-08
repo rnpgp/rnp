@@ -3780,6 +3780,20 @@ class Misc(unittest.TestCase):
         remove_files(sig)
         clear_workfiles()
 
+    def test_conflicting_commands(self):
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--generate-key', '--import', '--revoke-key', '--list-keys'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Conflicting commands!*')
+        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '-g', '-l'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Conflicting commands!*')
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '--sign', '--verify', '--decrypt', '--list-packets'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Conflicting commands!*')
+        ret, _, err = run_proc(RNP, ['--homedir', RNPDIR, '-s', '-v'])
+        self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Conflicting commands!*')
+
     def test_hidden_recipient(self):
         seckey = data_path(SECRING_1)
         msg1 = data_path('test_messages/message.txt.enc-hidden-1')

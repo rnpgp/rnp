@@ -353,6 +353,11 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
         break;
     }
 
+    if (cfg.has(CFG_COMMAND) && cfg.get_int(CFG_COMMAND) != newcmd) {
+        ERR_MSG("Conflicting commands!");
+        return false;
+    }
+
     cfg.set_int(CFG_COMMAND, newcmd);
     return true;
 }
