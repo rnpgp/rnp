@@ -595,10 +595,9 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
 }
 
 bool
-rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
+rnpkeys_init(cli_rnp_t &rnp, const rnp_cfg &cfg)
 {
     rnp_cfg rnpcfg;
-    bool    ret = false;
     rnpcfg.load_defaults();
     rnpcfg.set_int(CFG_NUMBITS, DEFAULT_RSA_NUMBITS);
     rnpcfg.set_str(CFG_IO_RESS, "<stdout>");
@@ -606,23 +605,18 @@ rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg)
 
     if (!cli_cfg_set_keystore_info(rnpcfg)) {
         ERR_MSG("fatal: cannot set keystore info");
-        goto end;
+        return false;
     }
-    if (!rnp->init(rnpcfg)) {
+    if (!rnp.init(rnpcfg)) {
         ERR_MSG("fatal: failed to initialize rnpkeys");
-        goto end;
+        return false;
     }
-    if (!cli_rnp_check_weak_hash(rnp)) {
+    if (!cli_rnp_check_weak_hash(&rnp)) {
         ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
                 "want to use it.");
-        goto end;
+        return false;
     }
     /* TODO: at some point we should check for error here */
-    (void) rnp->load_keyrings(true);
-    ret = true;
-end:
-    if (!ret) {
-        rnp->end();
-    }
-    return ret;
+    (void) rnp.load_keyrings(true);
+    return true;
 }

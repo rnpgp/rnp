@@ -41,13 +41,17 @@ enum class Operation { EncryptOrSign, Verify, Enarmor, Dearmor, Dump };
 class cli_rnp_t {
   private:
     rnp_cfg cfg_{};
-    bool    load_keyring(bool secret);
-    bool    is_cv25519_subkey(rnp_key_handle_t handle);
-    bool    get_protection(rnp_key_handle_t handle,
-                           std::string &    hash,
-                           std::string &    cipher,
-                           size_t &         iterations);
-    bool    check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked);
+#ifdef _WIN32
+    int    subst_argc{};
+    char **subst_argv{};
+#endif
+    bool load_keyring(bool secret);
+    bool is_cv25519_subkey(rnp_key_handle_t handle);
+    bool get_protection(rnp_key_handle_t handle,
+                        std::string &    hash,
+                        std::string &    cipher,
+                        size_t &         iterations);
+    bool check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked);
 
   public:
     rnp_ffi_t   ffi{};
@@ -61,6 +65,10 @@ class cli_rnp_t {
     char *      reused_password{};
     bool        hidden_msg{}; /* true if hidden recipient message was displayed */
 
+    ~cli_rnp_t();
+#ifdef _WIN32
+    void substitute_args(int *argc, char ***argv);
+#endif
     bool init(const rnp_cfg &cfg);
     void end();
 

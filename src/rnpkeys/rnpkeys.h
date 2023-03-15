@@ -75,6 +75,6 @@ void print_usage(const char *usagemsg);
  * @param cfg configuration with settings from command line
  * @return true on success, or false otherwise.
  */
-bool rnpkeys_init(cli_rnp_t *rnp, const rnp_cfg &cfg);
+bool rnpkeys_init(cli_rnp_t &rnp, const rnp_cfg &cfg);
 
 #endif /* _rnpkeys_ */
