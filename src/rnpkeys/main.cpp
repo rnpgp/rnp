@@ -41,6 +41,23 @@
 extern struct option options[];
 extern const char *  usage;
 
+optdefs_t
+get_short_cmd(int ch)
+{
+    switch (ch) {
+    case 'V':
+        return CMD_VERSION;
+    case 'g':
+        return CMD_GENERATE_KEY;
+    case 'l':
+        return CMD_LIST_KEYS;
+    case 'h':
+        [[fallthrough]];
+    default:
+        return CMD_HELP;
+    }
+}
+
 #ifndef RNP_RUN_TESTS
 int
 main(int argc, char **argv)
@@ -52,7 +69,7 @@ rnpkeys_main(int argc, char **argv)
 {
     cli_rnp_t rnp = {};
     rnp_cfg   cfg;
-    optdefs_t cmd = (optdefs_t) 0;
+    optdefs_t cmd = CMD_NONE;
     int       optindex = 0;
     int       ret = EXIT_FAILURE;
     int       ch;
@@ -73,35 +90,21 @@ rnpkeys_main(int argc, char **argv)
 #endif
 
     while ((ch = getopt_long(argc, argv, "Vglh", options, &optindex)) != -1) {
-        optdefs_t newcmd = cmd;
+        /* Check for unsupported command/option */
+        if (ch == '?') {
+            print_usage(usage);
+            ret = EXIT_FAILURE;
+            goto end;
+        }
 
+        optdefs_t newcmd = cmd;
         if (ch >= CMD_LIST_KEYS) {
-            /* getopt_long returns 0 for long options */
             if (!setoption(cfg, &newcmd, options[optindex].val, optarg)) {
                 ERR_MSG("Failed to process argument --%s", options[optindex].name);
                 goto end;
             }
         } else {
-            switch (ch) {
-            case 'V':
-                newcmd = CMD_VERSION;
-                break;
-            case 'g':
-                newcmd = CMD_GENERATE_KEY;
-                break;
-            case 'l':
-                newcmd = CMD_LIST_KEYS;
-                break;
-            case '?':
-                print_usage(usage);
-                ret = EXIT_FAILURE;
-                goto end;
-            case 'h':
-                [[fallthrough]];
-            default:
-                newcmd = CMD_HELP;
-                break;
-            }
+            newcmd = get_short_cmd(ch);
         }
 
         if (cmd && newcmd != cmd) {

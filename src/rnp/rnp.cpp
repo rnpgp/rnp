@@ -542,6 +542,60 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     return false;
 }
 
+static bool
+set_short_option(rnp_cfg &cfg, int ch, const char *arg)
+{
+    switch (ch) {
+    case 'V':
+        return setcmd(cfg, CMD_VERSION, arg);
+    case 'd':
+        return setcmd(cfg, CMD_DECRYPT, arg);
+    case 'e':
+        return setcmd(cfg, CMD_ENCRYPT, arg);
+    case 'c':
+        return setcmd(cfg, CMD_SYM_ENCRYPT, arg);
+    case 's':
+        return setcmd(cfg, CMD_SIGN, arg);
+    case 'v':
+        return setcmd(cfg, CMD_VERIFY, arg);
+    case 'r':
+        if (!strlen(optarg)) {
+            ERR_MSG("Recipient should not be empty");
+        } else {
+            cfg.add_str(CFG_RECIPIENTS, optarg);
+        }
+        break;
+    case 'u':
+        if (!optarg) {
+            ERR_MSG("No userid argument provided");
+            return false;
+        }
+        cfg.add_str(CFG_SIGNERS, optarg);
+        break;
+    case 'z':
+        if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
+            ERR_MSG("Bad compression level: %s. Should be 0..9", optarg);
+        } else {
+            cfg.set_int(CFG_ZLEVEL, optarg[0] - '0');
+        }
+        break;
+    case 'f':
+        if (!optarg) {
+            ERR_MSG("No keyfile argument provided");
+            return false;
+        }
+        cfg.set_str(CFG_KEYFILE, optarg);
+        cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
+        break;
+    case 'h':
+        [[fallthrough]];
+    default:
+        return setcmd(cfg, CMD_HELP, optarg);
+    }
+
+    return true;
+}
+
 #ifndef RNP_RUN_TESTS
 int
 main(int argc, char **argv)
@@ -578,75 +632,17 @@ rnp_main(int argc, char **argv)
 
     /* TODO: These options should be set after initialising the context. */
     while ((ch = getopt_long(argc, argv, "S:Vdecr:su:vz:f:h", options, &optindex)) != -1) {
-        if (ch >= CMD_ENCRYPT) {
-            /* getopt_long returns 0 for long options */
-            if (!setoption(cfg, options[optindex].val, optarg)) {
-                goto finish;
-            }
-        } else {
-            int cmd = 0;
-            switch (ch) {
-            case 'V':
-                cmd = CMD_VERSION;
-                break;
-            case 'd':
-                cmd = CMD_DECRYPT;
-                break;
-            case 'e':
-                cmd = CMD_ENCRYPT;
-                break;
-            case 'c':
-                cmd = CMD_SYM_ENCRYPT;
-                break;
-            case 's':
-                cmd = CMD_SIGN;
-                break;
-            case 'v':
-                cmd = CMD_VERIFY;
-                break;
-            case 'r':
-                if (!strlen(optarg)) {
-                    ERR_MSG("Recipient should not be empty");
-                } else {
-                    cfg.add_str(CFG_RECIPIENTS, optarg);
-                }
-                break;
-            case 'u':
-                if (!optarg) {
-                    ERR_MSG("No userid argument provided");
-                    goto finish;
-                }
-                cfg.add_str(CFG_SIGNERS, optarg);
-                break;
-            case 'z':
-                if ((strlen(optarg) != 1) || (optarg[0] < '0') || (optarg[0] > '9')) {
-                    ERR_MSG("Bad compression level: %s. Should be 0..9", optarg);
-                } else {
-                    cfg.set_int(CFG_ZLEVEL, optarg[0] - '0');
-                }
-                break;
-            case 'f':
-                if (!optarg) {
-                    ERR_MSG("No keyfile argument provided");
-                    goto finish;
-                }
-                cfg.set_str(CFG_KEYFILE, optarg);
-                cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
-                break;
-            case '?':
-                print_usage(usage);
-                ret = EXIT_FAILURE;
-                goto finish;
-            case 'h':
-                [[fallthrough]];
-            default:
-                cmd = CMD_HELP;
-                break;
-            }
+        /* Check for unsupported command/option */
+        if (ch == '?') {
+            print_usage(usage);
+            ret = EXIT_FAILURE;
+            goto finish;
+        }
 
-            if (cmd && !setcmd(cfg, cmd, optarg)) {
-                goto finish;
-            }
+        bool res = ch >= CMD_ENCRYPT ? setoption(cfg, options[optindex].val, optarg) :
+                                       set_short_option(cfg, ch, optarg);
+        if (!res) {
+            goto finish;
         }
     }
 
