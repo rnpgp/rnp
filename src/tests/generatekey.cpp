@@ -590,7 +590,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     ops.set_int(CFG_PASSFD, pipefd[0]);
     write_pass_to_pipe(pipefd[1], 2);
     close(pipefd[1]);
-    if (!rnpkeys_init(ctx, ops)) {
+    if (!rnpkeys_init(*ctx, ops)) {
         close(pipefd[0]); // otherwise will be closed via passfp
         goto end;
     }
