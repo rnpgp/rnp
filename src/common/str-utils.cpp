@@ -30,6 +30,7 @@
 #include <cstddef>
 #include <cstring>
 #include <cctype>
+#include <stdexcept>
 #include "str-utils.h"
 #ifdef _WIN32
 #include <locale>
@@ -164,7 +165,11 @@ str_to_int(const std::string &s, int &val)
             return false;
         }
     }
-    val = std::stoi(s);
+    try {
+        val = std::stoi(s);
+    } catch (std::out_of_range const &ex) {
+        return false;
+    }
     return true;
 }
 

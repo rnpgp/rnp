@@ -4038,10 +4038,14 @@ class Encryption(unittest.TestCase):
         ret, _, err = run_proc(RNP, ['--s2k-iterations', '999999999999', '--homedir', RNPDIR, '--password', PASSWORD,
                                       '--output', enc, '-c', src])
         self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Wrong iterations value: 999999999999.*')
+        self.assertNotRegex(err, r'(?s)^.*std::out_of_range.*')
 
         ret, _, err = run_proc(RNP, ['--s2k-msec', '999999999999', '--homedir', RNPDIR, '--password', PASSWORD,
                                       '--output', enc, '-c', src])
         self.assertNotEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Invalid s2k msec value: 999999999999.*')
+        self.assertNotRegex(err, r'(?s)^.*std::out_of_range.*')
 
         remove_files(src, dst, enc)
 
