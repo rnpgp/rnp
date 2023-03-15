@@ -65,6 +65,8 @@ class cli_rnp_t {
     char *      reused_password{};
     bool        hidden_msg{}; /* true if hidden recipient message was displayed */
 
+    static int ret_code(bool success);
+
     ~cli_rnp_t();
 #ifdef _WIN32
     void substitute_args(int *argc, char ***argv);
