@@ -618,9 +618,8 @@ rnp_main(int argc, char **argv)
     }
 
 #if !defined(RNP_RUN_TESTS) && defined(_WIN32)
-    bool args_are_substituted = false;
     try {
-        args_are_substituted = rnp_win_substitute_cmdline_args(&argc, &argv);
+        rnp.substitute_args(&argc, &argv);
     } catch (std::exception &ex) {
         RNP_LOG("Error converting arguments ('%s')", ex.what());
         return EXIT_ERROR;
@@ -704,11 +703,5 @@ rnp_main(int argc, char **argv)
         }
     }
 finish:
-    rnp.end();
-#if !defined(RNP_RUN_TESTS) && defined(_WIN32)
-    if (args_are_substituted) {
-        rnp_win_clear_args(argc, argv);
-    }
-#endif
     return ret;
 }
