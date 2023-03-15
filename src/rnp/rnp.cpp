@@ -605,18 +605,12 @@ int
 rnp_main(int argc, char **argv)
 #endif
 {
-    cli_rnp_t rnp = {};
-    rnp_cfg   cfg;
-    int       optindex;
-    int       ret = EXIT_ERROR;
-    int       ch;
-    bool      disable_ks = false;
-
     if (argc < 2) {
         print_usage(usage);
         return EXIT_ERROR;
     }
 
+    cli_rnp_t rnp = {};
 #if !defined(RNP_RUN_TESTS) && defined(_WIN32)
     try {
         rnp.substitute_args(&argc, &argv);
@@ -626,82 +620,76 @@ rnp_main(int argc, char **argv)
     }
 #endif
 
+    rnp_cfg cfg;
     cfg.load_defaults();
-    optindex = 0;
 
     /* TODO: These options should be set after initialising the context. */
+    int optindex = 0;
+    int ch;
     while ((ch = getopt_long(argc, argv, "S:Vdecr:su:vz:f:h", options, &optindex)) != -1) {
         /* Check for unsupported command/option */
         if (ch == '?') {
             print_usage(usage);
-            ret = EXIT_FAILURE;
-            goto finish;
+            return EXIT_FAILURE;
         }
 
         bool res = ch >= CMD_ENCRYPT ? setoption(cfg, options[optindex].val, optarg) :
                                        set_short_option(cfg, ch, optarg);
         if (!res) {
-            goto finish;
+            return EXIT_ERROR;
         }
     }
 
     switch (cfg.get_int(CFG_COMMAND)) {
     case CMD_HELP:
         print_usage(usage);
-        ret = EXIT_SUCCESS;
-        goto finish;
+        return EXIT_SUCCESS;
     case CMD_VERSION:
         cli_rnp_print_praise();
-        ret = EXIT_SUCCESS;
-        goto finish;
+        return EXIT_SUCCESS;
     default:;
     }
 
     if (!cli_cfg_set_keystore_info(cfg)) {
         ERR_MSG("fatal: cannot set keystore info");
-        goto finish;
+        return EXIT_ERROR;
     }
 
     if (!rnp.init(cfg)) {
         ERR_MSG("fatal: cannot initialise");
-        goto finish;
+        return EXIT_ERROR;
     }
 
     if (!cli_rnp_check_weak_hash(&rnp)) {
         ERR_MSG("Weak hash algorithm detected. Pass --allow-weak-hash option if you really "
                 "want to use it.");
-        goto finish;
+        return EXIT_ERROR;
     }
 
-    disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
+    bool disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
     if (!disable_ks && !rnp.load_keyrings(rnp.cfg().get_bool(CFG_NEEDSSECKEY))) {
         ERR_MSG("fatal: failed to load keys");
-        goto finish;
+        return EXIT_ERROR;
     }
 
     /* load the keyfile if any */
     if (disable_ks && !rnp.cfg().get_str(CFG_KEYFILE).empty() && !cli_rnp_add_key(&rnp)) {
         ERR_MSG("fatal: failed to load key(s) from the file");
-        goto finish;
+        return EXIT_ERROR;
     }
 
     if (!cli_rnp_setup(&rnp)) {
-        goto finish;
+        return EXIT_ERROR;
     }
 
     /* now do the required action for each of the command line args */
-    ret = EXIT_SUCCESS;
     if (optind == argc) {
-        if (!rnp_cmd(&rnp))
-            ret = EXIT_FAILURE;
-    } else {
-        for (int i = optind; i < argc; i++) {
-            rnp.cfg().set_str(CFG_INFILE, argv[i]);
-            if (!rnp_cmd(&rnp)) {
-                ret = EXIT_FAILURE;
-            }
-        }
+        return cli_rnp_t::ret_code(rnp_cmd(&rnp));
     }
-finish:
-    return ret;
+    bool success = true;
+    for (int i = optind; i < argc; i++) {
+        rnp.cfg().set_str(CFG_INFILE, argv[i]);
+        success = success && rnp_cmd(&rnp);
+    }
+    return cli_rnp_t::ret_code(success);
 }

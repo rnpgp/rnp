@@ -567,6 +567,12 @@ cli_rnp_t::~cli_rnp_t()
 #endif
 }
 
+int
+cli_rnp_t::ret_code(bool success)
+{
+    return success ? EXIT_SUCCESS : EXIT_FAILURE;
+}
+
 #ifdef _WIN32
 void
 cli_rnp_t::substitute_args(int *argc, char ***argv)
