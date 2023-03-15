@@ -557,6 +557,26 @@ rnpffiInvalidParameterHandler(const wchar_t *expression,
 }
 #endif
 
+cli_rnp_t::~cli_rnp_t()
+{
+    end();
+#ifdef _WIN32
+    if (subst_argv) {
+        rnp_win_clear_args(subst_argc, subst_argv);
+    }
+#endif
+}
+
+#ifdef _WIN32
+void
+cli_rnp_t::substitute_args(int *argc, char ***argv)
+{
+    rnp_win_substitute_cmdline_args(argc, argv);
+    subst_argc = *argc;
+    subst_argv = *argv;
+}
+#endif
+
 bool
 cli_rnp_t::init(const rnp_cfg &cfg)
 {
