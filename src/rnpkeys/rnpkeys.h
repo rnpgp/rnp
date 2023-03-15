@@ -14,6 +14,7 @@
 
 typedef enum {
     /* commands */
+    CMD_NONE = 0,
     CMD_LIST_KEYS = 260,
     CMD_EXPORT_KEY,
     CMD_IMPORT,
