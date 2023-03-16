@@ -103,5 +103,5 @@ test_supported_features() {
 }
 
 # ......................................................................
-
+# shellcheck source=/dev/null
 . "$DIR0"/shunit2/shunit2
