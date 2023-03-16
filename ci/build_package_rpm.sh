@@ -89,7 +89,7 @@ main() {
     -DBUILD_TESTING=no
     -DCPACK_GENERATOR=RPM
   )
-  build_rnp
+  build_rnp "."
   popd
 
   build_package

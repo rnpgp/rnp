@@ -47,13 +47,13 @@ DIR_CMAKE="$INSTALL_PREFIX/lib64/cmake/rnp"
 
 declare expected_libraries=(
     "$DIR_LIB/librnp.so.0"
-    "$DIR_LIB/pkgconfig/librnp.pc"
 )
 
 declare expected_devlibraries=(
     "$DIR_LIB/librnp.so"
     "$DIR_LIB/librnp.a"
     "$DIR_LIB/libsexp.a"
+    "$DIR_LIB/pkgconfig/librnp.pc"
 )
 
 declare expected_includes=(
@@ -90,23 +90,26 @@ test_installed_files() {
 
 test_installed_files_librnp() {
     sudo yum -y localinstall librnp0-0*.*.rpm
-    test_installed_files "$expected_libraries"
+    test_installed_files "${expected_libraries[@]}"
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
 test_installed_files_librnp-devel() {
     sudo yum -y localinstall librnp0-0*.*.rpm librnp0-devel-0*.*.rpm
-    test_installed_files "$expected_libraries"
-    test_installed_files "$expected_devlibraries"
-    test_installed_files "$expected_includes"
-    test_installed_files "$expected_cmakefiles"
+    test_installed_files "${expected_libraries[@]}"
+    test_installed_files "${expected_devlibraries[@]}"
+    test_installed_files "${expected_includes[@]}"
+    test_installed_files "${expected_cmakefiles[@]}"
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
 test_installed_files_rnp() {
     sudo yum -y localinstall librnp0-0*.*.rpm rnp0-0*.*.rpm
-    test_installed_files "$expected_libraries"
-    test_installed_files "$expected_binaries"
+    test_installed_files "${expected_libraries[@]}"
+    test_installed_files "${expected_binaries[@]}"
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
@@ -114,10 +117,11 @@ test_installed_files_doc() {
 # in case the nodocs transaction flag is set in the yum configuration
     sudo yum --setopt=tsflags='' -y install man-db
     sudo yum --setopt=tsflags='' -y localinstall rnp-*-doc.rpm
-    test_installed_files "$expected_manuals"
+    test_installed_files "${expected_manuals[@]}"
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
 # ......................................................................
-
+# shellcheck source=/dev/null
 . "$DIR0"/shunit2/shunit2
