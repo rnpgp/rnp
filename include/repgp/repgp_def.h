@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * This code is originally derived from software contributed to
@@ -497,5 +497,9 @@ typedef enum pgp_key_store_format_t {
     PGP_KEY_STORE_KBX,
     PGP_KEY_STORE_G10,
 } pgp_key_store_format_t;
+
+namespace rnp {
+enum class AuthType { None, MDC, AEADv1 };
+}
 
 #endif
