@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -85,26 +85,30 @@ typedef struct pgp_source_packet_param_t {
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
-    pgp_source_packet_param_t     pkt;            /* underlying packet-related params */
-    std::vector<pgp_sk_sesskey_t> symencs;        /* array of sym-encrypted session keys */
-    std::vector<pgp_pk_sesskey_t> pubencs;        /* array of pk-encrypted session keys */
-    bool                          has_mdc;        /* encrypted with mdc, i.e. tag 18 */
-    bool                          mdc_validated;  /* mdc was validated already */
-    bool                          aead;           /* AEAD encrypted data packet, tag 20 */
-    bool                          aead_validated; /* we read and validated last chunk */
-    pgp_crypt_t                   decrypt;        /* decrypting crypto */
-    std::unique_ptr<rnp::Hash>    mdc;            /* mdc SHA1 hash */
-    size_t                        chunklen;       /* size of AEAD chunk in bytes */
-    size_t                        chunkin;  /* number of bytes read from the current chunk */
-    size_t                        chunkidx; /* index of the current chunk */
-    uint8_t                       cache[PGP_AEAD_CACHE_LEN]; /* read cache */
-    size_t                        cachelen;                  /* number of bytes in the cache */
-    size_t                        cachepos; /* index of first unread byte in the cache */
-    pgp_aead_hdr_t                aead_hdr; /* AEAD encryption parameters */
-    uint8_t                       aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
-    size_t                        aead_adlen; /* length of the additional data */
-    pgp_symm_alg_t                salg;       /* data encryption algorithm */
-    pgp_parse_handler_t *         handler;    /* parsing handler with callbacks */
+    pgp_source_packet_param_t     pkt;       /* underlying packet-related params */
+    std::vector<pgp_sk_sesskey_t> symencs;   /* array of sym-encrypted session keys */
+    std::vector<pgp_pk_sesskey_t> pubencs;   /* array of pk-encrypted session keys */
+    rnp::AuthType                 auth_type; /* Authentication type */
+    bool        auth_validated;              /* Auth tag (MDC or AEAD) was already validated */
+    pgp_crypt_t decrypt;                     /* decrypting crypto */
+    std::unique_ptr<rnp::Hash> mdc;          /* mdc SHA1 hash */
+    size_t                     chunklen;     /* size of AEAD chunk in bytes */
+    size_t                     chunkin;      /* number of bytes read from the current chunk */
+    size_t                     chunkidx;     /* index of the current chunk */
+    uint8_t                    cache[PGP_AEAD_CACHE_LEN]; /* read cache */
+    size_t                     cachelen;                  /* number of bytes in the cache */
+    size_t                     cachepos; /* index of first unread byte in the cache */
+    pgp_aead_hdr_t             aead_hdr; /* AEAD encryption parameters */
+    uint8_t                    aead_ad[PGP_AEAD_MAX_AD_LEN]; /* additional data */
+    size_t                     aead_adlen; /* length of the additional data */
+    pgp_symm_alg_t             salg;       /* data encryption algorithm */
+    pgp_parse_handler_t *      handler;    /* parsing handler with callbacks */
+
+    bool
+    use_cfb()
+    {
+        return auth_type != rnp::AuthType::AEADv1;
+    }
 } pgp_source_encrypted_param_t;
 
 typedef struct pgp_source_signed_param_t {
@@ -496,7 +500,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
     param->cachepos = 0;
     param->cachelen = 0;
 
-    if (param->aead_validated) {
+    if (param->auth_validated) {
         return true;
     }
 
@@ -582,7 +586,7 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             RNP_LOG("wrong last chunk");
             return res;
         }
-        param->aead_validated = true;
+        param->auth_validated = true;
     }
 
     return res;
@@ -653,7 +657,7 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
 
     bool    parsemdc = false;
     uint8_t mdcbuf[MDC_V1_SIZE];
-    if (param->has_mdc) {
+    if (param->auth_type == rnp::AuthType::MDC) {
         size_t mdcread = 0;
         /* make sure there are always 22 bytes left on input */
         if (!src_peek(param->pkt.readsrc, mdcbuf, MDC_V1_SIZE, &mdcread) ||
@@ -673,7 +677,7 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
 
     pgp_cipher_cfb_decrypt(&param->decrypt, (uint8_t *) buf, (uint8_t *) buf, read);
 
-    if (param->has_mdc) {
+    if (param->auth_type == rnp::AuthType::MDC) {
         try {
             param->mdc->add(buf, read);
 
@@ -694,7 +698,7 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
                     RNP_LOG("mdc hash check failed");
                     return false;
                 }
-                param->mdc_validated = true;
+                param->auth_validated = true;
             }
         } catch (const std::exception &e) {
             RNP_LOG("mdc update failed: %s", e.what());
@@ -712,25 +716,25 @@ encrypted_src_finish(pgp_source_t *src)
 
     /* report to the handler that decryption is finished */
     if (param->handler->on_decryption_done) {
-        bool validated =
-          (param->has_mdc && param->mdc_validated) || (param->aead && param->aead_validated);
+        bool validated = (param->auth_type != rnp::AuthType::None) && param->auth_validated;
         param->handler->on_decryption_done(validated, param->handler->param);
     }
 
-    if (param->aead) {
-        if (!param->aead_validated) {
-            RNP_LOG("aead last chunk was not validated");
-            return RNP_ERROR_BAD_STATE;
-        }
+    if ((param->auth_type == rnp::AuthType::None) || param->auth_validated) {
         return RNP_SUCCESS;
     }
-
-    if (param->has_mdc && !param->mdc_validated) {
+    switch (param->auth_type) {
+    case rnp::AuthType::MDC:
         RNP_LOG("mdc was not validated");
-        return RNP_ERROR_BAD_STATE;
+        break;
+    case rnp::AuthType::AEADv1:
+        RNP_LOG("aead last chunk was not validated");
+        break;
+    default:
+        RNP_LOG("auth was not validated");
+        break;
     }
-
-    return RNP_SUCCESS;
+    return RNP_ERROR_BAD_STATE;
 }
 
 static void
@@ -746,7 +750,7 @@ encrypted_src_close(pgp_source_t *src)
         param->pkt.readsrc = NULL;
     }
 
-    if (param->aead) {
+    if (!param->use_cfb()) {
 #if defined(ENABLE_AEAD)
         pgp_cipher_aead_destroy(&param->decrypt);
 #endif
@@ -1360,7 +1364,7 @@ encrypted_decrypt_cfb_header(pgp_source_encrypted_param_t *param,
     /* init mdc if it is here */
     /* RFC 4880, 5.13: Unlike the Symmetrically Encrypted Data Packet, no special CFB
      * resynchronization is done after encrypting this prefix data. */
-    if (!param->has_mdc) {
+    if (param->auth_type == rnp::AuthType::None) {
         pgp_cipher_cfb_resync(&param->decrypt, enchdr + 2);
         return true;
     }
@@ -1520,7 +1524,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         return false;
     }
 
-    if (!param->aead) {
+    if (param->use_cfb()) {
         /* Decrypt header */
         res = encrypted_decrypt_cfb_header(param, salg, &decbuf[1]);
     } else {
@@ -1633,14 +1637,15 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         }
 
         /* Decrypt header for CFB */
-        if (!param->aead && !encrypted_decrypt_cfb_header(param, alg, keybuf.data())) {
+        if (param->use_cfb() && !encrypted_decrypt_cfb_header(param, alg, keybuf.data())) {
             continue;
         }
-        if (param->aead && !encrypted_start_aead(param, param->aead_hdr.ealg, keybuf.data())) {
+        if (!param->use_cfb() &&
+            !encrypted_start_aead(param, param->aead_hdr.ealg, keybuf.data())) {
             continue;
         }
 
-        param->salg = param->aead ? param->aead_hdr.ealg : alg;
+        param->salg = param->use_cfb() ? alg : param->aead_hdr.ealg;
         /* inform handler that we used this symenc */
         if (param->handler->on_decryption_start) {
             param->handler->on_decryption_start(NULL, &skey, param->handler->param);
@@ -1648,7 +1653,7 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
         return 1;
     }
 
-    if (param->aead && pgp_block_size(param->aead_hdr.ealg)) {
+    if (!param->use_cfb() && pgp_block_size(param->aead_hdr.ealg)) {
         /* we know aead symm alg even if we wasn't able to start decryption */
         param->salg = param->aead_hdr.ealg;
     }
@@ -1989,7 +1994,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 
     /* Reading header of encrypted packet */
     if (ptype == PGP_PKT_AEAD_ENCRYPTED) {
-        param->aead = true;
+        param->auth_type = rnp::AuthType::AEADv1;
         uint8_t hdr[4];
         if (!src_peek_eq(param->pkt.readsrc, hdr, 4)) {
             return RNP_ERROR_READ;
@@ -2033,9 +2038,9 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             RNP_LOG("unknown mdc ver: %d", (int) mdcver);
             return RNP_ERROR_BAD_FORMAT;
         }
-        param->has_mdc = true;
-        param->mdc_validated = false;
+        param->auth_type = rnp::AuthType::MDC;
     }
+    param->auth_validated = false;
 
     return RNP_SUCCESS;
 }
@@ -2066,7 +2071,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
-    src->read = param->aead ? encrypted_src_read_aead : encrypted_src_read_cfb;
+    src->read = !param->use_cfb() ? encrypted_src_read_aead : encrypted_src_read_cfb;
 
     /* Obtaining the symmetric key */
     if (!handler->password_provider) {
@@ -2158,8 +2163,10 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 
     /* report decryption start to the handler */
     if (handler->on_decryption_info) {
-        handler->on_decryption_info(
-          param->has_mdc, param->aead_hdr.aalg, param->salg, handler->param);
+        handler->on_decryption_info(param->auth_type == rnp::AuthType::MDC,
+                                    param->aead_hdr.aalg,
+                                    param->salg,
+                                    handler->param);
     }
 
     if (!have_key) {
