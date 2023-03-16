@@ -141,9 +141,6 @@ yum_prepare_repos() {
 linux_install_fedora() {
   yum_prepare_repos
   extra_dep=(cmake json-c-devel ruby)
-  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
-    extra_dep+=(openssl-devel)
-  fi
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -236,15 +233,16 @@ yum_install_build_dependencies() {
     "${basic_build_dependencies_yum[@]}" \
     "${build_dependencies_yum[@]}" \
     "$@"
+
+  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
+    yum_install openssl-devel
+  fi
 }
 
 linux_install_centos7() {
   yum_prepare_repos epel-release centos-release-scl centos-sclo-rh
 
   extra_dep=(cmake3 llvm-toolset-7.0 json-c12-devel rh-ruby30)
-  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
-    extra_dep+=(openssl-devel)
-  fi
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -262,9 +260,6 @@ linux_install_centos8() {
   yum_prepare_repos epel-release
 
   extra_dep=(cmake texinfo json-c-devel @ruby:3.0)
-  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
-    extra_dep+=(openssl-devel)
-  fi
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -282,9 +277,6 @@ linux_install_centos9() {
   yum_prepare_repos epel-release
 
   extra_dep=(cmake texinfo json-c-devel ruby)
-  if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
-    extra_dep+=(openssl-devel)
-  fi
 
   yum_install_build_dependencies "${extra_dep[@]}"
   yum_install_dynamic_build_dependencies_if_needed
@@ -453,8 +445,6 @@ build_and_install_python() {
   ensure_symlink_to_target /usr/bin/python3 /usr/bin/python
   popd
 }
-
-
 
 # Make sure automake is at least $MINIMUM_AUTOMAKE_VERSION (1.16.3) as required by GnuPG 2.3
 # - We assume that on fedora/centos ribose rpm was used (see basic_build_dependencies_yum)
@@ -889,6 +879,7 @@ gem_install() {
 }
 
 build_rnp() {
+# shellcheck disable=SC2154
   "${CMAKE:-cmake}" "${cmakeopts[@]}" "${1:-.}"
 }
 
