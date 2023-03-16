@@ -80,19 +80,24 @@ test_shared_library() {
     create_source_file
     create_cmake_file 'rnp::librnp'
 
+# shellcheck disable=SC2251
 !   cmake . -DCMAKE_MODULE_PATH="$DIR_CMAKE"/*
     assertEquals "cmake failed at shared library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   make
     assertEquals "make failed at shared library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   ./find_package_test
     assertEquals "test program failed at shared library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   ldd find_package_test | grep librnp
     assertEquals "no reference to shared rnp library at shared library test" 0 "${PIPESTATUS[1]}"
 
     popd
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
@@ -102,19 +107,24 @@ test_static_library() {
     create_source_file
     create_cmake_file 'rnp::librnp-static'
 
+# shellcheck disable=SC2251
 !   cmake . -DCMAKE_MODULE_PATH="$DIR_CMAKE"/*
     assertEquals "cmake failed at static library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   make
     assertEquals "make failed at static library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   ./find_package_test
     assertEquals "test program failed at static library test" 0 "${PIPESTATUS[0]}"
 
+# shellcheck disable=SC2251
 !   ldd find_package_test | grep librnp
     assertNotEquals "unexpected reference to shared rnp library at static library test" 0 "${PIPESTATUS[1]}"
 
     popd
+# shellcheck disable=SC2046
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
@@ -123,12 +133,12 @@ test_no_library() {
     create_source_file
     create_cmake_file 'rnp::librnp'
 
+# shellcheck disable=SC2251
 !   cmake . -DCMAKE_MODULE_PATH="$DIR_CMAKE"/*
     assertNotEquals "cmake succeeded at no library test" 0 "${PIPESTATUS[0]}"
     popd
 }
 
 # ......................................................................
-
-
+# shellcheck source=/dev/null
 . "$DIR0"/shunit2/shunit2
