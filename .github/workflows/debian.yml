@@ -89,11 +89,17 @@ jobs:
           printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
           printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
-# I386: actions/checkout@v3,  actions/cache@v3
-#       give error about OCI container [https://github.com/actions/checkout/issues/334]
-#                                      [https://github.com/actions/runner/issues/1011]
-      - name: Checkout
+      - name: Checkout on x86_x64
+        if: env.CPU == 'x86_64'
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Checkout on i386
+        if: env.CPU == 'i386'
         uses: actions/checkout@v1
+        with:
+          submodules: true
 
       - name: Install cmake
         run: |

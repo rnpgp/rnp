@@ -33,7 +33,6 @@ DIR0="$( cd "$( dirname "$0" )" && pwd )"
 : "${BOTAN_INSTALL:=/usr}"
 : "${JSONC_INSTALL:=/usr}"
 : "${RNP_INSTALL:=/usr}"
-: "${SEXP_INSTALL:=/usr}"
 
 : "${ENABLE_SM2:=}"
 : "${ENABLE_IDEA:=}"

@@ -19,14 +19,13 @@ stdenv.mkDerivation rec {
 
   sexp = import sexpSource { inherit pkgs; };
 
-  buildInputs = with pkgs; [ zlib bzip2 json_c botan2 sexp ];
+  buildInputs = with pkgs; [ zlib bzip2 json_c botan2 ];
 
   cmakeFlags = [
     "-DCMAKE_INSTALL_PREFIX=${placeholder "out"}"
     "-DBUILD_SHARED_LIBS=on"
     "-DBUILD_TESTING=on"
     "-DDOWNLOAD_GTEST=off"
-    "-DDOWNLOAD_SEXP=off"
     "-DDOWNLOAD_RUBYRNP=off"
   ];
 

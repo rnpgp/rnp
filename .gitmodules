@@ -1,0 +1,3 @@
+[submodule "src/libsexp"]
+	path = src/libsexp
+	url = https://github.com/rnpgp/sexp.git
