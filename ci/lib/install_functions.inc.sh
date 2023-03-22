@@ -268,6 +268,7 @@ linux_install_centos7() {
 }
 
 linux_install_centos8() {
+  "${SUDO}" "${YUM}" -y -q install 'dnf-command(config-manager)'
   "${SUDO}" "${YUM}" config-manager --set-enabled powertools
   yum_prepare_repos epel-release
   yum_install_build_dependencies \
