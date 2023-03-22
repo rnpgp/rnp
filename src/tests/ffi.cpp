@@ -314,8 +314,6 @@ TEST_F(rnp_tests, test_ffi_load_keys)
     ffi = NULL;
 
     /* concatenate the pubring and secrings into a single buffer */
-    FILE *fp = fopen("combined-rings.gpg", "wb");
-    assert_non_null(fp);
     auto pub_buf = file_to_vec("data/keyrings/1/pubring.gpg");
     auto sec_buf = file_to_vec("data/keyrings/1/secring.gpg");
     auto buf = pub_buf;
@@ -771,11 +769,7 @@ test_ffi_init_sign_file_input(rnp_input_t *input, rnp_output_t *output)
     const char *plaintext = "this is some data that will be signed";
 
     // write out some data
-    FILE *fp = fopen("plaintext", "wb");
-    assert_non_null(fp);
-    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
-    assert_int_equal(0, fclose(fp));
-
+    str_to_file("plaintext", plaintext);
     // create input+output
     assert_rnp_success(rnp_input_from_path(input, "plaintext"));
     assert_non_null(*input);
@@ -3536,11 +3530,7 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     test_ffi_init(&ffi);
 
     // write out some data
-    FILE *fp = fopen("plaintext", "wb");
-    assert_non_null(fp);
-    assert_int_equal(1, fwrite(plaintext, strlen(plaintext), 1, fp));
-    assert_int_equal(0, fclose(fp));
-
+    str_to_file("plaintext", plaintext);
     // create input+output
     assert_rnp_success(rnp_input_from_path(&input, "plaintext"));
     assert_non_null(input);

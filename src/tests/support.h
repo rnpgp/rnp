@@ -84,6 +84,9 @@ std::string file_to_str(const std::string &path);
 /* Read binary file contents into the vector */
 std::vector<uint8_t> file_to_vec(const std::string &path);
 
+/* Write string contents to the file */
+void str_to_file(const std::string &path, const char *str);
+
 /* Concatenate multiple strings into a full path.
  * A directory separator is added between components.
  * Must be called in between va_start and va_end.

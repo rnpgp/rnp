@@ -104,6 +104,14 @@ file_to_vec(const std::string &path)
                                 std::istreambuf_iterator<char>());
 }
 
+void
+str_to_file(const std::string &path, const char *str)
+{
+    std::ofstream stream(path, std::ios::out | std::ios::binary);
+    assert_true(stream);
+    stream.write(str, strlen(str));
+}
+
 off_t
 file_size(const char *path)
 {
