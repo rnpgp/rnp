@@ -258,6 +258,8 @@ jobs:
         with:
           repository: rnpgp/sexp
           path: sexp
+          ref: v0.7.0
+# [TODO ] Remove ref when sexp is integrated as submodule
 
       - name: Build and install sexp
         run: |
