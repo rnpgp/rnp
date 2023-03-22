@@ -321,7 +321,6 @@ target_include_directories(librnp-obj
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
-    "${SEXP_INCLUDE_DIR}"
 )
 target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
 if (CRYPTO_BACKEND_BOTAN)
@@ -330,12 +329,7 @@ elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
 
-target_link_libraries(librnp-obj PRIVATE Sexp::Sexp)
-# If sexp library is downloaded and built from CMake ensure that
-# it is ready
-if(TARGET sexp)
-  add_dependencies(librnp-obj sexp)
-endif(TARGET sexp)
+target_link_libraries(librnp-obj PRIVATE sexp)
 
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
@@ -383,7 +377,7 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
   get_target_property(val librnp-obj ${prop})
   if (BUILD_SHARED_LIBS)
     set_property(TARGET librnp-static PROPERTY ${prop} ${val})
-    list(REMOVE_ITEM val "$<LINK_ONLY:Sexp::Sexp>")
+    list(REMOVE_ITEM val "$<LINK_ONLY:sexp>")
     set_property(TARGET librnp PROPERTY ${prop} ${val})
   else()
     set_property(TARGET librnp PROPERTY ${prop} ${val})
@@ -416,32 +410,37 @@ endif()
 # On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
 # On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
 
-install(TARGETS librnp
-  EXPORT rnp-targets
-  LIBRARY
-    DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
-    COMPONENT runtime
-    ${namelink_component}
-  ARCHIVE
-    DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
-    COMPONENT development
-)
+# If a client application uses shared rnp library, sexp is statically linked to librnp.so
+# If a client application uses static rnp library, it still needs libsexp.a
 
 if (BUILD_SHARED_LIBS)
-  install(TARGETS librnp-static
+# both static and shared libraries
+install(TARGETS librnp
+    EXPORT rnp-targets
+    LIBRARY
+      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+      COMPONENT runtime
+      ${namelink_component}
+    ARCHIVE
+      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+      COMPONENT development
+  )
+
+  install(TARGETS librnp-static sexp
     EXPORT rnp-targets
     ARCHIVE
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
   )
-endif(BUILD_SHARED_LIBS)
-
-# If a client application uses shared rnp library, sexp is statically linked to librnp.so
-# If a client application uses static rnp library, it still needs libsexp.a
-install(FILES ${SEXP_LIBRARY}
-  DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
-  COMPONENT development
+else(BUILD_SHARED_LIBS)
+# static libraries only
+install(TARGETS librnp sexp
+    EXPORT rnp-targets
+    ARCHIVE
+      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+      COMPONENT development
 )
+endif(BUILD_SHARED_LIBS)
 
 # install dll only for windows
 if (WIN32)
@@ -517,8 +516,10 @@ function(get_linked_libs libsvar dirsvar tgt)
   list(APPEND visited_targets ${tgt})
   if (imported)
     get_target_property(linkedlibs ${tgt} INTERFACE_LINK_LIBRARIES)
-  else()
-    get_target_property(linkedlibs ${tgt} LINK_LIBRARIES)
+    message(STATUS "----> ${lib} -interface- ${linkedlibs}")
+#  else()
+#    get_target_property(linkedlibs ${tgt} LINK_LIBRARIES)
+#    message(STATUS "----> ${lib} -- ${linkedlibs}")
   endif()
   set(libs)
   foreach (lib ${linkedlibs})

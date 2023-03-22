@@ -34,7 +34,6 @@ DIR0="$( cd "$( dirname "$0" )" && pwd )"
 : "${BOTAN_INSTALL:=$INSTALL_PREFIX}"
 : "${JSONC_INSTALL:=$INSTALL_PREFIX}"
 : "${RNP_INSTALL:=$INSTALL_PREFIX}"
-: "${SEXP_INSTALL:=$INSTALL_PREFIX}"
 
 : "${ENABLE_SM2:=}"
 : "${ENABLE_IDEA:=}"

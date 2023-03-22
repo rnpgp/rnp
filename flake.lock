@@ -63,27 +63,7 @@
     "root": {
       "inputs": {
         "flake-utils": "flake-utils",
-        "nixpkgs": "nixpkgs",
-        "sexp": "sexp"
-      }
-    },
-    "sexp": {
-      "inputs": {
-        "flake-utils": "flake-utils_2",
-        "nixpkgs": "nixpkgs_2"
-      },
-      "locked": {
-        "lastModified": 1669619228,
-        "narHash": "sha256-oWOzVn7j2pYr4CxyN8O5f1n0tUxCIQ5YG5GZFvLMeGA=",
-        "owner": "rnpgp",
-        "repo": "sexp",
-        "rev": "95fb1752d60a1912f979919b3886f3047970303d",
-        "type": "github"
-      },
-      "original": {
-        "owner": "rnpgp",
-        "repo": "sexp",
-        "type": "github"
+        "nixpkgs": "nixpkgs"
       }
     }
   },

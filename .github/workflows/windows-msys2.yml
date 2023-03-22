@@ -63,6 +63,7 @@ jobs:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
+          submodules: true
       - uses: msys2/setup-msys2@v2
         with:
           path-type: minimal
