@@ -57,7 +57,6 @@ option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
-option(DOWNLOAD_SEXP "Use FetchContent to download sexp library" Off)
 option(DOWNLOAD_RUBYRNP "Download ruby-rnp and run related tests." On)
 # crypto components
 function(tristate_feature_auto NAME DESCRIPTION)
@@ -176,15 +175,6 @@ if (ENABLE_DOC)
   include(AdocMan)
 endif()
 
-
-#download and build sexp library
-if(DOWNLOAD_SEXP)
-  message(STATUS "Downloading SEXP library")
-  include(DownloadSexp)
-else(DOWNLOAD_SEXP)
-  find_package(Sexp)
-endif(DOWNLOAD_SEXP)
-
 # everything else is in subdirs
 add_subdirectory(src/examples)
 if (ENABLE_FUZZERS)
@@ -192,6 +182,12 @@ if (ENABLE_FUZZERS)
   add_compile_options(-DFUZZERS_ENABLED=1)
 endif()
 add_subdirectory(src/common)
+
+set(WITH_SEXP_CLI OFF)
+set(WITH_SEXP_TESTS OFF)
+set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
+add_subdirectory(src/libsexp EXCLUDE_FROM_ALL)
+
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
 add_subdirectory(src/rnpkeys)
@@ -211,6 +207,7 @@ if (BUILD_TESTING)
   endif()
   add_subdirectory(src/tests)
 endif()
+
 
 # cpack packaging (RPM etc)
 include(cmake/packaging.cmake)

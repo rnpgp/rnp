@@ -31,7 +31,6 @@ LOCAL_INSTALLS="${rnp_local_installs}"
 BOTAN_INSTALL="${rnp_local_installs}/botan-install"
 JSONC_INSTALL="${rnp_local_installs}/jsonc-install"
 GPG_INSTALL="${rnp_local_installs}/gpg-install"
-SEXP_INSTALL="${rnp_local_installs}/sexp-install"
 
 # set this explicitly since we don't want to cache the rnp installation
 RNP_INSTALL="${GITHUB_WORKSPACE}/rnp-install"
@@ -43,7 +42,6 @@ for var in \
   BOTAN_INSTALL \
   JSONC_INSTALL \
   GPG_INSTALL \
-  SEXP_INSTALL \
   RNP_INSTALL
 do
   val="${!var}"

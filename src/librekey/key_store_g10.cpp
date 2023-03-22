@@ -191,14 +191,14 @@ gnupg_sexp_t::add(unsigned u)
     char s[sizeof(STR(UINT_MAX)) + 1];
     snprintf(s, sizeof(s), "%u", u);
     push_back(
-      std::unique_ptr<sexp_string_t>(new sexp_string_t(reinterpret_cast<octet_t *>(s))));
+      std::shared_ptr<sexp_string_t>(new sexp_string_t(reinterpret_cast<octet_t *>(s))));
 }
 
 gnupg_sexp_t &
 gnupg_sexp_t::add_sub()
 {
     gnupg_sexp_t *res = new gnupg_sexp_t();
-    push_back(std::unique_ptr<gnupg_sexp_t>(res));
+    push_back(std::shared_ptr<gnupg_sexp_t>(res));
     return *res;
 }
 
@@ -253,7 +253,7 @@ lookup_var(const sexp_list_t *list, const std::string &name) noexcept
     //  -- has at least two SEXP elements (condition 2)
     //  -- has a SEXP string at 0 postion (condition 3)
     //     matching given name            (condition 4)
-    auto match = [name](const std::unique_ptr<sexp_object_t> &ptr) {
+    auto match = [name](const std::shared_ptr<sexp_object_t> &ptr) {
         bool r = false;
         auto r1 = ptr->sexp_list_view();
         if (r1 && r1->size() >= 2) { // conditions (1) and (2)
@@ -326,9 +326,9 @@ void
 gnupg_sexp_t::add_mpi(const std::string &name, const pgp_mpi_t &mpi)
 {
     gnupg_sexp_t &sub_s_exp = add_sub();
-    sub_s_exp.push_back(std::unique_ptr<sexp_string_t>(new sexp_string_t(name)));
+    sub_s_exp.push_back(std::shared_ptr<sexp_string_t>(new sexp_string_t(name)));
     auto value_block = new sexp_string_t();
-    sub_s_exp.push_back(std::unique_ptr<sexp_string_t>(value_block));
+    sub_s_exp.push_back(std::shared_ptr<sexp_string_t>(value_block));
 
     sexp_simple_string_t data;
     size_t               len = mpi_bytes(&mpi);
@@ -673,7 +673,7 @@ parse_protected_seckey(pgp_key_pkt_t &seckey, const sexp_list_t *list, const cha
         std::ostringstream   oss(std::ios_base::binary);
         sexp_output_stream_t os(&oss);
         os.var_put_char('(');
-        for_each(list->begin(), list->end(), [&](const std::unique_ptr<sexp_object_t> &obj) {
+        for_each(list->begin(), list->end(), [&](const std::shared_ptr<sexp_object_t> &obj) {
             if (obj->sexp_list_view() != protected_key)
                 obj->print_canonical(&os);
         });

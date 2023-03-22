@@ -40,12 +40,12 @@ class gnupg_sexp_t : public sexp::sexp_list_t {
     void
     add(const std::string &str)
     {
-        push_back(std::unique_ptr<sexp::sexp_string_t>(new sexp::sexp_string_t(str)));
+        push_back(std::shared_ptr<sexp::sexp_string_t>(new sexp::sexp_string_t(str)));
     };
     void
     add(const uint8_t *data, size_t size)
     {
-        push_back(std::unique_ptr<sexp::sexp_string_t>(new sexp::sexp_string_t(data, size)));
+        push_back(std::shared_ptr<sexp::sexp_string_t>(new sexp::sexp_string_t(data, size)));
     };
     void          add(unsigned u);
     gnupg_sexp_t &add_sub();
