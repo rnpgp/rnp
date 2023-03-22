@@ -123,6 +123,8 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          submodules: true
 
       - name: Setup noncacheable dependencies
         run: |
@@ -175,11 +177,17 @@ jobs:
     env:  ${{ matrix.env }}
 
     steps:
+      - name: Install prerequisites for prerequisites
+        if: matrix.env.container == 'centos:7'
+        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+
       - name: Install prerequisites
         run:  yum -y install git sudo rpm-build
 
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          submodules: true
 
       - name: Setup noncacheable dependencies
         run: |
@@ -252,20 +260,6 @@ jobs:
       - name: Permanently enable rh-ruby30
         if: matrix.env.container == 'centos:7'
         run: bash -c "echo \"$(cut -f 2- -d ' ' /opt/rh/rh-ruby30/enable)\"">> $GITHUB_ENV
-
-      - name: Checkout sexp
-        uses: actions/checkout@v3
-        with:
-          repository: rnpgp/sexp
-          path: sexp
-          ref: v0.7.0
-# [TODO ] Remove ref when sexp is integrated as submodule
-
-      - name: Build and install sexp
-        run: |
-          cmake sexp -Bsexp/build -DWITH_SEXP_TESTS=OFF -DWITH_SEXP_CLI=OFF -DCMAKE_INSTALL_PREFIX=/usr
-          cmake --build sexp/build --config Release
-          cmake --install sexp/build
 
       - name: Build rnp
         run: |
