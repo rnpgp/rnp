@@ -2107,8 +2107,17 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             }
             /* Decrypt key */
             rnp::KeyLocker seclock(*seckey);
-            if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
-                errcode = RNP_ERROR_BAD_PASSWORD;
+            int            attempts = 3;
+            while (attempts--) {
+                errcode = RNP_ERROR_NO_SUITABLE_KEY;
+                if (!seckey->unlock(*handler->password_provider, PGP_OP_DECRYPT)) {
+                    errcode = RNP_ERROR_BAD_PASSWORD;
+                    RNP_LOG("Bad password, try again.");
+                    continue;
+                }
+                break;
+            }
+            if (errcode == RNP_ERROR_BAD_PASSWORD) {
                 continue;
             }
 
@@ -2129,20 +2138,28 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     if (!have_key && !param->symencs.empty()) {
         rnp::secure_array<char, MAX_PASSWORD_LENGTH> password;
         pgp_password_ctx_t                           pass_ctx(PGP_OP_DECRYPT_SYM);
-        if (!pgp_request_password(
-              handler->password_provider, &pass_ctx, password.data(), password.size())) {
-            errcode = RNP_ERROR_BAD_PASSWORD;
-            goto finish;
-        }
+        int                                          attempts = 3;
 
-        int intres = encrypted_try_password(param, password.data());
-        if (intres > 0) {
-            have_key = true;
-        } else if (intres < 0) {
-            errcode = RNP_ERROR_NOT_SUPPORTED;
-        } else {
-            errcode = RNP_ERROR_BAD_PASSWORD;
-        }
+        while (attempts--) {
+            errcode = RNP_ERROR_NO_SUITABLE_KEY;
+            if (!pgp_request_password(
+                  handler->password_provider, &pass_ctx, password.data(), password.size())) {
+                  errcode = RNP_ERROR_BAD_PASSWORD;
+                goto finish;
+            }
+
+            int intres = encrypted_try_password(param, password.data());
+            if (intres > 0) {
+                have_key = true;
+                break;
+            } else if (intres < 0) {
+                errcode = RNP_ERROR_NOT_SUPPORTED;
+                break;
+            } else {
+                errcode = RNP_ERROR_BAD_PASSWORD;
+                RNP_LOG("Bad password, try again.");
+            }
+	}
     }
 
     /* report decryption start to the handler */
