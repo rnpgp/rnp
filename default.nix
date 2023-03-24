@@ -1,23 +1,13 @@
 { pkgs ? import <nixpkgs> { }
 , lib ? pkgs.lib
 , stdenv ? pkgs.stdenv
-, fetchgit
 }:
-let
-  sexpSource = fetchgit {
-    name = "sexp";
-    url = "https://github.com/rnpgp/sexp.git";
-    rev = "refs/tags/v0.7.0";
-    sha256 = "MA54sKyHBFB6ZAGQCHFswIeiVn/TgTjGhP1dE+fS+sU=";
-  };
-in
+
 stdenv.mkDerivation rec {
   pname = "rnp";
   version = "unstable";
 
   src = ./.;
-
-  sexp = import sexpSource { inherit pkgs; };
 
   buildInputs = with pkgs; [ zlib bzip2 json_c botan2 ];
 
@@ -41,7 +31,6 @@ stdenv.mkDerivation rec {
     commitEpoch=$(date +%s)
     baseVersion=$(cat version.txt)
     echo "v$baseVersion-0-g0-dirty+$commitEpoch" > version.txt
-
     # For generating the correct timestamp in cmake
     export SOURCE_DATE_EPOCH=$commitEpoch
   '';
