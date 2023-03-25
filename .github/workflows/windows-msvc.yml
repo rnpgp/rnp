@@ -4,6 +4,7 @@ on:
     branches:
       - master
       - 'release/**'
+      - maxirmx-2020-clang
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -32,24 +33,22 @@ concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
   cancel-in-progress: true
 
+env:
+  VCPKG_DIR: 'C:\\vcpkg'
+
 jobs:
   build_and_test:
-    name: ${{ matrix.os }} msvc [arch ${{ matrix.arch }}]
-    runs-on: ${{ matrix.os }}
+    name: Windows-2019 msvc [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }} ]
+    runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
       fail-fast: false
       matrix:
-        arch: [x64, Win32]
-        include:
-          - arch: x64
-            os: windows-2019
-            triplet: x64-windows
-            vcpkg_dir: 'C:\\vcpkg'
-          - arch: Win32
-            os: windows-2019
-            triplet: x86-windows
-            vcpkg_dir: 'C:\\vcpkg'
+        arch:
+          - { name: 'x64',    triplet: 'x64-windows' }
+          - { name: 'Win32',  triplet: 'x86-windows' }
+        toolset: [ 'v142', 'ClangCL' ]
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -57,29 +56,29 @@ jobs:
           submodules: true
           lfs: true
           fetch-depth: 1
+
       - name: Cache vcpkg
         uses: actions/cache@v3
         with:
-          path: '${{ matrix.vcpkg_dir }}/installed'
-          key: vcpkg-${{ matrix.triplet }}-${{ hashFiles('vcpkg.txt') }}
+          path: '${{ env.VCPKG_DIR }}/installed'
+          key: vcpkg-${{ matrix.arch.triplet }}-${{ hashFiles('vcpkg.txt') }}
+
       - name: Install vcpkg packages
         shell: bash
-        run: |
-          set -eux
-          vcpkg install --triplet ${{ matrix.triplet }} $(cat vcpkg.txt)
+        run: vcpkg install --triplet ${{ matrix.arch.triplet }} $(cat vcpkg.txt)
+
       - name: Configure
-        env:
-          VCPKG_DIR: '${{ matrix.vcpkg_dir }}'
         shell: bash
         run: |
-          set -eux
-          mkdir build
-          cmake -B ./build -G "Visual Studio 16 2019" \
-                           -A ${{ matrix.arch }}      \
-                           -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
+          cmake -B build   -G "Visual Studio 16 2019"      \
+                           -A ${{ matrix.arch.name }}      \
+                           -T ${{ matrix.toolset }}        \
+                           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}\\scripts\\buildsystems\\vcpkg.cmake .
+
       - name: Compile
         shell: bash
-        run: cmake --build ./build --config "Release" -j 2
+        run: cmake --build build --config "Release"
+
       - name: Testing
         shell: bash
         run: ci/test.msvc.sh
