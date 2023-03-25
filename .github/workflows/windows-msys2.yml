@@ -38,7 +38,6 @@ env:
   BUILD_MODE: normal
   GPG_VERSION: stable
   GTEST_SOURCES: googletest-src
-  DOWNLOAD_SEXP: on
   CORES: 2
 
 jobs:

@@ -76,7 +76,6 @@ jobs:
           mkdir build
           cmake -B ./build -G "Visual Studio 16 2019" \
                            -A ${{ matrix.arch }}      \
-                           -DDOWNLOAD_SEXP=on         \
                            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.vcpkg_dir }}\\scripts\\buildsystems\\vcpkg.cmake .
       - name: Compile
         shell: bash
