@@ -40,6 +40,7 @@
 #include <stdexcept>
 #include <inttypes.h>
 
+#include "config.h"
 #include "rnpcfg.h"
 #include "defaults.h"
 #include "utils.h"

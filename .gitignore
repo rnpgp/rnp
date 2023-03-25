@@ -23,6 +23,10 @@ _CPack_Packages/
 
 # VSCode
 .vscode/
+.vs/
+
+# VisualStudio
+CMakeSettings.json
 
 # Nix
 result
