@@ -194,7 +194,7 @@ jobs:
           ci/install_noncacheable_dependencies.sh
 
       - name: Configure
-        run: cmake -B build -DDOWNLOAD_SEXP=ON -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF
+        run: cmake -B build -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF
 
       - name: Package SRPM
         run:  cpack -B build/SRPM -G RPM --config build/CPackSourceConfig.cmake
@@ -263,7 +263,7 @@ jobs:
       - name: Build rnp
         run: |
           cmake ~/rpmbuild/SOURCES -B ~/rpmbuild/SOURCES/BUILD -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF \
-                                   -DDOWNLOAD_SEXP=OFF -DCMAKE_INSTALL_PREFIX=/usr
+                                   -DCMAKE_INSTALL_PREFIX=/usr
           cmake --build ~/rpmbuild/SOURCES/BUILD --config Release
 
       - name: Package rpm
