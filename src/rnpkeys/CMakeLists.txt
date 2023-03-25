@@ -56,8 +56,6 @@ add_executable(rnpkeys
   main.cpp
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
-  ../lib/logging.cpp
-  $<TARGET_OBJECTS:rnp-common>
 )
 
 target_include_directories(rnpkeys
@@ -86,11 +84,9 @@ if(MSVC)
     )
 endif()
 
-if (WIN32 AND (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
+if(MINGW)
   target_link_libraries(rnpkeys PRIVATE regex)
-elseif(MSVC)
-  add_compile_definitions(RNP_USE_STD_REGEX)
-endif()
+endif(MINGW)
 
 include(GNUInstallDirs)
 install(TARGETS rnpkeys

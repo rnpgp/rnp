@@ -298,7 +298,6 @@ add_library(librnp-obj OBJECT
   pass-provider.cpp
   pgp-key.cpp
   rnp.cpp
-  $<TARGET_OBJECTS:rnp-common>
 )
 
 get_target_property(_comp_options librnp-obj COMPILE_OPTIONS)
