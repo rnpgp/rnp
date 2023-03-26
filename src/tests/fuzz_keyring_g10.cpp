@@ -39,4 +39,7 @@ TEST_F(rnp_tests, test_fuzz_keyring_g10)
 
     data = file_to_vec(DATA_PATH "crash_4ec166859e821aee27350dcde3e9c06b07a677f7");
     assert_int_equal(keyring_g10_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "crash_5528625325932544");
+    assert_int_equal(keyring_g10_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
