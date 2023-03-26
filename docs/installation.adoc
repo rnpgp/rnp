@@ -199,6 +199,13 @@ https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=wind
 
 Set the `VCPKG_ROOT` environment variable to the `vcpkg` root folder.
 
+For botan backend:
+[source,console]
+----
+vcpkg install --triplet x64-windows bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
+----
+
+For openssl backend:
 [source,console]
 ----
 vcpkg install --triplet x64-windows bzip2 zlib botan json-c getopt dirent python3[core,enable-shared]
@@ -206,35 +213,25 @@ vcpkg install --triplet x64-windows bzip2 zlib botan json-c getopt dirent python
 
 If you need to target 32-bit platform you'll need to to replace `x64-windows` with `x86-windows`.
 
-There are two ways to compile and install:
-
-* If you open the MSVC IDE at this folder, it will pick up `CMakeSettings.json`
-  to find the `vcpkg` path using the `VCPKG_ROOT` environment variable.
-
-* Otherwise, the following steps will perform a console build for CMake: +
+* The following steps will perform a console build for CMake using Visual Studio 2019 CMake generator: +
 +
 --
 [source,console]
 ----
-# CMake encourages out-of source builds.
-mkdir rnp-build
-cd rnp-build
-cmake -B . -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off ../rnp
+cmake -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
 cmake --build . --config Release
 cmake --install .
 ----
 --
+Replace CRYPTO_BACKEND parameter to "openssl" if you target this backend.
 
 When running `rnp.exe` and `rnpkeys.exe`, please ensure that the following
 dependencies are available on path (or inside the same folder as the
 executables):
 
 * `librnp.dll`
-* `botan.dll`
+* `botan.dll` or `libcrypto-3-x64.dll` or `libcrypto-3-x86.dll` depending on target backend and architecture
 * `bz2.dll`
 * `getopt.dll`
 * `json-c.dll`
 * `zlib1.dll`
-
-You may check dependencies and their paths via `ntldd.exe` in the MSYS command
-prompt.

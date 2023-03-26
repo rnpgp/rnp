@@ -27,6 +27,7 @@
 #define RNP_CIPHER_HPP
 
 #include <memory>
+#include <string>
 #include <repgp/repgp_def.h>
 
 // Note: for AEAD modes we append the authentication tag to the ciphertext as in RFC 5116

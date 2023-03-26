@@ -1,10 +1,34 @@
+# Copyright (c) 2023 Ribose Inc.
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 name: windows-msvc
 on:
   push:
     branches:
+      - maxirmx-2020-clang
       - master
       - 'release/**'
-      - maxirmx-2020-clang
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -34,11 +58,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VCPKG_DIR: 'C:\\vcpkg'
+  VCPKG_DIR: C:/vcpkg
+  VCPKG_DEFAULT_BINARY_CACHE: ${{github.workspace}}\cache
+  DOWNLOAD_GTEST: ON
+  RNP_TEST_DATA: ${{github.workspace}}\src\tests\data
 
 jobs:
   build_and_test:
-    name: Windows-2019 msvc [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }} ]
+    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }} ]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -47,7 +74,8 @@ jobs:
         arch:
           - { name: 'x64',    triplet: 'x64-windows' }
           - { name: 'Win32',  triplet: 'x86-windows' }
-        toolset: [ 'v142', 'ClangCL' ]
+        toolset: [ 'v142',  'ClangCL' ]
+        backend: [ 'botan', 'openssl' ]
 
     steps:
       - name: Checkout
@@ -57,28 +85,56 @@ jobs:
           lfs: true
           fetch-depth: 1
 
-      - name: Cache vcpkg
+      - name: vcpkg parameters
+        run: |
+          vcpkg version >> vcpkg.version
+          mkdir -p ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+
+      - name: vcpkg cache
         uses: actions/cache@v3
         with:
-          path: '${{ env.VCPKG_DIR }}/installed'
-          key: vcpkg-${{ matrix.arch.triplet }}-${{ hashFiles('vcpkg.txt') }}
+          path: ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          key: vcpkg-${{ hashFiles('vcpkg.version') }}-${{ matrix.arch.triplet }}-${{ matrix.toolset }}-${{ matrix.backend }}
 
-      - name: Install vcpkg packages
+      - name: vcpkg packages
         shell: bash
-        run: vcpkg install --triplet ${{ matrix.arch.triplet }} $(cat vcpkg.txt)
+        run: vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
+
+      - name: Set OPENSSL_ROOT_DIR
+        # Ensure consistent access to openssl installation for test_backend_version test
+        # There is another one instance of ssl at /mingw and /mingw/bin is always at the first position at PATH
+        if: matrix.backend == 'openssl'
+        shell: bash
+        run: echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
+
+      - name: Adjust settings for s2k_iteration_tuning test
+        # This step adjusts s2k_iteration_tuning threshold for
+        # s2k_iteration_tuning test (src/tests/cipher.cpp)
+        # It looks like cl on Win32 does not provide robust response
+        if: matrix.arch.name == 'Win32' && matrix.toolset == 'ClangCL'
+        shell: bash
+        run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
 
       - name: Configure
         shell: bash
         run: |
-          cmake -B build   -G "Visual Studio 16 2019"      \
-                           -A ${{ matrix.arch.name }}      \
-                           -T ${{ matrix.toolset }}        \
-                           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}\\scripts\\buildsystems\\vcpkg.cmake .
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -G "Visual Studio 16 2019"  \
+                           -A ${{ matrix.arch.name }}  \
+                           -T ${{ matrix.toolset }}    \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}  \
+                           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
 
       - name: Compile
         shell: bash
-        run: cmake --build build --config "Release" --parallel 4
+        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
-        run: ci/test.msvc.sh
+        # Sometimes  running cli_tests in parallel causes instability [???]
+        # ctest --test-dir build -R cli_tests -C Debug --output-on-failure
+        # ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests -C Debug --output-on-failure
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure

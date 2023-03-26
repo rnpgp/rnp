@@ -262,6 +262,7 @@ delete_recursively(const char *path)
 void
 copy_recursively(const char *src, const char *dst)
 {
+    assert_true(src != nullptr);
     /* sanity check, we should only be copying things to /tmp/ */
     assert_true(is_tmp_path(dst));
 
