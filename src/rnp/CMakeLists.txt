@@ -83,9 +83,9 @@ if(MSVC)
     )
 endif(MSVC)
 
-if(MINGW)
+if(MSYS)
   target_link_libraries(rnp PRIVATE regex)
-endif(MINGW)
+endif(MSYS)
 
 include(GNUInstallDirs)
 install(TARGETS rnp

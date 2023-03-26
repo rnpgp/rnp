@@ -126,7 +126,7 @@ if(NOT MSVC)
     -Wno-unused-parameter
     -Wno-missing-field-initializers
   )
-endif()
+endif(NOT MSVC)
 
 # MSYS-specific options
 if(MSYS)
@@ -138,7 +138,12 @@ if(MSYS)
     -fstack-protector
     -fopenmp
   )
-endif()
+endif(MSYS)
+
+# THis works both for MSVC and CL on Windows
+if(WIN32 AND NOT MSYS)
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
+endif(WIN32 AND NOT MSYS)
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 99)
