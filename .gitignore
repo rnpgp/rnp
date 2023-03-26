@@ -27,6 +27,7 @@ _CPack_Packages/
 
 # VisualStudio
 CMakeSettings.json
+out/
 
 # Nix
 result
