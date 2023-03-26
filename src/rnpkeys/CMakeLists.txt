@@ -58,6 +58,10 @@ add_executable(rnpkeys
   ../rnp/fficli.cpp
 )
 
+if(NOT WIN32 OR MSYS)
+  target_sources(rnpkeys PRIVATE ../lib/logging.cpp $<TARGET_OBJECTS:rnp-common>)
+endif(NOT WIN32 OR MSYS)
+
 target_include_directories(rnpkeys
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"

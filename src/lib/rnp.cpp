@@ -4831,9 +4831,9 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
                      pgp_fingerprint_t &          fp,
                      bool                         protect)
 {
-    rnp_keygen_primary_desc_t desc = { };
+    rnp_keygen_primary_desc_t desc = {};
     // desc.crypto is a union
-    // so at least Clang 12 / native Windows zero-initializes the first union member only 
+    // so at least Clang 12 on Windows zero-initializes the first union member only
     // keeping the "larger" member partially unintialized
     desc.crypto.dsa.q_bitlen = 0;
 

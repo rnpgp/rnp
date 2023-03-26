@@ -32,6 +32,9 @@ out/
 # Nix
 result
 
+# Test framework
+ci/tests/shunit2
+
 # Created by https://www.toptal.com/developers/gitignore/api/c,vim,c++,macos,linux,patch,cmake,emacs,vscode,python,windows,textmate,sublimetext
 # Edit at https://www.toptal.com/developers/gitignore?templates=c,vim,c++,macos,linux,patch,cmake,emacs,vscode,python,windows,textmate,sublimetext
 

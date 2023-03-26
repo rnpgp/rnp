@@ -54,6 +54,11 @@ rnpInvalidParameterHandler(const wchar_t *expression,
 
 rnp_tests::rnp_tests() : m_dir(make_temp_dir())
 {
+#ifdef _WIN32
+    _invalid_parameter_handler handler = rnpInvalidParameterHandler;
+    _set_invalid_parameter_handler(handler);
+    _CrtSetReportMode(_CRT_ASSERT, 0);
+#endif
     /* We use LOGNAME in a few places within the tests
      * and it isn't always set in every environment.
      */
@@ -65,11 +70,6 @@ rnp_tests::rnp_tests() : m_dir(make_temp_dir())
     /* fully specified path works correctly here with cp and xcopy */
     std::string data_str = std::string(m_dir) + "/data";
     copy_recursively(getenv("RNP_TEST_DATA"), data_str.c_str());
-#ifdef _WIN32
-    _invalid_parameter_handler handler = rnpInvalidParameterHandler;
-    _set_invalid_parameter_handler(handler);
-    _CrtSetReportMode(_CRT_ASSERT, 0);
-#endif
 }
 
 rnp_tests::~rnp_tests()
