@@ -53,9 +53,13 @@ find_package(JSON-C 0.11 REQUIRED)
 add_executable(rnp
   rnp.cpp
   fficli.cpp
-  ../rnpkeys/tui.cpp
   rnpcfg.cpp
+  ../rnpkeys/tui.cpp
 )
+
+if(NOT WIN32 OR MSYS)
+  target_sources(rnp PRIVATE ../lib/logging.cpp $<TARGET_OBJECTS:rnp-common>)
+endif(NOT WIN32 OR MSYS)
 
 target_include_directories(rnp
   PRIVATE
