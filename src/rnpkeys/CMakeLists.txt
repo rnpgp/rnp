@@ -84,9 +84,9 @@ if(MSVC)
     )
 endif()
 
-if(MINGW)
+if(MSYS)
   target_link_libraries(rnpkeys PRIVATE regex)
-endif(MINGW)
+endif(MSYS)
 
 include(GNUInstallDirs)
 install(TARGETS rnpkeys
