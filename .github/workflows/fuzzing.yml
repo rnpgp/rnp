@@ -6,7 +6,6 @@ on:
       - '/*.sh'
       - '/.*'
       - '/_*'
-      - '/vcpkg.txt'
       - 'Brewfile'
       - 'docs/**'
       - '**.adoc'
