@@ -44,7 +44,7 @@ template <typename T> using secure_vector = Botan::secure_vector<T>;
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 template <typename T> class ossl_allocator {
   public:
-    static_assert(std::is_integral<T>::value, "T must be integer type");
+    static_assert(std::is_integral<T>::value, "T must be integral type");
 
     typedef T           value_type;
     typedef std::size_t size_type;
