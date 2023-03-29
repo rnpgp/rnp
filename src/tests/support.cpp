@@ -75,15 +75,6 @@ unsetenv(const char *name)
 }
 #endif
 
-/* Check if a file is empty
- * Use with assert_true and rnp_assert_false(rstate, .
- */
-bool
-file_empty(const char *path)
-{
-    return file_size(path) == 0;
-}
-
 std::string
 file_to_str(const std::string &path)
 {
@@ -427,21 +418,6 @@ mpi_empty(const pgp_mpi_t &val)
 {
     pgp_mpi_t zero{};
     return (val.len == 0) && !memcmp(val.mpi, zero.mpi, PGP_MPINT_SIZE);
-}
-
-char *
-uint_to_string(char *buff, const int buffsize, unsigned int num, int base)
-{
-    char *ptr;
-    ptr = &buff[buffsize - 1];
-    *ptr = '\0';
-
-    do {
-        *--ptr = "0123456789abcdef"[num % base];
-        num /= base;
-    } while (num != 0);
-
-    return ptr;
 }
 
 bool
@@ -1019,6 +995,7 @@ export_key(rnp_key_handle_t key, bool armored, bool secret)
     return res;
 }
 
+#if 0
 void
 dump_key_stdout(rnp_key_handle_t key, bool secret)
 {
@@ -1030,6 +1007,7 @@ dump_key_stdout(rnp_key_handle_t key, bool secret)
     auto sec = export_key(key, true, true);
     printf("%.*s", (int) sec.size(), (char *) sec.data());
 }
+#endif
 
 bool
 write_transferable_key(pgp_transferable_key_t &key, pgp_dest_t &dst, bool armor)
@@ -1157,99 +1135,69 @@ bool
 sm2_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_PK_ALG, "SM2", &enabled) && enabled;
 }
 
 bool
 aead_eax_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "EAX", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "EAX", &enabled) && enabled;
 }
 
 bool
 aead_ocb_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "OCB", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_AEAD_ALG, "OCB", &enabled) && enabled;
 }
 
 bool
 aead_ocb_aes_only()
 {
-    if (!aead_ocb_enabled()) {
-        return false;
-    }
-    return !strcmp(rnp_backend_string(), "OpenSSL");
+    return aead_ocb_enabled() && !strcmp(rnp_backend_string(), "OpenSSL");
 }
 
 bool
 twofish_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "Twofish", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "Twofish", &enabled) && enabled;
 }
 
 bool
 idea_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "IDEA", &enabled) && enabled;
 }
 
 bool
 brainpool_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP256r1", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_CURVE, "brainpoolP256r1", &enabled) && enabled;
 }
 
 bool
 blowfish_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "BLOWFISH", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "BLOWFISH", &enabled) && enabled;
 }
 
 bool
 cast5_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAST5", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_SYMM_ALG, "CAST5", &enabled) && enabled;
 }
 
 bool
 ripemd160_enabled()
 {
     bool enabled = false;
-    if (rnp_supports_feature(RNP_FEATURE_HASH_ALG, "RIPEMD160", &enabled)) {
-        return false;
-    }
-    return enabled;
+    return !rnp_supports_feature(RNP_FEATURE_HASH_ALG, "RIPEMD160", &enabled) && enabled;
 }
 
 bool
