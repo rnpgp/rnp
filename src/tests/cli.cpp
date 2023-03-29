@@ -623,10 +623,14 @@ key_expiration_check(rnp_key_store_t *keystore,
         if (key.is_primary()) {
             pk = &key;
         } else {
-            assert_true(key.has_primary_fp());
+            if (!key.has_primary_fp()) {
+                return 0;
+            }
             pk = rnp_key_store_get_key_by_fpr(keystore, key.primary_fp());
         }
-        assert_int_equal(pk->uid_count(), 1);
+        if (pk->uid_count() != 1) {
+            return 0;
+        }
         auto uid = pk->get_uid(0).str;
         if (uid != userid) {
             continue;

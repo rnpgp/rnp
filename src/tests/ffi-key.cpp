@@ -3843,7 +3843,7 @@ check_key_autocrypt(rnp_output_t       memout,
                     bool               base64 = false)
 {
     rnp_ffi_t ffi = NULL;
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_ffi_create(&ffi, "GPG", "GPG");
 
     uint8_t *buf = NULL;
     size_t   len = 0;

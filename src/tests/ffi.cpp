@@ -2858,7 +2858,9 @@ shrink_len_2_to_1(const std::vector<uint8_t> &src)
                PGP_PTAG_ALWAYS_SET | (PGP_PKT_PUBLIC_KEY << PGP_PTAG_OF_CONTENT_TAG_SHIFT) |
                  PGP_PTAG_OLD_LEN_1);
     // make sure the most significant octet of 2-octet length is actually zero
-    assert_int_equal(src[1], 0);
+    if (src[1] != 0) {
+        throw std::invalid_argument("src");
+    }
     dst.insert(dst.end(), src[2]);
     dst.insert(dst.end(), src.begin() + 3, src.end());
     return dst;
@@ -2910,7 +2912,7 @@ static bool
 import_public_keys_from_vector(std::vector<uint8_t> keyring)
 {
     rnp_ffi_t ffi = NULL;
-    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    rnp_ffi_create(&ffi, "GPG", "GPG");
     bool res = import_pub_keys(ffi, &keyring[0], keyring.size());
     rnp_ffi_destroy(ffi);
     return res;

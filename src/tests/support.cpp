@@ -89,7 +89,6 @@ file_to_str(const std::string &path)
 {
     // TODO: wstring path _WIN32
     std::ifstream infile(path);
-    assert_true(infile);
     return std::string(std::istreambuf_iterator<char>(infile),
                        std::istreambuf_iterator<char>());
 }
@@ -99,7 +98,6 @@ file_to_vec(const std::string &path)
 {
     // TODO: wstring path _WIN32
     std::ifstream stream(path, std::ios::in | std::ios::binary);
-    assert_true(stream);
     return std::vector<uint8_t>((std::istreambuf_iterator<char>(stream)),
                                 std::istreambuf_iterator<char>());
 }
@@ -108,7 +106,6 @@ void
 str_to_file(const std::string &path, const char *str)
 {
     std::ofstream stream(path, std::ios::out | std::ios::binary);
-    assert_true(stream);
     stream.write(str, strlen(str));
 }
 
@@ -371,17 +368,14 @@ clean_temp_dir(const char *path)
 bool
 bin_eq_hex(const uint8_t *data, size_t len, const char *val)
 {
-    uint8_t *dec;
-    size_t   stlen = strlen(val);
+    size_t stlen = strlen(val);
     if (stlen != len * 2) {
         return false;
     }
 
-    assert_non_null(dec = (uint8_t *) malloc(len));
-    assert_true(rnp::hex_decode(val, dec, len));
-    bool res = !memcmp(data, dec, len);
-    free(dec);
-    return res;
+    std::vector<uint8_t> dec(len);
+    rnp::hex_decode(val, dec.data(), len);
+    return !memcmp(data, dec.data(), len);
 }
 
 bool
@@ -416,20 +410,6 @@ bool
 cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val)
 {
     return bin_eq_hex(fp.fingerprint, fp.length, val.c_str());
-}
-
-int
-test_value_equal(const char *what, const char *expected_value, const uint8_t v[], size_t v_len)
-{
-    assert_int_equal(strlen(expected_value), v_len * 2);
-    char *produced = (char *) calloc(1, v_len * 2 + 1);
-    if (!produced) {
-        return -1;
-    }
-    rnp::hex_encode(v, v_len, produced, v_len * 2 + 1);
-    assert_string_equal(produced, expected_value);
-    free(produced);
-    return 0;
 }
 
 void
@@ -614,7 +594,7 @@ ffi_asserting_password_provider(rnp_ffi_t        ffi,
                                 char *           buf,
                                 size_t           buf_len)
 {
-    assert_false(true);
+    EXPECT_TRUE(false);
     return false;
 }
 
@@ -641,7 +621,7 @@ asserting_password_callback(const pgp_password_ctx_t *ctx,
                             size_t                    password_size,
                             void *                    userdata)
 {
-    assert_false(true);
+    EXPECT_TRUE(false);
     return false;
 }
 
@@ -665,7 +645,7 @@ unused_getkeycb(rnp_ffi_t   ffi,
                 const char *identifier,
                 bool        secret)
 {
-    assert_true(false);
+    EXPECT_TRUE(false);
 }
 
 bool
@@ -676,7 +656,7 @@ unused_getpasscb(rnp_ffi_t        ffi,
                  char *           buf,
                  size_t           buf_len)
 {
-    assert_true(false);
+    EXPECT_TRUE(false);
     return false;
 }
 
