@@ -71,11 +71,6 @@ char *mkdtemp(char *templ);
 
 extern rnp::SecurityContext global_ctx;
 
-/* Check if a file is empty
- * Use with assert_true and rnp_assert_false(rstate, .
- */
-bool file_empty(const char *path);
-
 off_t file_size(const char *path);
 
 /* Read file contents into the std::string */
@@ -139,9 +134,6 @@ bool cmp_keyfp(const pgp_fingerprint_t &fp, const std::string &val);
 void test_ffi_init(rnp_ffi_t *ffi);
 
 bool mpi_empty(const pgp_mpi_t &val);
-/*
- */
-char *uint_to_string(char *buff, const int buffsize, unsigned int num, int base);
 
 bool write_pass_to_pipe(int fd, size_t count);
 /* Setup readable pipe with default password inside */
