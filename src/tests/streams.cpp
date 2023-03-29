@@ -1090,7 +1090,6 @@ validate_key_sigs(const char *path)
 {
     rnp_key_store_t *pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, path, global_ctx);
     bool             valid = rnp_key_store_load_from_path(pubring, NULL);
-    assert_true(valid);
     for (auto &key : pubring->keys) {
         key.validate(*pubring);
         valid = valid && key.valid();

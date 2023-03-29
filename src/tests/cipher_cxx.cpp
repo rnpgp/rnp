@@ -45,7 +45,9 @@ decode_hex(const char *hex)
         return {};
     }
     std::vector<uint8_t> data(strlen(hex) / 2);
-    assert_true(rnp::hex_decode(hex, data.data(), data.size()));
+    if (!rnp::hex_decode(hex, data.data(), data.size())) {
+        throw std::invalid_argument("hex");
+    }
     return data;
 }
 
