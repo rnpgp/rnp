@@ -606,10 +606,14 @@ first_key_password_provider(rnp_ffi_t        ffi,
                             char *           buf,
                             size_t           buf_len)
 {
-    assert_non_null(key);
+    if (!key) {
+        throw std::invalid_argument("key");
+    }
     char *keyid = NULL;
-    assert_rnp_success(rnp_key_get_keyid(key, &keyid));
-    assert_string_equal(keyid, "8A05B89FAD5ADED1");
+    rnp_key_get_keyid(key, &keyid);
+    if (strcmp(keyid, "8A05B89FAD5ADED1")) {
+        throw std::invalid_argument("keyid");
+    }
     rnp_buffer_destroy(keyid);
     return false;
 }

@@ -84,11 +84,7 @@ TEST_F(rnp_tests, hash_test_success)
         hash->add(test_input + 1, sizeof(test_input) - 1);
         hash->finish(hash_output);
 
-        assert_int_equal(0,
-                         test_value_equal(rnp::Hash::name(hash_algs[i]),
-                                          hash_alg_expected_outputs[i],
-                                          hash_output,
-                                          hash_size));
+        assert_true(bin_eq_hex(hash_output, hash_size, hash_alg_expected_outputs[i]));
     }
 }
 
@@ -106,20 +102,14 @@ TEST_F(rnp_tests, cipher_test_success)
 
     assert_int_equal(0, pgp_cipher_cfb_encrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
 
-    assert_int_equal(0,
-                     test_value_equal("AES CFB encrypt",
-                                      "BFDAA57CB812189713A950AD9947887983021617",
-                                      cfb_data,
-                                      sizeof(cfb_data)));
+    assert_true(
+      bin_eq_hex(cfb_data, sizeof(cfb_data), "BFDAA57CB812189713A950AD9947887983021617"));
     assert_int_equal(0, pgp_cipher_cfb_finish(&crypt));
 
     assert_int_equal(1, pgp_cipher_cfb_start(&crypt, alg, key, iv));
     assert_int_equal(0, pgp_cipher_cfb_decrypt(&crypt, cfb_data, cfb_data, sizeof(cfb_data)));
-    assert_int_equal(0,
-                     test_value_equal("AES CFB decrypt",
-                                      "0000000000000000000000000000000000000000",
-                                      cfb_data,
-                                      sizeof(cfb_data)));
+    assert_true(
+      bin_eq_hex(cfb_data, sizeof(cfb_data), "0000000000000000000000000000000000000000"));
     assert_int_equal(0, pgp_cipher_cfb_finish(&crypt));
 }
 
@@ -145,7 +135,7 @@ TEST_F(rnp_tests, pkcs1_rsa_test_success)
     memset(dec, 0, sizeof(dec));
     dec_size = 0;
     assert_rnp_success(rsa_decrypt_pkcs1(&global_ctx.rng, dec, &dec_size, &enc, key_rsa));
-    test_value_equal("RSA 1024 decrypt", "616263", dec, 3);
+    assert_true(bin_eq_hex(dec, 3, "616263"));
     assert_int_equal(dec_size, 3);
 }
 
@@ -238,7 +228,7 @@ elgamal_roundtrip(pgp_eg_key_t *key)
     assert_int_equal(elgamal_decrypt_pkcs1(&global_ctx.rng, res, &res_len, &enc, key),
                      RNP_SUCCESS);
     assert_int_equal(res_len, sizeof(in_b));
-    assert_int_equal(0, test_value_equal("ElGamal decrypt", "0102030417", res, res_len));
+    assert_true(bin_eq_hex(res, res_len, "0102030417"));
 }
 
 TEST_F(rnp_tests, raw_elgamal_random_key_test_success)
