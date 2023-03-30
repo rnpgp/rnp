@@ -22,13 +22,12 @@
 # ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
-name: windows-msvc
+name: windows-native
 on:
   push:
     branches:
       - master
       - 'release/**'
-      - maxirmx-2020-clang
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -40,7 +39,7 @@ on:
       - '**.nix'
       - 'flake.lock'
       - '.github/workflows/*.yml'
-      - '!.github/workflows/windows-msvc.yml'
+      - '!.github/workflows/windows-native.yml'
   pull_request:
     paths-ignore:
       - '/*.sh'
