@@ -3,7 +3,7 @@
 image:https://github.com/rnpgp/rnp/workflows/macos/badge.svg["macOS Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=macos"]
 image:https://github.com/rnpgp/rnp/workflows/ubuntu/badge.svg["Ubuntu Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=ubuntu"]
 image:https://github.com/rnpgp/rnp/workflows/centos7/badge.svg["CentOS 7 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=centos7"]
-image:https://github.com/rnpgp/rnp/workflows/windows-msvc/badge.svg["Windows MSVC Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows-msvc"]
+image:https://github.com/rnpgp/rnp/workflows/windows-msvc/badge.svg["Windows Native Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows-msvc"]
 image:https://github.com/rnpgp/rnp/workflows/windows-msys2/badge.svg["Windows MSys2 Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=windows-msys2"]
 image:https://github.com/rnpgp/rnp/workflows/nix/badge.svg["Nix Build Status", link="https://github.com/rnpgp/rnp/actions?workflow=nix"]
 image:https://img.shields.io/cirrus/github/rnpgp/rnp?label=freebsd&logo=cirrus%20ci["FreeBSD Build Status", link="https://cirrus-ci.com/github/rnpgp/rnp"]

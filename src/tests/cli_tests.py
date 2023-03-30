@@ -4029,8 +4029,10 @@ class Encryption(unittest.TestCase):
         iters10msec = s2k_msec_iters(10)
         iters100msec = s2k_msec_iters(100)
 
-        self.assertGreaterEqual(iters10msec, iters1msec)
-        #self.assertGreaterEqual(iters100msec, iters10msec)
+        disable_test = os.getenv('DISABLE_TEST_S2K_MSEC')
+        if disable_test is None:
+            self.assertGreaterEqual(iters10msec, iters1msec)
+            self.assertGreaterEqual(iters100msec, iters10msec)
         clear_workfiles()
 
     def test_sym_encryption_wrong_s2k(self):
