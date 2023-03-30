@@ -58,7 +58,7 @@ concurrency:
 
 env:
   VCPKG_DIR: C:/vcpkg
-  DOWNLOAD_GTEST: OFF
+  DOWNLOAD_GTEST: ON
   RNP_TEST_DATA: ${{github.workspace}}\src\tests\data
 
 jobs:
@@ -95,7 +95,7 @@ jobs:
 
       - name: Install vcpkg packages
         shell: bash
-        run: vcpkg install --triplet ${{ matrix.arch.triplet }} gtest bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
+        run: vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
 
       - name: Set OPENSSL_ROOT_DIR
         # Ensure consistent access to openssl installation for
