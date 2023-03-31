@@ -306,7 +306,7 @@ rnp_get_output_filename(const std::string &path, std::string &res, cli_rnp_t &rn
 }
 
 static bool
-stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
+stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t &rnp)
 {
 #ifndef _WIN32
     struct termios saved_flags, noecho_flags;
@@ -315,7 +315,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
     bool  ok = false;
     FILE *in = NULL;
     FILE *out = NULL;
-    FILE *userio_in = (rnp && rnp->userio_in) ? rnp->userio_in : stdin;
+    FILE *userio_in = rnp.userio_in ? rnp.userio_in : stdin;
 
     // validate args
     if (!buffer) {
@@ -324,7 +324,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
     // doesn't hurt
     *buffer = '\0';
 
-    if (!rnp->cfg().get_bool(CFG_NOTTY)) {
+    if (!rnp.cfg().get_bool(CFG_NOTTY)) {
 #ifndef _WIN32
         in = fopen("/dev/tty", "w+ce");
 #endif
@@ -333,7 +333,7 @@ stdin_getpass(const char *prompt, char *buffer, size_t size, cli_rnp_t *rnp)
 
     if (!in) {
         in = userio_in;
-        out = (rnp && rnp->userio_out) ? rnp->userio_out : stdout;
+        out = rnp.userio_out ? rnp.userio_out : stdout;
     }
 
     // TODO: Implement alternative for hiding password entry on Windows
@@ -440,7 +440,7 @@ start:
         snprintf(prompt, sizeof(prompt), "Enter password for %s to %s: ", target, pgp_context);
     }
 
-    if (!stdin_getpass(prompt, buf, buf_len, rnp)) {
+    if (!stdin_getpass(prompt, buf, buf_len, *rnp)) {
         goto done;
     }
     if (protect || encrypt_symmetric) {
@@ -450,7 +450,7 @@ start:
             snprintf(prompt, sizeof(prompt), "Repeat password: ");
         }
 
-        if (!stdin_getpass(prompt, buffer, buf_len, rnp)) {
+        if (!stdin_getpass(prompt, buffer, buf_len, *rnp)) {
             goto done;
         }
         if (strcmp(buf, buffer) != 0) {
