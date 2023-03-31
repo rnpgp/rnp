@@ -132,7 +132,7 @@ process_pgp_signatures(pgp_source_t &src, pgp_signature_list_t &sigs)
         if (armor.eof()) {
             break;
         }
-        int ptag = stream_pkt_type(&armor.src());
+        int ptag = stream_pkt_type(armor.src());
         if (ptag != PGP_PKT_SIGNATURE) {
             RNP_LOG("wrong signature tag: %d", ptag);
             sigs.clear();
