@@ -78,12 +78,19 @@ jobs:
           - { name: 'Win32',  triplet: 'x86-windows' }
         toolset: [ 'v142',  'ClangCL' ]
         backend: [ 'botan', 'openssl' ]
+        shared_libs: [ 'on', 'off']
         use_cmake_prefix_path: [ 'off' ]
         include:
           - arch:  { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
+            shared_libs:            'on'
+          - arch:  { name: 'x64', triplet: 'x64-windows' }
+            toolset:                'ClangCL'
+            backend:                'openssl'
+            use_cmake_prefix_path:  'on'
+            shared_libs:            'off'
 
     steps:
       - name: Checkout
@@ -131,7 +138,8 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}  \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
 
       - name: Configure using CMake prefix path
@@ -142,7 +150,8 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}  \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
           echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
 
