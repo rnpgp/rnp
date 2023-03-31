@@ -57,9 +57,9 @@ add_executable(rnp
   ../rnpkeys/tui.cpp
 )
 
-if(NOT WIN32 OR MSYS)
+if(BUILD_SHARED_LIBS)
   target_sources(rnp PRIVATE ../lib/logging.cpp $<TARGET_OBJECTS:rnp-common>)
-endif(NOT WIN32 OR MSYS)
+endif(BUILD_SHARED_LIBS)
 
 target_include_directories(rnp
   PRIVATE
