@@ -40,12 +40,12 @@
 #define PGP_MAX_OLD_LEN_INDETERMINATE_PKT_SIZE 0x40000000
 
 typedef struct pgp_packet_hdr_t {
-    pgp_pkt_type_t tag;
-    uint8_t        hdr[PGP_MAX_HEADER_SIZE];
-    size_t         hdr_len;
-    size_t         pkt_len;
-    bool           partial;
-    bool           indeterminate;
+    pgp_pkt_type_t tag;                      /* packet tag */
+    uint8_t        hdr[PGP_MAX_HEADER_SIZE]; /* PGP packet header, needed for AEAD */
+    size_t         hdr_len;                  /* length of the header */
+    size_t         pkt_len;       /* packet body length if non-partial and non-indeterminate */
+    bool           partial;       /* partial length packet */
+    bool           indeterminate; /* indeterminate length packet */
 } pgp_packet_hdr_t;
 
 /* structure for convenient writing or parsing of non-stream packets */
