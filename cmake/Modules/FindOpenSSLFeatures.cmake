@@ -71,22 +71,28 @@ target_include_directories(findopensslfeatures PRIVATE ${OPENSSL_INCLUDE_DIR})\n
 target_link_libraries(findopensslfeatures PRIVATE ${OPENSSL_CRYPTO_LIBRARY})\n"
 )
 
-set(MKF "-DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR}")
+set(MKF "-DCMAKE_CONFIGURATION_TYPES=Release" "-DCMAKE_BUILD_TYPE=Release")
+
+if(OPENSSL_ROOT_DIR)
+  set(MKF ${MKF} "-DOPENSSL_ROOT_DIR=${OPENSSL_ROOT_DIR}")
+endif(OPENSSL_ROOT_DIR)
 
 if(CMAKE_TOOLCHAIN_FILE)
   set(MKF ${MKF} "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE}")
 endif(CMAKE_TOOLCHAIN_FILE)
 
 if(CMAKE_GENERATOR_PLATFORM)
-  set(MKF ${MKF} "-A ${CMAKE_GENERATOR_PLATFORM}")
+  set(MKF ${MKF} "-A" "${CMAKE_GENERATOR_PLATFORM}")
 endif(CMAKE_GENERATOR_PLATFORM)
 
 if(CMAKE_GENERATOR_TOOLSET)
-  set(MKF ${MKF} "-T ${CMAKE_GENERATOR_TOOLSET}")
+  set(MKF ${MKF} "-T" "${CMAKE_GENERATOR_TOOLSET}")
 endif(CMAKE_GENERATOR_TOOLSET)
 
+message(STATUS "CMake parameters: ${MKF}")
+
 execute_process(
-  COMMAND "cmake" "-Bbuild" "-DCMAKE_BUILD_TYPE=Release"  ${MKF} "."
+  COMMAND "cmake" "-Bbuild" ${MKF} "."
   WORKING_DIRECTORY "${_fossl_work_dir}"
   OUTPUT_VARIABLE output
   ERROR_VARIABLE error
@@ -126,7 +132,7 @@ foreach(feature "hashes" "ciphers" "curves" "publickey")
   )
 
   if(NOT ${result} EQUAL 0)
-    message(FATAL_ERROR "Error getting supported OpenSSL ${feature}: \n${error}")
+    message(FATAL_ERROR "Error getting supported OpenSSL ${feature}: ${result}\n${error}")
   endif()
 
   string(TOUPPER ${feature} feature_up)
