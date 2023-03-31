@@ -1675,7 +1675,7 @@ init_packet_params(pgp_source_packet_param_t *param)
     param->origsrc = NULL;
 
     /* save packet header */
-    if (!stream_pkt_hdr_len(param->readsrc, &param->hdrlen)) {
+    if (!stream_pkt_hdr_len(*param->readsrc, param->hdrlen)) {
         return RNP_ERROR_BAD_FORMAT;
     }
     if (!src_peek_eq(param->readsrc, param->hdr, param->hdrlen)) {

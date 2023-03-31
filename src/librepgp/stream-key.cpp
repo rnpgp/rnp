@@ -207,7 +207,7 @@ transferable_key_merge(pgp_transferable_key_t &dst, const pgp_transferable_key_t
 }
 
 static bool
-skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
+skip_pgp_packets(pgp_source_t &src, const std::set<pgp_pkt_type_t> &pkts)
 {
     do {
         int pkt = stream_pkt_type(src);
@@ -220,8 +220,8 @@ skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
         if (pkts.find((pgp_pkt_type_t) pkt) == pkts.end()) {
             return true;
         }
-        uint64_t ppos = src->readb;
-        if (stream_skip_packet(src)) {
+        uint64_t ppos = src.readb;
+        if (stream_skip_packet(&src)) {
             RNP_LOG("failed to skip packet at %" PRIu64, ppos);
             return false;
         }
@@ -231,14 +231,14 @@ skip_pgp_packets(pgp_source_t *src, const std::set<pgp_pkt_type_t> &pkts)
 }
 
 static rnp_result_t
-process_pgp_key_signatures(pgp_source_t *src, pgp_signature_list_t &sigs, bool skiperrors)
+process_pgp_key_signatures(pgp_source_t &src, pgp_signature_list_t &sigs, bool skiperrors)
 {
     int ptag;
     while ((ptag = stream_pkt_type(src)) == PGP_PKT_SIGNATURE) {
-        uint64_t sigpos = src->readb;
+        uint64_t sigpos = src.readb;
         try {
             pgp_signature_t sig;
-            rnp_result_t    ret = sig.parse(*src);
+            rnp_result_t    ret = sig.parse(src);
             if (ret) {
                 RNP_LOG("failed to parse signature at %" PRIu64, sigpos);
                 if (!skiperrors) {
@@ -259,12 +259,12 @@ process_pgp_key_signatures(pgp_source_t *src, pgp_signature_list_t &sigs, bool s
 }
 
 static rnp_result_t
-process_pgp_userid(pgp_source_t *src, pgp_transferable_userid_t &uid, bool skiperrors)
+process_pgp_userid(pgp_source_t &src, pgp_transferable_userid_t &uid, bool skiperrors)
 {
     rnp_result_t ret;
-    uint64_t     uidpos = src->readb;
+    uint64_t     uidpos = src.readb;
     try {
-        ret = uid.uid.parse(*src);
+        ret = uid.uid.parse(src);
     } catch (const std::exception &e) {
         ret = RNP_ERROR_GENERIC;
     }
@@ -284,7 +284,7 @@ process_pgp_subkey(pgp_source_t &src, pgp_transferable_subkey_t &subkey, bool sk
     int ptag;
     subkey = pgp_transferable_subkey_t();
     uint64_t keypos = src.readb;
-    if (!is_subkey_pkt(ptag = stream_pkt_type(&src))) {
+    if (!is_subkey_pkt(ptag = stream_pkt_type(src))) {
         RNP_LOG("wrong subkey ptag: %d at %" PRIu64, ptag, keypos);
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -302,11 +302,11 @@ process_pgp_subkey(pgp_source_t &src, pgp_transferable_subkey_t &subkey, bool sk
         return ret;
     }
 
-    if (!skip_pgp_packets(&src, {PGP_PKT_TRUST})) {
+    if (!skip_pgp_packets(src, {PGP_PKT_TRUST})) {
         return RNP_ERROR_READ;
     }
 
-    return process_pgp_key_signatures(&src, subkey.signatures, skiperrors);
+    return process_pgp_key_signatures(src, subkey.signatures, skiperrors);
 }
 
 rnp_result_t
@@ -317,7 +317,7 @@ process_pgp_key_auto(pgp_source_t &          src,
 {
     key = {};
     uint64_t srcpos = src.readb;
-    int      ptag = stream_pkt_type(&src);
+    int      ptag = stream_pkt_type(src);
     if (is_subkey_pkt(ptag) && allowsub) {
         pgp_transferable_subkey_t subkey;
         rnp_result_t              ret = process_pgp_subkey(src, subkey, skiperrors);
@@ -351,7 +351,7 @@ process_pgp_key_auto(pgp_source_t &          src,
         }
     }
     if (skiperrors && (ret == RNP_ERROR_BAD_FORMAT) &&
-        !skip_pgp_packets(&src,
+        !skip_pgp_packets(src,
                           {PGP_PKT_TRUST,
                            PGP_PKT_SIGNATURE,
                            PGP_PKT_USER_ID,
@@ -425,7 +425,7 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
 
     /* main key packet */
     uint64_t keypos = armor.readb();
-    int      ptag = stream_pkt_type(&armor.src());
+    int      ptag = stream_pkt_type(armor.src());
     if ((ptag <= 0) || !is_primary_key_pkt(ptag)) {
         RNP_LOG("wrong key packet tag: %d at %" PRIu64, ptag, keypos);
         return RNP_ERROR_BAD_FORMAT;
@@ -438,25 +438,25 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
         return ret;
     }
 
-    if (!skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST})) {
+    if (!skip_pgp_packets(armor.src(), {PGP_PKT_TRUST})) {
         return RNP_ERROR_READ;
     }
 
     /* direct-key signatures */
-    if ((ret = process_pgp_key_signatures(&armor.src(), key.signatures, skiperrors))) {
+    if ((ret = process_pgp_key_signatures(armor.src(), key.signatures, skiperrors))) {
         return ret;
     }
 
     /* user ids/attrs with signatures */
-    while ((ptag = stream_pkt_type(&armor.src())) > 0) {
+    while ((ptag = stream_pkt_type(armor.src())) > 0) {
         if ((ptag != PGP_PKT_USER_ID) && (ptag != PGP_PKT_USER_ATTR)) {
             break;
         }
 
         pgp_transferable_userid_t uid;
-        ret = process_pgp_userid(&armor.src(), uid, skiperrors);
+        ret = process_pgp_userid(armor.src(), uid, skiperrors);
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
-            skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            skip_pgp_packets(armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
             /* skip malformed uid */
             continue;
         }
@@ -467,7 +467,7 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
     }
 
     /* subkeys with signatures */
-    while ((ptag = stream_pkt_type(&armor.src())) > 0) {
+    while ((ptag = stream_pkt_type(armor.src())) > 0) {
         if (!is_subkey_pkt(ptag)) {
             break;
         }
@@ -475,7 +475,7 @@ process_pgp_key(pgp_source_t &src, pgp_transferable_key_t &key, bool skiperrors)
         pgp_transferable_subkey_t subkey;
         ret = process_pgp_subkey(armor.src(), subkey, skiperrors);
         if ((ret == RNP_ERROR_BAD_FORMAT) && skiperrors &&
-            skip_pgp_packets(&armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
+            skip_pgp_packets(armor.src(), {PGP_PKT_TRUST, PGP_PKT_SIGNATURE})) {
             /* skip malformed subkey */
             continue;
         }
@@ -986,7 +986,7 @@ rnp_result_t
 pgp_userid_pkt_t::parse(pgp_source_t &src)
 {
     /* check the tag */
-    int stag = stream_pkt_type(&src);
+    int stag = stream_pkt_type(src);
     if ((stag != PGP_PKT_USER_ID) && (stag != PGP_PKT_USER_ATTR)) {
         RNP_LOG("wrong userid tag: %d", stag);
         return RNP_ERROR_BAD_FORMAT;
@@ -1205,7 +1205,7 @@ rnp_result_t
 pgp_key_pkt_t::parse(pgp_source_t &src)
 {
     /* check the key tag */
-    int atag = stream_pkt_type(&src);
+    int atag = stream_pkt_type(src);
     if (!is_key_pkt(atag)) {
         RNP_LOG("wrong key packet tag: %d", atag);
         return RNP_ERROR_BAD_FORMAT;
