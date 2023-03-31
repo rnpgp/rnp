@@ -102,10 +102,10 @@ ffi_sign()
     /* armor, file name, compression */
     rnp_op_sign_set_armor(sign, true);
     rnp_op_sign_set_file_name(sign, "message.txt");
-    rnp_op_sign_set_file_mtime(sign, time(NULL));
+    rnp_op_sign_set_file_mtime(sign, (uint32_t) time(NULL));
     rnp_op_sign_set_compression(sign, "ZIP", 6);
     /* signatures creation time - by default will be set to the current time as well */
-    rnp_op_sign_set_creation_time(sign, time(NULL));
+    rnp_op_sign_set_creation_time(sign, (uint32_t) time(NULL));
     /* signatures expiration time - by default will be 0, i.e. never expire */
     rnp_op_sign_set_expiration_time(sign, 365 * 24 * 60 * 60);
     /* set hash algorithm - should be compatible for all signatures */
