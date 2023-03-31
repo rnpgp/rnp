@@ -1126,7 +1126,7 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
     }
 
     /* decrypt the secret key if needed */
-    rnp::KeyLocker(*signer.key);
+    rnp::KeyLocker keylock(*signer.key);
     if (signer.key->encrypted() &&
         !signer.key->unlock(*param.password_provider, PGP_OP_SIGN)) {
         RNP_LOG("wrong secret key password");
