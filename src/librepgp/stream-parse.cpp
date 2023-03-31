@@ -33,6 +33,7 @@
 #include <vector>
 #include <time.h>
 #include <cinttypes>
+#include <cassert>
 #include <rnp/rnp_def.h>
 #include "stream-ctx.h"
 #include "stream-def.h"
@@ -75,13 +76,9 @@ typedef struct pgp_processing_ctx_t {
 
 /* common fields for encrypted, compressed and literal data */
 typedef struct pgp_source_packet_param_t {
-    pgp_source_t *readsrc;                  /* source to read from, could be partial*/
-    pgp_source_t *origsrc;                  /* original source passed to init_*_src */
-    bool          partial;                  /* partial length packet */
-    bool          indeterminate;            /* indeterminate length packet */
-    uint8_t       hdr[PGP_MAX_HEADER_SIZE]; /* PGP packet header, needed for AEAD */
-    size_t        hdrlen;                   /* length of the header */
-    size_t        len; /* packet body length if non-partial and non-indeterminate */
+    pgp_source_t *   readsrc; /* source to read from, could be partial*/
+    pgp_source_t *   origsrc; /* original source passed to init_*_src */
+    pgp_packet_hdr_t hdr;     /* packet header info */
 } pgp_source_packet_param_t;
 
 typedef struct pgp_source_encrypted_param_t {
@@ -253,25 +250,18 @@ partial_pkt_src_close(pgp_source_t *src)
 }
 
 static rnp_result_t
-init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc)
+init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t &hdr)
 {
     pgp_source_partial_param_t *param;
-    uint8_t                     buf[2];
-
-    if (!stream_partial_pkt_len(readsrc)) {
-        RNP_LOG("wrong call on non-partial len packet");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
     if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
-    /* we are sure that there are 2 bytes in readsrc */
+    assert(hdr.partial);
+    /* we are sure that header is indeterminate */
     param = (pgp_source_partial_param_t *) src->param;
-    (void) src_read_eq(readsrc, buf, 2);
-    param->type = get_packet_type(buf[0]);
-    param->psize = get_partial_pkt_len(buf[1]);
+    param->type = hdr.tag;
+    param->psize = get_partial_pkt_len(hdr.hdr[1]);
     param->pleft = param->psize;
     param->last = false;
     param->readsrc = readsrc;
@@ -304,7 +294,7 @@ literal_src_close(pgp_source_t *src)
 {
     pgp_source_literal_param_t *param = (pgp_source_literal_param_t *) src->param;
     if (param) {
-        if (param->pkt.partial) {
+        if (param->pkt.hdr.partial) {
             src_close(param->pkt.readsrc);
             free(param->pkt.readsrc);
             param->pkt.readsrc = NULL;
@@ -427,7 +417,7 @@ compressed_src_close(pgp_source_t *src)
         return;
     }
 
-    if (param->pkt.partial) {
+    if (param->pkt.hdr.partial) {
         src_close(param->pkt.readsrc);
         free(param->pkt.readsrc);
         param->pkt.readsrc = NULL;
@@ -744,7 +734,7 @@ encrypted_src_close(pgp_source_t *src)
     if (!param) {
         return;
     }
-    if (param->pkt.partial) {
+    if (param->pkt.hdr.partial) {
         src_close(param->pkt.readsrc);
         free(param->pkt.readsrc);
         param->pkt.readsrc = NULL;
@@ -1667,43 +1657,32 @@ encrypted_try_password(pgp_source_encrypted_param_t *param, const char *password
 
 /** @brief Initialize common to stream packets params, including partial data source */
 static rnp_result_t
-init_packet_params(pgp_source_packet_param_t *param)
+init_packet_params(pgp_source_packet_param_t &param)
 {
-    pgp_source_t *partsrc;
-    rnp_result_t  errcode;
-
-    param->origsrc = NULL;
+    param.origsrc = NULL;
 
     /* save packet header */
-    if (!stream_pkt_hdr_len(*param->readsrc, param->hdrlen)) {
-        return RNP_ERROR_BAD_FORMAT;
+    rnp_result_t ret = stream_peek_packet_hdr(param.readsrc, &param.hdr);
+    if (ret) {
+        return ret;
     }
-    if (!src_peek_eq(param->readsrc, param->hdr, param->hdrlen)) {
-        return RNP_ERROR_READ;
+    src_skip(param.readsrc, param.hdr.hdr_len);
+    if (!param.hdr.partial) {
+        return RNP_SUCCESS;
     }
 
     /* initialize partial reader if needed */
-    if (stream_partial_pkt_len(param->readsrc)) {
-        if ((partsrc = (pgp_source_t *) calloc(1, sizeof(*partsrc))) == NULL) {
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
-        errcode = init_partial_pkt_src(partsrc, param->readsrc);
-        if (errcode != RNP_SUCCESS) {
-            free(partsrc);
-            return errcode;
-        }
-        param->partial = true;
-        param->origsrc = param->readsrc;
-        param->readsrc = partsrc;
-    } else if (stream_old_indeterminate_pkt_len(param->readsrc)) {
-        param->indeterminate = true;
-        src_skip(param->readsrc, 1);
-    } else {
-        if (!stream_read_pkt_len(param->readsrc, &param->len)) {
-            RNP_LOG("cannot read pkt len");
-            return RNP_ERROR_BAD_FORMAT;
-        }
+    pgp_source_t *partsrc = (pgp_source_t *) calloc(1, sizeof(*partsrc));
+    if (!partsrc) {
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
+    rnp_result_t errcode = init_partial_pkt_src(partsrc, param.readsrc, param.hdr);
+    if (errcode) {
+        free(partsrc);
+        return errcode;
+    }
+    param.origsrc = param.readsrc;
+    param.readsrc = partsrc;
     return RNP_SUCCESS;
 }
 
@@ -1712,8 +1691,9 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     rnp_result_t                ret = RNP_ERROR_GENERIC;
     pgp_source_literal_param_t *param;
-    uint8_t                     bt;
-    uint8_t                     tstbuf[4];
+    uint8_t                     format = 0;
+    uint8_t                     nlen = 0;
+    uint8_t                     timestamp[4];
 
     if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1726,18 +1706,18 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_LITERAL;
 
     /* Reading packet length/checking whether it is partial */
-    if ((ret = init_packet_params(&param->pkt))) {
+    if ((ret = init_packet_params(param->pkt))) {
         goto finish;
     }
 
     /* data format */
-    if (!src_read_eq(param->pkt.readsrc, &bt, 1)) {
+    if (!src_read_eq(param->pkt.readsrc, &format, 1)) {
         RNP_LOG("failed to read data format");
         ret = RNP_ERROR_READ;
         goto finish;
     }
 
-    switch (bt) {
+    switch (format) {
     case 'b':
     case 't':
     case 'u':
@@ -1745,43 +1725,42 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
     case '1':
         break;
     default:
-        RNP_LOG("unknown data format %d", (int) bt);
+        RNP_LOG("unknown data format %" PRIu8, format);
         ret = RNP_ERROR_BAD_FORMAT;
         goto finish;
     }
-    param->hdr.format = bt;
+    param->hdr.format = format;
     /* file name */
-    if (!src_read_eq(param->pkt.readsrc, &bt, 1)) {
+    if (!src_read_eq(param->pkt.readsrc, &nlen, 1)) {
         RNP_LOG("failed to read file name length");
         ret = RNP_ERROR_READ;
         goto finish;
     }
-    if ((bt > 0) && !src_read_eq(param->pkt.readsrc, param->hdr.fname, bt)) {
+    if (nlen && !src_read_eq(param->pkt.readsrc, param->hdr.fname, nlen)) {
         RNP_LOG("failed to read file name");
         ret = RNP_ERROR_READ;
         goto finish;
     }
-    param->hdr.fname[bt] = 0;
-    param->hdr.fname_len = bt;
+    param->hdr.fname[nlen] = 0;
+    param->hdr.fname_len = nlen;
     /* timestamp */
-    if (!src_read_eq(param->pkt.readsrc, tstbuf, 4)) {
+    if (!src_read_eq(param->pkt.readsrc, timestamp, 4)) {
         RNP_LOG("failed to read file timestamp");
         ret = RNP_ERROR_READ;
         goto finish;
     }
-    param->hdr.timestamp = read_uint32(tstbuf);
+    param->hdr.timestamp = read_uint32(timestamp);
 
-    if (!param->pkt.indeterminate && !param->pkt.partial) {
+    if (!param->pkt.hdr.indeterminate && !param->pkt.hdr.partial) {
         /* format filename-length filename timestamp */
-        const uint16_t nbytes = 1 + 1 + bt + 4;
-        if (param->pkt.len < nbytes) {
+        const uint16_t nbytes = 1 + 1 + nlen + 4;
+        if (param->pkt.hdr.pkt_len < nbytes) {
             ret = RNP_ERROR_BAD_FORMAT;
             goto finish;
         }
-        src->size = param->pkt.len - nbytes;
+        src->size = param->pkt.hdr.pkt_len - nbytes;
         src->knownsize = 1;
     }
-
     ret = RNP_SUCCESS;
 finish:
     if (ret != RNP_SUCCESS) {
@@ -1824,7 +1803,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     src->type = PGP_STREAM_COMPRESSED;
 
     /* Reading packet length/checking whether it is partial */
-    errcode = init_packet_params(&param->pkt);
+    errcode = init_packet_params(param->pkt);
     if (errcode != RNP_SUCCESS) {
         goto finish;
     }
@@ -1987,7 +1966,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     }
 
     /* Reading packet length/checking whether it is partial */
-    rnp_result_t errcode = init_packet_params(&param->pkt);
+    rnp_result_t errcode = init_packet_params(param->pkt);
     if (errcode) {
         return errcode;
     }
@@ -2025,7 +2004,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 
         /* build additional data */
         param->aead_adlen = 13;
-        param->aead_ad[0] = param->pkt.hdr[0];
+        param->aead_ad[0] = param->pkt.hdr.hdr[0];
         memcpy(param->aead_ad + 1, hdr, 4);
         memset(param->aead_ad + 5, 0, 8);
     } else if (ptype == PGP_PKT_SE_IP_DATA) {
