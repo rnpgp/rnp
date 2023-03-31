@@ -2212,7 +2212,9 @@ RNP_API rnp_result_t rnp_op_sign_set_hash(rnp_op_sign_t op, const char *hash);
 /** @brief Set signature creation time. By default current time is used.
  *  @param op opaque signing context. Must be successfully initialized with one of the
  *         rnp_op_sign_*_create functions.
- *  @param create creation time in seconds since Jan, 1 1970 UTC
+ *  @param create creation time in seconds since Jan, 1 1970 UTC. 32 bit unsigned integer
+ *                datatype is used here instead of 64 bit (like modern timestamps do) because
+ *                in OpenPGP messages times are stored as 32-bit unsigned integers.
  *  @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_sign_set_creation_time(rnp_op_sign_t op, uint32_t create);
@@ -2237,7 +2239,9 @@ RNP_API rnp_result_t rnp_op_sign_set_file_name(rnp_op_sign_t op, const char *fil
 
 /** @brief Set input's file modification date. Makes sense only for embedded signature.
  *  @param op opaque signing context. Must be initialized with rnp_op_sign_create function
- *  @param mtime modification time in seconds since Jan, 1 1970 UTC.
+ *  @param mtime modification time in seconds since Jan, 1 1970 UTC. 32 bit unsigned integer
+ *               datatype is used here instead of 64 bit (like modern timestamps do) because
+ *               in OpenPGP messages times are stored as 32-bit unsigned integers.
  *  @return RNP_SUCCESS or error code if failed
  */
 RNP_API rnp_result_t rnp_op_sign_set_file_mtime(rnp_op_sign_t op, uint32_t mtime);
@@ -2946,7 +2950,9 @@ RNP_API rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const cha
  * @brief set the internally stored file modification date for the data being encrypted
  *
  * @param op opaque encrypted context. Must be allocated and initialized
- * @param mtime time in seconds since Jan, 1 1970.
+ * @param mtime time in seconds since Jan, 1 1970. 32 bit unsigned integer datatype is used
+ *              here instead of 64 bit (like modern timestamps do) because in OpenPGP messages
+ *              times are stored as 32-bit unsigned integers.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_file_mtime(rnp_op_encrypt_t op, uint32_t mtime);
