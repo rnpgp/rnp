@@ -26,6 +26,7 @@ name: windows-native
 on:
   push:
     branches:
+      - maxirmx-2020-2
       - master
       - 'release/**'
     paths-ignore:
@@ -66,7 +67,7 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }} ]
+    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -77,6 +78,12 @@ jobs:
           - { name: 'Win32',  triplet: 'x86-windows' }
         toolset: [ 'v142',  'ClangCL' ]
         backend: [ 'botan', 'openssl' ]
+        use_cmake_prefix_path: [ 'off' ]
+        include:
+          - arch:  { name: 'x64', triplet: 'x64-windows' }
+            toolset:                'ClangCL'
+            backend:                'openssl'
+            use_cmake_prefix_path:  'on'
 
     steps:
       - name: Checkout
@@ -116,7 +123,8 @@ jobs:
         shell: bash
         run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
 
-      - name: Configure
+      - name: Configure using vpkg toolchain file
+        if: matrix.use_cmake_prefix_path != 'on'
         shell: bash
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
@@ -125,6 +133,18 @@ jobs:
                            -T ${{ matrix.toolset }}    \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}  \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
+
+      - name: Configure using CMake prefix path
+        if: matrix.use_cmake_prefix_path == 'on'
+        shell: bash
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -G "Visual Studio 16 2019"  \
+                           -A ${{ matrix.arch.name }}  \
+                           -T ${{ matrix.toolset }}    \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}  \
+                           -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
+          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
 
       - name: Compile
         shell: bash
