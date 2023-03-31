@@ -1919,9 +1919,10 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
     int ptype;
     /* Reading pk/sk encrypted session key(s) */
     try {
-        bool stop = false;
+        size_t errors = 0;
+        bool   stop = false;
         while (!stop) {
-            if (param->pubencs.size() + param->symencs.size() > MAX_RECIPIENTS) {
+            if (param->pubencs.size() + param->symencs.size() + errors > MAX_RECIPIENTS) {
                 RNP_LOG("Too many recipients of the encrypted message. Aborting.");
                 return RNP_ERROR_BAD_STATE;
             }
@@ -1935,8 +1936,13 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             case PGP_PKT_SK_SESSION_KEY: {
                 pgp_sk_sesskey_t skey;
                 rnp_result_t     ret = skey.parse(*param->pkt.readsrc);
+                if (ret == RNP_ERROR_READ) {
+                    RNP_LOG("SKESK: Premature end of data.");
+                    return ret;
+                }
                 if (ret) {
                     RNP_LOG("Failed to parse SKESK, skipping.");
+                    errors++;
                     continue;
                 }
                 param->symencs.push_back(skey);
@@ -1945,8 +1951,13 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             case PGP_PKT_PK_SESSION_KEY: {
                 pgp_pk_sesskey_t pkey;
                 rnp_result_t     ret = pkey.parse(*param->pkt.readsrc);
+                if (ret == RNP_ERROR_READ) {
+                    RNP_LOG("PKESK: Premature end of data.");
+                    return ret;
+                }
                 if (ret) {
                     RNP_LOG("Failed to parse PKESK, skipping.");
+                    errors++;
                     continue;
                 }
                 param->pubencs.push_back(pkey);
