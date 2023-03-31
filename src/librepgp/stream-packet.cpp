@@ -95,56 +95,56 @@ get_packet_type(uint8_t ptag)
 }
 
 int
-stream_pkt_type(pgp_source_t *src)
+stream_pkt_type(pgp_source_t &src)
 {
-    if (src_eof(src)) {
+    if (src_eof(&src)) {
         return 0;
     }
     size_t hdrneed = 0;
-    if (!stream_pkt_hdr_len(src, &hdrneed)) {
+    if (!stream_pkt_hdr_len(src, hdrneed)) {
         return -1;
     }
     uint8_t hdr[PGP_MAX_HEADER_SIZE];
-    if (!src_peek_eq(src, hdr, hdrneed)) {
+    if (!src_peek_eq(&src, hdr, hdrneed)) {
         return -1;
     }
     return get_packet_type(hdr[0]);
 }
 
 bool
-stream_pkt_hdr_len(pgp_source_t *src, size_t *hdrlen)
+stream_pkt_hdr_len(pgp_source_t &src, size_t &hdrlen)
 {
     uint8_t buf[2];
 
-    if (!src_peek_eq(src, buf, 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
+    if (!src_peek_eq(&src, buf, 2) || !(buf[0] & PGP_PTAG_ALWAYS_SET)) {
         return false;
     }
 
     if (buf[0] & PGP_PTAG_NEW_FORMAT) {
         if (buf[1] < 192) {
-            *hdrlen = 2;
+            hdrlen = 2;
         } else if (buf[1] < 224) {
-            *hdrlen = 3;
+            hdrlen = 3;
         } else if (buf[1] < 255) {
-            *hdrlen = 2;
+            hdrlen = 2;
         } else {
-            *hdrlen = 6;
+            hdrlen = 6;
         }
         return true;
     }
 
     switch (buf[0] & PGP_PTAG_OF_LENGTH_TYPE_MASK) {
     case PGP_PTAG_OLD_LEN_1:
-        *hdrlen = 2;
+        hdrlen = 2;
         return true;
     case PGP_PTAG_OLD_LEN_2:
-        *hdrlen = 3;
+        hdrlen = 3;
         return true;
     case PGP_PTAG_OLD_LEN_4:
-        *hdrlen = 5;
+        hdrlen = 5;
         return true;
     case PGP_PTAG_OLD_LEN_INDETERMINATE:
-        *hdrlen = 1;
+        hdrlen = 1;
         return true;
     default:
         return false;
@@ -195,7 +195,7 @@ stream_read_pkt_len(pgp_source_t *src, size_t *pktlen)
     uint8_t buf[6] = {};
     size_t  read = 0;
 
-    if (!stream_pkt_hdr_len(src, &read)) {
+    if (!stream_pkt_hdr_len(*src, read)) {
         return false;
     }
 
@@ -284,7 +284,7 @@ stream_peek_packet_hdr(pgp_source_t *src, pgp_packet_hdr_t *hdr)
 {
     size_t hlen = 0;
     memset(hdr, 0, sizeof(*hdr));
-    if (!stream_pkt_hdr_len(src, &hlen)) {
+    if (!stream_pkt_hdr_len(*src, hlen)) {
         uint8_t hdr2[2] = {0};
         if (!src_peek_eq(src, hdr2, 2)) {
             RNP_LOG("pkt header read failed");
@@ -834,7 +834,7 @@ pgp_packet_body_t::read(pgp_source_t &src) noexcept
 
     /* Read the packet header and length */
     size_t len = 0;
-    if (!stream_pkt_hdr_len(&src, &len)) {
+    if (!stream_pkt_hdr_len(src, len)) {
         return RNP_ERROR_BAD_FORMAT;
     }
     if (!src_peek_eq(&src, hdr_, len)) {

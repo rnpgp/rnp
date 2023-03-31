@@ -248,7 +248,7 @@ int get_packet_type(uint8_t ptag);
  *  @param src source to peek from
  *  @return packet tag or -1 if read failed or packet header is malformed
  */
-int stream_pkt_type(pgp_source_t *src);
+int stream_pkt_type(pgp_source_t &src);
 
 /** @brief Peek length of the packet header. Returns false on error.
  *  @param src source to read length from
@@ -256,7 +256,7 @@ int stream_pkt_type(pgp_source_t *src);
  *  @return true on success or false if there is a read error or packet length
  *          is ill-formed
  **/
-bool stream_pkt_hdr_len(pgp_source_t *src, size_t *hdrlen);
+bool stream_pkt_hdr_len(pgp_source_t &src, size_t &hdrlen);
 
 bool stream_old_indeterminate_pkt_len(pgp_source_t *src);
 
