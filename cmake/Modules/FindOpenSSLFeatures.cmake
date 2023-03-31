@@ -89,8 +89,6 @@ if(CMAKE_GENERATOR_TOOLSET)
   set(MKF ${MKF} "-T" "${CMAKE_GENERATOR_TOOLSET}")
 endif(CMAKE_GENERATOR_TOOLSET)
 
-message(STATUS "CMake parameters: ${MKF}")
-
 execute_process(
   COMMAND "cmake" "-Bbuild" ${MKF} "."
   WORKING_DIRECTORY "${_fossl_work_dir}"
