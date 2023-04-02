@@ -66,7 +66,7 @@ jobs:
         run: |
           pwd
           mkdir rnp-build; pushd rnp-build
-          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off -DDOWNLOAD_RUBYRNP=Off
+          cmake $GITHUB_WORKSPACE -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_PREFIX_PATH="${BOTAN_INSTALL}" -DDOWNLOAD_GTEST=Off
           make -j2
 
       - name: Perform CodeQL Analysis
