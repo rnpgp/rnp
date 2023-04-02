@@ -163,40 +163,6 @@ jobs:
           [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
           [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
-  cmake-disable-rubyrnp:
-    env:
-      DOWNLOAD_RUBYRNP: Off
-      RNP_TESTS: rnp_tests.hash_test_success
-    runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          submodules: true
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: tests
-        run: |
-          set -x
-          ci/run.sh
-          ls -la "${RNP_INSTALL}/lib/"librnp*.so
-          ! ctest -N | grep 'ruby' > /dev/null
-          ! ls -la src/tests/ | grep 'ruby' > /dev/null
   version-cmake-up-to-date:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"

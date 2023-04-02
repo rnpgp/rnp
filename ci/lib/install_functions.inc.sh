@@ -330,7 +330,7 @@ install_static_cacheable_build_dependencies() {
 install_static_noncacheable_build_dependencies() {
   mkdir -p "$LOCAL_BUILDS"
 
-  local default=(bundler asciidoctor)
+  local default=(asciidoctor)
   local items=("${@:-${default[@]}}")
   for item in "${items[@]}"; do
     install_"$item"
@@ -338,7 +338,6 @@ install_static_noncacheable_build_dependencies() {
 }
 
 rubygem_install_build_dependencies() {
-  install_bundler
   install_asciidoctor
 }
 
@@ -611,7 +610,6 @@ declare ruby_build_dependencies_ubuntu=(
   curl
   libbz2-dev
   libssl-dev
-  ruby-bundler
   rubygems
   zlib1g-dev
 )
@@ -621,7 +619,6 @@ declare ruby_build_dependencies_deb=(
   curl
   libbz2-dev
   libssl-dev
-  ruby-bundler
   rubygems
   zlib1g-dev
 )
@@ -712,11 +709,6 @@ run_in_python_venv() {
     set -u
     "$@"
   )
-}
-
-# ruby-rnp
-install_bundler() {
-  gem_install bundler bundle
 }
 
 install_asciidoctor() {

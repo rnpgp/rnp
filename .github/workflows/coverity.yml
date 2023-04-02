@@ -11,7 +11,6 @@ env:
   GPG_VERSION: stable
   RNP_TESTS: ''
   USE_STATIC_DEPENDENCIES: yes
-  DOWNLOAD_RUBYRNP: Off
 
 jobs:
   scan:
