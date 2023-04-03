@@ -1,4 +1,4 @@
-# Copyright (c) 2023 Ribose Inc.
+ # Copyright (c) 2023 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -24,6 +24,7 @@
 
 name: windows-native
 on:
+  workflow_dispatch:
   push:
     branches:
       - maxirmx-2020-2
