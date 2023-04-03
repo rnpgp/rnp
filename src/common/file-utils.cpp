@@ -318,7 +318,10 @@ bool
 empty(const std::string &path)
 {
     auto dir = rnp_opendir(path.c_str());
-    bool empty = !dir || rnp_readdir_name(dir).empty();
+    if (!dir) {
+        return true;
+    }
+    bool empty = rnp_readdir_name(dir).empty();
     rnp_closedir(dir);
     return empty;
 }
