@@ -1222,10 +1222,10 @@ stream_dump_marker(pgp_source_t &src, pgp_dest_t &dst)
 {
     dst_printf(&dst, "Marker packet\n");
     indent_dest_increase(&dst);
-    dst_printf(
-      &dst, "contents: %s\n", stream_parse_marker(src) ? "invalid" : PGP_MARKER_CONTENTS);
+    rnp_result_t ret = stream_parse_marker(src);
+    dst_printf(&dst, "contents: %s\n", ret ? "invalid" : PGP_MARKER_CONTENTS);
     indent_dest_decrease(&dst);
-    return RNP_SUCCESS;
+    return ret;
 }
 
 static rnp_result_t
@@ -2241,7 +2241,7 @@ stream_dump_marker_json(pgp_source_t &src, json_object *pkt)
           pkt, "contents", json_object_new_string(ret ? "invalid" : PGP_MARKER_CONTENTS))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    return RNP_SUCCESS;
+    return ret;
 }
 
 static rnp_result_t stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx,
