@@ -28,25 +28,21 @@ on:
     branches:
       - master
       - 'release/**'
-      - maxirmx-binding-tests
+  workflow_dispatch:
 
 jobs:
-  dispatch-ruby-rnp:
-    name: Dispatch php-rnp repository
+  dispatch:
+    name: Dispatch dependent repositories
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: [ 'ruby-rnp', 'php-rnp', 'py-rnp' ]
     runs-on: ubuntu-latest
     steps:
-      - name: Dispatch php-rnp
+      - name: Dispatch dependent repositories
         uses: peter-evans/repository-dispatch@v2
         with:
-          token:  "${{ secrets.RNP_CI_PAT_TOKEN }}"
-          repository: 'rnpgp/php-rnp'
-          event-type: run-php-rnp
-          client-payload: '{ "version": "${{ github.ref_name }}" }'
-
-      - name: Dispatch ruby-rnp
-        uses: peter-evans/repository-dispatch@v2
-        with:
-          token:  "${{ secrets.RNP_CI_PAT_TOKEN }}"
-          repository: 'rnpgp/ruby-rnp'
-          event-type: run-ruby-rnp
-          client-payload: '{ "version": "${{ github.ref_name }}" }'
+          token: ${{ secrets.RNP_CI_PAT_TOKEN }}
+          repository: rnpgp/${{ matrix.repo }}
+          event-type: 'rnp update'
+          client-payload: '{ "tag": "${{ github.ref_name }}" }'
