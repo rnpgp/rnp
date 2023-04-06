@@ -16,7 +16,6 @@ stdenv.mkDerivation rec {
     "-DBUILD_SHARED_LIBS=on"
     "-DBUILD_TESTING=on"
     "-DDOWNLOAD_GTEST=off"
-    "-DDOWNLOAD_RUBYRNP=off"
   ];
 
   nativeBuildInputs = with pkgs; [ asciidoctor cmake gnupg gtest pkg-config python3 ];

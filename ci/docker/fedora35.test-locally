@@ -7,7 +7,7 @@ cat > run-this <<EOF
 set -e
 set -x
 
-export USE_STATIC_DEPENDENCIES=no DOWNLOAD_RUBYRNP=Off
+export USE_STATIC_DEPENDENCIES=no
 
 export BUILD_MODE=normal CC=gcc CXX=g++ CRYPTO_BACKEND=openssl
 #export BUILD_MODE=sanitize CC=clang CXX=clang++ CRYPTO_BACKEND=botan
