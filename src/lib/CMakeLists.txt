@@ -344,6 +344,10 @@ else()
 endif()
 
 add_library(librnp $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+if (OpenSSL::applink)
+  target_link_libraries(librnp PRIVATE OpenSSL::applink)
+endif(OpenSSL::applink)
+
 set_target_properties(librnp
   PROPERTIES
     VERSION "${RNP_VERSION}"
@@ -354,6 +358,9 @@ set_target_properties(librnp
 
 if (BUILD_SHARED_LIBS)
   add_library(librnp-static STATIC $<TARGET_OBJECTS:librnp-obj> $<TARGET_OBJECTS:rnp-common>)
+  if (OpenSSL::applink)
+    target_link_libraries(librnp-static PRIVATE OpenSSL::applink)
+  endif(OpenSSL::applink)
   if (NOT WIN32)
 # On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
 # On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
