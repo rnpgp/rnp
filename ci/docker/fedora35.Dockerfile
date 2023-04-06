@@ -29,7 +29,6 @@ openssl-libs \
 python3 \
 ruby-devel \
 rubygem-asciidoctor \
-rubygem-bundler \
 sudo \
 wget \
 zlib-devel \
