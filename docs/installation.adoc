@@ -192,7 +192,7 @@ cmake -DBUILD_SHARED_LIBS=yes -G "MSYS Makefiles" -DBUILD_TESTING=off ../rnp
 make && make install
 ----
 
-=== Using Microsoft Visual Studio 2019
+=== Using Microsoft Visual Studio 2019 and vcpkg
 
 Install `vcpkg` according to
 https://docs.microsoft.com/en-us/cpp/build/install-vcpkg?view=msvc-160&tabs=windows[these instructions]:
@@ -218,20 +218,45 @@ If you need to target 32-bit platform you'll need to to replace `x64-windows` wi
 --
 [source,console]
 ----
-cmake -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
+cmake -B build -G "Visual Studio 16 2019" -A x64 -DCMAKE_TOOLCHAIN_FILE=%VCPKG_ROOT%\scripts\buildsystems\vcpkg.cmake \
+      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
 cmake --build . --config Release
 cmake --install .
 ----
 --
 Replace CRYPTO_BACKEND parameter to "openssl" if you target this backend.
 
-When running `rnp.exe` and `rnpkeys.exe`, please ensure that the following
-dependencies are available on path (or inside the same folder as the
-executables):
+Ensure that the following dependencies are available on path:
 
 * `librnp.dll`
-* `botan.dll` or `libcrypto-3-x64.dll` or `libcrypto-3-x86.dll` depending on target backend and architecture
+* `botan.dll` or `libcrypto.dll` depending on target backend and architecture
 * `bz2.dll`
 * `getopt.dll`
 * `json-c.dll`
 * `zlib1.dll`
+
+=== Using Microsoft Visual Studio 2019 and pre-installed libraries
+
+Install dependencies and make them available either on PATH or using CMAKE_TARGET_PREFIX parameter:
+
+* Botan(2.14+) or Crypto (OpenSSL 1.1.1+) depending on target backend
+* BZip2
+* GetOpt
+* JSON-C (0.12.1+)
+* ZLIB
+
+If openssl backend is used note that your environment may have another ("default") openssl installation.
+In such case use OPENSSL_ROOT_DIR.
+
+* The following steps will perform a console build for CMake using Visual Studio 2019 CMake generator: +
++
+--
+[source,console]
+----
+cmake -B build -G "Visual Studio 16 2019" -A x64 -DOPENSSL_ROOT_DIR=<openssl root> -DCMAKE_TARGET_PREFIX=<target prefix> \
+      -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=off -DCRYPTO_BACKEND="botan" .
+cmake --build . --config Release
+cmake --install .
+----
+--
+Replace CRYPTO_BACKEND parameter to "openssl" if you target this backend, use OPENSSL_ROOT_DIR and CMAKE_TARGET_PREFIX optionally as explained above

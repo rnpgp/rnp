@@ -29,7 +29,8 @@
 # 3.12+ for NAMELINK_COMPONENT (for better RPM packaging)
 # 3.12+ for Python3 find module
 # 3.14+ for object library link dependency propagation
-cmake_minimum_required(VERSION 3.14)
+# 3.18+ for OpenSSL::applink
+cmake_minimum_required(VERSION 3.18)
 
 # contact email, other info
 include(cmake/info.cmake)
