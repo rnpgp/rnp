@@ -72,9 +72,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        arch:
-          - { name: 'x64',    triplet: 'x64-windows' }
-          - { name: 'Win32',  triplet: 'x86-windows' }
+        arch: [ { name: 'x64',    triplet: 'x64-windows' } ]
         toolset: [ 'v142',  'ClangCL' ]
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'on', 'off']
@@ -89,6 +87,16 @@ jobs:
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
+            shared_libs:            'off'
+          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
+            toolset:                'ClangCL'
+            backend:                'botan'
+            use_cmake_prefix_path:  'off'
+            shared_libs:            'on'
+          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
+            toolset:                'v142'
+            backend:                'openssl'
+            use_cmake_prefix_path:  'off'
             shared_libs:            'off'
 
     steps:
