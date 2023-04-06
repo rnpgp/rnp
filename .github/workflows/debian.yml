@@ -39,7 +39,6 @@ env:
   LC_ALL: C.UTF-8
   LC_LANG: C.UTF-8
   CMAKE_VER: '3.20.6-2'
-  DOWNLOAD_RUBYRNP: Off
   BUILD_MODE: normal
   GPG_VERSION: stable
   SUDO: ""
