@@ -68,7 +68,7 @@ project(findopensslfeatures LANGUAGES C)\n\
 set(CMAKE_C_STANDARD 99)\n\
 add_executable(findopensslfeatures findopensslfeatures.c)\n\
 target_include_directories(findopensslfeatures PRIVATE ${OPENSSL_INCLUDE_DIR})\n
-target_link_libraries(findopensslfeatures PRIVATE ${OPENSSL_CRYPTO_LIBRARY})\n"
+target_link_options(findopensslfeatures PRIVATE ${OPENSSL_CRYPTO_LIBRARY})\n"
 )
 
 set(MKF "-DCMAKE_CONFIGURATION_TYPES=Release" "-DCMAKE_BUILD_TYPE=Release")
@@ -90,27 +90,33 @@ if(CMAKE_GENERATOR_TOOLSET)
 endif(CMAKE_GENERATOR_TOOLSET)
 
 execute_process(
-  COMMAND "cmake" "-Bbuild" ${MKF} "."
+  COMMAND "${CMAKE_COMMAND}" "-Bbuild" ${MKF} "."
   WORKING_DIRECTORY "${_fossl_work_dir}"
   OUTPUT_VARIABLE output
   ERROR_VARIABLE error
   RESULT_VARIABLE result
+  COMMAND_ECHO STDOUT
+  ECHO_OUTPUT_VARIABLE
+  ECHO_ERROR_VARIABLE
 )
 
 if (NOT ${result} EQUAL 0)
-  message(FATAL_ERROR "Error configuring findopensslfeatures: ${result}\n${error}")
+  message(FATAL_ERROR "Error configuring findopensslfeatures")
 endif()
 
 execute_process(
-  COMMAND "cmake" "--build" "build" "--config" "Release"
+  COMMAND "${CMAKE_COMMAND}" "--build" "build" "--config" "Release"
   WORKING_DIRECTORY "${_fossl_work_dir}"
   OUTPUT_VARIABLE output
   ERROR_VARIABLE error
   RESULT_VARIABLE result
+  COMMAND_ECHO STDOUT
+  ECHO_OUTPUT_VARIABLE
+  ECHO_ERROR_VARIABLE
 )
 
 if (NOT ${result} EQUAL 0)
-  message(FATAL_ERROR "Error building findopensslfeatures: ${result}\n${error}")
+  message(FATAL_ERROR "Error building findopensslfeatures")
 endif()
 
 set(OPENSSL_SUPPORTED_FEATURES "")
