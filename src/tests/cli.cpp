@@ -56,6 +56,10 @@ call_rnp(const char *cmd, ...)
     char ** argv = (char **) calloc(32, sizeof(char *));
     va_list args;
 
+    if (!argv) {
+        return -1;
+    }
+
     va_start(args, cmd);
     while (cmd) {
         argv[argc++] = (char *) cmd;
