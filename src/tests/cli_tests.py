@@ -1423,6 +1423,52 @@ class Keystore(unittest.TestCase):
         os.remove(OUT_ALICE_REV)
         clear_keyrings()
 
+    def test_import_keys(self):
+        clear_keyrings()
+        # try to import non-existing file
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('thiskeyfiledoesnotexist')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*Failed to create input for .*thiskeyfiledoesnotexist.*')
+        # try malformed file
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sigs-malf.pgp')])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*failed to import key\(s\) from .*test_key_validity/alice-sigs-malf.pgp, stopping\..*')
+        self.assertRegex(err, r'(?s)^.*Import finished: 0 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
+        # try --import
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 2 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_stream_key_merge/key-both.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 3 new public keys, 3 new secret keys, 0 updated, 0 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_stream_key_merge/key-both.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 6 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 1 new public keys, 0 new secret keys, 1 updated, 0 unchanged\..*')
+        clear_keyrings()
+        # try --import-key
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 2 new public keys, 0 new secret keys, 0 updated, 0 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path(KEY_ALICE_SUB_PUB)])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 2 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_stream_key_merge/key-both.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 3 new public keys, 3 new secret keys, 0 updated, 0 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_stream_key_merge/key-both.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 6 keys processed, 0 new public keys, 0 new secret keys, 0 updated, 6 unchanged\..*')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-key', data_path('test_key_validity/alice-sign-sub-exp-pub.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Import finished: 2 keys processed, 1 new public keys, 0 new secret keys, 1 updated, 0 unchanged\..*')
+        clear_keyrings()
+
     def test_export_keys(self):
         PUB_KEY = r'(?s)^.*' \
         r'-----BEGIN PGP PUBLIC KEY BLOCK-----.*' \
@@ -2351,7 +2397,7 @@ class Misc(unittest.TestCase):
         clear_keyrings()
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-25519-pub-4.b64')])
         self.assertEqual(ret, 1)
-        self.assertRegex(err, r'(?s)^.*wrong base64 padding: ==zz.*Failed to init/check dearmor.*failed to import key\(s\) from .*, stopping.$')
+        self.assertRegex(err, r'(?s)^.*wrong base64 padding: ==zz.*Failed to init/check dearmor.*failed to import key\(s\) from .*, stopping.*')
         # Binary data size is multiple of 3, single base64 line
         clear_keyrings()
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_key_load/ecc-p256k1-pub.b64')])
@@ -2370,7 +2416,7 @@ class Misc(unittest.TestCase):
         # Extra data after the base64-encoded data
         ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--import-keys', data_path('test_stream_armor/b64_trailer_extra_data.b64')])
         self.assertEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*warning: extra data after the base64 stream.*Failed to init/check dearmor.*warning: not all data was processed.*$')
+        self.assertRegex(err, r'(?s)^.*warning: extra data after the base64 stream.*Failed to init/check dearmor.*warning: not all data was processed.*')
         self.assertRegex(out, R_25519)
 
     def test_rnp_list_packets(self):
