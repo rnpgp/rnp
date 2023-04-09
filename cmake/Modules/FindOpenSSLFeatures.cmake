@@ -53,8 +53,7 @@ if (NOT OPENSSL_FOUND)
   message(FATAL_ERROR "OpenSSL is not found. Please make sure that you call find_package(OpenSSL) first.")
 endif()
 
-message(STATUS "Quering OpenSSL features")
-
+message(STATUS "Querying OpenSSL features")
 
 # Copy and build findopensslfeatures.c in fossl-build subfolder.
 set(_fossl_work_dir "${CMAKE_BINARY_DIR}/fossl")
