@@ -465,8 +465,22 @@ RNP_API rnp_result_t rnp_supports_feature(const char *type, const char *name, bo
 /** Get the JSON with array of supported rnp feature values (algorithms, curves, etc) by type.
  *
  * @param type type of the feature. See RNP_FEATURE_* defines for the supported values.
- * @param result after successful execution will contain the JSON with supported feature
- *        values. You must destroy it using the rnp_buffer_destroy() function.
+ * @param result after successful execution will contain the JSON array with supported feature
+ *        string values. You must destroy it using the rnp_buffer_destroy() function.\n
+ *        Example JSON array output listing available hash algorithms:\n
+ *
+ *            [
+ *              "MD5",
+ *              "SHA1",
+ *              "RIPEMD160",
+ *              "SHA256",
+ *              "SHA384",
+ *              "SHA512",
+ *              "SHA224",
+ *              "SHA3-256",
+ *              "SHA3-512"
+ *            ]
+ *
  * @return RNP_SUCCESS on success or any other value on error.
  */
 RNP_API rnp_result_t rnp_supported_features(const char *type, char **result);
@@ -649,8 +663,28 @@ RNP_API rnp_result_t rnp_unload_keys(rnp_ffi_t ffi, uint32_t flags);
  *              RNP_LOAD_SAVE_BASE64 should set to allow import of base64-encoded keys (i.e.
  *              autocrypt ones). By default only binary and OpenPGP-armored keys are allowed.
  * @param results if not NULL then after the successful execution will contain JSON with
- *                information about new and updated keys. You must free it using the
- *                rnp_buffer_destroy() function.
+ *              information about new and updated keys. You must free it using the
+ *              rnp_buffer_destroy() function.
+ *              JSON output is an object containing array of objects named "keys".
+ *              Each array item is an object representing an imported key.
+ *              It contains the following members:\n
+ * JSON member  | Description
+ * -------------|------------
+ * "public"     | string, status of a public key, one of "new", "updated", "unchanged", "none"
+ * "secret"     | string, status of a secret key, same possible values as for public
+ * "fingerprint"| string, hexadecimal fingerprint of the key
+ *              Example of JSON output:\n
+ *
+ *                  {
+ *                      "keys":[
+ *                       {
+ *                          "public":"unchanged",
+ *                          "secret":"new",
+ *                          "fingerprint":"090bd712a1166be572252c3c9747d2a6b3a63124"
+ *                       }
+ *                      ]
+ *                  }
+ *
  * @return RNP_SUCCESS on success
  *         RNP_ERROR_EOF if last key was read (if RNP_LOAD_SAVE_SINGLE was used)
  *         any other value on error.
@@ -660,14 +694,43 @@ RNP_API rnp_result_t rnp_import_keys(rnp_ffi_t   ffi,
                                      uint32_t    flags,
                                      char **     results);
 
-/** import standalone signatures to the keyring and receive JSON list of the updated keys.
+/** import standalone signatures to the keyring and receive JSON list of the updated
+ * signatures.
  *
  *  @param ffi
  *  @param input source to read from. Cannot be NULL.
  *  @param flags additional import flags, currently must be 0.
  *  @param results if not NULL then after the successful execution will contain JSON with
- *                 information about the updated keys. You must free it using the
+ *                 information about the updated signatures. You must free it using the
  *                 rnp_buffer_destroy() function.
+ *                 JSON output is an object containing array of objects named "sigs".
+ *                 Each array item is an object representing imported signature.
+ *                 It contains the following members:\n
+ * JSON member         | Description
+ * --------------------|------------
+ * "public"            |string, signature import status in a public keyring
+ * "secret"            |string, signature import status in a secret keyring
+ * "signer fingerprint"|string, optional, fingerprint of a signing key
+ *                 "public" and "secret" status strings can have any of these string values:
+ *                 "new", "unchanged", "unknown key", "none".
+ *                 The "signer fingerprint" member could be missing
+ *                 if the signer key is not available.\n
+ *                 Example JSON output:\n
+ *
+ *                     {
+ *                       "sigs":[
+ *                         {
+ *                           "public":"new",
+ *                           "secret":"unknown key",
+ *                           "signer fingerprint":"73edcc9119afc8e2dbbdcde50451409669ffde3c"
+ *                         },
+ *                         {
+ *                           "public":"none",
+ *                           "secret":"none",
+ *                         }
+ *                       ]
+ *                     }
+ *
  *  @return RNP_SUCCESS on success, or any other value on error.
  */
 RNP_API rnp_result_t rnp_import_signatures(rnp_ffi_t   ffi,
@@ -720,8 +783,87 @@ RNP_API rnp_result_t rnp_key_handle_destroy(rnp_key_handle_t key);
  *  @param ffi
  *  @param json the json data that describes the key generation.
  *         Must not be NULL.
+ *         JSON input must be an object containing one or two members:\n
+ *
+ *         JSON member | Description
+ *         ------------|------------
+ *         "primary"   | JSON object describing parameters of primary key generation.
+ *         "sub"       | optional member, JSON object describing subkey generation parameters.
+ *         Both "primary" and "sub" objects can contain the following members,
+ *         if not specified otherwise:\n
+ *         JSON member  | Description
+ *         -------------|------------
+ *         "type"       | string, key algorithm, see rnp_op_generate_create()
+ *         "length"     | integer, key size in bits, see rnp_op_generate_set_bits()
+ *         "curve"      | string, curve name, see rnp_op_generate_set_curve()
+ *         "expiration" | integer, see rnp_op_generate_set_expiration()
+ *         "usage"      | string or array of strings, see rnp_op_generate_add_usage()
+ *         "hash"       | string, hash algorithm, see rnp_op_generate_set_hash()
+ *         "userid"     | string, primary key only, user ID, see rnp_op_generate_set_userid()
+ *         "preferences"| object, primary key only, user preferences, see description below
+ *         "protection" | object, secret key protection settings, see description below
+ *         The "preferences" member object can contain the following members:\n
+ *         JSON member  | Description
+ *         -------------|------------
+ *         "hashes"     | array of strings, see rnp_op_generate_add_pref_hash()
+ *         "ciphers"    | array of strings, see rnp_op_generate_add_pref_cipher()
+ *         "compression"| array of strings, see rnp_op_generate_add_pref_compression()
+ *         "key server" | string, see rnp_op_generate_set_pref_keyserver()
+ *         The "protection" member object describes the secret key protection settings
+ *         and it can contain the following members:\n
+ *         JSON member | Description
+ *         ------------|------------
+ *         "cipher"    | string, protection cipher, see rnp_op_generate_set_protection_cipher()
+ *         "hash"      | string, protection hash, see rnp_op_generate_set_protection_hash()
+ *         "mode"      | string, protection mode, see rnp_op_generate_set_protection_mode()
+ *         "iterations"| integer, see rnp_op_generate_set_protection_iterations()
+ *         Example JSON input:\n
+ *
+ *             {
+ *               "primary": {
+ *                   "type": "ECDSA",
+ *                   "curve": "NIST P-256",
+ *                   "userid": "test0",
+ *                   "usage": "sign",
+ *                   "expiration": 0,
+ *                   "hash": "SHA256",
+ *                   "preferences" : {
+ *                     "hashes": ["SHA512", "SHA256"],
+ *                     "ciphers": ["AES256", "AES128"],
+ *                     "compression": ["Zlib"],
+ *                     "key server": "hkp://pgp.mit.edu"
+ *                   },
+ *                   "protection" : {
+ *                       "cipher": "AES256",
+ *                       "hash": "SHA256",
+ *                       "mode":  "CBC",
+ *                       "iterations": 65536
+ *                   }
+ *                },
+ *                "sub": {
+ *                   "type": "RSA",
+ *                   "length": 1024
+ *                }
+ *             }
+ *
  *  @param results pointer that will be set to the JSON results.
  *         Must not be NULL. The caller should free this with rnp_buffer_destroy.
+ *         Serialized JSON output will contain a JSON object with a mandatory
+ *         "primary" member object for the generated primary key and an optional "sub"
+ *         member object if the subkey generation was requested. Both of them contain
+ *         a single string member "grip" that holds
+ *         hexadecimal key grip of a generated key.\n
+ *         Example JSON output:\n
+ *
+ *             {
+ *               "primary":{
+ *                 "grip":"9F593A6333467A534BE8520CAE2600206BFE3681"
+ *               },
+ *               "sub":{
+ *                 "grip":"ED822D77DDF199707B13D0E1BCA00868314FE47D"
+ *               }
+ *             }
+ *
  *  @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_generate_key_json(rnp_ffi_t ffi, const char *json, char **results);
@@ -1509,7 +1651,8 @@ RNP_API rnp_result_t rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
- *               rnp_buffer_destroy() function.
+ *               rnp_buffer_destroy() function. See rnp_dump_packets_to_json() for
+ *               detailed JSON format description.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_signature_packet_to_json(rnp_signature_handle_t sig,
@@ -2078,7 +2221,8 @@ RNP_API rnp_result_t rnp_key_have_public(rnp_key_handle_t key, bool *result);
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @param result resulting JSON string will be stored here. You must free it using the
- *               rnp_buffer_destroy() function.
+ *               rnp_buffer_destroy() function. See rnp_dump_packets_to_json()
+ *               for detailed JSON format description.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
@@ -2091,7 +2235,35 @@ RNP_API rnp_result_t rnp_key_packets_to_json(rnp_key_handle_t key,
  * @param flags include additional fields in JSON (see RNP_JSON_DUMP_MPI and other
  *              RNP_JSON_DUMP_* flags)
  * @result resulting JSON string will be stored here. You must free it using the
- *         rnp_buffer_destroy() function.
+ *         rnp_buffer_destroy() function.\n
+ *         JSON output is an array of JSON objects, each array item
+ *         represents an OpenPGP packet. Packet objects have common
+ *         member object named "header" and packet-specific members.
+ *         The "header" object has the following members:\n
+ * JSON member     | Description
+ * ----------------|------------
+ *  "offset"       | integer, byte offset from the beginning of the binary stream
+ *  "tag"          | integer, packet tag numeric value
+ *  "tag.str"      | string, packet type string
+ *  "raw"          | string, hexadecimal raw value of the packet header
+ *  "length"       | integer, packet length in bytes
+ *  "partial"      | boolean, true if the header is a partial body length header
+ *  "indeterminate"| boolean, true if the packet is of indeterminate length
+ *         Example "header" object:\n
+ *
+ *             "header":{
+ *               "offset":63727,
+ *               "tag":2,
+ *               "tag.str":"Signature",
+ *               "raw":"c2c07c",
+ *               "length":316,
+ *               "partial":false,
+ *               "indeterminate":false
+ *             }
+ *
+ *         You can see examples of complete JSON dumps by running the `rnp`
+ *         program with `--list-packets --json` command line options.
+ *
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_dump_packets_to_json(rnp_input_t input,
@@ -3019,7 +3191,97 @@ RNP_API rnp_result_t rnp_get_secret_key_data(rnp_key_handle_t handle,
  * @param handle the key handle, could not be NULL
  * @param flags controls which key data is printed, see RNP_JSON_* constants.
  * @param result pointer to the resulting string will be stored here on success. You must
- *               release it afterwards via rnp_buffer_destroy() function call.
+ *               release it afterwards via rnp_buffer_destroy() function call.\n
+ *               JSON output will be a JSON object that contains the following members:\n
+ * JSON member     | Description
+ * ----------------|------------
+ *  "type"         | string, key algorithm, see rnp_op_generate_create()
+ *  "length"       | integer, key size in bits, see rnp_op_generate_set_bits()
+ *  "curve"        | string, curve name, see rnp_op_generate_set_curve()
+ *  "keyid"        | string, hexadecimal PGP key id
+ *  "fingerprint"  | string, hexadecimal PGP key fingerprint
+ *  "grip"         | string, hexadecimal PGP key grip
+ *  "revoked"      | boolean, true if key is revoked
+ *  "creation time"| integer, creation time in seconds since Jan, 1 1970 UTC
+ *  "expiration"   | integer, see rnp_op_generate_set_expiration()
+ *  "usage"        | array of strings, see rnp_op_generate_add_usage()
+ *  "subkey grips" | array of strings, hexadecimal PGP key grips of subkeys
+ *  "public key"   | object, describes public key, see description below
+ *  "secret key"   | object, describes secret key, see description below
+ *  "userids"      | array of strings, user ID-s
+ *  "signatures"   | array of objects, each object represents a signature
+ *               "public key" object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "present"      | boolean, true of public key is present
+ *  "mpis"         | object, contains MPI-s of the key
+ *               "secret key" object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "present"      | boolean, true of secret key is present
+ *  "mpis"         | object, contains MPI-s of the key, can be null
+ *  "locked"       | boolean, true if the key is locked
+ *  "protected"    | boolean, true if the secret key is protected
+ *               The "signatures" member is present only if the flag RNP_JSON_SIGNATURES
+ *               is set. Each signature object can contain the following members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "userid"       | integer, index of user id, primary key only
+ *  "trust"        | object, trust level, see description below
+ *  "usage"        | array of strings, see rnp_op_generate_add_usage()
+ *  "preferences"  | object, see description of "preferences" in rnp_generate_key_json()
+ *  "version"      | integer, version
+ *  "type"         | string, signature type (textual)
+ *  "key type"     | string, key algorithm used for signature
+ *  "hash"         | string, hash algorithm used for signature
+ *  "creation time"| integer, creation time in seconds since Jan, 1 1970 UTC
+ *  "expiration"   | integer, see rnp_op_generate_set_expiration()
+ *  "signer"       | object, describes signing key
+ *  "mpis"         | object, MPI-s of the signature
+ *               The "trust" object member in signature object contains two members:
+ * JSON member     | Description
+ * ----------------|------------
+ *  "level"        | integer, trust level
+ *  "amount"       | integer, trust amount. See OpenPGP RFC for details.
+ *               The format of the "mpis" object in the "signatures", "public key" and
+ *               "secret key" members may vary and depends on the key algorithm.
+ *               But generally they contain hexadecimal strings representing
+ *               MPI-s (multi-presicion integers) of the key or signature.\n
+ *               "mpis" objects are present if the flags argument contains
+ *               RNP_JSON_SIGNATURE_MPIS,RNP_JSON_PUBLIC_MPIS and RNP_JSON_SECRET_MPIS
+ *               flag respectively.\n
+ *               Example of the JSON output string:\n
+ *
+ *                   {
+ *                    "type":"ECDSA",
+ *                    "length":256,
+ *                    "curve":"NIST P-256",
+ *                    "keyid":"014F7B24CD14F2A5",
+ *                    "fingerprint":"9034431D2F803D20F9840833014F7B24CD14F2A5",
+ *                    "grip":"B5331B92954B51C72904B97527EC85BEC4FF3154",
+ *                    "revoked":false,
+ *                    "creation time":1683104807,
+ *                    "expiration":0,
+ *                    "usage":[
+ *                      "sign"
+ *                    ],
+ *                    "subkey grips":[
+ *                      "E50D9738D779A587425248D3483DB8E1805B0174"
+ *                    ],
+ *                    "public key":{
+ *                      "present":true
+ *                    },
+ *                    "secret key":{
+ *                      "present":true,
+ *                      "locked":true,
+ *                      "protected":true
+ *                    },
+ *                    "userids":[
+ *                      "test0"
+ *                    ]
+ *                  }
+ *
+ *
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_key_to_json(rnp_key_handle_t handle, uint32_t flags, char **result);
