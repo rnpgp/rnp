@@ -32,21 +32,6 @@ install_botan() {
     # but it makes no sense and is not supported for Windows
     local extra_cflags="-fPIC"
     case "${OS}" in
-      msys)
-        osparam=(--os=mingw)
-        run=python
-        # Just get rid of all newlines!
-        BOTAN_MODULES="${BOTAN_MODULES//$'\r\n'/}"
-        BOTAN_MODULES="${BOTAN_MODULES//$'\r'/}"
-        BOTAN_MODULES="${BOTAN_MODULES//$'\n'/}"
-
-        # Deal with "error: ignoring '#pragma comment"
-        extra_cflags="-Wno-error=unknown-pragmas"
-        # Drop -fPIC
-        # Expecting implicit --cc-bin=g++/clang++ due to environment variable CXX
-        # Expecting implicit --cxxflags=-I/clang64/include  due to environment variable CXXFLAGS
-        # Expecting implicit --ldflags=-L<runner root>/clang64/lib -lomp due to environment variable LDFLAGS
-        ;;
       linux)
         case "${DIST_VERSION}" in
           centos-8|centos-9|fedora-*|debian-*)
@@ -222,7 +207,6 @@ _install_gpg() {
 
 
 install_gpg() {
-  # gpg - for msys/windows we use shipped gpg2 version
   local gpg_build=${LOCAL_BUILDS}/gpg
 
   # shellcheck disable=SC2153
