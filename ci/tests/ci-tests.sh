@@ -38,7 +38,15 @@ DIR0="$( cd "$( dirname "$0" )" && pwd )"
 : "${ENABLE_IDEA:=}"
 
 test_symbol_visibility() {
-    nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
+    if [[ "$OSTYPE" == "msys" ]]; then
+        mkdir tmp
+        wget -O tmp/Dependencies_x64_Release.zip https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
+        7z x tmp/Dependencies_x64_Release.zip -otmp
+        tmp/Dependencies -exports "$RNP_INSTALL"/bin/librnp.dll  > exports
+        rm -rf tmp
+    else
+        nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
+    fi
     assertEquals "Unexpected: 'dst_close' is in exports" 0 "$(grep -c dst_close exports)"
     assertEquals "Unexpected: 'Botan' is in exports" 0 "$(grep -c Botan exports)"
     assertEquals "Unexpected: 'OpenSSL' is in exports" 0 "$(grep -c OpenSSL exports)"
@@ -78,12 +86,18 @@ test_supported_features() {
         supported+=(IDEA)
     fi
 
+    if [[ "$OSTYPE" == "msys" ]]; then
+        so_folder="bin"
+    else
+        so_folder="lib64"
+    fi
+
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${botan_only[@]}")
-        library_path="${BOTAN_INSTALL}/lib64:${JSONC_INSTALL}/lib64:${RNP_INSTALL}/lib64"
+        library_path="${BOTAN_INSTALL}/$so_folder:${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     else
         supported+=("${botan_only[@]}")
-        library_path="${JSONC_INSTALL}/lib64:${RNP_INSTALL}/lib64"
+        library_path="${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     fi
 
     LD_LIBRARY_PATH="$library_path" "$RNP_INSTALL"/bin/rnp --version > rnp-version
