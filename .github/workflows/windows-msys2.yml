@@ -1,10 +1,34 @@
+# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 name: windows-msys2
 
 on:
   workflow_dispatch:
   push:
     branches:
-      - master
       - main
       - 'release/**'
     paths-ignore:
@@ -38,78 +62,76 @@ concurrency:
 env:
   BUILD_MODE: normal
   GPG_VERSION: stable
-  GTEST_SOURCES: googletest-src
-  CORES: 2
+  RNP_INSTALL: /home/runneradmin/rnp-install
 
 jobs:
   tests:
-    name: ${{ matrix.os }} msys2 [CC ${{ matrix.env.CC }}; GnuPG stable]
-    runs-on: ${{ matrix.os }}
+    name: windows-latest msys2 [msystem ${{ matrix.msystem }}; GnuPG stable]
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest]
-        env:
-          - CC: gcc
-            CXX: g++
-            RNP_INSTALL: /home/runneradmin/rnp-install
-          - CC: clang
-            CXX: clang++
-            RNP_INSTALL: /home/runneradmin/rnp-install
-    env:  ${{ matrix.env }}
+        msystem: [ 'ucrt64', 'mingw64', 'clang64' ]
+        shared_lib: [ 'on' ]
+        backend: [ 'botan' ]
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
           submodules: true
-      - uses: msys2/setup-msys2@v2
+
+      - name: Install MSys
+        uses: msys2/setup-msys2@v2
         with:
-          path-type: minimal
+          msystem: ${{ matrix.msystem }}
           update: true
-      - name: Setup environment
-        shell: msys2 {0}
-#  setup-env script below cannot correctly process msys2 environment since it is a mix of Windows and Linux
-#  Environment setup is required only if some dependencies shall be built locally
-#  If it becomes a case for mingw environment setup shall be reconsidered
-#          . ci/gha/setup-env.inc.sh
+          install: >-
+            git
+            base-devel
+            p7zip
+          pacboy: >-
+            toolchain:p
+            cmake:p
+            libbotan:p
+            json-c:p
+            gtest:p
+          path-type: minimal
+
+      - name: Configure
         run: |
-          bash ci/install_noncacheable_dependencies.sh
-# Since all dependencies are available as binary packages no extra steps or cache are required
-# The code below kept here for potential need to build some dependencies locally
-#      - name: Cache
-#        id: cache
-#        uses: actions/cache@v3
-#        with:
-#          path: ${{ env.CACHE_DIR }}
-#          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-#      - name: Build cache
-#        if: steps.cache.outputs.cache-hit != 'true'
-#        shell: msys2 {0}
-#        env:
-#          USE_STATIC_DEPENDENCIES: "yes"
-#        run: |
-#          set -x
-#          ci/install_cacheable_dependencies.sh
-      - name: download googletest
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}}   \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}        \
+                           -DCMAKE_INSTALL_PREFIX=${{ env.RNP_INSTALL }} \
+                           -DDOWNLOAD_GTEST=OFF                          \
+                           -DCMAKE_BUILD_TYPE=Release  .
+
+      - name: Build
+        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+
+      - name: Install
+        run: cmake --install build
+
+      - name: Checkout shell test framework
         uses: actions/checkout@v3
         with:
-          repository: google/googletest
-          path: ${{ env.GTEST_SOURCES }}
-          fetch-depth: 0
-          ref: release-1.11.0
-        # This is workaround for the CMake or MSYS issue, failing to correctly checkout external project
-        #  Failed to get the hash for HEAD:
-        #  fatal: ambiguous argument 'HEAD^commit': unknown revision or path not in the working tree.
-      - name: tests
-        shell: msys2 {0}
-        run: ci/main.sh
-      - shell: msys2 {0}
-        run: |
-          set -euxo pipefail
-          wget https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
-          7z x Dependencies_x64_Release.zip
-          ./Dependencies -exports "${RNP_INSTALL}"/bin/librnp*.dll > exports
-          grep -qv dst_close exports
-          grep -qw rnp_version_string exports
+          repository: kward/shunit2
+          path: ci/tests/shunit2
+
+      - name: Run additional ci tests
+        if: ${{ matrix.shared_lib}}=='on'
+        run:  ci/tests/ci-tests.sh
