@@ -1,5 +1,12 @@
 ## Changelog
 
+### 0.16.3 [2023-04-11]
+
+#### Security
+
+* Fixed issue with possible hang on malformed inputs (CVE-2023-29479).
+* Fixed issue where in some cases, secret keys remain unlocked after use (CVE-2023-29480).
+
 ### 0.16.2 [2022-09-20]
 
 #### General
