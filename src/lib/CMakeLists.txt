@@ -352,7 +352,6 @@ set_target_properties(librnp
   PROPERTIES
     VERSION "${RNP_VERSION}"
     SOVERSION "${RNP_VERSION_MAJOR}"
-    PREFIX "lib"
     OUTPUT_NAME "rnp"
 )
 
@@ -361,11 +360,13 @@ if (BUILD_SHARED_LIBS)
   if (OpenSSL::applink)
     target_link_libraries(librnp-static PRIVATE OpenSSL::applink)
   endif(OpenSSL::applink)
-  if (NOT WIN32)
+  if (WIN32)
+    set_target_properties(librnp-static PROPERTIES OUTPUT_NAME "rnp-static")
+  else (WIN32)
 # On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
 # On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
     set_target_properties(librnp-static PROPERTIES OUTPUT_NAME "rnp")
-  endif (NOT WIN32)
+  endif (WIN32)
  # Limit symbols export only to rnp_* functions.
   if (APPLE)
     # use -export_symbols_list on Apple OSs
