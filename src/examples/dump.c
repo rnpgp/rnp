@@ -41,8 +41,8 @@ print_usage(char *program_name)
     const char *program_basename;
 #ifdef _MSC_VER
     char fname[_MAX_FNAME];
-    program_basename =
-      _splitpath_s(program_name, NULL, 0, NULL, 0, fname, _MAX_FNAME, NULL, 0);
+    program_basename = fname;
+    _splitpath_s(program_name, NULL, 0, NULL, 0, fname, _MAX_FNAME, NULL, 0);
 #else
     program_basename = basename(program_name);
 #endif
