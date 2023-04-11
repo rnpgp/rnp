@@ -226,7 +226,7 @@ gnupg_sexp_t::parse(const char *r_bytes, size_t r_length, size_t depth)
 
 /*
  * Parse gnupg extended private key file ("G23")
- * https://github.com/gpg/gnupg/blob/master/agent/keyformat.txt
+ * https://github.com/gpg/gnupg/blob/main/agent/keyformat.txt
  */
 
 bool

@@ -10,7 +10,7 @@ Examples are given below to demonstrate such usage.
 .Location of examples
 ====
 The source code of these examples can be found under
-`https://github.com/rnpgp/rnp/blob/master/src/examples/[src/examples]`.
+`https://github.com/rnpgp/rnp/blob/main/src/examples/[src/examples]`.
 
 If you are planning to build from source, these examples are built
 together with the RNP library and will be available under `src/examples`
@@ -20,7 +20,7 @@ within your build folder.
 [TIP]
 ====
 All samples below use APIs exposed via the header file
-`https://github.com/rnpgp/rnp/blob/master/include/rnp/rnp.h[include/rnp/rnp.h]`.
+`https://github.com/rnpgp/rnp/blob/main/include/rnp/rnp.h[include/rnp/rnp.h]`.
 For further details please refer to the file directly.
 ====
 
@@ -42,7 +42,7 @@ The following example applications are available:
 
 === generate.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/generate.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/generate.c
 
 This example is composed from 2 functions:
 
@@ -59,7 +59,7 @@ You can use `rnp --list-packets pubring.pgp` to check the properties of the gene
 
 === encrypt.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/encrypt.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/encrypt.c
 
 This code example does the following:
 
@@ -79,7 +79,7 @@ What you can do after:
 
 === decrypt.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/decrypt.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/decrypt.c
 
 This example uses keyrings generated from the `generate.c` example
 to decrypt messages encrypted by the `encrypt.c` example.
@@ -91,7 +91,7 @@ The decrypted message is saved to memory and then printed to the `stdout`.
 
 === sign.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/sign.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/sign.c
 
 This example uses keyrings generated in the preceding `generate.c` example.
 
@@ -108,7 +108,7 @@ What you can do after:
 
 === verify.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/verify.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/verify.c
 
 This example uses keyrings generated in the `generate.c` example.
 
@@ -120,7 +120,7 @@ and all signatures to `stdout` (with signing key IDs and statuses).
 
 === dump.c
 
-Location: https://github.com/rnpgp/rnp/blob/master/src/examples/dump.c
+Location: https://github.com/rnpgp/rnp/blob/main/src/examples/dump.c
 
 This example dumps OpenPGP packet information from the input stream
 (via `stdin` or filename), tuned with flags passed via the
