@@ -50,7 +50,7 @@ A good example of using a branch would be:
 * He creates a new branch to fix this bug named
   `joe-500-fix-null-deref-in-pgp_export_key`.
 * Joe commits a fix for the issue to this new branch.
-* Joe creates a Pull Request to merge this branch in to master.
+* Joe creates a Pull Request to merge this branch in to main.
 * Once merged, Joe deletes the branch since it is no longer useful.
 
 Branch names may vary but should be somewhat descriptive, with words
@@ -59,7 +59,7 @@ your GitHub username, to make it clear who created the branch and
 prevent naming conflicts.
 
 Remember that branch names may be preserved permanently in the commit
-history of `master`, depending on how they are merged.
+history of `main`, depending on how they are merged.
 
 === Commits
 
@@ -113,14 +113,14 @@ The current coverage can always be viewed here: https://codecov.io/github/rnpgp/
 ==== Coverity Scan
 
 Coverity Scan is used for static analysis of the code base.
-It is run daily on the master branch via the Github actions.
+It is run daily on the main branch via the Github actions.
 See `.github/workflows/coverity.yml` for the details.
 
 The results can be accessed on https://scan.coverity.com/projects/rnpgp-rnp.
 You will need to create an account and request access to the rnpgp/rnp project.
 
 Since the scan results are not updated live, line numbers may no longer
-be accurate against the `master` branch, issues may already be resolved,
+be accurate against the `main` branch, issues may already be resolved,
 etc.
 
 ==== Clang Static Analyzer

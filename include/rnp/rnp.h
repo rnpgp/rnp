@@ -189,7 +189,7 @@ RNP_API uint32_t rnp_version_patch(uint32_t version);
  *  This function is only useful for non-releases. For releases,
  *  it will return 0.
  *
- *  The intended usage is to provide a form of versioning for the master
+ *  The intended usage is to provide a form of versioning for the main
  *  branch.
  *
  *  @return the unix timestamp of the last commit, or 0 if unavailable

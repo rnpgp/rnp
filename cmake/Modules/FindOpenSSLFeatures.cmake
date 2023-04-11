@@ -62,7 +62,7 @@ file(COPY "${CMAKE_CURRENT_LIST_DIR}/findopensslfeatures.c"
   DESTINATION "${_fossl_work_dir}"
 )
 # As it's short enough let's keep it here.
-# Reuse OPENSSL parameters from the master project
+# Reuse OPENSSL parameters from the upstream project
 # otherwise  there is a good chance to find another instance of openssl
 # We assume that OpenSSL root is one level up openssl include directory
 # This does not look as a good solution, however it is the only one that

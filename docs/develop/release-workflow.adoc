@@ -2,7 +2,7 @@
 
 == General notes
 
-* Avoid tagging commits in the `master` branch.
+* Avoid tagging commits in the `main` branch.
 * Release branches should have annotated tags and a CHANGELOG.md.
 * The steps below detail creation of a brand new 1.0.0 release.
   Some steps would be omitted for minor releases.
@@ -16,7 +16,7 @@ version you intend to release.
 
 [source,console]
 ----
-git checkout master
+git checkout main
 vim docs/installation.adoc
 git add docs/installation.adoc
 git commit
@@ -30,7 +30,7 @@ version (and `x` is a literal -- not a placeholder).
 
 [source,console]
 ----
-git checkout -b release/1.x master
+git checkout -b release/1.x main
 ----
 
 [[update-changelog-and-version]]
@@ -83,7 +83,7 @@ git push origin v1.0.0
 == Creating a new release
 
 Maintaining a release branch involves cherry-picking hotfixes and
-similar commits from the `master` branch, while following the rules for
+similar commits from the `main` branch, while following the rules for
 Semantic Versioning.
 
 The steps below will show the release of version 1.0.1.
@@ -92,12 +92,12 @@ The steps below will show the release of version 1.0.1.
 
 Cherry-pick the appropriate commits into the appropriate `release/N.x` branch.
 
-To see what commits are in `master` that are not in the release branch, you
+To see what commits are in `main` that are not in the release branch, you
 can observe the lines starting with `+` in:
 
 [source,console]
 ----
-git cherry -v release/1.x master
+git cherry -v release/1.x main
 ----
 
 It is often useful to pick a range of commits. For example:
@@ -114,7 +114,7 @@ Instead, try:
 [source,console]
 ----
 git checkout release/0.x
-git cherry release/0.x master | grep '^+ ' | cut -c 3-9 | \
+git cherry release/0.x main | grep '^+ ' | cut -c 3-9 | \
   while read commit; do git cherry-pick $commit; done
 ----
 
