@@ -673,14 +673,14 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     // check whether keys are locked
     rnp_identifier_iterator_t it = NULL;
     assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
-    const char *fp = NULL;
-    while (!rnp_identifier_iterator_next(it, &fp)) {
-        if (!fp) {
+    const char *fprint = NULL;
+    while (!rnp_identifier_iterator_next(it, &fprint)) {
+        if (!fprint) {
             break;
         }
-        SCOPED_TRACE(fp);
+        SCOPED_TRACE(fprint);
         rnp_key_handle_t skey = NULL;
-        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &skey));
+        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fprint, &skey));
         bool secret = true;
         assert_rnp_success(rnp_key_have_secret(skey, &secret));
         if (secret) {
@@ -786,13 +786,13 @@ TEST_F(rnp_tests, test_ffi_encrypt_and_sign)
     hname = NULL;
     // make sure keys are locked
     assert_rnp_success(rnp_identifier_iterator_create(ffi, &it, "fingerprint"));
-    while (!rnp_identifier_iterator_next(it, &fp)) {
-        if (!fp) {
+    while (!rnp_identifier_iterator_next(it, &fprint)) {
+        if (!fprint) {
             break;
         }
-        SCOPED_TRACE(fp);
+        SCOPED_TRACE(fprint);
         rnp_key_handle_t skey = NULL;
-        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fp, &skey));
+        assert_rnp_success(rnp_locate_key(ffi, "fingerprint", fprint, &skey));
         bool secret = true;
         assert_rnp_success(rnp_key_have_secret(skey, &secret));
         if (secret) {
