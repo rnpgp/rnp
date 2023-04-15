@@ -165,24 +165,30 @@ pgp_s2k_compute_iters(pgp_hash_alg_t alg, size_t desired_msec, size_t trial_msec
         trial_msec = DEFAULT_S2K_TUNE_MSEC;
     }
 
-    uint64_t start = get_timestamp_usec();
-    uint64_t end = start;
-    size_t   bytes = 0;
+    // number of iterations to estimate the number of iterations
+    // (sorry, cannot tell it better)
+    const uint8_t NUM_ITERATIONS = 16;
+    uint64_t      duration = 0;
+    size_t        bytes = 0;
     try {
-        auto    hash = rnp::Hash::create(alg);
-        uint8_t buf[8192] = {0};
-        while (end - start < trial_msec * 1000ull) {
-            hash->add(buf, sizeof(buf));
-            bytes += sizeof(buf);
-            end = get_timestamp_usec();
+        for (uint8_t i = 0; i < NUM_ITERATIONS; i++) {
+            uint64_t start = get_timestamp_usec();
+            uint64_t end = start;
+            auto     hash = rnp::Hash::create(alg);
+            uint8_t  buf[8192] = {0};
+            while (end - start < trial_msec * 1000ull) {
+                hash->add(buf, sizeof(buf));
+                bytes += sizeof(buf);
+                end = get_timestamp_usec();
+            }
+            hash->finish(buf);
+            duration += (end - start);
         }
-        hash->finish(buf);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to hash data: %s", e.what());
         return 0;
     }
 
-    uint64_t      duration = end - start;
     const uint8_t MIN_ITERS = 96;
     if (duration == 0) {
         return pgp_s2k_decode_iterations(MIN_ITERS);
