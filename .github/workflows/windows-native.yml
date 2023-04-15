@@ -59,9 +59,6 @@ concurrency:
 env:
   VCPKG_DIR: C:/vcpkg
   VCPKG_DEFAULT_BINARY_CACHE: ${{github.workspace}}\cache
-# Disable test_sym_encryption_s2k_msec
-# ref https://github.com/rnpgp/rnp/issues/2024
-  DISABLE_TEST_S2K_MSEC: ON
   RNP_TEST_DATA: ${{github.workspace}}\src\tests\data
 
 jobs:
