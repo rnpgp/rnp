@@ -26,7 +26,6 @@ name: dispatch
 on:
   push:
     branches:
-      - master
       - main
       - 'release/**'
   workflow_dispatch:

@@ -9,7 +9,7 @@ image:https://github.com/rnpgp/rnp/workflows/nix/badge.svg["Nix Build Status", l
 image:https://img.shields.io/cirrus/github/rnpgp/rnp?label=freebsd&logo=cirrus%20ci["FreeBSD Build Status", link="https://cirrus-ci.com/github/rnpgp/rnp"]
 
 image:https://img.shields.io/coverity/scan/12616.svg["Coverity Scan Build Status", link="https://scan.coverity.com/projects/rnpgp-rnp"]
-image:https://codecov.io/gh/rnpgp/rnp/branch/master/graph/badge.svg["Code coverage", link="https://codecov.io/gh/rnpgp/rnp"]
+image:https://codecov.io/gh/rnpgp/rnp/branch/main/graph/badge.svg["Code coverage", link="https://codecov.io/gh/rnpgp/rnp"]
 
 == Introduction
 
