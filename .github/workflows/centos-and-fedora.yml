@@ -3,7 +3,6 @@ name: centos-and-fedora
 on:
   push:
     branches:
-      - master
       - main
       - 'release/**'
     paths-ignore:
