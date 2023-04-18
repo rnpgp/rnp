@@ -28,6 +28,7 @@
 set -o errexit -o pipefail -o noclobber -o nounset
 
 DIR0="$( cd "$( dirname "$0" )" && pwd )"
+SHUNIT_PARENT="$0"
 
 # Defaults applicable to 'normal' installation and not build environment
 : "${BOTAN_INSTALL:=/usr}"
@@ -38,15 +39,21 @@ DIR0="$( cd "$( dirname "$0" )" && pwd )"
 : "${ENABLE_IDEA:=}"
 
 test_symbol_visibility() {
-    if [[ "$OSTYPE" == "msys" ]]; then
+    case "$OSTYPE" in
+      msys)
         mkdir tmp
         wget -O tmp/Dependencies_x64_Release.zip https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
         7z x tmp/Dependencies_x64_Release.zip -otmp
         tmp/Dependencies -exports "$RNP_INSTALL"/bin/librnp.dll  > exports
         rm -rf tmp
-    else
+        ;;
+      darwin*)
+        nm --defined-only -g $RNP_INSTALL/lib/librnp.dylib > exports
+        ;;
+      *)
         nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
-    fi
+    esac   
+
     assertEquals "Unexpected: 'dst_close' is in exports" 0 "$(grep -c dst_close exports)"
     assertEquals "Unexpected: 'Botan' is in exports" 0 "$(grep -c Botan exports)"
     assertEquals "Unexpected: 'OpenSSL' is in exports" 0 "$(grep -c OpenSSL exports)"
@@ -67,7 +74,8 @@ test_supported_features() {
     # Old versions say ${unsupported[@]} is unbound if empty
     unsupported=( NOOP )
 
-    botan_only=( TWOFISH EAX brainpoolP256r1 brainpoolP384r1 brainpoolP512r1)
+    botan_only=( TWOFISH EAX )
+    brainpool=( rainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
     sm2=( SM2 SM4 SM3 "SM2 P-256" )
 
     # SM2
@@ -86,30 +94,45 @@ test_supported_features() {
         supported+=(IDEA)
     fi
 
-    if [[ "$OSTYPE" == "msys" ]]; then
+    case "$OSTYPE" in
+      msys)
         so_folder="bin"
-    else
+        botan_only+=("${brainpool[@]}")
+        ;;
+      darwin*)
+        so_folder="lib"
+        support+=("${brainpool[@]}")       
+        ;;
+      *)
         so_folder="lib64"
-    fi
+        botan_only+=("${brainpool[@]}")
+    esac   
 
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${botan_only[@]}")
-        library_path="${BOTAN_INSTALL}/$so_folder:${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
+        library_path="${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     else
         supported+=("${botan_only[@]}")
-        library_path="${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
+        library_path="${BOTAN_INSTALL}/$so_folder:${JSONC_INSTALL}/$so_folder:${RNP_INSTALL}/$so_folder"
     fi
 
-    LD_LIBRARY_PATH="$library_path" "$RNP_INSTALL"/bin/rnp --version > rnp-version
+    if [[ "$OSTYPE" == darwin* ]]; then
+        export DYLD_LIBRARY_PATH="$library_path" 
+    else
+        export LD_LIBRARY_PATH="$library_path"
+    fi
+
+    "$RNP_INSTALL"/bin/rnp --version > rnp-version
+
     for feature in "${supported[@]}"
     do
         fea="$(grep -ci "$feature" rnp-version)"
-        assertTrue "Unexpected unsupported feature: '$feature'" "[ $fea -ge 1 ]"
+        assertTrue "Unexpected unsupported feature: '$feature'" "[[ $fea -ge 1 ]]"
     done
     for feature in "${unsupported[@]}"
     do
         fea="$(grep -ci "$feature" rnp-version)"
-        assertTrue "Unexpected supported feature: '$feature'" "[ $fea == 0 ]"
+        assertTrue "Unexpected supported feature: '$feature'" "[[ $fea == 0 ]]"
     done
 
     rm -f rnp-version
