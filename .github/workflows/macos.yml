@@ -1,3 +1,28 @@
+# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 name: macos
 
 on:
@@ -5,6 +30,7 @@ on:
     branches:
       - main
       - 'release/**'
+      - maxirmx-refactor-macos
     paths-ignore:
       - '/*.sh'
       - '/.*'
@@ -30,56 +56,85 @@ on:
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
   cancel-in-progress: true
-
-env:
-  CORES: 2
-  BUILD_MODE: normal
-  GPG_VERSION: stable
-  USE_STATIC_DEPENDENCIES: yes
-
+  
 jobs:
   tests:
-    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; GnuPG stable]
+    name: ${{ matrix.os }} [ backend ${{ matrix.backend }}, shared libs ${{ matrix.shared_libs }} ]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+# On MacOS gcc is alias of clang these days         
         os: [macos-11, macos-12]
-        env:
-          - CC: gcc
-            CXX: g++
-          - CC: clang
-            CXX: clang++
+        backend: [ 'botan' ]
+        shared_libs: [ 'on' ]
+        include:
+          - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
+          - { os: 'macos-12', backend: 'openssl@3', shared_libs: 'on' }
+          - { os: 'macos-12', backend: 'botan', shared_libs: 'off' }
+       
     if: "!contains(github.event.head_commit.message, 'skip ci')"
-    env: ${{ matrix.env }}
     timeout-minutes: 250
+
     steps:
       - uses: actions/checkout@v3
         with:
           fetch-depth: 1
           submodules: true
-      - name: Setup environment
+
+      - name: Configure openssl 1.1 backend
+        if: ${{ matrix.backend == 'openssl@1.1' }}
         run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
+          echo "brew \"openssl@1.1\"" >> Brewfile
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@1.1)" >> $GITHUB_ENV
+          echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
+
+      - name: Configure openssl 3 backend
+        if: ${{ matrix.backend == 'openssl@3' }}
+        run: |
+          echo "brew \"openssl@3\"" >> Brewfile
+          echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
+          echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
+
+      - name: Configure botan backend
+        if: ${{ matrix.backend == 'botan' }}
+        run: |
+          echo "brew \"botan\"" >> Brewfile
+          echo "CRYPTO_BACKEND=botan" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: brew bundle
+
+      - name: Configure
+        run: |
+          echo "CORES=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+          echo "RNP_INSTALL=$PWD/rnp-install" >> $GITHUB_ENV
+          cmake -B build -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }}   \
+                         -DCMAKE_BUILD_TYPE=Release                      \
+                         -DCMAKE_INSTALL_PREFIX="$PWD/rnp-install"       \
+                         -DDOWNLOAD_GTEST=OFF                            \
+                         -DCRYPTO_BACKEND=${{ env.CRYPTO_BACKEND }}      .
+
+      - name: Build
+        run: cmake --build build --config Release --parallel ${{ env.CORES }}
+      
+      - name: Install
+        run: cmake --install build
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+
+      - name: Checkout shell test framework
+        if: ${{ matrix.shared_libs == 'on' }}
+        uses: actions/checkout@v3
         with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ matrix.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: tests
-        run: |
-          ci/run.sh
-      - name: symbol-visibility
-        run: |
-          set -euxo pipefail
-          nm --extern-only --defined-only --demangle $RNP_INSTALL/lib/librnp.dylib > exports
-          [ $(grep -c dst_close exports) == "0" ]
-          [ $(grep -c Botan exports) == "0" ]
-          [ $(grep -c _rnp_version_string_full exports) == "1" ]
+          repository: kward/shunit2
+          path: ci/tests/shunit2
+
+      - name: Run additional ci tests
+        if: ${{ matrix.shared_libs == 'on' }}
+        run: zsh -o shwordsplit -- ci/tests/ci-tests.sh         
