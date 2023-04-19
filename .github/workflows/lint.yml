@@ -1,6 +1,9 @@
 name: lint
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
     paths-ignore:
       - '/.*'
@@ -37,3 +40,22 @@ jobs:
           scandir: './ci'
         env:
           SHELLCHECK_OPTS: -x
+  version-cmake-up-to-date:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          path: rnp
+      - name: Download latest version.cmake
+        uses: actions/checkout@v3
+        with:
+          repository: rnpgp/cmake-versioning
+          fetch-depth: 1
+          path: cmake-versioning
+      - name: Compare
+        run: |
+          set -x
+          diff "rnp/cmake/version.cmake" "cmake-versioning/version.cmake"
