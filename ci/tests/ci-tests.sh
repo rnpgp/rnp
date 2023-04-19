@@ -28,6 +28,7 @@
 set -o errexit -o pipefail -o noclobber -o nounset
 
 DIR0="$( cd "$( dirname "$0" )" && pwd )"
+# shellcheck disable=SC2034
 SHUNIT_PARENT="$0"
 
 # Defaults applicable to 'normal' installation and not build environment
@@ -48,7 +49,7 @@ test_symbol_visibility() {
         rm -rf tmp
         ;;
       darwin*)
-        nm --defined-only -g $RNP_INSTALL/lib/librnp.dylib > exports
+        nm --defined-only -g "$RNP_INSTALL"/lib/librnp.dylib > exports
         ;;
       *)
         nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
