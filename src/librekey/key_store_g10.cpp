@@ -190,16 +190,15 @@ gnupg_sexp_t::add(unsigned u)
 {
     char s[sizeof(STR(UINT_MAX)) + 1];
     snprintf(s, sizeof(s), "%u", u);
-    push_back(
-      std::shared_ptr<sexp_string_t>(new sexp_string_t(reinterpret_cast<octet_t *>(s))));
+    push_back(std::make_shared<sexp_string_t>(s));
 }
 
-gnupg_sexp_t &
+std::shared_ptr<gnupg_sexp_t>
 gnupg_sexp_t::add_sub()
 {
-    gnupg_sexp_t *res = new gnupg_sexp_t();
-    push_back(std::shared_ptr<gnupg_sexp_t>(res));
-    return *res;
+    auto res = std::make_shared<gnupg_sexp_t>();
+    push_back(res);
+    return res;
 }
 
 /*
@@ -325,10 +324,10 @@ read_curve(const sexp_list_t *list, const std::string &name, pgp_ec_key_t &key) 
 void
 gnupg_sexp_t::add_mpi(const std::string &name, const pgp_mpi_t &mpi)
 {
-    gnupg_sexp_t &sub_s_exp = add_sub();
-    sub_s_exp.push_back(std::shared_ptr<sexp_string_t>(new sexp_string_t(name)));
-    auto value_block = new sexp_string_t();
-    sub_s_exp.push_back(std::shared_ptr<sexp_string_t>(value_block));
+    auto sub_s_exp = add_sub();
+    sub_s_exp->push_back(std::make_shared<sexp_string_t>(name));
+    auto value_block = std::make_shared<sexp_string_t>();
+    sub_s_exp->push_back(value_block);
 
     sexp_simple_string_t data;
     size_t               len = mpi_bytes(&mpi);
@@ -357,7 +356,7 @@ gnupg_sexp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
-    gnupg_sexp_t *psub_s_exp = &add_sub();
+    auto psub_s_exp = add_sub();
     psub_s_exp->add(name);
     psub_s_exp->add(curve);
 
@@ -365,7 +364,7 @@ gnupg_sexp_t::add_curve(const std::string &name, const pgp_ec_key_t &key)
         return;
     }
 
-    psub_s_exp = &add_sub();
+    psub_s_exp = add_sub();
     psub_s_exp->add("flags");
     psub_s_exp->add((key.curve == PGP_CURVE_ED25519) ? "eddsa" : "djb-tweak");
 }
@@ -1080,8 +1079,8 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
     ctx.rng.get(prot.s2k.salt, sizeof(prot.s2k.salt));
 
     // write seckey
-    gnupg_sexp_t  raw_s_exp;
-    gnupg_sexp_t *psub_s_exp = &raw_s_exp.add_sub();
+    gnupg_sexp_t raw_s_exp;
+    auto         psub_s_exp = raw_s_exp.add_sub();
     psub_s_exp->add_seckey(seckey);
 
     // calculate hash
@@ -1095,7 +1094,7 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 
-    psub_s_exp = &raw_s_exp.add_sub();
+    psub_s_exp = raw_s_exp.add_sub();
     psub_s_exp->add("hash");
     psub_s_exp->add("sha1");
     psub_s_exp->add(checksum, sizeof(checksum));
@@ -1142,13 +1141,13 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
     }
 
     /* build s_exp with encrypted key */
-    psub_s_exp = &add_sub();
+    psub_s_exp = add_sub();
     psub_s_exp->add("protected");
     psub_s_exp->add(format->g10_type);
     /* protection params: s2k, iv */
-    gnupg_sexp_t *psub_sub_s_exp = &psub_s_exp->add_sub();
+    auto psub_sub_s_exp = psub_s_exp->add_sub();
     /* s2k params: hash, salt, iterations */
-    gnupg_sexp_t *psub_sub_sub_s_exp = &psub_sub_s_exp->add_sub();
+    auto psub_sub_sub_s_exp = psub_sub_s_exp->add_sub();
     psub_sub_sub_s_exp->add("sha1");
     psub_sub_sub_s_exp->add(prot.s2k.salt, PGP_SALT_SIZE);
     psub_sub_sub_s_exp->add(prot.s2k.iterations);
@@ -1156,7 +1155,7 @@ gnupg_sexp_t::add_protected_seckey(pgp_key_pkt_t &       seckey,
     /* encrypted key data itself */
     psub_s_exp->add(enckey.data(), enckey.size());
     /* protected-at */
-    psub_s_exp = &add_sub();
+    psub_s_exp = add_sub();
     psub_s_exp->add("protected-at");
     psub_s_exp->add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
 }
@@ -1188,13 +1187,13 @@ g10_write_seckey(pgp_dest_t *          dst,
     try {
         gnupg_sexp_t s_exp;
         s_exp.add(is_protected ? "protected-private-key" : "private-key");
-        gnupg_sexp_t &pkey = s_exp.add_sub();
-        pkey.add_pubkey(*seckey);
+        auto pkey = s_exp.add_sub();
+        pkey->add_pubkey(*seckey);
 
         if (is_protected) {
-            pkey.add_protected_seckey(*seckey, password, ctx);
+            pkey->add_protected_seckey(*seckey, password, ctx);
         } else {
-            pkey.add_seckey(*seckey);
+            pkey->add_seckey(*seckey);
         }
         return s_exp.write(*dst) && !dst->werr;
     } catch (const std::exception &e) {
@@ -1211,9 +1210,9 @@ g10_calculated_hash(const pgp_key_pkt_t &key, const char *protected_at, uint8_t 
         gnupg_sexp_t s_exp;
         s_exp.add_pubkey(key);
         s_exp.add_seckey(key);
-        gnupg_sexp_t &s_sub_exp = s_exp.add_sub();
-        s_sub_exp.add("protected-at");
-        s_sub_exp.add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
+        auto s_sub_exp = s_exp.add_sub();
+        s_sub_exp->add("protected-at");
+        s_sub_exp->add((uint8_t *) protected_at, G10_PROTECTED_AT_SIZE);
         /* write it to memdst */
         rnp::MemoryDest memdst;
         memdst.set_secure(true);
