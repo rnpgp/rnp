@@ -1,3 +1,28 @@
+# Copyright (c) 2023 [Ribose Inc](https://www.ribose.com).
+# All rights reserved.
+# This file is a part of rnp
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+# ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+# TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+# PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDERS OR CONTRIBUTORS
+# BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+# POSSIBILITY OF SUCH DAMAGE.
+
 name: ubuntu
 
 on:
@@ -35,152 +60,153 @@ concurrency:
 
 env:
   CORES: 2
-  BUILD_MODE: normal
   GPG_VERSION: stable
   USE_STATIC_DEPENDENCIES: yes
 
 jobs:
   tests:
-    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; GnuPG stable]
+    name: ${{ matrix.os }} [CC ${{ matrix.env.CC }}; ${{ matrix.backend.name }}; shared libs ${{ matrix.shared_libs }}; GnuPG stable]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ ubuntu-latest ]
+        shared_libs: [ 'on' ]
+        backend:
+          - { name: 'botan',    package: 'libbotan-2-dev' }
+          - { name: 'openssl',  package: 'libssl-dev'     }
         env:
-          - CC: gcc
-            CXX: g++
-          - CC: clang
-            CXX: clang++
+          - { CC: gcc,    CXX: g++     }
+          - { CC: clang,  CXX: clang++ }
+        include:
+        # This implies openssl 1.1.1 as opposed to ubuntu-latest which is openssl 3
+          - os: ubuntu-20.04
+            shared_libs: 'on'
+            backend: { name: 'openssl',  package: 'libssl-dev' }
+            env: { CC: gcc, CXX: g++ }
+
+          - os: ubuntu-latest
+            shared_libs: 'off'
+            backend: { name: 'botan',    package: 'libbotan-2-dev' }
+            env: { CC: gcc, CXX: g++ }
+
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     env: ${{ matrix.env }}
     timeout-minutes: 50
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
           submodules: true
-      - name: Setup environment
+
+      - name: Install dependencies
+#     Already installed on GHA: build-essential libbz2-dev zlib1g-dev
         run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ runner.os }}-${{ env.BUILD_MODE }}-${{ matrix.env.CC }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev ${{ matrix.backend.package }} asciidoctor
+
+      - name: Configure
         run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: tests
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}}   \
+                           -DCRYPTO_BACKEND=${{ matrix.backend.name }}    \
+                           -DDOWNLOAD_GTEST=ON                            \
+                           -DCMAKE_BUILD_TYPE=Release  .
+
+      - name: Build
+        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+
+      - name: Test
         run: |
-          set -x
-          ci/run.sh
-      - name: Package
-        run: |
-          set -x
-          cd ${LOCAL_BUILDS}/rnp-build
-          cpack -G DEB -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+
   cmake-offline-googletest-src:
-    env:
-      GTEST_SOURCES: /usr/src/googletest
-      RNP_TESTS: rnp_tests
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          submodules: true
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-          sudo apt-get -y install googletest
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: tests
-        run: |
-          set -x
-          ci/run.sh
-          [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
-          [ -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
-  cmake-offline-googletest:
-    env:
-      DOWNLOAD_GTEST: Off
-      RNP_TESTS: rnp_tests
-    runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 50
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          submodules: true
-      - name: Setup environment
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-          sudo apt-get -y install googletest
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: |
-            ${{ env.CACHE_DIR }}
-          key: ${{ github.workflow }}-${{ github.job }}-${{ runner.os }}-${{ env.BUILD_MODE }}-gpg-${{ env.GPG_VERSION }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/**') }}
-      - name: Build cache
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: |
-          set -x
-          ci/install_cacheable_dependencies.sh
-      - name: Build googletest
-        run: |
-          set -x
-          mkdir -p "${LOCAL_BUILDS}/googletest-build"
-          pushd "${LOCAL_BUILDS}/googletest-build"
-          cmake /usr/src/googletest
-          sudo make -j2 install
-          popd
-      - name: tests
-        run: |
-          set -x
-          ci/run.sh
-          [ -d "${LOCAL_BUILDS}/rnp-build/src/tests" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-build" ]
-          [ ! -d "${LOCAL_BUILDS}/rnp-build/src/tests/googletest-src" ]
-  version-cmake-up-to-date:
-    runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          path: rnp
-          submodules: true
-      - name: Download latest version.cmake
+      - name: Checkout
         uses: actions/checkout@v3
         with:
-          repository: rnpgp/cmake-versioning
           fetch-depth: 1
-          path: cmake-versioning
           submodules: true
-      - name: Compare
+
+      - name: Install dependencies
         run: |
-          set -x
-          diff "rnp/cmake/version.cmake" "cmake-versioning/version.cmake"
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON              \
+                           -DCRYPTO_BACKEND=botan              \
+                           -DDOWNLOAD_GTEST=OFF                \
+                           -DGTEST_SOURCES=/usr/src/googletest \
+                           -DCMAKE_BUILD_TYPE=Release          .
+
+      - name: Build
+        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+
+      - name: Check googletest
+        run: |
+          [ -d "build/src/tests" ]
+          [ -d "build/src/tests/googletest-build" ]
+          [ ! -d "build/src/tests/googletest-src" ]
+
+  cmake-offline-googletest:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+
+      - name: Build googletest
+        run: |
+          cmake -B googletest-build /usr/src/googletest
+          cmake --build googletest-build
+          sudo cmake --install googletest-build
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON              \
+                           -DCRYPTO_BACKEND=botan              \
+                           -DDOWNLOAD_GTEST=OFF                \
+                           -DCMAKE_BUILD_TYPE=Release          .
+
+      - name: Build
+        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+
+      - name: Check googletest
+        run: |
+          [ -d "build/src/tests" ]
+          [ ! -d "build/src/tests/googletest-build" ]
+          [ ! -d "build/src/tests/googletest-src" ]
