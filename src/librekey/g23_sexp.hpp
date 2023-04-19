@@ -32,6 +32,9 @@
 
 #define SXP_MAX_DEPTH 30
 
+class gnupg_sexp_t;
+typedef std::shared_ptr<gnupg_sexp_t> p_gnupg_sexp;
+
 class gnupg_sexp_t : public sexp::sexp_list_t {
     /* write gnupg_sexp_t contents, adding padding, for the further encryption */
     rnp::secure_vector<uint8_t> write_padded(size_t padblock) const;
@@ -47,17 +50,17 @@ class gnupg_sexp_t : public sexp::sexp_list_t {
     {
         push_back(std::shared_ptr<sexp::sexp_string_t>(new sexp::sexp_string_t(data, size)));
     };
-    void          add(unsigned u);
-    gnupg_sexp_t &add_sub();
-    void          add_mpi(const std::string &name, const pgp_mpi_t &val);
-    void          add_curve(const std::string &name, const pgp_ec_key_t &key);
-    void          add_pubkey(const pgp_key_pkt_t &key);
-    void          add_seckey(const pgp_key_pkt_t &key);
-    void          add_protected_seckey(pgp_key_pkt_t &       seckey,
-                                       const std::string &   password,
-                                       rnp::SecurityContext &ctx);
-    bool          parse(const char *r_bytes, size_t r_length, size_t depth = 1);
-    bool          write(pgp_dest_t &dst) const noexcept;
+    void         add(unsigned u);
+    p_gnupg_sexp add_sub();
+    void         add_mpi(const std::string &name, const pgp_mpi_t &val);
+    void         add_curve(const std::string &name, const pgp_ec_key_t &key);
+    void         add_pubkey(const pgp_key_pkt_t &key);
+    void         add_seckey(const pgp_key_pkt_t &key);
+    void         add_protected_seckey(pgp_key_pkt_t &       seckey,
+                                      const std::string &   password,
+                                      rnp::SecurityContext &ctx);
+    bool         parse(const char *r_bytes, size_t r_length, size_t depth = 1);
+    bool         write(pgp_dest_t &dst) const noexcept;
 };
 
 class gnupg_extended_private_key_t : public ext_key_format::extended_private_key_t {
