@@ -133,11 +133,11 @@ if (NOT ${result} EQUAL 0)
 endif()
 
 set(OPENSSL_SUPPORTED_FEATURES "")
-if(WIN32 AND NOT MSYS)
+if(WIN32 AND NOT MINGW)
   set(FOF "build/Release/findopensslfeatures")
-else(WIN32 AND NOT MSYS)
+else(WIN32 AND NOT MINGW)
   set(FOF "build/findopensslfeatures")
-endif(WIN32 AND NOT MSYS)
+endif(WIN32 AND NOT MINGW)
 
 foreach(feature "hashes" "ciphers" "curves" "publickey")
   execute_process(
