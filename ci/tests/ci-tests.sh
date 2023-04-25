@@ -53,7 +53,7 @@ test_symbol_visibility() {
         ;;
       *)
         nm --defined-only -g "$RNP_INSTALL"/lib64/librnp*.so > exports
-    esac   
+    esac
 
     assertEquals "Unexpected: 'dst_close' is in exports" 0 "$(grep -c dst_close exports)"
     assertEquals "Unexpected: 'Botan' is in exports" 0 "$(grep -c Botan exports)"
@@ -76,7 +76,7 @@ test_supported_features() {
     unsupported=( NOOP )
 
     botan_only=( TWOFISH EAX )
-    brainpool=( rainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
+    brainpool=( brainpoolP256r1 brainpoolP384r1 brainpoolP512r1 )
     sm2=( SM2 SM4 SM3 "SM2 P-256" )
 
     # SM2
@@ -98,16 +98,16 @@ test_supported_features() {
     case "$OSTYPE" in
       msys)
         so_folder="bin"
-        botan_only+=("${brainpool[@]}")
+        support+=("${brainpool[@]}")
         ;;
       darwin*)
         so_folder="lib"
-        support+=("${brainpool[@]}")       
+        support+=("${brainpool[@]}")
         ;;
       *)
         so_folder="lib64"
         botan_only+=("${brainpool[@]}")
-    esac   
+    esac
 
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
         unsupported+=("${botan_only[@]}")
@@ -118,7 +118,7 @@ test_supported_features() {
     fi
 
     if [[ "$OSTYPE" == darwin* ]]; then
-        export DYLD_LIBRARY_PATH="$library_path" 
+        export DYLD_LIBRARY_PATH="$library_path"
     else
         export LD_LIBRARY_PATH="$library_path"
     fi
