@@ -60,13 +60,11 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  BUILD_MODE: normal
-  GPG_VERSION: stable
   RNP_INSTALL: /home/runneradmin/rnp-install
 
 jobs:
   tests:
-    name: windows-latest msys2 [msystem ${{ matrix.msystem }}; GnuPG stable]
+    name: windows-latest msys2 [msystem ${{ matrix.msystem }}; backend ${{ matrix.backend.name }}; build shared libs ${{ matrix.shared_libs }}; GnuPG stable]
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 70
     runs-on: windows-latest
@@ -77,8 +75,15 @@ jobs:
       fail-fast: false
       matrix:
         msystem: [ 'ucrt64', 'mingw64', 'clang64' ]
-        shared_lib: [ 'on' ]
-        backend: [ 'botan' ]
+        shared_libs: [ 'on' ]
+        backend:
+          - { name: 'botan',    lib: 'libbotan' }
+          - { name: 'openssl',  lib: 'openssl'  }
+
+        include:
+          - msystem: 'ucrt64'
+            shared_libs: 'off'
+            backend: { name: 'botan', lib: 'libbotan' }
 
     steps:
       - name: Checkout
@@ -99,7 +104,7 @@ jobs:
           pacboy: >-
             toolchain:p
             cmake:p
-            libbotan:p
+            ${{ matrix.backend.lib }}:p
             json-c:p
             asciidoctor:p
             gtest:p
@@ -108,11 +113,12 @@ jobs:
       - name: Configure
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
-          cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}}   \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}        \
+          echo CRYPTO_BACKEND=${{ matrix.backend.name }} >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=${{ matrix.shared_libs }} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend.name }}   \
                            -DCMAKE_INSTALL_PREFIX=${{ env.RNP_INSTALL }} \
                            -DDOWNLOAD_GTEST=OFF                          \
-                           -DCMAKE_BUILD_TYPE=Release  .
+                           -DCMAKE_BUILD_TYPE=Release .
 
       - name: Build
         run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
@@ -134,5 +140,5 @@ jobs:
           path: ci/tests/shunit2
 
       - name: Run additional ci tests
-        if: ${{ matrix.shared_lib}}=='on'
+        if: ${{ matrix.shared_libs == 'on' }}
         run:  ci/tests/ci-tests.sh
