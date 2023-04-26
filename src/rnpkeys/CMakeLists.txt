@@ -88,10 +88,6 @@ if(MSVC)
     )
 endif()
 
-if(MSYS)
-  target_link_libraries(rnpkeys PRIVATE regex)
-endif(MSYS)
-
 include(GNUInstallDirs)
 install(TARGETS rnpkeys
   RUNTIME
