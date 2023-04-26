@@ -43,4 +43,7 @@ TEST_F(rnp_tests, test_fuzz_verify)
 
     data = file_to_vec(DATA_PATH "timeout-5229070269153280");
     assert_int_equal(verify_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
+
+    data = file_to_vec(DATA_PATH "timeout-6613852539453440");
+    assert_int_equal(verify_LLVMFuzzerTestOneInput(data.data(), data.size()), 0);
 }
