@@ -62,6 +62,7 @@ task:
 task:
   name: package_source
   only_if: $CIRRUS_BRANCH == 'main' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_PR != ''
+  skip: "!changesInclude('.cirrus.yml') && changesIncludeOnly('/*.sh', '/.*', '/_*', 'Brewfile', 'docs/**', '**.adoc', '**.md', '**.nix', 'flake.lock', '.github/**') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
   env:
     CIRRUS_CLONE_SUBMODULES: true
 
@@ -89,6 +90,7 @@ task:
   name: package_binary
   depends_on: [ package_source ]
   only_if: $CIRRUS_BRANCH == 'main' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_PR != ''
+  skip: "!changesInclude('.cirrus.yml') && changesIncludeOnly('/*.sh', '/.*', '/_*', 'Brewfile', 'docs/**', '**.adoc', '**.md', '**.nix', 'flake.lock', '.github/**') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
 
   clone_script: |
     echo "Not cloning rnp repo"
@@ -125,6 +127,7 @@ task:
   name: test_binary
   depends_on: [ package_binary ]
   only_if: $CIRRUS_BRANCH == 'main' || $CIRRUS_BRANCH =~ 'release/.*' || $CIRRUS_PR != ''
+  skip: "!changesInclude('.cirrus.yml') && changesIncludeOnly('/*.sh', '/.*', '/_*', 'Brewfile', 'docs/**', '**.adoc', '**.md', '**.nix', 'flake.lock', '.github/**') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
 
   clone_script: |
     echo "Not cloning rnp repo"

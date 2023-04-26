@@ -101,6 +101,7 @@ jobs:
             cmake:p
             libbotan:p
             json-c:p
+            asciidoctor:p
             gtest:p
           path-type: minimal
 
