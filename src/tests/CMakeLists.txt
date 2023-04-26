@@ -183,10 +183,6 @@ if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   target_link_libraries(rnp_tests PRIVATE OpenSSL::Crypto)
 endif()
 
-if(MSYS)
-  target_link_libraries(rnp_tests PRIVATE regex)
-endif(MSYS)
-
 target_compile_definitions(rnp_tests
   PRIVATE
     RNP_RUN_TESTS
