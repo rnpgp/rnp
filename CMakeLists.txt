@@ -128,22 +128,10 @@ if(NOT MSVC)
   )
 endif(NOT MSVC)
 
-# MSYS-specific options
-if(MSYS)
-  add_compile_options(
-    -fstack-protector
-    -fopenmp
-  )
-  link_libraries(
-    -fstack-protector
-    -fopenmp
-  )
-endif(MSYS)
-
 # THis works both for MSVC and CL on Windows
-if(WIN32 AND NOT MSYS)
+if(WIN32)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
-endif(WIN32 AND NOT MSYS)
+endif(WIN32)
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 99)
