@@ -121,7 +121,10 @@ jobs:
 
       - name: Set OPENSSL_ROOT_DIR
         # Ensure consistent access to openssl installation for test_backend_version test
-        # There is another one instance of ssl at /mingw and /mingw/bin is always at the first position at PATH
+        # There are two other instances of openssl at github
+        # - at /mingw (and /mingw/bin is always at the first position at PATH)
+        # - at C:/Program Files/openssl (and the library from this one is always selected
+        #   during DEBUG build)
         if: matrix.backend == 'openssl'
         shell: bash
         run: echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
