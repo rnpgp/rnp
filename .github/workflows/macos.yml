@@ -55,7 +55,7 @@ on:
 concurrency:
   group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
   cancel-in-progress: true
-  
+
 jobs:
   tests:
     name: ${{ matrix.os }} [ backend ${{ matrix.backend }}, shared libs ${{ matrix.shared_libs }} ]
@@ -63,7 +63,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-# On MacOS gcc is alias of clang these days         
+# On MacOS gcc is alias of clang these days
         os: [macos-11, macos-12]
         backend: [ 'botan' ]
         shared_libs: [ 'on' ]
@@ -71,7 +71,7 @@ jobs:
           - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
           - { os: 'macos-12', backend: 'openssl@3', shared_libs: 'on' }
           - { os: 'macos-12', backend: 'botan', shared_libs: 'off' }
-       
+
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 250
 
@@ -95,14 +95,26 @@ jobs:
           echo "OPENSSL_ROOT_DIR=$(brew --prefix openssl@3)" >> $GITHUB_ENV
           echo "CRYPTO_BACKEND=openssl" >> $GITHUB_ENV
 
-      - name: Configure botan backend
-        if: ${{ matrix.backend == 'botan' }}
-        run: |
-          echo "brew \"botan\"" >> Brewfile
-          echo "CRYPTO_BACKEND=botan" >> $GITHUB_ENV
+#      Brew installs Botan3 now and it is not supported yet
+#
+#      - name: Configure botan backend
+#        if: ${{ matrix.backend == 'botan' }}
+#        run: |
+#          echo "brew \"botan\"" >> Brewfile
+#          echo "CRYPTO_BACKEND=botan" >> $GITHUB_ENV
 
       - name: Install dependencies
         run: brew bundle
+
+      - name: Install botan2
+        if: ${{ matrix.backend == 'botan' }}
+        run: |
+          wget -qO- https://botan.randombit.net/releases/Botan-2.19.3.tar.xz | tar xvJ
+          cd Botan-2.19.3
+          ./configure.py --prefix=/usr/local
+          make
+          sudo make install
+          cd ..
 
       - name: Configure
         run: |
@@ -116,7 +128,7 @@ jobs:
 
       - name: Build
         run: cmake --build build --config Release --parallel ${{ env.CORES }}
-      
+
       - name: Install
         run: cmake --install build
 
@@ -136,4 +148,4 @@ jobs:
 
       - name: Run additional ci tests
         if: ${{ matrix.shared_libs == 'on' }}
-        run: zsh -o shwordsplit -- ci/tests/ci-tests.sh         
+        run: zsh -o shwordsplit -- ci/tests/ci-tests.sh
