@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: "21 15 * * 6"
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze

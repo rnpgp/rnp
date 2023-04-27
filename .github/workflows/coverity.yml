@@ -12,6 +12,10 @@ env:
   RNP_TESTS: ''
   USE_STATIC_DEPENDENCIES: yes
 
+concurrency:
+  group: '${{ github.workflow }}-${{ github.job }}-${{ github.head_ref || github.ref_name }}'
+  cancel-in-progress: true
+
 jobs:
   scan:
     runs-on: ubuntu-latest
