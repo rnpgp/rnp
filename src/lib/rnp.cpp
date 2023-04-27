@@ -7750,7 +7750,9 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         }
         json_object_object_add(jso, "key wrap cipher", jsocipher);
     }
+#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
         [[fallthrough]];
+#endif
     case PGP_PKA_ECDSA:
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2: {

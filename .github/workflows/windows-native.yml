@@ -63,7 +63,10 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
+    name: >
+      Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }},
+                    build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }},
+                    build type ${{ matrix.build_type}} ]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -170,7 +173,7 @@ jobs:
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
           echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
 
-      - name: Compile
+      - name: Build
         shell: bash
         run: cmake --build build --config ${{ matrix.build_type}} --parallel ${{ env.CORES }}
 

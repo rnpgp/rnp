@@ -737,7 +737,7 @@ check_json_field_bool(json_object *obj, const std::string &field, bool value)
     if (!json_object_is_type(fld, json_type_boolean)) {
         return false;
     }
-    return json_object_get_boolean(fld) == value;
+    return (json_object_get_boolean(fld) != 0) == value;
 }
 
 bool

@@ -149,7 +149,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     uint64_t  buf64[512]; // 4KB - page size
     uint64_t  iv64[2];
     size_t    blocks, blockb;
-    unsigned  blsize = crypt->blocksize;
+    size_t    blsize = crypt->blocksize;
 
     /* encrypting till the block boundary */
     while (bytes && crypt->cfb.remaining) {
@@ -243,7 +243,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     uint64_t  outbuf64[512];
     uint64_t  iv64[2];
     size_t    blocks, blockb;
-    unsigned  blsize = crypt->blocksize;
+    size_t  blsize = crypt->blocksize;
 
     /* decrypting till the block boundary */
     while (bytes && crypt->cfb.remaining) {
