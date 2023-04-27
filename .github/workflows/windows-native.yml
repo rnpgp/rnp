@@ -74,27 +74,38 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'on', 'off']
         use_cmake_prefix_path: [ 'off' ]
+        build_type: [ 'Release' ]
         include:
           - arch:  { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'on'
+            build_type:             'Release'
           - arch:  { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
+            build_type:             'Release'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
             use_cmake_prefix_path:  'off'
             shared_libs:            'on'
+            build_type:             'Release'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'v142'
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
+            build_type:             'Release'
+          - arch:  { name: 'x64', triplet: 'x64-windows' }
+            toolset:                'ClangCL'
+            backend:                'openssl'
+            use_cmake_prefix_path:  'on'
+            shared_libs:            'off'
+            build_type:             'Debug'
 
     steps:
       - name: Checkout
@@ -161,7 +172,7 @@ jobs:
 
       - name: Compile
         shell: bash
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: cmake --build build --config ${{ matrix.build_type}} --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
