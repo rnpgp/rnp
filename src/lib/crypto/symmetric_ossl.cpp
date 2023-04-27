@@ -218,7 +218,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     int outlen = blsize;
     EVP_EncryptUpdate(crypt->cfb.obj, crypt->cfb.iv, &outlen, crypt->cfb.iv, (int) blsize);
     if (outlen != (int) blsize) {
-        RNP_LOG("Bad outlen: must be %u", blsize);
+        RNP_LOG("Bad outlen: must be %zu", blsize);
     }
     crypt->cfb.remaining = blsize;
 
@@ -315,7 +315,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     int outlen = blsize;
     EVP_EncryptUpdate(crypt->cfb.obj, crypt->cfb.iv, &outlen, crypt->cfb.iv, (int) blsize);
     if (outlen != (int) blsize) {
-        RNP_LOG("Bad outlen: must be %u", blsize);
+        RNP_LOG("Bad outlen: must be %zu", blsize);
     }
     crypt->cfb.remaining = blsize;
 
