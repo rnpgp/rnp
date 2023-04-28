@@ -117,13 +117,19 @@ jobs:
           path: Botan-${{ env.BOTAN_VERSION }}
           key: ${{ matrix.os }}-Botan-${{ env.BOTAN_VERSION }}
 
-      - name: Install Botan2
+      - name: Build Botan2
         if:  matrix.backend == 'botan' && steps.cache.outputs.cache-hit != 'true'
         run: |
           wget -qO- https://botan.randombit.net/releases/Botan-${{ env.BOTAN_VERSION }}.tar.xz | tar xvJ
           cd Botan-${{ env.BOTAN_VERSION }}
           ./configure.py --prefix=/usr/local
           make
+          cd ..
+
+      - name: Install Botan2
+        if:  matrix.backend == 'botan'
+        run: |
+          cd Botan-${{ env.BOTAN_VERSION }}
           sudo make install
           cd ..
 
