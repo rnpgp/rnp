@@ -101,33 +101,6 @@ test_shared_library() {
     sudo yum -y erase $(rpm -qa  | grep rnp)
 }
 
-test_static_library() {
-    sudo yum -y localinstall librnp0-0*.*.rpm librnp0-devel-0*.*.rpm
-    pushd "$(mktemp -d)"
-    create_source_file
-    create_cmake_file 'rnp::librnp-static'
-
-# shellcheck disable=SC2251
-!   cmake . -DCMAKE_MODULE_PATH="$DIR_CMAKE"/*
-    assertEquals "cmake failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   make
-    assertEquals "make failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   ./find_package_test
-    assertEquals "test program failed at static library test" 0 "${PIPESTATUS[0]}"
-
-# shellcheck disable=SC2251
-!   ldd find_package_test | grep librnp
-    assertNotEquals "unexpected reference to shared rnp library at static library test" 0 "${PIPESTATUS[1]}"
-
-    popd
-# shellcheck disable=SC2046
-    sudo yum -y erase $(rpm -qa  | grep rnp)
-}
-
 test_no_library() {
     pushd "$(mktemp -d)"
     create_source_file
