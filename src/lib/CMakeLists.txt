@@ -422,7 +422,7 @@ endif()
 
 if (BUILD_SHARED_LIBS)
 # both static and shared libraries
-install(TARGETS librnp
+  install(TARGETS librnp
     EXPORT rnp-targets
     LIBRARY
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
@@ -432,21 +432,22 @@ install(TARGETS librnp
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
   )
-
-  install(TARGETS librnp-static sexp
+  if (INSTALL_STATIC_LIBS)
+    install(TARGETS librnp-static sexp
+      EXPORT rnp-targets
+      ARCHIVE
+        DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+        COMPONENT development
+    )
+  endif(INSTALL_STATIC_LIBS)
+else(BUILD_SHARED_LIBS)
+# static libraries only
+  install(TARGETS librnp sexp
     EXPORT rnp-targets
     ARCHIVE
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
   )
-else(BUILD_SHARED_LIBS)
-# static libraries only
-install(TARGETS librnp sexp
-    EXPORT rnp-targets
-    ARCHIVE
-      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
-      COMPONENT development
-)
 endif(BUILD_SHARED_LIBS)
 
 # install dll only for windows
