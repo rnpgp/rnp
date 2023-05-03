@@ -414,11 +414,11 @@ else()
 endif()
 
 # add these to the rnp-targets export
-# On Unix like systems we will build/install/pack shared and static libraries librnp.so and librnp.a
-# On Windows we will build/install/pack dynamic, import and  static libraries rnp.dll, rnp.lib and rnp-static.lib
+# On Unix like systems we will build/install/pack either shared library librnp.so or static  librnp.a
+# On Windows we will build/install/pack either dynamic and import libraries rnp.dll, rnp.lib or static library rnp-static.lib
 
-# If a client application uses shared rnp library, sexp is statically linked to librnp.so
-# If a client application uses static rnp library, it still needs libsexp.a
+# If a client application uses shared rnp library, sexp is statically linked to librnp.so and libsexp.a is not installed
+# If a client application uses static rnp library, it still needs libsexp.a and it is installed
 
 if (BUILD_SHARED_LIBS)
 # both static and shared libraries
@@ -433,30 +433,23 @@ install(TARGETS librnp
       COMPONENT development
   )
 
-  install(TARGETS librnp-static sexp
-    EXPORT rnp-targets
-    ARCHIVE
-      DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
-      COMPONENT development
-  )
+# install dll only for windows
+  if (WIN32)
+    install(TARGETS librnp
+      RUNTIME
+        DESTINATION "${CMAKE_INSTALL_BINDIR}"
+        COMPONENT runtime
+    )
+  endif(WIN32)
 else(BUILD_SHARED_LIBS)
 # static libraries only
-install(TARGETS librnp sexp
+  install(TARGETS librnp sexp
     EXPORT rnp-targets
     ARCHIVE
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
 )
 endif(BUILD_SHARED_LIBS)
-
-# install dll only for windows
-if (WIN32)
-  install(TARGETS librnp
-    RUNTIME
-      DESTINATION "${CMAKE_INSTALL_BINDIR}"
-      COMPONENT runtime
-  )
-endif(WIN32)
 
 # install headers
 install(
