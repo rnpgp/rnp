@@ -23,18 +23,18 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 #.rst:
-# FindBotan2
+# FindBotan
 # -----------
 #
-# Find the botan-2 library.
+# Find the botan-2 or botan-3 library.
 #
 # IMPORTED Targets
 # ^^^^^^^^^^^^^^^^
 #
 # This module defines :prop_tgt:`IMPORTED` targets:
 #
-# ``Botan2::Botan2``
-#   The botan-2 library, if found.
+# ``Botan::Botan``
+#   The botan-2 or botan-3 library, if found.
 #
 # Result variables
 # ^^^^^^^^^^^^^^^^
@@ -43,89 +43,103 @@
 #
 # ::
 #
-#   BOTAN2_FOUND          - true if the headers and library were found
-#   BOTAN2_INCLUDE_DIRS   - where to find headers
-#   BOTAN2_LIBRARIES      - list of libraries to link
-#   BOTAN2_VERSION        - library version that was found, if any
+#   BOTAN_FOUND          - true if the headers and library were found
+#   BOTAN_INCLUDE_DIRS   - where to find headers
+#   BOTAN_LIBRARIES      - list of libraries to link
+#   BOTAN_VERSION        - library version that was found, if any
 
 # use pkg-config to get the directories and then use these values
 # in the find_path() and find_library() calls
+
 find_package(PkgConfig QUIET)
-pkg_check_modules(PC_BOTAN2 QUIET botan-2)
+
+# Search for the version 2 first unless version 3 requested
+if(NOT "${Botan_FIND_VERSION_MAJOR}" EQUAL "3")
+  pkg_check_modules(PC_BOTAN QUIET botan-2)
+  set(_suffixes "botan-2" "botan-3")
+  set(_names "botan-2" "libbotan-2" "botan-3" "libbotan-3")
+else()
+  set(_suffixes "botan-3")
+  set(_names "botan-3" "libbotan-3")
+endif()
+if(NOT PC_BOTAN_FOUND)
+  pkg_check_modules(PC_BOTAN QUIET botan-3)
+endif()
 
 # find the headers
-find_path(BOTAN2_INCLUDE_DIR
+find_path(BOTAN_INCLUDE_DIR
   NAMES botan/version.h
   HINTS
-    ${PC_BOTAN2_INCLUDEDIR}
-    ${PC_BOTAN2_INCLUDE_DIRS}
-  PATH_SUFFIXES botan-2
+    ${PC_BOTAN_INCLUDEDIR}
+    ${PC_BOTAN_INCLUDE_DIRS}
+  PATH_SUFFIXES ${_suffixes}
 )
 
 # find the library
 if(MSVC)
-  find_library(BOTAN2_LIBRARY
+  find_library(BOTAN_LIBRARY
     NAMES botan
     HINTS
-      ${PC_BOTAN2_LIBDIR}
-      ${PC_BOTAN2_LIBRARY_DIRS}
+      ${PC_BOTAN_LIBDIR}
+      ${PC_BOTAN_LIBRARY_DIRS}
   )
 else()
-  find_library(BOTAN2_LIBRARY
-    NAMES botan-2 libbotan-2
+  find_library(BOTAN_LIBRARY
+    NAMES
+      ${_names}
     HINTS
-      ${PC_BOTAN2_LIBDIR}
-      ${PC_BOTAN2_LIBRARY_DIRS}
+      ${PC_BOTAN_LIBDIR}
+      ${PC_BOTAN_LIBRARY_DIRS}
   )
 endif()
 
 # determine the version
-if(PC_BOTAN2_VERSION)
-    set(BOTAN2_VERSION ${PC_BOTAN2_VERSION})
-elseif(BOTAN2_INCLUDE_DIR AND EXISTS "${BOTAN2_INCLUDE_DIR}/botan/build.h")
-    file(STRINGS "${BOTAN2_INCLUDE_DIR}/botan/build.h" botan2_version_str
+if(PC_BOTAN_VERSION)
+    set(BOTAN_VERSION ${PC_BOTAN_VERSION})
+elseif(BOTAN_INCLUDE_DIR AND EXISTS "${BOTAN_INCLUDE_DIR}/botan/build.h")
+    file(STRINGS "${BOTAN_INCLUDE_DIR}/botan/build.h" botan_version_str
       REGEX "^#define[\t ]+(BOTAN_VERSION_[A-Z]+)[\t ]+[0-9]+")
 
     string(REGEX REPLACE ".*#define[\t ]+BOTAN_VERSION_MAJOR[\t ]+([0-9]+).*"
-           "\\1" _botan2_version_major "${botan2_version_str}")
+           "\\1" _botan_version_major "${botan_version_str}")
     string(REGEX REPLACE ".*#define[\t ]+BOTAN_VERSION_MINOR[\t ]+([0-9]+).*"
-           "\\1" _botan2_version_minor "${botan2_version_str}")
+           "\\1" _botan_version_minor "${botan_version_str}")
     string(REGEX REPLACE ".*#define[\t ]+BOTAN_VERSION_PATCH[\t ]+([0-9]+).*"
-           "\\1" _botan2_version_patch "${botan2_version_str}")
-    set(BOTAN2_VERSION "${_botan2_version_major}.${_botan2_version_minor}.${_botan2_version_patch}"
+           "\\1" _botan_version_patch "${botan_version_str}")
+    set(BOTAN_VERSION "${_botan_version_major}.${_botan_version_minor}.${_botan_version_patch}"
                        CACHE INTERNAL "The version of Botan which was detected")
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(Botan2
-  REQUIRED_VARS BOTAN2_LIBRARY BOTAN2_INCLUDE_DIR
-  VERSION_VAR BOTAN2_VERSION
+find_package_handle_standard_args(Botan
+  REQUIRED_VARS BOTAN_LIBRARY BOTAN_INCLUDE_DIR
+  VERSION_VAR BOTAN_VERSION
 )
 
-if (BOTAN2_FOUND)
-  set(BOTAN2_INCLUDE_DIRS ${BOTAN2_INCLUDE_DIR} ${PC_BOTAN2_INCLUDE_DIRS})
-  set(BOTAN2_LIBRARIES ${BOTAN2_LIBRARY})
+if (BOTAN_FOUND)
+  set(BOTAN_INCLUDE_DIRS ${BOTAN_INCLUDE_DIR} ${PC_BOTAN_INCLUDE_DIRS})
+  set(BOTAN_LIBRARIES ${BOTAN_LIBRARY})
 endif()
 
-if (BOTAN2_FOUND AND NOT TARGET Botan2::Botan2)
+if (BOTAN_FOUND AND NOT TARGET Botan::Botan)
   # create the new library target
-  add_library(Botan2::Botan2 UNKNOWN IMPORTED)
+  add_library(Botan::Botan UNKNOWN IMPORTED)
   # set the required include dirs for the target
-  if (BOTAN2_INCLUDE_DIRS)
-    set_target_properties(Botan2::Botan2
+  if (BOTAN_INCLUDE_DIRS)
+    set_target_properties(Botan::Botan
       PROPERTIES
-        INTERFACE_INCLUDE_DIRECTORIES "${BOTAN2_INCLUDE_DIRS}"
+        INTERFACE_INCLUDE_DIRECTORIES "${BOTAN_INCLUDE_DIRS}"
     )
   endif()
   # set the required libraries for the target
-  if (EXISTS "${BOTAN2_LIBRARY}")
-    set_target_properties(Botan2::Botan2
+  if (EXISTS "${BOTAN_LIBRARY}")
+    set_target_properties(Botan::Botan
       PROPERTIES
         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
-        IMPORTED_LOCATION "${BOTAN2_LIBRARY}"
+        IMPORTED_LOCATION "${BOTAN_LIBRARY}"
     )
   endif()
 endif()
 
-mark_as_advanced(BOTAN2_INCLUDE_DIR BOTAN2_LIBRARY)
+mark_as_advanced(BOTAN_INCLUDE_DIR BOTAN_LIBRARY)
 

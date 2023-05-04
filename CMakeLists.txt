@@ -104,8 +104,14 @@ if (NOT CRYPTO_BACKEND)
 endif()
 string(TOLOWER ${CRYPTO_BACKEND} CRYPTO_BACKEND_LOWERCASE)
 if(CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
-  # Default value;
+  # Default value; version 2 or 3 of Botan
   set(CRYPTO_BACKEND_BOTAN 1)
+elseif(CRYPTO_BACKEND_LOWERCASE STREQUAL "botan3")
+  set(CRYPTO_BACKEND "botan")
+  set(CRYPTO_BACKEND_LOWERCASE "botan")
+  # Require version 3 of Botan
+  set(CRYPTO_BACKEND_BOTAN 1)
+  set(CRYPTO_BACKEND_BOTAN3 1)
 elseif(CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   set(CRYPTO_BACKEND_OPENSSL 1)
 else()
@@ -135,7 +141,11 @@ endif(WIN32)
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 99)
-set(CMAKE_CXX_STANDARD 11)
+if(NOT CRYPTO_BACKEND_BOTAN3)
+  set(CMAKE_CXX_STANDARD 11)
+else()
+  set(CMAKE_CXX_STANDARD 20)
+endif()
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)

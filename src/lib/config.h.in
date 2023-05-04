@@ -51,6 +51,7 @@
 #cmakedefine HAVE__TEMPNAM
 
 #cmakedefine CRYPTO_BACKEND_BOTAN
+#cmakedefine CRYPTO_BACKEND_BOTAN3
 #cmakedefine CRYPTO_BACKEND_OPENSSL
 #cmakedefine CRYPTO_BACKEND_OPENSSL3
 
