@@ -66,8 +66,10 @@ else()
 endif()
 
 find_package(JSON-C 0.11 REQUIRED)
-if (CRYPTO_BACKEND_LOWERCASE STREQUAL "botan")
-  find_package(Botan2 2.14.0 REQUIRED)
+if (CRYPTO_BACKEND_BOTAN3)
+  find_package(Botan 3.0.0 REQUIRED)
+elseif (CRYPTO_BACKEND_BOTAN)
+  find_package(Botan 2.14.0 REQUIRED)
 endif()
 if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
   find_package(OpenSSL 1.1.1 REQUIRED)
@@ -170,7 +172,7 @@ target_include_directories(rnp_tests
   PRIVATE
     "${PROJECT_SOURCE_DIR}/src"
     "${PROJECT_SOURCE_DIR}/src/lib"
-    "${BOTAN2_INCLUDE_DIRS}"
+    "${BOTAN_INCLUDE_DIRS}"
 )
 target_link_libraries(rnp_tests
   PRIVATE
