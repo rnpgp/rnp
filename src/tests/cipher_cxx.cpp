@@ -138,7 +138,7 @@ test_cipher(pgp_symm_alg_t    alg,
     std::vector<uint8_t> decrypted(ct.size());
     // all except the last block but see below for openssl
     nonfinal_bytes = rnp_round_up(ct.size(), ud) - ud;
-#ifdef CRYPTO_BACKEND_OPENSSL
+#if defined(CRYPTO_BACKEND_OPENSSL) || defined(CRYPTO_BACKEND_BOTAN3)
     /* Since ossl backend sets tag explicitly tag bytes cannot be
        split between two blocks.
        The issue may easily occur is (for example)
@@ -146,6 +146,7 @@ test_cipher(pgp_symm_alg_t    alg,
           ct.size() = 24
           tag_size=16
     */
+    /* Botan 3 also requires to include whole tag in the finish() call. */
     if (ct.size() - nonfinal_bytes < tag_size) {
         nonfinal_bytes = ct.size() - tag_size;
     }
@@ -153,12 +154,16 @@ test_cipher(pgp_symm_alg_t    alg,
     output_written = 0;
     input_consumed = 0;
     while (input_consumed != nonfinal_bytes) {
+        size_t consume = std::min(ud, nonfinal_bytes - input_consumed);
+        if (consume < ud) {
+            break;
+        }
         assert_true(dec->update(decrypted.data() + output_written,
                                 decrypted.size() - output_written,
                                 &written,
                                 (const uint8_t *) ct.data() + input_consumed,
                                 // ++++                                    ud,
-                                std::min(ud, nonfinal_bytes - input_consumed),
+                                consume,
                                 &consumed));
         output_written += written;
         input_consumed += consumed;
