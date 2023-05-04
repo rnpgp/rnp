@@ -74,27 +74,44 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'on', 'off']
         use_cmake_prefix_path: [ 'off' ]
+        config: [ { name: 'Release', folder: '' } ]
         include:
-          - arch:  { name: 'x64', triplet: 'x64-windows' }
+          - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'on'
-          - arch:  { name: 'x64', triplet: 'x64-windows' }
+            config: { name: 'Release', folder: '' }
+          - arch:   { name: 'x64', triplet: 'x64-windows' }
+            toolset:                'ClangCL'
+            backend:                'openssl'
+            use_cmake_prefix_path:  'on'
+            shared_libs:            'on'
+            config: { name: 'Debug', folder: '/debug' }
+          - arch:   { name: 'x64', triplet: 'x64-windows' }
+            toolset:                'v142'
+            backend:                'botan'
+            use_cmake_prefix_path:  'off'
+            shared_libs:            'on'
+            config: { name: 'Debug', folder: '/debug' }
+          - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
-          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
+            config:                 'Release'
+          - arch:   { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
             use_cmake_prefix_path:  'off'
             shared_libs:            'on'
-          - arch:  { name: 'Win32',  triplet: 'x86-windows' }
+            config: { name: 'Release', folder: '' }
+          - arch:   { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'v142'
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
+            config: { name: 'Release', folder: '' }
 
     steps:
       - name: Checkout
@@ -127,7 +144,9 @@ jobs:
         #   during DEBUG build)
         if: matrix.backend == 'openssl'
         shell: bash
-        run: echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
+        run: |
+          echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
+          echo OPENSSL_MODULES=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin >> $GITHUB_ENV
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
@@ -145,8 +164,8 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}       \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
 
       - name: Configure using CMake prefix path
@@ -157,14 +176,14 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_lib}} \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
-          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
+          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin >> $GITHUB_PATH
 
       - name: Compile
         shell: bash
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: cmake --build build --config ${{ matrix.config.name }} --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
