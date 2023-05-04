@@ -31,8 +31,13 @@ find_package(ZLIB REQUIRED)
 
 # required packages
 find_package(JSON-C 0.11 REQUIRED)
-if (CRYPTO_BACKEND_BOTAN)
-  find_package(Botan2 2.14.0 REQUIRED)
+if (CRYPTO_BACKEND_BOTAN3)
+  find_package(Botan 3.0.0 REQUIRED)
+elseif (CRYPTO_BACKEND_BOTAN)
+  find_package(Botan 2.14.0 REQUIRED)
+  if(BOTAN_VERSION VERSION_GREATER_EQUAL 3.0.0)
+    set(CRYPTO_BACKEND_BOTAN3 1)
+  endif()
 endif()
 if (CRYPTO_BACKEND_OPENSSL)
   include(FindOpenSSL)
@@ -129,7 +134,7 @@ endfunction()
 
 if(CRYPTO_BACKEND_BOTAN)
   # check botan's enabled features
-  set(CMAKE_REQUIRED_INCLUDES "${BOTAN2_INCLUDE_DIRS}")
+  set(CMAKE_REQUIRED_INCLUDES "${BOTAN_INCLUDE_DIRS}")
   set(_botan_required_features
       # base
       BIGINT FFI HEX_CODEC PGP_S2K
@@ -142,12 +147,17 @@ if(CRYPTO_BACKEND_BOTAN)
       # hash
       CRC24 HASH MD5 SHA1 SHA2_32 SHA2_64 SHA3
       # public-key core
-      DL_GROUP DL_PUBLIC_KEY_FAMILY ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO
+      DL_GROUP ECC_GROUP ECC_PUBLIC_KEY_CRYPTO PUBLIC_KEY_CRYPTO # Botan-2: DL_PUBLIC_KEY_FAMILY Botan-3: DL_SCHEME, see switch below
       # public-key algs
       CURVE_25519 DSA ECDH ECDSA ED25519 ELGAMAL RSA
       # public-key operations etc
       EME_PKCS1v15 EMSA_PKCS1 EMSA_RAW KDF_BASE RFC3394_KEYWRAP SP800_56A
   )
+  if(BOTAN_VERSION VERSION_LESS 3.0.0)
+    set(_botan_required_features ${_botan_required_features} DL_PUBLIC_KEY_FAMILY)
+  else()
+    set(_botan_required_features ${_botan_required_features} DL_SCHEME RAW_HASH_FN)
+  endif()
   foreach(feature ${_botan_required_features})
     check_cxx_symbol_exists("BOTAN_HAS_${feature}" botan/build.h _botan_has_${feature})
     if (NOT _botan_has_${feature})
@@ -323,7 +333,7 @@ target_include_directories(librnp-obj
 )
 target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
 if (CRYPTO_BACKEND_BOTAN)
-  target_link_libraries(librnp-obj PRIVATE Botan2::Botan2)
+  target_link_libraries(librnp-obj PRIVATE Botan::Botan)
 elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
