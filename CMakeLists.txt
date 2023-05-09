@@ -1,4 +1,4 @@
-# Copyright (c) 2018-2020 Ribose Inc.
+# Copyright (c) 2018-2023 Ribose Inc.
 # All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
@@ -98,7 +98,7 @@ endif()
 # crypto backend
 if (NOT CRYPTO_BACKEND)
   set(CRYPTO_BACKEND "botan" CACHE STRING
-    "Crypto backend. Possible values are botan and openssl (under development, only for debug builds). Default is botan."
+    "Crypto backend. Possible values are botan and openssl. Default is botan."
     FORCE
   )
 endif()
