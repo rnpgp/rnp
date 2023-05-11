@@ -47,6 +47,15 @@
 #   BOTAN_INCLUDE_DIRS   - where to find headers
 #   BOTAN_LIBRARIES      - list of libraries to link
 #   BOTAN_VERSION        - library version that was found, if any
+#
+# Hints
+# ^^^^^
+#
+# These variables may be set to control search behaviour:
+#
+# ``BOTAN_ROOT_DIR``
+#   Set to the root directory of the Botan installation.
+#
 
 # use pkg-config to get the directories and then use these values
 # in the find_path() and find_library() calls
@@ -66,10 +75,20 @@ if(NOT PC_BOTAN_FOUND)
   pkg_check_modules(PC_BOTAN QUIET botan-3)
 endif()
 
+if(DEFINED BOTAN_ROOT_DIR)
+  set(_hints_include "${BOTAN_ROOT_DIR}/include")
+  set(_hints_lib "${BOTAN_ROOT_DIR}/lib")
+endif()
+if(DEFINED ENV{BOTAN_ROOT_DIR})
+  list(APPEND _hints_include "$ENV{BOTAN_ROOT_DIR}/include")
+  list(APPEND _hints_lib "$ENV{BOTAN_ROOT_DIR}/lib")
+endif()
+
 # find the headers
 find_path(BOTAN_INCLUDE_DIR
   NAMES botan/version.h
   HINTS
+    ${_hints_include}
     ${PC_BOTAN_INCLUDEDIR}
     ${PC_BOTAN_INCLUDE_DIRS}
   PATH_SUFFIXES ${_suffixes}
@@ -80,6 +99,7 @@ if(MSVC)
   find_library(BOTAN_LIBRARY
     NAMES botan
     HINTS
+      ${_hints_lib}
       ${PC_BOTAN_LIBDIR}
       ${PC_BOTAN_LIBRARY_DIRS}
   )
@@ -88,6 +108,7 @@ else()
     NAMES
       ${_names}
     HINTS
+      ${_hints_lib}
       ${PC_BOTAN_LIBDIR}
       ${PC_BOTAN_LIBRARY_DIRS}
   )
