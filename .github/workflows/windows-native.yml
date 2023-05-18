@@ -63,7 +63,7 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
+    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, config ${{ matrix.config.name }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -99,7 +99,7 @@ jobs:
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
-            config:                 'Release'
+            config: { name: 'Release', folder: '' }
           - arch:   { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
@@ -179,11 +179,13 @@ jobs:
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
-          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin >> $GITHUB_PATH
 
       - name: Compile
-        shell: bash
-        run: cmake --build build --config ${{ matrix.config.name }} --parallel ${{ env.CORES }}
+#        shell: bash
+        run: |
+          $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin;'+$env:PATH
+          $env:PATH
+          cmake --build build --config ${{ matrix.config.name }} --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
@@ -193,4 +195,6 @@ jobs:
         run: |
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin:$PATH"
+          echo $PATH
           ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
