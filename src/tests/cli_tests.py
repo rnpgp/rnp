@@ -5019,7 +5019,7 @@ if __name__ == '__main__':
     else:
         LEAVE_WORKING_DIRECTORY = os.getenv('RNP_KEEP_TEMP') is not None
 
-    LVL = logging.INFO
+    LVL = logging.DEBUG
     if "-d" in sys.argv:
         sys.argv.remove('-d')
         LVL = logging.DEBUG
