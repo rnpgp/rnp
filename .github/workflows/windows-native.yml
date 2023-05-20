@@ -186,7 +186,8 @@ jobs:
           $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin;'+$env:PATH
           $env:PATH
           cmake --build build --config ${{ matrix.config }} --parallel ${{ env.CORES }} || echo 'Ok'
-          wget -O tmp/Dependencies_x64_Release.zip https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip
+          mkdir tmp
+          Invoke-WebRequest  'https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip' -OutFile tmp/Dependencies_x64_Release.zip
           7z x tmp/Dependencies_x64_Release.zip -otmp
           tmp/Dependencies -imports build/src/tests/Release/rnp_tests.exe
 
