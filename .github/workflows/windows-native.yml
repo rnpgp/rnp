@@ -74,7 +74,7 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'on', 'off']
         use_cmake_prefix_path: [ 'off' ]
-        config: 'Release'
+        config: [ 'Release' ]
         include:
           - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
