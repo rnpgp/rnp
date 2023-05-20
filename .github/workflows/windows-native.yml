@@ -189,7 +189,7 @@ jobs:
           mkdir tmp
           Invoke-WebRequest  'https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip' -OutFile tmp/Dependencies_x64_Release.zip
           7z x tmp/Dependencies_x64_Release.zip -otmp
-          tmp/Dependencies -imports build/src/tests/Release/rnp_tests.exe
+          tmp/Dependencies -modules build/src/tests/Release/rnp_tests.exe
 
       - name: Test
         shell: bash
