@@ -17,7 +17,7 @@ class CLIError(Exception):
         self.message = message
         self.log = log
         logging.info(self.message)
-        if Not log is None:
+        if log is not None:
             logging.debug(self.log.strip())
 
     def __str__(self):

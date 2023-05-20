@@ -147,6 +147,7 @@ jobs:
         run: |
           echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
           echo OPENSSL_MODULES=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_ENV
+          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
@@ -183,15 +184,16 @@ jobs:
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
 
       - name: Compile
-#        shell: bash
+# GHA Windows runner always adds mingw in the first position in PATH
+#          $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin;' + $env:PATH
+#          $env:PATH
+# ..
+#          mkdir tmp
+#          Invoke-WebRequest  'https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip' -OutFile tmp/Dependencies_x64_Release.zip
+#          7z x tmp/Dependencies_x64_Release.zip -otmp
+#          tmp/Dependencies -modules build/src/tests/Release/rnp_tests.exe
         run: |
-          $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin;'+$env:PATH
-          $env:PATH
           cmake --build build --config ${{ matrix.config }} --parallel ${{ env.CORES }} || echo 'Ok'
-          mkdir tmp
-          Invoke-WebRequest  'https://github.com/lucasg/Dependencies/releases/download/v1.10/Dependencies_x64_Release.zip' -OutFile tmp/Dependencies_x64_Release.zip
-          7z x tmp/Dependencies_x64_Release.zip -otmp
-          tmp/Dependencies -modules build/src/tests/Release/rnp_tests.exe
 
       - name: Test
         shell: bash
@@ -201,6 +203,4 @@ jobs:
         run: |
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          export PATH="${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin:$PATH"
-          echo $PATH
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C ${{ matrix.config }} --output-on-failure
