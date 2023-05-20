@@ -74,44 +74,44 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'on', 'off']
         use_cmake_prefix_path: [ 'off' ]
-        config: [ { name: 'Release', folder: '' } ]
+        config: 'Release'
         include:
           - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'on'
-            config: { name: 'Release', folder: '' }
+            config: 'Release'
           - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'on'
-            config: { name: 'Debug', folder: '/debug' }
+            config: 'Debug'
           - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'v142'
             backend:                'botan'
             use_cmake_prefix_path:  'off'
             shared_libs:            'on'
-            config: { name: 'Debug', folder: '/debug' }
+            config: 'Debug'
           - arch:   { name: 'x64', triplet: 'x64-windows' }
             toolset:                'ClangCL'
             backend:                'openssl'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
-            config: { name: 'Release', folder: '' }
+            config: 'Release'
           - arch:   { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
             use_cmake_prefix_path:  'off'
             shared_libs:            'on'
-            config: { name: 'Release', folder: '' }
+            config: 'Release'
           - arch:   { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'v142'
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
-            config: { name: 'Release', folder: '' }
+            config: 'Release'
 
     steps:
       - name: Checkout
@@ -146,7 +146,7 @@ jobs:
         shell: bash
         run: |
           echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
-          echo OPENSSL_MODULES=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin >> $GITHUB_ENV
+          echo OPENSSL_MODULES=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_ENV
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
@@ -183,9 +183,9 @@ jobs:
       - name: Compile
 #        shell: bash
         run: |
-          $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}${{ matrix.config.folder }}/bin;'+$env:PATH
+          $env:PATH='${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin;'+$env:PATH
           $env:PATH
-          cmake --build build --config ${{ matrix.config.name }} --parallel ${{ env.CORES }}
+          cmake --build build --config ${{ matrix.config }} --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
