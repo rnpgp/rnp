@@ -106,7 +106,7 @@ test_supported_features() {
         ;;
       *)
         so_folder="lib64"
-        botan_only+=("${brainpool[@]}")
+#       botan_only+=("${brainpool[@]}")
     esac
 
     if [[ "${CRYPTO_BACKEND:-}" == "openssl" ]]; then
