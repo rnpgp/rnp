@@ -125,6 +125,7 @@ add_executable(rnp_tests
   large-mpi.cpp
   load-g10.cpp
   load-g23.cpp
+  load-kbx.cpp
   load-pgp.cpp
   log-switch.cpp
   partial-length.cpp
