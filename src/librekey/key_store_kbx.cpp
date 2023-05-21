@@ -389,8 +389,8 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
         uint8_t *         buf = (uint8_t *) mem.memory();
 
         if (has_bytes < BLOB_FIRST_SIZE) {
-           RNP_LOG("Too few bytes for valid KBX");
-           return false;
+            RNP_LOG("Too few bytes for valid KBX");
+            return false;
         }
         while (has_bytes > 4) {
             size_t blob_length = read_uint32(buf);

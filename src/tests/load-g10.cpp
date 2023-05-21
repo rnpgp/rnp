@@ -30,6 +30,27 @@
 #include "rnp_tests.h"
 #include "support.h"
 
+TEST_F(rnp_tests, test_invalid_g10)
+{
+    rnp_key_store_t *  pub_store = NULL;
+    rnp_key_store_t *  sec_store = NULL;
+    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    // load pubring
+    pub_store =
+      new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
+    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    // trigger "Unsupported public key algorithm:" error message
+    sec_store = new rnp_key_store_t(
+      PGP_KEY_STORE_G10, "data/test_invalid_g10/private-keys-v1.d", global_ctx);
+    key_provider.userdata = pub_store;
+    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    // NULL key_provider
+    assert_true(rnp_key_store_load_from_path(sec_store, NULL));
+
+    delete pub_store;
+    delete sec_store;
+}
+
 /* This test loads G10 keyrings and verifies certain properties
  * of the keys are correct.
  */
