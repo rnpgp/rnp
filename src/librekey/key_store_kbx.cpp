@@ -131,6 +131,10 @@ kbx_header_blob_t::parse()
 bool
 kbx_pgp_blob_t::parse()
 {
+    /* Skip parsing of X.509 and empty blobs. */
+    if (type_ != KBX_PGP_BLOB) {
+        return true;
+    }
     if (image_.size() < 15 + BLOB_HEADER_SIZE) {
         RNP_LOG("Too few data in the blob.");
         return false;
@@ -167,7 +171,7 @@ kbx_pgp_blob_t::parse()
     size_t nkeys = ru16(idx);
     idx += 2;
     if (nkeys < 1) {
-        RNP_LOG("PGP blob should contains at least 1 key");
+        RNP_LOG("PGP blob should contain at least 1 key");
         return false;
     }
     if (nkeys > BLOB_OBJ_LIMIT) {
@@ -180,7 +184,7 @@ kbx_pgp_blob_t::parse()
     idx += 2;
     if (keys_len < BLOB_KEY_SIZE) {
         RNP_LOG(
-          "PGP blob needs %d bytes, but contains: %zu bytes", (int) BLOB_KEY_SIZE, keys_len);
+          "Key record needs %d bytes, but contains: %zu bytes", (int) BLOB_KEY_SIZE, keys_len);
         return false;
     }
 
@@ -283,7 +287,7 @@ kbx_pgp_blob_t::parse()
     idx += 4;
 
     if (sigs_len < BLOB_SIG_SIZE) {
-        RNP_LOG("Too small SIGN structure: %zu", uids_len);
+        RNP_LOG("Too small SIGN structure: %zu", sigs_len);
         return false;
     }
 
@@ -384,6 +388,10 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
         size_t            has_bytes = mem.size();
         uint8_t *         buf = (uint8_t *) mem.memory();
 
+        if (has_bytes < BLOB_FIRST_SIZE) {
+           RNP_LOG("Too few bytes for valid KBX");
+           return false;
+        }
         while (has_bytes > 4) {
             size_t blob_length = read_uint32(buf);
             if (blob_length > BLOB_SIZE_LIMIT) {
@@ -428,6 +436,9 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
 
             has_bytes -= blob_length;
             buf += blob_length;
+        }
+        if (has_bytes) {
+            RNP_LOG("KBX source has excess trailing bytes");
         }
         return true;
     } catch (const std::exception &e) {
