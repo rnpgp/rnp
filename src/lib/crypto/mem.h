@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2023 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -44,7 +44,10 @@ template <typename T> using secure_vector = Botan::secure_vector<T>;
 #elif defined(CRYPTO_BACKEND_OPENSSL)
 template <typename T> class ossl_allocator {
   public:
-    static_assert(std::is_integral<T>::value, "T must be integral type");
+#if !defined(_MSC_VER) || !defined(_DEBUG)
+    /* MSVC in debug mode uses non-integral proxy types in container types */
+    static_assert(std::is_integral<T>::value, "secure_vector can hold integral types only");
+#endif
 
     typedef T           value_type;
     typedef std::size_t size_type;
@@ -99,7 +102,11 @@ template <typename T> using secure_vector = std::vector<T, ossl_allocator<T> >;
 
 template <typename T, std::size_t N> struct secure_array {
   private:
-    static_assert(std::is_integral<T>::value, "T must be integer type");
+#if !defined(_MSC_VER) || !defined(_DEBUG)
+    /* MSVC in debug mode uses non-integral proxy types in container types */
+    static_assert(std::is_integral<T>::value, "secure_array can hold integral types only");
+#endif
+
     std::array<T, N> data_;
 
   public:
