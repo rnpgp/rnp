@@ -74,6 +74,7 @@ jobs:
           - { os: 'macos-11', backend: 'openssl@1.1', shared_libs: 'on' }
           - { os: 'macos-12', backend: 'openssl@3', shared_libs: 'on' }
           - { os: 'macos-12', backend: 'botan', shared_libs: 'off' }
+          - { os: 'macos-12', backend: 'botan3', shared_libs: 'on' }
 
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 250
@@ -132,6 +133,11 @@ jobs:
           cd Botan-${{ env.BOTAN_VERSION }}
           sudo make install
           cd ..
+
+      - name: Install Botan3
+        if:  matrix.backend == 'botan3'
+        run: |
+          brew install botan
 
       - name: Configure
         run: |
