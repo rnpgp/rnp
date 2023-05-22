@@ -69,6 +69,7 @@ jobs:
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,   botan_ver: 2.19.3, locale: C.UTF-8     }
           - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.18.2, locale: C.UTF-8     }
           - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.19.1, locale: C.UTF-8     }
+          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,   botan_ver: 3.0.0,  locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
