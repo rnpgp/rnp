@@ -63,8 +63,8 @@ create_cmake_file() {
         set_target_properties(JSON-C::JSON-C PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::JSONC)
 
         pkg_check_modules(Botan REQUIRED IMPORTED_TARGET botan-2)
-        add_library(Botan2::Botan2  INTERFACE IMPORTED)
-        set_target_properties(Botan2::Botan2 PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::Botan)
+        add_library(Botan::Botan  INTERFACE IMPORTED)
+        set_target_properties(Botan::Botan PROPERTIES INTERFACE_LINK_LIBRARIES PkgConfig::Botan)
 
         find_package(rnp REQUIRED)
 
