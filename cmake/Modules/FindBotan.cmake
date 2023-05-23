@@ -84,14 +84,21 @@ if(DEFINED ENV{BOTAN_ROOT_DIR})
   list(APPEND _hints_lib "$ENV{BOTAN_ROOT_DIR}/lib")
 endif()
 
+# Append PC_* stuff only if BOTAN_ROOT_DIR is not specified
+if(NOT _hints_include)
+  list(APPEND _hints_include ${PC_BOTAN_INCLUDEDIR} ${PC_BOTAN_INCLUDE_DIRS})
+  list(APPEND _hints_lib ${PC_BOTAN_LIBDIR} ${PC_BOTAN_LIBRARY_DIRS})
+else()
+  set(_no_def_path "NO_DEFAULT_PATH")
+endif()
+
 # find the headers
 find_path(BOTAN_INCLUDE_DIR
   NAMES botan/version.h
   HINTS
     ${_hints_include}
-    ${PC_BOTAN_INCLUDEDIR}
-    ${PC_BOTAN_INCLUDE_DIRS}
   PATH_SUFFIXES ${_suffixes}
+  ${_no_def_path}
 )
 
 # find the library
@@ -100,8 +107,7 @@ if(MSVC)
     NAMES botan
     HINTS
       ${_hints_lib}
-      ${PC_BOTAN_LIBDIR}
-      ${PC_BOTAN_LIBRARY_DIRS}
+    ${_no_def_path}
   )
 else()
   find_library(BOTAN_LIBRARY
@@ -109,15 +115,12 @@ else()
       ${_names}
     HINTS
       ${_hints_lib}
-      ${PC_BOTAN_LIBDIR}
-      ${PC_BOTAN_LIBRARY_DIRS}
+    ${_no_def_path}
   )
 endif()
 
 # determine the version
-if(PC_BOTAN_VERSION)
-    set(BOTAN_VERSION ${PC_BOTAN_VERSION})
-elseif(BOTAN_INCLUDE_DIR AND EXISTS "${BOTAN_INCLUDE_DIR}/botan/build.h")
+if(BOTAN_INCLUDE_DIR AND EXISTS "${BOTAN_INCLUDE_DIR}/botan/build.h")
     file(STRINGS "${BOTAN_INCLUDE_DIR}/botan/build.h" botan_version_str
       REGEX "^#define[\t ]+(BOTAN_VERSION_[A-Z]+)[\t ]+[0-9]+")
 
@@ -163,4 +166,3 @@ if (BOTAN_FOUND AND NOT TARGET Botan::Botan)
 endif()
 
 mark_as_advanced(BOTAN_INCLUDE_DIR BOTAN_LIBRARY)
-
