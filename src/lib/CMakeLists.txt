@@ -48,6 +48,10 @@ if (CRYPTO_BACKEND_OPENSSL)
   endif()
 endif()
 
+if(CRYPTO_BACKEND_BOTAN3)
+  set(CMAKE_CXX_STANDARD 20)
+endif()
+
 # generate a config.h
 include(CheckIncludeFileCXX)
 include(CheckCXXSymbolExists)
