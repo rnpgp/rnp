@@ -1344,6 +1344,10 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             if (ret) {
                 goto finish;
             }
+            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+                RNP_LOG("too many packet dump errors or unknown packets.");
+                goto finish;
+            }
         }
 
         if (ret) {
@@ -2458,6 +2462,14 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             break;
         default:
             ret = stream_skip_packet(src);
+            if (ret) {
+                goto done;
+            }
+            if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
+                RNP_LOG("too many packet dump errors or unknown packets.");
+                ret = RNP_ERROR_BAD_FORMAT;
+                goto done;
+            }
         }
 
         if (ret) {
