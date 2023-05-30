@@ -39,16 +39,15 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     rnp_ffi_t    ffi = NULL;
     rnp_input_t  input = NULL;
     rnp_output_t output = NULL;
-    rnp_result_t ret;
 
-    ret = rnp_ffi_create(&ffi, "GPG", "GPG");
-    ret = rnp_input_from_memory(&input, data, size, false);
-    ret = rnp_output_to_null(&output);
+    (void) rnp_ffi_create(&ffi, "GPG", "GPG");
+    (void) rnp_input_from_memory(&input, data, size, false);
+    (void) rnp_output_to_null(&output);
 
     rnp_op_verify_t op = NULL;
-    ret = rnp_op_verify_create(&op, ffi, input, output);
-    ret = rnp_op_verify_execute(op);
-    ret = rnp_op_verify_destroy(op);
+    (void) rnp_op_verify_create(&op, ffi, input, output);
+    (void) rnp_op_verify_execute(op);
+    (void) rnp_op_verify_destroy(op);
 
     rnp_input_destroy(input);
     rnp_output_destroy(output);
