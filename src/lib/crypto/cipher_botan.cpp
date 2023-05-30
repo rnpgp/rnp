@@ -64,8 +64,12 @@ Cipher_Botan::create(pgp_symm_alg_t alg, const std::string &name, bool encrypt)
         return nullptr;
     }
 #endif
-    auto cipher = Botan::Cipher_Mode::create(
-      name, encrypt ? Botan::Cipher_Dir::ENCRYPTION : Botan::Cipher_Dir::DECRYPTION);
+#if defined(CRYPTO_BACKEND_BOTAN3)
+    auto dir = encrypt ? Botan::Cipher_Dir::Encryption : Botan::Cipher_Dir::Decryption;
+#else
+    auto dir = encrypt ? Botan::Cipher_Dir::ENCRYPTION : Botan::Cipher_Dir::DECRYPTION;
+#endif
+    auto cipher = Botan::Cipher_Mode::create(name, dir);
     if (!cipher) {
         RNP_LOG("Failed to create cipher '%s'", name.c_str());
         return nullptr;
