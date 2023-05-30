@@ -85,6 +85,14 @@ class JSONObject {
             json_object_put(obj_);
         }
     }
+
+    json_object *
+    release()
+    {
+        json_object *res = obj_;
+        obj_ = NULL;
+        return res;
+    }
 };
 } // namespace rnp
 

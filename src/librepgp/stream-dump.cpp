@@ -2334,69 +2334,59 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     if (!jso_hdr) {
         return false;
     }
+    rnp::JSONObject jso_hdrwrap(jso_hdr);
 
-    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(src->readb))) {
-        goto error;
-    }
-    if (!obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map)) {
-        goto error;
-    }
-    if (!obj_add_hex_json(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
-        goto error;
+    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(src->readb)) ||
+        !obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map) ||
+        !obj_add_hex_json(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
+        return false;
     }
     if (!hdr->partial && !hdr->indeterminate &&
         !obj_add_field_json(jso_hdr, "length", json_object_new_int64(hdr->pkt_len))) {
-        goto error;
+        return false;
     }
-    if (!obj_add_field_json(jso_hdr, "partial", json_object_new_boolean(hdr->partial))) {
-        goto error;
+    if (!obj_add_field_json(jso_hdr, "partial", json_object_new_boolean(hdr->partial)) ||
+        !obj_add_field_json(
+          jso_hdr, "indeterminate", json_object_new_boolean(hdr->indeterminate)) ||
+        !obj_add_field_json(pkt, "header", jso_hdr)) {
+        return false;
     }
-    if (!obj_add_field_json(
-          jso_hdr, "indeterminate", json_object_new_boolean(hdr->indeterminate))) {
-        goto error;
-    }
-    return obj_add_field_json(pkt, "header", jso_hdr);
-error:
-    json_object_put(jso_hdr);
-    return false;
+    jso_hdrwrap.release();
+    return true;
 }
 
 static rnp_result_t
 stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **jso)
 {
-    json_object *pkts = NULL;
-    json_object *pkt = NULL;
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    pkts = json_object_new_array();
+    json_object *pkts = json_object_new_array();
     if (!pkts) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    rnp::JSONObject pktswrap(pkts);
 
     if (src_eof(src)) {
-        ret = RNP_SUCCESS;
-        goto done;
+        *jso = pktswrap.release();
+        return RNP_SUCCESS;
     }
 
     /* do not allow endless recursion */
     if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
-        ret = RNP_SUCCESS;
-        goto done;
+        *jso = pktswrap.release();
+        return RNP_SUCCESS;
     }
 
     while (!src_eof(src)) {
-        pgp_packet_hdr_t hdr = {};
-
-        pkt = json_object_new_object();
+        json_object *pkt = json_object_new_object();
         if (!pkt) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
-
+        rnp::JSONObject  pktwrap(pkt);
+        pgp_packet_hdr_t hdr = {};
         if (!stream_dump_hdr_json(src, &hdr, pkt)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
 
         if (ctx->dump_packets) {
@@ -2407,12 +2397,10 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
                 rlen = 2048 + hdr.hdr_len;
             }
             if (!src_peek(src, buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
-                ret = RNP_ERROR_READ;
-                goto done;
+                return RNP_ERROR_READ;
             }
             if (!obj_add_hex_json(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
+                return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
 
@@ -2463,12 +2451,11 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         default:
             ret = stream_skip_packet(src);
             if (ret) {
-                goto done;
+                return ret;
             }
             if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors or unknown packets.");
-                ret = RNP_ERROR_BAD_FORMAT;
-                goto done;
+                return RNP_ERROR_BAD_FORMAT;
             }
         }
 
@@ -2476,31 +2463,22 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             RNP_LOG("failed to process packet");
             if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors.");
-                goto done;
+                return ret;
             }
-            ret = RNP_SUCCESS;
         }
 
         if (json_object_array_add(pkts, pkt)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
+        pktwrap.release();
         if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
             RNP_LOG("Too many OpenPGP stream packets during the dump.");
-            ret = RNP_SUCCESS;
-            goto done;
+            break;
         }
+    }
 
-        pkt = NULL;
-    }
-done:
-    if (ret) {
-        json_object_put(pkts);
-        json_object_put(pkt);
-        pkts = NULL;
-    }
-    *jso = pkts;
-    return ret;
+    *jso = pktswrap.release();
+    return RNP_SUCCESS;
 }
 
 rnp_result_t
