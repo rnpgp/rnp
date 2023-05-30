@@ -65,15 +65,37 @@ list_ciphers()
     return 0;
 }
 
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+static void
+print_km_name(const char *name, void *param)
+{
+    /* Do not print OIDs for better clarity */
+    if (!name || ((name[0] <= '9') && (name[0] >= '0'))) {
+        return;
+    }
+    printf("%s\n", name);
+}
+
+static void
+print_km(EVP_KEYMGMT *km, void *param)
+{
+    EVP_KEYMGMT_names_do_all(km, print_km_name, NULL);
+}
+#endif
+
 int
 list_publickey()
 {
+#if OPENSSL_VERSION_NUMBER < 0x30000000L
     for (size_t i = 0; i < EVP_PKEY_meth_get_count(); i++) {
         const EVP_PKEY_METHOD *pmeth = EVP_PKEY_meth_get0(i);
         int                    id = 0;
         EVP_PKEY_meth_get0_info(&id, NULL, pmeth);
         printf("%s\n", OBJ_nid2ln(id));
     }
+#else
+    EVP_KEYMGMT_do_all_provided(NULL, print_km, NULL);
+#endif
     return 0;
 }
 
