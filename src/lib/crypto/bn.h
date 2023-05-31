@@ -61,4 +61,82 @@ bool bn2mpi(const bignum_t *bn, pgp_mpi_t *val);
 
 size_t bn_num_bytes(const bignum_t &a);
 
+#if defined(CRYPTO_BACKEND_OPENSSL)
+namespace rnp {
+class bn {
+    BIGNUM *_bn;
+
+  public:
+    bn(BIGNUM *val = NULL) : _bn(val)
+    {
+    }
+
+    bn(const pgp_mpi_t &val) : _bn(mpi2bn(&val))
+    {
+    }
+
+    ~bn()
+    {
+        BN_free(_bn);
+    }
+
+    void
+    set(BIGNUM *val = NULL) noexcept
+    {
+        BN_free(_bn);
+        _bn = val;
+    }
+
+    void
+    set(const pgp_mpi_t &val) noexcept
+    {
+        BN_free(_bn);
+        _bn = mpi2bn(&val);
+    }
+
+    BIGNUM **
+    ptr() noexcept
+    {
+        set();
+        return &_bn;
+    }
+
+    BIGNUM *
+    get() noexcept
+    {
+        return _bn;
+    }
+
+    BIGNUM *
+    own() noexcept
+    {
+        auto res = _bn;
+        _bn = NULL;
+        return res;
+    }
+
+    size_t
+    bytes() const noexcept
+    {
+        return BN_num_bytes(_bn);
+    }
+
+    bool
+    bin(uint8_t *b) const noexcept
+    {
+        if (!b) {
+            return false;
+        }
+        return BN_bn2bin(_bn, b) >= 0;
+    }
+
+    bool
+    mpi(pgp_mpi_t &mpi) const noexcept
+    {
+        return bn2mpi(_bn, &mpi);
+    }
+};
+}; // namespace rnp
+#endif
+
 #endif
