@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021-2022, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -45,30 +45,23 @@
 static RSA *
 rsa_load_public_key(const pgp_rsa_key_t *key)
 {
-    RSA *     rsa = NULL;
-    bignum_t *n = mpi2bn(&key->n);
-    bignum_t *e = mpi2bn(&key->e);
+    rnp::bn n(key->n);
+    rnp::bn e(key->e);
 
-    if (!n || !e) {
+    if (!n.get() || !e.get()) {
         RNP_LOG("out of memory");
-        goto done;
+        return NULL;
     }
-    rsa = RSA_new();
+    RSA *rsa = RSA_new();
     if (!rsa) {
         RNP_LOG("Out of memory");
-        goto done;
+        return NULL;
     }
-    if (RSA_set0_key(rsa, n, e, NULL) != 1) {
+    /* OpenSSL set0 function transfers ownership of bignums */
+    if (RSA_set0_key(rsa, n.own(), e.own(), NULL) != 1) {
         RNP_LOG("Public key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
-        rsa = NULL;
-        goto done;
-    }
-done:
-    /* OpenSSL set0 function transfers ownership of bignums */
-    if (!rsa) {
-        bn_free(n);
-        bn_free(e);
+        return NULL;
     }
     return rsa;
 }
@@ -76,44 +69,33 @@ done:
 static RSA *
 rsa_load_secret_key(const pgp_rsa_key_t *key)
 {
-    RSA *     rsa = NULL;
-    bignum_t *n = mpi2bn(&key->n);
-    bignum_t *e = mpi2bn(&key->e);
-    bignum_t *p = mpi2bn(&key->p);
-    bignum_t *q = mpi2bn(&key->q);
-    bignum_t *d = mpi2bn(&key->d);
+    rnp::bn n(key->n);
+    rnp::bn e(key->e);
+    rnp::bn p(key->p);
+    rnp::bn q(key->q);
+    rnp::bn d(key->d);
 
-    if (!n || !p || !q || !e || !d) {
+    if (!n.get() || !p.get() || !q.get() || !e.get() || !d.get()) {
         RNP_LOG("out of memory");
-        goto done;
+        return NULL;
     }
 
-    rsa = RSA_new();
+    RSA *rsa = RSA_new();
     if (!rsa) {
         RNP_LOG("Out of memory");
-        goto done;
+        return NULL;
     }
-    if (RSA_set0_key(rsa, n, e, d) != 1) {
+    /* OpenSSL set0 function transfers ownership of bignums */
+    if (RSA_set0_key(rsa, n.own(), e.own(), d.own()) != 1) {
         RNP_LOG("Secret key load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
-        rsa = NULL;
-        goto done;
+        return NULL;
     }
     /* OpenSSL has p < q, as we do */
-    if (RSA_set0_factors(rsa, p, q) != 1) {
+    if (RSA_set0_factors(rsa, p.own(), q.own()) != 1) {
         RNP_LOG("Factors load error: %lu", ERR_peek_last_error());
         RSA_free(rsa);
-        rsa = NULL;
-        goto done;
-    }
-done:
-    /* OpenSSL set0 function transfers ownership of bignums */
-    if (!rsa) {
-        bn_free(n);
-        bn_free(p);
-        bn_free(q);
-        bn_free(e);
-        bn_free(d);
+        return NULL;
     }
     return rsa;
 }
@@ -150,32 +132,33 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
 {
     OSSL_PARAM *    params = NULL;
     OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
-    bignum_t *      n = mpi2bn(&key->n);
-    bignum_t *      e = mpi2bn(&key->e);
-    bignum_t *      d = NULL;
-    bignum_t *      p = NULL;
-    bignum_t *      q = NULL;
-    bignum_t *      u = NULL;
+    rnp::bn         n(key->n);
+    rnp::bn         e(key->e);
+    rnp::bn         d;
+    rnp::bn         p;
+    rnp::bn         q;
+    rnp::bn         u;
     BN_CTX *        bnctx = NULL;
 
-    if (!n || !e || !bld) {
+    if (!n.get() || !e.get() || !bld) {
         RNP_LOG("Out of memory");
         goto done;
     }
 
-    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n) ||
-        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e)) {
+    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_N, n.get()) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_E, e.get())) {
         RNP_LOG("Failed to push RSA params.");
-        goto done;
+        OSSL_PARAM_BLD_free(bld);
+        return NULL;
     }
     if (secret) {
-        d = mpi2bn(&key->d);
+        d.set(key->d);
         /* As we have u = p^-1 mod q, and qInv = q^-1 mod p, we need to replace one with
          * another */
-        p = mpi2bn(&key->q);
-        q = mpi2bn(&key->p);
-        u = mpi2bn(&key->u);
-        if (!d || !p || !q || !u) {
+        p.set(key->q);
+        q.set(key->p);
+        u.set(key->u);
+        if (!d.get() || !p.get() || !q.get() || !u.get()) {
             goto done;
         }
         /* We need to calculate exponents manually */
@@ -188,17 +171,18 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
         bignum_t *q1 = BN_CTX_get(bnctx);
         bignum_t *dp = BN_CTX_get(bnctx);
         bignum_t *dq = BN_CTX_get(bnctx);
-        if (!BN_copy(p1, p) || !BN_sub_word(p1, 1) || !BN_copy(q1, q) || !BN_sub_word(q1, 1) ||
-            !BN_mod(dp, d, p1, bnctx) || !BN_mod(dq, d, q1, bnctx)) {
+        if (!BN_copy(p1, p.get()) || !BN_sub_word(p1, 1) || !BN_copy(q1, q.get()) ||
+            !BN_sub_word(q1, 1) || !BN_mod(dp, d.get(), p1, bnctx) ||
+            !BN_mod(dq, d.get(), q1, bnctx)) {
             RNP_LOG("Failed to calculate dP or dQ.");
         }
         /* Push params */
-        if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_D, d) ||
-            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR1, p) ||
-            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR2, q) ||
+        if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_D, d.get()) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR1, p.get()) ||
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_FACTOR2, q.get()) ||
             !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT1, dp) ||
             !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_EXPONENT2, dq) ||
-            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u)) {
+            !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.get())) {
             RNP_LOG("Failed to push RSA secret params.");
             goto done;
         }
@@ -208,12 +192,6 @@ rsa_bld_params(const pgp_rsa_key_t *key, bool secret)
         RNP_LOG("Failed to build RSA params: %s.", ossl_latest_err());
     }
 done:
-    bn_free(n);
-    bn_free(e);
-    bn_free(d);
-    bn_free(p);
-    bn_free(q);
-    bn_free(u);
     BN_CTX_free(bnctx);
     OSSL_PARAM_BLD_free(bld);
     return params;
@@ -296,22 +274,17 @@ rsa_validate_key(rnp::RNG *rng, const pgp_rsa_key_t *key, bool secret)
     }
 
     /* OpenSSL 1.1.1 doesn't have RSA public key check function, so let's do some checks */
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-    bignum_t *   n = mpi2bn(&key->n);
-    bignum_t *   e = mpi2bn(&key->e);
-    if (!n || !e) {
+    rnp::bn n(key->n);
+    rnp::bn e(key->e);
+    if (!n.get() || !e.get()) {
         RNP_LOG("out of memory");
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if ((BN_num_bits(n) < 512) || !BN_is_odd(n) || (BN_num_bits(e) < 2) || !BN_is_odd(e)) {
-        goto done;
+    if ((BN_num_bits(n.get()) < 512) || !BN_is_odd(n.get()) || (BN_num_bits(e.get()) < 2) ||
+        !BN_is_odd(e.get())) {
+        return RNP_ERROR_GENERIC;
     }
-    ret = RNP_SUCCESS;
-done:
-    bn_free(n);
-    bn_free(e);
-    return ret;
+    return RNP_SUCCESS;
 #endif
 }
 
@@ -528,6 +501,95 @@ done:
     return ret;
 }
 
+static bool
+rsa_calculate_pqu(const bignum_t *p, const bignum_t *q, const bignum_t *u, pgp_rsa_key_t &key)
+{
+    /* OpenSSL doesn't care whether p < q */
+    if (BN_cmp(p, q) > 0) {
+        /* In this case we have u, as iqmp is inverse of q mod p, and we exchange them */
+        bn2mpi(q, &key.p);
+        bn2mpi(p, &key.q);
+        bn2mpi(u, &key.u);
+        return true;
+    }
+
+    BN_CTX *bnctx = BN_CTX_new();
+    if (!bnctx) {
+        return false;
+    }
+
+    /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse of q
+     * mod p, and doesn't care of p < q */
+    BN_CTX_start(bnctx);
+    bignum_t *nu = BN_CTX_get(bnctx);
+    bignum_t *nq = BN_CTX_get(bnctx);
+    if (!nu || !nq) {
+        BN_CTX_free(bnctx);
+        return false;
+    }
+    BN_with_flags(nq, q, BN_FLG_CONSTTIME);
+    /* calculate inverse of p mod q */
+    if (!BN_mod_inverse(nu, p, nq, bnctx)) {
+        RNP_LOG("Failed to calculate u");
+        BN_CTX_free(bnctx);
+        return false;
+    }
+    bn2mpi(p, &key.p);
+    bn2mpi(q, &key.q);
+    bn2mpi(nu, &key.u);
+    BN_CTX_free(bnctx);
+    return true;
+}
+
+static bool
+rsa_extract_key(EVP_PKEY *pkey, pgp_rsa_key_t &key)
+{
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    rnp::bn n;
+    rnp::bn e;
+    rnp::bn d;
+    rnp::bn p;
+    rnp::bn q;
+    rnp::bn u;
+
+    bool res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_N, n.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_E, e.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_D, d.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR1, p.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_FACTOR2, q.ptr()) &&
+               EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_RSA_COEFFICIENT1, u.ptr()) &&
+               rsa_calculate_pqu(p.get(), q.get(), u.get(), key);
+    return res && n.mpi(key.n) && e.mpi(key.e) && d.mpi(key.d);
+#else
+    const RSA *rsa = EVP_PKEY_get0_RSA(pkey);
+    if (!rsa) {
+        RNP_LOG("Failed to retrieve RSA key: %lu", ERR_peek_last_error());
+        return false;
+    }
+    if (RSA_check_key(rsa) != 1) {
+        RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
+        return false;
+    }
+
+    const bignum_t *n = RSA_get0_n(rsa);
+    const bignum_t *e = RSA_get0_e(rsa);
+    const bignum_t *d = RSA_get0_d(rsa);
+    const bignum_t *p = RSA_get0_p(rsa);
+    const bignum_t *q = RSA_get0_q(rsa);
+    const bignum_t *u = RSA_get0_iqmp(rsa);
+    if (!n || !e || !d || !p || !q || !u) {
+        return false;
+    }
+    if (!rsa_calculate_pqu(p, q, u, key)) {
+        return false;
+    }
+    bn2mpi(n, &key.n);
+    bn2mpi(e, &key.e);
+    bn2mpi(d, &key.d);
+    return true;
+#endif
+}
+
 rnp_result_t
 rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
 {
@@ -535,12 +597,9 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
-    const RSA *     rsa = NULL;
-    EVP_PKEY *      pkey = NULL;
-    EVP_PKEY_CTX *  ctx = NULL;
-    const bignum_t *u = NULL;
-    BN_CTX *        bnctx = NULL;
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    EVP_PKEY *    pkey = NULL;
+    EVP_PKEY_CTX *ctx = NULL;
 
     ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_RSA, NULL);
     if (!ctx) {
@@ -559,71 +618,11 @@ rsa_generate(rnp::RNG *rng, pgp_rsa_key_t *key, size_t numbits)
         RNP_LOG("RSA keygen failed: %lu", ERR_peek_last_error());
         goto done;
     }
-    rsa = EVP_PKEY_get0_RSA(pkey);
-    if (!rsa) {
-        RNP_LOG("Failed to retrieve RSA key: %lu", ERR_peek_last_error());
-        goto done;
+    if (rsa_extract_key(pkey, *key)) {
+        ret = RNP_SUCCESS;
     }
-    if (RSA_check_key(rsa) != 1) {
-        RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
-        goto done;
-    }
-
-    const bignum_t *n;
-    const bignum_t *e;
-    const bignum_t *p;
-    const bignum_t *q;
-    const bignum_t *d;
-    n = RSA_get0_n(rsa);
-    e = RSA_get0_e(rsa);
-    d = RSA_get0_d(rsa);
-    p = RSA_get0_p(rsa);
-    q = RSA_get0_q(rsa);
-    if (!n || !e || !d || !p || !q) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
-        goto done;
-    }
-    /* OpenSSL doesn't care whether p < q */
-    if (BN_cmp(p, q) > 0) {
-        /* In this case we have u, as iqmp is inverse of q mod p, and we exchange them */
-        const bignum_t *tmp = p;
-        p = q;
-        q = tmp;
-        u = RSA_get0_iqmp(rsa);
-    } else {
-        /* we need to calculate u, since we need inverse of p mod q, while OpenSSL has inverse
-         * of q mod p, and doesn't care of p < q */
-        bnctx = BN_CTX_new();
-        if (!bnctx) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        BN_CTX_start(bnctx);
-        bignum_t *nu = BN_CTX_get(bnctx);
-        bignum_t *nq = BN_CTX_get(bnctx);
-        if (!nu || !nq) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        BN_with_flags(nq, q, BN_FLG_CONSTTIME);
-        /* calculate inverse of p mod q */
-        if (!BN_mod_inverse(nu, p, nq, bnctx)) {
-            RNP_LOG("Failed to calculate u");
-            ret = RNP_ERROR_BAD_STATE;
-            goto done;
-        }
-        u = nu;
-    }
-    bn2mpi(n, &key->n);
-    bn2mpi(e, &key->e);
-    bn2mpi(p, &key->p);
-    bn2mpi(q, &key->q);
-    bn2mpi(d, &key->d);
-    bn2mpi(u, &key->u);
-    ret = RNP_SUCCESS;
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(pkey);
-    BN_CTX_free(bnctx);
     return ret;
 }
