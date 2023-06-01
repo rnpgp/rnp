@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -33,6 +33,32 @@
 #include <openssl/dh.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
+
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+static OSSL_PARAM *
+dl_build_params(bignum_t *p, bignum_t *q, bignum_t *g, bignum_t *y, bignum_t *x)
+{
+    OSSL_PARAM_BLD *bld = OSSL_PARAM_BLD_new();
+    if (!bld) {
+        return NULL;
+    }
+    if (!OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_P, p) ||
+        (q && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_Q, q)) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_FFC_G, g) ||
+        !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PUB_KEY, y) ||
+        (x && !OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_PRIV_KEY, x))) {
+        OSSL_PARAM_BLD_free(bld);
+        return NULL;
+    }
+    OSSL_PARAM *param = OSSL_PARAM_BLD_to_param(bld);
+    OSSL_PARAM_BLD_free(bld);
+    return param;
+}
+#endif
 
 EVP_PKEY *
 dl_load_key(const pgp_mpi_t &mp,
@@ -41,42 +67,57 @@ dl_load_key(const pgp_mpi_t &mp,
             const pgp_mpi_t &my,
             const pgp_mpi_t *mx)
 {
-    DH *      dh = NULL;
     EVP_PKEY *evpkey = NULL;
-    bignum_t *p = mpi2bn(&mp);
-    bignum_t *q = mq ? mpi2bn(mq) : NULL;
-    bignum_t *g = mpi2bn(&mg);
-    bignum_t *y = mpi2bn(&my);
-    bignum_t *x = mx ? mpi2bn(mx) : NULL;
+    rnp::bn   p(mpi2bn(&mp));
+    rnp::bn   q(mq ? mpi2bn(mq) : NULL);
+    rnp::bn   g(mpi2bn(&mg));
+    rnp::bn   y(mpi2bn(&my));
+    rnp::bn   x(mx ? mpi2bn(mx) : NULL);
 
-    if (!p || (mq && !q) || !g || !y || (mx && !x)) {
+    if (!p.get() || (mq && !q.get()) || !g.get() || !y.get() || (mx && !x.get())) {
         RNP_LOG("out of memory");
-        goto done;
+        return NULL;
     }
 
-    dh = DH_new();
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    OSSL_PARAM *params = dl_build_params(p.get(), q.get(), g.get(), y.get(), x.get());
+    if (!params) {
+        RNP_LOG("failed to build dsa params");
+        return NULL;
+    }
+    EVP_PKEY_CTX *ctx = EVP_PKEY_CTX_new_id(EVP_PKEY_DH, NULL);
+    if (!ctx) {
+        RNP_LOG("failed to create dl context");
+        OSSL_PARAM_free(params);
+        return NULL;
+    }
+    if ((EVP_PKEY_fromdata_init(ctx) != 1) ||
+        (EVP_PKEY_fromdata(
+           ctx, &evpkey, mx ? EVP_PKEY_KEYPAIR : EVP_PKEY_PUBLIC_KEY, params) != 1)) {
+        RNP_LOG("failed to create key from data");
+        evpkey = NULL;
+    }
+    OSSL_PARAM_free(params);
+    EVP_PKEY_CTX_free(ctx);
+    return evpkey;
+#else
+    DH *dh = DH_new();
     if (!dh) {
         RNP_LOG("out of memory");
-        goto done;
+        return NULL;
     }
-    int res;
     /* line below must not fail */
-    res = DH_set0_pqg(dh, p, q, g);
+    int res = DH_set0_pqg(dh, p.own(), q.own(), g.own());
     assert(res == 1);
     if (res < 1) {
         goto done;
     }
-    p = NULL;
-    q = NULL;
-    g = NULL;
     /* line below must not fail */
-    res = DH_set0_key(dh, y, x);
+    res = DH_set0_key(dh, y.own(), x.own());
     assert(res == 1);
     if (res < 1) {
         goto done;
     }
-    y = NULL;
-    x = NULL;
 
     evpkey = EVP_PKEY_new();
     if (!evpkey) {
@@ -90,14 +131,11 @@ dl_load_key(const pgp_mpi_t &mp,
     }
 done:
     DH_free(dh);
-    bn_free(p);
-    bn_free(q);
-    bn_free(g);
-    bn_free(y);
-    bn_free(x);
     return evpkey;
+#endif
 }
 
+#if !defined(CRYPTO_BACKEND_OPENSSL3)
 static rnp_result_t
 dl_validate_secret_key(EVP_PKEY *dlkey, const pgp_mpi_t &mx)
 {
@@ -154,6 +192,7 @@ done:
     bn_free(p1);
     return ret;
 }
+#endif
 
 rnp_result_t
 dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
@@ -181,6 +220,12 @@ dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
             goto done;
         }
     }
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    res = x ? EVP_PKEY_pairwise_check(ctx) : EVP_PKEY_public_check(ctx);
+    if (res == 1) {
+        ret = RNP_SUCCESS;
+    }
+#else
     res = EVP_PKEY_public_check(ctx);
     if (res < 0) {
         RNP_LOG("Key validation error: %lu", ERR_peek_last_error());
@@ -194,6 +239,7 @@ dl_validate_key(EVP_PKEY *pkey, const pgp_mpi_t *x)
         goto done;
     }
     ret = dl_validate_secret_key(pkey, *x);
+#endif
 done:
     EVP_PKEY_CTX_free(ctx);
     return ret;
