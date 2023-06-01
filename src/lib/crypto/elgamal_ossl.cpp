@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2021, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -38,6 +38,10 @@
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/rand.h>
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+#include <openssl/core_names.h>
+#include <openssl/param_build.h>
+#endif
 
 // Max supported key byte size
 #define ELGAMAL_MAX_P_BYTELEN BITS_TO_BYTES(PGP_MPINT_BITS)
@@ -334,8 +338,10 @@ elgamal_generate(rnp::RNG *rng, pgp_eg_key_t *key, size_t keybits)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t  ret = RNP_ERROR_GENERIC;
-    const DH *    dh = NULL;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+#if !defined(CRYPTO_BACKEND_OPENSSL3)
+    const DH *dh = NULL;
+#endif
     EVP_PKEY *    pkey = NULL;
     EVP_PKEY *    parmkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -380,6 +386,28 @@ start:
         RNP_LOG("ElGamal keygen failed: %lu", ERR_peek_last_error());
         goto done;
     }
+#if defined(CRYPTO_BACKEND_OPENSSL3)
+    {
+        rnp::bn y;
+        if (!EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PUB_KEY, y.ptr())) {
+            RNP_LOG("Failed to retrieve ElGamal public key: %lu", ERR_peek_last_error());
+            goto done;
+        }
+        if (y.bytes() != BITS_TO_BYTES(keybits)) {
+            goto start;
+        }
+
+        rnp::bn p;
+        rnp::bn g;
+        rnp::bn x;
+        bool    res = EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_P, p.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_FFC_G, g.ptr()) &&
+                   EVP_PKEY_get_bn_param(pkey, OSSL_PKEY_PARAM_PRIV_KEY, x.ptr());
+        if (res && p.mpi(key->p) && g.mpi(key->g) && y.mpi(key->y) && x.mpi(key->x)) {
+            ret = RNP_SUCCESS;
+        }
+    }
+#else
     dh = EVP_PKEY_get0_DH(pkey);
     if (!dh) {
         RNP_LOG("Failed to retrieve DH key: %lu", ERR_peek_last_error());
@@ -410,6 +438,7 @@ start:
     bn2mpi(y, &key->y);
     bn2mpi(x, &key->x);
     ret = RNP_SUCCESS;
+#endif
 done:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(parmkey);
