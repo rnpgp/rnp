@@ -407,10 +407,6 @@ rnp_cmd(cli_rnp_t *rnp, optdefs_t cmd, const char *f)
             fs = rnp->cfg().get_str(CFG_USERID, 0);
             f = fs.c_str();
         }
-        if (!f) {
-            ERR_MSG("No key specified.");
-            return 0;
-        }
         return cli_rnp_export_keys(rnp, f);
     }
     case CMD_IMPORT:
