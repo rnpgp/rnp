@@ -1949,7 +1949,7 @@ cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
         if (rnp_locate_key(rnp->ffi, "fingerprint", fp, &handle) || !handle) {
             goto done;
         }
-        if (!key_matches_flags(handle, flags) || !key_matches_string(handle, str.c_str())) {
+        if (!key_matches_flags(handle, flags) || !key_matches_string(handle, str)) {
             rnp_key_handle_destroy(handle);
             continue;
         }
@@ -2206,7 +2206,7 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
     int                           flags = secret ? CLI_SEARCH_SECRET : 0;
     std::vector<rnp_key_handle_t> keys;
 
-    if (!cli_rnp_keys_matching_string(rnp, keys, filter, flags)) {
+    if (!cli_rnp_keys_matching_string(rnp, keys, filter ? filter : std::string(), flags)) {
         ERR_MSG("Key(s) matching '%s' not found.", filter);
         return false;
     }

@@ -1508,10 +1508,10 @@ class Keystore(unittest.TestCase):
         # Import Alice's public key
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--import', data_path(KEY_ALICE_SUB_PUB)])
         self.assertEqual(ret, 0)
-        # Attempt to export no key
-        ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key'])
-        self.assertNotEqual(ret, 0)
-        self.assertRegex(err, r'(?s)^.*No key specified\.$')
+        # Export all keys (no search pattern)
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key'])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, PUB_KEY)
         # Attempt to export wrong key
         ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--export-key', 'boris'])
         self.assertNotEqual(ret, 0)
