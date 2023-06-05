@@ -394,6 +394,10 @@ start:
             goto done;
         }
         if (y.bytes() != BITS_TO_BYTES(keybits)) {
+            EVP_PKEY_CTX_free(ctx);
+            ctx = NULL;
+            EVP_PKEY_free(pkey);
+            pkey = NULL;
             goto start;
         }
 
