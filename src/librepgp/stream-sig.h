@@ -39,8 +39,8 @@ typedef struct pgp_signature_t {
     pgp_sig_type_t       type_;
     std::vector<uint8_t> preferred(pgp_sig_subpacket_type_t type) const;
     void set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type);
-    rnp_result_t parse_v3(pgp_packet_body_t &pkt);
-    rnp_result_t parse_v4(pgp_packet_body_t &pkt);
+    rnp_result_t parse_v2v3(pgp_packet_body_t &pkt);
+    rnp_result_t parse_v4up(pgp_packet_body_t &pkt);
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
 
   public:
@@ -58,8 +58,14 @@ typedef struct pgp_signature_t {
     uint32_t     creation_time;
     pgp_key_id_t signer;
 
-    /* v4 - only fields */
+    /* common v4 and v6 fields */
     std::vector<pgp_sig_subpkt_t> subpkts;
+
+  #if defined(ENABLE_CRYPTO_REFRESH)
+    /* v6 - only fields */
+    uint8_t salt[PGP_MAX_SALT_SIZE_V6_SIG];
+    uint8_t salt_size;
+  #endif
 
     pgp_signature_t()
         : type_(PGP_SIG_BINARY), version(PGP_VUNKNOWN), palg(PGP_PKA_NOTHING),

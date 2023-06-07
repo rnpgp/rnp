@@ -28,6 +28,7 @@
 #include "crypto/signatures.h"
 #include "librepgp/stream-packet.h"
 #include "librepgp/stream-sig.h"
+#include "librepgp/stream-key.h"
 #include "utils.h"
 #include "sec_profile.hpp"
 
@@ -44,21 +45,32 @@ static void
 signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf, size_t &hlen)
 {
     hash.add(sig.hashed_data, sig.hashed_len);
-    if (sig.version > PGP_V3) {
-        uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
+    if(sig.version >= PGP_V4)
+    {
+        uint8_t trailer[6] = {0x00, 0xff, 0x00, 0x00, 0x00, 0x00};
+        trailer[0] = sig.version;
         write_uint32(&trailer[2], sig.hashed_len);
+
         hash.add(trailer, 6);
     }
     hlen = hash.finish(hbuf);
 }
 
 std::unique_ptr<rnp::Hash>
-signature_init(const pgp_key_material_t &key, pgp_hash_alg_t hash_alg)
+signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
 {
-    auto hash = rnp::Hash::create(hash_alg);
-    if (key.alg == PGP_PKA_SM2) {
+    auto hash = rnp::Hash::create(sig.halg);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (key.version == PGP_V6)
+    {
+        hash->add(sig.salt, sig.salt_size);
+    }
+#endif
+
+    if (key.material.alg == PGP_PKA_SM2) {
 #if defined(ENABLE_SM2)
-        rnp_result_t r = sm2_compute_za(key.ec, *hash);
+        rnp_result_t r = sm2_compute_za(key.material.ec, *hash);
         if (r != RNP_SUCCESS) {
             RNP_LOG("failed to compute SM2 ZA field");
             throw rnp::rnp_exception(r);

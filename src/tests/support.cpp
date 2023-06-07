@@ -807,9 +807,9 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
     }
-    std::vector<uint8_t> keyid_bin(PGP_FINGERPRINT_SIZE, 0);
+    std::vector<uint8_t> keyid_bin(PGP_MAX_FINGERPRINT_SIZE, 0);
     size_t binlen = rnp::hex_decode(keyid.c_str(), keyid_bin.data(), keyid_bin.size());
-    if (binlen > PGP_FINGERPRINT_SIZE) {
+    if (binlen > PGP_MAX_FINGERPRINT_SIZE) {
         return NULL;
     }
     pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};

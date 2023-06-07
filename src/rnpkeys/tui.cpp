@@ -236,7 +236,10 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
                "\t(16) DSA + ElGamal\n"
                "\t(17) DSA + RSA\n" // TODO: See #584
                "\t(19) ECDSA + ECDH\n"
-               "\t(22) EDDSA + X25519\n"
+#if defined(ENABLE_CRYPTO_REFRESH)
+               "\t(21) EDDSA + ECDH (v6 key) \n"
+#endif
+               "\t(22) EDDSA + ECDH (v4 key) \n"
                "\t(99) SM2\n"
                "> ");
         if (!rnp_secure_get_long_from_fd(input_fp, option, false)) {
@@ -288,6 +291,12 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_SUBKEY_CURVE, curve);
             break;
         }
+#if defined(ENABLE_CRYPTO_REFRESH)
+        case 21: {
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            [[fallthrough]];
+        }
+#endif
         case 22: {
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_EDDSA);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ECDH);

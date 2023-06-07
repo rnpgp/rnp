@@ -32,6 +32,7 @@
 #define REPGP_DEF_H_
 
 #include <cstdint>
+#include "config.h"
 
 /************************************/
 /* Packet Tags - RFC4880, 4.2 */
@@ -94,8 +95,17 @@
 #define PGP_KEY_ID_SIZE 8
 
 /* Size of the fingerprint */
-#define PGP_FINGERPRINT_SIZE 20
-#define PGP_FINGERPRINT_HEX_SIZE (PGP_FINGERPRINT_SIZE * 2) + 1
+#define PGP_FINGERPRINT_V4_SIZE 20
+#if defined(ENABLE_CRYPTO_REFRESH)
+    #define PGP_FINGERPRINT_V6_SIZE 32
+    #define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V6_SIZE
+#else
+    #define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V4_SIZE
+#endif
+#define PGP_MAX_FINGERPRINT_HEX_SIZE (PGP_MAX_FINGERPRINT_SIZE * 2) + 1
+
+/* SEIPDv2 salt length */
+#define PGP_SEIPDV2_SALT_LEN 32
 
 /* Size of the key grip */
 #define PGP_KEY_GRIP_SIZE 20
@@ -103,6 +113,11 @@
 /* PGP marker packet contents */
 #define PGP_MARKER_CONTENTS "PGP"
 #define PGP_MARKER_LEN 3
+
+/* V6 Signature Salt */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    #define PGP_MAX_SALT_SIZE_V6_SIG 32
+#endif
 
 /** Old Packet Format Lengths.
  * Defines the meanings of the 2 bits for length type in the
@@ -388,6 +403,10 @@ typedef enum {
     PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE = 32, /* embedded signature */
     PGP_SIG_SUBPKT_ISSUER_FPR = 33,         /* issuer fingerprint */
     PGP_SIG_SUBPKT_PREFERRED_AEAD = 34,     /* preferred AEAD algorithms */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FINGERPRINT = 35, */
+    PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES = 39,
+#endif
     PGP_SIG_SUBPKT_PRIVATE_100 = 100,       /* private/experimental subpackets */
     PGP_SIG_SUBPKT_PRIVATE_101 = 101,
     PGP_SIG_SUBPKT_PRIVATE_102 = 102,
@@ -423,7 +442,10 @@ typedef enum {
 typedef enum {
     PGP_KEY_FEATURE_MDC = 0x01,
     PGP_KEY_FEATURE_AEAD = 0x02,
-    PGP_KEY_FEATURE_V5 = 0x04
+    PGP_KEY_FEATURE_V5 = 0x04,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_KEY_FEATURE_SEIPDV2 = 0x08
+#endif
 } pgp_key_feature_t;
 
 /** Types of Compression */
@@ -439,6 +461,8 @@ enum { PGP_SE_IP_DATA_VERSION = 1, PGP_PKSK_V3 = 3, PGP_SKSK_V4 = 4, PGP_SKSK_V5
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
+ * Also there is a draft that defines version 5, see
+ * https://datatracker.ietf.org/doc/draft-ietf-openpgp-crypto-refresh/
  *
  * \see RFC4880 5.2
  */
@@ -446,7 +470,10 @@ typedef enum {
     PGP_VUNKNOWN = 0,
     PGP_V2 = 2, /* Version 2 (essentially the same as v3) */
     PGP_V3 = 3, /* Version 3 */
-    PGP_V4 = 4  /* Version 4 */
+    PGP_V4 = 4, /* Version 4 */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_V6 = 6  /* Version 6 (crypto refresh) */
+#endif
 } pgp_version_t;
 
 typedef enum pgp_op_t {

@@ -69,6 +69,10 @@ typedef struct pgp_key_pkt_t {
      *         pgp_key_pkt_t::write() on the newly generated key */
     void fill_hashed_data();
     bool equals(const pgp_key_pkt_t &key, bool pubonly = false) const noexcept;
+
+  private:
+    /* create the contents of the algorithm specific public key fields in a separate packet */
+    void make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody);
 } pgp_key_pkt_t;
 
 /* userid/userattr with all the corresponding signatures */
