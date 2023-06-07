@@ -83,11 +83,16 @@ __RCSID("$NetBSD: crypto.c,v 1.36 2014/02/17 07:39:19 agc Exp $");
 bool
 pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
                     pgp_key_pkt_t &                   seckey,
-                    bool                              primary)
+                    bool                              primary,
+                    pgp_version_t                     pgp_version)
 {
     /* populate pgp key structure */
     seckey = {};
+#if defined(ENABLE_CRYPTO_REFRESH)
+    seckey.version = pgp_version;
+#else
     seckey.version = PGP_V4;
+#endif
     seckey.creation_time = crypto.ctx->time();
     seckey.alg = crypto.key_alg;
     seckey.material.alg = crypto.key_alg;

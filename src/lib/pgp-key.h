@@ -457,8 +457,10 @@ struct pgp_key_t {
      * @param hash hash algorithm to use (may be changed if it is not suitable for public key
      *             algorithm).
      * @param creation signature's creation time.
+     * @param version signature version
      */
-    void sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation) const;
+    void sign_init(rnp::RNG &rng, pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation, pgp_version_t version) const;
+
     /**
      * @brief Calculate a certification and fill signature material.
      *        Note: secret key must be unlocked before calling this function.

@@ -25,6 +25,7 @@
  */
 
 #include "config.h"
+#include "rnpcfg.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
@@ -1624,6 +1625,12 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         goto done;
     }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(cfg.get_bool(CFG_KG_V6_KEY)) {
+       rnp_op_generate_set_v6_key(genkey);
+    }
+#endif
+
     fprintf(rnp->userio_out, "Generating a new key...\n");
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &primary)) {
         ERR_MSG("Primary key generation failed.");
@@ -1665,6 +1672,11 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         ERR_MSG("Failed to set hash algorithm.");
         goto done;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(cfg.get_bool(CFG_KG_V6_KEY)) {
+       rnp_op_generate_set_v6_key(genkey);
+    }
+#endif
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {
         ERR_MSG("Subkey generation failed.");
         goto done;
@@ -1747,7 +1759,16 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
         }
 
         /* check fingerprint */
-        if (len == RNP_FP_SIZE * 2) {
+        size_t fp_size = RNP_FP_V4_SIZE;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        uint32_t key_version;
+        rnp_key_get_version(handle, &key_version);
+
+        if (key_version == RNP_PGP_VER_6) {
+            fp_size = RNP_FP_V6_SIZE;
+        }
+#endif
+        if (len == fp_size * 2) {
             if (rnp_key_get_fprint(handle, &id)) {
                 goto done;
             }
@@ -2791,6 +2812,8 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
             }
         }
     }
+
+    
 
     /* adding encrypting keys if pk-encryption is used */
     if (cfg.get_bool(CFG_ENCRYPT_PK)) {

@@ -324,7 +324,7 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
 
         // generate the raw key and fill tag/secret fields
         pgp_key_pkt_t secpkt;
-        if (!pgp_generate_seckey(desc.crypto, secpkt, true)) {
+        if (!pgp_generate_seckey(desc.crypto, secpkt, true, desc.pgp_version)) {
             return false;
         }
 
