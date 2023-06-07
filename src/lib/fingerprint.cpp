@@ -57,13 +57,27 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
         }
     }
 
-    if (key.version != PGP_V4) {
+    switch (key.version) {
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6: [[fallthrough]];
+#endif
+    case PGP_V4:
+        break;
+    default:
         RNP_LOG("unsupported key version");
         return RNP_ERROR_NOT_SUPPORTED;
     }
 
+    std::unique_ptr<rnp::Hash> hash;
+    if (key.version == PGP_V4) {
+        hash = rnp::Hash::create(PGP_HASH_SHA1);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    else if (key.version == PGP_V6) {
+        hash = rnp::Hash::create(PGP_HASH_SHA256);
+    }
+#endif
     try {
-        auto hash = rnp::Hash::create(PGP_HASH_SHA1);
         signature_hash_key(key, *hash);
         fp.length = hash->finish(fp.fingerprint);
         return RNP_SUCCESS;
@@ -100,7 +114,19 @@ pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
     if ((ret = pgp_fingerprint(fp, key))) {
         return ret;
     }
-    (void) memcpy(keyid.data(), fp.fingerprint + fp.length - keyid.size(), keyid.size());
+
+    switch (key.version) {
+    case PGP_V4:
+        (void) memcpy(keyid.data(), fp.fingerprint + fp.length - keyid.size(), keyid.size());
+        break;
+#ifdef ENABLE_CRYPTO_REFRESH
+    case PGP_V6:
+        (void) memcpy(keyid.data(), fp.fingerprint, keyid.size());
+        break;
+#endif
+    default:
+        return RNP_ERROR_BAD_STATE;
+    }
     return RNP_SUCCESS;
 }
 

@@ -1148,6 +1148,9 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         pgp_signature_info_t     ssiginfo = {};
 
         memset(&desc, 0, sizeof(desc));
+#if defined(ENABLE_CRYPTO_REFRESH)
+        desc.pgp_version = PGP_V4;
+#endif
         desc.crypto.key_alg = PGP_PKA_RSA;
         desc.crypto.rsa.modulus_bit_len = 1024;
         desc.crypto.ctx = &global_ctx;

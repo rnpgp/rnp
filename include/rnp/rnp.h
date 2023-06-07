@@ -1183,6 +1183,16 @@ RNP_API rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
 RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
                                                         const char *      keyserver);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+/** Set the generated key version to v6.
+ * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any time.
+ *
+ * @param op pointer to opaque key generation context.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
+#endif
+
 /** Execute the prepared key or subkey generation operation.
  *  Note: if you set protection algorithm, then you need to specify ffi password provider to
  *        be able to request password for key encryption.
@@ -1725,6 +1735,14 @@ RNP_API rnp_result_t rnp_uid_remove(rnp_key_handle_t key, rnp_uid_handle_t uid);
  * @return RNP_SUCCESS or error code
  */
 RNP_API rnp_result_t rnp_uid_handle_destroy(rnp_uid_handle_t uid);
+
+/**
+ * @brief Get key's version as integer.
+ *
+ * @param key key handle, should not be NULL
+ * @return RNP_SUCCESS or error code on failure.
+ */
+RNP_API rnp_result_t rnp_key_get_version(rnp_key_handle_t handle, uint32_t *version);
 
 /** Get number of the key's subkeys.
  *
@@ -2981,6 +2999,18 @@ RNP_API rnp_result_t rnp_op_encrypt_create(rnp_op_encrypt_t *op,
  * @return RNP_SUCCESS if operation succeeds or error code otherwise.
  */
 RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/**
+ * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
+ * The actually created version depends on the capabilities of the list of recipients.
+ * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any time.
+ *
+ * @param op opaque encrypting context. Must be allocated and initialized.
+ * @return RNP_SUCCESS or errorcode if failed.
+ */
+RNP_API rnp_result_t rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op);
+#endif
 
 /**
  * @brief Add signature to encrypting context, so data will be encrypted and signed.
