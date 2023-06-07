@@ -60,6 +60,10 @@ static const char *usage =
   "  -V, --version        Print RNP version information.\n"
   "  -e, --encrypt        Encrypt data using the public key(s).\n"
   "    -r, --recipient    Specify recipient's key via uid/keyid/fingerprint.\n"
+#if defined(ENABLE_CRYPTO_REFRESH)
+  "    --v3-pkesk-only    Only create v3 PKESK (otherwise v6 will be created if "
+  "appropriate).\n"
+#endif
   "    --cipher name      Specify symmetric cipher, used for encryption.\n"
   "    --aead[=EAX, OCB]  Use AEAD for encryption.\n"
   "    -z 0..9            Set the compression level.\n"

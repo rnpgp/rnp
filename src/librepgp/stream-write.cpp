@@ -25,6 +25,7 @@
  */
 
 #include "config.h"
+#include "repgp/repgp_def.h"
 #include <sys/stat.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -1134,11 +1135,13 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     try {
         pgp_signature_t sig;
         if (signer->onepass.version) {
-            signer->key->sign_init(sig, signer->onepass.halg, param->ctx->ctx->time());
+            signer->key->sign_init(
+              param->ctx->ctx->rng, sig, signer->onepass.halg, param->ctx->ctx->time(), signer->key->version());
             sig.palg = signer->onepass.palg;
             sig.set_type(signer->onepass.type);
         } else {
-            signer->key->sign_init(sig, signer->halg, param->ctx->ctx->time());
+            signer->key->sign_init(
+              param->ctx->ctx->rng, sig, signer->halg, param->ctx->ctx->time(), signer->key->version());
             /* line below should be checked */
             sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
         }

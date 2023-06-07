@@ -320,6 +320,20 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
     }
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+dst_print_vec(pgp_dest_t *dst, const char *name, std::vector<uint8_t> const &data, bool dumpbin)
+{
+    std::vector<char> hex(2 * data.size());
+    if (!dumpbin) {
+        dst_printf(dst, "%s\n", name);
+    } else {
+        vsnprinthex(hex.data(), hex.size(), data.data(), data.size());
+        dst_printf(dst, "%s, %s\n", name, hex.data());
+    }
+}
+#endif
+
 static void
 dst_print_palg(pgp_dest_t *dst, const char *name, pgp_pubkey_alg_t palg)
 {
@@ -433,6 +447,18 @@ dst_print_keyid(pgp_dest_t *dst, const char *name, const pgp_key_id_t &keyid)
     }
     dst_print_hex(dst, name, keyid.data(), keyid.size(), false);
 }
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+static void
+dst_print_fp(pgp_dest_t *dst, const char *name, const pgp_fingerprint_t &fp)
+{
+    if (!name) {
+        name = "fingerprint";
+    }
+    dst_print_hex(dst, name, fp.fingerprint, fp.length, true);
+}
+#endif
+
 
 static void
 dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
@@ -574,7 +600,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
         dst_printf(dst, "class: %d\n", (int) subpkt.fields.revocation_key.klass);
         dst_print_palg(dst, NULL, subpkt.fields.revocation_key.pkalg);
         dst_print_hex(
-          dst, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_SIZE, true);
+          dst, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE, true);
         break;
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
         dst_print_hex(dst, sname, subpkt.fields.issuer, PGP_KEY_ID_SIZE, false);
@@ -655,6 +681,10 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
         dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_MDC ? "mdc " : "");
         dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_AEAD ? "aead " : "");
         dst_printf(dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_V5 ? "v5 keys " : "");
+#if defined(ENABLE_CRYPTO_REFRESH)
+        dst_printf(
+          dst, "%s", subpkt.fields.features & PGP_KEY_FEATURE_SEIPDV2 ? "SEIPD v2 " : "");
+#endif
         dst_printf(dst, ")\n");
         break;
     case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE:
@@ -1601,7 +1631,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
         return json_add(obj, "class", (int) subpkt.fields.revocation_key.klass) &&
                json_add(obj, "algorithm", (int) subpkt.fields.revocation_key.pkalg) &&
                json_add_hex(
-                 obj, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_SIZE);
+                 obj, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE);
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
         return json_add_hex(obj, "issuer keyid", subpkt.fields.issuer, PGP_KEY_ID_SIZE);
     case PGP_SIG_SUBPKT_KEYSERV_PREFS:

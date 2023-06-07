@@ -154,7 +154,7 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
         }
 
         for (auto &key : key_store->keys) {
-            char grip[PGP_FINGERPRINT_HEX_SIZE] = {0};
+            char grip[PGP_MAX_FINGERPRINT_HEX_SIZE] = {0};
             rnp::hex_encode(key.grip().data(), key.grip().size(), grip, sizeof(grip));
             snprintf(path, sizeof(path), "%s/%s.key", key_store->path.c_str(), grip);
 

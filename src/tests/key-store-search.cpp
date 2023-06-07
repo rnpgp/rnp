@@ -69,9 +69,9 @@ TEST_F(rnp_tests, test_key_store_search)
             // and fingerprint
             pgp_fingerprint_t &fp = (pgp_fingerprint_t &) key.fp();
             assert_true(
-              rnp::hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_SIZE));
+              rnp::hex_decode(testdata[i].keyid, fp.fingerprint, PGP_FINGERPRINT_V4_SIZE));
             fp.fingerprint[0] = (uint8_t) n;
-            fp.length = PGP_FINGERPRINT_SIZE;
+            fp.length = PGP_FINGERPRINT_V4_SIZE;
             // set the userids
             for (size_t uidn = 0; testdata[i].userids[uidn]; uidn++) {
                 pgp_transferable_userid_t tuid;

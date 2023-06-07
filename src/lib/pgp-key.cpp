@@ -1667,7 +1667,7 @@ pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
     for (auto &fp : subkey_fps_) {
         const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
         if (!subkey) {
-            char fphex[PGP_FINGERPRINT_SIZE * 2 + 1] = {0};
+            char fphex[PGP_MAX_FINGERPRINT_SIZE * 2 + 1] = {0};
             rnp::hex_encode(
               fp.fingerprint, fp.length, fphex, sizeof(fphex), rnp::HEX_LOWERCASE);
             RNP_LOG("Warning! Subkey %s not found.", fphex);
@@ -1830,8 +1830,15 @@ pgp_key_t::is_signer(const pgp_subsig_t &sig) const
         return sig.sig.keyfp() == fp();
     }
     if (!sig.sig.has_keyid()) {
-        return false;
+        return false || (
+#if defined(ENABLE_CRYPTO_REFRESH)
+        (version() == PGP_V6) // v6 packets MUST NOT include this subpacket, therefore return true for v6
+#else
+        false
+#endif
+    );
     }
+
     return keyid() == sig.sig.keyid();
 }
 
@@ -2276,14 +2283,23 @@ pgp_key_t::mark_valid()
 }
 
 void
-pgp_key_t::sign_init(pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation) const
+pgp_key_t::sign_init(rnp::RNG &rng, pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation, pgp_version_t version) const
 {
-    sig.version = PGP_V4;
+    sig.version = version;
     sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
     sig.palg = alg();
     sig.set_keyfp(fp());
     sig.set_creation(creation);
-    sig.set_keyid(keyid());
+    if(version == PGP_V4) {
+        // for v6 issuing keys, this MUST NOT be included
+        sig.set_keyid(keyid());
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(version == PGP_V6) {
+        sig.salt_size = rnp::Hash::size(sig.halg)/2;
+        rng.get(sig.salt, sig.salt_size);
+    }
+#endif
 }
 
 void
@@ -2325,7 +2341,7 @@ pgp_key_t::gen_revocation(const pgp_revoke_t &  revoke,
                           pgp_signature_t &     sig,
                           rnp::SecurityContext &ctx)
 {
-    sign_init(sig, hash, ctx.time());
+    sign_init(ctx.rng, sig, hash, ctx.time(), key.version);
     sig.set_type(is_primary_key_pkt(key.tag) ? PGP_SIG_REV_KEY : PGP_SIG_REV_SUBKEY);
     sig.set_revocation_reason(revoke.code, revoke.reason);
 
@@ -2349,7 +2365,7 @@ pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
     /* add primary key binding subpacket if requested */
     if (subsign) {
         pgp_signature_t embsig;
-        sub.sign_init(embsig, sig.halg, ctx.time());
+        sub.sign_init(ctx.rng, embsig, sig.halg, ctx.time(), sub.version());
         embsig.set_type(PGP_SIG_PRIMARY);
         sub.sign_binding(pkt(), embsig, ctx);
         sig.set_embedded_sig(embsig);
@@ -2396,7 +2412,7 @@ pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
     /* Fill the transferable userid */
     pgp_userid_pkt_t uid;
     pgp_signature_t  sig;
-    sign_init(sig, hash, ctx.time());
+    sign_init(ctx.rng, sig, hash, ctx.time(), pkt().version);
     cert.populate(uid, sig);
     try {
         sign_cert(pkt_, uid, sig, ctx);
@@ -2430,7 +2446,7 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
 
     /* populate signature */
     pgp_signature_t sig;
-    sign_init(sig, hash, ctx.time());
+    sign_init(ctx.rng, sig, hash, ctx.time(), version());
     sig.set_type(PGP_SIG_SUBKEY);
     if (binding.key_expiration) {
         sig.set_key_expiration(binding.key_expiration);

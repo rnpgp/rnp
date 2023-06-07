@@ -129,6 +129,7 @@ struct rnp_op_generate_st {
     rnp_key_protection_params_t protection{};
     rnp_selfsig_cert_info_t     cert{};
     rnp_selfsig_binding_info_t  binding{};
+    pgp_version_t               pgp_version = PGP_V4;
 };
 
 struct rnp_op_sign_signature_st {
@@ -196,7 +197,7 @@ struct rnp_op_encrypt_st {
 };
 
 #define RNP_LOCATOR_MAX_SIZE (MAX_ID_LENGTH + 1)
-static_assert(RNP_LOCATOR_MAX_SIZE > PGP_FINGERPRINT_SIZE * 2, "Locator size mismatch.");
+static_assert(RNP_LOCATOR_MAX_SIZE > PGP_MAX_FINGERPRINT_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > PGP_KEY_ID_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > PGP_KEY_GRIP_SIZE * 2, "Locator size mismatch.");
 static_assert(RNP_LOCATOR_MAX_SIZE > MAX_ID_LENGTH, "Locator size mismatch.");

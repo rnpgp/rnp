@@ -79,6 +79,9 @@ tristate_feature_auto(ENABLE_BLOWFISH "Enable Blowfish cipher support.")
 tristate_feature_auto(ENABLE_CAST5 "Enable CAST5 cipher support.")
 tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
+option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
+
+
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
 set_property(CACHE ENABLE_DOC PROPERTY STRINGS ${TRISTATE_VALUES})
 
