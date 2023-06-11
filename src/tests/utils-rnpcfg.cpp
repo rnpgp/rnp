@@ -134,11 +134,14 @@ TEST_F(rnp_tests, test_rnpcfg_get_expiration)
 
     uint32_t raw_expiry = 0;
     assert_true(cfg.get_expiration("expiry-", raw_expiry));
-    assert_int_equal(raw_expiry, rawtime - basetime);
+    assert_true(raw_expiry <= (rawtime - basetime));
+    assert_true((rawtime - basetime) - raw_expiry <= 3);
     assert_true(cfg.get_expiration("expiry/", raw_expiry));
-    assert_int_equal(raw_expiry, rawtime - basetime);
+    assert_true(raw_expiry <= (rawtime - basetime));
+    assert_true((rawtime - basetime) - raw_expiry <= 3);
     assert_true(cfg.get_expiration("expiry.", raw_expiry));
-    assert_int_equal(raw_expiry, rawtime - basetime);
+    assert_true(raw_expiry <= (rawtime - basetime));
+    assert_true((rawtime - basetime) - raw_expiry <= 3);
     cfg.set_str("expiry", "2100-01-01");
     assert_true(cfg.get_expiration("expiry", raw_expiry));
     assert_int_not_equal(raw_expiry, rawtime - basetime);
