@@ -312,6 +312,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/dilithium_common.cpp
         crypto/kyber_common.cpp
         crypto/kyber.cpp
+        crypto/kyber_ecdh_composite.cpp
         crypto/dilithium_exdsa_composite.cpp
         crypto/kmac.cpp
         crypto/kmac_botan.cpp

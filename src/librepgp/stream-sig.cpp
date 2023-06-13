@@ -1572,11 +1572,15 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     }
 #endif
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         material.dilithium_exdsa.sig.resize(pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
         if (!pkt.get(material.dilithium_exdsa.sig.data(), material.dilithium_exdsa.sig.size())) {
@@ -1672,11 +1676,15 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
         break;
 #endif
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         pktbody.add(material.dilithium_exdsa.sig);
         break;
