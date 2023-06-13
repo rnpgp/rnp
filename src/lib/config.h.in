@@ -62,6 +62,7 @@
 #cmakedefine ENABLE_BRAINPOOL
 #cmakedefine ENABLE_IDEA
 #cmakedefine ENABLE_CRYPTO_REFRESH
+#cmakedefine ENABLE_PQC
 #cmakedefine ENABLE_BLOWFISH
 #cmakedefine ENABLE_CAST5
 #cmakedefine ENABLE_RIPEMD160

@@ -51,6 +51,15 @@ if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
 endif()
 
+if(ENABLE_PQC)
+  if (NOT CRYPTO_BACKEND_BOTAN3)
+    message(FATAL_ERROR "ENABLE_PQC requires Botan 3 as crypto backend")
+  endif()
+  if (NOT ENABLE_CRYPTO_REFRESH)
+    message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
+  endif()
+endif()
+
 # check that AEAD is enabled and not turned off for ENABLE_CRYPTO_REFRESH
   if(ENABLE_CRYPTO_REFRESH AND (NOT ENABLE_AEAD))
     message(FATAL_ERROR "ENABLE_CRYPTO_REFRESH requires ENABLE_AEAD, but it's either Off or Auto and got turned off")
@@ -178,6 +187,7 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF")
+  resolve_feature_state(ENABLE_PQC "DILITHIUM")
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
@@ -227,6 +237,7 @@ if(CRYPTO_BACKEND_OPENSSL)
   #resolve_feature_state(ENABLE_SM2 "SM2;SM3;SM4-ECB")
   openssl_nope(ENABLE_TWOFISH "Twofish isn't and won't be supported by OpenSSL, see https://github.com/openssl/openssl/issues/2046")
   openssl_nope(ENABLE_CRYPTO_REFRESH, "not yet implemented")
+  openssl_nope(ENABLE_PQC, "not yet implemented")
 endif()
 
 configure_file(config.h.in config.h)
@@ -293,6 +304,12 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/ed25519.cpp
         crypto/x25519.cpp
         crypto/exdsa_ecdhkem.cpp
+    )
+  endif()
+  if(ENABLE_PQC)
+    list(APPEND CRYPTO_SOURCES 
+        crypto/dilithium.cpp 
+        crypto/dilithium_common.cpp
     )
   endif()
 else()

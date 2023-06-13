@@ -80,6 +80,11 @@ tristate_feature_auto(ENABLE_CAST5 "Enable CAST5 cipher support.")
 tristate_feature_auto(ENABLE_RIPEMD160 "Enable RIPEMD-160 hash support.")
 
 option(ENABLE_CRYPTO_REFRESH "Enable crypto-refresh support (v6)")
+option(ENABLE_PQC "Enable PQC support - requires ENABLE_CRYPTO_REFRESH")
+
+if((NOT ENABLE_CRYPTO_REFRESH) AND ENABLE_PQC)
+  message(FATAL_ERROR "ENABLE_PQC requires ENABLE_CRYPTO_REFRESH")
+endif()
 
 
 set(ENABLE_DOC Auto CACHE STRING "Enable building documentation.")
