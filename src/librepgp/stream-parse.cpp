@@ -1528,6 +1528,18 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         return false;
     }
 
+    /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
+    if(sesskey->alg == PGP_PKA_X25519 && sesskey->version == PGP_PKSK_V3) {
+        switch(sesskey->salg) {
+            case PGP_SA_AES_128:
+            case PGP_SA_AES_192:
+            case PGP_SA_AES_256:
+                break;
+            default:
+                RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric algorithm that is not AES.");
+                return false;
+        }
+    }
 #endif
 
     rnp::secure_array<uint8_t, PGP_MPINT_SIZE> decbuf;
