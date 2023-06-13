@@ -39,6 +39,9 @@
 #include "ecdsa.h"
 #include "sm2.h"
 #include "eddsa.h"
+#if defined(ENABLE_PQC)
+#include "dilithium_exdsa_composite.h"
+#endif
 #if defined(ENABLE_CRYPTO_REFRESH)
 #include "x25519.h"
 #include "ed25519.h"
