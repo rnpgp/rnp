@@ -195,6 +195,16 @@ signature_calculate(pgp_signature_t &     sig,
         }
         break;
     }
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        ret = seckey.dilithium_exdsa.priv.sign(&ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
+        break;
+#endif
     default:
         RNP_LOG("Unsupported algorithm %d", sig.palg);
         break;
@@ -298,6 +308,16 @@ signature_validate(const pgp_signature_t &     sig,
         RNP_LOG("ElGamal are considered as invalid.");
         ret = RNP_ERROR_SIGNATURE_INVALID;
         break;
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        ret = key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
+        break;
+#endif
     default:
         RNP_LOG("Unknown algorithm");
         ret = RNP_ERROR_BAD_PARAMETERS;

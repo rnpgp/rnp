@@ -310,6 +310,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     list(APPEND CRYPTO_SOURCES 
         crypto/dilithium.cpp 
         crypto/dilithium_common.cpp
+        crypto/dilithium_exdsa_composite.cpp
     )
   endif()
 else()
