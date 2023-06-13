@@ -40,6 +40,7 @@
 #include "sm2.h"
 #include "eddsa.h"
 #if defined(ENABLE_PQC)
+#include "kyber_ecdh_composite.h"
 #include "dilithium_exdsa_composite.h"
 #endif
 #if defined(ENABLE_CRYPTO_REFRESH)

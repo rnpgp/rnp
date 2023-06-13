@@ -208,11 +208,27 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
         return PGP_KF_ENCRYPT;
 
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        return PGP_KF_ENCRYPT;
+
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
@@ -1847,15 +1863,8 @@ pgp_key_t::is_signer(const pgp_subsig_t &sig) const
         return sig.sig.keyfp() == fp();
     }
     if (!sig.sig.has_keyid()) {
-        return false || (
-#if defined(ENABLE_CRYPTO_REFRESH)
-        (version() == PGP_V6) // v6 packets MUST NOT include this subpacket, therefore return true for v6
-#else
-        false
-#endif
-    );
+        return false;
     }
-
     return keyid() == sig.sig.keyid();
 }
 
@@ -2755,6 +2764,21 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
     return true;
 }
 
+#if defined(ENABLE_PQC)
+std::vector<uint8_t>
+pgp_key_t::subkey_pkt_hash() const
+{
+    const pgp_hash_alg_t pk_pkt_hash_alg = PGP_HASH_SHA3_256;
+    std::vector<uint8_t> out(rnp::Hash::size(pk_pkt_hash_alg));
+
+    auto pk_pkt_hash = rnp::Hash::create(pk_pkt_hash_alg);
+    pk_pkt_hash->add(rawpkt_.raw);
+    pk_pkt_hash->finish(out.data());
+    
+    return out;
+}
+#endif
+
 pgp_curve_t
 pgp_key_material_t::get_curve() const
 {
@@ -2800,6 +2824,30 @@ pgp_key_material_t::bits() const
     const ec_curve_desc_t *curve_desc = get_curve_desc(get_curve());
     return curve_desc ? curve_desc->bitlen : 0;
     }
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        return 8 * kyber_ecdh.pub.get_encoded().size(); /* public key length */
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        return 8 * dilithium_exdsa.pub.get_encoded().size(); /* public key length*/
+#endif
     default:
         RNP_LOG("Unknown public key alg: %d", (int) alg);
         return 0;

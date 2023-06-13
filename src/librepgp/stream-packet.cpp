@@ -1243,6 +1243,35 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
         break;
     }
 #endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384: {
+        uint8_t wrapped_key_len = 0;
+        material.kyber_ecdh.composite_ciphertext.resize(pgp_kyber_ecdh_encrypted_t::composite_ciphertext_size(alg));
+        if (!pkt.get(material.kyber_ecdh.composite_ciphertext.data(), material.kyber_ecdh.composite_ciphertext.size())) {
+            RNP_LOG("failed to get kyber-ecdh ciphertext");
+            return false;
+        }
+        if (!pkt.get(wrapped_key_len)) {
+            RNP_LOG("failed to get kyber-ecdh wrapped session key length");
+            return false;
+        }
+        material.kyber_ecdh.wrapped_sesskey.resize(wrapped_key_len);
+        if (!pkt.get(material.kyber_ecdh.wrapped_sesskey.data(), material.kyber_ecdh.wrapped_sesskey.size())) {
+            RNP_LOG("failed to get kyber-ecdh session key");
+            return false;
+        }
+        break;
+    }
+#endif
     default:
         RNP_LOG("unknown pk alg %d", (int) alg);
         return false;
@@ -1282,6 +1311,22 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         pktbody.add(material.x25519.eph_key);
         pktbody.add_byte(static_cast<uint8_t>(material.x25519.enc_sess_key.size()));
         pktbody.add(material.x25519.enc_sess_key);
+        break;
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        pktbody.add(material.kyber_ecdh.composite_ciphertext);
+        pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()));
+        pktbody.add(material.kyber_ecdh.wrapped_sesskey);
         break;
 #endif
     default:

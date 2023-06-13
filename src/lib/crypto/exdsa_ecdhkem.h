@@ -178,6 +178,4 @@ typedef struct exdsa_key_t {
     exdsa_public_key_t pub;
 } exdsa_key_t;
 
-
-
 #endif
