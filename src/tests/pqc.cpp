@@ -34,6 +34,24 @@
 #include "rnp_tests.h"
 #include <array>
 #include "crypto/dilithium.h"
+#include "crypto/kyber.h"
+
+TEST_F(rnp_tests, test_kyber_key_function)
+{
+    kyber_parameter_e params[2] = {kyber_768, kyber_1024};
+    for(kyber_parameter_e param : params)
+    {
+
+    auto public_and_private_key = kyber_generate_keypair(&global_ctx.rng, param);
+
+    kyber_encap_result_t encap_res = public_and_private_key.first.encapsulate(&global_ctx.rng);
+    
+    std::vector<uint8_t> decrypted = public_and_private_key.second.decapsulate(&global_ctx.rng, encap_res.ciphertext.data(), encap_res.ciphertext.size());
+    assert_int_equal(encap_res.symmetric_key.size(), decrypted.size());
+    assert_memory_equal(encap_res.symmetric_key.data(), decrypted.data(), decrypted.size());
+
+    }
+}
 
 TEST_F(rnp_tests, test_dilithium_key_function)
 {
