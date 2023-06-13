@@ -170,11 +170,30 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
         break;
 #endif
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        if(pgp_kyber_ecdh_composite_key_t::gen_keypair(&crypto.ctx->rng, &seckey.material.kyber_ecdh, seckey.alg)) {
+            RNP_LOG("failed to generate Kyber-ECDH-composite key for PK alg %d", seckey.alg);
+            return false;
+        }
+        break;
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         if(pgp_dilithium_exdsa_composite_key_t::gen_keypair(&crypto.ctx->rng, &seckey.material.dilithium_exdsa, seckey.alg)) {
             RNP_LOG("failed to generate Dilithium-ecdsa/eddsa-composite key for PK alg %d", seckey.alg);
@@ -229,11 +248,26 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         return (key1->x25519.pub == key2->x25519.pub);
 #endif
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        return (key1->kyber_ecdh.pub == key2->kyber_ecdh.pub);
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return (key1->dilithium_exdsa.pub == key2->dilithium_exdsa.pub);
 #endif
@@ -291,11 +325,26 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         return x25519_validate_key_native(rng, &material->x25519, material->secret);
 #endif
 #if defined(ENABLE_PQC)
-    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
-    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
-    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
-    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        return kyber_ecdh_validate_key(rng, &material->kyber_ecdh, material->secret);
+    case PGP_PKA_DILITHIUM3_ED25519:
+        [[fallthrough]];
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384:
+        [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256:
+        [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return dilithium_exdsa_validate_key(rng, &material->dilithium_exdsa, material->secret);
 #endif

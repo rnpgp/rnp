@@ -228,6 +228,13 @@ typedef enum : uint8_t {
 
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */
+    PGP_PKA_KYBER768_X25519 = 29,                 /* Kyber768 + X25519 from draft-wussler-openpgp-pqc-01 */
+    //PGP_PKA_KYBER1024_X448 = 30,                  /* Kyer1024 + X448 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER768_P256 = 31,                   /* Kyber768 + NIST P-256 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER1024_P384 = 32,                  /* Kyber1024 + NIST P-384 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER768_BP256 = 33,                  /* Kyber768 + Brainpool P256r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER1024_BP384 = 34,                 /* Kyber1024 + Brainpool P384r1 from draft-wussler-openpgp-pqc-01 */
+
     PGP_PKA_DILITHIUM3_ED25519 = 35,              /* Dilithium 3 + Ed25519 from draft-wussler-openpgp-pqc-01 */
     //PGP_PKA_DILITHIUM5_ED448 = 36,                /* Dilithium 5 + Ed448 from draft-wussler-openpgp-pqc-01 */
     PGP_PKA_DILITHIUM3_P256 = 37,                 /* Dilithium 3 + ECDSA-NIST-P-256 from draft-wussler-openpgp-pqc-01 */

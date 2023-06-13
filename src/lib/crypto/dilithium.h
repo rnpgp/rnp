@@ -111,4 +111,6 @@ class pgp_dilithium_public_key_t {
 std::pair<pgp_dilithium_public_key_t, pgp_dilithium_private_key_t> dilithium_generate_keypair(
   rnp::RNG *rng, dilithium_parameter_e dilithium_param);
 
+bool dilithium_hash_allowed(pgp_hash_alg_t hash_alg);
+
 #endif

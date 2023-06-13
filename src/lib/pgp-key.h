@@ -571,6 +571,10 @@ struct pgp_key_t {
     bool merge(const pgp_key_t &src);
     /** @brief Merge subkey with the source, i.e. add all new signatures */
     bool merge(const pgp_key_t &src, pgp_key_t *primary);
+
+#if defined(ENABLE_PQC)
+    std::vector<uint8_t> subkey_pkt_hash() const;
+#endif
 };
 
 namespace rnp {
