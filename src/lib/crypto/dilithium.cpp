@@ -120,3 +120,15 @@ pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const {
     auto key = botan_key(); 
     return key.check_key(*(rng->obj()), false);
 }
+
+bool
+dilithium_hash_allowed(pgp_hash_alg_t hash_alg)
+{
+    switch (hash_alg) {
+    case PGP_HASH_SHA3_256:
+    case PGP_HASH_SHA3_512:
+        return true;
+    default:
+        return false;
+    }
+}
