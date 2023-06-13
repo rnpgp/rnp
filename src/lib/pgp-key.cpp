@@ -1192,6 +1192,12 @@ pgp_key_t::curve() const
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         return pkt_.material.ec.curve;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return PGP_CURVE_ED25519;
+    case PGP_PKA_X25519:
+        return PGP_CURVE_25519;
+#endif
     default:
         return PGP_CURVE_UNKNOWN;
     }
@@ -2780,7 +2786,7 @@ pgp_key_t::subkey_pkt_hash() const
 #endif
 
 pgp_curve_t
-pgp_key_material_t::get_curve() const
+pgp_key_material_t::curve() const
 {
     switch (alg) {
     case PGP_PKA_ECDH: [[fallthrough]];
@@ -2821,7 +2827,7 @@ pgp_key_material_t::bits() const
 #endif
     case PGP_PKA_SM2: {
     /* handle ecc cases */
-    const ec_curve_desc_t *curve_desc = get_curve_desc(get_curve());
+    const ec_curve_desc_t *curve_desc = get_curve_desc(curve());
     return curve_desc ? curve_desc->bitlen : 0;
     }
 #if defined(ENABLE_PQC)
