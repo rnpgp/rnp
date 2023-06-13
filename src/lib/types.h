@@ -197,7 +197,7 @@ typedef struct pgp_key_material_t {
     pgp_dilithium_exdsa_key_t dilithium_exdsa; /* non-trivial type, cannot be in a union */
 #endif
 
-    pgp_curve_t get_curve() const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
+    pgp_curve_t curve() const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
     size_t bits() const;
     size_t qbits() const;
     void   validate(rnp::SecurityContext &ctx, bool reset = true);
