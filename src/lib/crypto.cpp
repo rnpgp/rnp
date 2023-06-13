@@ -169,6 +169,19 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
         }
         break;
 #endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        if(pgp_dilithium_exdsa_composite_key_t::gen_keypair(&crypto.ctx->rng, &seckey.material.dilithium_exdsa, seckey.alg)) {
+            RNP_LOG("failed to generate Dilithium-ecdsa/eddsa-composite key for PK alg %d", seckey.alg);
+            return false;
+        }
+        break;
+#endif
     default:
         RNP_LOG("key generation not implemented for PK alg: %d", seckey.alg);
         return false;
@@ -214,6 +227,15 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         return (key1->ed25519.pub == key2->ed25519.pub);
     case PGP_PKA_X25519:
         return (key1->x25519.pub == key2->x25519.pub);
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        return (key1->dilithium_exdsa.pub == key2->dilithium_exdsa.pub);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) key1->alg);
@@ -267,6 +289,15 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         return ed25519_validate_key_native(rng, &material->ed25519, material->secret);
     case PGP_PKA_X25519: 
         return x25519_validate_key_native(rng, &material->x25519, material->secret);
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        return dilithium_exdsa_validate_key(rng, &material->dilithium_exdsa, material->secret);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) material->alg);

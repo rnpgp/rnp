@@ -59,6 +59,14 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_ED25519, "ED25519"},
   {PGP_PKA_X25519, "X25519"},
 #endif
+#if defined(ENABLE_PQC)
+  {PGP_PKA_DILITHIUM3_ED25519, "Dilithium-ED25519"},
+  //{PGP_PKA_DILITHIUM5_ED448, "Dilithium-ED448"},
+  {PGP_PKA_DILITHIUM3_P256, "Dilithium-P256"},
+  {PGP_PKA_DILITHIUM5_P384, "Dilithium-P384"},
+  {PGP_PKA_DILITHIUM3_BP256, "Dilithium-BP256"},
+  {PGP_PKA_DILITHIUM5_BP384, "Dilithium-BP384"},
+#endif
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -264,6 +272,15 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return crypto->elgamal.key_bitlen;
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        return pgp_dilithium_exdsa_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
+#endif
     default:
         return 0;
     }

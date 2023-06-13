@@ -207,6 +207,16 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     case PGP_PKA_ELGAMAL:
         return PGP_KF_ENCRYPT;
 
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+#endif
+
     default:
         RNP_LOG("unknown pk alg: %d\n", alg);
         return PGP_KF_NONE;
