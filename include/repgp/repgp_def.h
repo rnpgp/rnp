@@ -226,6 +226,16 @@ typedef enum : uint8_t {
     PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
 #endif
 
+#if defined(ENABLE_PQC)
+    /* PQC-ECC composite */
+    PGP_PKA_DILITHIUM3_ED25519 = 35,              /* Dilithium 3 + Ed25519 from draft-wussler-openpgp-pqc-01 */
+    //PGP_PKA_DILITHIUM5_ED448 = 36,                /* Dilithium 5 + Ed448 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM3_P256 = 37,                 /* Dilithium 3 + ECDSA-NIST-P-256 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM5_P384 = 38,                 /* Dilithium 5 + ECDSA-NIST-P-384 from draft-wussler-openpgp-pqc-00*/
+    PGP_PKA_DILITHIUM3_BP256 = 39,                /* Dilithium 3 + ECDSA-brainpoolP256r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM5_BP384 = 40,                /* Dilithium 5 + ECDSA-brainpoolP384r1 from draft-wussler-openpgp-pqc-01 */
+#endif
+
     PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */

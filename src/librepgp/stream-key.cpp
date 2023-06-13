@@ -597,8 +597,6 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
     try {
         /* parse mpis depending on algorithm */
         pgp_packet_body_t body(mpis, len);
-        
-        std::vector<uint8_t> tmpbuf;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
         std::vector<uint8_t> tmpbuf;
@@ -657,6 +655,21 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             key.material.x25519.priv = tmpbuf;
             break;
         }
+#endif
+#if defined(ENABLE_PQC)
+        case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+        //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+        case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+        case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+        case PGP_PKA_DILITHIUM5_BP384:
+            tmpbuf.resize(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(key.alg));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse dilithium-ecdsa/eddsa secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
+            break;
 #endif
         default:
             RNP_LOG("unknown pk alg : %d", (int) key.alg);
@@ -787,6 +800,16 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
         break;
     case PGP_PKA_X25519:
         body.add(key.material.x25519.priv);
+        break;
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        body.add(key.material.dilithium_exdsa.priv.get_encoded());
         break;
 #endif
 default:
@@ -940,6 +963,16 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_X25519:
         secure_clear(key->x25519.priv.data(), key->x25519.priv.size());
         key->x25519.priv.clear();
+        break;
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        key->dilithium_exdsa.priv.secure_clear();
         break;
 #endif
     default:
@@ -1400,6 +1433,21 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         break;
     }
 #endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        tmpbuf.resize(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse dilithium-ecdsa/eddsa public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
+        break;
+#endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) alg);
         return RNP_ERROR_BAD_FORMAT;
@@ -1543,6 +1591,16 @@ void pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t & hbod
         break;
     case PGP_PKA_X25519:
         hbody.add(material.x25519.pub);
+        break;
+#endif
+#if defined(ENABLE_PQC)
+    case PGP_PKA_DILITHIUM3_ED25519: [[fallthrough]];
+    //case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_P256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_P384: [[fallthrough]];
+    case PGP_PKA_DILITHIUM3_BP256: [[fallthrough]];
+    case PGP_PKA_DILITHIUM5_BP384:
+        hbody.add(material.dilithium_exdsa.pub.get_encoded());
         break;
 #endif
     default:
