@@ -2315,20 +2315,24 @@ pgp_key_t::mark_valid()
 }
 
 void
-pgp_key_t::sign_init(rnp::RNG &rng, pgp_signature_t &sig, pgp_hash_alg_t hash, uint64_t creation, pgp_version_t version) const
+pgp_key_t::sign_init(rnp::RNG &       rng,
+                     pgp_signature_t &sig,
+                     pgp_hash_alg_t   hash,
+                     uint64_t         creation,
+                     pgp_version_t    version) const
 {
     sig.version = version;
     sig.halg = pgp_hash_adjust_alg_to_key(hash, &pkt_);
     sig.palg = alg();
     sig.set_keyfp(fp());
     sig.set_creation(creation);
-    if(version == PGP_V4) {
+    if (version == PGP_V4) {
         // for v6 issuing keys, this MUST NOT be included
         sig.set_keyid(keyid());
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
-        sig.salt_size = rnp::Hash::size(sig.halg)/2;
+    if (version == PGP_V6) {
+        sig.salt_size = rnp::Hash::size(sig.halg) / 2;
         rng.get(sig.salt, sig.salt_size);
     }
 #endif
@@ -2780,7 +2784,7 @@ pgp_key_t::subkey_pkt_hash() const
     auto pk_pkt_hash = rnp::Hash::create(pk_pkt_hash_alg);
     pk_pkt_hash->add(rawpkt_.raw);
     pk_pkt_hash->finish(out.data());
-    
+
     return out;
 }
 #endif
@@ -2789,9 +2793,12 @@ pgp_curve_t
 pgp_key_material_t::curve() const
 {
     switch (alg) {
-    case PGP_PKA_ECDH: [[fallthrough]];
-    case PGP_PKA_ECDSA: [[fallthrough]];
-    case PGP_PKA_EDDSA: [[fallthrough]];
+    case PGP_PKA_ECDH:
+        [[fallthrough]];
+    case PGP_PKA_ECDSA:
+        [[fallthrough]];
+    case PGP_PKA_EDDSA:
+        [[fallthrough]];
     case PGP_PKA_SM2:
         return ec.curve;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2818,17 +2825,22 @@ pgp_key_material_t::bits() const
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return 8 * mpi_bytes(&eg.y);
-    case PGP_PKA_ECDH: [[fallthrough]];
-    case PGP_PKA_ECDSA: [[fallthrough]];
-    case PGP_PKA_EDDSA: [[fallthrough]];
+    case PGP_PKA_ECDH:
+        [[fallthrough]];
+    case PGP_PKA_ECDSA:
+        [[fallthrough]];
+    case PGP_PKA_EDDSA:
+        [[fallthrough]];
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519: [[fallthrough]];
-    case PGP_PKA_X25519: [[fallthrough]];
+    case PGP_PKA_ED25519:
+        [[fallthrough]];
+    case PGP_PKA_X25519:
+        [[fallthrough]];
 #endif
     case PGP_PKA_SM2: {
-    /* handle ecc cases */
-    const ec_curve_desc_t *curve_desc = get_curve_desc(curve());
-    return curve_desc ? curve_desc->bitlen : 0;
+        /* handle ecc cases */
+        const ec_curve_desc_t *curve_desc = get_curve_desc(curve());
+        return curve_desc ? curve_desc->bitlen : 0;
     }
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:

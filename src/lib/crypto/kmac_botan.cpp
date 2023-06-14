@@ -45,21 +45,26 @@ KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
                        const std::vector<uint8_t> &ecc_ciphertext,
                        const std::vector<uint8_t> &kyber_key_share,
                        const std::vector<uint8_t> &kyber_ciphertext,
-                       const pgp_pubkey_alg_t     alg_id,
+                       const pgp_pubkey_alg_t      alg_id,
                        const std::vector<uint8_t> &subkey_pkt_hash,
-                       std::vector<uint8_t>       &out)
+                       std::vector<uint8_t> &      out)
 {
     auto kmac = Botan::MessageAuthenticationCode::create_or_throw("KMAC256(256)");
 
     /* the mapping between the KEM Combiner and the MAC interface is:
-        * key     <> domSeparation
-        * nonce   <> customizationString
-        * message <> encData
-    */
+     * key     <> domSeparation
+     * nonce   <> customizationString
+     * message <> encData
+     */
 
     kmac->set_key(domSeparation());
     kmac->start(customizationString()); // set nonce
-    kmac->update(encData(ecc_key_share, ecc_ciphertext, kyber_key_share, kyber_ciphertext, subkey_pkt_hash, alg_id));
+    kmac->update(encData(ecc_key_share,
+                         ecc_ciphertext,
+                         kyber_key_share,
+                         kyber_ciphertext,
+                         subkey_pkt_hash,
+                         alg_id));
     out = kmac->final_stdvec();
 }
 

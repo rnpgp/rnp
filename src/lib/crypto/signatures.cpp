@@ -45,8 +45,7 @@ static void
 signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf, size_t &hlen)
 {
     hash.add(sig.hashed_data, sig.hashed_len);
-    if(sig.version >= PGP_V4)
-    {
+    if (sig.version >= PGP_V4) {
         uint8_t trailer[6] = {0x00, 0xff, 0x00, 0x00, 0x00, 0x00};
         trailer[0] = sig.version;
         write_uint32(&trailer[2], sig.hashed_len);
@@ -62,8 +61,7 @@ signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
     auto hash = rnp::Hash::create(sig.halg);
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if (key.version == PGP_V6)
-    {
+    if (key.version == PGP_V6) {
         hash->add(sig.salt, sig.salt_size);
     }
 #endif
@@ -139,8 +137,9 @@ signature_calculate(pgp_signature_t &     sig,
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
-        ret = ed25519_sign_native(&ctx.rng, material.ed25519.sig, seckey.ed25519.priv, hval, hlen);
-        if(ret) {
+        ret =
+          ed25519_sign_native(&ctx.rng, material.ed25519.sig, seckey.ed25519.priv, hval, hlen);
+        if (ret) {
             RNP_LOG("ed25519 signing failed");
         }
         break;
@@ -206,7 +205,8 @@ signature_calculate(pgp_signature_t &     sig,
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        ret = seckey.dilithium_exdsa.priv.sign(&ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
+        ret = seckey.dilithium_exdsa.priv.sign(
+          &ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
         break;
 #endif
     default:
@@ -323,7 +323,8 @@ signature_validate(const pgp_signature_t &     sig,
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        ret = key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
+        ret =
+          key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
         break;
 #endif
     default:

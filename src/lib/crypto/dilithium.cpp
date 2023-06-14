@@ -88,8 +88,7 @@ pgp_dilithium_public_key_t::verify_signature(const uint8_t *msg,
 }
 
 std::pair<pgp_dilithium_public_key_t, pgp_dilithium_private_key_t>
-dilithium_generate_keypair(
-  rnp::RNG *rng, dilithium_parameter_e dilithium_param)
+dilithium_generate_keypair(rnp::RNG *rng, dilithium_parameter_e dilithium_param)
 {
     Botan::Dilithium_PrivateKey priv_key(*rng->obj(),
                                   rnp_dilithium_param_to_botan_dimension(dilithium_param));
@@ -102,22 +101,24 @@ dilithium_generate_keypair(
 }
 
 bool
-pgp_dilithium_public_key_t::is_valid(rnp::RNG *rng) const {
-    if(!is_initialized_) {
+pgp_dilithium_public_key_t::is_valid(rnp::RNG *rng) const
+{
+    if (!is_initialized_) {
         return false;
     }
 
-    auto key = botan_key(); 
+    auto key = botan_key();
     return key.check_key(*(rng->obj()), false);
 }
 
 bool
-pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const {
-    if(!is_initialized_) {
+pgp_dilithium_private_key_t::is_valid(rnp::RNG *rng) const
+{
+    if (!is_initialized_) {
         return false;
     }
 
-    auto key = botan_key(); 
+    auto key = botan_key();
     return key.check_key(*(rng->obj()), false);
 }
 

@@ -24,7 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "config.h"
 #include "kmac.hpp"
 
@@ -67,7 +66,7 @@ KMAC256::counter() const
     return counter_;
 }
 
-/* 
+/*
     //   Input:
     //   algID - the algorithm ID encoded as octet
     //   publicKey - the recipient's encryption sub-key packet
@@ -79,7 +78,8 @@ std::vector<uint8_t>
 KMAC256::fixedInfo(const std::vector<uint8_t> &subkey_pkt_hash, pgp_pubkey_alg_t alg_id)
 {
     std::vector<uint8_t> result(subkey_pkt_hash);
-    result.insert(result.begin(), (static_cast<uint8_t>(alg_id)));;
+    result.insert(result.begin(), (static_cast<uint8_t>(alg_id)));
+    ;
     return result;
 }
 
@@ -89,7 +89,7 @@ KMAC256::encData(const std::vector<uint8_t> &ecc_key_share,
                  const std::vector<uint8_t> &kyber_key_share,
                  const std::vector<uint8_t> &kyber_ciphertext,
                  const std::vector<uint8_t> &subkey_pkt_hash,
-                 pgp_pubkey_alg_t alg_id) 
+                 pgp_pubkey_alg_t            alg_id)
 {
     std::vector<uint8_t> enc_data;
     std::vector<uint8_t> counter_vec = counter();
@@ -110,7 +110,6 @@ KMAC256::encData(const std::vector<uint8_t> &ecc_key_share,
 
     return enc_data;
 }
-
 
 KMAC256::~KMAC256()
 {

@@ -190,14 +190,15 @@ typedef struct pgp_key_material_t {
     };
 #if defined(ENABLE_CRYPTO_REFRESH)
     pgp_ed25519_key_t ed25519; /* non-trivial type, cannot be in a union */
-    pgp_x25519_key_t  x25519; /* non-trivial type, cannot be in a union */
+    pgp_x25519_key_t  x25519;  /* non-trivial type, cannot be in a union */
 #endif
 #if defined(ENABLE_PQC)
-    pgp_kyber_ecdh_key_t kyber_ecdh; /* non-trivial type, cannot be in a union */
+    pgp_kyber_ecdh_key_t      kyber_ecdh;      /* non-trivial type, cannot be in a union */
     pgp_dilithium_exdsa_key_t dilithium_exdsa; /* non-trivial type, cannot be in a union */
 #endif
 
-    pgp_curve_t curve() const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
+    pgp_curve_t curve()
+      const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
     size_t bits() const;
     size_t qbits() const;
     void   validate(rnp::SecurityContext &ctx, bool reset = true);
@@ -218,7 +219,8 @@ typedef struct pgp_signature_material_t {
     pgp_ed25519_signature_t ed25519; // non-trivial type cannot be member in union
 #endif
 #if defined(ENABLE_PQC)
-    pgp_dilithium_exdsa_signature_t dilithium_exdsa; // non-trivial type cannot be member in union
+    pgp_dilithium_exdsa_signature_t
+      dilithium_exdsa; // non-trivial type cannot be member in union
 #endif
 } pgp_signature_material_t;
 
@@ -227,10 +229,10 @@ typedef struct pgp_signature_material_t {
  */
 typedef struct pgp_encrypted_material_t {
     union {
-        pgp_rsa_encrypted_t       rsa;
-        pgp_eg_encrypted_t        eg;
-        pgp_sm2_encrypted_t       sm2;
-        pgp_ecdh_encrypted_t      ecdh;
+        pgp_rsa_encrypted_t  rsa;
+        pgp_eg_encrypted_t   eg;
+        pgp_sm2_encrypted_t  sm2;
+        pgp_ecdh_encrypted_t ecdh;
     };
 #if defined(ENABLE_CRYPTO_REFRESH)
     pgp_x25519_encrypted_t x25519; // non-trivial type cannot be member in union
@@ -386,11 +388,11 @@ typedef struct pgp_aead_hdr_t {
 
 #ifdef ENABLE_CRYPTO_REFRESH
 typedef struct pgp_seipdv2_hdr_t {
-    pgp_seipd_version_t version;               /* version of the SEIPD packet */
-    pgp_symm_alg_t cipher_alg;                 /* underlying symmetric algorithm */
-    pgp_aead_alg_t aead_alg;                   /* AEAD algorithm, i.e. EAX, OCB, etc */
-    uint8_t        chunk_size_octet;           /* chunk size octet */
-    uint8_t        salt[PGP_SEIPDV2_SALT_LEN]; /* SEIPDv2 salt value */
+    pgp_seipd_version_t version;                    /* version of the SEIPD packet */
+    pgp_symm_alg_t      cipher_alg;                 /* underlying symmetric algorithm */
+    pgp_aead_alg_t      aead_alg;                   /* AEAD algorithm, i.e. EAX, OCB, etc */
+    uint8_t             chunk_size_octet;           /* chunk size octet */
+    uint8_t             salt[PGP_SEIPDV2_SALT_LEN]; /* SEIPDv2 salt value */
 } pgp_seipdv2_hdr_t;
 #endif
 

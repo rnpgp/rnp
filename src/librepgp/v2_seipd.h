@@ -32,5 +32,5 @@ struct seipd_v2_aead_fields_t {
     std::vector<uint8_t> key, nonce;
 };
 
-seipd_v2_aead_fields_t
-seipd_v2_key_and_nonce_derivation(pgp_seipdv2_hdr_t &hdr, uint8_t *sesskey);
+seipd_v2_aead_fields_t seipd_v2_key_and_nonce_derivation(pgp_seipdv2_hdr_t &hdr,
+                                                         uint8_t *          sesskey);

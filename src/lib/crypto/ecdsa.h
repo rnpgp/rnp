@@ -44,7 +44,7 @@ rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
                           size_t                    hash_len,
                           const pgp_ec_key_t *      key);
 
-const char * ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
+const char *ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
 
 /*
  * @brief   Returns hash which should be used with the curve

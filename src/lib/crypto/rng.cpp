@@ -38,8 +38,7 @@ RNG::RNG(Type type)
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (type == Type::DRBG) {
         botan_rng_obj.reset(new Botan::AutoSeeded_RNG);
-    }
-    else {
+    } else {
         botan_rng_obj.reset(new Botan::System_RNG);
     }
 #endif

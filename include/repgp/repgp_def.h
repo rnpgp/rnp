@@ -97,10 +97,10 @@
 /* Size of the fingerprint */
 #define PGP_FINGERPRINT_V4_SIZE 20
 #if defined(ENABLE_CRYPTO_REFRESH)
-    #define PGP_FINGERPRINT_V6_SIZE 32
-    #define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V6_SIZE
+#define PGP_FINGERPRINT_V6_SIZE 32
+#define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V6_SIZE
 #else
-    #define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V4_SIZE
+#define PGP_MAX_FINGERPRINT_SIZE PGP_FINGERPRINT_V4_SIZE
 #endif
 #define PGP_MAX_FINGERPRINT_HEX_SIZE (PGP_MAX_FINGERPRINT_SIZE * 2) + 1
 
@@ -118,7 +118,7 @@
 
 /* V6 Signature Salt */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    #define PGP_MAX_SALT_SIZE_V6_SIG 32
+#define PGP_MAX_SALT_SIZE_V6_SIG 32
 #endif
 
 /** Old Packet Format Lengths.
@@ -228,22 +228,31 @@ typedef enum : uint8_t {
 
 #if defined(ENABLE_PQC)
     /* PQC-ECC composite */
-    PGP_PKA_KYBER768_X25519 = 29,                 /* Kyber768 + X25519 from draft-wussler-openpgp-pqc-01 */
-    //PGP_PKA_KYBER1024_X448 = 30,                  /* Kyer1024 + X448 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_KYBER768_P256 = 31,                   /* Kyber768 + NIST P-256 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_KYBER1024_P384 = 32,                  /* Kyber1024 + NIST P-384 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_KYBER768_BP256 = 33,                  /* Kyber768 + Brainpool P256r1 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_KYBER1024_BP384 = 34,                 /* Kyber1024 + Brainpool P384r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER768_X25519 = 29, /* Kyber768 + X25519 from draft-wussler-openpgp-pqc-01 */
+    // PGP_PKA_KYBER1024_X448 = 30,                  /* Kyer1024 + X448 from
+    // draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER768_P256 = 31,  /* Kyber768 + NIST P-256 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER1024_P384 = 32, /* Kyber1024 + NIST P-384 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER768_BP256 =
+      33, /* Kyber768 + Brainpool P256r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_KYBER1024_BP384 =
+      34, /* Kyber1024 + Brainpool P384r1 from draft-wussler-openpgp-pqc-01 */
 
-    PGP_PKA_DILITHIUM3_ED25519 = 35,              /* Dilithium 3 + Ed25519 from draft-wussler-openpgp-pqc-01 */
-    //PGP_PKA_DILITHIUM5_ED448 = 36,                /* Dilithium 5 + Ed448 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_DILITHIUM3_P256 = 37,                 /* Dilithium 3 + ECDSA-NIST-P-256 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_DILITHIUM5_P384 = 38,                 /* Dilithium 5 + ECDSA-NIST-P-384 from draft-wussler-openpgp-pqc-00*/
-    PGP_PKA_DILITHIUM3_BP256 = 39,                /* Dilithium 3 + ECDSA-brainpoolP256r1 from draft-wussler-openpgp-pqc-01 */
-    PGP_PKA_DILITHIUM5_BP384 = 40,                /* Dilithium 5 + ECDSA-brainpoolP384r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM3_ED25519 =
+      35, /* Dilithium 3 + Ed25519 from draft-wussler-openpgp-pqc-01 */
+    // PGP_PKA_DILITHIUM5_ED448 = 36,                /* Dilithium 5 + Ed448 from
+    // draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM3_P256 =
+      37, /* Dilithium 3 + ECDSA-NIST-P-256 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM5_P384 =
+      38, /* Dilithium 5 + ECDSA-NIST-P-384 from draft-wussler-openpgp-pqc-00*/
+    PGP_PKA_DILITHIUM3_BP256 =
+      39, /* Dilithium 3 + ECDSA-brainpoolP256r1 from draft-wussler-openpgp-pqc-01 */
+    PGP_PKA_DILITHIUM5_BP384 =
+      40, /* Dilithium 5 + ECDSA-brainpoolP384r1 from draft-wussler-openpgp-pqc-01 */
 #endif
 
-    PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
+    PGP_PKA_SM2 = 99,        /* SM2 encryption/signature schemes */
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */
@@ -431,7 +440,7 @@ typedef enum {
     /* PGP_SIG_SUBPKT_INTENDED_RECIPIENT_FINGERPRINT = 35, */
     PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES = 39,
 #endif
-    PGP_SIG_SUBPKT_PRIVATE_100 = 100,       /* private/experimental subpackets */
+    PGP_SIG_SUBPKT_PRIVATE_100 = 100, /* private/experimental subpackets */
     PGP_SIG_SUBPKT_PRIVATE_101 = 101,
     PGP_SIG_SUBPKT_PRIVATE_102 = 102,
     PGP_SIG_SUBPKT_PRIVATE_103 = 103,
@@ -488,10 +497,7 @@ typedef enum {
     PGP_PKSK_V6 = 6
 #endif
 } pgp_pkesk_version_t;
-typedef enum {
-    PGP_SE_IP_DATA_V1 = 1,
-    PGP_SE_IP_DATA_V2 = 2
-} pgp_seipd_version_t;
+typedef enum { PGP_SE_IP_DATA_V1 = 1, PGP_SE_IP_DATA_V2 = 2 } pgp_seipd_version_t;
 
 /** Version.
  * OpenPGP has two different protocol versions: version 3 and version 4.
@@ -506,7 +512,7 @@ typedef enum {
     PGP_V3 = 3, /* Version 3 */
     PGP_V4 = 4, /* Version 4 */
 #if defined(ENABLE_CRYPTO_REFRESH)
-    PGP_V6 = 6  /* Version 6 (crypto refresh) */
+    PGP_V6 = 6 /* Version 6 (crypto refresh) */
 #endif
 } pgp_version_t;
 

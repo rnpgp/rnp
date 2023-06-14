@@ -1211,28 +1211,28 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
     return dst->werr;
 }
 
-
 #if defined(ENABLE_CRYPTO_REFRESH)
-bool have_pkesk_checksum(pgp_pubkey_alg_t alg)
+bool
+have_pkesk_checksum(pgp_pubkey_alg_t alg)
 {
-    switch(alg)
-    {
-        case PGP_PKA_X25519:
+    switch (alg) {
+    case PGP_PKA_X25519:
 #if defined(ENABLE_PQC)
-        case PGP_PKA_KYBER768_X25519:
-        //case PGP_PKA_KYBER1024_X448:
-        case PGP_PKA_KYBER768_P256:
-        case PGP_PKA_KYBER1024_P384:
-        case PGP_PKA_KYBER768_BP256:
-        case PGP_PKA_KYBER1024_BP384:
+    case PGP_PKA_KYBER768_X25519:
+    // case PGP_PKA_KYBER1024_X448:
+    case PGP_PKA_KYBER768_P256:
+    case PGP_PKA_KYBER1024_P384:
+    case PGP_PKA_KYBER768_BP256:
+    case PGP_PKA_KYBER1024_BP384:
 #endif
-            return false;
-        default:
-            return true;
-    }    
+        return false;
+    default:
+        return true;
+    }
 }
 
-bool do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)
+bool
+do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)
 {
     /* matches the same algorithms */
     return have_pkesk_checksum(alg);

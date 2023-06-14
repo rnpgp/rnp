@@ -477,7 +477,6 @@ dst_print_fp(pgp_dest_t *dst, const char *name, const pgp_fingerprint_t &fp)
 }
 #endif
 
-
 static void
 dst_print_s2k(pgp_dest_t *dst, pgp_s2k_t *s2k)
 {
@@ -833,7 +832,8 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        dst_print_vec(dst, "dilithium-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "dilithium-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
         break;
 #endif
     default:
@@ -964,7 +964,10 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        dst_print_vec(dst, "dilithium-ecdsa/eddsa encodced pubkey", key.material.dilithium_exdsa.pub.get_encoded(), ctx->dump_mpi);
+        dst_print_vec(dst,
+                      "dilithium-ecdsa/eddsa encodced pubkey",
+                      key.material.dilithium_exdsa.pub.get_encoded(),
+                      ctx->dump_mpi);
         break;
 #endif
     default:
@@ -1096,10 +1099,9 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 
     dst_printf(dst, "version: %d\n", (int) pkey.version);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(pkey.version == PGP_PKSK_V6) {
+    if (pkey.version == PGP_PKSK_V6) {
         dst_print_fp(dst, NULL, pkey.fp);
-    }
-    else {
+    } else {
         dst_print_keyid(dst, NULL, pkey.key_id);
     }
 #else
@@ -1133,8 +1135,10 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
-        dst_print_vec(dst, "x25519 ephemeral public key", material.x25519.eph_key, ctx->dump_mpi);
-        dst_print_vec(dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "x25519 ephemeral public key", material.x25519.eph_key, ctx->dump_mpi);
+        dst_print_vec(
+          dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
         break;
 #endif
 #if defined(ENABLE_PQC)
@@ -1148,8 +1152,14 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     case PGP_PKA_KYBER768_BP256:
         [[fallthrough]];
     case PGP_PKA_KYBER1024_BP384:
-        dst_print_vec(dst, "kyber-ecdh composite ciphertext", material.kyber_ecdh.composite_ciphertext, ctx->dump_mpi);
-        dst_print_vec(dst, "kyber-ecdh wrapped session key", material.kyber_ecdh.wrapped_sesskey, ctx->dump_mpi);
+        dst_print_vec(dst,
+                      "kyber-ecdh composite ciphertext",
+                      material.kyber_ecdh.composite_ciphertext,
+                      ctx->dump_mpi);
+        dst_print_vec(dst,
+                      "kyber-ecdh wrapped session key",
+                      material.kyber_ecdh.wrapped_sesskey,
+                      ctx->dump_mpi);
         break;
 #endif
     default:
