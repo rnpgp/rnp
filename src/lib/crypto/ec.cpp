@@ -194,42 +194,52 @@ end:
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-static bool is_generic_prime_curve(pgp_curve_t curve) {
-    switch(curve) {
-        case PGP_CURVE_NIST_P_256: [[fallthrough]];
-        case PGP_CURVE_NIST_P_384: [[fallthrough]];
-        case PGP_CURVE_NIST_P_521: [[fallthrough]];
-        case PGP_CURVE_BP256: [[fallthrough]];
-        case PGP_CURVE_BP384: [[fallthrough]];
-        case PGP_CURVE_BP512: [[fallthrough]];
-        case PGP_CURVE_P256K1:
-            return true;
-        default: 
-            return false;
+static bool
+is_generic_prime_curve(pgp_curve_t curve)
+{
+    switch (curve) {
+    case PGP_CURVE_NIST_P_256:
+        [[fallthrough]];
+    case PGP_CURVE_NIST_P_384:
+        [[fallthrough]];
+    case PGP_CURVE_NIST_P_521:
+        [[fallthrough]];
+    case PGP_CURVE_BP256:
+        [[fallthrough]];
+    case PGP_CURVE_BP384:
+        [[fallthrough]];
+    case PGP_CURVE_BP512:
+        [[fallthrough]];
+    case PGP_CURVE_P256K1:
+        return true;
+    default:
+        return false;
     }
 }
 
-static rnp_result_t ec_generate_generic_native(rnp::RNG *           rng,
-                                               std::vector<uint8_t> &privkey, 
-                                               std::vector<uint8_t> &pubkey,
-                                               pgp_curve_t          curve,
-                                               pgp_pubkey_alg_t     alg)
+static rnp_result_t
+ec_generate_generic_native(rnp::RNG *            rng,
+                           std::vector<uint8_t> &privkey,
+                           std::vector<uint8_t> &pubkey,
+                           pgp_curve_t           curve,
+                           pgp_pubkey_alg_t      alg)
 {
-    if(!is_generic_prime_curve(curve)) {
+    if (!is_generic_prime_curve(curve)) {
         RNP_LOG("expected generic prime curve");
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
     const ec_curve_desc_t *ec_desc = get_curve_desc(curve);
-    const size_t curve_order = BITS_TO_BYTES(ec_desc->bitlen);
+    const size_t           curve_order = BITS_TO_BYTES(ec_desc->bitlen);
 
     Botan::ECDH_PrivateKey privkey_botan(*(rng->obj()), Botan::EC_Group(ec_desc->botan_name));
-    Botan::BigInt pub_x = privkey_botan.public_point().get_affine_x();
-    Botan::BigInt pub_y = privkey_botan.public_point().get_affine_y();
-    Botan::BigInt x = privkey_botan.private_value();
+    Botan::BigInt          pub_x = privkey_botan.public_point().get_affine_x();
+    Botan::BigInt          pub_y = privkey_botan.public_point().get_affine_y();
+    Botan::BigInt          x = privkey_botan.private_value();
 
     // pubkey: 0x04 || X || Y
-    pubkey = Botan::unlock(Botan::BigInt::encode_fixed_length_int_pair(pub_x, pub_y, curve_order)); // zero-pads to the given size
+    pubkey = Botan::unlock(Botan::BigInt::encode_fixed_length_int_pair(
+      pub_x, pub_y, curve_order)); // zero-pads to the given size
     pubkey.insert(pubkey.begin(), 0x04);
 
     privkey = std::vector<uint8_t>(curve_order);
@@ -241,28 +251,26 @@ static rnp_result_t ec_generate_generic_native(rnp::RNG *           rng,
     return RNP_SUCCESS;
 }
 
-rnp_result_t ec_generate_native(rnp::RNG *           rng,
-                                std::vector<uint8_t> &privkey, 
-                                std::vector<uint8_t> &pubkey,
-                                pgp_curve_t          curve,
-                                pgp_pubkey_alg_t     alg)
+rnp_result_t
+ec_generate_native(rnp::RNG *            rng,
+                   std::vector<uint8_t> &privkey,
+                   std::vector<uint8_t> &pubkey,
+                   pgp_curve_t           curve,
+                   pgp_pubkey_alg_t      alg)
 {
-    if(curve == PGP_CURVE_25519) {
+    if (curve == PGP_CURVE_25519) {
         return generate_x25519_native(rng, privkey, pubkey);
-    }
-    else if(curve == PGP_CURVE_ED25519) {
+    } else if (curve == PGP_CURVE_ED25519) {
         return generate_ed25519_native(rng, privkey, pubkey);
-    }
-    else if(is_generic_prime_curve(curve)) {
-        if(alg != PGP_PKA_ECDH && alg != PGP_PKA_ECDSA) {
+    } else if (is_generic_prime_curve(curve)) {
+        if (alg != PGP_PKA_ECDH && alg != PGP_PKA_ECDSA) {
             RNP_LOG("alg and curve mismatch");
             return RNP_ERROR_BAD_PARAMETERS;
         }
         return ec_generate_generic_native(rng, privkey, pubkey, curve, alg);
-    }
-    else {
+    } else {
         RNP_LOG("invalid curve");
-        return RNP_ERROR_BAD_PARAMETERS;     
+        return RNP_ERROR_BAD_PARAMETERS;
     }
 }
 #endif

@@ -115,7 +115,6 @@ rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
                                 const pgp_ec_key_t *        key,
                                 const pgp_fingerprint_t &   fingerprint);
 
-
 #if defined(ENABLE_CRYPTO_REFRESH)
 /* Generate an ECDH key pair in "native" format, i.e.,
  * no changes to the format specified in the respective standard
@@ -129,10 +128,10 @@ rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
  */
-rnp_result_t ecdh_kem_gen_keypair_native(rnp::RNG *           rng,
+rnp_result_t ecdh_kem_gen_keypair_native(rnp::RNG *            rng,
                                          std::vector<uint8_t> &privkey,
                                          std::vector<uint8_t> &pubkey,
-                                         pgp_curve_t          curve);
+                                         pgp_curve_t           curve);
 
 /* Generate an ECDSA or EdDSA key pair in "native" format, i.e.,
  * no changes to the format specified in the respective standard
@@ -146,10 +145,10 @@ rnp_result_t ecdh_kem_gen_keypair_native(rnp::RNG *           rng,
  * @return RNP_SUCCESS on success and output parameters are populated
  * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
  */
-rnp_result_t exdsa_gen_keypair_native(rnp::RNG *           rng,
+rnp_result_t exdsa_gen_keypair_native(rnp::RNG *            rng,
                                       std::vector<uint8_t> &privkey,
                                       std::vector<uint8_t> &pubkey,
-                                      pgp_curve_t          curve);
+                                      pgp_curve_t           curve);
 
 #endif
 

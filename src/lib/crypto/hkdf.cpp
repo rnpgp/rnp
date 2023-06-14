@@ -24,7 +24,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-
 #include "config.h"
 
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -58,7 +57,8 @@ Hkdf::size() const
     return size_;
 }
 
-pgp_hash_alg_t Hkdf::alg() const
+pgp_hash_alg_t
+Hkdf::alg() const
 {
     return hash_alg_;
 }

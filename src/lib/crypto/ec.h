@@ -203,9 +203,9 @@ bool x25519_bits_tweaked(const pgp_ec_key_t &key);
  *
  * @returns RNP_ERROR_BAD_PARAMETERS if the curve or alg parameter is invalid.
  */
-rnp_result_t ec_generate_native(rnp::RNG *           rng,
-                                std::vector<uint8_t> &privkey, 
+rnp_result_t ec_generate_native(rnp::RNG *            rng,
+                                std::vector<uint8_t> &privkey,
                                 std::vector<uint8_t> &pubkey,
-                                pgp_curve_t          curve,
-                                pgp_pubkey_alg_t     alg);
+                                pgp_curve_t           curve,
+                                pgp_pubkey_alg_t      alg);
 #endif

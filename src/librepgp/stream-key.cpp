@@ -542,7 +542,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
     switch (key.sec_protection.s2k.usage) {
     case PGP_S2KU_NONE:
 #if defined(ENABLE_CRYPTO_REFRESH)
-        if(key.version == PGP_V6) {
+        if (key.version == PGP_V6) {
             break; /* checksum removed for v6 and usage byte zero */
         }
         [[fallthrough]];
@@ -672,7 +672,8 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
                 RNP_LOG("failed to parse kyber-ecdh secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
-            key.material.kyber_ecdh.priv = pgp_kyber_ecdh_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
+            key.material.kyber_ecdh.priv =
+              pgp_kyber_ecdh_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
         case PGP_PKA_DILITHIUM3_ED25519:
             [[fallthrough]];
@@ -689,7 +690,8 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
                 RNP_LOG("failed to parse dilithium-ecdsa/eddsa secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
-            key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
+            key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(
+              tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
 #endif
         default:
@@ -849,13 +851,13 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
         body.add(key.material.dilithium_exdsa.priv.get_encoded());
         break;
 #endif
-default:
+    default:
         RNP_LOG("unknown pk alg : %d", (int) key.alg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(key.version == PGP_V6 && key.sec_protection.s2k.usage == PGP_S2KU_NONE) {
+    if (key.version == PGP_V6 && key.sec_protection.s2k.usage == PGP_S2KU_NONE) {
         return; /* checksum removed for v6 and usage byte zero */
     }
 #endif
@@ -1012,9 +1014,6 @@ forget_secret_key_fields(pgp_key_material_t *key)
         [[fallthrough]];
     case PGP_PKA_KYBER768_BP256:
         [[fallthrough]];
-    case PGP_PKA_KYBER1024_BP384:
-        key->kyber_ecdh.priv.secure_clear();
-        break;
     case PGP_PKA_DILITHIUM3_ED25519:
         [[fallthrough]];
     // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
@@ -1542,8 +1541,9 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
 #if defined(ENABLE_CRYPTO_REFRESH)
-        if(version == PGP_V6 && usage == 255) {
-            RNP_LOG("Error when parsing S2K usage: A version 6 packet MUST NOT use the value 255.");
+        if (version == PGP_V6 && usage == 255) {
+            RNP_LOG(
+              "Error when parsing S2K usage: A version 6 packet MUST NOT use the value 255.");
             return RNP_ERROR_BAD_FORMAT;
         }
 #endif
@@ -1551,7 +1551,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-        if(version == PGP_V6 && sec_protection.s2k.usage != PGP_S2KU_NONE) {
+        if (version == PGP_V6 && sec_protection.s2k.usage != PGP_S2KU_NONE) {
             // V6 packages contain the count of the optional 1-byte parameters
             uint8_t s2k_params_count;
             if (!pkt.get(s2k_params_count)) {
@@ -1624,7 +1624,8 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     return RNP_SUCCESS;
 }
 
-void pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t & hbody)
+void
+pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
 {
     switch (alg) {
     case PGP_PKA_RSA:
@@ -1724,7 +1725,7 @@ pgp_key_pkt_t::fill_hashed_data()
     pgp_packet_body_t alg_spec_fields(PGP_PKT_RESERVED);
     make_alg_spec_fields_for_public_key(alg_spec_fields);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
+    if (version == PGP_V6) {
         hbody.add_uint32(alg_spec_fields.size());
     }
 #endif

@@ -157,13 +157,17 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
-        if(generate_ed25519_native(&crypto.ctx->rng, seckey.material.ed25519.priv, seckey.material.ed25519.pub) != RNP_SUCCESS) {
+        if (generate_ed25519_native(&crypto.ctx->rng,
+                                    seckey.material.ed25519.priv,
+                                    seckey.material.ed25519.pub) != RNP_SUCCESS) {
             RNP_LOG("failed to generate ED25519 key");
             return false;
         }
         break;
     case PGP_PKA_X25519:
-        if(generate_x25519_native(&crypto.ctx->rng, seckey.material.x25519.priv, seckey.material.x25519.pub) != RNP_SUCCESS) {
+        if (generate_x25519_native(&crypto.ctx->rng,
+                                   seckey.material.x25519.priv,
+                                   seckey.material.x25519.pub) != RNP_SUCCESS) {
             RNP_LOG("failed to generate X25519 key");
             return false;
         }
@@ -180,7 +184,8 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     case PGP_PKA_KYBER768_BP256:
         [[fallthrough]];
     case PGP_PKA_KYBER1024_BP384:
-        if(pgp_kyber_ecdh_composite_key_t::gen_keypair(&crypto.ctx->rng, &seckey.material.kyber_ecdh, seckey.alg)) {
+        if (pgp_kyber_ecdh_composite_key_t::gen_keypair(
+              &crypto.ctx->rng, &seckey.material.kyber_ecdh, seckey.alg)) {
             RNP_LOG("failed to generate Kyber-ECDH-composite key for PK alg %d", seckey.alg);
             return false;
         }
@@ -195,8 +200,10 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        if(pgp_dilithium_exdsa_composite_key_t::gen_keypair(&crypto.ctx->rng, &seckey.material.dilithium_exdsa, seckey.alg)) {
-            RNP_LOG("failed to generate Dilithium-ecdsa/eddsa-composite key for PK alg %d", seckey.alg);
+        if (pgp_dilithium_exdsa_composite_key_t::gen_keypair(
+              &crypto.ctx->rng, &seckey.material.dilithium_exdsa, seckey.alg)) {
+            RNP_LOG("failed to generate Dilithium-ecdsa/eddsa-composite key for PK alg %d",
+                    seckey.alg);
             return false;
         }
         break;
@@ -319,9 +326,9 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         return elgamal_validate_key(&material->eg, material->secret) ? RNP_SUCCESS :
                                                                        RNP_ERROR_GENERIC;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_ED25519: 
+    case PGP_PKA_ED25519:
         return ed25519_validate_key_native(rng, &material->ed25519, material->secret);
-    case PGP_PKA_X25519: 
+    case PGP_PKA_X25519:
         return x25519_validate_key_native(rng, &material->x25519, material->secret);
 #endif
 #if defined(ENABLE_PQC)

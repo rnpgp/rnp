@@ -106,7 +106,8 @@ typedef struct pgp_dest_encrypted_param_t {
     std::array<uint8_t, PGP_SEIPDV2_SALT_LEN> v2_seipd_salt; /* SEIPDv2 salt value */
 #endif
 
-    bool is_aead_auth()
+    bool
+    is_aead_auth()
     {
         switch (this->auth_type) {
         case rnp::AuthType::AEADv1:
@@ -122,7 +123,8 @@ typedef struct pgp_dest_encrypted_param_t {
     };
 
 #ifdef ENABLE_CRYPTO_REFRESH
-    bool    is_v2_seipd() const
+    bool
+    is_v2_seipd() const
     {
         return this->auth_type == rnp::AuthType::AEADv2;
     }
@@ -372,7 +374,7 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     }
 
     /* set chunk index for additional data */
-    if (param->auth_type == rnp::AuthType::AEADv1) { 
+    if (param->auth_type == rnp::AuthType::AEADv1) {
         write_uint64(param->ad + param->adlen - 8, idx);
     }
 
@@ -568,15 +570,16 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
-    if(userkey->alg() == PGP_PKA_X25519 && pkesk_version == PGP_PKSK_V3) {
-        switch(param->ctx->ealg) {
-            case PGP_SA_AES_128:
-            case PGP_SA_AES_192:
-            case PGP_SA_AES_256:
-                break;
-            default:
-                RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric algorithm that is not AES.");
-                return RNP_ERROR_DECRYPT_FAILED;
+    if (userkey->alg() == PGP_PKA_X25519 && pkesk_version == PGP_PKSK_V3) {
+        switch (param->ctx->ealg) {
+        case PGP_SA_AES_128:
+        case PGP_SA_AES_192:
+        case PGP_SA_AES_256:
+            break;
+        default:
+            RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric "
+                    "algorithm that is not AES.");
+            return RNP_ERROR_DECRYPT_FAILED;
         }
     }
 #endif
@@ -591,7 +594,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         pkey.fp = userkey->fp();
     }
 #endif
-    
+
     /* Encrypt the session key */
     rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE + 3> enckey;
     uint8_t *sesskey = enckey.data(); /* pointer to the actual session key */
@@ -602,7 +605,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (pkey.version == PGP_PKSK_V3) {
         size_t key_offset;
-        if(do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
+        if (do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
             /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
             key_offset = 1;
             enckey[0] = pkey.salg;
@@ -610,21 +613,20 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
             key_offset = 0;
         }
 #else
-        enckey[0] = pkey.salg;
-        size_t key_offset = 1;
+    enckey[0] = pkey.salg;
+    size_t key_offset = 1;
 #endif
         memcpy(&enckey[key_offset], key, keylen);
         sesskey += key_offset;
         enckey_len += key_offset;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    }
-    else { // PGP_PKSK_V6
+    } else { // PGP_PKSK_V6
         memcpy(&enckey[0], key, keylen);
     }
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(have_pkesk_checksum(pkey.alg))
+    if (have_pkesk_checksum(pkey.alg))
 #endif
     {
         /* Calculate checksum */
@@ -711,7 +713,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                                     enckey.data(),
                                     enckey_len,
                                     &material.x25519);
-        if(ret) {
+        if (ret) {
             RNP_LOG("x25519 encryption failed");
             return ret;
         }
@@ -729,10 +731,10 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         [[fallthrough]];
     case PGP_PKA_KYBER1024_BP384:
         ret = userkey->material().kyber_ecdh.pub.encrypt(&handler->ctx->ctx->rng,
-                                                        &material.kyber_ecdh,
-                                                        enckey.data(),
-                                                        enckey_len,
-                                                        userkey->subkey_pkt_hash());
+                                                         &material.kyber_ecdh,
+                                                         enckey.data(),
+                                                         enckey_len,
+                                                         userkey->subkey_pkt_hash());
         if (ret) {
             RNP_LOG("Kyber ECC Encrypt failed");
             return ret;
@@ -939,7 +941,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     nlen = pgp_cipher_aead_nonce_len(param->ctx->aalg);
     uint8_t *iv_or_salt = param->iv;
     size_t   iv_or_salt_len = nlen;
-#ifdef ENABLE_CRYPTO_REFRESH 
+#ifdef ENABLE_CRYPTO_REFRESH
     if (param->auth_type == rnp::AuthType::AEADv2) {
         iv_or_salt = param->v2_seipd_salt.data();
         iv_or_salt_len = param->v2_seipd_salt.size();
@@ -987,8 +989,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
         memcpy(v2_seipd_hdr.salt, iv_or_salt, PGP_SEIPDV2_SALT_LEN);
         s2_fields = seipd_v2_key_and_nonce_derivation(v2_seipd_hdr, enckey);
         enckey = s2_fields.key.data();
-        if(s2_fields.nonce.size() > sizeof(param->iv))
-        {
+        if (s2_fields.nonce.size() > sizeof(param->iv)) {
             // would be better to indicate an error
             s2_fields.nonce.resize(sizeof(param->iv));
         }
@@ -1056,7 +1057,8 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     skeycount = handler->ctx->passwords.size();
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, ugprade to AEADv2 */
+    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, ugprade
+     * to AEADv2 */
     if (handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable() && pkeycount > 0) {
         param->auth_type = rnp::AuthType::AEADv2;
     }
@@ -1094,7 +1096,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         if (param->auth_type == rnp::AuthType::AEADv2) {
             pkesk_version = PGP_PKSK_V6;
         }
-        if(handler->ctx->aalg == PGP_AEAD_NONE) {
+        if (handler->ctx->aalg == PGP_AEAD_NONE) {
             // set default AEAD if not set
             // TODO-V6: is this the right place to set the default algorithm?
             param->ctx->aalg = DEFAULT_AEAD_ALG;
@@ -1125,7 +1127,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         param->pkt.tag =
           param->auth_type == rnp::AuthType::MDC ? PGP_PKT_SE_IP_DATA : PGP_PKT_SE_DATA;
 #ifdef ENABLE_CRYPTO_REFRESH
-        if(param->auth_type == rnp::AuthType::AEADv2) {
+        if (param->auth_type == rnp::AuthType::AEADv2) {
             param->pkt.tag = PGP_PKT_SE_IP_DATA;
         }
 #endif
@@ -1326,13 +1328,19 @@ signed_write_signature(pgp_dest_signed_param_t *param,
     try {
         pgp_signature_t sig;
         if (signer->onepass.version) {
-            signer->key->sign_init(
-              param->ctx->ctx->rng, sig, signer->onepass.halg, param->ctx->ctx->time(), signer->key->version());
+            signer->key->sign_init(param->ctx->ctx->rng,
+                                   sig,
+                                   signer->onepass.halg,
+                                   param->ctx->ctx->time(),
+                                   signer->key->version());
             sig.palg = signer->onepass.palg;
             sig.set_type(signer->onepass.type);
         } else {
-            signer->key->sign_init(
-              param->ctx->ctx->rng, sig, signer->halg, param->ctx->ctx->time(), signer->key->version());
+            signer->key->sign_init(param->ctx->ctx->rng,
+                                   sig,
+                                   signer->halg,
+                                   param->ctx->ctx->time(),
+                                   signer->key->version());
             /* line below should be checked */
             sig.set_type(param->ctx->detached ? PGP_SIG_BINARY : PGP_SIG_TEXT);
         }

@@ -3117,7 +3117,8 @@ TEST_F(rnp_tests, test_ffi_supported_features)
 #if defined(ENABLE_PQC)
     pqc_opt = 10; // kyber+ecc and dilithium+ecc variants
 #endif
-    assert_true(check_features(RNP_FEATURE_PK_ALG, features, 6 + has_sm2 + pqc_opt + crypto_refresh_opt));
+    assert_true(check_features(
+      RNP_FEATURE_PK_ALG, features, 6 + has_sm2 + pqc_opt + crypto_refresh_opt));
     rnp_buffer_destroy(features);
     assert_rnp_success(rnp_supports_feature(RNP_FEATURE_PK_ALG, "RSA", &supported));
     assert_true(supported);

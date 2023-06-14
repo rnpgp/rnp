@@ -51,10 +51,10 @@
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
 #if defined(ENABLE_CRYPTO_REFRESH)
-  #define CFG_V3_PKESK_ONLY "v3-pkesk-only" /* disable v6 PKESK */
+#define CFG_V3_PKESK_ONLY "v3-pkesk-only" /* disable v6 PKESK */
 #endif
-#define CFG_SIGNERS "signers"            /* list of signers */
-#define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
+#define CFG_SIGNERS "signers"     /* list of signers */
+#define CFG_HOMEDIR "homedir"     /* home directory - folder with keyrings and so on */
 #define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */
 #define CFG_PASSFD "pass-fd"      /* password file descriptor */
 #define CFG_PASSWD "password"     /* password as command-line constant */
@@ -119,7 +119,8 @@
 #define CFG_KG_PROT_HASH "kg-prot-hash"
 #define CFG_KG_PROT_ALG "kg-prot-alg"
 #define CFG_KG_PROT_ITERATIONS "kg-prot-iterations"
-#define CFG_KG_V6_KEY "kg-v6-key" /* represents a boolean property: non-empty string means 'true' */
+#define CFG_KG_V6_KEY \
+    "kg-v6-key" /* represents a boolean property: non-empty string means 'true' */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

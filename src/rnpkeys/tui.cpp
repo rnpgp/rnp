@@ -243,7 +243,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(22) EDDSA + ECDH\n"
 #endif
 #if defined(ENABLE_CRYPTO_REFRESH)
-               "\t(23) ED25519 + X25519 (v6 key) \n"
+          "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
 #if defined(ENABLE_PQC)
           "\t(25) (Dilithium3 + Ed25519) + (Kyber768 + X25519)\n"
@@ -252,8 +252,8 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(29) (Dilithium3 + ECDSA-brainpoolP256r1) + (Kyber768 + ECDH-brainpoolP256r1)\n"
           "\t(30) (Dilithium5 + ECDSA-brainpoolP384r1) + (Kyber1024 + ECDH-brainpoolP384r1)\n"
 #endif
-               "\t(99) SM2\n"
-               "> ");
+          "\t(99) SM2\n"
+          "> ");
         if (!rnp_secure_get_long_from_fd(input_fp, option, false)) {
             option = 0;
             continue;
@@ -453,22 +453,22 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
             break;
         }
 #if defined(ENABLE_PQC)
-        case 25: 
+        case 25:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
             break;
-        case 26: 
+        case 26:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_X448);
             break;
-        case 27: 
+        case 27:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_P256);
             break;
-        case 28: 
+        case 28:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
             break;
-        case 29: 
+        case 29:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_BP256);
             break;
-        case 30: 
+        case 30:
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
             break;
 #endif
