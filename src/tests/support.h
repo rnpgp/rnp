@@ -59,6 +59,8 @@
 
 #ifdef _WIN32
 #define pipe(fds) _pipe(fds, 256, O_BINARY)
+#define dup(fd) _dup(fd)
+#define dup2(fd1, fd2) _dup2(fd1, fd2)
 int setenv(const char *name, const char *value, int overwrite);
 int unsetenv(const char *name);
 #endif

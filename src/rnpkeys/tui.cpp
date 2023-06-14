@@ -365,18 +365,6 @@ cli_rnp_set_generate_params(rnp_cfg &cfg, bool subkey)
         cfg.set_int(CFG_KG_SUBKEY_BITS, cfg.get_int(CFG_NUMBITS));
     } else {
         FILE *input = stdin;
-        if (cfg.has(CFG_USERINPUTFD)) {
-            int inputfd = dup(cfg.get_int(CFG_USERINPUTFD));
-            if (inputfd != -1) {
-                input = rnp_fdopen(inputfd, "r");
-                if (!input) {
-                    close(inputfd);
-                }
-            }
-        }
-        if (!input) {
-            return false;
-        }
         if (subkey) {
             res = rnpkeys_ask_generate_params_subkey(cfg, input);
         } else {
