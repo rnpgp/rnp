@@ -60,7 +60,6 @@
 #define CFG_PASSFD "pass-fd"      /* password file descriptor */
 #define CFG_PASSWD "password"     /* password as command-line constant */
 #define CFG_PASSWORDC "passwordc" /* number of passwords for symmetric encryption */
-#define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
 #define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
 #define CFG_EXPIRATION "expiration"     /* signature expiration time */
 #define CFG_CREATION "creation"         /* signature validity start */
