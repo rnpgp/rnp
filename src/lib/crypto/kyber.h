@@ -48,13 +48,17 @@ struct kyber_encap_result_t {
 
 class pgp_kyber_private_key_t {
   public:
-    pgp_kyber_private_key_t(const uint8_t *key_encoded, size_t key_encoded_len, kyber_parameter_e mode);
+    pgp_kyber_private_key_t(const uint8_t *   key_encoded,
+                            size_t            key_encoded_len,
+                            kyber_parameter_e mode);
     pgp_kyber_private_key_t(std::vector<uint8_t> const &key_encoded, kyber_parameter_e mode);
     pgp_kyber_private_key_t() = default;
 
     bool is_valid(rnp::RNG *rng) const;
 
-    std::vector<uint8_t> decapsulate(rnp::RNG *rng, const uint8_t *ciphertext, size_t ciphertext_len);
+    std::vector<uint8_t> decapsulate(rnp::RNG *     rng,
+                                     const uint8_t *ciphertext,
+                                     size_t         ciphertext_len);
     std::vector<uint8_t>
     get_encoded() const
     {
@@ -71,20 +75,23 @@ class pgp_kyber_private_key_t {
     Botan::Kyber_PrivateKey botan_key() const;
 
     Botan::secure_vector<uint8_t> key_encoded_;
-    kyber_parameter_e kyber_mode_;
-    bool is_initialized_ = false;
+    kyber_parameter_e             kyber_mode_;
+    bool                          is_initialized_ = false;
 };
 
 class pgp_kyber_public_key_t {
   public:
-    pgp_kyber_public_key_t(const uint8_t *key_encoded, size_t key_encoded_len, kyber_parameter_e mode);
+    pgp_kyber_public_key_t(const uint8_t *   key_encoded,
+                           size_t            key_encoded_len,
+                           kyber_parameter_e mode);
     pgp_kyber_public_key_t(std::vector<uint8_t> const &key_encoded, kyber_parameter_e mode);
     pgp_kyber_public_key_t() = default;
     kyber_encap_result_t encapsulate(rnp::RNG *rng);
 
-    bool operator==(const pgp_kyber_public_key_t &rhs) const 
+    bool
+    operator==(const pgp_kyber_public_key_t &rhs) const
     {
-      return (kyber_mode_ == rhs.kyber_mode_) && (key_encoded_ == rhs.key_encoded_);
+        return (kyber_mode_ == rhs.kyber_mode_) && (key_encoded_ == rhs.key_encoded_);
     }
 
     bool is_valid(rnp::RNG *rng) const;
@@ -99,8 +106,8 @@ class pgp_kyber_public_key_t {
     Botan::Kyber_PublicKey botan_key() const;
 
     std::vector<uint8_t> key_encoded_;
-    kyber_parameter_e kyber_mode_;
-    bool is_initialized_ = false;
+    kyber_parameter_e    kyber_mode_;
+    bool                 is_initialized_ = false;
 };
 
 std::pair<pgp_kyber_public_key_t, pgp_kyber_private_key_t> kyber_generate_keypair(

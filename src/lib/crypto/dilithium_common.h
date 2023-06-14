@@ -33,7 +33,6 @@
 
 #include "dilithium.h"
 
-
 size_t dilithium_privkey_size(dilithium_parameter_e parameter);
 size_t dilithium_pubkey_size(dilithium_parameter_e parameter);
 size_t dilithium_signature_size(dilithium_parameter_e parameter);

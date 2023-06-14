@@ -391,37 +391,44 @@ end:
 }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-rnp_result_t ecdh_kem_gen_keypair_native(rnp::RNG *         rng,
-                                         std::vector<uint8_t> &privkey, 
-                                         std::vector<uint8_t> &pubkey,
-                                         pgp_curve_t          curve)
+rnp_result_t
+ecdh_kem_gen_keypair_native(rnp::RNG *            rng,
+                            std::vector<uint8_t> &privkey,
+                            std::vector<uint8_t> &pubkey,
+                            pgp_curve_t           curve)
 {
     return ec_generate_native(rng, privkey, pubkey, curve, PGP_PKA_ECDH);
 }
 
-rnp_result_t exdsa_gen_keypair_native(rnp::RNG *         rng,
-                                      std::vector<uint8_t> &privkey, 
-                                      std::vector<uint8_t> &pubkey,
-                                      pgp_curve_t          curve)
+rnp_result_t
+exdsa_gen_keypair_native(rnp::RNG *            rng,
+                         std::vector<uint8_t> &privkey,
+                         std::vector<uint8_t> &pubkey,
+                         pgp_curve_t           curve)
 {
     pgp_pubkey_alg_t alg;
-    switch(curve) 
-    {
-        case PGP_CURVE_ED25519:
-            alg = PGP_PKA_EDDSA;
-            break;
-        case PGP_CURVE_NIST_P_256: [[fallthrough]];
-        case PGP_CURVE_NIST_P_384: [[fallthrough]];
-        case PGP_CURVE_NIST_P_521: [[fallthrough]];
-        case PGP_CURVE_BP256: [[fallthrough]];
-        case PGP_CURVE_BP384: [[fallthrough]];
-        case PGP_CURVE_BP512: [[fallthrough]];
-        case PGP_CURVE_P256K1:
-            alg = PGP_PKA_ECDSA;
-            break;
-        default:
-            RNP_LOG("invalid curve for ECDSA/EDDSA");
-            return RNP_ERROR_BAD_PARAMETERS;
+    switch (curve) {
+    case PGP_CURVE_ED25519:
+        alg = PGP_PKA_EDDSA;
+        break;
+    case PGP_CURVE_NIST_P_256:
+        [[fallthrough]];
+    case PGP_CURVE_NIST_P_384:
+        [[fallthrough]];
+    case PGP_CURVE_NIST_P_521:
+        [[fallthrough]];
+    case PGP_CURVE_BP256:
+        [[fallthrough]];
+    case PGP_CURVE_BP384:
+        [[fallthrough]];
+    case PGP_CURVE_BP512:
+        [[fallthrough]];
+    case PGP_CURVE_P256K1:
+        alg = PGP_PKA_ECDSA;
+        break;
+    default:
+        RNP_LOG("invalid curve for ECDSA/EDDSA");
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     return ec_generate_native(rng, privkey, pubkey, curve, alg);
 }

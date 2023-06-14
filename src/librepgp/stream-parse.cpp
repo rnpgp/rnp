@@ -115,15 +115,16 @@ typedef struct pgp_source_encrypted_param_t {
     bool
     use_cfb()
     {
-        return (auth_type != rnp::AuthType::AEADv1 
-#ifdef ENABLE_CRYPTO_REFRESH 
+        return (auth_type != rnp::AuthType::AEADv1
+#ifdef ENABLE_CRYPTO_REFRESH
                 && auth_type != rnp::AuthType::AEADv2
 #endif
-                );
+        );
     }
 
-#ifdef ENABLE_CRYPTO_REFRESH 
-    bool is_v2_seipd() const
+#ifdef ENABLE_CRYPTO_REFRESH
+    bool
+    is_v2_seipd() const
     {
         return auth_type == rnp::AuthType::AEADv2;
     }
@@ -183,24 +184,22 @@ typedef struct pgp_source_partial_param_t {
     bool          last;    /* current part is last */
 } pgp_source_partial_param_t;
 
+namespace {
 
-namespace 
+bool
+is_valid_seipd_version(uint8_t version)
 {
-
-    bool is_valid_seipd_version(uint8_t version)
-    {
-        if(version == 1
+    if (version == 1
 #ifdef ENABLE_CRYPTO_REFRESH
-                || version == 2
+        || version == 2
 #endif
-          )
-        {
-            return true;
-        }
-        return false;
+    ) {
+        return true;
     }
-
+    return false;
 }
+
+} // namespace
 
 static bool
 is_pgp_source(pgp_source_t &src)
@@ -1470,9 +1469,8 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
           seipd_v2_key_and_nonce_derivation(param->seipdv2_hdr, key);
         seipd_v2_key = aead_fields.key;
         key = std::move(seipd_v2_key.data());
-        //param->seipd_v2_nonce = std::move(aead_fields.nonce);
-        if(aead_fields.nonce.size() > sizeof(param->aead_hdr.iv))
-        {
+        // param->seipd_v2_nonce = std::move(aead_fields.nonce);
+        if (aead_fields.nonce.size() > sizeof(param->aead_hdr.iv)) {
             // signalling error would be better here
             aead_fields.nonce.resize(sizeof(param->aead_hdr.iv));
         }
@@ -1529,15 +1527,16 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     }
 
     /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
-    if(sesskey->alg == PGP_PKA_X25519 && sesskey->version == PGP_PKSK_V3) {
-        switch(sesskey->salg) {
-            case PGP_SA_AES_128:
-            case PGP_SA_AES_192:
-            case PGP_SA_AES_256:
-                break;
-            default:
-                RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric algorithm that is not AES.");
-                return false;
+    if (sesskey->alg == PGP_PKA_X25519 && sesskey->version == PGP_PKSK_V3) {
+        switch (sesskey->salg) {
+        case PGP_SA_AES_128:
+        case PGP_SA_AES_192:
+        case PGP_SA_AES_256:
+            break;
+        default:
+            RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric "
+                    "algorithm that is not AES.");
+            return false;
         }
     }
 #endif
@@ -1607,8 +1606,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
         declen = decbuf.size();
-        err = x25519_native_decrypt(&ctx.rng, keymaterial->x25519, &encmaterial.x25519, decbuf.data(), &declen);
-        if(err != RNP_SUCCESS) {
+        err = x25519_native_decrypt(
+          &ctx.rng, keymaterial->x25519, &encmaterial.x25519, decbuf.data(), &declen);
+        if (err != RNP_SUCCESS) {
             RNP_LOG("X25519 decryption error %u", err);
             return false;
         }
@@ -1627,7 +1627,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     case PGP_PKA_KYBER1024_BP384: {
         pgp_key_t key(*seckey, true); /* make public-key `pgp_key_t` object from seckey */
         declen = decbuf.size();
-        err = keymaterial->kyber_ecdh.priv.decrypt(&ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh, key.subkey_pkt_hash());
+        err = keymaterial->kyber_ecdh.priv.decrypt(
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh, key.subkey_pkt_hash());
         if (err != RNP_SUCCESS) {
             RNP_LOG("Kyber ECC decryption failure");
             return false;
@@ -1640,10 +1641,10 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         return false;
     }
 
-    uint8_t *      decbuf_sesskey = decbuf.data();
-    size_t         decbuf_sesskey_len = declen;
+    uint8_t *decbuf_sesskey = decbuf.data();
+    size_t   decbuf_sesskey_len = declen;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(do_encrypt_pkesk_v3_alg_id(sesskey->alg)) 
+    if (do_encrypt_pkesk_v3_alg_id(sesskey->alg))
 #endif
     {
         sesskey->salg = static_cast<pgp_symm_alg_t>(decbuf[0]);
@@ -1675,8 +1676,9 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #if defined(ENABLE_CRYPTO_REFRESH)
     else { // V6 PKESK
         /* compute the expected key length from the decbuf_sesskey_len and check */
-        keylen = have_pkesk_checksum(sesskey->alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
-        if(pgp_key_size(param->aead_hdr.ealg) != keylen) {
+        keylen =
+          have_pkesk_checksum(sesskey->alg) ? decbuf_sesskey_len - 2 : decbuf_sesskey_len;
+        if (pgp_key_size(param->aead_hdr.ealg) != keylen) {
             RNP_LOG("invalid symmetric key length");
             return false;
         }
@@ -1684,7 +1686,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
 #endif
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(have_pkesk_checksum(sesskey->alg))
+    if (have_pkesk_checksum(sesskey->alg))
 #endif
     {
         /* Validate checksum */
@@ -1715,7 +1717,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
             param->salg = sesskey->salg;
         }
         return res;
-    } 
+    }
 #if defined(ENABLE_CRYPTO_REFRESH)
     else { // PGP_PKSK_V6
         pgp_symm_alg_t salg =
@@ -2254,7 +2256,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
                 TODO: Once SKESK v6 is implemented, replace this check with a check for
                consistency between SEIPD and SKESK version
             */
-            if(param->symencs.size() > 0) {
+            if (param->symencs.size() > 0) {
                 RNP_LOG("SEIPDv2 not usable with SKESK version");
                 return RNP_ERROR_BAD_FORMAT;
             }
@@ -2291,8 +2293,8 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
             param->aead_hdr.aalg = param->seipdv2_hdr.aead_alg;
             param->aead_hdr.csize = param->seipdv2_hdr.chunk_size_octet; // needed?
             param->aead_hdr.ealg = param->seipdv2_hdr.cipher_alg;
-        } 
-#endif 
+        }
+#endif
         else {
             RNP_LOG("unknown SEIPD version: %d", (int) SEIPD_version);
             return RNP_ERROR_BAD_FORMAT;
@@ -2329,12 +2331,13 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
-    src->read = (!param->use_cfb() 
+    src->read = (!param->use_cfb()
 #ifdef ENABLE_CRYPTO_REFRESH
-            || param->is_v2_seipd() 
+                 || param->is_v2_seipd()
 #endif
-)
-        ? encrypted_src_read_aead : encrypted_src_read_cfb;
+                   ) ?
+                  encrypted_src_read_aead :
+                  encrypted_src_read_cfb;
 
     /* Obtaining the symmetric key */
     if (!handler->password_provider) {

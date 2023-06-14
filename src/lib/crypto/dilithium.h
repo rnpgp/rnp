@@ -69,8 +69,8 @@ class pgp_dilithium_private_key_t {
     Botan::Dilithium_PrivateKey botan_key() const;
 
     Botan::secure_vector<uint8_t> key_encoded_;
-    dilithium_parameter_e dilithium_param_;
-    bool is_initialized_ = false;
+    dilithium_parameter_e         dilithium_param_;
+    bool                          is_initialized_ = false;
 };
 
 class pgp_dilithium_public_key_t {
@@ -82,9 +82,11 @@ class pgp_dilithium_public_key_t {
                                dilithium_parameter_e       mode);
     pgp_dilithium_public_key_t() = default;
 
-    bool operator==(const pgp_dilithium_public_key_t &rhs) const
+    bool
+    operator==(const pgp_dilithium_public_key_t &rhs) const
     {
-      return (dilithium_param_ == rhs.dilithium_param_) && (key_encoded_ == rhs.key_encoded_);
+        return (dilithium_param_ == rhs.dilithium_param_) &&
+               (key_encoded_ == rhs.key_encoded_);
     }
 
     bool verify_signature(const uint8_t *msg,
@@ -105,7 +107,7 @@ class pgp_dilithium_public_key_t {
 
     std::vector<uint8_t>  key_encoded_;
     dilithium_parameter_e dilithium_param_;
-    bool is_initialized_ = false;
+    bool                  is_initialized_ = false;
 };
 
 std::pair<pgp_dilithium_public_key_t, pgp_dilithium_private_key_t> dilithium_generate_keypair(

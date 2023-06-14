@@ -162,12 +162,12 @@ typedef struct pgp_pk_sesskey_t {
     std::vector<uint8_t> material_buf{};
 
     /* v3 PKESK */
-    pgp_key_id_t         key_id{};
-    pgp_symm_alg_t       salg;
+    pgp_key_id_t   key_id{};
+    pgp_symm_alg_t salg;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
     /* v6 PKESK */
-    pgp_fingerprint_t    fp{};
+    pgp_fingerprint_t fp{};
 #endif
 
     void         write(pgp_dest_t &dst) const;

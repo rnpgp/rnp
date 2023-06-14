@@ -32,9 +32,7 @@
 namespace rnp {
 
 class KMAC256_Botan : public KMAC256 {
-
-  private: 
-
+  private:
   public:
     KMAC256_Botan();
     KMAC256_Botan(const KMAC256_Botan &src);
@@ -47,9 +45,9 @@ class KMAC256_Botan : public KMAC256 {
                  const std::vector<uint8_t> &ecc_ciphertext,
                  const std::vector<uint8_t> &kyber_key_share,
                  const std::vector<uint8_t> &kyber_ciphertext,
-                 const pgp_pubkey_alg_t     alg_id,
+                 const pgp_pubkey_alg_t      alg_id,
                  const std::vector<uint8_t> &subkey_pkt_hash,
-                 std::vector<uint8_t>       &out) override;
+                 std::vector<uint8_t> &      out) override;
 };
 
 } // namespace rnp
