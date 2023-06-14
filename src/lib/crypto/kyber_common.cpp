@@ -32,81 +32,87 @@
 #include "types.h"
 #include "logging.h"
 
-size_t kyber_privkey_size(kyber_parameter_e parameter) {
-    switch(parameter) {
-        case kyber_768:
-            return 2400;
-        case kyber_1024:
-            return 3168;
-        default:
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);  
+size_t
+kyber_privkey_size(kyber_parameter_e parameter)
+{
+    switch (parameter) {
+    case kyber_768:
+        return 2400;
+    case kyber_1024:
+        return 3168;
+    default:
+        RNP_LOG("invalid parameter given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-size_t kyber_pubkey_size(kyber_parameter_e parameter) {
-    switch(parameter) {
-        case kyber_768:
-            return 1184;
-        case kyber_1024:
-            return 1568;
-        default:
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);  
+size_t
+kyber_pubkey_size(kyber_parameter_e parameter)
+{
+    switch (parameter) {
+    case kyber_768:
+        return 1184;
+    case kyber_1024:
+        return 1568;
+    default:
+        RNP_LOG("invalid parameter given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-size_t kyber_keyshare_size(kyber_parameter_e parameter) {
-    switch(parameter) {
-        case kyber_768:
-            return 24;
-        case kyber_1024:
-            return 32;
-        default: 
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS); 
+size_t
+kyber_keyshare_size(kyber_parameter_e parameter)
+{
+    switch (parameter) {
+    case kyber_768:
+        return 24;
+    case kyber_1024:
+        return 32;
+    default:
+        RNP_LOG("invalid parameter given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-size_t kyber_ciphertext_size(kyber_parameter_e parameter) {
-    switch(parameter) {
-        case kyber_768:
-            return 1088;
-        case kyber_1024:
-            return 1568;
-        default: 
-            RNP_LOG("invalid parameter given");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS); 
+size_t
+kyber_ciphertext_size(kyber_parameter_e parameter)
+{
+    switch (parameter) {
+    case kyber_768:
+        return 1088;
+    case kyber_1024:
+        return 1568;
+    default:
+        RNP_LOG("invalid parameter given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
 
-pgp_kyber_public_key_t::pgp_kyber_public_key_t(const uint8_t *key_encoded, size_t key_encoded_len, kyber_parameter_e mode):
-    key_encoded_(key_encoded, key_encoded + key_encoded_len),
-    kyber_mode_(mode),
-    is_initialized_(true)
+pgp_kyber_public_key_t::pgp_kyber_public_key_t(const uint8_t *   key_encoded,
+                                               size_t            key_encoded_len,
+                                               kyber_parameter_e mode)
+    : key_encoded_(key_encoded, key_encoded + key_encoded_len), kyber_mode_(mode),
+      is_initialized_(true)
 {
 }
 
-pgp_kyber_public_key_t::pgp_kyber_public_key_t(std::vector<uint8_t> const& key_encoded, kyber_parameter_e mode):
-    key_encoded_(key_encoded),
-    kyber_mode_(mode),
-    is_initialized_(true)
+pgp_kyber_public_key_t::pgp_kyber_public_key_t(std::vector<uint8_t> const &key_encoded,
+                                               kyber_parameter_e           mode)
+    : key_encoded_(key_encoded), kyber_mode_(mode), is_initialized_(true)
 {
 }
 
-
-pgp_kyber_private_key_t::pgp_kyber_private_key_t(const uint8_t *key_encoded, size_t key_encoded_len, kyber_parameter_e mode):
-    key_encoded_(key_encoded, key_encoded + key_encoded_len),
-    kyber_mode_(mode),
-    is_initialized_(true)
+pgp_kyber_private_key_t::pgp_kyber_private_key_t(const uint8_t *   key_encoded,
+                                                 size_t            key_encoded_len,
+                                                 kyber_parameter_e mode)
+    : key_encoded_(key_encoded, key_encoded + key_encoded_len), kyber_mode_(mode),
+      is_initialized_(true)
 {
 }
 
-
-pgp_kyber_private_key_t::pgp_kyber_private_key_t(std::vector<uint8_t> const& key_encoded, kyber_parameter_e mode):
-    key_encoded_(Botan::secure_vector<uint8_t>(key_encoded.begin(), key_encoded.end())),
-    kyber_mode_(mode),
-    is_initialized_(true)
+pgp_kyber_private_key_t::pgp_kyber_private_key_t(std::vector<uint8_t> const &key_encoded,
+                                                 kyber_parameter_e           mode)
+    : key_encoded_(Botan::secure_vector<uint8_t>(key_encoded.begin(), key_encoded.end())),
+      kyber_mode_(mode), is_initialized_(true)
 {
 }
-

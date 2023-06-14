@@ -3005,7 +3005,7 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
 /**
  * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
  * The actually created version depends on the capabilities of the list of recipients.
- * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any time.
+ * NOTE: This is an experimental feature and this function can be replaced (or removed) at any time.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
  * @return RNP_SUCCESS or errorcode if failed.

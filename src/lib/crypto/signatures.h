@@ -35,8 +35,8 @@
  * @param hash_alg the digest algo to be used
  * @param hash digest object that will be initialized
  */
-std::unique_ptr<rnp::Hash> signature_init(const pgp_key_pkt_t &key,
-                                          const pgp_signature_t            &sig);
+std::unique_ptr<rnp::Hash> signature_init(const pgp_key_pkt_t &  key,
+                                          const pgp_signature_t &sig);
 
 /**
  * @brief Calculate signature with pre-populated hash

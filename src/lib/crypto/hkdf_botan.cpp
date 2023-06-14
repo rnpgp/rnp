@@ -43,8 +43,8 @@ Hkdf_Botan::create(pgp_hash_alg_t alg)
     return std::unique_ptr<Hkdf_Botan>(new Hkdf_Botan(alg));
 }
 
-
-std::string Hkdf_Botan::alg() const
+std::string
+Hkdf_Botan::alg() const
 {
     return std::string("HKDF(") + Hash_Botan::name_backend(Hkdf::alg()) + ")";
 }
@@ -62,10 +62,7 @@ Hkdf_Botan::extract_expand(const uint8_t *salt,
     std::unique_ptr<Botan::KDF> kdf = Botan::KDF::create_or_throw(Hkdf_Botan::alg(), "");
 
     Botan::secure_vector<uint8_t> OKM;
-    OKM = kdf->derive_key(output_length,
-               ikm, ikm_len,
-               salt, salt_len,
-               info, info_len);
+    OKM = kdf->derive_key(output_length, ikm, ikm_len, salt, salt_len, info, info_len);
 
     memcpy(output_buf, Botan::unlock(OKM).data(), output_length);
 }

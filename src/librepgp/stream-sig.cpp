@@ -399,7 +399,7 @@ pgp_sig_subpkt_t::parse()
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_SIG_SUBPKT_PREFERRED_AEAD_CIPHERSUITES:
-        // TODO-V6: needs implementation 
+        // TODO-V6: needs implementation
         break;
 #endif
     case PGP_SIG_SUBPKT_PRIVATE_100:
@@ -459,7 +459,7 @@ pgp_signature_t::pgp_signature_t(const pgp_signature_t &src)
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
+    if (version == PGP_V6) {
         salt_size = src.salt_size;
         memcpy(salt, src.salt, salt_size);
     }
@@ -494,7 +494,7 @@ pgp_signature_t::pgp_signature_t(pgp_signature_t &&src)
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
+    if (version == PGP_V6) {
         salt_size = src.salt_size;
         memcpy(salt, src.salt, salt_size);
     }
@@ -550,7 +550,7 @@ pgp_signature_t::operator=(const pgp_signature_t &src)
     halg = src.halg;
     memcpy(lbits, src.lbits, sizeof(src.lbits));
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
+    if (version == PGP_V6) {
         salt_size = src.salt_size;
         memcpy(salt, src.salt, salt_size);
     }
@@ -621,8 +621,7 @@ pgp_signature_t::get_id() const
 }
 
 pgp_sig_subpkt_t *
-pgp_signature_t::
-get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed)
+pgp_signature_t::get_subpkt(pgp_sig_subpacket_type_t stype, bool hashed)
 {
     if (version < PGP_V4) {
         return NULL;
@@ -1473,18 +1472,18 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
         RNP_LOG("not enough data for hash left bits");
         return RNP_ERROR_BAD_FORMAT;
     }
-    
+
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (ver == PGP_V6) {
-        if(!pkt.get(salt_size)) {
+        if (!pkt.get(salt_size)) {
             RNP_LOG("not enough data for v6 salt size octet");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if(salt_size != rnp::Hash::size(halg)/2) {
+        if (salt_size != rnp::Hash::size(halg) / 2) {
             RNP_LOG("invalid salt size");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if(!pkt.get(salt, salt_size)) {
+        if (!pkt.get(salt, salt_size)) {
             RNP_LOG("not enough data for v6 signature salt");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1582,8 +1581,10 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
-        material.dilithium_exdsa.sig.resize(pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
-        if (!pkt.get(material.dilithium_exdsa.sig.data(), material.dilithium_exdsa.sig.size())) {
+        material.dilithium_exdsa.sig.resize(
+          pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
+        if (!pkt.get(material.dilithium_exdsa.sig.data(),
+                     material.dilithium_exdsa.sig.size())) {
             RNP_LOG("failed to get dilithium-ecdsa/eddsa signature");
             return false;
         }
@@ -1635,7 +1636,7 @@ pgp_signature_t::write(pgp_dest_t &dst) const
     }
     pktbody.add(lbits, 2);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_V6) {
+    if (version == PGP_V6) {
         pktbody.add_byte(salt_size);
         pktbody.add(salt, salt_size);
     }

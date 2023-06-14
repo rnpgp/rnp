@@ -40,14 +40,23 @@
 
 /* implements ED25519 with native format (V6 and PQC) */
 
-rnp_result_t generate_ed25519_native(rnp::RNG *           rng,
-                                     std::vector<uint8_t> &privkey, 
+rnp_result_t generate_ed25519_native(rnp::RNG *            rng,
+                                     std::vector<uint8_t> &privkey,
                                      std::vector<uint8_t> &pubkey);
 
-rnp_result_t ed25519_sign_native(rnp::RNG *rng, std::vector<uint8_t> &sig_out, const std::vector<uint8_t> &key, const uint8_t *hash, size_t hash_len);
+rnp_result_t ed25519_sign_native(rnp::RNG *                  rng,
+                                 std::vector<uint8_t> &      sig_out,
+                                 const std::vector<uint8_t> &key,
+                                 const uint8_t *             hash,
+                                 size_t                      hash_len);
 
-rnp_result_t ed25519_verify_native(const std::vector<uint8_t> &sig, const std::vector<uint8_t> &key, const uint8_t *hash, size_t hash_len);
+rnp_result_t ed25519_verify_native(const std::vector<uint8_t> &sig,
+                                   const std::vector<uint8_t> &key,
+                                   const uint8_t *             hash,
+                                   size_t                      hash_len);
 
-rnp_result_t ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool secret);
+rnp_result_t ed25519_validate_key_native(rnp::RNG *               rng,
+                                         const pgp_ed25519_key_t *key,
+                                         bool                     secret);
 
 #endif

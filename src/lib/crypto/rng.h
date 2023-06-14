@@ -86,7 +86,7 @@ class RNG {
      *        Note: It is planned to move away from the FFI handle.
      *        For the transition phase, both approaches are implemented.
      */
-     Botan::RandomNumberGenerator* obj() const;
+    Botan::RandomNumberGenerator *obj() const;
 #endif
 #endif
 };

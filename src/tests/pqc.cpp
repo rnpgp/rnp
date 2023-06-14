@@ -39,17 +39,17 @@
 TEST_F(rnp_tests, test_kyber_key_function)
 {
     kyber_parameter_e params[2] = {kyber_768, kyber_1024};
-    for(kyber_parameter_e param : params)
-    {
+    for (kyber_parameter_e param : params) {
+        auto public_and_private_key = kyber_generate_keypair(&global_ctx.rng, param);
 
-    auto public_and_private_key = kyber_generate_keypair(&global_ctx.rng, param);
+        kyber_encap_result_t encap_res =
+          public_and_private_key.first.encapsulate(&global_ctx.rng);
 
-    kyber_encap_result_t encap_res = public_and_private_key.first.encapsulate(&global_ctx.rng);
-    
-    std::vector<uint8_t> decrypted = public_and_private_key.second.decapsulate(&global_ctx.rng, encap_res.ciphertext.data(), encap_res.ciphertext.size());
-    assert_int_equal(encap_res.symmetric_key.size(), decrypted.size());
-    assert_memory_equal(encap_res.symmetric_key.data(), decrypted.data(), decrypted.size());
-
+        std::vector<uint8_t> decrypted = public_and_private_key.second.decapsulate(
+          &global_ctx.rng, encap_res.ciphertext.data(), encap_res.ciphertext.size());
+        assert_int_equal(encap_res.symmetric_key.size(), decrypted.size());
+        assert_memory_equal(
+          encap_res.symmetric_key.data(), decrypted.data(), decrypted.size());
     }
 }
 
@@ -69,23 +69,28 @@ TEST_F(rnp_tests, test_dilithium_key_function)
     }
 }
 
-TEST_F(rnp_tests, test_dilithium_exdsa_direct) 
+TEST_F(rnp_tests, test_dilithium_exdsa_direct)
 {
-    pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519, /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256, PGP_PKA_DILITHIUM5_P384, PGP_PKA_DILITHIUM3_BP256, PGP_PKA_DILITHIUM5_BP384};
-        
+    pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
+                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
+                               PGP_PKA_DILITHIUM5_P384,
+                               PGP_PKA_DILITHIUM3_BP256,
+                               PGP_PKA_DILITHIUM5_BP384};
+
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
         uint8_t              message[64];
         const pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data
         global_ctx.rng.get(message, sizeof(message));
-        
-        pgp_dilithium_exdsa_key_t key;
+
+        pgp_dilithium_exdsa_key_t       key;
         pgp_dilithium_exdsa_signature_t sig;
 
         assert_rnp_success(
-            pgp_dilithium_exdsa_composite_key_t::gen_keypair(&global_ctx.rng, &key, algs[i]));
+          pgp_dilithium_exdsa_composite_key_t::gen_keypair(&global_ctx.rng, &key, algs[i]));
 
-        assert_rnp_success(key.priv.sign(&global_ctx.rng, &sig, hash_alg, message, sizeof(message)));
+        assert_rnp_success(
+          key.priv.sign(&global_ctx.rng, &sig, hash_alg, message, sizeof(message)));
         assert_rnp_success(key.pub.verify(&sig, hash_alg, message, sizeof(message)));
 
         // Fails because message won't verify
@@ -99,9 +104,9 @@ TEST_F(rnp_tests, test_dilithium_exdsa_direct)
         sig.sig.data()[0] = ~sig.sig.data()[0];
 
         // Fails because second sig won't verify
-        sig.sig.data()[sig.sig.size()-1] = ~sig.sig.data()[sig.sig.size()-1];
+        sig.sig.data()[sig.sig.size() - 1] = ~sig.sig.data()[sig.sig.size() - 1];
         assert_rnp_failure(key.pub.verify(&sig, hash_alg, message, sizeof(message)));
-        sig.sig.data()[sig.sig.size()-1] = ~sig.sig.data()[sig.sig.size()-1];
+        sig.sig.data()[sig.sig.size() - 1] = ~sig.sig.data()[sig.sig.size() - 1];
     }
 }
 

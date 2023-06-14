@@ -346,13 +346,13 @@ pub_alg_supported(int alg)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-    //case PGP_PKA_KYBER1024_X448:
+    // case PGP_PKA_KYBER1024_X448:
     case PGP_PKA_KYBER768_P256:
     case PGP_PKA_KYBER1024_P384:
     case PGP_PKA_KYBER768_BP256:
     case PGP_PKA_KYBER1024_BP384:
     case PGP_PKA_DILITHIUM3_ED25519:
-    //case PGP_PKA_DILITHIUM5_ED448:
+    // case PGP_PKA_DILITHIUM5_ED448:
     case PGP_PKA_DILITHIUM3_P256:
     case PGP_PKA_DILITHIUM5_P384:
     case PGP_PKA_DILITHIUM3_BP256:
@@ -2713,8 +2713,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 #ifdef ENABLE_CRYPTO_REFRESH
-if(op->rnpctx.aalg == PGP_AEAD_NONE && op->rnpctx.enable_pkesk_v6) {
-        FFI_LOG(op->ffi, "Setting AEAD algorithm to PGP_AEAD_NONE (%s) would contradict the previously enabled PKESKv6 setting", alg);
+    if (op->rnpctx.aalg == PGP_AEAD_NONE && op->rnpctx.enable_pkesk_v6) {
+        FFI_LOG(op->ffi,
+                "Setting AEAD algorithm to PGP_AEAD_NONE (%s) would contradict the previously "
+                "enabled PKESKv6 setting",
+                alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 #endif
@@ -7509,7 +7512,7 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_ED25519:
     case PGP_PKA_X25519:
         return RNP_SUCCESS; /* TODO */
-#endif 
+#endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
         [[fallthrough]];

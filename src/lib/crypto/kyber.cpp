@@ -93,7 +93,10 @@ pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng)
     Botan::secure_vector<uint8_t> encap_key;           // this has to go over the wire
     Botan::secure_vector<uint8_t> data_encryption_key; // this is the key used for
     // encryption of the payload data
-    kem_enc.encrypt(encap_key, data_encryption_key, key_share_size_from_kyber_param(kyber_mode_), *rng->obj());
+    kem_enc.encrypt(encap_key,
+                    data_encryption_key,
+                    key_share_size_from_kyber_param(kyber_mode_),
+                    *rng->obj());
     kyber_encap_result_t result;
     result.ciphertext.insert(
       result.ciphertext.end(), encap_key.data(), encap_key.data() + encap_key.size());
@@ -104,7 +107,9 @@ pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng)
 }
 
 std::vector<uint8_t>
-pgp_kyber_private_key_t::decapsulate(rnp::RNG *rng, const uint8_t *ciphertext, size_t ciphertext_len)
+pgp_kyber_private_key_t::decapsulate(rnp::RNG *     rng,
+                                     const uint8_t *ciphertext,
+                                     size_t         ciphertext_len)
 {
     assert(is_initialized_);
     auto                   decoded_kyber_priv = botan_key();
@@ -116,21 +121,23 @@ pgp_kyber_private_key_t::decapsulate(rnp::RNG *rng, const uint8_t *ciphertext, s
 }
 
 bool
-pgp_kyber_public_key_t::is_valid(rnp::RNG *rng) const {
-    if(!is_initialized_) {
+pgp_kyber_public_key_t::is_valid(rnp::RNG *rng) const
+{
+    if (!is_initialized_) {
         return false;
     }
 
-    auto key = botan_key(); 
+    auto key = botan_key();
     return key.check_key(*(rng->obj()), false);
 }
 
 bool
-pgp_kyber_private_key_t::is_valid(rnp::RNG *rng) const {
-    if(!is_initialized_) {
+pgp_kyber_private_key_t::is_valid(rnp::RNG *rng) const
+{
+    if (!is_initialized_) {
         return false;
     }
 
-    auto key = botan_key(); 
+    auto key = botan_key();
     return key.check_key(*(rng->obj()), false);
 }

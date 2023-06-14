@@ -607,16 +607,15 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
                                /* PGP_PKA_KYBER1024_X448,  */ // X448 not yet implemented
                                PGP_PKA_KYBER1024_P384,
                                PGP_PKA_KYBER768_BP256,
-                               PGP_PKA_KYBER1024_BP384
-                               };
+                               PGP_PKA_KYBER1024_BP384};
 
     pgp_kyber_ecdh_encrypted_t enc;
-    uint8_t              plaintext[32] = {0};
-    size_t               plaintext_len = sizeof(plaintext);
-    uint8_t              result[32] = {0};
-    size_t               result_len = sizeof(result);
+    uint8_t                    plaintext[32] = {0};
+    size_t                     plaintext_len = sizeof(plaintext);
+    uint8_t                    result[32] = {0};
+    size_t                     result_len = sizeof(result);
 
-    for(size_t i = 0; i < plaintext_len; i++) {
+    for (size_t i = 0; i < plaintext_len; i++) {
         plaintext[i] = i; // assures that we do not have a special case with all-zeroes
     }
 
@@ -633,8 +632,10 @@ TEST_F(rnp_tests, kyber_ecdh_roundtrip)
         assert_rnp_success(pgp_fingerprint(key_fpr, key_pkt));
 
         pgp_key_t key(key_pkt);
-        assert_rnp_success(key_pkt.material.kyber_ecdh.pub.encrypt(&global_ctx.rng, &enc, plaintext, plaintext_len, key.subkey_pkt_hash()));
-        assert_rnp_success(key_pkt.material.kyber_ecdh.priv.decrypt(&global_ctx.rng, result, &result_len, &enc, key.subkey_pkt_hash()));
+        assert_rnp_success(key_pkt.material.kyber_ecdh.pub.encrypt(
+          &global_ctx.rng, &enc, plaintext, plaintext_len, key.subkey_pkt_hash()));
+        assert_rnp_success(key_pkt.material.kyber_ecdh.priv.decrypt(
+          &global_ctx.rng, result, &result_len, &enc, key.subkey_pkt_hash()));
 
         assert_int_equal(plaintext_len, result_len);
         assert_int_equal(memcmp(plaintext, result, result_len), 0);
@@ -646,14 +647,18 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
     uint8_t              message[64];
     const pgp_hash_alg_t hash_alg = PGP_HASH_SHA512;
 
-    pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519, /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256, PGP_PKA_DILITHIUM5_P384, PGP_PKA_DILITHIUM3_BP256, PGP_PKA_DILITHIUM5_BP384};
-    
+    pgp_pubkey_alg_t algs[] = {PGP_PKA_DILITHIUM3_ED25519,
+                               /* PGP_PKA_DILITHIUM5_ED448,*/ PGP_PKA_DILITHIUM3_P256,
+                               PGP_PKA_DILITHIUM5_P384,
+                               PGP_PKA_DILITHIUM3_BP256,
+                               PGP_PKA_DILITHIUM5_BP384};
+
     for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
         // Generate test data. Mainly to make valgrind not to complain about uninitialized data
         global_ctx.rng.get(message, sizeof(message));
 
         pgp_dilithium_exdsa_signature_t sig;
-        rnp_keygen_crypto_params_t key_desc;
+        rnp_keygen_crypto_params_t      key_desc;
         key_desc.key_alg = algs[i];
         key_desc.hash_alg = hash_alg;
         key_desc.ctx = &global_ctx;

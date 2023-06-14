@@ -679,7 +679,6 @@ pgp_packet_body_t::add(const std::vector<uint8_t> &data)
     add(data.data(), data.size());
 }
 
-
 void
 pgp_packet_body_t::add_byte(uint8_t bt)
 {
@@ -1033,12 +1032,11 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
     pgp_packet_body_t pktbody(PGP_PKT_PK_SESSION_KEY);
     pktbody.add_byte(version);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if(version == PGP_PKSK_V3) {
+    if (version == PGP_PKSK_V3) {
 #endif
         pktbody.add(key_id);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    }
-    else { // PGP_PKSK_V6
+    } else {                             // PGP_PKSK_V6
         pktbody.add_byte(1 + fp.length); // A one-octet size of the following two fields.
         pktbody.add_byte((fp.length == PGP_FINGERPRINT_V6_SIZE) ? PGP_V6 : PGP_V4);
         pktbody.add(fp.fingerprint, fp.length);
@@ -1046,7 +1044,7 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
 #endif
     pktbody.add_byte(alg);
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+    if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
         pktbody.add_byte(salg); /* added as plaintext */
     }
 #endif
@@ -1069,9 +1067,9 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
         return RNP_ERROR_BAD_FORMAT;
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if((bt != PGP_PKSK_V3) && (bt != PGP_PKSK_V6)) {
+    if ((bt != PGP_PKSK_V3) && (bt != PGP_PKSK_V6)) {
 #else
-    if((bt != PGP_PKSK_V3)) {
+    if ((bt != PGP_PKSK_V3)) {
 #endif
         RNP_LOG("wrong packet version");
         return RNP_ERROR_BAD_FORMAT;
@@ -1089,40 +1087,40 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
         }
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
-    else { // PGP_PKSK_V6
+    else {                          // PGP_PKSK_V6
         uint8_t fp_and_key_ver_len; // A one-octet size of the following two fields.
         if (!pkt.get(fp_and_key_ver_len)) {
             RNP_LOG("Error when reading length of next two fields");
             return RNP_ERROR_BAD_FORMAT;
         }
-        if((fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V4_SIZE)
-            && (fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V6_SIZE)) {
+        if ((fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V4_SIZE) &&
+            (fp_and_key_ver_len != 1 + PGP_FINGERPRINT_V6_SIZE)) {
             RNP_LOG("Invalid size for key version + length field");
             return RNP_ERROR_BAD_FORMAT;
         }
 
-        size_t fp_len;
+        size_t  fp_len;
         uint8_t fp_key_version;
         if (!pkt.get(fp_key_version)) {
             RNP_LOG("Error when reading key version");
             return RNP_ERROR_BAD_FORMAT;
         }
-        switch(fp_key_version) {
-            case 0: // anonymous
-                fp_len = 0;
-                break;
-            case PGP_V4:
-                fp_len = PGP_FINGERPRINT_V4_SIZE;
-                break;
-            case PGP_V6:
-                fp_len = PGP_FINGERPRINT_V6_SIZE;
-                break;
-            default:
-                RNP_LOG("wrong key version used with PKESK v6");
-                return RNP_ERROR_BAD_FORMAT;
+        switch (fp_key_version) {
+        case 0: // anonymous
+            fp_len = 0;
+            break;
+        case PGP_V4:
+            fp_len = PGP_FINGERPRINT_V4_SIZE;
+            break;
+        case PGP_V6:
+            fp_len = PGP_FINGERPRINT_V6_SIZE;
+            break;
+        default:
+            RNP_LOG("wrong key version used with PKESK v6");
+            return RNP_ERROR_BAD_FORMAT;
         }
         fp.length = fp_len;
-        if(fp.length && (fp.length != fp_and_key_ver_len - 1)) {
+        if (fp.length && (fp.length != fp_and_key_ver_len - 1)) {
             RNP_LOG("size mismatch (fingerprint size and fp+key version length field)");
             return RNP_ERROR_BAD_FORMAT;
         }
@@ -1141,7 +1139,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
     alg = (pgp_pubkey_alg_t) bt;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-    if((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+    if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
         if (!pkt.get(bt)) {
             RNP_LOG("failed to get salg");
             return RNP_ERROR_BAD_FORMAT;
@@ -1231,7 +1229,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
             return false;
         }
         uint8_t enc_sesskey_len;
-        if(!pkt.get(enc_sesskey_len)) {
+        if (!pkt.get(enc_sesskey_len)) {
             RNP_LOG("failed to parse X25519 PKESK (enc sesskey length)");
             return false;
         }
@@ -1255,8 +1253,10 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
         [[fallthrough]];
     case PGP_PKA_KYBER1024_BP384: {
         uint8_t wrapped_key_len = 0;
-        material.kyber_ecdh.composite_ciphertext.resize(pgp_kyber_ecdh_encrypted_t::composite_ciphertext_size(alg));
-        if (!pkt.get(material.kyber_ecdh.composite_ciphertext.data(), material.kyber_ecdh.composite_ciphertext.size())) {
+        material.kyber_ecdh.composite_ciphertext.resize(
+          pgp_kyber_ecdh_encrypted_t::composite_ciphertext_size(alg));
+        if (!pkt.get(material.kyber_ecdh.composite_ciphertext.data(),
+                     material.kyber_ecdh.composite_ciphertext.size())) {
             RNP_LOG("failed to get kyber-ecdh ciphertext");
             return false;
         }
@@ -1265,7 +1265,8 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
             return false;
         }
         material.kyber_ecdh.wrapped_sesskey.resize(wrapped_key_len);
-        if (!pkt.get(material.kyber_ecdh.wrapped_sesskey.data(), material.kyber_ecdh.wrapped_sesskey.size())) {
+        if (!pkt.get(material.kyber_ecdh.wrapped_sesskey.data(),
+                     material.kyber_ecdh.wrapped_sesskey.size())) {
             RNP_LOG("failed to get kyber-ecdh session key");
             return false;
         }
