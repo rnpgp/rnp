@@ -33,10 +33,7 @@ Currently supported platforms:
 * MacOS
 * Windows
 * Debian
-
-Upcoming supported platforms:
-
-* OpenSUSE Leap
+* openSUSE Leap, openSUSE Tumbleweed
 * SLES
 
 == link:docs/installation.adoc[Installation]
