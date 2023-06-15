@@ -17,7 +17,7 @@ INTERACTIVE="yes"
 # Leave this stuff
 STASH_NAME="pre-commit-$(date +%s)"
 CONTAINER_NAME="clang-format-$(date +%s)"
-CLANG_FORMAT_VERSION="11.1.0"
+CLANG_FORMAT_VERSION="11.0.0"
 
 apply_patch() {
   local patchfile=$1
