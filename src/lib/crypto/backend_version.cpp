@@ -109,7 +109,7 @@ backend_version()
 #if defined(CRYPTO_BACKEND_OPENSSL3)
 
 #if defined(ENABLE_IDEA) || defined(ENABLE_CAST5) || defined(ENABLE_BLOWFISH) || \
-  defined(ENABLE_RIPEMD160)
+  (defined(ENABLE_RIPEMD160) && OPENSSL_VERSION_NUMBER < 0x30000070L)
 #define OPENSSL_LOAD_LEGACY
 #endif
 
