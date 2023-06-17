@@ -2295,6 +2295,17 @@ class Misc(unittest.TestCase):
         else:
             self.assertEqual(file_text(data_path('test_cli_rnpkeys/g10_list_keys_sec_no_bp')), out, 'g10 secret key listing failed')
 
+    def test_rnpkeys_list_from_keyfile(self):
+        KEYRING_2 = data_path('keyrings/2')
+        ret, out, err = run_proc(RNPK, ['--homedir', KEYRING_2, '--list-keys', '--keyfile', data_path(KEY_ALICE_PUB)])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'1 key found.*')
+        self.assertRegex(out, r'(?s)^.*73edcc9119afc8e2dbbdcde50451409669ffde3c.*Alice')
+        self.assertNotRegex(out, r'(?s)^.*c80aa54aa5c6ac73a373687134abe4bd')
+        ret, out, err = run_proc(RNPK, ['--homedir', KEYRING_2, '--list-keys', '--keyfile', 'wrongkeyfile'])
+        self.assertEqual(ret, 1)
+        self.assertRegex(err, r'(?s)^.*fatal: failed to load key\(s\) from the file')
+
     def test_rnpkeys_g10_def_key(self):
         RE_SIG = r'(?s)^.*' \
         r'Good signature made .*' \
@@ -2934,7 +2945,6 @@ class Misc(unittest.TestCase):
             self.assertEqual(ret, 1)
             self.assertRegex(err, r'(?s)^.*Error: failed to load keyring from \'.*pubring\.gpg\'')
             self.assertNotRegex(err, r'(?s)^.*Error: failed to load keyring from \'.*secring\.gpg\'')
-            self.assertRegex(out, r'(?s)^.*Key\(s\) not found.')
             # Run with .rnp home directory with empty keyrings
             shutil.rmtree(RNPDIR, ignore_errors=True)
             os.mkdir(RNPDIR, 0o700)

@@ -58,6 +58,7 @@ typedef enum {
     OPT_CURTIME,
     OPT_ADD_SUBKEY,
     OPT_SET_EXPIRE,
+    OPT_KEYFILE,
 
     /* debug */
     OPT_DEBUG
