@@ -80,6 +80,7 @@ const char *usage =
   "  --password             Password, which should be used during operation.\n"
   "  --pass-fd              Read password(s) from the file descriptor.\n"
   "  --force                Force operation (like secret key removal).\n"
+  "  --keyfile              Load key(s) only from the file specified.\n"
   "  --output [file, -]     Write data to the specified file or stdout.\n"
   "  --overwrite            Overwrite output file without a prompt.\n"
   "  --notty                Do not write anything to the TTY.\n"
@@ -141,6 +142,7 @@ struct option options[] = {
   {"set-expire", required_argument, NULL, OPT_SET_EXPIRE},
   {"current-time", required_argument, NULL, OPT_CURTIME},
   {"allow-weak-hash", no_argument, NULL, OPT_ALLOW_WEAK_HASH},
+  {"keyfile", required_argument, NULL, OPT_KEYFILE},
   {NULL, 0, NULL, 0},
 };
 
@@ -614,6 +616,10 @@ setoption(rnp_cfg &cfg, optdefs_t *cmd, int val, const char *arg)
     case OPT_SET_EXPIRE:
         cfg.set_str(CFG_SET_KEY_EXPIRE, arg);
         return true;
+    case OPT_KEYFILE:
+        cfg.set_str(CFG_KEYFILE, arg);
+        cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
+        return true;
     default:
         *cmd = CMD_HELP;
         return true;
@@ -642,7 +648,18 @@ rnpkeys_init(cli_rnp_t &rnp, const rnp_cfg &cfg)
                 "want to use it.");
         return false;
     }
-    /* TODO: at some point we should check for error here */
-    (void) rnp.load_keyrings(true);
+
+    bool disable_ks = rnp.cfg().get_bool(CFG_KEYSTORE_DISABLED);
+    if (!disable_ks && !rnp.load_keyrings(true)) {
+        ERR_MSG("fatal: failed to load keys");
+        return false;
+    }
+
+    /* load the keyfile if any */
+    if (disable_ks && !rnp.cfg().get_str(CFG_KEYFILE).empty() && !cli_rnp_add_key(&rnp)) {
+        ERR_MSG("fatal: failed to load key(s) from the file");
+        return false;
+    }
+
     return true;
 }
