@@ -533,6 +533,23 @@ TEST_F(rnp_tests, test_ffi_key_generate_misc)
     assert_true(prot);
     /* cleanup */
     rnp_key_handle_destroy(key);
+    /* generate key with signing subkey using rnp_generate_key_ex() */
+    key = NULL;
+    subkey = NULL;
+    flag = false;
+    assert_rnp_success(rnp_generate_key_ex(
+      ffi, "ECDSA", "ECDSA", 0, 0, "secp256k1", "NIST P-256", "ex_sign", NULL, &key));
+    assert_non_null(key);
+    assert_rnp_success(rnp_key_get_subkey_at(key, 0, &subkey));
+    assert_non_null(subkey);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "sign", &flag));
+    assert_true(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "certify", &flag));
+    assert_false(flag);
+    assert_rnp_success(rnp_key_allows_usage(subkey, "encrypt", &flag));
+    assert_false(flag);
+    rnp_key_handle_destroy(subkey);
+    rnp_key_handle_destroy(key);
 
     /* generate key with signing subkey */
     rnp_op_generate_t op = NULL;
