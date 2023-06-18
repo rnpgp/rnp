@@ -38,6 +38,8 @@
 #include "file-utils.h"
 #include "logging.h"
 
+#define MAX_INPUT_ATTEMPTS 5
+
 /* -----------------------------------------------------------------------------
  * @brief   Reads input from file pointer and converts it securelly to ints
  *          Partially based on ERR34-C from SEI CERT C Coding Standard
@@ -74,6 +76,17 @@ rnp_secure_get_long_from_fd(FILE *fp, long &result, bool allow_empty = true)
     }
 
     result = num_long;
+    return true;
+}
+
+static bool
+check_attempts(int &attempts)
+{
+    if (attempts >= MAX_INPUT_ATTEMPTS) {
+        printf("Too many attempts. Aborting.\n");
+        return false;
+    }
+    attempts++;
     return true;
 }
 
@@ -119,8 +132,7 @@ ask_curve_name(FILE *input_fp)
     const char *result = NULL;
     int         attempts = 0;
     do {
-        if (attempts >= 10) {
-            printf("Too many attempts. Aborting.\n");
+        if (!check_attempts(attempts)) {
             return NULL;
         }
         printf("Please select which elliptic curve you want:\n");
@@ -133,7 +145,6 @@ ask_curve_name(FILE *input_fp)
         if (ok) {
             result = curves[val - 1];
         }
-        attempts++;
     } while (!ok);
 
     return result;
@@ -143,8 +154,12 @@ static long
 ask_rsa_bitlen(FILE *input_fp)
 {
     long result = 0;
+    int  attempts = 0;
     do {
         result = DEFAULT_RSA_NUMBITS;
+        if (!check_attempts(attempts)) {
+            return -1;
+        }
         printf("Please provide bit length of the key (between 1024 and 4096):\n(default %d)> ",
                DEFAULT_RSA_NUMBITS);
     } while (!rnp_secure_get_long_from_fd(input_fp, result) ||
@@ -155,13 +170,17 @@ ask_rsa_bitlen(FILE *input_fp)
 static long
 ask_elgamal_bitlen(FILE *input_fp)
 {
+    int attempts = 0;
     do {
+        long result = DEFAULT_ELGAMAL_NUMBITS;
+        if (!check_attempts(attempts)) {
+            return -1;
+        }
         printf(
           "Please provide bit length of the ElGamal key (between %d and %d):\n(default %d) > ",
           ELGAMAL_MIN_P_BITLEN,
           ELGAMAL_MAX_P_BITLEN,
           DEFAULT_ELGAMAL_NUMBITS);
-        long result = DEFAULT_ELGAMAL_NUMBITS;
         if (!rnp_secure_get_long_from_fd(input_fp, result)) {
             continue;
         }
@@ -172,12 +191,17 @@ ask_elgamal_bitlen(FILE *input_fp)
             return result;
         }
     } while (1);
+    return -1;
 }
 
 static long
 ask_dsa_bitlen(FILE *input_fp)
 {
+    int attempts = 0;
     do {
+        if (!check_attempts(attempts)) {
+            return -1;
+        }
         printf(
           "Please provide bit length of the DSA key (between %d and %d):\n(default %d) > ",
           DSA_MIN_P_BITLEN,
@@ -194,13 +218,19 @@ ask_dsa_bitlen(FILE *input_fp)
             return result;
         }
     } while (1);
+
+    return -1;
 }
 
 static bool
 rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
 {
     long option = 0;
+    int  attempts = 0;
     do {
+        if (!check_attempts(attempts)) {
+            return false;
+        }
         printf("Please select what kind of key you want:\n"
                "\t(1)  RSA (Encrypt or Sign)\n"
                "\t(16) DSA + ElGamal\n"
@@ -216,6 +246,9 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         switch (option) {
         case 1: {
             int bits = ask_rsa_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_RSA);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA);
             cfg.set_int(CFG_KG_PRIMARY_BITS, bits);
@@ -224,6 +257,9 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         }
         case 16: {
             int bits = ask_dsa_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DSA);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ELGAMAL);
             cfg.set_int(CFG_KG_PRIMARY_BITS, bits);
@@ -232,6 +268,9 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         }
         case 17: {
             int bits = ask_dsa_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DSA);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA);
             cfg.set_int(CFG_KG_PRIMARY_BITS, bits);
@@ -276,7 +315,11 @@ static bool
 rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
 {
     long option = 0;
+    int  attempts = 0;
     do {
+        if (!check_attempts(attempts)) {
+            return false;
+        }
         printf("Please select subkey algorithm you want:\n"
                "\t(1)  RSA\n"
                "\t(16) ElGamal\n"
@@ -293,18 +336,27 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
         switch (option) {
         case 1: {
             int bits = ask_rsa_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_RSA);
             cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
             break;
         }
         case 16: {
             int bits = ask_elgamal_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_ELGAMAL);
             cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
             break;
         }
         case 17: {
             int bits = ask_dsa_bitlen(input_fp);
+            if (bits < 0) {
+                return false;
+            }
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_DSA);
             cfg.set_int(CFG_KG_SUBKEY_BITS, bits);
             break;
