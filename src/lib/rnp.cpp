@@ -5092,8 +5092,14 @@ try {
     if (password && (ret = rnp_op_generate_set_protection_password(subop, password))) {
         goto done;
     }
-    if ((ret = rnp_op_generate_add_usage(subop, "encrypt"))) {
-        goto done;
+    if (pgp_pk_alg_capabilities(subop->crypto.key_alg) & PGP_KF_ENCRYPT) {
+        if ((ret = rnp_op_generate_add_usage(subop, "encrypt"))) {
+            goto done;
+        }
+    } else {
+        if ((ret = rnp_op_generate_add_usage(subop, "sign"))) {
+            goto done;
+        }
     }
     if ((ret = rnp_op_generate_execute(subop))) {
         goto done;
