@@ -1819,6 +1819,35 @@ class Keystore(unittest.TestCase):
         self.assertRegex(out, RE_MULTIPLE_SUBKEY_3, KEY_LIST_WRONG)
         clear_keyrings()
 
+    def test_expert_mode_no_endless_loop(self):
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+                                      '\n\n\n\n\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+                                      '1\n1\n1\n1\n1\n1\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+                                      '16\n1\n1\n1\n1\n1\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+                                      '17\n1\n1\n1\n1\n1\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+        ret, out, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
+                                      '--userid', 'noendlessloop@rnp', '--expert', '--generate-key'],
+                                      '19\n\n\n\n\n\n')
+        self.assertEqual(ret, 1)
+        self.assertRegex(out, r'(?s)Too many attempts. Aborting.')
+
+        clear_keyrings()
+
     def test_additional_subkeys_invalid_parameters(self):
         # Run primary key generation
         ret, _, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--password', PASSWORD,
