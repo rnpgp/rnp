@@ -2010,14 +2010,14 @@ class Keystore(unittest.TestCase):
         matches = re.findall(r'(key expiration time: 63072000 seconds \(730 days\))', out)
         self.assertEqual(len(matches), 1)
 
-        # Expires in 10 seconds
-        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10', 'primary_with_empty_password@rnp'])
+        # Expires in 60 seconds
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '60', 'primary_with_empty_password@rnp'])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*\[EXPIRES .*')
 
         ret, out, _ = run_proc(RNP, ['--list-packets', kpath])
         self.assertEqual(ret, 0)
-        self.assertRegex(out, r'(?s)^.*key expiration time: 10 seconds \(0 days\).*')
+        self.assertRegex(out, r'(?s)^.*key expiration time: 60 seconds \(0 days\).*')
 
         # Expires in 10 hours
         ret, out, _ = run_proc(RNPK, ['--homedir', RNPDIR, '--edit-key', '--set-expire', '10h', 'primary_with_empty_password@rnp'])
