@@ -435,8 +435,14 @@ endif()
 # If a client application uses static rnp library, it still needs libsexp.a and it is installed
 
 if (BUILD_SHARED_LIBS)
+  if (NOT SYSTEM_LIBSEXP AND NOT MSVC)
+    set (SEXP_INSTALL_TARGET "sexp")
+  else (NOT SYSTEM_LIBSEXP AND NOT MSVC)
+    set (SEXP_INSTALL_TARGET "")
+  endif (NOT SYSTEM_LIBSEXP AND NOT MSVC)
+
 # both static and shared libraries
-install(TARGETS librnp
+install(TARGETS librnp ${SEXP_INSTALL_TARGET}
     EXPORT rnp-targets
     LIBRARY
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
@@ -449,7 +455,7 @@ install(TARGETS librnp
 
 # install dll only for windows
   if (WIN32)
-    install(TARGETS librnp
+    install(TARGETS librnp ${SEXP_INSTALL_TARGET}
       RUNTIME
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
         COMPONENT runtime
