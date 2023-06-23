@@ -46,10 +46,12 @@ DIR_CMAKE="$INSTALL_PREFIX/lib64/cmake/rnp"
 
 declare expected_libraries=(
     "$DIR_LIB/librnp.so.0"
+    "$DIR_LIB/libsexp.so.0"
 )
 
 declare expected_devlibraries=(
     "$DIR_LIB/librnp.so"
+    "$DIR_LIB/libsexp.so.0"
     "$DIR_LIB/pkgconfig/librnp.pc"
 )
 
