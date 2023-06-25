@@ -342,7 +342,7 @@ elseif (CRYPTO_BACKEND_OPENSSL)
   target_link_libraries(librnp-obj PRIVATE OpenSSL::Crypto)
 endif()
 
-target_link_libraries(librnp-obj PRIVATE sexp)
+target_link_libraries(librnp-obj PRIVATE sexpp)
 
 set_target_properties(librnp-obj PROPERTIES CXX_VISIBILITY_PRESET hidden)
 if (TARGET BZip2::BZip2)
@@ -398,7 +398,7 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
   get_target_property(val librnp-obj ${prop})
   if (BUILD_SHARED_LIBS)
     set_property(TARGET librnp-static PROPERTY ${prop} ${val})
-    list(REMOVE_ITEM val "$<LINK_ONLY:sexp>")
+    list(REMOVE_ITEM val "$<LINK_ONLY:sexpp>")
     set_property(TARGET librnp PROPERTY ${prop} ${val})
   else()
     set_property(TARGET librnp PROPERTY ${prop} ${val})
@@ -435,14 +435,7 @@ endif()
 # If a client application uses static rnp library, it still needs libsexp.a and it is installed
 
 if (BUILD_SHARED_LIBS)
-  if (NOT SYSTEM_LIBSEXP AND NOT MSVC)
-    set (SEXP_INSTALL_TARGET "sexp")
-  else (NOT SYSTEM_LIBSEXP AND NOT MSVC)
-    set (SEXP_INSTALL_TARGET "")
-  endif (NOT SYSTEM_LIBSEXP AND NOT MSVC)
-
-# both static and shared libraries
-install(TARGETS librnp ${SEXP_INSTALL_TARGET}
+  install(TARGETS librnp
     EXPORT rnp-targets
     LIBRARY
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
@@ -455,7 +448,7 @@ install(TARGETS librnp ${SEXP_INSTALL_TARGET}
 
 # install dll only for windows
   if (WIN32)
-    install(TARGETS librnp ${SEXP_INSTALL_TARGET}
+    install(TARGETS librnp
       RUNTIME
         DESTINATION "${CMAKE_INSTALL_BINDIR}"
         COMPONENT runtime
@@ -463,12 +456,12 @@ install(TARGETS librnp ${SEXP_INSTALL_TARGET}
   endif(WIN32)
 else(BUILD_SHARED_LIBS)
 # static libraries only
-  install(TARGETS librnp sexp
+  install(TARGETS librnp sexpp
     EXPORT rnp-targets
     ARCHIVE
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
-)
+  )
 endif(BUILD_SHARED_LIBS)
 
 # install headers

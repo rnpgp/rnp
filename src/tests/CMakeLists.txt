@@ -185,7 +185,7 @@ target_link_libraries(rnp_tests
   PRIVATE
     librnp-static
     JSON-C::JSON-C
-    sexp
+    sexpp
     ${GTestMain}
 )
 if (CRYPTO_BACKEND_LOWERCASE STREQUAL "openssl")
