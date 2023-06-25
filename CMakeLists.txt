@@ -186,22 +186,16 @@ add_subdirectory(src/common)
 
 if (SYSTEM_LIBSEXP)
   find_package(PkgConfig)
-  pkg_check_modules(REQUIRED sexp>=0.8.5)
+  pkg_check_modules(REQUIRED sexpp>=0.8.5)
 else (SYSTEM_LIBSEXP)
-# cannot build shared lib(dll) with MSVC for now
-  if (MSVC)
-    set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
-    set(BUILD_SHARED_LIBS OFF)
-  endif (MSVC)
-
+# force static libsexpp 
+  set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
+  set(BUILD_SHARED_LIBS OFF)
   set(WITH_SEXP_CLI OFF)
   set(WITH_SEXP_TESTS OFF)
   set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
-  add_subdirectory(src/libsexp EXCLUDE_FROM_ALL)
-
-  if (MSVC)
-    set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
-  endif (MSVC)
+  add_subdirectory(src/libsexpp EXCLUDE_FROM_ALL)
+  set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
 endif (SYSTEM_LIBSEXP)
 
 add_subdirectory(src/lib)
