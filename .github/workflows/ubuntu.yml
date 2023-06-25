@@ -110,7 +110,7 @@ jobs:
                            -DCMAKE_BUILD_TYPE=Release  .
 
       - name: Build
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: cmake --build build --parallel ${{ env.CORES }}
 
       - name: Test
         run: |
@@ -145,7 +145,7 @@ jobs:
                            -DCMAKE_BUILD_TYPE=Release          .
 
       - name: Build
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: cmake --build build --parallel ${{ env.CORES }}
 
       - name: Test
         run: |
@@ -191,7 +191,7 @@ jobs:
                            -DCMAKE_BUILD_TYPE=Release          .
 
       - name: Build
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: cmake --build build --parallel ${{ env.CORES }}
 
       - name: Test
         run: |
@@ -206,6 +206,41 @@ jobs:
           [ ! -d "build/src/tests/googletest-build" ]
           [ ! -d "build/src/tests/googletest-src" ]
 
+  cmake-system-sexpp:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, 'skip ci')"
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+          submodules: true
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+
+      - name: Configure
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -B build   -DBUILD_SHARED_LIBS=ON              \
+                           -DCRYPTO_BACKEND=botan              \
+                           -DDOWNLOAD_GTEST=OFF                \
+                           -DSYSTEM_SEXPP=ON                   \ 
+                           -DCMAKE_BUILD_TYPE=Release          .
+  
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+  
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+  
   package-source:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
