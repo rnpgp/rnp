@@ -334,6 +334,7 @@ target_include_directories(librnp-obj
   PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
     "${PROJECT_SOURCE_DIR}/src"
+    "${SEXPP_INCLUDE_DIRS}"
 )
 target_link_libraries(librnp-obj PRIVATE JSON-C::JSON-C)
 if (CRYPTO_BACKEND_BOTAN)
@@ -431,8 +432,8 @@ endif()
 # On Unix like systems we will build/install/pack either shared library librnp.so or static  librnp.a
 # On Windows we will build/install/pack either dynamic and import libraries rnp.dll, rnp.lib or static library rnp-static.lib
 
-# If a client application uses shared rnp library, sexp is statically linked to librnp.so and libsexp.a is not installed
-# If a client application uses static rnp library, it still needs libsexp.a and it is installed
+# If a client application uses shared rnp library, sexpp is statically linked to librnp.so and libsexpp.a is not installed
+# If a client application uses static rnp library, it still needs libsexpp.a and it is installed
 
 if (BUILD_SHARED_LIBS)
   install(TARGETS librnp
@@ -455,13 +456,23 @@ if (BUILD_SHARED_LIBS)
     )
   endif(WIN32)
 else(BUILD_SHARED_LIBS)
-# static libraries only
-  install(TARGETS librnp sexpp
+# static libraries
+# install libsexpp unless system-installed libsexpp is used
+  if (SYSTEM_LIBSEXPP)
+    install(TARGETS librnp
+      EXPORT rnp-targets
+      ARCHIVE
+        DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
+        COMPONENT development
+    )
+  else (SYSTEM_LIBSEXPP)
+    install(TARGETS librnp sexpp
     EXPORT rnp-targets
     ARCHIVE
       DESTINATION  "${CMAKE_INSTALL_LIBDIR}"
       COMPONENT development
-  )
+    )
+  endif (SYSTEM_LIBSEXPP)
 endif(BUILD_SHARED_LIBS)
 
 # install headers

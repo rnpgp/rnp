@@ -117,7 +117,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
 
   cmake-offline-googletest-src:
     runs-on: ubuntu-latest
@@ -152,7 +152,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
 
       - name: Check googletest
         run: |
@@ -198,7 +198,7 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure
 
       - name: Check googletest
         run: |
@@ -207,40 +207,71 @@ jobs:
           [ ! -d "build/src/tests/googletest-src" ]
 
   cmake-system-sexpp:
+    name: system-sexpp, sexpp shared libs ${{ matrix.sexpp_shared_libs }}, rnp shared libs ${{ matrix.rnp_shared_libs }}
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        sexpp_shared_libs: [ 'on', 'off' ]
+        rnp_shared_libs: ['on', 'off']
+
     steps:
+      - name: Install dependencies
+        run: |
+          sudo apt-get -y update
+          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor
+
+      - name: Checkout sexpp
+        uses: actions/checkout@v3
+        with:
+          repository: rnpgp/sexpp
+          path: sexpp
+
+      - name: Configure sexpp
+        run: |
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          cmake -S sexpp -B sexpp/build       \
+                -DCMAKE_BUILD_TYPE=Release    \
+                -DDOWNLOAD_GTEST=OFF          \
+                -DWITH_SEXP_TESTS=OFF         \
+                -DBUILD_SHARED_LIBS=${{ matrix.sexpp_shared_libs}}
+
+      - name: Build sexpp
+        run: cmake --build sexpp/build  --parallel ${{ env.CORES }}
+
+      - name: Install sexpp
+        run: sudo cmake --install sexpp/build
+
+      - name: Clean sexpp
+        run: rm -rf sexpp
+
       - name: Checkout
         uses: actions/checkout@v3
         with:
           fetch-depth: 1
-          submodules: true
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get -y update
-          sudo apt-get -y install cmake libjson-c-dev libbotan-2-dev asciidoctor googletest
+          submodules: false
 
       - name: Configure
         run: |
-          echo CORES="$(nproc --all)" >> $GITHUB_ENV
-          cmake -B build   -DBUILD_SHARED_LIBS=ON              \
-                           -DCRYPTO_BACKEND=botan              \
-                           -DDOWNLOAD_GTEST=OFF                \
-                           -DSYSTEM_SEXPP=ON                   \ 
-                           -DCMAKE_BUILD_TYPE=Release          .
-  
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=${{ matrix.rnp_shared_libs }}  \
+                -DCRYPTO_BACKEND=botan                             \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DSYSTEM_LIBSEXPP=ON                               \
+                -DCMAKE_BUILD_TYPE=Release                         .
+
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }}
-  
+
       - name: Test
         run: |
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           export PATH="$PWD/build/src/lib:$PATH"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
-  
+          ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests --output-on-failure
+
   package-source:
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
