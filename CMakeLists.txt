@@ -58,7 +58,7 @@ option(ENABLE_COVERAGE "Enable code coverage testing.")
 option(ENABLE_SANITIZERS "Enable ASan and other sanitizers.")
 option(ENABLE_FUZZERS "Enable fuzz targets.")
 option(DOWNLOAD_GTEST "Download Googletest" On)
-option(SYSTEM_LIBSEXP "Use system sexp library" OFF)
+option(SYSTEM_LIBSEXPP "Use system sexpp library" OFF)
 
 # crypto components
 function(tristate_feature_auto NAME DESCRIPTION)
@@ -184,11 +184,28 @@ if (ENABLE_FUZZERS)
 endif()
 add_subdirectory(src/common)
 
-if (SYSTEM_LIBSEXP)
-  find_package(PkgConfig)
-  pkg_check_modules(REQUIRED sexpp>=0.8.5)
-else (SYSTEM_LIBSEXP)
-# force static libsexpp 
+if (SYSTEM_LIBSEXPP)
+  find_package(PkgConfig QUIET)
+  pkg_check_modules(SEXPP sexpp>=0.8.7 REQUIRED)
+  find_library(SEXPP_LIBRARY
+    NAMES
+      "libsexpp"
+      "sexpp"
+    HINTS
+      "${SEXPP_LIBRARY_DIRS}"
+  )
+  add_library(sexpp UNKNOWN IMPORTED)
+  set_target_properties(sexpp
+    PROPERTIES
+      INTERFACE_INCLUDE_DIRECTORIES "${SEXPP_INCLUDE_DIR}"
+      IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+      IMPORTED_LOCATION "${SEXPP_LIBRARY}"
+  )
+else (SYSTEM_LIBSEXPP)
+# If we use system libsexpp is not used we build sexpp static library
+# If librnp is shared, libsexpp.a is a transient artifact which is hidden from
+# the end user.
+# If librnp is static we install libsexpp.a aside
   set(SAVED_BUILD_SHARED_LIBS ${BUILD_SHARED_LIBS})
   set(BUILD_SHARED_LIBS OFF)
   set(WITH_SEXP_CLI OFF)
@@ -196,7 +213,7 @@ else (SYSTEM_LIBSEXP)
   set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME development)
   add_subdirectory(src/libsexpp EXCLUDE_FROM_ALL)
   set(BUILD_SHARED_LIBS ${SAVED_BUILD_SHARED_LIBS})
-endif (SYSTEM_LIBSEXP)
+endif (SYSTEM_LIBSEXPP)
 
 add_subdirectory(src/lib)
 add_subdirectory(src/rnp)
