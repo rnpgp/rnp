@@ -478,6 +478,12 @@ pgp_packet_body_t::data() noexcept
     return data_.data();
 }
 
+uint8_t *
+pgp_packet_body_t::cur() noexcept
+{
+    return data_.data() + pos_;
+}
+
 size_t
 pgp_packet_body_t::size() const noexcept
 {
@@ -753,6 +759,7 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
     }
     switch (sig.version) {
     case PGP_V4:
+    case PGP_V5:
         add_uint16(spbody.data_.size());
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)

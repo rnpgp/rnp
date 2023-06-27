@@ -41,7 +41,8 @@ typedef struct pgp_key_pkt_t {
     pgp_version_t    version;       /* Key packet version */
     uint32_t         creation_time; /* Key creation time */
     pgp_pubkey_alg_t alg;
-    uint16_t         v3_days; /* v2/v3 validity time */
+    uint16_t         v3_days;    /* v2/v3 validity time */
+    uint32_t         v5_pub_len; /* v5 public key material length */
 
     uint8_t *hashed_data; /* key's hashed data used for signature calculation */
     size_t   hashed_len;
@@ -52,6 +53,7 @@ typedef struct pgp_key_pkt_t {
     pgp_key_protection_t sec_protection;
     uint8_t *            sec_data;
     size_t               sec_len;
+    uint32_t             v5_sec_len;
 
     pgp_key_pkt_t()
         : tag(PGP_PKT_RESERVED), version(PGP_VUNKNOWN), creation_time(0), alg(PGP_PKA_NOTHING),

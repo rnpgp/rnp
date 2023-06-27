@@ -41,6 +41,7 @@ typedef struct pgp_signature_t {
     void set_preferred(const std::vector<uint8_t> &data, pgp_sig_subpacket_type_t type);
     rnp_result_t parse_v2v3(pgp_packet_body_t &pkt);
     rnp_result_t parse_v4up(pgp_packet_body_t &pkt);
+    bool         get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
 
   public:

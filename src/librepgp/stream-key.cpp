@@ -1450,6 +1450,8 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     case PGP_V3:
         FALLTHROUGH_STATEMENT;
     case PGP_V4:
+        FALLTHROUGH_STATEMENT;
+    case PGP_V5:
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
@@ -1475,20 +1477,32 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     }
     alg = (pgp_pubkey_alg_t) analg;
     material.alg = (pgp_pubkey_alg_t) analg;
-    /* v3 keys must be RSA-only */
-    if ((version < PGP_V4) && !is_rsa_key_alg(alg)) {
-        RNP_LOG("wrong v3 pk algorithm");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    /* v6 length field for public key material */
-    if (version == PGP_V6) {
-        uint32_t material_len;
-        if (!pkt.get(material_len)) {
+    switch (version) {
+    case PGP_V2:
+    case PGP_V3:
+        /* v3 keys must be RSA-only */
+        if (!is_rsa_key_alg(alg)) {
+            RNP_LOG("wrong v3 pk algorithm");
             return RNP_ERROR_BAD_FORMAT;
         }
-    }
+        break;
+    case PGP_V5:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6:
 #endif
+        /* v5-v6 public key material length  */
+        if (!pkt.get(v5_pub_len)) {
+            RNP_LOG("failed to get v5 octet count field");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        if (is_public_key_pkt(atag) && (v5_pub_len != pkt.left())) {
+            RNP_LOG("v5 octet count mismatch");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        break;
+    default:;
+    }
+
     /* algorithm specific fields */
     switch (alg) {
     case PGP_PKA_RSA:
@@ -1637,6 +1651,14 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
 #endif
+        /* v5 s2k length, ignored for now */
+        if (version == PGP_V5) {
+            uint8_t s2k_len = 0;
+            if (!pkt.get(s2k_len)) {
+                RNP_LOG("failed to read v5 s2k len");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+        }
         sec_protection.s2k.usage = (pgp_s2k_usage_t) usage;
         sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
 
@@ -1692,6 +1714,18 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
             size_t bl_size = pgp_block_size(sec_protection.symm_alg);
             if (!bl_size || !pkt.get(sec_protection.iv, bl_size)) {
                 RNP_LOG("failed to read iv");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+        }
+
+        /* v5 secret key fields length */
+        if (version == PGP_V5) {
+            if (!pkt.get(v5_sec_len)) {
+                RNP_LOG("failed to read v5 secret fields length");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            if (v5_sec_len != pkt.left()) {
+                RNP_LOG("v5 secret fields length mismatch");
                 return RNP_ERROR_BAD_FORMAT;
             }
         }

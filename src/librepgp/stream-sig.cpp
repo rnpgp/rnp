@@ -1326,6 +1326,35 @@ pgp_signature_t::parse_subpackets(uint8_t *buf, size_t len, bool hashed)
     return res;
 }
 
+bool
+pgp_signature_t::get_subpkt_len(pgp_packet_body_t &pkt, size_t &splen)
+{
+    switch (version) {
+    case PGP_V4:
+    case PGP_V5: {
+        uint16_t len = 0;
+        if (!pkt.get(len)) {
+            return false;
+        }
+        splen = len;
+        return true;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6: {
+        uint32_t len = 0;
+        if (!pkt.get(len)) {
+            return false;
+        }
+        splen = len;
+        return true;
+    }
+#endif
+    default:
+        RNP_LOG("unsupported signature version: %d", (int) version);
+        return false;
+    }
+}
+
 rnp_result_t
 pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
 {
@@ -1344,57 +1373,28 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
     halg = (pgp_hash_alg_t) buf[2];
     /* hashed subpackets length */
 
-    size_t splen;
-    size_t splen_size = 2;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    uint8_t splen_buf[4];
-    switch (version) {
-    case PGP_V4:
-        splen_size = 2;
-        break;
-    case PGP_V6:
-        splen_size = 4;
-        break;
-    default:
-        RNP_LOG("unsupported signature version: %d", (int) version);
-        return RNP_ERROR_BAD_FORMAT;
-    }
-#else
-    uint8_t splen_buf[2];
-#endif
-
-    if (!pkt.get(splen_buf, splen_size)) {
+    size_t splen = 0;
+    auto   hash_begin = pkt.cur();
+    if (!get_subpkt_len(pkt, splen)) {
         RNP_LOG("cannot get hashed len");
         return RNP_ERROR_BAD_FORMAT;
     }
-    switch (version) {
-    case PGP_V4:
-        splen = read_uint16(splen_buf);
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6:
-        splen = read_uint32(splen_buf);
-        break;
-#endif
-    default:
-        RNP_LOG("unsupported signature version: %d", (int) version);
-        return RNP_ERROR_BAD_FORMAT;
-    }
-
+    size_t splen_size = pkt.cur() - hash_begin;
     /* hashed subpackets length + splen_size bytes of length of unhashed subpackets */
-    if (pkt.left() < (size_t)(splen + splen_size)) {
+    if (pkt.left() < splen + splen_size) {
         RNP_LOG("wrong packet or hashed subpackets length");
         return RNP_ERROR_BAD_FORMAT;
     }
     /* building hashed data */
     free(hashed_data);
-    if (!(hashed_data = (uint8_t *) malloc(splen + 4 + splen_size))) {
+    if (!(hashed_data = (uint8_t *) malloc(4 + splen + splen_size))) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     hashed_data[0] = version;
+    static_assert(sizeof(buf) == 3, "Wrong signature header size.");
     memcpy(hashed_data + 1, buf, sizeof(buf));
-    memcpy(hashed_data + 1 + sizeof(buf), splen_buf, splen_size);
+    memcpy(hashed_data + 4, hash_begin, splen_size);
 
     if (!pkt.get(hashed_data + 4 + splen_size, splen)) {
         RNP_LOG("cannot get hashed subpackets data");
@@ -1408,33 +1408,15 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
     }
 
     /* reading unhashed subpackets */
-    if (!pkt.get(splen_buf, splen_size)) {
-        RNP_LOG("cannot get hashed len");
-        return RNP_ERROR_BAD_FORMAT;
-    }
-    switch (version) {
-    case PGP_V4:
-        splen = read_uint16(splen_buf);
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6:
-        splen = read_uint32(splen_buf);
-        break;
-#endif
-    default:
-        RNP_LOG("unsupported signature version: %d", (int) version);
+    if (!get_subpkt_len(pkt, splen)) {
+        RNP_LOG("cannot get unhashed len");
         return RNP_ERROR_BAD_FORMAT;
     }
     if (pkt.left() < splen) {
         RNP_LOG("not enough data for unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
-    std::vector<uint8_t> spbuf(splen);
-    if (!pkt.get(spbuf.data(), splen)) {
-        RNP_LOG("read of unhashed subpackets failed");
-        return RNP_ERROR_READ;
-    }
-    if (!parse_subpackets(spbuf.data(), splen, false)) {
+    if (!parse_subpackets(pkt.cur(), splen, false)) {
         RNP_LOG("failed to parse unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
@@ -1458,11 +1440,13 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
     case PGP_V3:
         res = parse_v2v3(pkt);
         break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6:
-        FALLTHROUGH_STATEMENT;
-#endif
     case PGP_V4:
+        FALLTHROUGH_STATEMENT;
+    case PGP_V5:
+#if defined(ENABLE_CRYPTO_REFRESH)
+        FALLTHROUGH_STATEMENT;
+    case PGP_V6:
+#endif
         res = parse_v4up(pkt);
         break;
     default:

@@ -1023,14 +1023,14 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     if (!pgp_keyid(keyid, key)) {
         dst_print_hex(dst, "keyid", keyid.data(), keyid.size(), false);
     } else {
-        dst_printf(dst, "keyid: failed to calculate");
+        dst_printf(dst, "keyid: failed to calculate\n");
     }
 
     if ((key.version > PGP_V3) && (ctx->dump_grips)) {
         if (!pgp_fingerprint(keyfp, key)) {
             dst_print_hex(dst, "fingerprint", keyfp.fingerprint, keyfp.length, false);
         } else {
-            dst_printf(dst, "fingerprint: failed to calculate");
+            dst_printf(dst, "fingerprint: failed to calculate\n");
         }
     }
 
@@ -1039,7 +1039,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         if (key.material.get_grip(grip)) {
             dst_print_hex(dst, "grip", grip.data(), grip.size(), false);
         } else {
-            dst_printf(dst, "grip: failed to calculate");
+            dst_printf(dst, "grip: failed to calculate\n");
         }
     }
 
