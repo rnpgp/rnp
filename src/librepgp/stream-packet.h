@@ -77,6 +77,8 @@ typedef struct pgp_packet_body_t {
 
     /** @brief pointer to the data, kept in the packet */
     uint8_t *data() noexcept;
+    /** @brief pointer to the current data pointer */
+    uint8_t *cur() noexcept;
     /** @brief number of bytes, kept in the packet (without the header) */
     size_t size() const noexcept;
     /** @brief number of bytes left to read */

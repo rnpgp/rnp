@@ -515,6 +515,7 @@ typedef enum {
     PGP_V2 = 2, /* Version 2 (essentially the same as v3) */
     PGP_V3 = 3, /* Version 3 */
     PGP_V4 = 4, /* Version 4 */
+    PGP_V5 = 5, /* Version 5 */
 #if defined(ENABLE_CRYPTO_REFRESH)
     PGP_V6 = 6 /* Version 6 (crypto refresh) */
 #endif
