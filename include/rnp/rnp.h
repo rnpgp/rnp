@@ -305,8 +305,8 @@ typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
 
 /** callback used to signal the application that a key is needed
  *
- *  The application should use the appropriate functions (rnp_load_public_keys, etc)
- *  to load the requested key.
+ *  The application should use the appropriate functions (rnp_load_keys() or
+ *  rnp_import_keys()) to load the requested key.
  *
  *  This may be called multiple times for the same key. For example, if attempting
  *  to verify a signature, the signer's keyid may be used first to request the key.
@@ -323,7 +323,7 @@ typedef bool (*rnp_password_cb)(rnp_ffi_t        ffi,
  *     the keyrings.
  *
  *  @param ffi
- *  @param app_ctx provided by application in rnp_keyring_open
+ *  @param app_ctx provided by application in rnp_ffi_set_key_provider()
  *  @param identifier_type the type of identifier ("userid", "keyid", "grip")
  *  @param identifier the identifier for locating the key
  *  @param secret true if a secret key is being requested
