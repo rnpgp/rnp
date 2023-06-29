@@ -448,7 +448,7 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
     size_t  nlen;
 
     /* set chunk index for additional data */
-    STORE64BE(param->aead_ad + param->aead_adlen - 8, idx);
+    write_uint64(param->aead_ad + param->aead_adlen - 8, idx);
 
     if (last) {
         uint64_t total = idx * param->chunklen;
@@ -460,7 +460,7 @@ encrypted_start_aead_chunk(pgp_source_encrypted_param_t *param, size_t idx, bool
             /* reset the crypto in case we had empty chunk before the last one */
             pgp_cipher_aead_reset(&param->decrypt);
         }
-        STORE64BE(param->aead_ad + param->aead_adlen, total);
+        write_uint64(param->aead_ad + param->aead_adlen, total);
         param->aead_adlen += 8;
     }
 
