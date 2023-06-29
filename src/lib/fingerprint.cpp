@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2022, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -39,53 +39,39 @@
 
 rnp_result_t
 pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
-{
-    if ((key.version == PGP_V2) || (key.version == PGP_V3)) {
+try {
+    switch (key.version) {
+    case PGP_V2:
+    case PGP_V3: {
         if (!is_rsa_key_alg(key.alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        try {
-            auto hash = rnp::Hash::create(PGP_HASH_MD5);
-            hash->add(key.material.rsa.n);
-            hash->add(key.material.rsa.e);
-            fp.length = hash->finish(fp.fingerprint);
-            return RNP_SUCCESS;
-        } catch (const std::exception &e) {
-            RNP_LOG("Failed to calculate v3 fingerprint: %s", e.what());
-            return RNP_ERROR_BAD_STATE;
-        }
+        auto hash = rnp::Hash::create(PGP_HASH_MD5);
+        hash->add(key.material.rsa.n);
+        hash->add(key.material.rsa.e);
+        fp.length = hash->finish(fp.fingerprint);
+        return RNP_SUCCESS;
     }
-
-    switch (key.version) {
+    case PGP_V4:
+    case PGP_V5:
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
-        FALLTHROUGH_STATEMENT;
 #endif
-    case PGP_V4:
-        break;
+    {
+        auto halg = key.version == PGP_V4 ? PGP_HASH_SHA1 : PGP_HASH_SHA256;
+        auto hash = rnp::Hash::create(halg);
+        signature_hash_key(key, *hash);
+        fp.length = hash->finish(fp.fingerprint);
+        return RNP_SUCCESS;
+    }
     default:
         RNP_LOG("unsupported key version");
         return RNP_ERROR_NOT_SUPPORTED;
     }
-
-    std::unique_ptr<rnp::Hash> hash;
-    if (key.version == PGP_V4) {
-        hash = rnp::Hash::create(PGP_HASH_SHA1);
-    }
-#if defined(ENABLE_CRYPTO_REFRESH)
-    else if (key.version == PGP_V6) {
-        hash = rnp::Hash::create(PGP_HASH_SHA256);
-    }
-#endif
-    try {
-        signature_hash_key(key, *hash);
-        fp.length = hash->finish(fp.fingerprint);
-        return RNP_SUCCESS;
-    } catch (const std::exception &e) {
-        RNP_LOG("Failed to calculate v4 fingerprint: %s", e.what());
-        return RNP_ERROR_BAD_STATE;
-    }
+} catch (const std::exception &e) {
+    RNP_LOG("Failed to calculate v%d fingerprint: %s", (int) key.version, e.what());
+    return RNP_ERROR_BAD_STATE;
 }
 
 /**
@@ -98,37 +84,35 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
 rnp_result_t
 pgp_keyid(pgp_key_id_t &keyid, const pgp_key_pkt_t &key)
 {
-    pgp_fingerprint_t fp;
-    rnp_result_t      ret;
-    size_t            n;
-
-    if ((key.version == PGP_V2) || (key.version == PGP_V3)) {
+    switch (key.version) {
+    case PGP_V2:
+    case PGP_V3: {
         if (!is_rsa_key_alg(key.alg)) {
             RNP_LOG("bad algorithm");
             return RNP_ERROR_NOT_SUPPORTED;
         }
-        n = mpi_bytes(&key.material.rsa.n);
+        size_t n = mpi_bytes(&key.material.rsa.n);
         (void) memcpy(keyid.data(), key.material.rsa.n.mpi + n - keyid.size(), keyid.size());
         return RNP_SUCCESS;
     }
-
-    if ((ret = pgp_fingerprint(fp, key))) {
-        return ret;
-    }
-
-    switch (key.version) {
     case PGP_V4:
-        (void) memcpy(keyid.data(), fp.fingerprint + fp.length - keyid.size(), keyid.size());
-        break;
-#ifdef ENABLE_CRYPTO_REFRESH
+    case PGP_V5:
+#if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
-        (void) memcpy(keyid.data(), fp.fingerprint, keyid.size());
-        break;
 #endif
-    default:
-        return RNP_ERROR_BAD_STATE;
+    {
+        pgp_fingerprint_t fp{};
+        rnp_result_t      ret = pgp_fingerprint(fp, key);
+        if (ret) {
+            return ret;
+        }
+        size_t inc = key.version == PGP_V4 ? fp.length - keyid.size() : 0;
+        (void) memcpy(keyid.data(), fp.fingerprint + inc, keyid.size());
+        return RNP_SUCCESS;
     }
-    return RNP_SUCCESS;
+    default:
+        return RNP_ERROR_NOT_SUPPORTED;
+    }
 }
 
 bool

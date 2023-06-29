@@ -53,6 +53,7 @@ typedef struct pgp_key_pkt_t {
     pgp_key_protection_t sec_protection;
     uint8_t *            sec_data;
     size_t               sec_len;
+    uint8_t              v5_s2k_len;
     uint32_t             v5_sec_len;
 
     pgp_key_pkt_t()

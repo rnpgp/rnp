@@ -48,6 +48,14 @@
 void
 signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
 {
+    if (!key.hashed_data) {
+        /* call self recursively if hashed data is not filled, to overcome const restriction */
+        pgp_key_pkt_t keycp(key, true);
+        keycp.fill_hashed_data();
+        signature_hash_key(keycp, hash);
+        return;
+    }
+
     switch (key.version) {
     case PGP_V2:
         FALLTHROUGH_STATEMENT;
@@ -55,35 +63,31 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
         FALLTHROUGH_STATEMENT;
     case PGP_V4: {
         uint8_t hdr[3] = {0x99, 0x00, 0x00};
-        if (key.hashed_data) {
-            write_uint16(hdr + 1, key.hashed_len);
-            hash.add(hdr, sizeof(hdr));
-            hash.add(key.hashed_data, key.hashed_len);
-            return;
-        }
+        write_uint16(hdr + 1, key.hashed_len);
+        hash.add(hdr, 3);
+        hash.add(key.hashed_data, key.hashed_len);
+        break;
+    }
+    case PGP_V5: {
+        uint8_t hdr[5] = {0x9A, 0x00, 0x00, 0x00, 0x00};
+        write_uint32(hdr + 1, key.hashed_len);
+        hash.add(&hdr, 5);
+        hash.add(key.hashed_data, key.hashed_len);
         break;
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6: {
         uint8_t hdr[5] = {0x9b, 0x00, 0x00, 0x00, 0x00};
-        if (key.hashed_data) {
-            write_uint32(hdr + 1, key.hashed_len);
-            hash.add(hdr, sizeof(hdr));
-            hash.add(key.hashed_data, key.hashed_len);
-            return;
-        }
+        write_uint32(hdr + 1, key.hashed_len);
+        hash.add(hdr, sizeof(hdr));
+        hash.add(key.hashed_data, key.hashed_len);
         break;
     }
 #endif
     default:
-        RNP_LOG("should not reach this code");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+        RNP_LOG("unknown key version: %d", (int) key.version);
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
     }
-
-    /* call self recursively if hashed data is not filled, to overcome const restriction */
-    pgp_key_pkt_t keycp(key, true);
-    keycp.fill_hashed_data();
-    signature_hash_key(keycp, hash);
 }
 
 void
@@ -685,11 +689,6 @@ pgp_signature_t::keyid() const noexcept
     static_assert(std::tuple_size<decltype(res)>::value == PGP_KEY_ID_SIZE,
                   "pgp_key_id_t size mismatch");
 
-    const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
-    if (subpkt) {
-        memcpy(res.data(), subpkt->fields.issuer, PGP_KEY_ID_SIZE);
-        return res;
-    }
     switch (version) {
     case PGP_V4: {
         const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_KEY_ID, false);
@@ -703,15 +702,17 @@ pgp_signature_t::keyid() const noexcept
         }
         break;
     }
+    case PGP_V5:
 #ifdef ENABLE_CRYPTO_REFRESH
-    case PGP_V6: {
+    case PGP_V6:
+#endif
+    {
         const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
         if (subpkt) {
             memcpy(res.data(), subpkt->fields.issuer_fp.fp, PGP_KEY_ID_SIZE);
         }
         break;
     }
-#endif
     default:
         break;
     }
@@ -1233,6 +1234,19 @@ pgp_signature_t::matches_onepass(const pgp_one_pass_sig_t &onepass) const
            (onepass.keyid == keyid());
 }
 
+bool
+pgp_signature_t::version_supported(pgp_version_t version)
+{
+    if ((version >= PGP_V2) && (version <= PGP_V5)) {
+        return true;
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    return version == PGP_V6;
+#else
+    return false;
+#endif
+}
+
 rnp_result_t
 pgp_signature_t::parse_v2v3(pgp_packet_body_t &pkt)
 {
@@ -1400,20 +1414,20 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
     }
     /* building hashed data */
     free(hashed_data);
-    if (!(hashed_data = (uint8_t *) malloc(4 + splen + splen_size))) {
+    size_t hlen = 4 + splen + splen_size;
+    if (!(hashed_data = (uint8_t *) malloc(hlen))) {
         RNP_LOG("allocation failed");
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     hashed_data[0] = version;
     static_assert(sizeof(buf) == 3, "Wrong signature header size.");
-    memcpy(hashed_data + 1, buf, sizeof(buf));
-    memcpy(hashed_data + 4, hash_begin, splen_size);
+    pkt.skip_back(3 + splen_size);
 
-    if (!pkt.get(hashed_data + 4 + splen_size, splen)) {
+    if (!pkt.get(hashed_data + 1, hlen - 1)) {
         RNP_LOG("cannot get hashed subpackets data");
         return RNP_ERROR_BAD_FORMAT;
     }
-    hashed_len = splen + 4 + splen_size;
+    hashed_len = hlen;
     /* parsing hashed subpackets */
     if (!parse_subpackets(hashed_data + 4 + splen_size, splen, true)) {
         RNP_LOG("failed to parse hashed subpackets");
@@ -1433,6 +1447,7 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
         RNP_LOG("failed to parse unhashed subpackets");
         return RNP_ERROR_BAD_FORMAT;
     }
+    pkt.skip(splen);
     return RNP_SUCCESS;
 }
 
@@ -1624,18 +1639,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 void
 pgp_signature_t::write(pgp_dest_t &dst) const
 {
-    switch (version) {
-    case PGP_V2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_V3:
-        FALLTHROUGH_STATEMENT;
-    case PGP_V4:
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6:
-        break;
-#endif
-    default:
+    if (!pgp_signature_t::version_supported(version)) {
         RNP_LOG("don't know version %d", (int) version);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
@@ -1735,18 +1739,7 @@ void
 pgp_signature_t::fill_hashed_data()
 {
     /* we don't have a need to write v2-v3 signatures */
-    switch (version) {
-    case PGP_V2:
-        FALLTHROUGH_STATEMENT;
-    case PGP_V3:
-        FALLTHROUGH_STATEMENT;
-    case PGP_V4:
-        break;
-#if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6:
-        break;
-#endif
-    default:
+    if (!pgp_signature_t::version_supported(version)) {
         RNP_LOG("don't know version %d", (int) version);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
