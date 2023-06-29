@@ -46,7 +46,7 @@ signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf
     hash.add(sig.hashed_data, sig.hashed_len);
     if (sig.version > PGP_V3) {
         uint8_t trailer[6] = {0x04, 0xff, 0x00, 0x00, 0x00, 0x00};
-        STORE32BE(&trailer[2], sig.hashed_len);
+        write_uint32(&trailer[2], sig.hashed_len);
         hash.add(trailer, 6);
     }
     hlen = hash.finish(hbuf);

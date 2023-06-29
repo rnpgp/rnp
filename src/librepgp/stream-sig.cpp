@@ -82,7 +82,7 @@ signature_hash_userid(const pgp_userid_pkt_t &uid, rnp::Hash &hash, pgp_version_
         RNP_LOG("wrong uid");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    STORE32BE(hdr + 1, uid.uid_len);
+    write_uint32(hdr + 1, uid.uid_len);
     hash.add(hdr, 5);
     hash.add(uid.uid, uid.uid_len);
 }
@@ -732,7 +732,7 @@ pgp_signature_t::set_creation(uint32_t ctime)
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_CREATION_TIME, 4, true);
     subpkt.parsed = true;
     subpkt.hashed = true;
-    STORE32BE(subpkt.data, ctime);
+    write_uint32(subpkt.data, ctime);
     subpkt.fields.create = ctime;
 }
 
@@ -753,7 +753,7 @@ pgp_signature_t::set_expiration(uint32_t etime)
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_EXPIRATION_TIME, 4, true);
     subpkt.parsed = true;
     subpkt.hashed = true;
-    STORE32BE(subpkt.data, etime);
+    write_uint32(subpkt.data, etime);
     subpkt.fields.expiry = etime;
 }
 
@@ -774,7 +774,7 @@ pgp_signature_t::set_key_expiration(uint32_t etime)
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_KEY_EXPIRY, 4, true);
     subpkt.parsed = true;
     subpkt.hashed = true;
-    STORE32BE(subpkt.data, etime);
+    write_uint32(subpkt.data, etime);
     subpkt.fields.expiry = etime;
 }
 

@@ -343,7 +343,7 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     }
 
     /* set chunk index for additional data */
-    STORE64BE(param->ad + param->adlen - 8, idx);
+    write_uint64(param->ad + param->adlen - 8, idx);
 
     if (last) {
         if (!(param->chunkout + param->cachelen)) {
@@ -360,7 +360,7 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
             total -= param->chunklen - param->cachelen - param->chunkout;
         }
 
-        STORE64BE(param->ad + param->adlen, total);
+        write_uint64(param->ad + param->adlen, total);
         param->adlen += 8;
     }
     if (!pgp_cipher_aead_set_ad(&param->encrypt, param->ad, param->adlen)) {
@@ -1697,7 +1697,7 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
         dst_write(param->writedst, handler->ctx->filename.c_str(), flen);
     }
     /* timestamp */
-    STORE32BE(buf, handler->ctx->filemtime);
+    write_uint32(buf, handler->ctx->filemtime);
     dst_write(param->writedst, buf, 4);
     ret = RNP_SUCCESS;
 finish:
