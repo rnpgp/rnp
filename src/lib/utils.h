@@ -55,15 +55,6 @@
 
 #define BITS_TO_BYTES(b) (((b) + (CHAR_BIT - 1)) / CHAR_BIT)
 
-/* Load little-endian 32-bit from y to x in portable fashion */
-
-inline void
-LOAD32LE(uint32_t &x, const uint8_t y[4])
-{
-    x = (static_cast<uint32_t>(y[3]) << 24) | (static_cast<uint32_t>(y[2]) << 16) |
-        (static_cast<uint32_t>(y[1]) << 8) | (static_cast<uint32_t>(y[0]) << 0);
-}
-
 /* Store big-endian 32-bit value x in y */
 inline void
 STORE32BE(uint8_t x[4], uint32_t y)
