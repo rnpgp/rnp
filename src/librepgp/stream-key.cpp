@@ -1397,6 +1397,9 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     pktbody.add_byte(sec_protection.s2k.usage);
+    if (version == PGP_V5) {
+        pktbody.add_byte(v5_s2k_len);
+    }
 
     pgp_packet_body_t s2k_params(tag);
     make_s2k_params(s2k_params);
@@ -1408,6 +1411,9 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
 #endif
     pktbody.add(s2k_params.data(), s2k_params.size());
 
+    if (version == PGP_V5) {
+        pktbody.add_uint32(sec_len);
+    }
     if (sec_len) {
         /* if key is stored on card, or exported via gpg --export-secret-subkeys, then
          * sec_data is empty */
@@ -1651,23 +1657,22 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
             return RNP_ERROR_BAD_FORMAT;
         }
 #endif
+        sec_protection.s2k.usage = (pgp_s2k_usage_t) usage;
+        sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
+
         /* v5 s2k length, ignored for now */
         if (version == PGP_V5) {
-            uint8_t s2k_len = 0;
-            if (!pkt.get(s2k_len)) {
+            if (!pkt.get(v5_s2k_len)) {
                 RNP_LOG("failed to read v5 s2k len");
                 return RNP_ERROR_BAD_FORMAT;
             }
         }
-        sec_protection.s2k.usage = (pgp_s2k_usage_t) usage;
-        sec_protection.cipher_mode = PGP_CIPHER_MODE_CFB;
-
 #if defined(ENABLE_CRYPTO_REFRESH)
         if (version == PGP_V6 && sec_protection.s2k.usage != PGP_S2KU_NONE) {
             // V6 packages contain the count of the optional 1-byte parameters
-            uint8_t s2k_params_count;
-            if (!pkt.get(s2k_params_count)) {
+            if (!pkt.get(v5_s2k_len)) {
                 RNP_LOG("failed to read key protection");
+                return RNP_ERROR_BAD_FORMAT;
             }
         }
 #endif
