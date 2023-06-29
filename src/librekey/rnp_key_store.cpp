@@ -145,7 +145,7 @@ KeyStore::write()
         }
 
         for (auto &key : keys) {
-            char grip[PGP_MAX_FINGERPRINT_HEX_SIZE] = {0};
+            char grip[PGP_FINGERPRINT_HEX_SIZE] = {0};
             rnp::hex_encode(key.grip().data(), key.grip().size(), grip, sizeof(grip));
             snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip);
 
