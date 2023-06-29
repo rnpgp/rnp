@@ -3765,6 +3765,7 @@ str_to_locator(rnp_ffi_t         ffi,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     // see what type we have
+    size_t idlen = strlen(identifier);
     switch (locator->type) {
     case PGP_KEY_SEARCH_USERID:
         if (snprintf(locator->by.userid, sizeof(locator->by.userid), "%s", identifier) >=
@@ -3774,19 +3775,19 @@ str_to_locator(rnp_ffi_t         ffi,
         }
         break;
     case PGP_KEY_SEARCH_KEYID: {
-        if (strlen(identifier) != (PGP_KEY_ID_SIZE * 2) ||
+        if (idlen != (PGP_KEY_ID_SIZE * 2) ||
             !rnp::hex_decode(identifier, locator->by.keyid.data(), locator->by.keyid.size())) {
             FFI_LOG(ffi, "Invalid keyid: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
     } break;
     case PGP_KEY_SEARCH_FINGERPRINT: {
-        // Note: v2/v3 fingerprint are 16 bytes (32 chars) long
-        if (strlen(identifier) != (PGP_FINGERPRINT_V4_SIZE * 2) &&
 #if defined(ENABLE_CRYPTO_REFRESH)
-            strlen(identifier) != (PGP_FINGERPRINT_V6_SIZE * 2) &&
+        static_assert(PGP_FINGERPRINT_V5_SIZE == PGP_FINGERPRINT_V6_SIZE, "FP size mismatch.");
 #endif
-            (strlen(identifier) != 32)) {
+        // Note: v2/v3 fingerprint are 16 bytes (32 chars) long.
+        if ((idlen != PGP_FINGERPRINT_V4_SIZE * 2) && (idlen != 32) &&
+            (idlen != PGP_FINGERPRINT_V5_SIZE * 2)) {
             FFI_LOG(ffi, "Invalid fingerprint: %s", identifier);
             return RNP_ERROR_BAD_PARAMETERS;
         }
@@ -7918,7 +7919,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     // fingerprint
-    char fpr[PGP_MAX_FINGERPRINT_SIZE * 2 + 1];
+    char fpr[PGP_FINGERPRINT_HEX_SIZE] = {0};
     if (!rnp::hex_encode(key->fp().fingerprint, key->fp().length, fpr, sizeof(fpr))) {
         return RNP_ERROR_GENERIC;
     }
