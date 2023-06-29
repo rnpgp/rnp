@@ -743,7 +743,20 @@ pgp_signature_t::has_keyfp() const
         return false;
     }
     const pgp_sig_subpkt_t *subpkt = get_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR);
-    return subpkt && (subpkt->fields.issuer_fp.len <= PGP_MAX_FINGERPRINT_SIZE);
+    if (!subpkt) {
+        return false;
+    }
+    switch (version) {
+    case PGP_V4:
+        return subpkt->fields.issuer_fp.len == PGP_FINGERPRINT_V4_SIZE;
+    case PGP_V5:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6:
+#endif
+        return subpkt->fields.issuer_fp.len == PGP_FINGERPRINT_V5_SIZE;
+    default:
+        return false;
+    }
 }
 
 pgp_fingerprint_t
