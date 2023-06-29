@@ -104,7 +104,7 @@ void
 Hash::add(uint32_t val)
 {
     uint8_t ibuf[4];
-    STORE32BE(ibuf, val);
+    write_uint32(ibuf, val);
     add(ibuf, sizeof(ibuf));
 }
 

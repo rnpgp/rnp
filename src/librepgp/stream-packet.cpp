@@ -43,26 +43,6 @@
 #include "stream-key.h"
 #include <algorithm>
 
-uint32_t
-read_uint32(const uint8_t *buf)
-{
-    return ((uint32_t) buf[0] << 24) | ((uint32_t) buf[1] << 16) | ((uint32_t) buf[2] << 8) |
-           (uint32_t) buf[3];
-}
-
-uint16_t
-read_uint16(const uint8_t *buf)
-{
-    return ((uint16_t) buf[0] << 8) | buf[1];
-}
-
-void
-write_uint16(uint8_t *buf, uint16_t val)
-{
-    buf[0] = val >> 8;
-    buf[1] = val & 0xff;
-}
-
 size_t
 write_packet_len(uint8_t *buf, size_t len)
 {
@@ -75,7 +55,7 @@ write_packet_len(uint8_t *buf, size_t len)
         return 2;
     } else {
         buf[0] = 0xff;
-        STORE32BE(&buf[1], len);
+        write_uint32(&buf[1], len);
         return 5;
     }
 }
@@ -711,7 +691,7 @@ void
 pgp_packet_body_t::add_uint32(uint32_t val)
 {
     uint8_t bytes[4];
-    STORE32BE(bytes, val);
+    write_uint32(bytes, val);
     add(bytes, 4);
 }
 

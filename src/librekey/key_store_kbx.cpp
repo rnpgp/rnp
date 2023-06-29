@@ -473,7 +473,7 @@ static bool
 pu32(pgp_dest_t *dst, uint32_t f)
 {
     uint8_t p[4];
-    STORE32BE(p, f);
+    write_uint32(p, f);
     return pbuf(dst, p, 4);
 }
 
@@ -614,10 +614,10 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
         uint8_t *           p = (uint8_t *) mem.memory() + uid_start + (12 * i);
         /* store absolute uid offset in the output stream */
         uint32_t pt = mem.writeb() + dst->writeb;
-        STORE32BE(p, pt);
+        write_uint32(p, pt);
         /* and uid length */
         pt = uid.str.size();
-        STORE32BE(p + 4, pt);
+        write_uint32(p + 4, pt);
         /* uid data itself */
         if (!pbuf(&mem.dst(), uid.str.c_str(), pt)) {
             return false;
@@ -628,7 +628,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     size_t   key_start = mem.writeb();
     uint32_t pt = key_start;
     uint8_t *p = (uint8_t *) mem.memory() + 8;
-    STORE32BE(p, pt);
+    write_uint32(p, pt);
 
     key->write(mem.dst());
     if (mem.werr()) {
@@ -649,12 +649,12 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     /* key blob length */
     pt = mem.writeb() - key_start;
     p = (uint8_t *) mem.memory() + 12;
-    STORE32BE(p, pt);
+    write_uint32(p, pt);
 
     // fix the length of blob
     pt = mem.writeb() + 20;
     p = (uint8_t *) mem.memory();
-    STORE32BE(p, pt);
+    write_uint32(p, pt);
 
     // checksum
     auto hash = rnp::Hash::create(PGP_HASH_SHA1);
