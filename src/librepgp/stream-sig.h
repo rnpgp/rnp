@@ -43,6 +43,7 @@ typedef struct pgp_signature_t {
     rnp_result_t parse_v4up(pgp_packet_body_t &pkt);
     bool         get_subpkt_len(pgp_packet_body_t &pkt, size_t &len);
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
+    static bool  version_supported(pgp_version_t version);
 
   public:
     pgp_version_t version;

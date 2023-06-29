@@ -83,6 +83,9 @@ typedef struct pgp_packet_body_t {
     size_t size() const noexcept;
     /** @brief number of bytes left to read */
     size_t left() const noexcept;
+    /** @brief skip bytes in packet body */
+    void skip(size_t bt) noexcept;
+    void skip_back(size_t bt) noexcept;
     /** @brief get next byte from the packet body, populated with read() call.
      *  @param val result will be stored here on success
      *  @return true on success or false otherwise (if end of the packet is reached)

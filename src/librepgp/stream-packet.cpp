@@ -496,6 +496,18 @@ pgp_packet_body_t::left() const noexcept
     return data_.size() - pos_;
 }
 
+void
+pgp_packet_body_t::skip(size_t bt) noexcept
+{
+    pos_ += bt;
+}
+
+void
+pgp_packet_body_t::skip_back(size_t bt) noexcept
+{
+    pos_ = bt > pos_ ? 0 : pos_ - bt;
+}
+
 bool
 pgp_packet_body_t::get(uint8_t &val) noexcept
 {

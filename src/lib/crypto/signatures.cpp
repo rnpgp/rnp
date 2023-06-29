@@ -45,12 +45,34 @@ static void
 signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf, size_t &hlen)
 {
     hash.add(sig.hashed_data, sig.hashed_len);
-    if (sig.version >= PGP_V4) {
+    switch (sig.version) {
+    case PGP_V4:
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_V6:
+#endif
+    {
         uint8_t trailer[6] = {0x00, 0xff, 0x00, 0x00, 0x00, 0x00};
         trailer[0] = sig.version;
         write_uint32(&trailer[2], sig.hashed_len);
-
         hash.add(trailer, 6);
+        break;
+    }
+    case PGP_V5: {
+        /* TODO: support for literal packet metadata for attached signatures, see
+         * draft-koch, 5.2.4. */
+        uint64_t hash_len = sig.hashed_len;
+        if (sig.is_document()) {
+            uint8_t doc_trailer[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+            hash.add(doc_trailer, 6);
+            hash_len += 6;
+        }
+        uint8_t trailer[10] = {0x05, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
+        write_uint64(&trailer[2], hash_len);
+        hash.add(trailer, 10);
+        break;
+    }
+    default:
+        break;
     }
     hlen = hash.finish(hbuf);
 }
