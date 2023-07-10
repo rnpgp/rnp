@@ -1186,7 +1186,8 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 /** Set the generated key version to v6.
- * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any time.
+ * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ * time.
  *
  * @param op pointer to opaque key generation context.
  * @return RNP_SUCCESS or error code if failed.

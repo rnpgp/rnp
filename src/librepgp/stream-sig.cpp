@@ -1353,7 +1353,8 @@ pgp_signature_t::parse_v4up(pgp_packet_body_t &pkt)
         break;
     default:
         RNP_LOG("unsupported signature version: %d", (int) version);
-        return RNP_ERROR_BAD_FORMAT;    }
+        return RNP_ERROR_BAD_FORMAT;
+    }
 #else
     uint8_t splen_buf[2];
 #endif
@@ -1447,13 +1448,15 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
 
     /* v3 or v4 or v6 signature body */
     rnp_result_t res;
-    switch(ver) {
-    case PGP_V2: [[fallthrough]];
+    switch (ver) {
+    case PGP_V2:
+        [[fallthrough]];
     case PGP_V3:
         res = parse_v2v3(pkt);
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6: [[fallthrough]];
+    case PGP_V6:
+        [[fallthrough]];
 #endif
     case PGP_V4:
         res = parse_v4up(pkt);
@@ -1605,9 +1608,11 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 void
 pgp_signature_t::write(pgp_dest_t &dst) const
 {
-    switch(version) {
-    case PGP_V2: [[fallthrough]];
-    case PGP_V3: [[fallthrough]];
+    switch (version) {
+    case PGP_V2:
+        [[fallthrough]];
+    case PGP_V3:
+        [[fallthrough]];
     case PGP_V4:
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -1708,18 +1713,20 @@ void
 pgp_signature_t::fill_hashed_data()
 {
     /* we don't have a need to write v2-v3 signatures */
-    switch(version) {
-        case PGP_V2: [[fallthrough]];
-        case PGP_V3: [[fallthrough]];
-        case PGP_V4:
-            break;
+    switch (version) {
+    case PGP_V2:
+        [[fallthrough]];
+    case PGP_V3:
+        [[fallthrough]];
+    case PGP_V4:
+        break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-        case PGP_V6:
-            break;
+    case PGP_V6:
+        break;
 #endif
-        default:
-            RNP_LOG("don't know version %d", (int) version);
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    default:
+        RNP_LOG("don't know version %d", (int) version);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     pgp_packet_body_t hbody(PGP_PKT_RESERVED);
     if (version < PGP_V4) {

@@ -340,7 +340,10 @@ dst_print_mpi(pgp_dest_t *dst, const char *name, pgp_mpi_t *mpi, bool dumpbin)
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 static void
-dst_print_vec(pgp_dest_t *dst, const char *name, std::vector<uint8_t> const &data, bool dumpbin)
+dst_print_vec(pgp_dest_t *                dst,
+              const char *                name,
+              std::vector<uint8_t> const &data,
+              bool                        dumpbin)
 {
     std::vector<char> hex(2 * data.size());
     if (!dumpbin) {
