@@ -751,18 +751,18 @@ pgp_packet_body_t::add_subpackets(const pgp_signature_t &sig, bool hashed)
     if (spbody.data_.size() > 0xffff) {
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
-    switch(sig.version) {
-        case PGP_V4:
-            add_uint16(spbody.data_.size());
-            break;
+    switch (sig.version) {
+    case PGP_V4:
+        add_uint16(spbody.data_.size());
+        break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-        case PGP_V6:
-            add_uint32(spbody.data_.size());
-            break;
+    case PGP_V6:
+        add_uint32(spbody.data_.size());
+        break;
 #endif
-        default:
-            RNP_LOG("should not reach this code");
-            throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    default:
+        RNP_LOG("should not reach this code");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
     add(spbody.data_.data(), spbody.data_.size());
 }

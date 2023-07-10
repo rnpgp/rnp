@@ -1356,7 +1356,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     }
 
 #if defined(ENABLE_CRYPTO_REFRESH)
-        std::vector<uint8_t> tmpbuf;
+    std::vector<uint8_t> tmpbuf;
 #endif
 
     pgp_packet_body_t pkt((pgp_pkt_type_t) atag);
@@ -1373,18 +1373,20 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         RNP_LOG("unable to retrieve key packet version");
         return RNP_ERROR_BAD_FORMAT;
     }
-    switch(ver) {
-        case PGP_V2: [[fallthrough]];
-        case PGP_V3: [[fallthrough]];
-        case PGP_V4:
-            break;
+    switch (ver) {
+    case PGP_V2:
+        [[fallthrough]];
+    case PGP_V3:
+        [[fallthrough]];
+    case PGP_V4:
+        break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-        case PGP_V6:
-            break;
+    case PGP_V6:
+        break;
 #endif
-        default:
-            RNP_LOG("wrong key packet version");
-            return RNP_ERROR_BAD_FORMAT;
+    default:
+        RNP_LOG("wrong key packet version");
+        return RNP_ERROR_BAD_FORMAT;
     }
     version = (pgp_version_t) ver;
     /* creation time */
@@ -1704,16 +1706,16 @@ void
 pgp_key_pkt_t::fill_hashed_data()
 {
     /* we don't have a need to write v2-v3 signatures */
-    switch(version) {
-        case PGP_V4:
-            break;
+    switch (version) {
+    case PGP_V4:
+        break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-        case PGP_V6:
-            break;
+    case PGP_V6:
+        break;
 #endif
-        default:
-            RNP_LOG("unknown key version %d", (int) version);
-            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    default:
+        RNP_LOG("unknown key version %d", (int) version);
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
     pgp_packet_body_t hbody(PGP_PKT_RESERVED);

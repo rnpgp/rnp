@@ -57,15 +57,15 @@ pgp_dilithium_private_key_t::sign(rnp::RNG *rng, const uint8_t *msg, size_t msg_
 Botan::Dilithium_PublicKey
 pgp_dilithium_public_key_t::botan_key() const
 {
-    return Botan::Dilithium_PublicKey(key_encoded_,
-                               rnp_dilithium_param_to_botan_dimension(dilithium_param_));
+    return Botan::Dilithium_PublicKey(
+      key_encoded_, rnp_dilithium_param_to_botan_dimension(dilithium_param_));
 }
 
 Botan::Dilithium_PrivateKey
 pgp_dilithium_private_key_t::botan_key() const
 {
     Botan::secure_vector<uint8_t> priv_sv(key_encoded_.data(),
-                                   key_encoded_.data() + key_encoded_.size());
+                                          key_encoded_.data() + key_encoded_.size());
     return Botan::Dilithium_PrivateKey(
       priv_sv, rnp_dilithium_param_to_botan_dimension(this->dilithium_param_));
 }
@@ -86,8 +86,8 @@ pgp_dilithium_public_key_t::verify_signature(const uint8_t *msg,
 std::pair<pgp_dilithium_public_key_t, pgp_dilithium_private_key_t>
 dilithium_generate_keypair(rnp::RNG *rng, dilithium_parameter_e dilithium_param)
 {
-    Botan::Dilithium_PrivateKey priv_key(*rng->obj(),
-                                  rnp_dilithium_param_to_botan_dimension(dilithium_param));
+    Botan::Dilithium_PrivateKey priv_key(
+      *rng->obj(), rnp_dilithium_param_to_botan_dimension(dilithium_param));
 
     std::unique_ptr<Botan::Public_Key> pub_key = priv_key.public_key();
     Botan::secure_vector<uint8_t>      priv_bits = priv_key.private_key_bits();

@@ -59,7 +59,8 @@ pgp_fingerprint(pgp_fingerprint_t &fp, const pgp_key_pkt_t &key)
 
     switch (key.version) {
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_V6: [[fallthrough]];
+    case PGP_V6:
+        [[fallthrough]];
 #endif
     case PGP_V4:
         break;
