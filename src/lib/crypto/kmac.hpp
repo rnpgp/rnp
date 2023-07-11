@@ -35,18 +35,20 @@
 namespace rnp {
 class KMAC256 {
     /* KDF for PQC key combiner according to
-     * https://datatracker.ietf.org/doc/html/draft-wussler-openpgp-pqc-01 */
+     * https://datatracker.ietf.org/doc/html/draft-wussler-openpgp-pqc-02 */
 
   protected:
-    /*  The value of domSeparation is the UTF-8 encoding of the string "OpenPGPV5CompositeKDF"
-       and MUST be the following octet sequence:
+    /*  The value of domSeparation is the UTF-8 encoding of the string "OpenPGPCompositeKeyDerivationFunction" and MUST be the following octet sequence:
 
-        domSeparation := 4F 70 65 6E 50 47 50 56 35 43 6F
-                  6D 70 6F 73 69 74 65 4B 44 46
+        domSeparation := 4F 70 65 6E 50 47 50 43 6F 6D 70 6F 73 69 74 65
+                         4B 65 79 44 65 72 69 76 61 74 69 6F 6E 46 75 6E
+                         63 74 69 6F 6E
+
     */
     const std::vector<uint8_t> domSeparation_ =
-      std::vector<uint8_t>({0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x56, 0x35, 0x43, 0x6F,
-                            0x6D, 0x70, 0x6F, 0x73, 0x69, 0x74, 0x65, 0x4B, 0x44, 0x46});
+      std::vector<uint8_t>({0x4F, 0x70, 0x65, 0x6E, 0x50, 0x47, 0x50, 0x43, 0x6F, 0x6D, 0x70, 0x6F, 0x73, 0x69, 0x74, 0x65,
+                            0x4B, 0x65, 0x79, 0x44, 0x65, 0x72, 0x69, 0x76, 0x61, 0x74, 0x69, 0x6F, 0x6E, 0x46, 0x75, 0x6E,
+                            0x63, 0x74, 0x69, 0x6F, 0x6E});
 
     /* customizationString := 4B 44 46 */
     const std::vector<uint8_t> customizationString_ = std::vector<uint8_t>({0x4B, 0x44, 0x46});
@@ -57,13 +59,11 @@ class KMAC256 {
     std::vector<uint8_t> domSeparation() const;
     std::vector<uint8_t> customizationString() const;
     std::vector<uint8_t> counter() const;
-    std::vector<uint8_t> fixedInfo(const std::vector<uint8_t> &subkey_pkt_hash,
-                                   pgp_pubkey_alg_t            alg_id);
+    std::vector<uint8_t> fixedInfo(pgp_pubkey_alg_t alg_id);
     std::vector<uint8_t> encData(const std::vector<uint8_t> &ecc_key_share,
                                  const std::vector<uint8_t> &ecc_ciphertext,
                                  const std::vector<uint8_t> &kyber_key_share,
                                  const std::vector<uint8_t> &kyber_ciphertext,
-                                 const std::vector<uint8_t> &subkey_pkt_hash,
                                  pgp_pubkey_alg_t            alg_id);
 
     KMAC256(){};
@@ -77,7 +77,6 @@ class KMAC256 {
                          const std::vector<uint8_t> &kyber_key_share,
                          const std::vector<uint8_t> &kyber_ciphertext,
                          const pgp_pubkey_alg_t      alg_id,
-                         const std::vector<uint8_t> &subkey_pkt_hash,
                          std::vector<uint8_t> &      out) = 0;
 
     virtual ~KMAC256();
