@@ -58,11 +58,8 @@ KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
 
     kmac->set_key(domSeparation());
     kmac->start(customizationString()); // set nonce
-    kmac->update(encData(ecc_key_share,
-                         ecc_ciphertext,
-                         kyber_key_share,
-                         kyber_ciphertext,
-                         alg_id));
+    kmac->update(
+      encData(ecc_key_share, ecc_ciphertext, kyber_key_share, kyber_ciphertext, alg_id));
     out = kmac->final_stdvec();
 }
 
