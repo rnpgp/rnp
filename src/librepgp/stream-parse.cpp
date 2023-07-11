@@ -1494,6 +1494,30 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 #endif
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* The crypto refresh mandates that for a X25519/X448 PKESKv3, AES MUST be used.
+   The same is true for the PQC algorithms defined in draft-wussler-openpgp-pqc-02.
+ */
+static bool
+do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
+{
+    switch(alg)
+    {
+#if defined(ENABLE_PQC)
+    case PGP_PKA_KYBER768_X25519: [[fallthrough]];
+    case PGP_PKA_KYBER768_P256: [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384: [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256: [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384: [[fallthrough]];
+#endif
+    case PGP_PKA_X25519:
+        return true;
+    default:
+        return false;
+    }
+}
+#endif
+
 static bool
 encrypted_try_key(pgp_source_encrypted_param_t *param,
                   pgp_pk_sesskey_t *            sesskey,
@@ -1525,17 +1549,16 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
         return false;
     }
-
-    /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
-    if (sesskey->alg == PGP_PKA_X25519 && sesskey->version == PGP_PKSK_V3) {
+    
+    /* check that AES is used when mandated by the standard */
+    if (do_enforce_aes_v3pkesk(sesskey->alg) && sesskey->version == PGP_PKSK_V3) {
         switch (sesskey->salg) {
         case PGP_SA_AES_128:
         case PGP_SA_AES_192:
         case PGP_SA_AES_256:
             break;
         default:
-            RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric "
-                    "algorithm that is not AES.");
+            RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is allowed but another algorithm has been detected.");
             return false;
         }
     }
@@ -1628,7 +1651,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         pgp_key_t key(*seckey, true); /* make public-key `pgp_key_t` object from seckey */
         declen = decbuf.size();
         err = keymaterial->kyber_ecdh.priv.decrypt(
-          &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh, key.subkey_pkt_hash());
+          &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh);
         if (err != RNP_SUCCESS) {
             RNP_LOG("Kyber ECC decryption failure");
             return false;

@@ -295,9 +295,10 @@ namespace {
 std::vector<uint8_t>
 hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
                     const std::vector<uint8_t> &ciphertext,
+                    const std::vector<uint8_t> &ecc_pubkey,
                     pgp_pubkey_alg_t            alg_id)
 {
-    /* SHA3-256(X || eccCipherText) or SHA3-256(X || eccCipherText) depending on algorithm */
+    /* SHA3-256(X || eccCipherText) or SHA3-512(X || eccCipherText) depending on algorithm */
 
     std::vector<uint8_t> digest;
     pgp_hash_alg_t       hash_alg;
@@ -321,6 +322,7 @@ hashed_ecc_keyshare(const std::vector<uint8_t> &key_share,
     auto hash = rnp::Hash::create(hash_alg);
     hash->add(key_share);
     hash->add(ciphertext);
+    hash->add(ecc_pubkey);
 
     digest.resize(rnp::Hash::size(hash_alg));
     hash->finish(digest.data());
@@ -333,11 +335,9 @@ rnp_result_t
 pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                        rng,
                                                 uint8_t *                         out,
                                                 size_t *                          out_len,
-                                                const pgp_kyber_ecdh_encrypted_t *enc,
-                                                const std::vector<uint8_t> &subkey_pkt_hash)
+                                                const pgp_kyber_ecdh_encrypted_t *enc)
 {
     initialized_or_throw();
-    assert(subkey_pkt_hash.size() == rnp::Hash::size(PGP_HASH_SHA3_256));
     rnp_result_t         res;
     std::vector<uint8_t> ecdh_keyshare;
     std::vector<uint8_t> hashed_ecdh_keyshare;
@@ -360,7 +360,7 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
         return res;
     }
     hashed_ecdh_keyshare =
-      hashed_ecc_keyshare(ecdh_keyshare, ecdh_encapsulated_keyshare, pk_alg_);
+      hashed_ecc_keyshare(ecdh_keyshare, ecdh_encapsulated_keyshare, ecdh_key_->get_pubkey_encoded(rng), pk_alg_);
 
     // Compute (kyberKeyShare) := kyberKem.decap(kyberCipherText, kyberPrivateKey)
     std::vector<uint8_t> kyber_encapsulated_keyshare = std::vector<uint8_t>(
@@ -382,7 +382,6 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
                   kyber_keyshare,
                   kyber_encapsulated_keyshare,
                   pk_alg(),
-                  subkey_pkt_hash,
                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
@@ -492,11 +491,9 @@ rnp_result_t
 pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                                                pgp_kyber_ecdh_encrypted_t *out,
                                                const uint8_t *             session_key,
-                                               size_t                      session_key_len,
-                                               const std::vector<uint8_t> &subkey_pkt_hash)
+                                               size_t                      session_key_len)
 {
     initialized_or_throw();
-    assert(subkey_pkt_hash.size() == rnp::Hash::size(PGP_HASH_SHA3_256));
 
     rnp_result_t         res;
     std::vector<uint8_t> ecdh_ciphertext;
@@ -515,7 +512,7 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
         return res;
     }
     ecdh_hashed_symmetric_key =
-      hashed_ecc_keyshare(ecdh_symmetric_key, ecdh_ciphertext, pk_alg_);
+      hashed_ecc_keyshare(ecdh_symmetric_key, ecdh_ciphertext, ecdh_key_.get_encoded(), pk_alg_);
 
     // Compute (kyberCipherText, kyberKeyShare) := kyberKem.encap(kyberPublicKey)
     kyber_encap_result_t kyber_encap = kyber_key_.encapsulate(rng);
@@ -529,7 +526,6 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
                   kyber_encap.symmetric_key,
                   kyber_encap.ciphertext,
                   pk_alg(),
-                  subkey_pkt_hash,
                   kek_vec);
     Botan::SymmetricKey kek(kek_vec);
 
