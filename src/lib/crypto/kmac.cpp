@@ -84,7 +84,7 @@ KMAC256::encData(const std::vector<uint8_t> &ecc_key_share,
                  const std::vector<uint8_t> &ecc_ciphertext,
                  const std::vector<uint8_t> &kyber_key_share,
                  const std::vector<uint8_t> &kyber_ciphertext,
-                 pgp_pubkey_alg_t           alg_id)
+                 pgp_pubkey_alg_t            alg_id)
 {
     std::vector<uint8_t> enc_data;
     std::vector<uint8_t> counter_vec = counter();
