@@ -733,8 +733,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = userkey->material().kyber_ecdh.pub.encrypt(&handler->ctx->ctx->rng,
                                                          &material.kyber_ecdh,
                                                          enckey.data(),
-                                                         enckey_len,
-                                                         userkey->subkey_pkt_hash());
+                                                         enckey_len);
         if (ret) {
             RNP_LOG("Kyber ECC Encrypt failed");
             return ret;

@@ -111,6 +111,8 @@ class ecdh_kem_private_key_t : public ec_key_t {
         return Botan::unlock(key_);
     }
 
+    std::vector<uint8_t> get_pubkey_encoded(rnp::RNG *rng) const;
+
     rnp_result_t decapsulate(rnp::RNG *                  rng,
                              const std::vector<uint8_t> &ciphertext,
                              std::vector<uint8_t> &      plaintext);
