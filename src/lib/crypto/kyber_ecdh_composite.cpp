@@ -359,8 +359,8 @@ pgp_kyber_ecdh_composite_private_key_t::decrypt(rnp::RNG *                      
         RNP_LOG("error when decrypting kyber-ecdh encrypted session key");
         return res;
     }
-    hashed_ecdh_keyshare =
-      hashed_ecc_keyshare(ecdh_keyshare, ecdh_encapsulated_keyshare, ecdh_key_->get_pubkey_encoded(rng), pk_alg_);
+    hashed_ecdh_keyshare = hashed_ecc_keyshare(
+      ecdh_keyshare, ecdh_encapsulated_keyshare, ecdh_key_->get_pubkey_encoded(rng), pk_alg_);
 
     // Compute (kyberKeyShare) := kyberKem.decap(kyberCipherText, kyberPrivateKey)
     std::vector<uint8_t> kyber_encapsulated_keyshare = std::vector<uint8_t>(
@@ -511,8 +511,8 @@ pgp_kyber_ecdh_composite_public_key_t::encrypt(rnp::RNG *                  rng,
         RNP_LOG("error when encapsulating with ECDH");
         return res;
     }
-    ecdh_hashed_symmetric_key =
-      hashed_ecc_keyshare(ecdh_symmetric_key, ecdh_ciphertext, ecdh_key_.get_encoded(), pk_alg_);
+    ecdh_hashed_symmetric_key = hashed_ecc_keyshare(
+      ecdh_symmetric_key, ecdh_ciphertext, ecdh_key_.get_encoded(), pk_alg_);
 
     // Compute (kyberCipherText, kyberKeyShare) := kyberKem.encap(kyberPublicKey)
     kyber_encap_result_t kyber_encap = kyber_key_.encapsulate(rng);

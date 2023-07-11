@@ -1501,14 +1501,18 @@ encrypted_start_aead(pgp_source_encrypted_param_t *param, pgp_symm_alg_t alg, ui
 static bool
 do_enforce_aes_v3pkesk(pgp_pubkey_alg_t alg)
 {
-    switch(alg)
-    {
+    switch (alg) {
 #if defined(ENABLE_PQC)
-    case PGP_PKA_KYBER768_X25519: [[fallthrough]];
-    case PGP_PKA_KYBER768_P256: [[fallthrough]];
-    case PGP_PKA_KYBER1024_P384: [[fallthrough]];
-    case PGP_PKA_KYBER768_BP256: [[fallthrough]];
-    case PGP_PKA_KYBER1024_BP384: [[fallthrough]];
+    case PGP_PKA_KYBER768_X25519:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_P256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_P384:
+        [[fallthrough]];
+    case PGP_PKA_KYBER768_BP256:
+        [[fallthrough]];
+    case PGP_PKA_KYBER1024_BP384:
+        [[fallthrough]];
 #endif
     case PGP_PKA_X25519:
         return true;
@@ -1549,7 +1553,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
         return false;
     }
-    
+
     /* check that AES is used when mandated by the standard */
     if (do_enforce_aes_v3pkesk(sesskey->alg) && sesskey->version == PGP_PKSK_V3) {
         switch (sesskey->salg) {
@@ -1558,7 +1562,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         case PGP_SA_AES_256:
             break;
         default:
-            RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is allowed but another algorithm has been detected.");
+            RNP_LOG("For the given asymmetric encryption algorithm in the PKESK, only AES is "
+                    "allowed but another algorithm has been detected.");
             return false;
         }
     }
