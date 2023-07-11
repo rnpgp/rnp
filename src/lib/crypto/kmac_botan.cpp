@@ -46,7 +46,6 @@ KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
                        const std::vector<uint8_t> &kyber_key_share,
                        const std::vector<uint8_t> &kyber_ciphertext,
                        const pgp_pubkey_alg_t      alg_id,
-                       const std::vector<uint8_t> &subkey_pkt_hash,
                        std::vector<uint8_t> &      out)
 {
     auto kmac = Botan::MessageAuthenticationCode::create_or_throw("KMAC256(256)");
@@ -63,7 +62,6 @@ KMAC256_Botan::compute(const std::vector<uint8_t> &ecc_key_share,
                          ecc_ciphertext,
                          kyber_key_share,
                          kyber_ciphertext,
-                         subkey_pkt_hash,
                          alg_id));
     out = kmac->final_stdvec();
 }

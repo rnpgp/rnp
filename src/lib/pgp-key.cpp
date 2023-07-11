@@ -2774,21 +2774,6 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
     return true;
 }
 
-#if defined(ENABLE_PQC)
-std::vector<uint8_t>
-pgp_key_t::subkey_pkt_hash() const
-{
-    const pgp_hash_alg_t pk_pkt_hash_alg = PGP_HASH_SHA3_256;
-    std::vector<uint8_t> out(rnp::Hash::size(pk_pkt_hash_alg));
-
-    auto pk_pkt_hash = rnp::Hash::create(pk_pkt_hash_alg);
-    pk_pkt_hash->add(rawpkt_.raw);
-    pk_pkt_hash->finish(out.data());
-
-    return out;
-}
-#endif
-
 pgp_curve_t
 pgp_key_material_t::curve() const
 {

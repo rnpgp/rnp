@@ -97,8 +97,7 @@ class pgp_kyber_ecdh_composite_private_key_t : public pgp_kyber_ecdh_composite_k
     rnp_result_t decrypt(rnp::RNG *                        rng,
                          uint8_t *                         out,
                          size_t *                          out_len,
-                         const pgp_kyber_ecdh_encrypted_t *enc,
-                         const std::vector<uint8_t> &      subkey_pkt_hash);
+                         const pgp_kyber_ecdh_encrypted_t *enc);
 
     bool                 is_valid(rnp::RNG *rng) const;
     std::vector<uint8_t> get_encoded() const;
@@ -147,8 +146,7 @@ class pgp_kyber_ecdh_composite_public_key_t : public pgp_kyber_ecdh_composite_ke
     rnp_result_t encrypt(rnp::RNG *                  rng,
                          pgp_kyber_ecdh_encrypted_t *out,
                          const uint8_t *             in,
-                         size_t                      in_len,
-                         const std::vector<uint8_t> &subkey_pkt_hash);
+                         size_t                      in_len);
 
     bool                 is_valid(rnp::RNG *rng) const;
     std::vector<uint8_t> get_encoded() const;

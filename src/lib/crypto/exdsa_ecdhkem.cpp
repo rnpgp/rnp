@@ -100,6 +100,18 @@ ecdh_kem_public_key_t::botan_key_x25519() const
     return Botan::Curve25519_PublicKey(key_);
 }
 
+std::vector<uint8_t>
+ecdh_kem_private_key_t::get_pubkey_encoded(rnp::RNG *rng) const
+{
+    if (curve_ == PGP_CURVE_25519) {
+        Botan::X25519_PrivateKey botan_key = botan_key_x25519();
+        return botan_key.public_value();
+    } else {
+        Botan::ECDH_PrivateKey botan_key = botan_key_ecdh(rng);
+        return botan_key.public_value();
+    }
+}
+
 rnp_result_t
 ecdh_kem_public_key_t::encapsulate(rnp::RNG *            rng,
                                    std::vector<uint8_t> &ciphertext,
