@@ -613,11 +613,17 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
         goto end;
     }
 
+    fprintf(stderr, "saved_stdin: %i\n", saved_stdin);
+
     if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
         ret = false;
         goto end;
     }
     if (dup2(saved_stdin, STDIN_FILENO) == -1) {
+        ret = false;
+        goto end;
+    }
+    if (fcntl(STDIN_FILENO, F_SETFD, FD_CLOEXEC) == -1) {
         ret = false;
         goto end;
     }
