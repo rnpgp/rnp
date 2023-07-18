@@ -4551,6 +4551,157 @@ TEST_F(rnp_tests, test_reprotect_keys)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_v5_keys)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* v5 rsa-rsa public key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-rsa-pub.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "b856a4197113d431927b925248f026615f9f390b26bc1676e81f072c70f539e9",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "442238389AFF3D83492606F0139655330EECA70E"));
+    rnp_key_handle_destroy(key);
+    /* Locate subkey via keyid */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2d400055b0345c33", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "2D400055B0345C33363F03A72F4D2363C18298ED005780BFB2C4351FEE15446C"));
+    assert_true(check_key_grip(key, "E68FD5C5250C21D4D4646226C9A048729B2DDC21"));
+    rnp_key_handle_destroy(key);
+
+    /* add v5 rsa-rsa secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-rsa-sec.asc"));
+    assert_true(check_has_key(ffi, "b856a4197113d431", true));
+    assert_true(check_has_key(ffi, "2d400055b0345c33", true));
+
+    /* v5 dsa-eg public key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-dsa-eg-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "3069f583308ac3e4a5517a07c487756da7f7456cee5e2bdf00411b7bb00dee82",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "48ABC799737F65015C143E28E80BF91018F101D5"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "8514df0cab25f0d3", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "8514DF0CAB25F0D34768F09850BE1CB6EF007630F8D02E5E2DEAD1C83C30412D"));
+    assert_true(check_key_grip(key, "B14996A317484FC50DAB2B01F49B803E29DC687A"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-dsa-eg-sec.asc"));
+    assert_true(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_true(check_has_key(ffi, "8514df0cab25f0d3", true));
+
+    /* v5 ecc 25519 key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-25519-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "817f60336bb9d133b59f1b91fdebe36796c1b2f47907bab49a7eb981dc719dc0",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "AC3EA2D975FF76029DFE1E9AB01F5DB36CF8B912"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "08b67c2205cfd75b", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "08B67C2205CFD75BF6E545BBFF075AAAAB1A0A37E75E05699D892B797FB02493"));
+    assert_true(check_key_grip(key, "49F25BE1255F2A726B79DF52D5EC87160C47A11D"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-25519-sec.asc"));
+    assert_true(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_true(check_has_key(ffi, "08b67c2205cfd75b", true));
+
+    /* v5 ecc 448 key : not supported yet */
+    assert_false(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-448-pub.asc"));
+    assert_false(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-448-sec.asc"));
+
+    /* v5 ecc p256 key */
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/v5-ecc-p256-pub.asc"));
+    key = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi,
+                     "fingerprint",
+                     "de96db9d6198a7a0183e29e56e48d548ca914a999fe99fbad93d077ebe61a1ef",
+                     &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_uid_valid(key, 0, true));
+    assert_true(check_sub_valid(key, 0, true));
+    assert_true(check_key_grip(key, "C4AC4AE27A21DA9B760573133E07E443C562C0E6"));
+    rnp_key_handle_destroy(key);
+    /* subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "da25a0907380d168", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(
+      check_key_fp(key, "DA25A0907380D16850850C89B01D9466E79A714990595A55AA477B9CE60E970F"));
+    assert_true(check_key_grip(key, "A8B7B80C256BB50C997FD38902C434C281946A43"));
+    rnp_key_handle_destroy(key);
+    /* secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-ecc-p256-sec.asc"));
+    assert_true(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_true(check_has_key(ffi, "da25a0907380d168", true));
+
+    reload_keyrings(&ffi);
+    /* v5 rsa */
+    assert_true(check_has_key(ffi, "b856a4197113d431", true));
+    assert_true(check_has_key(ffi, "2d400055b0345c33", true));
+    /* v5 dsa-eg */
+    assert_true(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_true(check_has_key(ffi, "8514df0cab25f0d3", true));
+    /* v5 ecc 25519 */
+    assert_true(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_true(check_has_key(ffi, "08b67c2205cfd75b", true));
+    /* v5 p256 */
+    assert_true(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_true(check_has_key(ffi, "da25a0907380d168", true));
+
+    rnp_ffi_destroy(ffi);
+}
+
+TEST_F(rnp_tests, test_v5_keys_g23)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "KBX", "G10"));
+    /* New format which is not supported yet */
+    assert_false(load_keys_kbx_g10(ffi,
+                                   "data/test_stream_key_load/g23-v5/pubring.kbx",
+                                   "data/test_stream_key_load/g23-v5/private-keys-v1.d"));
+
+    /* v5 rsa */
+    assert_false(check_has_key(ffi, "b856a4197113d431", true));
+    assert_false(check_has_key(ffi, "2d400055b0345c33", true));
+    /* v5 dsa-eg */
+    assert_false(check_has_key(ffi, "3069f583308ac3e4", true));
+    assert_false(check_has_key(ffi, "8514df0cab25f0d3", true));
+    /* v5 ecc 25519 */
+    assert_false(check_has_key(ffi, "817f60336bb9d133", true));
+    assert_false(check_has_key(ffi, "08b67c2205cfd75b", true));
+    /* v5 p256 */
+    assert_false(check_has_key(ffi, "de96db9d6198a7a0", true));
+    assert_false(check_has_key(ffi, "da25a0907380d168", true));
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_armored_keys_extra_line)
 {
     rnp_ffi_t ffi = NULL;

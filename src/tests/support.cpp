@@ -1125,6 +1125,67 @@ check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity)
     return valid == validity;
 }
 
+bool
+check_key_grip(rnp_key_handle_t key, const std::string &expected)
+{
+    char *grip = NULL;
+    if (rnp_key_get_grip(key, &grip)) {
+        return false;
+    }
+    bool res = !strcmp(grip, expected.c_str());
+    rnp_buffer_destroy(grip);
+    return res;
+}
+
+bool
+check_key_fp(rnp_key_handle_t key, const std::string &expected)
+{
+    char *fp = NULL;
+    if (rnp_key_get_fprint(key, &fp)) {
+        return false;
+    }
+    bool res = !strcmp(fp, expected.c_str());
+    rnp_buffer_destroy(fp);
+    return res;
+}
+
+bool
+check_has_key(rnp_ffi_t ffi, const std::string &id, bool secret, bool valid)
+{
+    rnp_key_handle_t key = NULL;
+    switch (id.size()) {
+    /* keyid with or without 0x */
+    case 16:
+    case 18:
+        if (rnp_locate_key(ffi, "keyid", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    /* v4 fingerprint with or without 0x */
+    case 40:
+    case 42:
+    /* v5 fingerprint with or without 0x */
+    case 64:
+    case 66:
+        if (rnp_locate_key(ffi, "fingerprint", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    default:
+        if (rnp_locate_key(ffi, "userid", id.c_str(), &key) || !key) {
+            return false;
+        }
+        break;
+    }
+    bool res = true;
+    if (secret && rnp_key_have_secret(key, &res)) {
+        res = false;
+    }
+    res = res && check_key_valid(key, valid);
+    rnp_key_handle_destroy(key);
+    return res;
+}
+
 rnp_key_handle_t
 bogus_key_handle(rnp_ffi_t ffi)
 {

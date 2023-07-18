@@ -260,6 +260,12 @@ void     check_loaded_keys(const char *                    format,
                            const char *                    id_type,
                            const std::vector<std::string> &expected_ids,
                            bool                            secret);
+bool     check_key_grip(rnp_key_handle_t key, const std::string &expected);
+bool     check_key_fp(rnp_key_handle_t key, const std::string &expected);
+bool     check_has_key(rnp_ffi_t          ffi,
+                       const std::string &id,
+                       bool               secret = false,
+                       bool               valid = true);
 
 /* create bogus key handle with NULL pub/sec keys */
 rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
