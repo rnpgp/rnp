@@ -45,8 +45,6 @@ bool mem2mpi(pgp_mpi_t *val, const void *mem, size_t len);
 
 void mpi2mem(const pgp_mpi_t *val, void *mem);
 
-char *mpi2hex(const pgp_mpi_t *val);
-
 size_t mpi_bits(const pgp_mpi_t *val);
 
 size_t mpi_bytes(const pgp_mpi_t *val);

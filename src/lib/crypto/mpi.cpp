@@ -72,29 +72,6 @@ mpi2mem(const pgp_mpi_t *val, void *mem)
     memcpy(mem, val->mpi, val->len);
 }
 
-char *
-mpi2hex(const pgp_mpi_t *val)
-{
-    static const char *hexes = "0123456789abcdef";
-    char *             out;
-    size_t             len;
-    size_t             idx = 0;
-
-    len = mpi_bytes(val);
-    out = (char *) malloc(len * 2 + 1);
-
-    if (!out) {
-        return out;
-    }
-
-    for (size_t i = 0; i < len; i++) {
-        out[idx++] = hexes[val->mpi[i] >> 4];
-        out[idx++] = hexes[val->mpi[i] & 0xf];
-    }
-    out[idx] = '\0';
-    return out;
-}
-
 bool
 mpi_equal(const pgp_mpi_t *val1, const pgp_mpi_t *val2)
 {

@@ -7382,21 +7382,12 @@ add_json_mpis(json_object *jso, ...)
             ret = RNP_ERROR_BAD_PARAMETERS;
             goto done;
         }
-        char *hex = mpi2hex(val);
-        if (!hex) {
-            // this could probably be other things
+        if (!json_add_hex(jso, name, val->mpi, val->len)) {
             ret = RNP_ERROR_OUT_OF_MEMORY;
             goto done;
         }
-        if (!json_add(jso, name, hex)) {
-            free(hex);
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
-        free(hex);
     }
     ret = RNP_SUCCESS;
-
 done:
     va_end(ap);
     return ret;
