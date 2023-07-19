@@ -147,6 +147,8 @@ typedef struct pgp_source_signed_param_t {
     size_t               text_line_len;   /* length of a current line in a text document */
     long stripped_crs; /* number of trailing CR characters stripped from the end of the last
                           processed chunk */
+    pgp_literal_hdr_t lhdr{};
+    bool              has_lhdr = false;
 
     std::vector<pgp_one_pass_sig_t>   onepasses;  /* list of one-pass singatures */
     std::list<pgp_signature_t>        sigs;       /* list of signatures */
@@ -892,7 +894,8 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
             return;
         }
         auto shash = hash->clone();
-        key->validate_sig(sinfo, *shash, *param.handler->ctx->ctx);
+        key->validate_sig(
+          sinfo, *shash, *param.handler->ctx->ctx, param.has_lhdr ? &param.lhdr : NULL);
     } catch (const std::exception &e) {
         RNP_LOG("Signature validation failed: %s", e.what());
         sinfo.valid = false;
@@ -909,6 +912,14 @@ stripped_line_len(uint8_t *begin, uint8_t *end)
     }
 
     return stripped_end - begin + 1;
+}
+
+static void
+signed_src_set_literal_hdr(pgp_source_t &src, const pgp_literal_hdr_t &hdr)
+{
+    auto param = static_cast<pgp_source_signed_param_t *>(src.param);
+    param->lhdr = hdr;
+    param->has_lhdr = true;
 }
 
 static void
@@ -1129,6 +1140,14 @@ signed_src_finish(pgp_source_t *src)
 
     if (ret) {
         return ret;
+    }
+
+    /* See https://dev.gnupg.org/T6615 for the details */
+    if (param->cleartext) {
+        param->lhdr.format = 't';
+        param->lhdr.fname_len = 0;
+        param->lhdr.timestamp = 0;
+        param->has_lhdr = true;
     }
 
     if (!src->eof()) {
@@ -2899,13 +2918,16 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         }
         /* file processing case */
         decsrc = &ctx.sources.back();
-        char *   filename = NULL;
-        uint32_t mtime = 0;
+        const char *filename = NULL;
+        uint32_t    mtime = 0;
 
         if (ctx.literal_src) {
-            auto *param = static_cast<pgp_source_literal_param_t *>(ctx.literal_src->param);
-            filename = param->hdr.fname;
-            mtime = param->hdr.timestamp;
+            auto &hdr = get_literal_src_hdr(*ctx.literal_src);
+            filename = hdr.fname;
+            mtime = hdr.timestamp;
+            if (ctx.signed_src) {
+                signed_src_set_literal_hdr(*ctx.signed_src, hdr);
+            }
         }
 
         if (!handler->dest_provider ||
