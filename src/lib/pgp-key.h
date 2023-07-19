@@ -416,10 +416,12 @@ struct pgp_key_t {
      * @param sinfo populated signature info. Validation results will be stored here.
      * @param hash hash, feed with all signed data except signature trailer.
      * @param ctx Populated security context.
+     * @param hdr literal packet header for attached document signatures or NULL otherwise.
      */
     void validate_sig(pgp_signature_info_t &      sinfo,
                       rnp::Hash &                 hash,
-                      const rnp::SecurityContext &ctx) const noexcept;
+                      const rnp::SecurityContext &ctx,
+                      const pgp_literal_hdr_t *   hdr = NULL) const noexcept;
 
     /**
      * @brief Validate certification.
