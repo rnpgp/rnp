@@ -31,6 +31,7 @@
 #include <limits.h>
 #include "json_object.h"
 #include "json.h"
+#include "types.h"
 
 /**
  * @brief Add field to the json object.
@@ -41,34 +42,59 @@
  * @param val json object of any type. Will be checked for NULL.
  * @return true if val is not NULL and field was added successfully, false otherwise.
  */
-bool obj_add_field_json(json_object *obj, const char *name, json_object *val);
+bool json_add(json_object *obj, const char *name, json_object *val);
 
 /**
- * @brief Shortcut to add string via obj_add_field_json().
+ * @brief Shortcut to add string via json_add().
  */
 bool json_add(json_object *obj, const char *name, const char *value);
 
 /**
- * @brief Shortcut to add string with length via obj_add_field_json().
+ * @brief Shortcut to add string with length via json_add().
  */
 bool json_add(json_object *obj, const char *name, const char *value, size_t len);
 
 /**
- * @brief Shortcut to add bool via obj_add_field_json().
+ * @brief Shortcut to add bool via json_add().
  */
 bool json_add(json_object *obj, const char *name, bool value);
 
 /**
- * @brief Add hex representation of binary data as string field to JSON object.
- *        Note: this function follows conventions of obj_add_field_json().
+ * @brief Shortcut to add int via json_add().
  */
-bool obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t val_len);
+bool json_add(json_object *obj, const char *name, int value);
+
+/**
+ * @brief Shortcut to add uint64 via json_add().
+ */
+bool json_add(json_object *obj, const char *name, uint64_t value);
+
+/**
+ * @brief Add hex representation of binary data as string field to JSON object.
+ *        Note: this function follows conventions of json_add().
+ */
+bool json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_len);
+
+/**
+ * @brief Shortcut to add keyid via json_add_hex().
+ */
+bool json_add(json_object *obj, const char *name, const pgp_key_id_t &keyid);
+
+/**
+ * @brief Shortcut to add fingerprint via json_add_hex().
+ */
+bool json_add(json_object *obj, const char *name, const pgp_fingerprint_t &fp);
+
+/**
+ * @brief Shortcut to add string to the json array.
+ */
+bool json_array_add(json_object *obj, const char *val);
 
 /**
  * @brief Add element to JSON array.
- *        Note: this function follows convention of the obj_add_field_json.
+ *        Note: this function follows convention of the json_add.
  */
-bool array_add_element_json(json_object *obj, json_object *val);
+bool json_array_add(json_object *obj, json_object *val);
 
 namespace rnp {
 class JSONObject {
