@@ -31,7 +31,7 @@
 /* Shortcut function to add field checking it for null to avoid allocation failure.
    Please note that it deallocates val on failure. */
 bool
-obj_add_field_json(json_object *obj, const char *name, json_object *val)
+json_add(json_object *obj, const char *name, json_object *val)
 {
     if (!val) {
         return false;
@@ -49,23 +49,39 @@ obj_add_field_json(json_object *obj, const char *name, json_object *val)
 bool
 json_add(json_object *obj, const char *name, const char *value)
 {
-    return obj_add_field_json(obj, name, json_object_new_string(value));
+    return json_add(obj, name, json_object_new_string(value));
 }
 
 bool
 json_add(json_object *obj, const char *name, bool value)
 {
-    return obj_add_field_json(obj, name, json_object_new_boolean(value));
+    return json_add(obj, name, json_object_new_boolean(value));
+}
+
+bool
+json_add(json_object *obj, const char *name, int value)
+{
+    return json_add(obj, name, json_object_new_int(value));
+}
+
+bool
+json_add(json_object *obj, const char *name, uint64_t value)
+{
+#if (JSON_C_MAJOR_VERSION == 0) && (JSON_C_MINOR_VERSION < 14)
+    return json_add(obj, name, json_object_new_int64(value));
+#else
+    return json_add(obj, name, json_object_new_uint64(value));
+#endif
 }
 
 bool
 json_add(json_object *obj, const char *name, const char *value, size_t len)
 {
-    return obj_add_field_json(obj, name, json_object_new_string_len(value, len));
+    return json_add(obj, name, json_object_new_string_len(value, len));
 }
 
 bool
-obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
+json_add_hex(json_object *obj, const char *name, const uint8_t *val, size_t val_len)
 {
     if (val_len > 1024 * 1024) {
         RNP_LOG("too large json hex field: %zu", val_len);
@@ -81,7 +97,7 @@ obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t 
     }
 
     bool res = rnp::hex_encode(val, val_len, hexbuf, hexlen, rnp::HEX_LOWERCASE) &&
-               obj_add_field_json(obj, name, json_object_new_string(hexbuf));
+               json_add(obj, name, json_object_new_string(hexbuf));
 
     if (hexbuf != smallbuf) {
         free(hexbuf);
@@ -90,7 +106,25 @@ obj_add_hex_json(json_object *obj, const char *name, const uint8_t *val, size_t 
 }
 
 bool
-array_add_element_json(json_object *obj, json_object *val)
+json_add(json_object *obj, const char *name, const pgp_key_id_t &keyid)
+{
+    return json_add_hex(obj, name, keyid.data(), keyid.size());
+}
+
+bool
+json_add(json_object *obj, const char *name, const pgp_fingerprint_t &fp)
+{
+    return json_add_hex(obj, name, fp.fingerprint, fp.length);
+}
+
+bool
+json_array_add(json_object *obj, const char *val)
+{
+    return json_array_add(obj, json_object_new_string(val));
+}
+
+bool
+json_array_add(json_object *obj, json_object *val)
 {
     if (!val) {
         return false;
