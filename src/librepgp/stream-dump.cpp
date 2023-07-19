@@ -902,6 +902,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, "v3 validity days: %d\n", (int) key.v3_days);
     }
     dst_print_palg(dst, NULL, key.alg);
+    if (key.version == PGP_V5) {
+        dst_printf(dst, "v5 public key material length: %" PRIu32 "\n", key.v5_pub_len);
+    }
     dst_printf(dst, "public key material:\n");
     indent_dest_increase(dst);
 
@@ -998,6 +1001,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         indent_dest_increase(dst);
 
         dst_printf(dst, "s2k usage: %d\n", (int) key.sec_protection.s2k.usage);
+        if (key.version == PGP_V5) {
+            dst_printf(dst, "v5 s2k length: %" PRIu8 "\n", key.v5_s2k_len);
+        }
         if ((key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED) ||
             (key.sec_protection.s2k.usage == PGP_S2KU_ENCRYPTED_AND_HASHED)) {
             dst_print_salg(dst, NULL, key.sec_protection.symm_alg);
@@ -1010,11 +1016,15 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                     dst_printf(dst, "cipher iv: unknown algorithm\n");
                 }
             }
-            dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
         }
 
+        if (key.version == PGP_V5) {
+            dst_printf(dst, "v5 secret key data length: %" PRIu32 "\n", key.v5_sec_len);
+        }
         if (!key.sec_protection.s2k.usage) {
             dst_printf(dst, "cleartext secret key data: %d bytes\n", (int) key.sec_len);
+        } else {
+            dst_printf(dst, "encrypted secret key data: %d bytes\n", (int) key.sec_len);
         }
         indent_dest_decrease(dst);
     }
@@ -2057,6 +2067,10 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    if ((key.version == PGP_V5) &&
+        !json_add(pkt, "v5 public key material length", (int) key.v5_pub_len)) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
 
     material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
@@ -2163,12 +2177,20 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!json_add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
+        if ((key.version == PGP_V5) &&
+            !json_add(material, "v5 s2k length", (int) key.v5_s2k_len)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (key.sec_protection.s2k.usage &&
             !obj_add_intstr_json(
               material, "symmetric algorithm", key.sec_protection.symm_alg, symm_alg_map)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
+        }
+        if ((key.version == PGP_V5) &&
+            !json_add(material, "v5 secret key data length", (int) key.v5_sec_len)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
