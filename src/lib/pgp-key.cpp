@@ -2007,7 +2007,8 @@ pgp_key_t::validate_sig(const pgp_key_t &           key,
 void
 pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
                         rnp::Hash &                 hash,
-                        const rnp::SecurityContext &ctx) const noexcept
+                        const rnp::SecurityContext &ctx,
+                        const pgp_literal_hdr_t *   hdr) const noexcept
 {
     sinfo.no_signer = false;
     sinfo.valid = false;
@@ -2015,7 +2016,7 @@ pgp_key_t::validate_sig(pgp_signature_info_t &      sinfo,
 
     /* Validate signature itself */
     if (sinfo.signer_valid || valid_at(sinfo.sig->creation())) {
-        sinfo.valid = !signature_validate(*sinfo.sig, pkt_.material, hash, ctx);
+        sinfo.valid = !signature_validate(*sinfo.sig, pkt_.material, hash, ctx, hdr);
     } else {
         sinfo.valid = false;
         RNP_LOG("invalid or untrusted key");

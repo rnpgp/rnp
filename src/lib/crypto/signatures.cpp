@@ -39,10 +39,15 @@
  * @param sig populated or loaded signature
  * @param hbuf buffer to store the resulting hash. Must be large enough for hash output.
  * @param hlen on success will be filled with the hash size, otherwise zeroed
+ * @param hdr literal packet header for attached signatures or NULL otherwise.
  * @return RNP_SUCCESS on success or some error otherwise
  */
 static void
-signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf, size_t &hlen)
+signature_hash_finish(const pgp_signature_t &  sig,
+                      rnp::Hash &              hash,
+                      uint8_t *                hbuf,
+                      size_t &                 hlen,
+                      const pgp_literal_hdr_t *hdr)
 {
     hash.add(sig.hashed_data, sig.hashed_len);
     switch (sig.version) {
@@ -58,13 +63,20 @@ signature_hash_finish(const pgp_signature_t &sig, rnp::Hash &hash, uint8_t *hbuf
         break;
     }
     case PGP_V5: {
-        /* TODO: support for literal packet metadata for attached signatures, see
-         * draft-koch, 5.2.4. */
         uint64_t hash_len = sig.hashed_len;
         if (sig.is_document()) {
             uint8_t doc_trailer[6] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
-            hash.add(doc_trailer, 6);
-            hash_len += 6;
+            /* This data is not added to the hash_len as per spec */
+            if (hdr) {
+                doc_trailer[0] = hdr->format;
+                doc_trailer[1] = hdr->fname_len;
+                write_uint32(&doc_trailer[2], hdr->timestamp);
+                hash.add(doc_trailer, 2);
+                hash.add(hdr->fname, hdr->fname_len);
+                hash.add(&doc_trailer[2], 4);
+            } else {
+                hash.add(doc_trailer, 6);
+            }
         }
         uint8_t trailer[10] = {0x05, 0xff, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
         write_uint64(&trailer[2], hash_len);
@@ -104,10 +116,11 @@ signature_init(const pgp_key_pkt_t &key, const pgp_signature_t &sig)
 }
 
 void
-signature_calculate(pgp_signature_t &     sig,
-                    pgp_key_material_t &  seckey,
-                    rnp::Hash &           hash,
-                    rnp::SecurityContext &ctx)
+signature_calculate(pgp_signature_t &        sig,
+                    pgp_key_material_t &     seckey,
+                    rnp::Hash &              hash,
+                    rnp::SecurityContext &   ctx,
+                    const pgp_literal_hdr_t *hdr)
 {
     uint8_t              hval[PGP_MAX_HASH_SIZE];
     size_t               hlen = 0;
@@ -116,7 +129,7 @@ signature_calculate(pgp_signature_t &     sig,
 
     /* Finalize hash first, since function is required to do this */
     try {
-        signature_hash_finish(sig, hash, hval, hlen);
+        signature_hash_finish(sig, hash, hval, hlen, hdr);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to finalize hash: %s", e.what());
         throw;
@@ -255,7 +268,8 @@ rnp_result_t
 signature_validate(const pgp_signature_t &     sig,
                    const pgp_key_material_t &  key,
                    rnp::Hash &                 hash,
-                   const rnp::SecurityContext &ctx)
+                   const rnp::SecurityContext &ctx,
+                   const pgp_literal_hdr_t *   hdr)
 {
     if (sig.palg != key.alg) {
         RNP_LOG("Signature and key do not agree on algorithm type: %d vs %d",
@@ -297,7 +311,7 @@ signature_validate(const pgp_signature_t &     sig,
     uint8_t hval[PGP_MAX_HASH_SIZE];
     size_t  hlen = 0;
     try {
-        signature_hash_finish(sig, hash, hval, hlen);
+        signature_hash_finish(sig, hash, hval, hlen, hdr);
     } catch (const std::exception &e) {
         RNP_LOG("Failed to finalize signature hash.");
         return RNP_ERROR_GENERIC;

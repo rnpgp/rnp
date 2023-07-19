@@ -44,12 +44,14 @@ std::unique_ptr<rnp::Hash> signature_init(const pgp_key_pkt_t &  key,
  * @param seckey signing secret key material
  * @param hash pre-populated with signed data hash context. It is finalized and destroyed
  *             during the execution. Signature fields and trailer are hashed in this function.
- * @param rng random number generator
+ * @param ctx security context
+ * @param hdr literal packet header for attached document signatures or NULL otherwise.
  */
-void signature_calculate(pgp_signature_t &     sig,
-                         pgp_key_material_t &  seckey,
-                         rnp::Hash &           hash,
-                         rnp::SecurityContext &ctx);
+void signature_calculate(pgp_signature_t &        sig,
+                         pgp_key_material_t &     seckey,
+                         rnp::Hash &              hash,
+                         rnp::SecurityContext &   ctx,
+                         const pgp_literal_hdr_t *hdr = NULL);
 
 /**
  * @brief Validate a signature with pre-populated hash. This method just checks correspondence
@@ -59,11 +61,14 @@ void signature_calculate(pgp_signature_t &     sig,
  * @param key public key material of the verifying key
  * @param hash pre-populated with signed data hash context. It is finalized
  *             during the execution. Signature fields and trailer are hashed in this function.
+ * @param ctx security context
+ * @param hdr literal packet header for attached document signatures or NULL otherwise.
  * @return RNP_SUCCESS if signature was successfully validated or error code otherwise.
  */
 rnp_result_t signature_validate(const pgp_signature_t &     sig,
                                 const pgp_key_material_t &  key,
                                 rnp::Hash &                 hash,
-                                const rnp::SecurityContext &ctx);
+                                const rnp::SecurityContext &ctx,
+                                const pgp_literal_hdr_t *   hdr = NULL);
 
 #endif
