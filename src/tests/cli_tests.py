@@ -2580,6 +2580,28 @@ class Misc(unittest.TestCase):
         ret, out, _ = run_proc(RNP, params)
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*"type.str":"reason for revocation".*"code":32.*"message":"Testing revoked userid.".*$')
+        # v5 public key
+        params = ['--list-packets', data_path('test_stream_key_load/v5-rsa-pub.asc')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*v5 public key material length: 391.*v5 public key material length: 391.*$')
+        self.assertNotRegex(out, r'(?s)^.*v5 s2k length.*$')
+        self.assertNotRegex(out, r'(?s)^.*v5 secret key data length.*$')
+        params = ['--list-packets', '--json', data_path('test_stream_key_load/v5-rsa-pub.asc')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"v5 public key material length":391.*"v5 public key material length":391.*$')
+        self.assertNotRegex(out, r'(?s)^.*"v5 s2k length".*$')
+        self.assertNotRegex(out, r'(?s)^.*"v5 secret key data length".*$')
+        # v5 secret key
+        params = ['--list-packets', data_path('test_stream_key_load/v5-rsa-sec.asc')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*v5 s2k length: 28.*v5 secret key data length: 988.*v5 s2k length: 28.*v5 secret key data length: 987.*$')
+        params = ['--list-packets', '--json', data_path('test_stream_key_load/v5-rsa-sec.asc')]
+        ret, out, _ = run_proc(RNP, params)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*"v5 s2k length":28.*"v5 secret key data length":988.*"v5 s2k length":28.*"v5 secret key data length":987.*$')
 
     def test_rnp_list_packets_edge_cases(self):
         KEY_EMPTY_UID = data_path('test_key_edge_cases/key-empty-uid.pgp')
