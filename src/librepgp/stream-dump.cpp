@@ -1454,7 +1454,7 @@ finish:
 static bool
 obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pair map[])
 {
-    if (!obj_add_field_json(obj, name, json_object_new_int(val))) {
+    if (!json_add(obj, name, val)) {
         return false;
     }
     if (!map) {
@@ -1463,7 +1463,7 @@ obj_add_intstr_json(json_object *obj, const char *name, int val, const id_str_pa
     char        namestr[64] = {0};
     const char *str = id_str_pair::lookup(map, val, "Unknown");
     snprintf(namestr, sizeof(namestr), "%s.str", name);
-    return obj_add_field_json(obj, namestr, json_object_new_string(str));
+    return json_add(obj, namestr, str);
 }
 
 static bool
@@ -1471,14 +1471,14 @@ obj_add_mpi_json(json_object *obj, const char *name, const pgp_mpi_t *mpi, bool 
 {
     char strname[64] = {0};
     snprintf(strname, sizeof(strname), "%s.bits", name);
-    if (!obj_add_field_json(obj, strname, json_object_new_int(mpi_bits(mpi)))) {
+    if (!json_add(obj, strname, (int) mpi_bits(mpi))) {
         return false;
     }
     if (!contents) {
         return true;
     }
     snprintf(strname, sizeof(strname), "%s.raw", name);
-    return obj_add_hex_json(obj, strname, mpi->mpi, mpi->len);
+    return json_add_hex(obj, strname, mpi->mpi, mpi->len);
 }
 
 static bool
@@ -1486,11 +1486,11 @@ subpacket_obj_add_algs(
   json_object *obj, const char *name, uint8_t *algs, size_t len, const id_str_pair map[])
 {
     json_object *jso_algs = json_object_new_array();
-    if (!jso_algs || !obj_add_field_json(obj, name, jso_algs)) {
+    if (!jso_algs || !json_add(obj, name, jso_algs)) {
         return false;
     }
     for (size_t i = 0; i < len; i++) {
-        if (!array_add_element_json(jso_algs, json_object_new_int(algs[i]))) {
+        if (!json_array_add(jso_algs, json_object_new_int(algs[i]))) {
             return false;
         }
     }
@@ -1502,13 +1502,11 @@ subpacket_obj_add_algs(
     snprintf(strname, sizeof(strname), "%s.str", name);
 
     jso_algs = json_object_new_array();
-    if (!jso_algs || !obj_add_field_json(obj, strname, jso_algs)) {
+    if (!jso_algs || !json_add(obj, strname, jso_algs)) {
         return false;
     }
     for (size_t i = 0; i < len; i++) {
-        if (!array_add_element_json(
-              jso_algs,
-              json_object_new_string(id_str_pair::lookup(map, algs[i], "Unknown")))) {
+        if (!json_array_add(jso_algs, id_str_pair::lookup(map, algs[i], "Unknown"))) {
             return false;
         }
     }
@@ -1519,26 +1517,25 @@ static bool
 obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
 {
     json_object *s2k_obj = json_object_new_object();
-    if (!obj_add_field_json(obj, "s2k", s2k_obj)) {
+    if (!json_add(obj, "s2k", s2k_obj)) {
         return false;
     }
-    if (!obj_add_field_json(s2k_obj, "specifier", json_object_new_int(s2k->specifier))) {
+    if (!json_add(s2k_obj, "specifier", (int) s2k->specifier)) {
         return false;
     }
     if ((s2k->specifier == PGP_S2KS_EXPERIMENTAL) && s2k->gpg_ext_num) {
-        if (!obj_add_field_json(
-              s2k_obj, "gpg extension", json_object_new_int(s2k->gpg_ext_num))) {
+        if (!json_add(s2k_obj, "gpg extension", (int) s2k->gpg_ext_num)) {
             return false;
         }
         if (s2k->gpg_ext_num == PGP_S2K_GPG_SMARTCARD) {
             size_t slen = s2k->gpg_serial_len > 16 ? 16 : s2k->gpg_serial_len;
-            if (!obj_add_hex_json(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
+            if (!json_add_hex(s2k_obj, "card serial number", s2k->gpg_serial, slen)) {
                 return false;
             }
         }
     }
     if (s2k->specifier == PGP_S2KS_EXPERIMENTAL) {
-        return obj_add_hex_json(
+        return json_add_hex(
           s2k_obj, "unknown experimental", s2k->experimental.data(), s2k->experimental.size());
     }
     if (!obj_add_intstr_json(s2k_obj, "hash algorithm", s2k->hash_alg, hash_alg_map)) {
@@ -1546,12 +1543,12 @@ obj_add_s2k_json(json_object *obj, pgp_s2k_t *s2k)
     }
     if (((s2k->specifier == PGP_S2KS_SALTED) ||
          (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED)) &&
-        !obj_add_hex_json(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
+        !json_add_hex(s2k_obj, "salt", s2k->salt, PGP_SALT_SIZE)) {
         return false;
     }
     if (s2k->specifier == PGP_S2KS_ITERATED_AND_SALTED) {
         size_t real_iter = pgp_s2k_decode_iterations(s2k->iterations);
-        if (!obj_add_field_json(s2k_obj, "iterations", json_object_new_int(real_iter))) {
+        if (!json_add(s2k_obj, "iterations", (uint64_t) real_iter)) {
             return false;
         }
     }
@@ -1569,30 +1566,20 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
 {
     switch (subpkt.type) {
     case PGP_SIG_SUBPKT_CREATION_TIME:
-        return obj_add_field_json(
-          obj, "creation time", json_object_new_int64(subpkt.fields.create));
+        return json_add(obj, "creation time", (uint64_t) subpkt.fields.create);
     case PGP_SIG_SUBPKT_EXPIRATION_TIME:
-        return obj_add_field_json(
-          obj, "expiration time", json_object_new_int64(subpkt.fields.expiry));
+        return json_add(obj, "expiration time", (uint64_t) subpkt.fields.expiry);
     case PGP_SIG_SUBPKT_EXPORT_CERT:
-        return obj_add_field_json(
-          obj, "exportable", json_object_new_boolean(subpkt.fields.exportable));
+        return json_add(obj, "exportable", subpkt.fields.exportable);
     case PGP_SIG_SUBPKT_TRUST:
-        return obj_add_field_json(
-                 obj, "amount", json_object_new_int(subpkt.fields.trust.amount)) &&
-               obj_add_field_json(
-                 obj, "level", json_object_new_int(subpkt.fields.trust.level));
+        return json_add(obj, "amount", (int) subpkt.fields.trust.amount) &&
+               json_add(obj, "level", (int) subpkt.fields.trust.level);
     case PGP_SIG_SUBPKT_REGEXP:
-        return obj_add_field_json(
-          obj,
-          "regexp",
-          json_object_new_string_len(subpkt.fields.regexp.str, subpkt.fields.regexp.len));
+        return json_add(obj, "regexp", subpkt.fields.regexp.str, subpkt.fields.regexp.len);
     case PGP_SIG_SUBPKT_REVOCABLE:
-        return obj_add_field_json(
-          obj, "revocable", json_object_new_boolean(subpkt.fields.revocable));
+        return json_add(obj, "revocable", subpkt.fields.revocable);
     case PGP_SIG_SUBPKT_KEY_EXPIRY:
-        return obj_add_field_json(
-          obj, "key expiration", json_object_new_int64(subpkt.fields.expiry));
+        return json_add(obj, "key expiration", (uint64_t) subpkt.fields.expiry);
     case PGP_SIG_SUBPKT_PREFERRED_SKA:
         return subpacket_obj_add_algs(obj,
                                       "algorithms",
@@ -1618,107 +1605,78 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
                                       subpkt.fields.preferred.len,
                                       aead_alg_map);
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        return obj_add_field_json(
-                 obj, "class", json_object_new_int(subpkt.fields.revocation_key.klass)) &&
-               obj_add_field_json(
-                 obj, "algorithm", json_object_new_int(subpkt.fields.revocation_key.pkalg)) &&
-               obj_add_hex_json(
+        return json_add(obj, "class", (int) subpkt.fields.revocation_key.klass) &&
+               json_add(obj, "algorithm", (int) subpkt.fields.revocation_key.pkalg) &&
+               json_add_hex(
                  obj, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_SIZE);
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
-        return obj_add_hex_json(obj, "issuer keyid", subpkt.fields.issuer, PGP_KEY_ID_SIZE);
+        return json_add_hex(obj, "issuer keyid", subpkt.fields.issuer, PGP_KEY_ID_SIZE);
     case PGP_SIG_SUBPKT_KEYSERV_PREFS:
-        return obj_add_field_json(
-          obj, "no-modify", json_object_new_boolean(subpkt.fields.ks_prefs.no_modify));
+        return json_add(obj, "no-modify", subpkt.fields.ks_prefs.no_modify);
     case PGP_SIG_SUBPKT_PREF_KEYSERV:
-        return obj_add_field_json(obj,
-                                  "uri",
-                                  json_object_new_string_len(subpkt.fields.preferred_ks.uri,
-                                                             subpkt.fields.preferred_ks.len));
+        return json_add(
+          obj, "uri", subpkt.fields.preferred_ks.uri, subpkt.fields.preferred_ks.len);
     case PGP_SIG_SUBPKT_PRIMARY_USER_ID:
-        return obj_add_field_json(
-          obj, "primary", json_object_new_boolean(subpkt.fields.primary_uid));
+        return json_add(obj, "primary", subpkt.fields.primary_uid);
     case PGP_SIG_SUBPKT_POLICY_URI:
-        return obj_add_field_json(
-          obj,
-          "uri",
-          json_object_new_string_len(subpkt.fields.policy.uri, subpkt.fields.policy.len));
+        return json_add(obj, "uri", subpkt.fields.policy.uri, subpkt.fields.policy.len);
     case PGP_SIG_SUBPKT_KEY_FLAGS: {
         uint8_t flg = subpkt.fields.key_flags;
-        if (!obj_add_field_json(obj, "flags", json_object_new_int(flg))) {
+        if (!json_add(obj, "flags", (int) flg)) {
             return false;
         }
         json_object *jso_flg = json_object_new_array();
-        if (!jso_flg || !obj_add_field_json(obj, "flags.str", jso_flg)) {
+        if (!jso_flg || !json_add(obj, "flags.str", jso_flg)) {
             return false;
         }
-        if ((flg & PGP_KF_CERTIFY) &&
-            !array_add_element_json(jso_flg, json_object_new_string("certify"))) {
+        if ((flg & PGP_KF_CERTIFY) && !json_array_add(jso_flg, "certify")) {
             return false;
         }
-        if ((flg & PGP_KF_SIGN) &&
-            !array_add_element_json(jso_flg, json_object_new_string("sign"))) {
+        if ((flg & PGP_KF_SIGN) && !json_array_add(jso_flg, "sign")) {
             return false;
         }
-        if ((flg & PGP_KF_ENCRYPT_COMMS) &&
-            !array_add_element_json(jso_flg, json_object_new_string("encrypt_comm"))) {
+        if ((flg & PGP_KF_ENCRYPT_COMMS) && !json_array_add(jso_flg, "encrypt_comm")) {
             return false;
         }
-        if ((flg & PGP_KF_ENCRYPT_STORAGE) &&
-            !array_add_element_json(jso_flg, json_object_new_string("encrypt_storage"))) {
+        if ((flg & PGP_KF_ENCRYPT_STORAGE) && !json_array_add(jso_flg, "encrypt_storage")) {
             return false;
         }
-        if ((flg & PGP_KF_SPLIT) &&
-            !array_add_element_json(jso_flg, json_object_new_string("split"))) {
+        if ((flg & PGP_KF_SPLIT) && !json_array_add(jso_flg, "split")) {
             return false;
         }
-        if ((flg & PGP_KF_AUTH) &&
-            !array_add_element_json(jso_flg, json_object_new_string("auth"))) {
+        if ((flg & PGP_KF_AUTH) && !json_array_add(jso_flg, "auth")) {
             return false;
         }
-        if ((flg & PGP_KF_SHARED) &&
-            !array_add_element_json(jso_flg, json_object_new_string("shared"))) {
+        if ((flg & PGP_KF_SHARED) && !json_array_add(jso_flg, "shared")) {
             return false;
         }
         return true;
     }
     case PGP_SIG_SUBPKT_SIGNERS_USER_ID:
-        return obj_add_field_json(
-          obj,
-          "uid",
-          json_object_new_string_len(subpkt.fields.signer.uid, subpkt.fields.signer.len));
+        return json_add(obj, "uid", subpkt.fields.signer.uid, subpkt.fields.signer.len);
     case PGP_SIG_SUBPKT_REVOCATION_REASON: {
         if (!obj_add_intstr_json(
               obj, "code", subpkt.fields.revocation_reason.code, revoc_reason_map)) {
             return false;
         }
-        return obj_add_field_json(
-          obj,
-          "message",
-          json_object_new_string_len(subpkt.fields.revocation_reason.str,
-                                     subpkt.fields.revocation_reason.len));
+        return json_add(obj,
+                        "message",
+                        subpkt.fields.revocation_reason.str,
+                        subpkt.fields.revocation_reason.len);
     }
     case PGP_SIG_SUBPKT_FEATURES:
-        return obj_add_field_json(
-                 obj,
-                 "mdc",
-                 json_object_new_boolean(subpkt.fields.features & PGP_KEY_FEATURE_MDC)) &&
-               obj_add_field_json(
-                 obj,
-                 "aead",
-                 json_object_new_boolean(subpkt.fields.features & PGP_KEY_FEATURE_AEAD)) &&
-               obj_add_field_json(
-                 obj,
-                 "v5 keys",
-                 json_object_new_boolean(subpkt.fields.features & PGP_KEY_FEATURE_V5));
+        return json_add(obj, "mdc", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_MDC)) &&
+               json_add(obj, "aead", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_AEAD)) &&
+               json_add(obj, "v5 keys", (bool) (subpkt.fields.features & PGP_KEY_FEATURE_V5));
     case PGP_SIG_SUBPKT_EMBEDDED_SIGNATURE: {
         json_object *sig = json_object_new_object();
-        if (!sig || !obj_add_field_json(obj, "signature", sig)) {
+        if (!sig || !json_add(obj, "signature", sig)) {
             return false;
         }
         return !stream_dump_signature_pkt_json(ctx, subpkt.fields.sig, sig);
     }
     case PGP_SIG_SUBPKT_ISSUER_FPR:
-        return obj_add_hex_json(
+        return json_add_hex(
           obj, "fingerprint", subpkt.fields.issuer_fp.fp, subpkt.fields.issuer_fp.len);
     case PGP_SIG_SUBPKT_NOTATION_DATA: {
         bool human = subpkt.fields.notation.human;
@@ -1734,12 +1692,12 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
                             (char *) subpkt.fields.notation.value,
                             subpkt.fields.notation.vlen);
         }
-        return obj_add_hex_json(
+        return json_add_hex(
           obj, "value", subpkt.fields.notation.value, subpkt.fields.notation.vlen);
     }
     default:
         if (!ctx->dump_packets) {
-            return obj_add_hex_json(obj, "raw", subpkt.data, subpkt.len);
+            return json_add_hex(obj, "raw", subpkt.data, subpkt.len);
         }
         return true;
     }
@@ -1761,20 +1719,17 @@ signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
         if (!obj_add_intstr_json(jso_subpkt, "type", subpkt.type, sig_subpkt_type_map)) {
             goto error;
         }
-        if (!obj_add_field_json(jso_subpkt, "length", json_object_new_int(subpkt.len))) {
+        if (!json_add(jso_subpkt, "length", (int) subpkt.len)) {
             goto error;
         }
-        if (!obj_add_field_json(
-              jso_subpkt, "hashed", json_object_new_boolean(subpkt.hashed))) {
+        if (!json_add(jso_subpkt, "hashed", subpkt.hashed)) {
             goto error;
         }
-        if (!obj_add_field_json(
-              jso_subpkt, "critical", json_object_new_boolean(subpkt.critical))) {
+        if (!json_add(jso_subpkt, "critical", subpkt.critical)) {
             goto error;
         }
 
-        if (ctx->dump_packets &&
-            !obj_add_hex_json(jso_subpkt, "raw", subpkt.data, subpkt.len)) {
+        if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt.data, subpkt.len)) {
             goto error;
         }
 
@@ -1798,7 +1753,7 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     pgp_signature_material_t sigmaterial = {};
     rnp_result_t             ret = RNP_ERROR_OUT_OF_MEMORY;
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(sig->version))) {
+    if (!json_add(pkt, "version", (int) sig->version)) {
         goto done;
     }
     if (!obj_add_intstr_json(pkt, "type", sig->type(), sig_type_map)) {
@@ -1806,11 +1761,10 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     }
 
     if (sig->version < PGP_V4) {
-        if (!obj_add_field_json(
-              pkt, "creation time", json_object_new_int(sig->creation_time))) {
+        if (!json_add(pkt, "creation time", (uint64_t) sig->creation_time)) {
             goto done;
         }
-        if (!obj_add_hex_json(pkt, "signer", sig->signer.data(), sig->signer.size())) {
+        if (!json_add(pkt, "signer", sig->signer)) {
             goto done;
         }
     }
@@ -1826,17 +1780,17 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
         if (!subpkts) {
             goto done;
         }
-        if (!obj_add_field_json(pkt, "subpackets", subpkts)) {
+        if (!json_add(pkt, "subpackets", subpkts)) {
             goto done;
         }
     }
 
-    if (!obj_add_hex_json(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
+    if (!json_add_hex(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
         goto done;
     }
 
     material = json_object_new_object();
-    if (!material || !obj_add_field_json(pkt, "material", material)) {
+    if (!material || !json_add(pkt, "material", material)) {
         goto done;
     }
 
@@ -1922,14 +1876,13 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 
     ret = RNP_ERROR_OUT_OF_MEMORY;
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(key.version))) {
+    if (!json_add(pkt, "version", (int) key.version)) {
         goto done;
     }
-    if (!obj_add_field_json(pkt, "creation time", json_object_new_int64(key.creation_time))) {
+    if (!json_add(pkt, "creation time", (uint64_t) key.creation_time)) {
         goto done;
     }
-    if ((key.version < PGP_V4) &&
-        !obj_add_field_json(pkt, "v3 days", json_object_new_int(key.v3_days))) {
+    if ((key.version < PGP_V4) && !json_add(pkt, "v3 days", (int) key.v3_days)) {
         goto done;
     }
     if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
@@ -1937,7 +1890,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 
     material = json_object_new_object();
-    if (!material || !obj_add_field_json(pkt, "material", material)) {
+    if (!material || !json_add(pkt, "material", material)) {
         goto done;
     }
 
@@ -1973,9 +1926,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
             goto done;
         }
-        if (!obj_add_field_json(material,
-                                "curve",
-                                json_object_new_string(cdesc ? cdesc->pgp_name : "unknown"))) {
+        if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
             goto done;
         }
         break;
@@ -1985,9 +1936,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
             goto done;
         }
-        if (!obj_add_field_json(material,
-                                "curve",
-                                json_object_new_string(cdesc ? cdesc->pgp_name : "unknown"))) {
+        if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
             goto done;
         }
         if (!obj_add_intstr_json(
@@ -2005,8 +1954,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 
     if (is_secret_key_pkt(key.tag)) {
-        if (!obj_add_field_json(
-              material, "s2k usage", json_object_new_int(key.sec_protection.s2k.usage))) {
+        if (!json_add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
             goto done;
         }
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
@@ -2019,19 +1967,18 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         }
     }
 
-    if (pgp_keyid(keyid, key) || !obj_add_hex_json(pkt, "keyid", keyid.data(), keyid.size())) {
+    if (pgp_keyid(keyid, key) || !json_add(pkt, "keyid", keyid)) {
         goto done;
     }
 
     if (ctx->dump_grips) {
-        if (pgp_fingerprint(keyfp, key) ||
-            !obj_add_hex_json(pkt, "fingerprint", keyfp.fingerprint, keyfp.length)) {
+        if (pgp_fingerprint(keyfp, key) || !json_add(pkt, "fingerprint", keyfp)) {
             goto done;
         }
 
         pgp_key_grip_t grip;
         if (!rnp_key_store_get_key_grip(&key.material, grip) ||
-            !obj_add_hex_json(pkt, "grip", grip.data(), grip.size())) {
+            !json_add_hex(pkt, "grip", grip.data(), grip.size())) {
             goto done;
         }
     }
@@ -2057,13 +2004,12 @@ stream_dump_userid_json(pgp_source_t *src, json_object *pkt)
 
     switch (uid.tag) {
     case PGP_PKT_USER_ID:
-        if (!obj_add_field_json(
-              pkt, "userid", json_object_new_string_len((char *) uid.uid, uid.uid_len))) {
+        if (!json_add(pkt, "userid", (char *) uid.uid, uid.uid_len)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKT_USER_ATTR:
-        if (!obj_add_hex_json(pkt, "userattr", uid.uid, uid.uid_len)) {
+        if (!json_add_hex(pkt, "userattr", uid.uid, uid.uid_len)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
@@ -2091,14 +2037,14 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
         return ret;
     }
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(pkey.version)) ||
-        !obj_add_hex_json(pkt, "keyid", pkey.key_id.data(), pkey.key_id.size()) ||
+    if (!json_add(pkt, "version", (int) pkey.version) ||
+        !json_add(pkt, "keyid", pkey.key_id) ||
         !obj_add_intstr_json(pkt, "algorithm", pkey.alg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     json_object *material = json_object_new_object();
-    if (!obj_add_field_json(pkt, "material", material)) {
+    if (!json_add(pkt, "material", material)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -2124,12 +2070,11 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
         break;
     case PGP_PKA_ECDH:
         if (!obj_add_mpi_json(material, "p", &pkmaterial.ecdh.p, ctx->dump_mpi) ||
-            !obj_add_field_json(
-              material, "m.bytes", json_object_new_int(pkmaterial.ecdh.mlen))) {
+            !json_add(material, "m.bytes", (int) pkmaterial.ecdh.mlen)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (ctx->dump_mpi &&
-            !obj_add_hex_json(material, "m", pkmaterial.ecdh.m, pkmaterial.ecdh.mlen)) {
+            !json_add_hex(material, "m", pkmaterial.ecdh.m, pkmaterial.ecdh.mlen)) {
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
@@ -2154,7 +2099,7 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
         return ret;
     }
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(skey.version)) ||
+    if (!json_add(pkt, "version", (int) skey.version) ||
         !obj_add_intstr_json(pkt, "algorithm", skey.alg, symm_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2165,11 +2110,10 @@ stream_dump_sk_session_key_json(pgp_source_t *src, json_object *pkt)
     if (!obj_add_s2k_json(pkt, &skey.s2k)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if ((skey.version == PGP_SKSK_V5) &&
-        !obj_add_hex_json(pkt, "aead iv", skey.iv, skey.ivlen)) {
+    if ((skey.version == PGP_SKSK_V5) && !json_add_hex(pkt, "aead iv", skey.iv, skey.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!obj_add_hex_json(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
+    if (!json_add_hex(pkt, "encrypted key", skey.enckey, skey.enckeylen)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
@@ -2189,11 +2133,11 @@ stream_dump_encrypted_json(pgp_source_t *src, json_object *pkt, pgp_pkt_type_t t
         return RNP_ERROR_READ;
     }
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(aead.version)) ||
+    if (!json_add(pkt, "version", (int) aead.version) ||
         !obj_add_intstr_json(pkt, "algorithm", aead.ealg, symm_alg_map) ||
         !obj_add_intstr_json(pkt, "aead algorithm", aead.aalg, aead_alg_map) ||
-        !obj_add_field_json(pkt, "chunk size", json_object_new_int(aead.csize)) ||
-        !obj_add_hex_json(pkt, "aead iv", aead.iv, aead.ivlen)) {
+        !json_add(pkt, "chunk size", (int) aead.csize) ||
+        !json_add_hex(pkt, "aead iv", aead.iv, aead.ivlen)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
@@ -2215,7 +2159,7 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
         return ret;
     }
 
-    if (!obj_add_field_json(pkt, "version", json_object_new_int(onepass.version))) {
+    if (!json_add(pkt, "version", (int) onepass.version)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!obj_add_intstr_json(pkt, "type", onepass.type, sig_type_map)) {
@@ -2227,10 +2171,10 @@ stream_dump_one_pass_json(pgp_source_t *src, json_object *pkt)
     if (!obj_add_intstr_json(pkt, "public key algorithm", onepass.palg, pubkey_alg_map)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!obj_add_hex_json(pkt, "signer", onepass.keyid.data(), onepass.keyid.size())) {
+    if (!json_add(pkt, "signer", onepass.keyid)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    if (!obj_add_field_json(pkt, "nested", json_object_new_boolean(onepass.nested))) {
+    if (!json_add(pkt, "nested", (bool) onepass.nested)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return RNP_SUCCESS;
@@ -2241,8 +2185,7 @@ stream_dump_marker_json(pgp_source_t &src, json_object *pkt)
 {
     rnp_result_t ret = stream_parse_marker(src);
 
-    if (!obj_add_field_json(
-          pkt, "contents", json_object_new_string(ret ? "invalid" : PGP_MARKER_CONTENTS))) {
+    if (!json_add(pkt, "contents", ret ? "invalid" : PGP_MARKER_CONTENTS)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     return ret;
@@ -2271,7 +2214,7 @@ stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object 
     }
 
     ret = stream_dump_raw_packets_json(ctx, &zsrc, &contents);
-    if (!ret && !obj_add_field_json(pkt, "contents", contents)) {
+    if (!ret && !json_add(pkt, "contents", contents)) {
         json_object_put(contents);
         ret = RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2293,15 +2236,13 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
     }
     ret = RNP_ERROR_OUT_OF_MEMORY;
     get_literal_src_hdr(&lsrc, &lhdr);
-    if (!obj_add_field_json(
-          pkt, "format", json_object_new_string_len((char *) &lhdr.format, 1))) {
+    if (!json_add(pkt, "format", (char *) &lhdr.format, 1)) {
         goto done;
     }
-    if (!obj_add_field_json(
-          pkt, "filename", json_object_new_string_len(lhdr.fname, lhdr.fname_len))) {
+    if (!json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len)) {
         goto done;
     }
-    if (!obj_add_field_json(pkt, "timestamp", json_object_new_int64(lhdr.timestamp))) {
+    if (!json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
         goto done;
     }
 
@@ -2313,7 +2254,7 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
         }
     }
 
-    if (!obj_add_field_json(pkt, "datalen", json_object_new_int64(lsrc.readb))) {
+    if (!json_add(pkt, "datalen", (uint64_t) lsrc.readb)) {
         goto done;
     }
     ret = RNP_SUCCESS;
@@ -2336,19 +2277,18 @@ stream_dump_hdr_json(pgp_source_t *src, pgp_packet_hdr_t *hdr, json_object *pkt)
     }
     rnp::JSONObject jso_hdrwrap(jso_hdr);
 
-    if (!obj_add_field_json(jso_hdr, "offset", json_object_new_int64(src->readb)) ||
+    if (!json_add(jso_hdr, "offset", (uint64_t) src->readb) ||
         !obj_add_intstr_json(jso_hdr, "tag", hdr->tag, packet_tag_map) ||
-        !obj_add_hex_json(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
+        !json_add_hex(jso_hdr, "raw", hdr->hdr, hdr->hdr_len)) {
         return false;
     }
     if (!hdr->partial && !hdr->indeterminate &&
-        !obj_add_field_json(jso_hdr, "length", json_object_new_int64(hdr->pkt_len))) {
+        !json_add(jso_hdr, "length", (uint64_t) hdr->pkt_len)) {
         return false;
     }
-    if (!obj_add_field_json(jso_hdr, "partial", json_object_new_boolean(hdr->partial)) ||
-        !obj_add_field_json(
-          jso_hdr, "indeterminate", json_object_new_boolean(hdr->indeterminate)) ||
-        !obj_add_field_json(pkt, "header", jso_hdr)) {
+    if (!json_add(jso_hdr, "partial", hdr->partial) ||
+        !json_add(jso_hdr, "indeterminate", hdr->indeterminate) ||
+        !json_add(pkt, "header", jso_hdr)) {
         return false;
     }
     jso_hdrwrap.release();
@@ -2399,7 +2339,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             if (!src_peek(src, buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
                 return RNP_ERROR_READ;
             }
-            if (!obj_add_hex_json(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
+            if (!json_add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
