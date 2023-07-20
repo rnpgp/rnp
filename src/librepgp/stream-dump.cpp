@@ -2435,15 +2435,14 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
     if (is_cleartext_source(src)) {
         if (!stream_skip_cleartext(src)) {
             RNP_LOG("malformed cleartext signed data");
-            ret = RNP_ERROR_BAD_FORMAT;
-            goto finish;
+            return RNP_ERROR_BAD_FORMAT;
         }
     }
     /* check whether source is armored */
     if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
-            goto finish;
+            return ret;
         }
         armored = true;
         src = &armorsrc;
@@ -2451,11 +2450,9 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
 
     if (src_eof(src)) {
         ret = RNP_ERROR_NOT_ENOUGH_DATA;
-        goto finish;
+    } else {
+        ret = stream_dump_raw_packets_json(ctx, src, jso);
     }
-
-    ret = stream_dump_raw_packets_json(ctx, src, jso);
-finish:
     if (armored) {
         src_close(&armorsrc);
     }
