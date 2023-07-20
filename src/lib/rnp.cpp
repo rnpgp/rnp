@@ -947,8 +947,6 @@ FFI_GUARD
 rnp_result_t
 rnp_detect_key_format(const uint8_t buf[], size_t buf_len, char **format)
 try {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     // checks
     if (!buf || !format) {
         return RNP_ERROR_NULL_POINTER;
@@ -976,15 +974,12 @@ try {
     if (guess) {
         *format = strdup(guess);
         if (!*format) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
     // success
-    ret = RNP_SUCCESS;
-done:
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -1061,8 +1056,8 @@ try {
     if (!features) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-
-    rnp_result_t ret = RNP_ERROR_BAD_PARAMETERS;
+    rnp::JSONObject featwrap(features);
+    rnp_result_t    ret = RNP_ERROR_BAD_PARAMETERS;
 
     if (rnp::str_case_eq(type, RNP_FEATURE_SYMM_ALG)) {
         ret = json_array_add_id_str(features, symm_alg_map, symm_alg_supported);
@@ -1082,36 +1077,31 @@ try {
              curve = (pgp_curve_t)(curve + 1)) {
             const ec_curve_desc_t *desc = get_curve_desc(curve);
             if (!desc) {
-                ret = RNP_ERROR_BAD_STATE;
-                goto done;
+                return RNP_ERROR_BAD_STATE;
             }
             if (!desc->supported) {
                 continue;
             }
             if (!json_array_add(features, desc->pgp_name)) {
-                ret = RNP_ERROR_OUT_OF_MEMORY;
-                goto done;
+                return RNP_ERROR_OUT_OF_MEMORY;
             }
         }
         ret = RNP_SUCCESS;
     }
 
     if (ret) {
-        goto done;
+        return ret;
     }
 
     *result = (char *) json_object_to_json_string_ext(features, JSON_C_TO_STRING_PRETTY);
     if (!*result) {
-        ret = RNP_ERROR_BAD_STATE;
-        goto done;
+        return RNP_ERROR_BAD_STATE;
     }
     *result = strdup(*result);
     if (!*result) {
-        ret = RNP_ERROR_OUT_OF_MEMORY;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
-done:
-    json_object_put(features);
-    return ret;
+    return RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -1853,8 +1843,6 @@ do_save_keys(rnp_ffi_t              ffi,
              pgp_key_store_format_t format,
              key_type_t             key_type)
 {
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     // create a temporary key store to hold the keys
     rnp_key_store_t *tmp_store = NULL;
     try {
@@ -1866,55 +1854,41 @@ do_save_keys(rnp_ffi_t              ffi,
         FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
+    std::unique_ptr<rnp_key_store_t> tmp_store_ptr(tmp_store);
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->pubring)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
     // include the secret keys, if desired
     if (key_type == KEY_TYPE_SECRET || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->secring)) {
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
     // preliminary check on the format
     for (auto &key : tmp_store->keys) {
         if (key_needs_conversion(&key, tmp_store)) {
             FFI_LOG(ffi, "This key format conversion is not yet supported");
-            ret = RNP_ERROR_NOT_IMPLEMENTED;
-            goto done;
+            return RNP_ERROR_NOT_IMPLEMENTED;
         }
     }
     // write
     if (output->dst_directory) {
-        try {
-            tmp_store->path = output->dst_directory;
-        } catch (const std::exception &e) {
-            FFI_LOG(ffi, "%s", e.what());
-            ret = RNP_ERROR_OUT_OF_MEMORY;
-            goto done;
-        }
+        tmp_store->path = output->dst_directory;
         if (!rnp_key_store_write_to_path(tmp_store)) {
-            ret = RNP_ERROR_WRITE;
-            goto done;
+            return RNP_ERROR_WRITE;
         }
-        ret = RNP_SUCCESS;
+        return RNP_SUCCESS;
     } else {
         if (!rnp_key_store_write_to_dst(tmp_store, &output->dst)) {
-            ret = RNP_ERROR_WRITE;
-            goto done;
+            return RNP_ERROR_WRITE;
         }
         dst_flush(&output->dst);
         output->keep = (output->dst.werr == RNP_SUCCESS);
-        ret = output->dst.werr;
+        return output->dst.werr;
     }
-
-done:
-    delete tmp_store;
-    return ret;
 }
 
 rnp_result_t
