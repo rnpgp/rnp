@@ -1243,8 +1243,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     if (++ctx->layers > MAXIMUM_NESTING_LEVEL) {
         RNP_LOG("Too many OpenPGP nested layers during the dump.");
         dst_printf(dst, ":too many OpenPGP packet layers, stopping.\n");
-        ret = RNP_SUCCESS;
-        goto finish;
+        return RNP_SUCCESS;
     }
 
     while (!src_eof(src)) {
@@ -1252,8 +1251,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         size_t           off = src->readb;
         rnp_result_t     hdrret = stream_peek_packet_hdr(src, &hdr);
         if (hdrret) {
-            ret = hdrret;
-            goto finish;
+            return hdrret;
         }
 
         if (hdr.partial) {
@@ -1342,11 +1340,11 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             dst_printf(dst, "Skipping Unknown pkt: %d\n\n", (int) hdr.tag);
             ret = stream_skip_packet(src);
             if (ret) {
-                goto finish;
+                return ret;
             }
             if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors or unknown packets.");
-                goto finish;
+                return ret;
             }
         }
 
@@ -1354,21 +1352,17 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             RNP_LOG("failed to process packet");
             if (++ctx->failures > MAXIMUM_ERROR_PKTS) {
                 RNP_LOG("too many packet dump errors.");
-                goto finish;
+                return ret;
             }
         }
 
         if (ctx->stream_pkts > MAXIMUM_STREAM_PKTS) {
             RNP_LOG("Too many OpenPGP stream packets during the dump.");
             dst_printf(dst, ":too many OpenPGP stream packets, stopping.\n");
-            ret = RNP_SUCCESS;
-            goto finish;
+            return RNP_SUCCESS;
         }
     }
-
-    ret = RNP_SUCCESS;
-finish:
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static bool
@@ -1398,12 +1392,6 @@ stream_skip_cleartext(pgp_source_t *src)
 rnp_result_t
 stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_source_t armorsrc = {0};
-    pgp_dest_t   wrdst = {0};
-    bool         armored = false;
-    bool         indent = false;
-    rnp_result_t ret = RNP_ERROR_GENERIC;
-
     ctx->layers = 0;
     ctx->stream_pkts = 0;
     ctx->failures = 0;
@@ -1412,15 +1400,20 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, ":cleartext signed data\n");
         if (!stream_skip_cleartext(src)) {
             RNP_LOG("malformed cleartext signed data");
-            ret = RNP_ERROR_BAD_FORMAT;
-            goto finish;
+            return RNP_ERROR_BAD_FORMAT;
         }
     }
+
     /* check whether source is armored */
+    pgp_source_t armorsrc = {0};
+    pgp_dest_t   wrdst = {0};
+    bool         armored = false;
+    bool         indent = false;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
     if (is_armored_source(src)) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
-            goto finish;
+            return ret;
         }
         armored = true;
         src = &armorsrc;
@@ -1708,40 +1701,40 @@ static json_object *
 signature_dump_subpackets_json(rnp_dump_ctx_t *ctx, const pgp_signature_t *sig)
 {
     json_object *res = json_object_new_array();
+    if (!res) {
+        return NULL;
+    }
+    rnp::JSONObject reswrap(res);
 
     for (auto &subpkt : sig->subpkts) {
         json_object *jso_subpkt = json_object_new_object();
         if (json_object_array_add(res, jso_subpkt)) {
             json_object_put(jso_subpkt);
-            goto error;
+            return NULL;
         }
 
         if (!obj_add_intstr_json(jso_subpkt, "type", subpkt.type, sig_subpkt_type_map)) {
-            goto error;
+            return NULL;
         }
         if (!json_add(jso_subpkt, "length", (int) subpkt.len)) {
-            goto error;
+            return NULL;
         }
         if (!json_add(jso_subpkt, "hashed", subpkt.hashed)) {
-            goto error;
+            return NULL;
         }
         if (!json_add(jso_subpkt, "critical", subpkt.critical)) {
-            goto error;
+            return NULL;
         }
 
         if (ctx->dump_packets && !json_add_hex(jso_subpkt, "raw", subpkt.data, subpkt.len)) {
-            goto error;
+            return NULL;
         }
 
         if (!signature_dump_subpacket_json(ctx, subpkt, jso_subpkt)) {
-            goto error;
+            return NULL;
         }
     }
-
-    return res;
-error:
-    json_object_put(res);
-    return NULL;
+    return reswrap.release();
 }
 
 static rnp_result_t
@@ -1751,47 +1744,43 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 {
     json_object *            material = NULL;
     pgp_signature_material_t sigmaterial = {};
-    rnp_result_t             ret = RNP_ERROR_OUT_OF_MEMORY;
 
     if (!json_add(pkt, "version", (int) sig->version)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!obj_add_intstr_json(pkt, "type", sig->type(), sig_type_map)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (sig->version < PGP_V4) {
         if (!json_add(pkt, "creation time", (uint64_t) sig->creation_time)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!json_add(pkt, "signer", sig->signer)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
     if (!obj_add_intstr_json(pkt, "algorithm", sig->palg, pubkey_alg_map)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!obj_add_intstr_json(pkt, "hash algorithm", sig->halg, hash_alg_map)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (sig->version >= PGP_V4) {
         json_object *subpkts = signature_dump_subpackets_json(ctx, sig);
-        if (!subpkts) {
-            goto done;
-        }
-        if (!json_add(pkt, "subpackets", subpkts)) {
-            goto done;
+        if (!subpkts || !json_add(pkt, "subpackets", subpkts)) {
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
     if (!json_add_hex(pkt, "lbits", sig->lbits, sizeof(sig->lbits))) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     try {
@@ -1805,13 +1794,13 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_RSA_ENCRYPT_ONLY:
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "s", &sigmaterial.rsa.s, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_DSA:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.dsa.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.dsa.s, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_EDDSA:
@@ -1820,22 +1809,20 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_ECDH:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.ecc.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.ecc.s, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         if (!obj_add_mpi_json(material, "r", &sigmaterial.eg.r, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "s", &sigmaterial.eg.s, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     default:
         break;
     }
-    ret = RNP_SUCCESS;
-done:
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
@@ -1858,11 +1845,9 @@ stream_dump_signature_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *
 static rnp_result_t
 stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 {
-    pgp_key_pkt_t     key;
-    rnp_result_t      ret;
-    pgp_key_id_t      keyid = {};
-    pgp_fingerprint_t keyfp = {};
-    json_object *     material = NULL;
+    pgp_key_pkt_t key;
+    rnp_result_t  ret;
+    json_object * material = NULL;
 
     try {
         ret = key.parse(*src);
@@ -1874,24 +1859,22 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         return ret;
     }
 
-    ret = RNP_ERROR_OUT_OF_MEMORY;
-
     if (!json_add(pkt, "version", (int) key.version)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!json_add(pkt, "creation time", (uint64_t) key.creation_time)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     if ((key.version < PGP_V4) && !json_add(pkt, "v3 days", (int) key.v3_days)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
     if (!obj_add_intstr_json(pkt, "algorithm", key.alg, pubkey_alg_map)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     material = json_object_new_object();
     if (!material || !json_add(pkt, "material", material)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     switch (key.alg) {
@@ -1900,7 +1883,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_RSA_SIGN_ONLY:
         if (!obj_add_mpi_json(material, "n", &key.material.rsa.n, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "e", &key.material.rsa.e, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_DSA:
@@ -1908,7 +1891,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
             !obj_add_mpi_json(material, "q", &key.material.dsa.q, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "g", &key.material.dsa.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "y", &key.material.dsa.y, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_ELGAMAL:
@@ -1916,7 +1899,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         if (!obj_add_mpi_json(material, "p", &key.material.eg.p, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "g", &key.material.eg.g, ctx->dump_mpi) ||
             !obj_add_mpi_json(material, "y", &key.material.eg.y, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     case PGP_PKA_ECDSA:
@@ -1924,28 +1907,28 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_SM2: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     }
     case PGP_PKA_ECDH: {
         const ec_curve_desc_t *cdesc = get_curve_desc(key.material.ec.curve);
         if (!obj_add_mpi_json(material, "p", &key.material.ec.p, ctx->dump_mpi)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!json_add(material, "curve", cdesc ? cdesc->pgp_name : "unknown")) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!obj_add_intstr_json(
               material, "hash algorithm", key.material.ec.kdf_hash_alg, hash_alg_map)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!obj_add_intstr_json(
               material, "key wrap algorithm", key.material.ec.key_wrap_alg, symm_alg_map)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
     }
@@ -1955,36 +1938,36 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 
     if (is_secret_key_pkt(key.tag)) {
         if (!json_add(material, "s2k usage", (int) key.sec_protection.s2k.usage)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (!obj_add_s2k_json(material, &key.sec_protection.s2k)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
         if (key.sec_protection.s2k.usage &&
             !obj_add_intstr_json(
               material, "symmetric algorithm", key.sec_protection.symm_alg, symm_alg_map)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
 
+    pgp_key_id_t keyid = {};
     if (pgp_keyid(keyid, key) || !json_add(pkt, "keyid", keyid)) {
-        goto done;
+        return RNP_ERROR_OUT_OF_MEMORY;
     }
 
     if (ctx->dump_grips) {
+        pgp_fingerprint_t keyfp = {};
         if (pgp_fingerprint(keyfp, key) || !json_add(pkt, "fingerprint", keyfp)) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
 
         pgp_key_grip_t grip;
         if (!rnp_key_store_get_key_grip(&key.material, grip) ||
             !json_add_hex(pkt, "grip", grip.data(), grip.size())) {
-            goto done;
+            return RNP_ERROR_OUT_OF_MEMORY;
         }
     }
-    ret = RNP_SUCCESS;
-done:
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
