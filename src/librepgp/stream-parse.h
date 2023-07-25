@@ -108,10 +108,9 @@ rnp_result_t init_literal_src(pgp_source_t *src, pgp_source_t *readsrc);
 
 /* @brief Get the literal data packet information fields (not the OpenPGP packet header)
  * @param src literal data source, initialized with init_literal_src
- * @param hdr pointer to header structure, where result will be stored
- * @return true on success or false otherwise
+ * @return reference to the structure
  */
-bool get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr);
+const pgp_literal_hdr_t &get_literal_src_hdr(pgp_source_t &src);
 
 #if defined(ENABLE_CRYPTO_REFRESH)
 /* @brief Get the SEIPDv2 packet information fields (not the OpenPGP packet header)
