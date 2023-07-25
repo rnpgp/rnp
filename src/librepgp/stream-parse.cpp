@@ -1998,19 +1998,10 @@ finish:
     return ret;
 }
 
-bool
-get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr)
+const pgp_literal_hdr_t &
+get_literal_src_hdr(pgp_source_t &src)
 {
-    pgp_source_literal_param_t *param;
-
-    if (src->type != PGP_STREAM_LITERAL) {
-        RNP_LOG("wrong stream");
-        return false;
-    }
-
-    param = (pgp_source_literal_param_t *) src->param;
-    *hdr = param->hdr;
-    return true;
+    return (static_cast<pgp_source_literal_param_t *>(src.param))->hdr;
 }
 
 rnp_result_t
@@ -2902,7 +2893,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         datasrc.close();
     } else {
         if (handler->ctx->detached) {
-            RNP_LOG("Detached signature expected.");
+            RNP_LOG("Attached signature expected.");
             res = RNP_ERROR_BAD_STATE;
             goto finish;
         }
