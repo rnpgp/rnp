@@ -1357,26 +1357,25 @@ stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 static rnp_result_t
 stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
 {
-    pgp_source_t      lsrc = {0};
-    pgp_literal_hdr_t lhdr = {0};
-    rnp_result_t      ret;
-    uint8_t           readbuf[16384];
+    pgp_source_t lsrc = {0};
+    rnp_result_t ret = init_literal_src(&lsrc, src);
 
-    if ((ret = init_literal_src(&lsrc, src))) {
+    if (ret) {
         return ret;
     }
 
     dst_printf(dst, "Literal data packet\n");
     indent_dest_increase(dst);
 
-    get_literal_src_hdr(&lsrc, &lhdr);
+    auto lhdr = get_literal_src_hdr(lsrc);
     dst_printf(dst, "data format: '%c'\n", lhdr.format);
-    dst_printf(dst, "filename: %s (len %d)\n", lhdr.fname, (int) lhdr.fname_len);
+    dst_printf(dst, "filename: %s (len %" PRIu8 ")\n", lhdr.fname, lhdr.fname_len);
     dst_print_time(dst, "timestamp", lhdr.timestamp);
 
     ret = RNP_SUCCESS;
     while (!lsrc.eof()) {
-        size_t read = 0;
+        uint8_t readbuf[16384];
+        size_t  read = 0;
         if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             break;
@@ -2474,28 +2473,23 @@ done:
 static rnp_result_t
 stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
 {
-    pgp_source_t      lsrc = {0};
-    pgp_literal_hdr_t lhdr = {0};
-    rnp_result_t      ret;
-    uint8_t           readbuf[16384];
+    pgp_source_t lsrc = {0};
+    rnp_result_t ret = init_literal_src(&lsrc, src);
 
-    if ((ret = init_literal_src(&lsrc, src))) {
+    if (ret) {
         return ret;
     }
     ret = RNP_ERROR_OUT_OF_MEMORY;
-    get_literal_src_hdr(&lsrc, &lhdr);
-    if (!json_add(pkt, "format", (char *) &lhdr.format, 1)) {
-        goto done;
-    }
-    if (!json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len)) {
-        goto done;
-    }
-    if (!json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
+    auto lhdr = get_literal_src_hdr(lsrc);
+    if (!json_add(pkt, "format", (char *) &lhdr.format, 1) ||
+        !json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
+        !json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
         goto done;
     }
 
     while (!lsrc.eof()) {
-        size_t read = 0;
+        uint8_t readbuf[16384];
+        size_t  read = 0;
         if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             goto done;
