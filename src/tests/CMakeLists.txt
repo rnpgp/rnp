@@ -138,6 +138,7 @@ set(RNP_TEST_SOURCES
   user-prefs.cpp
   utils-hex2bin.cpp
   utils-rnpcfg.cpp
+  exdsa_ecdhkem.cpp
   issues/1030.cpp
   issues/1115.cpp
   issues/1171.cpp

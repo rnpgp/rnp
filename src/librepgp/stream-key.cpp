@@ -647,6 +647,16 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             key.material.ed25519.priv = tmpbuf;
             break;
         }
+        case PGP_PKA_X25519: {
+            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse X25519 secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.x25519.priv = tmpbuf;
+            break;
+        }
 #endif
         default:
             RNP_LOG("unknown pk alg : %d", (int) key.alg);
@@ -774,6 +784,9 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         body.add(key.material.ed25519.priv);
+        break;
+    case PGP_PKA_X25519:
+        body.add(key.material.x25519.priv);
         break;
 #endif
 default:
@@ -923,6 +936,10 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_ED25519:
         secure_clear(key->ed25519.priv.data(), key->ed25519.priv.size());
         key->ed25519.priv.clear();
+        break;
+    case PGP_PKA_X25519:
+        secure_clear(key->x25519.priv.data(), key->x25519.priv.size());
+        key->x25519.priv.clear();
         break;
 #endif
     default:
@@ -1372,6 +1389,16 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         material.ed25519.pub = tmpbuf;
         break;
     }
+    case PGP_PKA_X25519: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse X25519 public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.x25519.pub = tmpbuf;
+        break;
+    }
 #endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) alg);
@@ -1513,6 +1540,9 @@ void pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t & hbod
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         hbody.add(material.ed25519.pub);
+        break;
+    case PGP_PKA_X25519:
+        hbody.add(material.x25519.pub);
         break;
 #endif
     default:

@@ -164,6 +164,7 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_SM2, RNP_ALGNAME_SM2},
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, RNP_ALGNAME_ED25519},
+  {PGP_PKA_X25519, RNP_ALGNAME_X25519},
 #endif
   {0, NULL}};
 
@@ -324,6 +325,10 @@ pub_alg_supported(int alg)
     case PGP_PKA_EDDSA:
 #if defined(ENABLE_SM2)
     case PGP_PKA_SM2:
+#endif
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_X25519:
+    case PGP_PKA_ED25519:
 #endif
         return true;
     default:
@@ -5219,6 +5224,8 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+    case PGP_PKA_X25519:
+        return PGP_KF_ENCRYPT;
 #endif
     default:
         return PGP_KF_NONE;
@@ -7474,6 +7481,7 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
         return add_json_mpis(jso, "x", &km.ec.x, NULL);
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:
@@ -7510,6 +7518,7 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
         return add_json_mpis(jso, "r", &material.ecc.r, "s", &material.ecc.s, NULL);
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:
@@ -7731,6 +7740,7 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     } break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:

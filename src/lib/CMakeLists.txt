@@ -291,6 +291,8 @@ elseif(CRYPTO_BACKEND_BOTAN)
         crypto/hkdf.cpp
         crypto/hkdf_botan.cpp
         crypto/ed25519.cpp
+        crypto/x25519.cpp
+        crypto/exdsa_ecdhkem.cpp
     )
   endif()
 else()
