@@ -1560,6 +1560,17 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
             return false;
         }
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
+        material.ed25519.sig.resize(2 * BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(material.ed25519.sig.data(), material.ed25519.sig.size())) {
+            RNP_LOG("failed to parse ED25519 signature data");
+            return false;
+        }
+        break;
+    }
+#endif
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
         return false;
@@ -1641,6 +1652,11 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
         pktbody.add(material.eg.r);
         pktbody.add(material.eg.s);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        pktbody.add(material.ed25519.sig);
+        break;
+#endif
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

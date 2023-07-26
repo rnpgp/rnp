@@ -290,6 +290,7 @@ elseif(CRYPTO_BACKEND_BOTAN)
     list(APPEND CRYPTO_SOURCES 
         crypto/hkdf.cpp
         crypto/hkdf_botan.cpp
+        crypto/ed25519.cpp
     )
   endif()
 else()

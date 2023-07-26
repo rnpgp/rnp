@@ -220,8 +220,12 @@ typedef enum : uint8_t {
                                            * (X9.42, as defined for
                                            * IETF-S/MIME) */
     PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
-    PGP_PKA_SM2 = 99,                     /* SM2 encryption/signature schemes */
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
+#endif
+
+    PGP_PKA_SM2 = 99, /* SM2 encryption/signature schemes */
     PGP_PKA_PRIVATE00 = 100, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE01 = 101, /* Private/Experimental Algorithm */
     PGP_PKA_PRIVATE02 = 102, /* Private/Experimental Algorithm */

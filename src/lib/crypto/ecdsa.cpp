@@ -112,7 +112,7 @@ done:
     return ret;
 }
 
-static const char *
+const char *
 ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
 {
     switch (hash_alg) {

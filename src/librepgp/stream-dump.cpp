@@ -143,6 +143,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RESERVED_DH, "Reserved for DH (X9.42)"},
   {PGP_PKA_EDDSA, "EdDSA"},
   {PGP_PKA_SM2, "SM2"},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_PKA_ED25519, "Ed25519"},
+#endif
   {0x00, NULL},
 };
 
@@ -799,6 +802,11 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         dst_print_mpi(dst, "eg r", &material.eg.r, ctx->dump_mpi);
         dst_print_mpi(dst, "eg s", &material.eg.s, ctx->dump_mpi);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        dst_print_vec(dst, "ed25519 sig", material.ed25519.sig, ctx->dump_mpi);
+        break;
+#endif
     default:
         dst_printf(dst, "unknown algorithm\n");
     }
@@ -893,6 +901,11 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, "ecdh key wrap algorithm: %d\n", (int) key.material.ec.key_wrap_alg);
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        dst_print_vec(dst, "ed25519", key.material.ed25519.pub, ctx->dump_mpi);
+        break;
+#endif
     default:
         dst_printf(dst, "unknown public key algorithm\n");
     }
@@ -1858,6 +1871,11 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        /* TODO */
+        break;
+#endif
     default:
         break;
     }
@@ -1971,6 +1989,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
         }
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        /* TODO */
+        break;
+#endif
     default:
         break;
     }
@@ -2100,6 +2123,11 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
             return RNP_ERROR_OUT_OF_MEMORY;
         }
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        /* TODO */
+        break;
+#endif
     default:;
     }
 

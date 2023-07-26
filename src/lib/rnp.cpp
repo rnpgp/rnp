@@ -162,6 +162,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_ECDSA, RNP_ALGNAME_ECDSA},
   {PGP_PKA_EDDSA, RNP_ALGNAME_EDDSA},
   {PGP_PKA_SM2, RNP_ALGNAME_SM2},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_PKA_ED25519, RNP_ALGNAME_ED25519},
+#endif
   {0, NULL}};
 
 static const id_str_pair symm_alg_map[] = {{PGP_SA_IDEA, RNP_ALGNAME_IDEA},
@@ -5213,6 +5216,10 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
     case PGP_PKA_ECDH:
     case PGP_PKA_ELGAMAL:
         return PGP_KF_ENCRYPT;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
+#endif
     default:
         return PGP_KF_NONE;
     }
@@ -7465,6 +7472,10 @@ add_json_secret_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         return add_json_mpis(jso, "x", &km.ec.x, NULL);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return RNP_SUCCESS; /* TODO */
+#endif
     default:
         return RNP_ERROR_NOT_SUPPORTED;
     }
@@ -7497,6 +7508,10 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
     case PGP_PKA_EDDSA:
     case PGP_PKA_SM2:
         return add_json_mpis(jso, "r", &material.ecc.r, "s", &material.ecc.s, NULL);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return RNP_SUCCESS; /* TODO */
+#endif
     default:
         // TODO: we could use info->unknown and add a hex string of raw data here
         return RNP_ERROR_NOT_SUPPORTED;
@@ -7714,6 +7729,10 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
             return RNP_ERROR_OUT_OF_MEMORY;
         }
     } break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return RNP_SUCCESS; /* TODO */
+#endif
     default:
         break;
     }
