@@ -1,6 +1,10 @@
-/*-
- * Copyright (c) 2017 Ribose Inc.
+/*
+ * Copyright (c) 2023 MTG AG
  * All rights reserved.
+ *
+ * This code is originally derived from software contributed to
+ * The NetBSD Foundation by Alistair Crooks (agc@netbsd.org), and
+ * carried further by Ribose Inc (https://www.ribose.com).
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -24,36 +28,26 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef ECDSA_H_
-#define ECDSA_H_
+#ifndef ED25519_H_
+#define ED25519_H_
 
+#include "config.h"
+#include <rnp/rnp_def.h>
+#include <vector>
+#include <repgp/repgp_def.h>
+#include "crypto/rng.h"
 #include "crypto/ec.h"
 
-rnp_result_t ecdsa_validate_key(rnp::RNG *rng, const pgp_ec_key_t *key, bool secret);
+/* implements ED25519 with native format (V6 and PQC) */
 
-rnp_result_t ecdsa_sign(rnp::RNG *          rng,
-                        pgp_ec_signature_t *sig,
-                        pgp_hash_alg_t      hash_alg,
-                        const uint8_t *     hash,
-                        size_t              hash_len,
-                        const pgp_ec_key_t *key);
+rnp_result_t generate_ed25519_native(rnp::RNG *           rng,
+                                     std::vector<uint8_t> &privkey, 
+                                     std::vector<uint8_t> &pubkey);
 
-rnp_result_t ecdsa_verify(const pgp_ec_signature_t *sig,
-                          pgp_hash_alg_t            hash_alg,
-                          const uint8_t *           hash,
-                          size_t                    hash_len,
-                          const pgp_ec_key_t *      key);
+rnp_result_t ed25519_sign_native(rnp::RNG *rng, std::vector<uint8_t> &sig_out, const std::vector<uint8_t> &key, const uint8_t *hash, size_t hash_len);
 
-const char * ecdsa_padding_str_for(pgp_hash_alg_t hash_alg);
+rnp_result_t ed25519_verify_native(const std::vector<uint8_t> &sig, const std::vector<uint8_t> &key, const uint8_t *hash, size_t hash_len);
 
-/*
- * @brief   Returns hash which should be used with the curve
- *
- * @param   curve Curve ID
- *
- * @returns  Either ID of the hash algorithm, or PGP_HASH_UNKNOWN
- *           if not found
- */
-pgp_hash_alg_t ecdsa_get_min_hash(pgp_curve_t curve);
+rnp_result_t ed25519_validate_key_native(rnp::RNG *rng, const pgp_ed25519_key_t *key, bool secret);
 
-#endif // ECDSA_H_
+#endif

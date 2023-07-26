@@ -55,6 +55,9 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_RESERVED_DH, "Reserved for Diffie-Hellman (X9.42)"},
   {PGP_PKA_EDDSA, "EdDSA"},
   {PGP_PKA_SM2, "SM2"},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {PGP_PKA_ED25519, "ED25519"},
+#endif
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
   {PGP_PKA_PRIVATE02, "Private/Experimental"},
@@ -249,6 +252,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
             return 0;
         }
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return 255;
+#endif
     case PGP_PKA_DSA:
         return crypto->dsa.p_bitlen;
     case PGP_PKA_ELGAMAL:
