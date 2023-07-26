@@ -48,6 +48,7 @@
 #include "crypto/signatures.h"
 #include "crypto/mem.h"
 #include "../librekey/key_store_pgp.h"
+#include "str-utils.h"
 #include <set>
 #include <algorithm>
 #include <cassert>
@@ -596,6 +597,8 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
     try {
         /* parse mpis depending on algorithm */
         pgp_packet_body_t body(mpis, len);
+        
+        std::vector<uint8_t> tmpbuf;
 
 #if defined(ENABLE_CRYPTO_REFRESH)
         std::vector<uint8_t> tmpbuf;
@@ -633,6 +636,18 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
                 return RNP_ERROR_BAD_FORMAT;
             }
             break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        case PGP_PKA_ED25519: {
+            const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
+            tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse Ed25519 secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.ed25519.priv = tmpbuf;
+            break;
+        }
+#endif
         default:
             RNP_LOG("unknown pk alg : %d", (int) key.alg);
             return RNP_ERROR_BAD_PARAMETERS;
@@ -756,6 +771,11 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         body.add(key.material.eg.x);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        body.add(key.material.ed25519.priv);
+        break;
+#endif
 default:
         RNP_LOG("unknown pk alg : %d", (int) key.alg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
@@ -899,6 +919,12 @@ forget_secret_key_fields(pgp_key_material_t *key)
     case PGP_PKA_ECDH:
         mpi_forget(&key->ec.x);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        secure_clear(key->ed25519.priv.data(), key->ed25519.priv.size());
+        key->ed25519.priv.clear();
+        break;
+#endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) key->alg);
     }
@@ -1335,6 +1361,18 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         material.ec.key_wrap_alg = (pgp_symm_alg_t) walg;
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519: {
+        const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_ED25519);
+        tmpbuf.resize(BITS_TO_BYTES(ec_desc->bitlen));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse Ed25519 public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.ed25519.pub = tmpbuf;
+        break;
+    }
+#endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) alg);
         return RNP_ERROR_BAD_FORMAT;
@@ -1472,6 +1510,11 @@ void pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t & hbod
         hbody.add_byte(material.ec.kdf_hash_alg);
         hbody.add_byte(material.ec.key_wrap_alg);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        hbody.add(material.ed25519.pub);
+        break;
+#endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) alg);
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);

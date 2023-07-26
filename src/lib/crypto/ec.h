@@ -35,6 +35,7 @@
 #include <repgp/repgp_def.h>
 #include "crypto/rng.h"
 #include "crypto/mpi.h"
+#include <vector>
 
 #define MAX_CURVE_BIT_SIZE 521 // secp521r1
 /* Maximal byte size of elliptic curve order (NIST P-521) */
@@ -88,6 +89,17 @@ typedef struct pgp_ec_signature_t {
     pgp_mpi_t r;
     pgp_mpi_t s;
 } pgp_ec_signature_t;
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+typedef struct pgp_ed25519_key_t {
+    std::vector<uint8_t> pub;  // \  native encoding
+    std::vector<uint8_t> priv; // /
+} pgp_ed25519_key_t;
+
+typedef struct pgp_ed25519_signature_t {
+    std::vector<uint8_t> sig; // native encoding
+} pgp_ed25519_signature_t;
+#endif
 
 /*
  * @brief   Finds curve ID by hex representation of OID

@@ -39,6 +39,9 @@
 #include "ecdsa.h"
 #include "sm2.h"
 #include "eddsa.h"
+#if defined(ENABLE_CRYPTO_REFRESH)
+#include "ed25519.h"
+#endif
 /* symmetric crypto */
 #include "symmetric.h"
 /* hash */

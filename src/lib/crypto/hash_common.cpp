@@ -101,6 +101,12 @@ CRC24::create()
 }
 
 void
+Hash::add(const std::vector<uint8_t> &val)
+{
+    add(val.data(), val.size());
+}
+
+void
 Hash::add(uint32_t val)
 {
     uint8_t ibuf[4];

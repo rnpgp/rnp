@@ -739,6 +739,11 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, pgp_key_grip_t &grip)
         case PGP_PKA_SM2:
             grip_hash_ec(*hash, key->ec);
             break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        case PGP_PKA_ED25519:
+            hash->add(key->ed25519.pub);
+            break;
+#endif
         default:
             RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);
             return false;

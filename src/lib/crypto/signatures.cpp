@@ -137,6 +137,14 @@ signature_calculate(pgp_signature_t &     sig,
             RNP_LOG("eddsa signing failed");
         }
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        ret = ed25519_sign_native(&ctx.rng, material.ed25519.sig, seckey.ed25519.priv, hval, hlen);
+        if(ret) {
+            RNP_LOG("ed25519 signing failed");
+        }
+        break;
+#endif
     case PGP_PKA_DSA:
         ret = dsa_sign(&ctx.rng, &material.dsa, hval, hlen, &seckey.dsa);
         if (ret != RNP_SUCCESS) {
@@ -256,6 +264,11 @@ signature_validate(const pgp_signature_t &     sig,
     case PGP_PKA_EDDSA:
         ret = eddsa_verify(&material.ecc, hval, hlen, &key.ec);
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        ret = ed25519_verify_native(material.ed25519.sig, key.ed25519.pub, hval, hlen);
+        break;
+#endif
     case PGP_PKA_SM2:
 #if defined(ENABLE_SM2)
         ret = sm2_verify(&material.ecc, hash.alg(), hval, hlen, &key.ec);
