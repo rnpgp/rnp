@@ -2834,6 +2834,13 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
         }
     }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* enable or disable v6 PKESK creation*/
+    if (!cfg.get_bool(CFG_V3_PKESK_ONLY)) {
+        rnp_op_encrypt_enable_pkesk_v6(op);
+    }
+#endif
+
     /* adding signatures if encrypt-and-sign is used */
     if (cfg.get_bool(CFG_SIGN_NEEDED)) {
         rnp_op_encrypt_set_creation_time(op, cfg.get_sig_creation());

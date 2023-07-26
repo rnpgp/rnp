@@ -70,8 +70,10 @@ typedef struct rnp_symmetric_pass_info_t {
  *  - halg : hash algorithm used during key derivation for password-based encryption
  *  - ealg, aalg, abits : symmetric encryption algorithm and AEAD parameters if used
  *  - recipients : list of key ids used to encrypt data to
+ *  - enable_pkesk_v6 : if true and each recipient in the  list of recipients has the capability, allows PKESKv5/SEIPDv2
  *  - passwords : list of passwords used for password-based encryption
  *  - filename, filemtime, zalg, zlevel : see previous
+ *  - pkeskv6_capable() : returns true if all keys support PKESKv6+SEIPDv2, false otherwise (will use PKESKv3 + SEIPDv1)
  *
  *  For signing of any kind (attached, detached, cleartext):
  *  - clearsign, detached : controls kind of the signed data. Both are mutually-exclusive.
@@ -102,6 +104,9 @@ typedef struct rnp_ctx_t {
     bool           overwrite{}; /* allow to overwrite output file if exists */
     bool           armor{};     /* whether to use ASCII armor on output */
     bool           no_wrap{};   /* do not wrap source in literal data packet */
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool           enable_pkesk_v6{}; /* allows pkesk v6 if list of recipients is suitable */
+#endif
     std::list<pgp_key_t *> recipients{};              /* recipients of the encrypted message */
     std::list<rnp_symmetric_pass_info_t> passwords{}; /* passwords to encrypt message */
     std::list<rnp_signer_info_t>         signers{};   /* keys to which sign message */
@@ -118,6 +123,10 @@ typedef struct rnp_ctx_t {
                                          pgp_hash_alg_t     halg,
                                          pgp_symm_alg_t     ealg,
                                          size_t             iterations = 0);
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    bool pkeskv6_capable();
+#endif
 } rnp_ctx_t;
 
 #endif

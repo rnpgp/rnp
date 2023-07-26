@@ -428,7 +428,7 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
         }
         /* generate the raw subkey */
         pgp_key_pkt_t secpkt;
-        if (!pgp_generate_seckey(desc.crypto, secpkt, false)) {
+        if (!pgp_generate_seckey(desc.crypto, secpkt, false, desc.pgp_version)) {
             return false;
         }
         pgp_key_pkt_t pubpkt = pgp_key_pkt_t(secpkt, true);
