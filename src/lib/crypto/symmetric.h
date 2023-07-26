@@ -69,6 +69,12 @@
 /* Maximum AEAD nonce length */
 #define PGP_AEAD_MAX_NONCE_LEN 16
 
+#ifdef ENABLE_CRYPTO_REFRESH
+#define PGP_AEAD_MAX_NONCE_OR_SALT_LEN PGP_SEIPDV2_SALT_LEN
+#else
+#define PGP_AEAD_MAX_NONCE_OR_SALT_LEN PGP_AEAD_MAX_NONCE_LEN
+#endif
+
 /* Authentication tag len for AEAD/EAX and AEAD/OCB */
 #define PGP_AEAD_EAX_OCB_TAG_LEN 16
 

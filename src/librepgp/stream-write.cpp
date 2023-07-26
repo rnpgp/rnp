@@ -56,6 +56,9 @@
 #include "defaults.h"
 #include <time.h>
 #include <algorithm>
+#ifdef ENABLE_CRYPTO_REFRESH
+#include "v2_seipd.h"
+#endif
 
 /* 8192 bytes, as GnuPG */
 #define PGP_PARTIAL_PKT_SIZE_BITS (13)
@@ -99,6 +102,31 @@ typedef struct pgp_dest_encrypted_param_t {
     size_t                     chunkidx; /* index of the current AEAD chunk */
     size_t                     cachelen; /* how many bytes are in cache, for AEAD */
     uint8_t cache[PGP_AEAD_CACHE_LEN];   /* pre-allocated cache for encryption */
+#ifdef ENABLE_CRYPTO_REFRESH
+    std::array<uint8_t, PGP_SEIPDV2_SALT_LEN> v2_seipd_salt; /* SEIPDv2 salt value */
+#endif
+
+    bool is_aead_auth()
+    {
+        switch (this->auth_type) {
+        case rnp::AuthType::AEADv1:
+#ifdef ENABLE_CRYPTO_REFRESH
+        case rnp::AuthType::AEADv2:
+#endif
+            return true;
+            break;
+        case rnp::AuthType::MDC:
+        case rnp::AuthType::None:
+            return false;
+        }
+    };
+
+#ifdef ENABLE_CRYPTO_REFRESH
+    bool    is_v2_seipd() const
+    {
+        return this->auth_type == rnp::AuthType::AEADv2;
+    }
+#endif
 } pgp_dest_encrypted_param_t;
 
 typedef struct pgp_dest_signer_info_t {
@@ -344,7 +372,9 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
     }
 
     /* set chunk index for additional data */
-    write_uint64(param->ad + param->adlen - 8, idx);
+    if (param->auth_type == rnp::AuthType::AEADv1) { 
+        write_uint64(param->ad + param->adlen - 8, idx);
+    }
 
     if (last) {
         if (!(param->chunkout + param->cachelen)) {
@@ -371,6 +401,9 @@ encrypted_start_aead_chunk(pgp_dest_encrypted_param_t *param, size_t idx, bool l
 
     /* set chunk index for nonce */
     nlen = pgp_cipher_aead_nonce(param->aalg, param->iv, nonce, idx);
+    if (!nlen) {
+        RNP_LOG("ERROR: when starting encrypted AEAD chunk: could not determine nonce length");
+    }
 
     /* start cipher */
     res = pgp_cipher_aead_start(&param->encrypt, nonce, nlen);
@@ -457,7 +490,7 @@ encrypted_dst_finish(pgp_dest_t *dst)
 {
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
 
-    if (param->auth_type == rnp::AuthType::AEADv1) {
+    if (param->is_aead_auth()) {
 #if !defined(ENABLE_AEAD)
         RNP_LOG("AEAD is not enabled.");
         rnp_result_t res = RNP_ERROR_NOT_IMPLEMENTED;
@@ -503,7 +536,7 @@ encrypted_dst_close(pgp_dest_t *dst, bool discard)
         return;
     }
 
-    if (param->auth_type == rnp::AuthType::AEADv1) {
+    if (param->is_aead_auth()) {
 #if defined(ENABLE_AEAD)
         pgp_cipher_aead_destroy(&param->encrypt);
 #endif
@@ -520,7 +553,8 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
                         pgp_dest_t *         dst,
                         pgp_key_t *          userkey,
                         const uint8_t *      key,
-                        const unsigned       keylen)
+                        const unsigned       keylen,
+                        pgp_pkesk_version_t  pkesk_version)
 {
     pgp_pk_sesskey_t            pkey;
     pgp_dest_encrypted_param_t *param = (pgp_dest_encrypted_param_t *) dst->param;
@@ -533,23 +567,63 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
     }
 
     /* Fill pkey */
-    pkey.version = PGP_PKSK_V3;
+    pkey.version = pkesk_version;
     pkey.alg = userkey->alg();
+    /* set key_id (used for PKESK v3) and fingerprint (used for PKESK v6) */
     pkey.key_id = userkey->keyid();
-
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (pkey.version == (uint8_t) PGP_V6) {
+        pkey.fp = userkey->fp();
+    }
+#endif
+    
     /* Encrypt the session key */
     rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE + 3> enckey;
-    enckey[0] = param->ctx->ealg;
-    memcpy(&enckey[1], key, keylen);
+    uint8_t *sesskey = enckey.data(); /* pointer to the actual session key */
+    size_t   enckey_len = keylen;
 
-    /* Calculate checksum */
-    rnp::secure_array<unsigned, 1> checksum;
+    pkey.salg = param->ctx->ealg;
 
-    for (unsigned i = 1; i <= keylen; i++) {
-        checksum[0] += enckey[i];
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if (pkey.version == PGP_PKSK_V3) {
+        size_t key_offset;
+        if(do_encrypt_pkesk_v3_alg_id(pkey.alg)) {
+            /* for pre-crypto-refresh algorithms, algorithm ID is part of the session key */
+            key_offset = 1;
+            enckey[0] = pkey.salg;
+        } else {
+            key_offset = 0;
+        }
+#else
+        enckey[0] = pkey.salg;
+        size_t key_offset = 1;
+#endif
+        memcpy(&enckey[key_offset], key, keylen);
+        sesskey += key_offset;
+        enckey_len += key_offset;
+#if defined(ENABLE_CRYPTO_REFRESH)
     }
-    enckey[keylen + 1] = (checksum[0] >> 8) & 0xff;
-    enckey[keylen + 2] = checksum[0] & 0xff;
+    else { // PGP_PKSK_V6
+        memcpy(&enckey[0], key, keylen);
+    }
+#endif
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(have_pkesk_checksum(pkey.alg))
+#endif
+    {
+        /* Calculate checksum */
+        rnp::secure_array<unsigned, 1> checksum;
+
+        for (unsigned i = 0; i < keylen; i++) {
+            checksum[0] += sesskey[i];
+        }
+        sesskey[keylen] = (checksum[0] >> 8) & 0xff;
+        sesskey[keylen + 1] = checksum[0] & 0xff;
+
+        /* increment enckey_len by checksum */
+        enckey_len += 2;
+    }
 
     pgp_encrypted_material_t material;
 
@@ -559,7 +633,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = rsa_encrypt_pkcs1(&handler->ctx->ctx->rng,
                                 &material.rsa,
                                 enckey.data(),
-                                keylen + 3,
+                                enckey_len,
                                 &userkey->material().rsa);
         if (ret) {
             RNP_LOG("rsa_encrypt_pkcs1 failed");
@@ -572,7 +646,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = sm2_encrypt(&handler->ctx->ctx->rng,
                           &material.sm2,
                           enckey.data(),
-                          keylen + 3,
+                          enckey_len,
                           PGP_HASH_SM3,
                           &userkey->material().ec);
         if (ret) {
@@ -594,7 +668,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = ecdh_encrypt_pkcs5(&handler->ctx->ctx->rng,
                                  &material.ecdh,
                                  enckey.data(),
-                                 keylen + 3,
+                                 enckey_len,
                                  &userkey->material().ec,
                                  userkey->fp());
         if (ret) {
@@ -607,7 +681,7 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         ret = elgamal_encrypt_pkcs1(&handler->ctx->ctx->rng,
                                     &material.eg,
                                     enckey.data(),
-                                    keylen + 3,
+                                    enckey_len,
                                     &userkey->material().eg);
         if (ret) {
             RNP_LOG("pgp_elgamal_public_encrypt failed");
@@ -794,7 +868,7 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     RNP_LOG("AEAD support is not enabled.");
     return RNP_ERROR_NOT_IMPLEMENTED;
 #else
-    uint8_t hdr[4 + PGP_AEAD_MAX_NONCE_LEN];
+    uint8_t hdr[4 + PGP_AEAD_MAX_NONCE_OR_SALT_LEN];
     size_t  nlen;
 
     if (pgp_block_size(param->ctx->ealg) != 16) {
@@ -802,32 +876,75 @@ encrypted_start_aead(pgp_dest_encrypted_param_t *param, uint8_t *enckey)
     }
 
     /* fill header */
+#ifdef ENABLE_CRYPTO_REFRESH
+    hdr[0] = param->auth_type == rnp::AuthType::AEADv2 ? 2 : 1;
+#else
     hdr[0] = 1;
+#endif
     hdr[1] = param->ctx->ealg;
     hdr[2] = param->ctx->aalg;
     hdr[3] = param->ctx->abits;
 
     /* generate iv */
     nlen = pgp_cipher_aead_nonce_len(param->ctx->aalg);
+    uint8_t *iv_or_salt = param->iv;
+    size_t   iv_or_salt_len = nlen;
+#ifdef ENABLE_CRYPTO_REFRESH 
+    if (param->auth_type == rnp::AuthType::AEADv2) {
+        iv_or_salt = param->v2_seipd_salt.data();
+        iv_or_salt_len = param->v2_seipd_salt.size();
+    }
+#endif
     try {
-        param->ctx->ctx->rng.get(param->iv, nlen);
+        param->ctx->ctx->rng.get(iv_or_salt, iv_or_salt_len);
     } catch (const std::exception &e) {
         return RNP_ERROR_RNG;
     }
-    memcpy(hdr + 4, param->iv, nlen);
-
+    memcpy(hdr + 4, iv_or_salt, iv_or_salt_len);
     /* output header */
-    dst_write(param->pkt.writedst, hdr, 4 + nlen);
+    dst_write(param->pkt.writedst, hdr, 4 + iv_or_salt_len);
 
     /* initialize encryption */
     param->chunklen = 1L << (hdr[3] + 6);
     param->chunkout = 0;
 
     /* fill additional/authenticated data */
-    param->ad[0] = PGP_PKT_AEAD_ENCRYPTED | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
+    uint8_t raw_packet_tag = PGP_PKT_AEAD_ENCRYPTED;
+#ifdef ENABLE_CRYPTO_REFRESH
+    if (param->auth_type == rnp::AuthType::AEADv2) {
+        raw_packet_tag = PGP_PKT_SE_IP_DATA;
+    }
+#endif
+    param->ad[0] = raw_packet_tag | PGP_PTAG_ALWAYS_SET | PGP_PTAG_NEW_FORMAT;
     memcpy(param->ad + 1, hdr, 4);
-    memset(param->ad + 5, 0, 8);
-    param->adlen = 13;
+#ifdef ENABLE_CRYPTO_REFRESH
+    if (param->auth_type == rnp::AuthType::AEADv2) {
+        param->adlen = 5;
+    } else {
+#endif
+        memset(param->ad + 5, 0, 8);
+        param->adlen = 13;
+#ifdef ENABLE_CRYPTO_REFRESH
+    }
+    seipd_v2_aead_fields_t s2_fields;
+    if (param->auth_type == rnp::AuthType::AEADv2) {
+        param->aalg = param->ctx->aalg;
+        pgp_seipdv2_hdr_t v2_seipd_hdr;
+        v2_seipd_hdr.cipher_alg = param->ctx->ealg;
+        v2_seipd_hdr.aead_alg = param->ctx->aalg;
+        v2_seipd_hdr.chunk_size_octet = param->ctx->abits;
+        v2_seipd_hdr.version = PGP_SE_IP_DATA_V2;
+        memcpy(v2_seipd_hdr.salt, iv_or_salt, PGP_SEIPDV2_SALT_LEN);
+        s2_fields = seipd_v2_key_and_nonce_derivation(v2_seipd_hdr, enckey);
+        enckey = s2_fields.key.data();
+        if(s2_fields.nonce.size() > sizeof(param->iv))
+        {
+            // would be better to indicate an error
+            s2_fields.nonce.resize(sizeof(param->iv));
+        }
+        std::memcpy(param->iv, s2_fields.nonce.data(), s2_fields.nonce.size());
+    }
+#endif
 
     /* initialize cipher */
     if (!pgp_cipher_aead_init(
@@ -884,17 +1001,24 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
     }
     param->auth_type =
       handler->ctx->aalg == PGP_AEAD_NONE ? rnp::AuthType::MDC : rnp::AuthType::AEADv1;
-    param->aalg = handler->ctx->aalg;
-    param->ctx = handler->ctx;
-    param->pkt.origdst = writedst;
-    dst->write = param->auth_type == rnp::AuthType::AEADv1 ? encrypted_dst_write_aead :
-                                                             encrypted_dst_write_cfb;
-    dst->finish = encrypted_dst_finish;
-    dst->close = encrypted_dst_close;
-    dst->type = PGP_STREAM_ENCRYPTED;
 
     pkeycount = handler->ctx->recipients.size();
     skeycount = handler->ctx->passwords.size();
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* in the case of PKESK (pkeycount > 0) and all keys are PKESKv6/SEIPDv2 capable, ugprade to AEADv2 */
+    if (handler->ctx->enable_pkesk_v6 && handler->ctx->pkeskv6_capable() && pkeycount > 0) {
+        param->auth_type = rnp::AuthType::AEADv2;
+    }
+#endif
+    param->aalg = handler->ctx->aalg;
+    param->ctx = handler->ctx;
+    param->pkt.origdst = writedst;
+    // the following assignment is covered for the v2 SEIPD case further below
+    dst->write = param->is_aead_auth() ? encrypted_dst_write_aead : encrypted_dst_write_cfb;
+    dst->finish = encrypted_dst_finish;
+    dst->close = encrypted_dst_close;
+    dst->type = PGP_STREAM_ENCRYPTED;
 
     rnp::secure_array<uint8_t, PGP_MAX_KEY_SIZE> enckey; /* content encryption key */
     if (!pkeycount && !skeycount) {
@@ -903,7 +1027,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         goto finish;
     }
 
-    if ((pkeycount > 0) || (skeycount > 1) || (param->auth_type == rnp::AuthType::AEADv1)) {
+    if ((pkeycount > 0) || (skeycount > 1) || param->is_aead_auth()) {
         try {
             handler->ctx->ctx->rng.get(enckey.data(), keylen);
         } catch (const std::exception &e) {
@@ -915,7 +1039,19 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
 
     /* Configuring and writing pk-encrypted session keys */
     for (auto recipient : handler->ctx->recipients) {
-        ret = encrypted_add_recipient(handler, dst, recipient, enckey.data(), keylen);
+        pgp_pkesk_version_t pkesk_version = PGP_PKSK_V3;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (param->auth_type == rnp::AuthType::AEADv2) {
+            pkesk_version = PGP_PKSK_V6;
+        }
+        if(handler->ctx->aalg == PGP_AEAD_NONE) {
+            // set default AEAD if not set
+            // TODO-V6: is this the right place to set the default algorithm?
+            param->ctx->aalg = DEFAULT_AEAD_ALG;
+        }
+#endif
+        ret = encrypted_add_recipient(
+          handler, dst, recipient, enckey.data(), keylen, pkesk_version);
         if (ret) {
             goto finish;
         }
@@ -938,6 +1074,11 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         /* We do not generate PGP_PKT_SE_DATA, leaving this just in case */
         param->pkt.tag =
           param->auth_type == rnp::AuthType::MDC ? PGP_PKT_SE_IP_DATA : PGP_PKT_SE_DATA;
+#ifdef ENABLE_CRYPTO_REFRESH
+        if(param->auth_type == rnp::AuthType::AEADv2) {
+            param->pkt.tag = PGP_PKT_SE_IP_DATA;
+        }
+#endif
     }
 
     /* initializing partial data length writer */
@@ -948,7 +1089,7 @@ init_encrypted_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *wr
         goto finish;
     }
 
-    if (param->auth_type == rnp::AuthType::AEADv1) {
+    if (param->is_aead_auth()) {
         /* initialize AEAD encryption */
         ret = encrypted_start_aead(param, enckey.data());
     } else {
