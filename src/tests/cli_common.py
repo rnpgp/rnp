@@ -1,10 +1,10 @@
 import sys
-import distutils.spawn
 import random
 import string
 import logging
 import os
 import re
+import shutil
 from subprocess import Popen, PIPE
 
 RNP_ROOT = None
@@ -78,7 +78,7 @@ def file_text(path, encoding = CONSOLE_ENCODING):
         return f.read().decode(encoding).replace('\r\r', '\r')
 
 def find_utility(name, exitifnone = True):
-    path = distutils.spawn.find_executable(name)
+    path = shutil.which(name)
     if not path and exitifnone:
         logging.error('Cannot find utility {}. Exiting.'.format(name))
         sys.exit(1)
