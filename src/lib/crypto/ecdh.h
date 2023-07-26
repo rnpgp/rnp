@@ -28,6 +28,7 @@
 #define ECDH_H_
 
 #include "crypto/ec.h"
+#include <vector>
 
 /* Max size of wrapped and obfuscated key size
  *
@@ -113,5 +114,43 @@ rnp_result_t ecdh_decrypt_pkcs5(uint8_t *                   out,
                                 const pgp_ecdh_encrypted_t *in,
                                 const pgp_ec_key_t *        key,
                                 const pgp_fingerprint_t &   fingerprint);
+
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* Generate an ECDH key pair in "native" format, i.e.,
+ * no changes to the format specified in the respective standard
+ * are applied (uncompressed SEC1 and RFC 7748).
+ *
+ * @param rng initialized rnp::RNG object
+ * @param privkey [out] the generated private key
+ * @param pubkey [out] the generated public key
+ * @param curve the curve for which a key pair is generated
+ *
+ * @return RNP_SUCCESS on success and output parameters are populated
+ * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
+ */
+rnp_result_t ecdh_kem_gen_keypair_native(rnp::RNG *           rng,
+                                         std::vector<uint8_t> &privkey,
+                                         std::vector<uint8_t> &pubkey,
+                                         pgp_curve_t          curve);
+
+/* Generate an ECDSA or EdDSA key pair in "native" format, i.e.,
+ * no changes to the format specified in the respective standard
+ * are applied (uncompressed SEC1 and RFC 7748).
+ *
+ * @param rng initialized rnp::RNG object
+ * @param privkey [out] the generated private key
+ * @param pubkey [out] the generated public key
+ * @param curve the curve for which a key pair is generated
+ *
+ * @return RNP_SUCCESS on success and output parameters are populated
+ * @return RNP_ERROR_BAD_PARAMETERS unexpected input provided
+ */
+rnp_result_t exdsa_gen_keypair_native(rnp::RNG *           rng,
+                                      std::vector<uint8_t> &privkey,
+                                      std::vector<uint8_t> &pubkey,
+                                      pgp_curve_t          curve);
+
+#endif
 
 #endif // ECDH_H_

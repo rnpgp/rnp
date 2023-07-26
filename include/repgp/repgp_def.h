@@ -222,6 +222,7 @@ typedef enum : uint8_t {
     PGP_PKA_EDDSA = 22,                   /* EdDSA from draft-ietf-openpgp-rfc4880bis */
 
 #if defined(ENABLE_CRYPTO_REFRESH)
+    PGP_PKA_X25519 = 25,  /* v6 / Crypto Refresh */
     PGP_PKA_ED25519 = 27, /* v6 / Crypto Refresh */
 #endif
 
