@@ -40,6 +40,7 @@
 #include "sm2.h"
 #include "eddsa.h"
 #if defined(ENABLE_CRYPTO_REFRESH)
+#include "x25519.h"
 #include "ed25519.h"
 #endif
 /* symmetric crypto */
