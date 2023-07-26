@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2022 MTG AG
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,56 +23,50 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNP_ERR_H_
-#define RNP_ERR_H_
 
-/*
- * Error code definitions
- */
-enum {
 
-    RNP_SUCCESS = 0x00000000,
+#include "config.h"
 
-    /* Common error codes */
-    RNP_ERROR_GENERIC = 0x10000000,
-    RNP_ERROR_BAD_FORMAT,
-    RNP_ERROR_BAD_PARAMETERS,
-    RNP_ERROR_NOT_IMPLEMENTED,
-    RNP_ERROR_NOT_SUPPORTED,
-    RNP_ERROR_OUT_OF_MEMORY,
-    RNP_ERROR_SHORT_BUFFER,
-    RNP_ERROR_NULL_POINTER,
+#if defined(ENABLE_CRYPTO_REFRESH)
 
-    /* Storage */
-    RNP_ERROR_ACCESS = 0x11000000,
-    RNP_ERROR_READ,
-    RNP_ERROR_WRITE,
+#include "hkdf.hpp"
 
-    /* Crypto */
-    RNP_ERROR_BAD_STATE = 0x12000000,
-    RNP_ERROR_MAC_INVALID,
-    RNP_ERROR_SIGNATURE_INVALID,
-    RNP_ERROR_KEY_GENERATION,
-    RNP_ERROR_BAD_PASSWORD,
-    RNP_ERROR_KEY_NOT_FOUND,
-    RNP_ERROR_NO_SUITABLE_KEY,
-    RNP_ERROR_DECRYPT_FAILED,
-    RNP_ERROR_ENCRYPT_FAILED,
-    RNP_ERROR_RNG,
-    RNP_ERROR_SIGNING_FAILED,
-    RNP_ERROR_NO_SIGNATURES_FOUND,
+#if defined(CRYPTO_BACKEND_BOTAN)
+#include "hkdf_botan.hpp"
+#endif
+#if defined(CRYPTO_BACKEND_OPENSSL)
+#error HKDF not implemented for OpenSSL Backend
+#endif
 
-    RNP_ERROR_SIGNATURE_EXPIRED,
-    RNP_ERROR_VERIFICATION_FAILED,
-    RNP_ERROR_SIGNATURE_UNKNOWN,
+namespace rnp {
+std::unique_ptr<Hkdf>
+Hkdf::create(pgp_hash_alg_t alg)
+{
+#if defined(CRYPTO_BACKEND_OPENSSL)
+#error HKDF not implemented for OpenSSL
+    // return Hash_OpenSSL::create(alg);
+#elif defined(CRYPTO_BACKEND_BOTAN)
+    return Hkdf_Botan::create(alg);
+#else
+#error "Crypto backend not specified"
+#endif
+}
 
-    /* Parsing */
-    RNP_ERROR_NOT_ENOUGH_DATA = 0x13000000,
-    RNP_ERROR_UNKNOWN_TAG,
-    RNP_ERROR_PACKET_NOT_CONSUMED,
-    RNP_ERROR_NO_USERID,
-    RNP_ERROR_EOF
+size_t
+Hkdf::size() const
+{
+    return size_;
+}
 
-};
+pgp_hash_alg_t Hkdf::alg() const
+{
+    return hash_alg_;
+}
+
+Hkdf::~Hkdf()
+{
+}
+
+} // namespace rnp
 
 #endif

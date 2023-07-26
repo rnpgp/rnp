@@ -1021,7 +1021,16 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
     indent_dest_increase(dst);
 
     dst_printf(dst, "version: %d\n", (int) pkey.version);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if(pkey.version == PGP_PKSK_V6) {
+        dst_print_fp(dst, NULL, pkey.fp);
+    }
+    else {
+        dst_print_keyid(dst, NULL, pkey.key_id);
+    }
+#else
     dst_print_keyid(dst, NULL, pkey.key_id);
+#endif
     dst_print_palg(dst, NULL, pkey.alg);
     dst_printf(dst, "encrypted material:\n");
     indent_dest_increase(dst);
