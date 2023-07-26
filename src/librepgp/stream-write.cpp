@@ -566,6 +566,21 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         return RNP_ERROR_NO_SUITABLE_KEY;
     }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /* Crypto Refresh: For X25519/X448 PKESKv3, AES is mandated */
+    if(userkey->alg() == PGP_PKA_X25519 && pkesk_version == PGP_PKSK_V3) {
+        switch(param->ctx->ealg) {
+            case PGP_SA_AES_128:
+            case PGP_SA_AES_192:
+            case PGP_SA_AES_256:
+                break;
+            default:
+                RNP_LOG("attempting to use X25519 and v3 PKESK in combination with a symmetric algorithm that is not AES.");
+                return RNP_ERROR_DECRYPT_FAILED;
+        }
+    }
+#endif
+
     /* Fill pkey */
     pkey.version = pkesk_version;
     pkey.alg = userkey->alg();
@@ -689,6 +704,19 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
         }
         break;
     }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_X25519:
+        ret = x25519_native_encrypt(&handler->ctx->ctx->rng,
+                                    userkey->material().x25519.pub,
+                                    enckey.data(),
+                                    enckey_len,
+                                    &material.x25519);
+        if(ret) {
+            RNP_LOG("x25519 encryption failed");
+            return ret;
+        }
+        break;
+#endif
     default:
         RNP_LOG("unsupported alg: %d", (int) userkey->alg());
         return ret;

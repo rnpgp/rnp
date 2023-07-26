@@ -190,6 +190,7 @@ typedef struct pgp_key_material_t {
     };
 #if defined(ENABLE_CRYPTO_REFRESH)
     pgp_ed25519_key_t ed25519; /* non-trivial type, cannot be in a union */
+    pgp_x25519_key_t  x25519; /* non-trivial type, cannot be in a union */
 #endif
 
     pgp_curve_t get_curve() const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
@@ -219,11 +220,14 @@ typedef struct pgp_signature_material_t {
  */
 typedef struct pgp_encrypted_material_t {
     union {
-        pgp_rsa_encrypted_t  rsa;
-        pgp_eg_encrypted_t   eg;
-        pgp_sm2_encrypted_t  sm2;
-        pgp_ecdh_encrypted_t ecdh;
+        pgp_rsa_encrypted_t       rsa;
+        pgp_eg_encrypted_t        eg;
+        pgp_sm2_encrypted_t       sm2;
+        pgp_ecdh_encrypted_t      ecdh;
     };
+#if defined(ENABLE_CRYPTO_REFRESH)
+    pgp_x25519_encrypted_t x25519; // non-trivial type cannot be member in union
+#endif
 } pgp_encrypted_material_t;
 
 typedef struct pgp_s2k_t {

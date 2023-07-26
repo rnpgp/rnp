@@ -162,6 +162,12 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
             return false;
         }
         break;
+    case PGP_PKA_X25519:
+        if(generate_x25519_native(&crypto.ctx->rng, seckey.material.x25519.priv, seckey.material.x25519.pub) != RNP_SUCCESS) {
+            RNP_LOG("failed to generate X25519 key");
+            return false;
+        }
+        break;
 #endif
     default:
         RNP_LOG("key generation not implemented for PK alg: %d", seckey.alg);
@@ -206,6 +212,8 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         return (key1->ed25519.pub == key2->ed25519.pub);
+    case PGP_PKA_X25519:
+        return (key1->x25519.pub == key2->x25519.pub);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) key1->alg);
@@ -257,6 +265,8 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: 
         return ed25519_validate_key_native(rng, &material->ed25519, material->secret);
+    case PGP_PKA_X25519: 
+        return x25519_validate_key_native(rng, &material->x25519, material->secret);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) material->alg);

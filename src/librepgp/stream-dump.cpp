@@ -145,6 +145,7 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_SM2, "SM2"},
 #if defined(ENABLE_CRYPTO_REFRESH)
   {PGP_PKA_ED25519, "Ed25519"},
+  {PGP_PKA_X25519, "X25519"},
 #endif
   {0x00, NULL},
 };
@@ -905,6 +906,9 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     case PGP_PKA_ED25519:
         dst_print_vec(dst, "ed25519", key.material.ed25519.pub, ctx->dump_mpi);
         break;
+    case PGP_PKA_X25519:
+        dst_print_vec(dst, "x25519", key.material.x25519.pub, ctx->dump_mpi);
+        break;
 #endif
     default:
         dst_printf(dst, "unknown public key algorithm\n");
@@ -1070,6 +1074,12 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
             dst_printf(dst, "ecdh m: %d bytes\n", (int) material.ecdh.mlen);
         }
         break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_X25519:
+        dst_print_vec(dst, "x25519 ephemeral public key", material.x25519.eph_key, ctx->dump_mpi);
+        dst_print_vec(dst, "x25519 encrypted session key", material.x25519.enc_sess_key, ctx->dump_mpi);
+        break;
+#endif
     default:
         dst_printf(dst, "unknown public key algorithm\n");
     }
@@ -1991,6 +2001,7 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
         /* TODO */
         break;
 #endif
@@ -2125,6 +2136,7 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
+    case PGP_PKA_X25519:
         /* TODO */
         break;
 #endif

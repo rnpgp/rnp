@@ -196,6 +196,8 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+    case PGP_PKA_X25519:
+        return PGP_KF_ENCRYPT;
 #endif
 
     case PGP_PKA_SM2:
@@ -2755,6 +2757,8 @@ pgp_key_material_t::get_curve() const
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
         return PGP_CURVE_ED25519;
+    case PGP_PKA_X25519:
+        return PGP_CURVE_25519;
 #endif
     default:
         return PGP_CURVE_UNKNOWN;
@@ -2779,6 +2783,7 @@ pgp_key_material_t::bits() const
     case PGP_PKA_EDDSA: [[fallthrough]];
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519: [[fallthrough]];
+    case PGP_PKA_X25519: [[fallthrough]];
 #endif
     case PGP_PKA_SM2: {
     /* handle ecc cases */

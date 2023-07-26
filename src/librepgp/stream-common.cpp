@@ -1215,8 +1215,13 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
 #if defined(ENABLE_CRYPTO_REFRESH)
 bool have_pkesk_checksum(pgp_pubkey_alg_t alg)
 {
-    return true;
-    
+    switch(alg)
+    {
+        case PGP_PKA_X25519:
+            return false;
+        default:
+            return true;
+    }    
 }
 
 bool do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)

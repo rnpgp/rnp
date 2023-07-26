@@ -99,6 +99,16 @@ typedef struct pgp_ed25519_key_t {
 typedef struct pgp_ed25519_signature_t {
     std::vector<uint8_t> sig; // native encoding
 } pgp_ed25519_signature_t;
+
+typedef struct pgp_x25519_key_t {
+    std::vector<uint8_t> pub;  // \  native encoding
+    std::vector<uint8_t> priv; // /
+} pgp_x25519_key_t;
+
+typedef struct pgp_x25519_encrypted_t {
+    std::vector<uint8_t> eph_key;
+    std::vector<uint8_t> enc_sess_key;
+} pgp_x25519_encrypted_t;
 #endif
 
 /*
@@ -182,4 +192,20 @@ bool x25519_tweak_bits(pgp_ec_key_t &key);
  */
 bool x25519_bits_tweaked(const pgp_ec_key_t &key);
 
+/*
+ * @brief   Generates EC keys in "native" or SEC1-encoded uncompressed format
+ *
+ * @param   rng initialized rnp::RNG context*
+ * @param   privkey private key to be generated
+ * @param   pubkey public key to be generated
+ * @param   curve chosen curve
+ * @param   alg algorithm id
+ *
+ * @returns RNP_ERROR_BAD_PARAMETERS if the curve or alg parameter is invalid.
+ */
+rnp_result_t ec_generate_native(rnp::RNG *           rng,
+                                std::vector<uint8_t> &privkey, 
+                                std::vector<uint8_t> &pubkey,
+                                pgp_curve_t          curve,
+                                pgp_pubkey_alg_t     alg);
 #endif
