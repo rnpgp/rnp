@@ -193,6 +193,11 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     case PGP_PKA_EDDSA:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
+#endif
+
     case PGP_PKA_SM2:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH | PGP_KF_ENCRYPT);
 
@@ -2738,6 +2743,24 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
     return true;
 }
 
+pgp_curve_t
+pgp_key_material_t::get_curve() const
+{
+    switch (alg) {
+    case PGP_PKA_ECDH: [[fallthrough]];
+    case PGP_PKA_ECDSA: [[fallthrough]];
+    case PGP_PKA_EDDSA: [[fallthrough]];
+    case PGP_PKA_SM2:
+        return ec.curve;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519:
+        return PGP_CURVE_ED25519;
+#endif
+    default:
+        return PGP_CURVE_UNKNOWN;
+    }
+}
+
 size_t
 pgp_key_material_t::bits() const
 {
@@ -2751,13 +2774,16 @@ pgp_key_material_t::bits() const
     case PGP_PKA_ELGAMAL:
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return 8 * mpi_bytes(&eg.y);
-    case PGP_PKA_ECDH:
-    case PGP_PKA_ECDSA:
-    case PGP_PKA_EDDSA:
+    case PGP_PKA_ECDH: [[fallthrough]];
+    case PGP_PKA_ECDSA: [[fallthrough]];
+    case PGP_PKA_EDDSA: [[fallthrough]];
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case PGP_PKA_ED25519: [[fallthrough]];
+#endif
     case PGP_PKA_SM2: {
-        // bn_num_bytes returns value <= curve order
-        const ec_curve_desc_t *curve = get_curve_desc(ec.curve);
-        return curve ? curve->bitlen : 0;
+    /* handle ecc cases */
+    const ec_curve_desc_t *curve_desc = get_curve_desc(get_curve());
+    return curve_desc ? curve_desc->bitlen : 0;
     }
     default:
         RNP_LOG("Unknown public key alg: %d", (int) alg);

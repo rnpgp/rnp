@@ -188,7 +188,11 @@ typedef struct pgp_key_material_t {
         pgp_eg_key_t  eg;
         pgp_ec_key_t  ec;
     };
+#if defined(ENABLE_CRYPTO_REFRESH)
+    pgp_ed25519_key_t ed25519; /* non-trivial type, cannot be in a union */
+#endif
 
+    pgp_curve_t get_curve() const; /* return curve for EC algorithms, PGP_CURVE_UNKNOWN otherwise */
     size_t bits() const;
     size_t qbits() const;
     void   validate(rnp::SecurityContext &ctx, bool reset = true);
@@ -205,6 +209,9 @@ typedef struct pgp_signature_material_t {
         pgp_ec_signature_t  ecc;
         pgp_eg_signature_t  eg;
     };
+#if defined(ENABLE_CRYPTO_REFRESH)
+    pgp_ed25519_signature_t ed25519; // non-trivial type cannot be member in union
+#endif
 } pgp_signature_material_t;
 
 /**

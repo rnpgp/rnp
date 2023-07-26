@@ -57,6 +57,7 @@ class Hash {
     virtual std::unique_ptr<Hash> clone() const = 0;
 
     virtual void   add(const void *buf, size_t len) = 0;
+    virtual void   add(const std::vector<uint8_t> &val);
     virtual void   add(uint32_t val);
     virtual void   add(const pgp_mpi_t &mpi);
     virtual size_t finish(uint8_t *digest = NULL) = 0;
