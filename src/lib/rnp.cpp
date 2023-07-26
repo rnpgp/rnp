@@ -765,6 +765,8 @@ rnp_result_to_string(rnp_result_t result)
         return "No suitable key";
     case RNP_ERROR_DECRYPT_FAILED:
         return "Decryption failed";
+    case RNP_ERROR_ENCRYPT_FAILED:
+        return "Encryption failed";
     case RNP_ERROR_RNG:
         return "Failure of random number generator";
     case RNP_ERROR_SIGNING_FAILED:
@@ -2533,6 +2535,20 @@ try {
 }
 FFI_GUARD
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+rnp_result_t
+rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    op->rnpctx.enable_pkesk_v6 = true;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+#endif
+
 rnp_result_t
 rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
                              rnp_key_handle_t         key,
@@ -2660,6 +2676,12 @@ try {
         FFI_LOG(op->ffi, "Invalid AEAD algorithm: %s", alg);
         return RNP_ERROR_BAD_PARAMETERS;
     }
+#ifdef ENABLE_CRYPTO_REFRESH
+if(op->rnpctx.aalg == PGP_AEAD_NONE && op->rnpctx.enable_pkesk_v6) {
+        FFI_LOG(op->ffi, "Setting AEAD algorithm to PGP_AEAD_NONE (%s) would contradict the previously enabled PKESKv6 setting", alg);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+#endif
     return RNP_SUCCESS;
 }
 FFI_GUARD

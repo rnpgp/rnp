@@ -86,7 +86,7 @@ if(CRYPTO_BACKEND_BOTAN3)
   set(CMAKE_CXX_STANDARD 20)
 endif()
 
-add_executable(rnp_tests
+set(RNP_TEST_SOURCES
   ../rnp/rnpcfg.cpp
   ../rnp/fficli.cpp
   ../rnp/rnp.cpp
@@ -150,7 +150,15 @@ add_executable(rnp_tests
   fuzz_dump.cpp
   fuzz_verify_detached.cpp
   fuzz_verify.cpp
-)
+  )
+
+if(ENABLE_CRYPTO_REFRESH)
+  list(APPEND RNP_TEST_SOURCES 
+    hkdf.cpp)
+endif() 
+
+add_executable(rnp_tests ${RNP_TEST_SOURCES})
+
 if(MSVC)
   find_package(WindowsSDK)
   GetUMWindowsSDKLibraryDir(WIN_LIBRARY_DIR)

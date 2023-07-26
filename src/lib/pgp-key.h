@@ -236,6 +236,7 @@ struct pgp_key_t {
     bool     is_secret() const;
     bool     is_primary() const;
     bool     is_subkey() const;
+    bool     is_seipdv2_capable() const;
     /** @brief check if a key is currently locked, i.e. secret fields are not decrypted.
      *  Note: Key locking does not apply to unprotected keys.
      */

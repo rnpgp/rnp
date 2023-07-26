@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2022 MTG AG
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -23,56 +23,57 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  */
-#ifndef RNP_ERR_H_
-#define RNP_ERR_H_
 
-/*
- * Error code definitions
- */
-enum {
+#include "config.h"
 
-    RNP_SUCCESS = 0x00000000,
+#ifdef ENABLE_CRYPTO_REFRESH
 
-    /* Common error codes */
-    RNP_ERROR_GENERIC = 0x10000000,
-    RNP_ERROR_BAD_FORMAT,
-    RNP_ERROR_BAD_PARAMETERS,
-    RNP_ERROR_NOT_IMPLEMENTED,
-    RNP_ERROR_NOT_SUPPORTED,
-    RNP_ERROR_OUT_OF_MEMORY,
-    RNP_ERROR_SHORT_BUFFER,
-    RNP_ERROR_NULL_POINTER,
+#include "hkdf_botan.hpp"
+#include "hash_botan.hpp"
 
-    /* Storage */
-    RNP_ERROR_ACCESS = 0x11000000,
-    RNP_ERROR_READ,
-    RNP_ERROR_WRITE,
+namespace rnp {
 
-    /* Crypto */
-    RNP_ERROR_BAD_STATE = 0x12000000,
-    RNP_ERROR_MAC_INVALID,
-    RNP_ERROR_SIGNATURE_INVALID,
-    RNP_ERROR_KEY_GENERATION,
-    RNP_ERROR_BAD_PASSWORD,
-    RNP_ERROR_KEY_NOT_FOUND,
-    RNP_ERROR_NO_SUITABLE_KEY,
-    RNP_ERROR_DECRYPT_FAILED,
-    RNP_ERROR_ENCRYPT_FAILED,
-    RNP_ERROR_RNG,
-    RNP_ERROR_SIGNING_FAILED,
-    RNP_ERROR_NO_SIGNATURES_FOUND,
+Hkdf_Botan::Hkdf_Botan(pgp_hash_alg_t hash_alg) : Hkdf(hash_alg)
+{
+}
 
-    RNP_ERROR_SIGNATURE_EXPIRED,
-    RNP_ERROR_VERIFICATION_FAILED,
-    RNP_ERROR_SIGNATURE_UNKNOWN,
+std::unique_ptr<Hkdf_Botan>
+Hkdf_Botan::create(pgp_hash_alg_t alg)
+{
+    return std::unique_ptr<Hkdf_Botan>(new Hkdf_Botan(alg));
+}
 
-    /* Parsing */
-    RNP_ERROR_NOT_ENOUGH_DATA = 0x13000000,
-    RNP_ERROR_UNKNOWN_TAG,
-    RNP_ERROR_PACKET_NOT_CONSUMED,
-    RNP_ERROR_NO_USERID,
-    RNP_ERROR_EOF
 
-};
+std::string Hkdf_Botan::alg() const
+{
+    return std::string("HKDF(") + Hash_Botan::name_backend(Hkdf::alg()) + ")";
+}
+
+void
+Hkdf_Botan::extract_expand(const uint8_t *salt,
+                           size_t         salt_len,
+                           const uint8_t *ikm,
+                           size_t         ikm_len,
+                           const uint8_t *info,
+                           size_t         info_len,
+                           uint8_t *      output_buf,
+                           size_t         output_length)
+{
+    std::unique_ptr<Botan::KDF> kdf = Botan::KDF::create_or_throw(Hkdf_Botan::alg(), "");
+
+    Botan::secure_vector<uint8_t> OKM;
+    OKM = kdf->derive_key(output_length,
+               ikm, ikm_len,
+               salt, salt_len,
+               info, info_len);
+
+    memcpy(output_buf, Botan::unlock(OKM).data(), output_length);
+}
+
+Hkdf_Botan::~Hkdf_Botan()
+{
+}
+
+} // namespace rnp
 
 #endif

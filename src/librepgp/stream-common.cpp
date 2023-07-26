@@ -1210,3 +1210,18 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
     dst_flush(dst);
     return dst->werr;
 }
+
+
+#if defined(ENABLE_CRYPTO_REFRESH)
+bool have_pkesk_checksum(pgp_pubkey_alg_t alg)
+{
+    return true;
+    
+}
+
+bool do_encrypt_pkesk_v3_alg_id(pgp_pubkey_alg_t alg)
+{
+    /* matches the same algorithms */
+    return have_pkesk_checksum(alg);
+}
+#endif

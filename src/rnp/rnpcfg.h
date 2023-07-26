@@ -50,6 +50,9 @@
 #define CFG_NEEDSSECKEY "needsseckey"    /* needs secret key for the ongoing operation */
 #define CFG_USERID "userid"              /* userid for the ongoing operation */
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
+#if defined(ENABLE_CRYPTO_REFRESH)
+  #define CFG_V3_PKESK_ONLY "v3-pkesk-only" /* disable v6 PKESK */
+#endif
 #define CFG_SIGNERS "signers"            /* list of signers */
 #define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
 #define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */

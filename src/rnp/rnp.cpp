@@ -129,6 +129,9 @@ enum optdefs {
     OPT_KEY_STORE_FORMAT,
     OPT_USERID,
     OPT_RECIPIENT,
+#if defined(ENABLE_CRYPTO_REFRESH)
+    OPT_V3_PKESK_ONLY,
+#endif
     OPT_ARMOR,
     OPT_HOMEDIR,
     OPT_DETACHED,
@@ -193,6 +196,9 @@ static struct option options[] = {
   {"keystore-format", required_argument, NULL, OPT_KEY_STORE_FORMAT},
   {"userid", required_argument, NULL, OPT_USERID},
   {"recipient", required_argument, NULL, OPT_RECIPIENT},
+#if defined(ENABLE_CRYPTO_REFRESH)
+  {"v3-pkesk-only", optional_argument, NULL, OPT_V3_PKESK_ONLY},
+#endif
   {"home", required_argument, NULL, OPT_HOMEDIR},
   {"homedir", required_argument, NULL, OPT_HOMEDIR},
   {"keyfile", required_argument, NULL, OPT_KEYFILE},
@@ -405,6 +411,11 @@ setoption(rnp_cfg &cfg, int val, const char *arg)
     case OPT_RECIPIENT:
         cfg.add_str(CFG_RECIPIENTS, arg);
         return true;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    case OPT_V3_PKESK_ONLY:
+        cfg.set_bool(CFG_V3_PKESK_ONLY, true);
+        return true;
+#endif
     case OPT_ARMOR:
         cfg.set_bool(CFG_ARMOR, true);
         return true;

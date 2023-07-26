@@ -113,6 +113,15 @@ rnp_result_t init_literal_src(pgp_source_t *src, pgp_source_t *readsrc);
  */
 bool get_literal_src_hdr(pgp_source_t *src, pgp_literal_hdr_t *hdr);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+/* @brief Get the SEIPDv2 packet information fields (not the OpenPGP packet header)
+ * @param src SEIPDv2-encrypted data source (starting from packet data itself, not the header)
+ * @param hdr pointer to header structure, where result will be stored
+ * @return true on success or false otherwise
+ */
+bool get_seipdv2_src_hdr(pgp_source_t *src, pgp_seipdv2_hdr_t *hdr);
+#endif
+
 /* @brief Get the AEAD-encrypted packet information fields (not the OpenPGP packet header)
  * @param src AEAD-encrypted data source (starting from packet data itself, not the header)
  * @param hdr pointer to header structure, where result will be stored
