@@ -42,6 +42,7 @@
 #if defined(ENABLE_PQC)
 #include "kyber_ecdh_composite.h"
 #include "dilithium_exdsa_composite.h"
+#include "sphincsplus.h"
 #endif
 #if defined(ENABLE_CRYPTO_REFRESH)
 #include "x25519.h"

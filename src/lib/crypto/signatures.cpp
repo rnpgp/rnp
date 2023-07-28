@@ -208,6 +208,11 @@ signature_calculate(pgp_signature_t &     sig,
         ret = seckey.dilithium_exdsa.priv.sign(
           &ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        ret = seckey.sphincsplus.priv.sign(&ctx.rng, &material.sphincsplus, hval, hlen);
+        break;
 #endif
     default:
         RNP_LOG("Unsupported algorithm %d", sig.palg);
@@ -245,6 +250,26 @@ signature_validate(const pgp_signature_t &     sig,
         RNP_LOG("Insecure hash algorithm %d, marking signature as invalid.", sig.halg);
         return RNP_ERROR_SIGNATURE_INVALID;
     }
+
+#if defined(ENABLE_PQC)
+    /* check that hash matches key requirements */
+    bool hash_alg_valid = false;
+    switch (key.alg) {
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        hash_alg_valid = key.sphincsplus.pub.validate_signature_hash_requirements(hash.alg());
+        break;
+    default:
+        hash_alg_valid = true;
+        break;
+    }
+    if (!hash_alg_valid) {
+        RNP_LOG("Signature invalid since hash algorithm requirements are not met for the "
+                "given key.");
+        return RNP_ERROR_SIGNATURE_INVALID;
+    }
+#endif
 
     /* Finalize hash */
     uint8_t hval[PGP_MAX_HASH_SIZE];
@@ -325,6 +350,11 @@ signature_validate(const pgp_signature_t &     sig,
     case PGP_PKA_DILITHIUM5_BP384:
         ret =
           key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        ret = key.sphincsplus.pub.verify(&material.sphincsplus, hval, hlen);
         break;
 #endif
     default:

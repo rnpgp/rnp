@@ -772,6 +772,11 @@ rnp_key_store_get_key_grip(const pgp_key_material_t *key, pgp_key_grip_t &grip)
         case PGP_PKA_DILITHIUM5_BP384:
             hash->add(key->dilithium_exdsa.pub.get_encoded());
             break;
+        case PGP_PKA_SPHINCSPLUS_SHA2:
+            [[fallthrough]];
+        case PGP_PKA_SPHINCSPLUS_SHAKE:
+            hash->add(key->sphincsplus.pub.get_encoded());
+            break;
 #endif
         default:
             RNP_LOG("unsupported public-key algorithm %d", (int) key->alg);

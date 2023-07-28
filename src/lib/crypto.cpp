@@ -207,6 +207,17 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
             return false;
         }
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        if (pgp_sphincsplus_generate(&crypto.ctx->rng,
+                                     &seckey.material.sphincsplus,
+                                     crypto.sphincsplus.param,
+                                     seckey.alg)) {
+            RNP_LOG("failed to generate SPHINCS+ key for PK alg %d", seckey.alg);
+            return false;
+        }
+        break;
 #endif
     default:
         RNP_LOG("key generation not implemented for PK alg: %d", seckey.alg);
@@ -277,6 +288,10 @@ key_material_equal(const pgp_key_material_t *key1, const pgp_key_material_t *key
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return (key1->dilithium_exdsa.pub == key2->dilithium_exdsa.pub);
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return (key1->sphincsplus.pub == key2->sphincsplus.pub);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) key1->alg);
@@ -354,6 +369,10 @@ validate_pgp_key_material(const pgp_key_material_t *material, rnp::RNG *rng)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return dilithium_exdsa_validate_key(rng, &material->dilithium_exdsa, material->secret);
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return sphincsplus_validate_key(rng, &material->sphincsplus, material->secret);
 #endif
     default:
         RNP_LOG("unknown public key algorithm: %d", (int) material->alg);

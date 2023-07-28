@@ -195,6 +195,7 @@ typedef struct pgp_key_material_t {
 #if defined(ENABLE_PQC)
     pgp_kyber_ecdh_key_t      kyber_ecdh;      /* non-trivial type, cannot be in a union */
     pgp_dilithium_exdsa_key_t dilithium_exdsa; /* non-trivial type, cannot be in a union */
+    pgp_sphincsplus_key_t     sphincsplus;     /* non-trivial type, cannot be in a union */
 #endif
 
     pgp_curve_t curve()
@@ -220,7 +221,8 @@ typedef struct pgp_signature_material_t {
 #endif
 #if defined(ENABLE_PQC)
     pgp_dilithium_exdsa_signature_t
-      dilithium_exdsa; // non-trivial type cannot be member in union
+                                dilithium_exdsa; // non-trivial type cannot be member in union
+    pgp_sphincsplus_signature_t sphincsplus;     // non-trivial type cannot be member in union
 #endif
 } pgp_signature_material_t;
 
@@ -457,6 +459,12 @@ struct rnp_keygen_elgamal_params_t {
     size_t key_bitlen;
 };
 
+#if defined(ENABLE_PQC)
+struct rnp_keygen_sphincsplus_params_t {
+    sphincsplus_parameter_t param;
+};
+#endif
+
 /* structure used to hold context of key generation */
 namespace rnp {
 class SecurityContext;
@@ -474,6 +482,9 @@ typedef struct rnp_keygen_crypto_params_t {
         struct rnp_keygen_rsa_params_t     rsa;
         struct rnp_keygen_dsa_params_t     dsa;
         struct rnp_keygen_elgamal_params_t elgamal;
+#if defined(ENABLE_PQC)
+        struct rnp_keygen_sphincsplus_params_t sphincsplus;
+#endif
     };
 } rnp_keygen_crypto_params_t;
 
