@@ -1630,6 +1630,14 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
         rnp_op_generate_set_v6_key(genkey);
     }
 #endif
+#if defined(ENABLE_PQC)
+    if (cfg.has(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM) &&
+        rnp_op_generate_set_sphincsplus_param(
+          genkey, cfg.get_cstr(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM))) {
+        ERR_MSG("Failed to set sphincsplus parameter.");
+        goto done;
+    }
+#endif
 
     fprintf(rnp->userio_out, "Generating a new key...\n");
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &primary)) {
@@ -1675,6 +1683,14 @@ cli_rnp_generate_key(cli_rnp_t *rnp, const char *username)
 #if defined(ENABLE_CRYPTO_REFRESH)
     if (cfg.get_bool(CFG_KG_V6_KEY)) {
         rnp_op_generate_set_v6_key(genkey);
+    }
+#endif
+#if defined(ENABLE_PQC)
+    if (cfg.has(CFG_KG_SUBKEY_SPHINCSPLUS_PARAM) &&
+        rnp_op_generate_set_sphincsplus_param(
+          genkey, cfg.get_cstr(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM))) {
+        ERR_MSG("Failed to set sphincsplus parameter.");
+        goto done;
     }
 #endif
     if (rnp_op_generate_execute(genkey) || rnp_op_generate_get_key(genkey, &subkey)) {

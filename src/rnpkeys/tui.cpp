@@ -231,11 +231,12 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         if (!check_attempts(attempts)) {
             return false;
         }
-        printf("Please select what kind of key you want:\n"
-               "\t(1)  RSA (Encrypt or Sign)\n"
-               "\t(16) DSA + ElGamal\n"
-               "\t(17) DSA + RSA\n" // TODO: See #584
-               "\t(19) ECDSA + ECDH\n"
+        printf(
+          "Please select what kind of key you want:\n"
+          "\t(1)  RSA (Encrypt or Sign)\n"
+          "\t(16) DSA + ElGamal\n"
+          "\t(17) DSA + RSA\n" // TODO: See #584
+          "\t(19) ECDSA + ECDH\n"
 #if defined(ENABLE_CRYPTO_REFRESH)
           "\t(21) EDDSA + ECDH (v6 key) \n"
           "\t(22) EDDSA + ECDH (v4 key) \n"
@@ -251,6 +252,10 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(28) (Dilithium5 + ECDSA-NIST-P-384) + (Kyber1024 + ECDH-NIST-P-384)\n"
           "\t(29) (Dilithium3 + ECDSA-brainpoolP256r1) + (Kyber768 + ECDH-brainpoolP256r1)\n"
           "\t(30) (Dilithium5 + ECDSA-brainpoolP384r1) + (Kyber1024 + ECDH-brainpoolP384r1)\n"
+          "\t(31) SPHINCS+-SHA2-128f + (Kyber768 + X25519)\n"
+          "\t(32) SPHINCS+-SHAKE-128f + (Kyber768 + X25519)\n"
+          "\t(33) SPHINCS+-SHA2-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
+          "\t(34) SPHINCS+-SHAKE-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
 #endif
           "\t(99) SM2\n"
           "> ");
@@ -352,6 +357,34 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM5_BP384);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
             cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_BP384);
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        case 31:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHA2);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "128f");
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        case 32:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "128f");
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        case 33:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHA2);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA512);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "256f");
+            cfg.set_str(CFG_KG_V6_KEY, "true");
+            break;
+        case 34:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "256f");
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
 #endif
