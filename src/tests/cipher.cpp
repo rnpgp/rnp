@@ -681,6 +681,49 @@ TEST_F(rnp_tests, dilithium_exdsa_signverify_success)
         assert_rnp_failure(key2->pub.verify(&sig, hash_alg, message, sizeof(message)));
     }
 }
+
+TEST_F(rnp_tests, sphincsplus_signverify_success)
+{
+    uint8_t                 message[64];
+    pgp_pubkey_alg_t        algs[] = {PGP_PKA_SPHINCSPLUS_SHA2, PGP_PKA_SPHINCSPLUS_SHAKE};
+    sphincsplus_parameter_t params[] = {sphincsplus_simple_128s,
+                                        sphincsplus_simple_128f,
+                                        sphincsplus_simple_192s,
+                                        sphincsplus_simple_192f,
+                                        sphincsplus_simple_256s,
+                                        sphincsplus_simple_256f};
+
+    for (size_t i = 0; i < ARRAY_SIZE(algs); i++) {
+        for (size_t j = 0; j < ARRAY_SIZE(params); j++) {
+            // Generate test data. Mainly to make valgrind not to complain about uninitialized
+            // data
+            global_ctx.rng.get(message, sizeof(message));
+
+            pgp_sphincsplus_signature_t sig;
+            rnp_keygen_crypto_params_t  key_desc;
+            key_desc.key_alg = algs[i];
+            key_desc.sphincsplus.param = params[j];
+            key_desc.ctx = &global_ctx;
+
+            pgp_key_pkt_t seckey1;
+            pgp_key_pkt_t seckey2;
+
+            assert_true(pgp_generate_seckey(key_desc, seckey1, true));
+            assert_true(pgp_generate_seckey(key_desc, seckey2, true));
+
+            const pgp_sphincsplus_key_t *key1 = &seckey1.material.sphincsplus;
+            const pgp_sphincsplus_key_t *key2 = &seckey2.material.sphincsplus;
+
+            assert_rnp_success(
+              key1->priv.sign(&global_ctx.rng, &sig, message, sizeof(message)));
+
+            assert_rnp_success(key1->pub.verify(&sig, message, sizeof(message)));
+
+            // Fails because of different key used
+            assert_rnp_failure(key2->pub.verify(&sig, message, sizeof(message)));
+        }
+    }
+}
 #endif
 
 // platforms known to not have a robust response can compile with

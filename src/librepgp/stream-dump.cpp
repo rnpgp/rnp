@@ -160,6 +160,8 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_DILITHIUM5_P384, "Dilithium5 + NIST P-384"},
   {PGP_PKA_DILITHIUM3_BP256, "Dilithium3 + Brainpool256"},
   {PGP_PKA_DILITHIUM5_BP384, "Dilithium5 + Brainpool384"},
+  {PGP_PKA_SPHINCSPLUS_SHA2, "SPHINCS+-SHA2"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE, "SPHINCS+-SHAKE"},
 #endif
   {0x00, NULL},
 };
@@ -838,6 +840,11 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         dst_print_vec(
           dst, "dilithium-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        dst_print_vec(dst, "sphincs+ sig", material.sphincsplus.sig, ctx->dump_mpi);
+        break;
 #endif
     default:
         dst_printf(dst, "unknown algorithm\n");
@@ -970,6 +977,14 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_print_vec(dst,
                       "dilithium-ecdsa/eddsa encodced pubkey",
                       key.material.dilithium_exdsa.pub.get_encoded(),
+                      ctx->dump_mpi);
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        dst_print_vec(dst,
+                      "sphincs+ encoded pubkey",
+                      key.material.sphincsplus.pub.get_encoded(),
                       ctx->dump_mpi);
         break;
 #endif
@@ -1984,6 +1999,11 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
     case PGP_PKA_DILITHIUM5_BP384:
         /* TODO */
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        /* TODO */
+        break;
 #endif
     default:
         break;
@@ -2127,6 +2147,11 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        /* TODO */
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         /* TODO */
         break;
 #endif

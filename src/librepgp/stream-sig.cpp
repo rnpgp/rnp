@@ -1592,6 +1592,23 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
             return false;
         }
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE: {
+        uint8_t param;
+        if (!pkt.get(param)) {
+            RNP_LOG("failed to parse sphincs+ signature data");
+            return false;
+        }
+        material.sphincsplus.param = (sphincsplus_parameter_t) param;
+        material.sphincsplus.sig.resize(
+          sphincsplus_signature_size(material.sphincsplus.param));
+        if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
+            RNP_LOG("failed to parse sphincs+ signature data");
+            return false;
+        }
+        break;
+    }
 #endif
     default:
         RNP_LOG("Unknown pk algorithm : %d", (int) palg);
@@ -1693,6 +1710,12 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         pktbody.add(material.dilithium_exdsa.sig);
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        pktbody.add_byte((uint8_t) material.sphincsplus.param);
+        pktbody.add(material.sphincsplus.sig);
         break;
 #endif
     default:

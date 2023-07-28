@@ -30,6 +30,7 @@
 #include "rnp_tests.h"
 #include <array>
 #include "crypto/dilithium.h"
+#include "crypto/sphincsplus.h"
 #include "crypto/kyber.h"
 
 TEST_F(rnp_tests, test_kyber_key_function)
@@ -62,6 +63,33 @@ TEST_F(rnp_tests, test_dilithium_key_function)
 
         assert_true(public_and_private_key.first.verify_signature(
           msg.data(), msg.size(), signature.data(), signature.size()));
+    }
+}
+
+TEST_F(rnp_tests, test_sphincsplus_key_function)
+{
+    sphincsplus_parameter_t params[] = {sphincsplus_simple_128s,
+                                        sphincsplus_simple_128f,
+                                        sphincsplus_simple_192s,
+                                        sphincsplus_simple_192f,
+                                        sphincsplus_simple_256s,
+                                        sphincsplus_simple_256f};
+    sphincsplus_hash_func_t hash_funcs[] = {sphincsplus_sha256, sphinscplus_shake256};
+
+    for (sphincsplus_parameter_t param : params) {
+        for (sphincsplus_hash_func_t hash_func : hash_funcs) {
+            auto public_and_private_key =
+              sphincsplus_generate_keypair(&global_ctx.rng, param, hash_func);
+
+            std::array<uint8_t, 5> msg{'H', 'e', 'l', 'l', 'o'};
+
+            pgp_sphincsplus_signature_t sig;
+            assert_rnp_success(public_and_private_key.second.sign(
+              &global_ctx.rng, &sig, msg.data(), msg.size()));
+
+            assert_rnp_success(
+              public_and_private_key.first.verify(&sig, msg.data(), msg.size()));
+        }
     }
 }
 

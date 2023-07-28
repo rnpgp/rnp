@@ -187,7 +187,7 @@ if(CRYPTO_BACKEND_BOTAN)
   resolve_feature_state(ENABLE_TWOFISH "TWOFISH")
   resolve_feature_state(ENABLE_IDEA "IDEA")
   resolve_feature_state(ENABLE_CRYPTO_REFRESH "HKDF")
-  resolve_feature_state(ENABLE_PQC "KMAC;DILITHIUM;KYBER")
+  resolve_feature_state(ENABLE_PQC "KMAC;DILITHIUM;KYBER;SPHINCS_PLUS_WITH_SHA2;SPHINCS_PLUS_WITH_SHAKE")
   resolve_feature_state(ENABLE_BLOWFISH "BLOWFISH")
   resolve_feature_state(ENABLE_CAST5 "CAST_128")
   resolve_feature_state(ENABLE_RIPEMD160 "RIPEMD_160")
@@ -308,8 +308,9 @@ elseif(CRYPTO_BACKEND_BOTAN)
   endif()
   if(ENABLE_PQC)
     list(APPEND CRYPTO_SOURCES 
-        crypto/dilithium.cpp 
+        crypto/dilithium.cpp
         crypto/dilithium_common.cpp
+        crypto/sphincsplus.cpp
         crypto/kyber_common.cpp
         crypto/kyber.cpp
         crypto/kyber_ecdh_composite.cpp

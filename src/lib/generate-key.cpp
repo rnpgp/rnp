@@ -72,6 +72,8 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_DILITHIUM5_P384, "Dilithium-P384"},
   {PGP_PKA_DILITHIUM3_BP256, "Dilithium-BP256"},
   {PGP_PKA_DILITHIUM5_BP384, "Dilithium-BP384"},
+  {PGP_PKA_SPHINCSPLUS_SHA2, "SPHINCS+-SHA2"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE, "SPHINCS+-SHAKE"},
 #endif
   {PGP_PKA_PRIVATE00, "Private/Experimental"},
   {PGP_PKA_PRIVATE01, "Private/Experimental"},
@@ -301,6 +303,10 @@ get_numbits(const rnp_keygen_crypto_params_t *crypto)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return pgp_dilithium_exdsa_composite_public_key_t::encoded_size(crypto->key_alg) * 8;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return sphincsplus_pubkey_size(crypto->sphincsplus.param) * 8;
 #endif
     default:
         return 0;
@@ -404,6 +410,14 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
             return false;
         }
 
+#if defined(ENABLE_PQC)
+        // check hash requirements
+        if (!pgp_check_key_hash_requirements(desc.crypto)) {
+            RNP_LOG("invalid hash algorithm for the chosen key");
+            return false;
+        }
+#endif
+
         // generate the raw key and fill tag/secret fields
         pgp_key_pkt_t secpkt;
         if (!pgp_generate_seckey(desc.crypto, secpkt, true, desc.pgp_version)) {
@@ -499,6 +513,14 @@ pgp_generate_subkey(rnp_keygen_subkey_desc_t &     desc,
     if (!validate_keygen_subkey(desc)) {
         return false;
     }
+
+#if defined(ENABLE_PQC)
+    // check hash requirements
+    if (!pgp_check_key_hash_requirements(desc.crypto)) {
+        RNP_LOG("invalid hash algorithm for the chosen key");
+        return false;
+    }
+#endif
 
     try {
         /* decrypt the primary seckey if needed (for signatures) */

@@ -179,6 +179,8 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_DILITHIUM5_P384, RNP_ALGNAME_DILITHIUM5_P384},
   {PGP_PKA_DILITHIUM3_BP256, RNP_ALGNAME_DILITHIUM3_BP256},
   {PGP_PKA_DILITHIUM5_BP384, RNP_ALGNAME_DILITHIUM5_BP384},
+  {PGP_PKA_SPHINCSPLUS_SHA2, RNP_ALGNAME_SPHINCSPLUS_SHA2},
+  {PGP_PKA_SPHINCSPLUS_SHAKE, RNP_ALGNAME_SPHINCSPLUS_SHAKE},
 #endif
   {0, NULL}};
 
@@ -357,6 +359,8 @@ pub_alg_supported(int alg)
     case PGP_PKA_DILITHIUM5_P384:
     case PGP_PKA_DILITHIUM3_BP256:
     case PGP_PKA_DILITHIUM5_BP384:
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
 #endif
         return true;
     default:
@@ -5280,6 +5284,10 @@ default_key_flags(pgp_pubkey_alg_t alg, bool subkey)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         return subkey ? PGP_KF_SIGN : pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY);
 #endif
     default:
@@ -5688,6 +5696,39 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
     op->pgp_version = PGP_V6;
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+#endif
+
+#if defined(ENABLE_PQC)
+rnp_result_t
+rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op, const char *param_cstr)
+try {
+    if (!op) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    sphincsplus_parameter_t param;
+    std::string             param_str = param_cstr;
+
+    if (param_str == "128s") {
+        param = sphincsplus_simple_128s;
+    } else if (param_str == "128f") {
+        param = sphincsplus_simple_128f;
+    } else if (param_str == "192s") {
+        param = sphincsplus_simple_192s;
+    } else if (param_str == "192f") {
+        param = sphincsplus_simple_192f;
+    } else if (param_str == "256s") {
+        param = sphincsplus_simple_256s;
+    } else if (param_str == "256f") {
+        param = sphincsplus_simple_256f;
+    } else {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    op->crypto.sphincsplus.param = param;
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -7535,6 +7576,10 @@ add_json_public_mpis(json_object *jso, pgp_key_t *key)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:
@@ -7629,6 +7674,10 @@ add_json_sig_mpis(json_object *jso, const pgp_signature_t *sig)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:
@@ -7875,6 +7924,10 @@ key_to_json(json_object *jso, rnp_key_handle_t handle, uint32_t flags)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         return RNP_SUCCESS; /* TODO */
 #endif
     default:

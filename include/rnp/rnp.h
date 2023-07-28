@@ -1195,6 +1195,24 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
 #endif
 
+#if defined(ENABLE_PQC)
+/** Set the SPHINCS+ parameter set
+ * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ * time.
+ *
+ * @param op pointer to opaque key generation context.
+ * @param param string, representing the SHPINCS+ parameter set.
+ *               Possible Values:
+ *                  128s, 128f, 192s, 192f, 256s, 256f
+ *               All parameter sets refer to the simple variant and the hash function is given
+ * by the algorithm id.
+ *
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op,
+                                                           const char *      param);
+#endif
+
 /** Execute the prepared key or subkey generation operation.
  *  Note: if you set protection algorithm, then you need to specify ffi password provider to
  *        be able to request password for key encryption.
@@ -3006,7 +3024,8 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
 /**
  * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
  * The actually created version depends on the capabilities of the list of recipients.
- * NOTE: This is an experimental feature and this function can be replaced (or removed) at any time.
+ * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ * time.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
  * @return RNP_SUCCESS or errorcode if failed.
@@ -3427,6 +3446,8 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_DILITHIUM5_P384 "DILITHIUM5_P384"
 #define RNP_ALGNAME_DILITHIUM3_BP256 "DILITHIUM3_BP256"
 #define RNP_ALGNAME_DILITHIUM5_BP384 "DILITHIUM5_BP384"
+#define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SPHINCSPLUS_SHA2"
+#define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SPHINCSPLUS_SHAKE"
 #endif
 #define RNP_ALGNAME_IDEA "IDEA"
 #define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"
