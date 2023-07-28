@@ -693,6 +693,23 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
             key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(
               tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
+        case PGP_PKA_SPHINCSPLUS_SHA2:
+            [[fallthrough]];
+        case PGP_PKA_SPHINCSPLUS_SHAKE: {
+            uint8_t param;
+            if (!body.get(param)) {
+                RNP_LOG("failed to parse sphincs+ secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            tmpbuf.resize(sphincsplus_privkey_size((sphincsplus_parameter_t) param));
+            if (!body.get(tmpbuf.data(), tmpbuf.size())) {
+                RNP_LOG("failed to parse sphincs+ secret key data");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            key.material.sphincsplus.priv =
+              pgp_sphincsplus_private_key_t(tmpbuf, (sphincsplus_parameter_t) param, key.alg);
+            break;
+        }
 #endif
         default:
             RNP_LOG("unknown pk alg : %d", (int) key.alg);
@@ -849,6 +866,12 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         body.add(key.material.dilithium_exdsa.priv.get_encoded());
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        body.add_byte((uint8_t) key.material.sphincsplus.priv.param());
+        body.add(key.material.sphincsplus.priv.get_encoded());
         break;
 #endif
     default:
@@ -1025,6 +1048,11 @@ forget_secret_key_fields(pgp_key_material_t *key)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         key->dilithium_exdsa.priv.secure_clear();
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        key->sphincsplus.priv.secure_clear();
         break;
 #endif
     default:
@@ -1522,6 +1550,23 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         }
         material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
         break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE: {
+        uint8_t param;
+        if (!pkt.get(param)) {
+            RNP_LOG("failed to parse sphincs+ public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        tmpbuf.resize(sphincsplus_pubkey_size((sphincsplus_parameter_t) param));
+        if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
+            RNP_LOG("failed to parse sphincs+ public key data");
+            return RNP_ERROR_BAD_FORMAT;
+        }
+        material.sphincsplus.pub =
+          pgp_sphincsplus_public_key_t(tmpbuf, (sphincsplus_parameter_t) param, alg);
+        break;
+    }
 #endif
     default:
         RNP_LOG("unknown key algorithm: %d", (int) alg);
@@ -1694,6 +1739,12 @@ pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         hbody.add(material.dilithium_exdsa.pub.get_encoded());
+        break;
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        hbody.add_byte((uint8_t) material.sphincsplus.pub.param());
+        hbody.add(material.sphincsplus.pub.get_encoded());
         break;
 #endif
     default:

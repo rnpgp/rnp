@@ -230,6 +230,10 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
     case PGP_PKA_DILITHIUM3_BP256:
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
 
@@ -2850,6 +2854,10 @@ pgp_key_material_t::bits() const
         [[fallthrough]];
     case PGP_PKA_DILITHIUM5_BP384:
         return 8 * dilithium_exdsa.pub.get_encoded().size(); /* public key length*/
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        [[fallthrough]];
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return 8 * sphincsplus.pub.get_encoded().size(); /* public key length */
 #endif
     default:
         RNP_LOG("Unknown public key alg: %d", (int) alg);

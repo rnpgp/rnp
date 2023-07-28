@@ -121,6 +121,10 @@
 #define CFG_KG_PROT_ITERATIONS "kg-prot-iterations"
 #define CFG_KG_V6_KEY \
     "kg-v6-key" /* represents a boolean property: non-empty string means 'true' */
+#define CFG_KG_PRIMARY_SPHINCSPLUS_PARAM \
+    "kg-primary-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
+#define CFG_KG_SUBKEY_SPHINCSPLUS_PARAM \
+    "kg-subkey-sphincsplus-param" /* 128f, 128s, 192f, 192s, 256f, 256s */
 
 /* rnp CLI config : contains all the system-dependent and specified by the user configuration
  * options */

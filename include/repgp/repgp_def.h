@@ -250,6 +250,10 @@ typedef enum : uint8_t {
       39, /* Dilithium 3 + ECDSA-brainpoolP256r1 from draft-wussler-openpgp-pqc-02 */
     PGP_PKA_DILITHIUM5_BP384 =
       40, /* Dilithium 5 + ECDSA-brainpoolP384r1 from draft-wussler-openpgp-pqc-02 */
+
+    PGP_PKA_SPHINCSPLUS_SHA2 = 41, /* SPHINCS+-simple-SHA2 from draft-wussler-openpgp-pqc-02 */
+    PGP_PKA_SPHINCSPLUS_SHAKE =
+      42, /* SPHINCS+-simple-SHAKE from draft-wussler-openpgp-pqc-02 */
 #endif
 
     PGP_PKA_SM2 = 99,        /* SM2 encryption/signature schemes */
