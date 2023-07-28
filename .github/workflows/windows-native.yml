@@ -114,7 +114,10 @@ jobs:
         # There is another one instance of ssl at /mingw and /mingw/bin is always at the first position at PATH
         if: matrix.backend == 'openssl'
         shell: bash
-        run: echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
+        run: |
+          echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
+          ls -la ${{ env.VCPKG_DIR }}/installed/x64-windows
+          ls -la ${{ env.VCPKG_DIR }}/installed/vcpkg
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
