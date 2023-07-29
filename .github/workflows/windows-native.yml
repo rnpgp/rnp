@@ -107,17 +107,20 @@ jobs:
 
       - name: vcpkg packages
         shell: bash
-        run: vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
+        run: |
+          dir_u=$(cygpath -u  ${{ env.VCPKG_DIR }})
+          echo "VCPKG_DIR_U=$dir_u" >> $GITHUB_ENV
+          vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
 
       - name: Set OPENSSL_ROOT_DIR
         # Ensure consistent access to openssl installation for test_backend_version test
         # There is another one instance of ssl at /mingw and /mingw/bin is always at the first position at PATH
+        # So we have to adjust PATH for each step below; changing $GITHUB_PATH does not work
         if: matrix.backend == 'openssl'
         shell: bash
         run: |
-          echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR }}/installed >> $GITHUB_ENV
-          ls -la ${{ env.VCPKG_DIR }}/installed/x64-windows
-          ls -la ${{ env.VCPKG_DIR }}/installed/vcpkg
+          echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }} >> $GITHUB_ENV
+          echo OPENSSL_MODULES=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_ENV
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
@@ -132,6 +135,7 @@ jobs:
         shell: bash
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
@@ -144,24 +148,28 @@ jobs:
         shell: bash
         run: |
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
+          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
-          echo ${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_PATH
 
       - name: Compile
         shell: bash
-        run: cmake --build build --config "Release" --parallel ${{ env.CORES }}
+        run: |
+          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
+          cmake --build build --config "Release" --parallel ${{ env.CORES }}
 
       - name: Test
         shell: bash
         # Sometimes  running cli_tests in parallel causes instability [???]
         # ctest --test-dir build -R cli_tests -C Debug --output-on-failure
         # ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests -C Debug --output-on-failure
+        # ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
         run: |
+          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Debug --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
