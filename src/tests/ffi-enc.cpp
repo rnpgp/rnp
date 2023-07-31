@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2020-2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -598,7 +598,7 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk)
     rnp_ffi_destroy(ffi);
 }
 
-bool
+static bool
 first_key_password_provider(rnp_ffi_t        ffi,
                             void *           app_ctx,
                             rnp_key_handle_t key,

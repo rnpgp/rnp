@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -29,6 +29,7 @@
 #include <string>
 #include <set>
 #include <utility>
+#include <cstdint>
 
 #include <rnp/rnp.h>
 #include "rnp_tests.h"
@@ -2659,7 +2660,8 @@ TEST_F(rnp_tests, test_ffi_revocations)
     assert_rnp_failure(rnp_uid_is_revoked(uid_handle, NULL));
     assert_rnp_success(rnp_uid_is_revoked(uid_handle, &revoked));
     assert_false(revoked);
-    rnp_signature_handle_t sig = (rnp_signature_handle_t) 0xdeadbeef;
+    const uintptr_t        p_sig = 0xdeadbeef;
+    rnp_signature_handle_t sig = reinterpret_cast<rnp_signature_handle_t>(p_sig);
     assert_rnp_failure(rnp_uid_get_revocation_signature(NULL, &sig));
     assert_rnp_failure(rnp_uid_get_revocation_signature(uid_handle, NULL));
     assert_rnp_success(rnp_uid_get_revocation_signature(uid_handle, &sig));
