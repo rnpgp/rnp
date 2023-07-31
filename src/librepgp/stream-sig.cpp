@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2022, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -1393,7 +1393,9 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         if (version < PGP_V4) {
             RNP_LOG("Warning! v3 EdDSA signature.");
         }
+#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
         [[fallthrough]];
+#endif
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:

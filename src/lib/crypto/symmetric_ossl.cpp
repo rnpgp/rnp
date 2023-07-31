@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2021 Ribose Inc.
+ * Copyright (c) 2021-2023 Ribose Inc.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -149,7 +149,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     uint64_t  buf64[512]; // 4KB - page size
     uint64_t  iv64[2];
     size_t    blocks, blockb;
-    unsigned  blsize = crypt->blocksize;
+    size_t    blsize = crypt->blocksize;
 
     /* encrypting till the block boundary */
     while (bytes && crypt->cfb.remaining) {
@@ -218,7 +218,7 @@ pgp_cipher_cfb_encrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     int outlen = blsize;
     EVP_EncryptUpdate(crypt->cfb.obj, crypt->cfb.iv, &outlen, crypt->cfb.iv, (int) blsize);
     if (outlen != (int) blsize) {
-        RNP_LOG("Bad outlen: must be %u", blsize);
+        RNP_LOG("Bad outlen: must be %zu", blsize);
     }
     crypt->cfb.remaining = blsize;
 
@@ -243,7 +243,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     uint64_t  outbuf64[512];
     uint64_t  iv64[2];
     size_t    blocks, blockb;
-    unsigned  blsize = crypt->blocksize;
+    size_t    blsize = crypt->blocksize;
 
     /* decrypting till the block boundary */
     while (bytes && crypt->cfb.remaining) {
@@ -315,7 +315,7 @@ pgp_cipher_cfb_decrypt(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     int outlen = blsize;
     EVP_EncryptUpdate(crypt->cfb.obj, crypt->cfb.iv, &outlen, crypt->cfb.iv, (int) blsize);
     if (outlen != (int) blsize) {
-        RNP_LOG("Bad outlen: must be %u", blsize);
+        RNP_LOG("Bad outlen: must be %zu", blsize);
     }
     crypt->cfb.remaining = blsize;
 
