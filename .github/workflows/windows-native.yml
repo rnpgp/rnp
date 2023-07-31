@@ -156,7 +156,7 @@ jobs:
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
 
-      - name: Compile
+      - name: Build
         shell: bash
         run: |
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH

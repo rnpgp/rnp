@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2019 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -184,6 +184,7 @@ path_mkdir(mode_t mode, const char *first, ...)
     assert_int_equal(0, RNP_MKDIR(buffer, mode));
 }
 
+#ifndef WINSHELLAPI
 static int
 remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf)
 {
@@ -193,6 +194,7 @@ remove_cb(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ft
 
     return ret;
 }
+#endif
 
 static const char *
 get_tmp()
@@ -737,7 +739,9 @@ check_json_field_bool(json_object *obj, const std::string &field, bool value)
     if (!json_object_is_type(fld, json_type_boolean)) {
         return false;
     }
-    return json_object_get_boolean(fld) == value;
+    // 'json_object_get_boolean' returns 'json_bool' which is 'int' on Windows
+    // but bool on other platforms
+    return (json_object_get_boolean(fld) ? true : false) == value;
 }
 
 bool

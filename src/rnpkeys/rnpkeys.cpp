@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -260,8 +260,8 @@ import_keys(cli_rnp_t *rnp, rnp_input_t input, const std::string &inname)
     } while (1);
 
     // print statistics
-    ERR_MSG("Import finished: %lu key%s processed, %lu new public keys, %lu new secret keys, "
-            "%lu updated, %lu unchanged.",
+    ERR_MSG("Import finished: %zu key%s processed, %zu new public keys, %zu new secret keys, "
+            "%zu updated, %zu unchanged.",
             processed_keys,
             (processed_keys != 1) ? "s" : "",
             new_pub_keys.size(),
