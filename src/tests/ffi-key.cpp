@@ -4702,6 +4702,26 @@ TEST_F(rnp_tests, test_v5_keys_g23)
     rnp_ffi_destroy(ffi);
 }
 
+TEST_F(rnp_tests, test_v5_sec_keys)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* v5 rsa-rsa secret key */
+    assert_true(import_sec_keys(ffi, "data/test_stream_key_load/v5-rsa-sec.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "b856a4197113d431", &key));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_lock(key));
+    rnp_key_handle_destroy(key);
+    /* v5 rsa secret subkey */
+    assert_rnp_success(rnp_locate_key(ffi, "keyid", "2d400055b0345c33", &key));
+    assert_rnp_success(rnp_key_unlock(key, "password"));
+    assert_rnp_success(rnp_key_lock(key));
+    rnp_key_handle_destroy(key);
+
+    rnp_ffi_destroy(ffi);
+}
+
 TEST_F(rnp_tests, test_armored_keys_extra_line)
 {
     rnp_ffi_t ffi = NULL;
