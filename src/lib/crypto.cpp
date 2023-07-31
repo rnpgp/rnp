@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -128,7 +128,9 @@ pgp_generate_seckey(const rnp_keygen_crypto_params_t &crypto,
             seckey.material.ec.curve = crypto.ecc.curve;
             break;
         }
+#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
         [[fallthrough]];
+#endif
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
         if (!curve_supported(crypto.ecc.curve)) {

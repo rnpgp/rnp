@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2023, [Ribose Inc](https://www.ribose.com).
  * Copyright (c) 2009 The NetBSD Foundation, Inc.
  * All rights reserved.
  *
@@ -41,7 +41,7 @@
 extern struct option options[];
 extern const char *  usage;
 
-optdefs_t
+static optdefs_t
 get_short_cmd(int ch)
 {
     switch (ch) {
@@ -52,7 +52,9 @@ get_short_cmd(int ch)
     case 'l':
         return CMD_LIST_KEYS;
     case 'h':
+#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
         [[fallthrough]];
+#endif
     default:
         return CMD_HELP;
     }

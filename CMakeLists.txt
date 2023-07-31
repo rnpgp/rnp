@@ -136,7 +136,7 @@ if(NOT MSVC)
   )
 endif(NOT MSVC)
 
-# THis works both for MSVC and CL on Windows
+# This works both for MSVC and CL on Windows
 if(WIN32)
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
 endif(WIN32)
