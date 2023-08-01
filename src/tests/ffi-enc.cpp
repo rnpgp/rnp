@@ -769,10 +769,6 @@ TEST_F(rnp_tests, test_ffi_encrypt_pk_with_v6_key)
 
     assert_true(import_all_keys(ffi, "data/test_v6_valid_data/transferable_seckey_v6.asc"));
 
-    // RNP_LOG_HEX("key id", ffi->secring->keys.front().keyid().data(),
-    // ffi->secring->keys.front().keyid().size()); RNP_LOG_HEX("key id",
-    // ffi->secring->keys.back().keyid().data(), ffi->secring->keys.back().keyid().size());
-
     std::vector<std::string> ciphers = {"AES128", "AES192", "AES256"};
     std::vector<std::string> aead_modes = {"None", "EAX", "OCB"};
     std::vector<bool>        enable_pkeskv6_modes = {true, false};

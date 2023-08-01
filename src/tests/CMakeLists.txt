@@ -138,7 +138,6 @@ set(RNP_TEST_SOURCES
   user-prefs.cpp
   utils-hex2bin.cpp
   utils-rnpcfg.cpp
-  pqc.cpp
   exdsa_ecdhkem.cpp
   issues/1030.cpp
   issues/1115.cpp
@@ -157,7 +156,11 @@ set(RNP_TEST_SOURCES
 if(ENABLE_CRYPTO_REFRESH)
   list(APPEND RNP_TEST_SOURCES 
     hkdf.cpp)
-endif() 
+endif()
+if(ENABLE_PQC)
+  list(APPEND RNP_TEST_SOURCES 
+    pqc.cpp)
+endif()
 
 add_executable(rnp_tests ${RNP_TEST_SOURCES})
 

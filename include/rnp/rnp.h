@@ -30,7 +30,6 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include "config.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -1184,7 +1183,6 @@ RNP_API rnp_result_t rnp_op_generate_clear_pref_ciphers(rnp_op_generate_t op);
 RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
                                                         const char *      keyserver);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
 /** Set the generated key version to v6.
  * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
  * time.
@@ -1193,9 +1191,7 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
  * @return RNP_SUCCESS or error code if failed.
  */
 RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
-#endif
 
-#if defined(ENABLE_PQC)
 /** Set the SPHINCS+ parameter set
  * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
  * time.
@@ -1211,7 +1207,6 @@ RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
  */
 RNP_API rnp_result_t rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op,
                                                            const char *      param);
-#endif
 
 /** Execute the prepared key or subkey generation operation.
  *  Note: if you set protection algorithm, then you need to specify ffi password provider to
@@ -3020,7 +3015,6 @@ RNP_API rnp_result_t rnp_op_encrypt_create(rnp_op_encrypt_t *op,
  */
 RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_handle_t key);
 
-#if defined(ENABLE_CRYPTO_REFRESH)
 /**
  * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
  * The actually created version depends on the capabilities of the list of recipients.
@@ -3031,7 +3025,6 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
  * @return RNP_SUCCESS or errorcode if failed.
  */
 RNP_API rnp_result_t rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op);
-#endif
 
 /**
  * @brief Add signature to encrypting context, so data will be encrypted and signed.
@@ -3429,11 +3422,8 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_ECDH "ECDH"
 #define RNP_ALGNAME_ECDSA "ECDSA"
 #define RNP_ALGNAME_EDDSA "EDDSA"
-#if defined(ENABLE_CRYPTO_REFRESH)
 #define RNP_ALGNAME_ED25519 "ED25519"
 #define RNP_ALGNAME_X25519 "X25519"
-#endif
-#if defined(ENABLE_PQC)
 #define RNP_ALGNAME_KYBER768_X25519 "KYBER768_X25519"
 #define RNP_ALGNAME_KYBER1024_X448 "KYBER1024_X448"
 #define RNP_ALGNAME_KYBER768_P256 "KYBER768_P256"
@@ -3448,7 +3438,6 @@ RNP_API const char *rnp_backend_version();
 #define RNP_ALGNAME_DILITHIUM5_BP384 "DILITHIUM5_BP384"
 #define RNP_ALGNAME_SPHINCSPLUS_SHA2 "SPHINCSPLUS_SHA2"
 #define RNP_ALGNAME_SPHINCSPLUS_SHAKE "SPHINCSPLUS_SHAKE"
-#endif
 #define RNP_ALGNAME_IDEA "IDEA"
 #define RNP_ALGNAME_TRIPLEDES "TRIPLEDES"
 #define RNP_ALGNAME_CAST5 "CAST5"
