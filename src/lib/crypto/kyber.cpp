@@ -93,8 +93,8 @@ pgp_kyber_public_key_t::encapsulate(rnp::RNG *rng)
     // encryption of the payload data
     kem_enc.encrypt(encap_key,
                     data_encryption_key,
-                    key_share_size_from_kyber_param(kyber_mode_),
-                    *rng->obj());
+                    *rng->obj(),
+                    key_share_size_from_kyber_param(kyber_mode_));
     kyber_encap_result_t result;
     result.ciphertext.insert(
       result.ciphertext.end(), encap_key.data(), encap_key.data() + encap_key.size());
