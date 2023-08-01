@@ -120,6 +120,7 @@ typedef struct pgp_dest_encrypted_param_t {
         case rnp::AuthType::None:
             return false;
         }
+        throw rnp::rnp_exception(RNP_ERROR_GENERIC);
     };
 
 #ifdef ENABLE_CRYPTO_REFRESH
