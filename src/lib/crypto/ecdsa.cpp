@@ -132,9 +132,9 @@ ecdsa_padding_str_for(pgp_hash_alg_t hash_alg)
     case PGP_HASH_SHA224:
         return "Raw(SHA-224)";
     case PGP_HASH_SHA3_256:
-        return "Raw(SHA3(256))";
+        return "Raw(SHA-3(256))";
     case PGP_HASH_SHA3_512:
-        return "Raw(SHA3(512))";
+        return "Raw(SHA-3(512))";
 
     case PGP_HASH_SM3:
         return "Raw(SM3)";
