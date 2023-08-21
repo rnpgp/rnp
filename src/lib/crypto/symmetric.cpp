@@ -613,7 +613,10 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 void
 pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
 {
-    botan_cipher_destroy(crypt->aead.obj);
+    if (crypt->aead.obj) {
+        botan_cipher_destroy(crypt->aead.obj);
+    }
+    memset(crypt, 0x0, sizeof(*crypt));
 }
 
 size_t
