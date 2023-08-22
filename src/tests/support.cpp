@@ -1096,6 +1096,16 @@ check_key_valid(rnp_key_handle_t key, bool validity)
     return valid == validity;
 }
 
+bool
+check_key_revoked(rnp_key_handle_t key, bool revoked)
+{
+    bool rev = !revoked;
+    if (rnp_key_is_revoked(key, &rev)) {
+        return false;
+    }
+    return rev == revoked;
+}
+
 uint32_t
 get_key_expiry(rnp_key_handle_t key)
 {
