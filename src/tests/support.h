@@ -248,6 +248,7 @@ void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 
 /* some shortcuts for less code */
 bool     check_key_valid(rnp_key_handle_t key, bool validity);
+bool     check_key_revoked(rnp_key_handle_t key, bool revoked);
 uint32_t get_key_expiry(rnp_key_handle_t key);
 size_t   get_key_uids(rnp_key_handle_t key);
 bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);

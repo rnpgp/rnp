@@ -4718,7 +4718,122 @@ TEST_F(rnp_tests, test_v5_sec_keys)
     assert_rnp_success(rnp_key_unlock(key, "password"));
     assert_rnp_success(rnp_key_lock(key));
     rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(ffi);
+}
 
+TEST_F(rnp_tests, test_ffi_designated_revokers)
+{
+    auto path_for = [](const std::string &file) {
+        return "data/test_stream_key_load/" + file;
+    };
+    rnp_ffi_t ffi = NULL;
+
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    /* Load key, revoked by designated revocation key */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-25519-pub.asc")));
+    /* Check whether it is revoked - not yet as there is no revoker's key */
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    rnp_signature_handle_t sig = NULL;
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    char *sigtype = NULL;
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_KEY_NOT_FOUND);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Load revoker's key and recheck */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_non_null(key);
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Load first revoker's key and then revoked one */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(import_pub_keys(ffi, path_for("ecc-25519-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p256-desigrevoked-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    rnp_key_handle_destroy(key);
+    /* Load key with revocation from non-designated revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(import_pub_keys(ffi, path_for("ecc-25519-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p384-pub.asc")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p256-desig-wrong-revoker.pgp")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &sig));
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "direct");
+    rnp_buffer_destroy(sigtype);
+    rnp_signature_handle_destroy(sig);
+    assert_rnp_success(rnp_key_get_signature_at(key, 1, &sig));
+    /* While signature is technically valid, it is not applicable to the key */
+    assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_SUCCESS);
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "key revocation");
+    rnp_buffer_destroy(sigtype);
+    rnp_signature_handle_destroy(sig);
+    rnp_key_handle_destroy(key);
+    /* Add key to force refresh and check back to make sure revocation status did not change */
+    assert_true(import_pub_keys(ffi, path_for("ecc-p521-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    rnp_key_handle_destroy(key);
+    /* Key with 2 designated revokers and 2 revocations */
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-2-revs.pgp")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, true));
+    assert_true(check_key_revoked(key, false));
+    rnp_key_handle_destroy(key);
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p384-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    char *rev_reason = NULL;
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-p384 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+    /* Now try another revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-2-revs.pgp")));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-25519-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-25519 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+    /* Case where revocation signatures goes before the direct-key with desig revoker */
+    assert_rnp_success(rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC));
+    assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-sigorder.pgp")));
+    assert_true(import_pub_keys(ffi, path_for("ecc-p384-pub.asc")));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    assert_true(check_key_valid(key, false));
+    assert_true(check_key_revoked(key, true));
+    assert_rnp_success(rnp_key_get_revocation_reason(key, &rev_reason));
+    assert_string_equal(rev_reason, "ecc-p384 revocation for ecc-p256");
+    rnp_buffer_destroy(rev_reason);
+    rnp_key_handle_destroy(key);
+
+    /* Cleanup */
     rnp_ffi_destroy(ffi);
 }
 
