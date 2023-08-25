@@ -65,30 +65,28 @@
 #endif
 
 bool
-rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
-                             const pgp_key_provider_t *key_provider)
+rnp_key_store_t::load(const pgp_key_provider_t *key_provider)
 {
     pgp_source_t src = {};
 
-    if (key_store->format == PGP_KEY_STORE_G10) {
-        auto dir = rnp_opendir(key_store->path.c_str());
+    if (format == PGP_KEY_STORE_G10) {
+        auto dir = rnp_opendir(path.c_str());
         if (!dir) {
-            RNP_LOG(
-              "Can't open G10 directory %s: %s", key_store->path.c_str(), strerror(errno));
+            RNP_LOG("Can't open G10 directory %s: %s", path.c_str(), strerror(errno));
             return false;
         }
 
         std::string dirname;
         while (!((dirname = rnp_readdir_name(dir)).empty())) {
-            std::string path = rnp::path::append(key_store->path, dirname);
+            std::string apath = rnp::path::append(path, dirname);
 
-            if (init_file_src(&src, path.c_str())) {
-                RNP_LOG("failed to read file %s", path.c_str());
+            if (init_file_src(&src, apath.c_str())) {
+                RNP_LOG("failed to read file %s", apath.c_str());
                 continue;
             }
             // G10 may fail to read one file, so ignore it!
-            if (!rnp_key_store_g10_from_src(key_store, &src, key_provider)) {
-                RNP_LOG("Can't parse file: %s", path.c_str()); // TODO: %S ?
+            if (!rnp_key_store_g10_from_src(this, &src, key_provider)) {
+                RNP_LOG("Can't parse file: %s", apath.c_str()); // TODO: %S ?
             }
             src_close(&src);
         }
@@ -97,30 +95,28 @@ rnp_key_store_load_from_path(rnp_key_store_t *         key_store,
     }
 
     /* init file source and load from it */
-    if (init_file_src(&src, key_store->path.c_str())) {
-        RNP_LOG("failed to read file %s", key_store->path.c_str());
+    if (init_file_src(&src, path.c_str())) {
+        RNP_LOG("failed to read file %s", path.c_str());
         return false;
     }
 
-    bool rc = rnp_key_store_load_from_src(key_store, &src, key_provider);
+    bool rc = load(src, key_provider);
     src_close(&src);
     return rc;
 }
 
 bool
-rnp_key_store_load_from_src(rnp_key_store_t *         key_store,
-                            pgp_source_t *            src,
-                            const pgp_key_provider_t *key_provider)
+rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
-    switch (key_store->format) {
+    switch (format) {
     case PGP_KEY_STORE_GPG:
-        return rnp_key_store_pgp_read_from_src(key_store, src) == RNP_SUCCESS;
+        return rnp_key_store_pgp_read_from_src(this, &src) == RNP_SUCCESS;
     case PGP_KEY_STORE_KBX:
-        return rnp_key_store_kbx_from_src(key_store, src, key_provider);
+        return rnp_key_store_kbx_from_src(this, &src, key_provider);
     case PGP_KEY_STORE_G10:
-        return rnp_key_store_g10_from_src(key_store, src, key_provider);
+        return rnp_key_store_g10_from_src(this, &src, key_provider);
     default:
-        RNP_LOG("Unsupported load from memory for key-store format: %d", key_store->format);
+        RNP_LOG("Unsupported load from memory for key-store format: %d", format);
     }
 
     return false;

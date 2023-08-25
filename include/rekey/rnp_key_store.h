@@ -84,6 +84,16 @@ typedef struct rnp_key_store_t {
     rnp_key_store_t(const rnp_key_store_t &src) = delete;
     rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
 
+    /**
+     * @brief Try to load key store from path.
+     */
+    bool load(const pgp_key_provider_t *key_provider = nullptr);
+
+    /**
+     * @brief Try to load key store from source.
+     */
+    bool load(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+
     void clear();
 
     size_t key_count() const;
@@ -100,11 +110,6 @@ typedef struct rnp_key_store_t {
      */
     pgp_key_t *get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov = nullptr);
 } rnp_key_store_t;
-
-bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
-bool rnp_key_store_load_from_src(rnp_key_store_t *,
-                                 pgp_source_t *,
-                                 const pgp_key_provider_t *key_provider);
 
 bool rnp_key_store_write_to_path(rnp_key_store_t *);
 bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
