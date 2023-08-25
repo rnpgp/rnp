@@ -272,10 +272,10 @@ rnp_key_store_t::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
 {
     pgp_key_t *primary = NULL;
     if (oldkey) {
-        primary = rnp_key_store_get_primary_key(this, oldkey);
+        primary = primary_key(*oldkey);
     }
     if (!primary) {
-        primary = rnp_key_store_get_primary_key(this, &srckey);
+        primary = primary_key(srckey);
     }
 
     if (oldkey) {
@@ -528,7 +528,7 @@ rnp_key_store_t::remove_key(const pgp_key_t &key, bool subkeys)
         }
     }
     if (key.is_subkey() && key.has_primary_fp()) {
-        pgp_key_t *primary = rnp_key_store_get_primary_key(this, &key);
+        pgp_key_t *primary = primary_key(key);
         if (primary) {
             primary->remove_subkey_fp(key.fp());
         }
@@ -560,29 +560,29 @@ rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr)
 }
 
 pgp_key_t *
-rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
+rnp_key_store_t::primary_key(const pgp_key_t &subkey)
 {
-    if (!subkey->is_subkey()) {
-        return NULL;
+    if (!subkey.is_subkey()) {
+        return nullptr;
     }
 
-    if (subkey->has_primary_fp()) {
-        pgp_key_t *primary = keyring->get_key(subkey->primary_fp());
-        return primary && primary->is_primary() ? primary : NULL;
+    if (subkey.has_primary_fp()) {
+        pgp_key_t *primary = get_key(subkey.primary_fp());
+        return primary && primary->is_primary() ? primary : nullptr;
     }
 
-    for (size_t i = 0; i < subkey->sig_count(); i++) {
-        const pgp_subsig_t &subsig = subkey->get_sig(i);
+    for (size_t i = 0; i < subkey.sig_count(); i++) {
+        auto &subsig = subkey.get_sig(i);
         if (subsig.sig.type() != PGP_SIG_SUBKEY) {
             continue;
         }
 
-        pgp_key_t *primary = keyring->get_signer(subsig.sig);
+        pgp_key_t *primary = get_signer(subsig.sig);
         if (primary && primary->is_primary()) {
             return primary;
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 pgp_key_t *

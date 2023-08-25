@@ -3977,7 +3977,7 @@ try {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         // subkey, write the primary + this subkey only
-        pgp_key_t *primary = rnp_key_store_get_primary_key(store, key);
+        pgp_key_t *primary = store->primary_key(*key);
         if (!primary) {
             // shouldn't happen
             return RNP_ERROR_GENERIC;
@@ -4070,7 +4070,7 @@ rnp_key_get_revoker(rnp_key_handle_t key)
         return NULL;
     }
     if (exkey->is_subkey()) {
-        return rnp_key_store_get_primary_key(key->ffi->secring, exkey);
+        return key->ffi->secring->primary_key(*exkey);
     }
     // TODO: search through revocation key subpackets as well
     return get_key_require_secret(key);
@@ -4343,7 +4343,7 @@ signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, 
         return true;
     }
     if (nonself && key.is_subkey()) {
-        pgp_key_t *primary = rnp_key_store_get_primary_key(ffi->pubring, &key);
+        pgp_key_t *primary = ffi->pubring->primary_key(key);
         if (primary && !primary->is_signer(sig)) {
             return true;
         }
@@ -6920,7 +6920,7 @@ try {
 
     if (key->is_subkey()) {
         /* check validity time of the primary key as well */
-        pgp_key_t *primary = rnp_key_store_get_primary_key(handle->ffi->pubring, key);
+        pgp_key_t *primary = handle->ffi->pubring->primary_key(*key);
         if (!primary) {
             /* no primary key - subkey considered as never valid */
             *result = 0;
