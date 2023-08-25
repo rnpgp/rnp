@@ -129,7 +129,7 @@ load_generated_g10_key(pgp_key_t *           dst,
     if (!rnp_key_store_g10_from_src(key_store.get(), &memsrc.src(), &prov)) {
         return false;
     }
-    if (rnp_key_store_get_key_count(key_store.get()) != 1) {
+    if (key_store.get()->key_count() != 1) {
         return false;
     }
     // if a primary key is provided, it should match the sub with regards to type

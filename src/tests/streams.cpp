@@ -1104,7 +1104,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     rnp_key_store_t *pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_int_equal(rnp_key_store_get_key_count(pubring), 1);
+    assert_int_equal(pubring->key_count(), 1);
     pgp_key_t &pkey = pubring->keys.front();
     pkey.validate(*pubring);
     /* MD5 signature is marked as invalid by default */
@@ -1129,7 +1129,7 @@ TEST_F(rnp_tests, test_stream_key_signature_validate)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
-    assert_true(rnp_key_store_get_key_count(pubring) > 0);
+    assert_true(pubring->key_count() > 0);
     int i = 0;
     for (auto &key : pubring->keys) {
         key.validate(*pubring);
@@ -1482,7 +1482,7 @@ TEST_F(rnp_tests, test_stream_825_dearmor_blank_line)
     assert_rnp_success(
       init_file_src(&src, "data/test_stream_armor/extra_line_before_trailer.asc"));
     assert_true(rnp_key_store_load_from_src(keystore, &src, NULL));
-    assert_int_equal(rnp_key_store_get_key_count(keystore), 2);
+    assert_int_equal(keystore->key_count(), 2);
     src_close(&src);
     delete keystore;
 }

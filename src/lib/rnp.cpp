@@ -1983,7 +1983,7 @@ try {
     if (!ffi || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *count = rnp_key_store_get_key_count(ffi->pubring);
+    *count = ffi->pubring->key_count();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -1994,7 +1994,7 @@ try {
     if (!ffi || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *count = rnp_key_store_get_key_count(ffi->secring);
+    *count = ffi->secring->key_count();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -8229,9 +8229,9 @@ key_iter_next_item(rnp_identifier_iterator_t it)
 static bool
 key_iter_first_key(rnp_identifier_iterator_t it)
 {
-    if (rnp_key_store_get_key_count(it->ffi->pubring)) {
+    if (it->ffi->pubring->key_count()) {
         it->store = it->ffi->pubring;
-    } else if (rnp_key_store_get_key_count(it->ffi->secring)) {
+    } else if (it->ffi->secring->key_count()) {
         it->store = it->ffi->secring;
     } else {
         it->store = NULL;
