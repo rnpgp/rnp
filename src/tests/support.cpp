@@ -773,7 +773,7 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
     }
     pgp_key_search_t search(PGP_KEY_SEARCH_KEYID);
     search.by.keyid = keyid_bin;
-    return rnp_key_store_search(keyring, &search, after);
+    return keyring->search(search, after);
 }
 
 pgp_key_t *
@@ -798,7 +798,7 @@ rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
     }
     pgp_key_search_t search(PGP_KEY_SEARCH_GRIP);
     search.by.grip = grip;
-    return rnp_key_store_search(keyring, &search, NULL);
+    return keyring->search(search);
 }
 
 pgp_key_t *
@@ -827,7 +827,7 @@ rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid)
     pgp_key_search_t srch_userid(PGP_KEY_SEARCH_USERID);
     strncpy(srch_userid.by.userid, uid.c_str(), sizeof(srch_userid.by.userid));
     srch_userid.by.userid[sizeof(srch_userid.by.userid) - 1] = '\0';
-    return rnp_key_store_search(keyring, &srch_userid, NULL);
+    return keyring->search(srch_userid);
 }
 
 void

@@ -586,37 +586,34 @@ rnp_key_store_t::primary_key(const pgp_key_t &subkey)
 }
 
 pgp_key_t *
-rnp_key_store_search(rnp_key_store_t *       keyring,
-                     const pgp_key_search_t *search,
-                     pgp_key_t *             after)
+rnp_key_store_t::search(const pgp_key_search_t &search, pgp_key_t *after)
 {
     // since keys are distinguished by fingerprint then just do map lookup
-    if (search->type == PGP_KEY_SEARCH_FINGERPRINT) {
-        pgp_key_t *key = keyring->get_key(search->by.fingerprint);
+    if (search.type == PGP_KEY_SEARCH_FINGERPRINT) {
+        pgp_key_t *key = get_key(search.by.fingerprint);
         if (after && (after != key)) {
             RNP_LOG("searching with invalid after param");
-            return NULL;
+            return nullptr;
         }
         // return NULL if after is specified
-        return after ? NULL : key;
+        return after ? nullptr : key;
     }
 
     // if after is provided, make sure it is a member of the appropriate list
-    auto it =
-      std::find_if(keyring->keys.begin(), keyring->keys.end(), [after](const pgp_key_t &key) {
-          return !after || (after == &key);
-      });
-    if (after && (it == keyring->keys.end())) {
+    auto it = std::find_if(keys.begin(), keys.end(), [after](const pgp_key_t &key) {
+        return !after || (after == &key);
+    });
+    if (after && (it == keys.end())) {
         RNP_LOG("searching with non-keyrings after param");
-        return NULL;
+        return nullptr;
     }
     if (after) {
         it = std::next(it);
     }
-    it = std::find_if(it, keyring->keys.end(), [search](const pgp_key_t &key) {
-        return rnp_key_matches_search(&key, search);
+    it = std::find_if(it, keys.end(), [search](const pgp_key_t &key) {
+        return rnp_key_matches_search(&key, &search);
     });
-    return (it == keyring->keys.end()) ? NULL : &(*it);
+    return (it == keys.end()) ? nullptr : &(*it);
 }
 
 pgp_key_t *
@@ -635,7 +632,7 @@ rnp_key_store_t::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov
         return nullptr;
     }
 
-    pgp_key_t *key = rnp_key_store_search(this, &ctx.search, NULL);
+    pgp_key_t *key = search(ctx.search);
     if (key || !prov) {
         return key;
     }

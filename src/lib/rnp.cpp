@@ -109,8 +109,8 @@ find_key(rnp_ffi_t               ffi,
          bool                    try_key_provider,
          pgp_key_t *             after = NULL)
 {
-    pgp_key_t *key =
-      rnp_key_store_search(secret ? ffi->secring : ffi->pubring, &search, after);
+    auto       ks = secret ? ffi->secring : ffi->pubring;
+    pgp_key_t *key = ks->search(search, after);
     if (!key && try_key_provider && call_key_callback(ffi, search, secret)) {
         // recurse and try the store search above once more
         return find_key(ffi, search, secret, false, after);
@@ -3691,8 +3691,8 @@ try {
     search.by.keyid = sig->sig_pkt.keyid();
 
     // search the stores
-    pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &search, NULL);
-    pgp_key_t *sec = rnp_key_store_search(ffi->secring, &search, NULL);
+    pgp_key_t *pub = ffi->pubring->search(search);
+    pgp_key_t *sec = ffi->secring->search(search);
     if (!pub && !sec) {
         return RNP_ERROR_KEY_NOT_FOUND;
     }
@@ -3862,9 +3862,9 @@ rnp_locate_key_int(rnp_ffi_t               ffi,
                    bool                    require_secret = false)
 {
     // search pubring
-    pgp_key_t *pub = rnp_key_store_search(ffi->pubring, &locator, NULL);
+    pgp_key_t *pub = ffi->pubring->search(locator);
     // search secring
-    pgp_key_t *sec = rnp_key_store_search(ffi->secring, &locator, NULL);
+    pgp_key_t *sec = ffi->secring->search(locator);
 
     if (require_secret && !sec) {
         *handle = NULL;
@@ -5013,8 +5013,8 @@ try {
             return tmpret;
         }
 
-        prim_pub = rnp_key_store_search(ffi->pubring, &locator, NULL);
-        prim_sec = rnp_key_store_search(ffi->secring, &locator, NULL);
+        prim_pub = ffi->pubring->search(locator);
+        prim_sec = ffi->secring->search(locator);
         if (!prim_sec || !prim_pub) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
