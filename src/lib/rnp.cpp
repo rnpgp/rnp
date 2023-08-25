@@ -1481,7 +1481,7 @@ do_load_keys(rnp_ffi_t              ffi,
                 return RNP_ERROR_NOT_IMPLEMENTED;
             }
 
-            if (!rnp_key_store_add_key(ffi->secring, &key)) {
+            if (!ffi->secring->add_key(key)) {
                 FFI_LOG(ffi, "Failed to add secret key");
                 return RNP_ERROR_GENERIC;
             }
@@ -1512,7 +1512,7 @@ do_load_keys(rnp_ffi_t              ffi,
             return RNP_ERROR_NOT_IMPLEMENTED;
         }
 
-        if (!rnp_key_store_add_key(ffi->pubring, &keycp)) {
+        if (!ffi->pubring->add_key(keycp)) {
             FFI_LOG(ffi, "Failed to add public key");
             return RNP_ERROR_GENERIC;
         }
@@ -1871,7 +1871,7 @@ static bool
 copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
 {
     for (auto &key : src->keys) {
-        if (!rnp_key_store_add_key(dest, &key)) {
+        if (!dest->add_key(key)) {
             FFI_LOG(ffi, "failed to add key to the store");
             return false;
         }
@@ -4876,14 +4876,14 @@ gen_json_primary_key(rnp_ffi_t                    ffi,
     if (!pgp_generate_primary_key(desc, true, sec, pub, ffi->secring->format)) {
         return RNP_ERROR_GENERIC;
     }
-    if (!rnp_key_store_add_key(ffi->pubring, &pub)) {
+    if (!ffi->pubring->add_key(pub)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     /* encrypt secret key if specified */
     if (protect && prot.symm_alg && !sec.protect(prot, ffi->pass_provider, ffi->context)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!rnp_key_store_add_key(ffi->secring, &sec)) {
+    if (!ffi->secring->add_key(sec)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     fp = pub.fp();
@@ -4921,14 +4921,14 @@ gen_json_subkey(rnp_ffi_t          ffi,
                              ffi->secring->format)) {
         return RNP_ERROR_GENERIC;
     }
-    if (!rnp_key_store_add_key(ffi->pubring, &pub)) {
+    if (!ffi->pubring->add_key(pub)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     /* encrypt subkey if specified */
     if (prot.symm_alg && !sec.protect(prot, ffi->pass_provider, ffi->context)) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!rnp_key_store_add_key(ffi->secring, &sec)) {
+    if (!ffi->secring->add_key(sec)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     fp = pub.fp();
@@ -5781,7 +5781,7 @@ try {
     }
 
     /* add public key part to the keyring */
-    if (!(op->gen_pub = rnp_key_store_add_key(op->ffi->pubring, &pub))) {
+    if (!(op->gen_pub = op->ffi->pubring->add_key(pub))) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }
@@ -5799,7 +5799,7 @@ try {
     }
 
     /* add secret key to the keyring */
-    if (!(op->gen_sec = rnp_key_store_add_key(op->ffi->secring, &sec))) {
+    if (!(op->gen_sec = op->ffi->secring->add_key(sec))) {
         ret = RNP_ERROR_OUT_OF_MEMORY;
         goto done;
     }

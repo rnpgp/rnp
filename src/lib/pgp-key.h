@@ -130,7 +130,7 @@ typedef struct pgp_userid_t {
 
 #define PGP_UID_NONE ((uint32_t) -1)
 
-typedef struct rnp_key_store_t rnp_key_store_t;
+class rnp_key_store_t;
 
 /* describes a user's key */
 struct pgp_key_t {
