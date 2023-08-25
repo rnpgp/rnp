@@ -221,9 +221,9 @@ rnp_key_store_t::clear()
 }
 
 size_t
-rnp_key_store_get_key_count(const rnp_key_store_t *keyring)
+rnp_key_store_t::key_count() const
 {
-    return keyring->keys.size();
+    return keys.size();
 }
 
 static bool
