@@ -630,7 +630,10 @@ key_expiration_check(rnp_key_store_t *keystore,
             if (!key.has_primary_fp()) {
                 return 0;
             }
-            pk = rnp_key_store_get_key_by_fpr(keystore, key.primary_fp());
+            pk = keystore->get_key(key.primary_fp());
+            if (!pk) {
+                return 0;
+            }
         }
         if (pk->uid_count() != 1) {
             return 0;

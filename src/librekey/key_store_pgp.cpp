@@ -219,7 +219,7 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             return false;
         }
         for (auto &sfp : key.subkey_fps()) {
-            pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
+            pgp_key_t *subkey = key_store->get_key(sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;

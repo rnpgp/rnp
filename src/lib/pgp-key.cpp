@@ -139,7 +139,7 @@ pgp_key_t *
 pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
 {
     try {
-        return rnp_key_store_get_key_by_fpr(store, key->get_subkey_fp(idx));
+        return store->get_key(key->get_subkey_fp(idx));
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         return NULL;
@@ -1707,7 +1707,7 @@ pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
 
     // Export subkeys
     for (auto &fp : subkey_fps_) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(keyring, fp);
+        const pgp_key_t *subkey = keyring->get_key(fp);
         if (!subkey) {
             char fphex[PGP_MAX_FINGERPRINT_SIZE * 2 + 1] = {0};
             rnp::hex_encode(
@@ -2273,7 +2273,7 @@ pgp_key_t::validate(rnp_key_store_t &keyring)
     } else {
         pgp_key_t *primary = NULL;
         if (has_primary_fp()) {
-            primary = rnp_key_store_get_key_by_fpr(&keyring, primary_fp());
+            primary = keyring.get_key(primary_fp());
         }
         validate_subkey(primary, keyring.secctx);
     }
@@ -2298,7 +2298,7 @@ pgp_key_t::revalidate(rnp_key_store_t &keyring)
     }
     /* validate/re-validate all subkeys as well */
     for (auto &fp : subkey_fps_) {
-        pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(&keyring, fp);
+        pgp_key_t *subkey = keyring.get_key(fp);
         if (subkey) {
             subkey->validate_subkey(this, keyring.secctx);
             if (!subkey->refresh_data(this, keyring.secctx)) {
