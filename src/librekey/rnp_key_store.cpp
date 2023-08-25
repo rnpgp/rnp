@@ -213,11 +213,11 @@ rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
 }
 
 void
-rnp_key_store_clear(rnp_key_store_t *keyring)
+rnp_key_store_t::clear()
 {
-    keyring->keybyfp.clear();
-    keyring->keys.clear();
-    keyring->blobs.clear();
+    keybyfp.clear();
+    keys.clear();
+    blobs.clear();
 }
 
 size_t
@@ -842,5 +842,5 @@ rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format,
 
 rnp_key_store_t::~rnp_key_store_t()
 {
-    rnp_key_store_clear(this);
+    clear();
 }
