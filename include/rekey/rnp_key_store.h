@@ -86,6 +86,8 @@ typedef struct rnp_key_store_t {
 
     void clear();
 
+    size_t key_count() const;
+
     /**
      * @brief Get the signer's key for signature
      *
@@ -103,8 +105,6 @@ bool rnp_key_store_load_from_src(rnp_key_store_t *,
 
 bool rnp_key_store_write_to_path(rnp_key_store_t *);
 bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
-
-size_t rnp_key_store_get_key_count(const rnp_key_store_t *);
 
 /**
  * @brief Add key to the keystore, copying it.
