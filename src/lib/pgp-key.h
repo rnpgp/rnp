@@ -605,18 +605,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
                                   const pgp_password_ctx_t &);
 
 /**
- * @brief Get the signer's key for signature
- *
- * @param sig signature
- * @param keyring keyring to search for the key. May be NULL.
- * @param prov key provider to request needed key, may be NULL.
- * @return pointer to the key or NULL if key is not found.
- */
-pgp_key_t *pgp_sig_get_signer(const pgp_subsig_t &sig,
-                              rnp_key_store_t *   keyring,
-                              pgp_key_provider_t *prov);
-
-/**
  * @brief Get the key's subkey by its index
  *
  * @param key primary key
