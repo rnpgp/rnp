@@ -308,10 +308,11 @@ pgp_sig_subpkt_t::parse()
         fields.preferred.len = len;
         break;
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        if ((oklen = len == 22)) {
-            fields.revocation_key.klass = data[0];
+        if ((oklen = ((len == 22) || (len == 34)))) {
+            fields.revocation_key.revclass = data[0];
             fields.revocation_key.pkalg = (pgp_pubkey_alg_t) data[1];
             fields.revocation_key.fp = &data[2];
+            fields.revocation_key.fp_len = len - 2;
         }
         break;
     case PGP_SIG_SUBPKT_ISSUER_KEY_ID:
@@ -1183,6 +1184,35 @@ pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
     memcpy(subpkt.data, esigpkt.raw.data() + skip, len);
     subpkt.fields.sig = new pgp_signature_t(esig);
     subpkt.parsed = true;
+}
+
+const pgp_sig_subpkt_t *
+pgp_signature_t::revoker_subpkt() const noexcept
+{
+    if (version < PGP_V4) {
+        return nullptr;
+    }
+    auto subpkt = get_subpkt(PGP_SIG_SUBPKT_REVOCATION_KEY);
+    return subpkt && subpkt->hashed ? subpkt : nullptr;
+}
+
+bool
+pgp_signature_t::has_revoker() const noexcept
+{
+    return revoker_subpkt();
+}
+
+pgp_fingerprint_t
+pgp_signature_t::revoker() const noexcept
+{
+    pgp_fingerprint_t res{};
+    auto              subpkt = revoker_subpkt();
+    if (!subpkt) {
+        return res;
+    }
+    res.length = subpkt->fields.revocation_key.fp_len;
+    memcpy(res.fingerprint, subpkt->fields.revocation_key.fp, res.length);
+    return res;
 }
 
 pgp_sig_subpkt_t &

@@ -826,6 +826,7 @@ pgp_key_t::pgp_key_t(const pgp_key_t &src, bool pubonly)
     uid0_set_ = src.uid0_set_;
     revoked_ = src.revoked_;
     revocation_ = src.revocation_;
+    revokers_ = src.revokers_;
     format = src.format;
     validity_ = src.validity_;
     valid_till_ = src.valid_till_;
@@ -1139,6 +1140,28 @@ pgp_key_t::clear_revokes()
         uid.revoked = false;
         uid.revocation = {};
     }
+}
+
+void
+pgp_key_t::add_revoker(const pgp_fingerprint_t &revoker)
+{
+    for (auto &rev : revokers_) {
+        if (rev == revoker) {
+            return;
+        }
+    }
+    revokers_.push_back(revoker);
+}
+
+bool
+pgp_key_t::has_revoker(const pgp_fingerprint_t &revoker) const
+{
+    for (auto &rev : revokers_) {
+        if (rev == revoker) {
+            return true;
+        }
+    }
+    return false;
 }
 
 const pgp_key_pkt_t &
@@ -2556,6 +2579,19 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
         flags_ = latest->key_flags;
     } else {
         flags_ = pgp_pk_alg_capabilities(alg());
+    }
+    /* designated revokers */
+    revokers_.clear();
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        /* pick designated revokers only from direct-key signatures */
+        if (!sig.valid() || !is_direct_self(sig)) {
+            continue;
+        }
+        if (!sig.sig.has_revoker()) {
+            continue;
+        }
+        add_revoker(sig.sig.revoker());
     }
     /* revocation(s) */
     clear_revokes();

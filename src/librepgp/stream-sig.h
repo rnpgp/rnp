@@ -45,6 +45,8 @@ typedef struct pgp_signature_t {
     bool         parse_subpackets(uint8_t *buf, size_t len, bool hashed);
     static bool  version_supported(pgp_version_t version);
 
+    const pgp_sig_subpkt_t *revoker_subpkt() const noexcept;
+
   public:
     pgp_version_t version;
     /* common v3 and v4 fields */
@@ -332,6 +334,17 @@ typedef struct pgp_signature_t {
      * @param esig populated and calculated embedded signature.
      */
     void set_embedded_sig(const pgp_signature_t &esig);
+
+    /**
+     * @brief Check whether signature includes revocation key subpacket.
+     */
+    bool has_revoker() const noexcept;
+
+    /**
+     * @brief Get the revocation key fingerprint, if it is available. Otherwise empty
+     * fingerprint will be returned.
+     */
+    pgp_fingerprint_t revoker() const noexcept;
 
     /**
      * @brief Add subpacket of the specified type to v4 signature

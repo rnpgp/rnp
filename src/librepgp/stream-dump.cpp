@@ -619,7 +619,7 @@ signature_dump_subpacket(rnp_dump_ctx_t *ctx, pgp_dest_t *dst, const pgp_sig_sub
         break;
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
         dst_printf(dst, "%s\n", sname);
-        dst_printf(dst, "class: %d\n", (int) subpkt.fields.revocation_key.klass);
+        dst_printf(dst, "class: %d\n", (int) subpkt.fields.revocation_key.revclass);
         dst_print_palg(dst, NULL, subpkt.fields.revocation_key.pkalg);
         dst_print_hex(
           dst, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE, true);
@@ -1769,7 +1769,7 @@ signature_dump_subpacket_json(rnp_dump_ctx_t *        ctx,
                                       subpkt.fields.preferred.len,
                                       aead_alg_map);
     case PGP_SIG_SUBPKT_REVOCATION_KEY:
-        return json_add(obj, "class", (int) subpkt.fields.revocation_key.klass) &&
+        return json_add(obj, "class", (int) subpkt.fields.revocation_key.revclass) &&
                json_add(obj, "algorithm", (int) subpkt.fields.revocation_key.pkalg) &&
                json_add_hex(
                  obj, "fingerprint", subpkt.fields.revocation_key.fp, PGP_FINGERPRINT_V4_SIZE);
