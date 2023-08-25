@@ -123,38 +123,38 @@ rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 }
 
 bool
-rnp_key_store_write_to_path(rnp_key_store_t *key_store)
+rnp_key_store_t::write()
 {
     bool       rc;
     pgp_dest_t keydst = {};
 
     /* write g10 key store to the directory */
-    if (key_store->format == PGP_KEY_STORE_G10) {
-        char path[MAXPATHLEN];
+    if (format == PGP_KEY_STORE_G10) {
+        char chpath[MAXPATHLEN];
 
         struct stat path_stat;
-        if (rnp_stat(key_store->path.c_str(), &path_stat) != -1) {
+        if (rnp_stat(path.c_str(), &path_stat) != -1) {
             if (!S_ISDIR(path_stat.st_mode)) {
-                RNP_LOG("G10 keystore should be a directory: %s", key_store->path.c_str());
+                RNP_LOG("G10 keystore should be a directory: %s", path.c_str());
                 return false;
             }
         } else {
             if (errno != ENOENT) {
-                RNP_LOG("stat(%s): %s", key_store->path.c_str(), strerror(errno));
+                RNP_LOG("stat(%s): %s", path.c_str(), strerror(errno));
                 return false;
             }
-            if (RNP_MKDIR(key_store->path.c_str(), S_IRWXU) != 0) {
-                RNP_LOG("mkdir(%s, S_IRWXU): %s", key_store->path.c_str(), strerror(errno));
+            if (RNP_MKDIR(path.c_str(), S_IRWXU) != 0) {
+                RNP_LOG("mkdir(%s, S_IRWXU): %s", path.c_str(), strerror(errno));
                 return false;
             }
         }
 
-        for (auto &key : key_store->keys) {
+        for (auto &key : keys) {
             char grip[PGP_MAX_FINGERPRINT_HEX_SIZE] = {0};
             rnp::hex_encode(key.grip().data(), key.grip().size(), grip, sizeof(grip));
-            snprintf(path, sizeof(path), "%s/%s.key", key_store->path.c_str(), grip);
+            snprintf(chpath, sizeof(chpath), "%s/%s.key", path.c_str(), grip);
 
-            if (init_tmpfile_dest(&keydst, path, true)) {
+            if (init_tmpfile_dest(&keydst, chpath, true)) {
                 RNP_LOG("failed to create file");
                 return false;
             }
@@ -177,12 +177,12 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
     }
 
     /* write kbx/gpg store to the single file */
-    if (init_tmpfile_dest(&keydst, key_store->path.c_str(), true)) {
+    if (init_tmpfile_dest(&keydst, path.c_str(), true)) {
         RNP_LOG("failed to create keystore file");
         return false;
     }
 
-    if (!rnp_key_store_write_to_dst(key_store, &keydst)) {
+    if (!write(keydst)) {
         RNP_LOG("failed to write keys to file");
         dst_close(&keydst, true);
         return false;
@@ -194,15 +194,15 @@ rnp_key_store_write_to_path(rnp_key_store_t *key_store)
 }
 
 bool
-rnp_key_store_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
+rnp_key_store_t::write(pgp_dest_t &dst)
 {
-    switch (key_store->format) {
+    switch (format) {
     case PGP_KEY_STORE_GPG:
-        return rnp_key_store_pgp_write_to_dst(key_store, dst);
+        return rnp_key_store_pgp_write_to_dst(this, &dst);
     case PGP_KEY_STORE_KBX:
-        return rnp_key_store_kbx_to_dst(key_store, dst);
+        return rnp_key_store_kbx_to_dst(this, &dst);
     default:
-        RNP_LOG("Unsupported write to memory for key-store format: %d", key_store->format);
+        RNP_LOG("Unsupported write to memory for key-store format: %d", format);
     }
 
     return false;

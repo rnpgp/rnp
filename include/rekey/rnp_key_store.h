@@ -94,6 +94,16 @@ typedef struct rnp_key_store_t {
      */
     bool load(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
 
+    /**
+     * @brief Write key store to the path.
+     */
+    bool write();
+
+    /**
+     * @brief Write key store to the dest.
+     */
+    bool write(pgp_dest_t &dst);
+
     void clear();
 
     size_t key_count() const;
@@ -110,9 +120,6 @@ typedef struct rnp_key_store_t {
      */
     pgp_key_t *get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov = nullptr);
 } rnp_key_store_t;
-
-bool rnp_key_store_write_to_path(rnp_key_store_t *);
-bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
 
 /**
  * @brief Add key to the keystore, copying it.
