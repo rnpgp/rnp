@@ -63,7 +63,9 @@ typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pg
 
 class rnp_key_store_t {
   private:
-    pgp_key_t *add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
+    pgp_key_t *             add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
+    pgp_sig_import_status_t import_subkey_signature(pgp_key_t &            key,
+                                                    const pgp_signature_t &sig);
 
   public:
     std::string            path;
@@ -129,28 +131,34 @@ class rnp_key_store_t {
      * @return pointer to the added key or nullptr if failed.
      */
     pgp_key_t *add_key(pgp_key_t &key);
+
+    /**
+     * @brief Import key to the keystore.
+     *
+     * @param srckey source key.
+     * @param pubkey import just public key part.
+     * @param status if not nullptr then import status will be stored here.
+     * @return pgp_key_t*
+     */
+    pgp_key_t *import_key(pgp_key_t &              srckey,
+                          bool                     pubkey,
+                          pgp_key_import_status_t *status = nullptr);
+
+    /**
+     * @brief Import signature for the specified key.
+     */
+    pgp_sig_import_status_t import_signature(pgp_key_t &key, const pgp_signature_t &sig);
+
+    /**
+     * @brief Import revocation or direct-key signature to the keystore.
+     *
+     * @param sig signature to import.
+     * @param status signature import status will be put here, if not nullptr.
+     * @return pointer to the key to which this signature belongs (or nullptr if key was not
+     * found)
+     */
+    pgp_key_t *import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status);
 };
-
-pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
-                                    pgp_key_t *,
-                                    bool,
-                                    pgp_key_import_status_t *);
-
-pgp_sig_import_status_t rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
-                                                           pgp_key_t *            key,
-                                                           const pgp_signature_t *sig);
-
-/**
- * @brief Import revocation or direct-key signature to the keyring.
- *
- * @param keyring populated keyring, cannot be NULL.
- * @param sig signature to import.
- * @param status signature import status will be put here, if not NULL.
- * @return pointer to the key to which this signature belongs (or NULL if key was not found)
- */
-pgp_key_t *rnp_key_store_import_signature(rnp_key_store_t *        keyring,
-                                          const pgp_signature_t *  sig,
-                                          pgp_sig_import_status_t *status);
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
 
