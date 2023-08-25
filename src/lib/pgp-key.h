@@ -465,8 +465,24 @@ struct pgp_key_t {
      */
     void validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityContext &ctx) const;
 
+    /**
+     * @brief Validate key revocation.
+     *
+     * @param sinfo populated signature info. Validation results will be stored here.
+     * @param key key to which revocation belongs.
+     */
+    void validate_key_rev(pgp_signature_info_t &      sinfo,
+                          const pgp_key_pkt_t &       key,
+                          const rnp::SecurityContext &ctx) const;
+
     void validate_self_signatures(const rnp::SecurityContext &ctx);
     void validate_self_signatures(pgp_key_t &primary, const rnp::SecurityContext &ctx);
+
+    /*
+     * @brief Validate designated revocations. As those are issued by another key, this is
+     *        handled differently from self-signatures as requires access to the whole keyring.
+     */
+    bool validate_desig_revokes(rnp::KeyStore &keyring);
     void validate(rnp::KeyStore &keyring);
     void validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx);
     void revalidate(rnp::KeyStore &keyring);
@@ -590,6 +606,8 @@ struct pgp_key_t {
     bool refresh_data(const rnp::SecurityContext &ctx);
     /** @brief Refresh internal fields after subkey is updated */
     bool refresh_data(pgp_key_t *primary, const rnp::SecurityContext &ctx);
+    /** @brief Refresh revocation status. */
+    void refresh_revocations();
     /** @brief Merge primary key with the src, i.e. add all new userids/signatures/subkeys */
     bool merge(const pgp_key_t &src);
     /** @brief Merge subkey with the source, i.e. add all new signatures */
