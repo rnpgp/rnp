@@ -162,8 +162,6 @@ class rnp_key_store_t {
 
 bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
 
-bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip);
-
 pgp_key_t *rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
 

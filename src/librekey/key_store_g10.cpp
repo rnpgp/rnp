@@ -911,7 +911,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         pgp_key_t key;
         if (key_provider) {
             pgp_key_request_ctx_t req_ctx(PGP_OP_MERGE_INFO, false, PGP_KEY_SEARCH_GRIP);
-            if (!rnp_key_store_get_key_grip(&seckey.material, req_ctx.search.by.grip)) {
+            if (!seckey.material.get_grip(req_ctx.search.by.grip)) {
                 return false;
             }
 
