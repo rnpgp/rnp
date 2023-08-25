@@ -4296,7 +4296,7 @@ try {
         if (!key->ffi->pubring || !key->pub) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (!rnp_key_store_remove_key(key->ffi->pubring, key->pub, sub)) {
+        if (!key->ffi->pubring->remove_key(*key->pub, sub)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
         key->pub = NULL;
@@ -4305,7 +4305,7 @@ try {
         if (!key->ffi->secring || !key->sec) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
-        if (!rnp_key_store_remove_key(key->ffi->secring, key->sec, sub)) {
+        if (!key->ffi->secring->remove_key(*key->sec, sub)) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
         key->sec = NULL;
@@ -5042,16 +5042,16 @@ try {
     if (ret) {
         if (jsoprimary) {
             /* do not leave generated primary key in keyring */
-            rnp_key_store_remove_key(ffi->pubring, prim_pub, false);
-            rnp_key_store_remove_key(ffi->secring, prim_sec, false);
+            ffi->pubring->remove_key(*prim_pub);
+            ffi->secring->remove_key(*prim_sec);
         }
         return ret;
     }
     /* Protect the primary key now */
     if (prim_prot.symm_alg &&
         !prim_sec->protect(prim_prot, ffi->pass_provider, ffi->context)) {
-        rnp_key_store_remove_key(ffi->pubring, prim_pub, true);
-        rnp_key_store_remove_key(ffi->secring, prim_sec, true);
+        ffi->pubring->remove_key(*prim_pub);
+        ffi->secring->remove_key(*prim_sec);
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
@@ -5807,11 +5807,11 @@ try {
 done:
     op->password.clear();
     if (ret && op->gen_pub) {
-        rnp_key_store_remove_key(op->ffi->pubring, op->gen_pub, false);
+        op->ffi->pubring->remove_key(*op->gen_pub);
         op->gen_pub = NULL;
     }
     if (ret && op->gen_sec) {
-        rnp_key_store_remove_key(op->ffi->secring, op->gen_sec, false);
+        op->ffi->secring->remove_key(*op->gen_sec);
         op->gen_sec = NULL;
     }
     return ret;

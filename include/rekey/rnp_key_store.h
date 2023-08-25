@@ -158,9 +158,16 @@ class rnp_key_store_t {
      * found)
      */
     pgp_key_t *import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status);
-};
 
-bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
+    /**
+     * @brief Remove key from the keystore.
+     *
+     * @param key key to remove. Must be from this keystore.
+     * @param subkeys remove subkeys or not.
+     * @return true if key was succesfully removed, or false if key was not found in keystore.
+     */
+    bool remove_key(const pgp_key_t &key, bool subkeys = false);
+};
 
 pgp_key_t *rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);

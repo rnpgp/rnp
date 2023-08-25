@@ -504,38 +504,38 @@ rnp_key_store_t::import_signature(const pgp_signature_t &sig, pgp_sig_import_sta
 }
 
 bool
-rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool subkeys)
+rnp_key_store_t::remove_key(const pgp_key_t &key, bool subkeys)
 {
-    auto it = keyring->keybyfp.find(key->fp());
-    if (it == keyring->keybyfp.end()) {
+    auto it = keybyfp.find(key.fp());
+    if (it == keybyfp.end()) {
         return false;
     }
 
     /* cleanup primary_grip (or subkey)/subkey_grips */
-    if (key->is_primary() && key->subkey_count()) {
-        for (size_t i = 0; i < key->subkey_count(); i++) {
-            auto it = keyring->keybyfp.find(key->get_subkey_fp(i));
-            if (it == keyring->keybyfp.end()) {
+    if (key.is_primary() && key.subkey_count()) {
+        for (size_t i = 0; i < key.subkey_count(); i++) {
+            auto its = keybyfp.find(key.get_subkey_fp(i));
+            if (its == keybyfp.end()) {
                 continue;
             }
             /* if subkeys are deleted then no need to update grips */
             if (subkeys) {
-                keyring->keys.erase(it->second);
-                keyring->keybyfp.erase(it);
+                keys.erase(its->second);
+                keybyfp.erase(its);
                 continue;
             }
-            it->second->unset_primary_fp();
+            its->second->unset_primary_fp();
         }
     }
-    if (key->is_subkey() && key->has_primary_fp()) {
-        pgp_key_t *primary = rnp_key_store_get_primary_key(keyring, key);
+    if (key.is_subkey() && key.has_primary_fp()) {
+        pgp_key_t *primary = rnp_key_store_get_primary_key(this, &key);
         if (primary) {
-            primary->remove_subkey_fp(key->fp());
+            primary->remove_subkey_fp(key.fp());
         }
     }
 
-    keyring->keys.erase(it->second);
-    keyring->keybyfp.erase(it);
+    keys.erase(it->second);
+    keybyfp.erase(it);
     return true;
 }
 
