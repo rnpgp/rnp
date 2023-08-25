@@ -735,7 +735,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     assert_false(keycp.pkt().material.secret);
     rnp_key_store_add_key(pubstore, &keycp);
     /* save pubring */
-    assert_true(rnp_key_store_write_to_path(pubstore));
+    assert_true(pubstore->write());
     delete pubstore;
     /* reload */
     pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);

@@ -1937,12 +1937,12 @@ do_save_keys(rnp_ffi_t              ffi,
     // write
     if (output->dst_directory) {
         tmp_store->path = output->dst_directory;
-        if (!rnp_key_store_write_to_path(tmp_store)) {
+        if (!tmp_store->write()) {
             return RNP_ERROR_WRITE;
         }
         return RNP_SUCCESS;
     } else {
-        if (!rnp_key_store_write_to_dst(tmp_store, &output->dst)) {
+        if (!tmp_store->write(output->dst)) {
             return RNP_ERROR_WRITE;
         }
         dst_flush(&output->dst);
