@@ -663,9 +663,15 @@ pgp_subsig_t::validated() const
 bool
 pgp_subsig_t::is_cert() const
 {
-    pgp_sig_type_t type = sig.type();
-    return (type == PGP_CERT_CASUAL) || (type == PGP_CERT_GENERIC) ||
-           (type == PGP_CERT_PERSONA) || (type == PGP_CERT_POSITIVE);
+    switch (sig.type()) {
+    case PGP_CERT_CASUAL:
+    case PGP_CERT_GENERIC:
+    case PGP_CERT_PERSONA:
+    case PGP_CERT_POSITIVE:
+        return true;
+    default:
+        return false;
+    }
 }
 
 bool
@@ -2000,8 +2006,17 @@ pgp_key_t::validate_sig(const pgp_key_t &           key,
             validate_binding(sinfo, key, ctx);
             break;
         case PGP_SIG_DIRECT:
-        case PGP_SIG_REV_KEY:
+            if (!is_signer(sig)) {
+                RNP_LOG("Invalid direct key signer.");
+                return;
+            }
             validate_direct(sinfo, ctx);
+        case PGP_SIG_REV_KEY:
+            if (!is_signer(sig)) {
+                RNP_LOG("Invalid key revocation signer.");
+                return;
+            }
+            validate_key_rev(sinfo, key.pkt(), ctx);
             break;
         case PGP_SIG_REV_SUBKEY:
             if (!is_signer(sig)) {
@@ -2162,11 +2177,23 @@ pgp_key_t::validate_direct(pgp_signature_info_t &sinfo, const rnp::SecurityConte
 }
 
 void
+pgp_key_t::validate_key_rev(pgp_signature_info_t &      sinfo,
+                            const pgp_key_pkt_t &       key,
+                            const rnp::SecurityContext &ctx) const
+{
+    auto hash = signature_hash_direct(*sinfo.sig, key);
+    validate_sig(sinfo, *hash, ctx);
+}
+
+void
 pgp_key_t::validate_self_signatures(const rnp::SecurityContext &ctx)
 {
     for (auto &sigid : sigs_) {
-        pgp_subsig_t &sig = get_sig(sigid);
+        auto &sig = get_sig(sigid);
         if (sig.validity.validated) {
+            continue;
+        }
+        if (!is_signer(sig)) {
             continue;
         }
 
@@ -2190,6 +2217,42 @@ pgp_key_t::validate_self_signatures(pgp_key_t &primary, const rnp::SecurityConte
             primary.validate_sig(*this, sig, ctx);
         }
     }
+}
+
+bool
+pgp_key_t::validate_desig_revokes(rnp::KeyStore &keyring)
+{
+    if (revokers_.empty()) {
+        return false;
+    }
+    bool refresh = false;
+    for (auto &sigid : sigs_) {
+        auto &sig = get_sig(sigid);
+        if (!is_revocation(sig) || is_signer(sig)) {
+            continue;
+        }
+        /* Don't think we should deal with sigs without issuer's fingerprint */
+        if (!sig.sig.has_keyfp() || !has_revoker(sig.sig.keyfp())) {
+            continue;
+        }
+        /* If signature was validated and valid, do not re-validate it */
+        if (sig.validated() && sig.validity.valid) {
+            continue;
+        }
+
+        auto revoker = keyring.get_signer(sig.sig);
+        if (!revoker) {
+            continue;
+        }
+
+        revoker->validate_sig(*this, sig, keyring.secctx);
+        if (sig.valid()) {
+            /* return true only if new valid revocation was added */
+            refresh = true;
+        }
+    }
+
+    return refresh;
 }
 
 void
@@ -2309,13 +2372,13 @@ pgp_key_t::validate(rnp::KeyStore &keyring)
     validity_.reset();
     if (!is_subkey()) {
         validate_primary(keyring);
-    } else {
-        pgp_key_t *primary = NULL;
-        if (has_primary_fp()) {
-            primary = keyring.get_key(primary_fp());
-        }
-        validate_subkey(primary, keyring.secctx);
+        return;
     }
+    pgp_key_t *primary = nullptr;
+    if (has_primary_fp()) {
+        primary = keyring.get_key(primary_fp());
+    }
+    validate_subkey(primary, keyring.secctx);
 }
 
 void
@@ -2331,6 +2394,7 @@ pgp_key_t::revalidate(rnp::KeyStore &keyring)
         return;
     }
 
+    validate_desig_revokes(keyring);
     validate(keyring);
     if (!refresh_data(keyring.secctx)) {
         RNP_LOG("Failed to refresh key data");
@@ -2543,6 +2607,38 @@ pgp_key_t::add_sub_binding(pgp_key_t &                       subsec,
     subpub.add_sig(sig);
 }
 
+void
+pgp_key_t::refresh_revocations()
+{
+    clear_revokes();
+    for (size_t i = 0; i < sig_count(); i++) {
+        pgp_subsig_t &sig = get_sig(i);
+        if (!sig.valid()) {
+            continue;
+        }
+        if (is_revocation(sig)) {
+            if (revoked_) {
+                continue;
+            }
+            revoked_ = true;
+            revocation_ = pgp_revoke_t(sig);
+            continue;
+        }
+        if (is_uid_revocation(sig)) {
+            if (sig.uid >= uid_count()) {
+                RNP_LOG("Invalid uid index");
+                continue;
+            }
+            pgp_userid_t &uid = get_uid(sig.uid);
+            if (uid.revoked) {
+                continue;
+            }
+            uid.revoked = true;
+            uid.revocation = pgp_revoke_t(sig);
+        }
+    }
+}
+
 bool
 pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
 {
@@ -2594,36 +2690,7 @@ pgp_key_t::refresh_data(const rnp::SecurityContext &ctx)
         add_revoker(sig.sig.revoker());
     }
     /* revocation(s) */
-    clear_revokes();
-    for (size_t i = 0; i < sig_count(); i++) {
-        pgp_subsig_t &sig = get_sig(i);
-        if (!sig.valid()) {
-            continue;
-        }
-        try {
-            if (is_revocation(sig)) {
-                if (revoked_) {
-                    continue;
-                }
-                revoked_ = true;
-                revocation_ = pgp_revoke_t(sig);
-            } else if (is_uid_revocation(sig)) {
-                if (sig.uid >= uid_count()) {
-                    RNP_LOG("Invalid uid index");
-                    continue;
-                }
-                pgp_userid_t &uid = get_uid(sig.uid);
-                if (uid.revoked) {
-                    continue;
-                }
-                uid.revoked = true;
-                uid.revocation = pgp_revoke_t(sig);
-            }
-        } catch (const std::exception &e) {
-            RNP_LOG("%s", e.what());
-            return false;
-        }
-    }
+    refresh_revocations();
     /* valid till */
     valid_till_ = valid_till_common(expired());
     /* userid validities */

@@ -368,6 +368,16 @@ KeyStore::add_key(pgp_key_t &srckey)
     } else if (!added_key->refresh_data(secctx)) {
         RNP_LOG_KEY("Failed to refresh key %s data", &srckey);
     }
+    /* Revalidate non-self revocations for all keys in keyring, as added_key key could be a
+     * revoker. Should not be time-consuming as `validate_desig_revokes()` has early exit. */
+    for (auto &key : keys) {
+        if (&key == added_key) {
+            continue;
+        }
+        if (key.validate_desig_revokes(*this)) {
+            key.revalidate(*this);
+        }
+    }
     return added_key;
 }
 
@@ -388,7 +398,7 @@ KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *st
         }
         bool changed = exkey->rawpkt_count() > expackets;
         if (changed || !exkey->validated()) {
-            /* this will revalidated primary key with all subkeys */
+            /* this will revalidate primary key with all of its subkeys */
             exkey->revalidate(*this);
         }
         if (status) {
