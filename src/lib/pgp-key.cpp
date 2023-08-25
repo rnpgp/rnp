@@ -2283,7 +2283,7 @@ void
 pgp_key_t::revalidate(rnp_key_store_t &keyring)
 {
     if (is_subkey()) {
-        pgp_key_t *primary = rnp_key_store_get_primary_key(&keyring, this);
+        pgp_key_t *primary = keyring.primary_key(*this);
         if (primary) {
             primary->revalidate(keyring);
         } else {
