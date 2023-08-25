@@ -156,8 +156,9 @@ struct pgp_key_t {
     bool            uid0_set_{};   /* flag for the above */
     bool            revoked_{};    /* key has been revoked */
     pgp_revoke_t    revocation_{}; /* revocation reason */
-    pgp_validity_t  validity_{};   /* key's validity */
-    uint64_t        valid_till_{}; /* date till which key is/was valid */
+    std::vector<pgp_fingerprint_t> revokers_{};
+    pgp_validity_t                 validity_{};   /* key's validity */
+    uint64_t                       valid_till_{}; /* date till which key is/was valid */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
     void          validate_primary(rnp::KeyStore &keyring);
@@ -203,6 +204,8 @@ struct pgp_key_t {
     bool                revoked() const;
     const pgp_revoke_t &revocation() const;
     void                clear_revokes();
+    void                add_revoker(const pgp_fingerprint_t &revoker);
+    bool                has_revoker(const pgp_fingerprint_t &revoker) const;
 
     const pgp_key_pkt_t &pkt() const;
     pgp_key_pkt_t &      pkt();

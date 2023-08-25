@@ -302,9 +302,10 @@ typedef struct pgp_sig_subpkt_t {
                      /* 5.2.3.8.  Preferred Hash Algorithms */
                      /* 5.2.3.9.  Preferred Compression Algorithms */
         struct {
-            uint8_t          klass;
+            uint8_t          revclass;
             pgp_pubkey_alg_t pkalg;
             uint8_t *        fp;
+            size_t           fp_len;
         } revocation_key; /* 5.2.3.15.  Revocation Key */
         uint8_t *issuer;  /* 5.2.3.5.   Issuer */
         struct {
