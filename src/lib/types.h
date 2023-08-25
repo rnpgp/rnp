@@ -204,6 +204,8 @@ typedef struct pgp_key_material_t {
     size_t qbits() const;
     void   validate(rnp::SecurityContext &ctx, bool reset = true);
     bool   valid() const;
+
+    bool get_grip(pgp_key_grip_t &grip) const;
 } pgp_key_material_t;
 
 /**
