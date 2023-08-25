@@ -194,7 +194,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times)
     // load keyring
     rnp_key_store_t *key_store =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(key_store, NULL));
+    assert_true(key_store->load());
 
     // find
     key = NULL;
@@ -338,7 +338,7 @@ TEST_F(rnp_tests, test_load_check_bitfields_and_times_v3)
     // load keyring
     rnp_key_store_t *key_store =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(key_store, NULL));
+    assert_true(key_store->load());
 
     // find
     key = NULL;
@@ -374,7 +374,7 @@ TEST_F(rnp_tests, test_load_armored_pub_sec)
 {
     rnp_key_store_t *key_store =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-both.asc", global_ctx);
-    assert_true(rnp_key_store_load_from_path(key_store, NULL));
+    assert_true(key_store->load());
 
     /* we must have 1 main key and 2 subkeys */
     assert_int_equal(key_store->key_count(), 3);
@@ -676,7 +676,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
 {
     rnp_key_store_t *secstore =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, MERGE_PATH "key-sec.asc", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secstore, NULL));
+    assert_true(secstore->load());
     rnp_key_store_t *pubstore =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
 
@@ -739,7 +739,7 @@ TEST_F(rnp_tests, test_load_public_from_secret)
     delete pubstore;
     /* reload */
     pubstore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubstore, NULL));
+    assert_true(pubstore->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubstore, keyid));
     assert_non_null(skey1 = rnp_tests_get_key_by_id(pubstore, sub1id));
     assert_non_null(skey2 = rnp_tests_get_key_by_id(pubstore, sub2id));

@@ -42,11 +42,11 @@ TEST_F(rnp_tests, test_load_g23)
     /* another store */
     pub_store = new rnp_key_store_t(
       PGP_KEY_STORE_KBX, "data/test_stream_key_load/g23/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    assert_true(pub_store->load());
     sec_store = new rnp_key_store_t(
       PGP_KEY_STORE_G10, "data/test_stream_key_load/g23/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
 #ifdef CRYPTO_BACKEND_BOTAN
     /*  GnuPG extended key format requires AEAD support that is available for BOTAN backend

@@ -1434,14 +1434,14 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
     if (!input->src_directory.empty()) {
         // load the keys
         store->path = input->src_directory;
-        if (!rnp_key_store_load_from_path(store, &key_provider)) {
+        if (!store->load(&key_provider)) {
             return RNP_ERROR_BAD_FORMAT;
         }
         return RNP_SUCCESS;
     }
 
     // load the keys
-    if (!rnp_key_store_load_from_src(store, &input->src, &key_provider)) {
+    if (!store->load(input->src, &key_provider)) {
         return RNP_ERROR_BAD_FORMAT;
     }
     return RNP_SUCCESS;
