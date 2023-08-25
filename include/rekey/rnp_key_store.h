@@ -167,9 +167,13 @@ class rnp_key_store_t {
      * @return true if key was succesfully removed, or false if key was not found in keystore.
      */
     bool remove_key(const pgp_key_t &key, bool subkeys = false);
+
+    /**
+     * @brief Get primary key for the subkey, if any.
+     */
+    pgp_key_t *primary_key(const pgp_key_t &subkey);
 };
 
-pgp_key_t *rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
 
 #endif /* KEY_STORE_H_ */
