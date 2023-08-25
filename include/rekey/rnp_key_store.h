@@ -84,6 +84,8 @@ typedef struct rnp_key_store_t {
     rnp_key_store_t(const rnp_key_store_t &src) = delete;
     rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
 
+    void clear();
+
     /**
      * @brief Get the signer's key for signature
      *
@@ -101,8 +103,6 @@ bool rnp_key_store_load_from_src(rnp_key_store_t *,
 
 bool rnp_key_store_write_to_path(rnp_key_store_t *);
 bool rnp_key_store_write_to_dst(rnp_key_store_t *, pgp_dest_t *);
-
-void rnp_key_store_clear(rnp_key_store_t *);
 
 size_t rnp_key_store_get_key_count(const rnp_key_store_t *);
 

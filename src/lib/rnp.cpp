@@ -1596,10 +1596,10 @@ try {
     }
 
     if (flags & RNP_KEY_UNLOAD_PUBLIC) {
-        rnp_key_store_clear(ffi->pubring);
+        ffi->pubring->clear();
     }
     if (flags & RNP_KEY_UNLOAD_SECRET) {
-        rnp_key_store_clear(ffi->secring);
+        ffi->secring->clear();
     }
 
     return RNP_SUCCESS;

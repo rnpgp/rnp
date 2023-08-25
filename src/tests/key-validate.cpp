@@ -115,7 +115,7 @@ TEST_F(rnp_tests, test_key_validate)
     /* certification has signature with MD5 hash algorithm */
     assert_false(all_keys_valid(pubring));
 
-    rnp_key_store_clear(pubring);
+    pubring->clear();
     /* add rule which allows MD5 */
     rnp::SecurityRule allow_md5(
       rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
@@ -123,7 +123,7 @@ TEST_F(rnp_tests, test_key_validate)
     global_ctx.profile.add_rule(allow_md5);
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
     assert_true(all_keys_valid(pubring));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
     /* remove rule */
     assert_true(global_ctx.profile.del_rule(allow_md5));
     assert_true(rnp_key_store_load_from_path(pubring, NULL));
@@ -181,14 +181,14 @@ TEST_F(rnp_tests, test_forged_key_validate)
     /* load valid dsa-eg key */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub.pgp");
     assert_true(key_check(pubring, "C8A10A7D78273E10", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load dsa-eg key with forged self-signature and binding. Subkey will not be valid as
      * well. */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-key.pgp");
     assert_true(key_check(pubring, "C8A10A7D78273E10", false));
     assert_true(key_check(pubring, "02A5715C3537717E", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load dsa-eg key with forged key material */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-material.pgp");
@@ -199,23 +199,23 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_non_null(key);
     assert_false(key->valid());
     assert_false(key->expired());
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load dsa-eg keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-subkey.pgp");
     assert_true(key_check(pubring, "02A5715C3537717E", false));
     assert_true(key_check(pubring, "C8A10A7D78273E10", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load valid eddsa key */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub.pgp");
     assert_true(key_check(pubring, "CC786278981B0728", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load eddsa key with forged self-signature */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-key.pgp");
     assert_true(key_check(pubring, "CC786278981B0728", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load eddsa key with forged key material */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-forged-material.pgp");
@@ -223,20 +223,20 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_non_null(key);
     assert_false(key->valid());
     assert_false(key->expired());
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load valid ecdsa/ecdh p-256 keypair */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
     assert_true(key_check(pubring, "37E285E9E9851491", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh key with forged self-signature. Both valid since there is valid binding.
      */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-key.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
     assert_true(key_check(pubring, "37E285E9E9851491", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh key with forged key material. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-material.pgp");
@@ -247,51 +247,51 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_false(key->valid());
     assert_false(key->expired());
     assert_true(key_check(pubring, "37E285E9E9851491", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-forged-subkey.pgp");
     assert_true(key_check(pubring, "37E285E9E9851491", false));
     assert_true(key_check(pubring, "23674F21B2441527", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh keypair without certification: valid since have binding */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-no-certification.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
     assert_true(key_check(pubring, "37E285E9E9851491", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh keypair without certification and invalid binding */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-no-cert-malf-binding.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", false));
     assert_true(key_check(pubring, "37E285E9E9851491", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh keypair without subkey binding */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-no-binding.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
     assert_true(key_check(pubring, "37E285E9E9851491", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load valid rsa/rsa keypair */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub.pgp");
     /* it is valid only till year 2024 since SHA1 hash is used for signatures */
     assert_true(key_check(pubring, "2FB9179118898E8B", true));
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
     /* load eddsa key which uses SHA1 signature and is created after the cutoff date */
     global_ctx.set_time(SHA1_KEY_FROM + 10);
     key_store_add(pubring, DATA_PATH "eddsa-2024-pub.pgp");
     assert_false(key_check(pubring, "980E3741F632212C", true));
     assert_false(key_check(pubring, "6DA00BF7F8B59B53", true));
     global_ctx.set_time(0);
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load rsa/rsa key with forged self-signature. Valid because of valid binding. */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-key.pgp");
     assert_true(key_check(pubring, "2FB9179118898E8B", true));
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load rsa/rsa key with forged key material. Subkey is not valid as well. */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-material.pgp");
@@ -302,45 +302,45 @@ TEST_F(rnp_tests, test_forged_key_validate)
     assert_false(key->valid());
     assert_false(key->expired());
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load rsa/rsa keypair with forged subkey binding signature */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-forged-subkey.pgp");
     assert_true(key_check(pubring, "2FB9179118898E8B", true));
     assert_true(key_check(pubring, "6E2F73008F8B8D6E", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load rsa/rsa keypair with future creation date */
     key_store_add(pubring, DATA_PATH "rsa-rsa-pub-future-key.pgp");
     assert_true(key_check(pubring, "3D032D00EE1EC3F5", false));
     assert_true(key_check(pubring, "021085B640CE8DCE", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load eddsa/rsa keypair with certification with future creation date - valid because of
      * binding. */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-future-cert.pgp");
     assert_true(key_check(pubring, "D3B746FA852C2BE8", true));
     assert_true(key_check(pubring, "EB8C21ACDC15CA14", true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load eddsa/rsa keypair with certification with future creation date - invalid because of
      * invalid binding. */
     key_store_add(pubring, DATA_PATH "ecc-25519-pub-future-cert-malf-bind.pgp");
     assert_true(key_check(pubring, "D3B746FA852C2BE8", false));
     assert_true(key_check(pubring, "EB8C21ACDC15CA14", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/rsa keypair with expired subkey */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-subkey.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", true));
     assert_true(key_check(pubring, "37E285E9E9851491", false, true));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     /* load ecdsa/ecdh keypair with expired key */
     key_store_add(pubring, DATA_PATH "ecc-p256-pub-expired-key.pgp");
     assert_true(key_check(pubring, "23674F21B2441527", false, true));
     assert_true(key_check(pubring, "37E285E9E9851491", false));
-    rnp_key_store_clear(pubring);
+    pubring->clear();
 
     delete pubring;
 }
