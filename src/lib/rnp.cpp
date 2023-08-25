@@ -1755,17 +1755,17 @@ try {
             continue;
         }
         // if we got here then we add public key itself or public part of the secret key
-        if (!rnp_key_store_import_key(ffi->pubring, &key, true, &pub_status)) {
+        if (!ffi->pubring->import_key(key, true, &pub_status)) {
             return RNP_ERROR_BAD_PARAMETERS;
         }
         // import secret key part if available and requested
         if (sec && key.is_secret()) {
-            if (!rnp_key_store_import_key(ffi->secring, &key, false, &sec_status)) {
+            if (!ffi->secring->import_key(key, false, &sec_status)) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
             // add uids, certifications and other stuff from the public key if any
             pgp_key_t *expub = ffi->pubring->get_key(key.fp());
-            if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
+            if (expub && !ffi->secring->import_key(*expub, true)) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
         }
@@ -1863,8 +1863,8 @@ try {
     for (auto &sig : sigs) {
         pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
         pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
-        pgp_key_t *pkey = rnp_key_store_import_signature(ffi->pubring, &sig, &pub_status);
-        pgp_key_t *skey = rnp_key_store_import_signature(ffi->secring, &sig, &sec_status);
+        pgp_key_t *             pkey = ffi->pubring->import_signature(sig, &pub_status);
+        pgp_key_t *             skey = ffi->secring->import_signature(sig, &sec_status);
         sigret = add_sig_status(jsosigs, pkey ? pkey : skey, pub_status, sec_status);
         if (sigret) {
             return sigret;
@@ -4203,10 +4203,10 @@ try {
     pgp_sig_import_status_t pub_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     pgp_sig_import_status_t sec_status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
     if (key->pub) {
-        pub_status = rnp_key_store_import_key_signature(key->ffi->pubring, key->pub, &sig);
+        pub_status = key->ffi->pubring->import_signature(*key->pub, sig);
     }
     if (key->sec) {
-        sec_status = rnp_key_store_import_key_signature(key->ffi->secring, key->sec, &sig);
+        sec_status = key->ffi->secring->import_signature(*key->sec, sig);
     }
 
     if ((pub_status == PGP_SIG_IMPORT_STATUS_UNKNOWN) ||

@@ -91,7 +91,7 @@ TEST_F(rnp_tests, test_key_validate)
     assert_false(all_keys_valid(secring));
     /* but after adding signatures from public it is marked as valid */
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "dc70c124a50283f1"));
-    assert_non_null(rnp_key_store_import_key(secring, key, true, NULL));
+    assert_non_null(secring->import_key(*key, true));
     assert_true(all_keys_valid(secring));
     delete pubring;
     delete secring;
