@@ -58,7 +58,7 @@ TEST_F(rnp_tests, test_load_user_prefs)
 {
     rnp_key_store_t *pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_int_equal(pubring->key_count(), 7);
 
     {

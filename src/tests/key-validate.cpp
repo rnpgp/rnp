@@ -61,7 +61,7 @@ TEST_F(rnp_tests, test_key_validate)
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     /* this keyring has one expired subkey */
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "1d7e8a5393c997a8"));
     assert_false(key->valid());
@@ -72,7 +72,7 @@ TEST_F(rnp_tests, test_key_validate)
     /* secret key is marked is expired as well */
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/secring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(secring, "1d7e8a5393c997a8"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -81,13 +81,13 @@ TEST_F(rnp_tests, test_key_validate)
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/2/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_true(all_keys_valid(pubring));
 
     /* secret keyring doesn't have signatures - so keys are marked as invalid */
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/2/secring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     assert_false(all_keys_valid(secring));
     /* but after adding signatures from public it is marked as valid */
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "dc70c124a50283f1"));
@@ -98,20 +98,20 @@ TEST_F(rnp_tests, test_key_validate)
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_true(all_keys_valid(pubring));
 
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
     pgp_key_provider_t key_provider(rnp_key_provider_store, pubring);
-    assert_true(rnp_key_store_load_from_path(secring, &key_provider));
+    assert_true(secring->load(&key_provider));
     assert_true(all_keys_valid(secring));
     delete pubring;
     delete secring;
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/pubring.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     /* certification has signature with MD5 hash algorithm */
     assert_false(all_keys_valid(pubring));
 
@@ -121,31 +121,31 @@ TEST_F(rnp_tests, test_key_validate)
       rnp::FeatureType::Hash, PGP_HASH_MD5, rnp::SecurityLevel::Default);
     allow_md5.override = true;
     global_ctx.profile.add_rule(allow_md5);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_true(all_keys_valid(pubring));
     pubring->clear();
     /* remove rule */
     assert_true(global_ctx.profile.del_rule(allow_md5));
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_false(all_keys_valid(pubring));
     delete pubring;
 
     /* secret keyring doesn't have certifications - so marked as invalid */
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/secring.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     assert_false(all_keys_valid(secring));
     delete secring;
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/5/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_true(all_keys_valid(pubring));
     delete pubring;
 
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/5/secring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     assert_true(all_keys_valid(secring));
     delete secring;
 }
@@ -359,7 +359,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case1/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -373,7 +373,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case2/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_false(key->expired());
@@ -389,7 +389,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case3/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_false(key->expired());
@@ -405,7 +405,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case4/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -426,7 +426,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case5/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -443,7 +443,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case6/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_false(key->valid());
     assert_false(key->expired());
@@ -462,7 +462,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case7/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -481,7 +481,7 @@ TEST_F(rnp_tests, test_key_validity)
      */
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case8/pubring.gpg", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_true(key->valid());
     assert_int_equal(key->subkey_count(), 1);
@@ -498,7 +498,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case9/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -516,7 +516,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case10/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -534,7 +534,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case11/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -553,7 +553,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case12/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -572,7 +572,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case13/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -592,7 +592,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case14/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_false(key->valid());
     assert_true(key->expired());
@@ -611,7 +611,7 @@ TEST_F(rnp_tests, test_key_validity)
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case15/pubring.gpg", global_ctx);
     assert_non_null(pubring);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "E863072D3E9042EE"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -628,7 +628,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     /* this test was mainly used to generate test data for cases 10-12 in test_key_validity */
     rnp_key_store_t *secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     pgp_key_t *key = NULL;
     assert_non_null(key = rnp_tests_key_search(secring, "Alice <alice@rnp>"));
     assert_true(key->valid());
@@ -658,7 +658,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
 
     rnp_key_store_t *pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-pub.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     pgp_key_t *pubkey = NULL;
     assert_non_null(pubkey = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_int_equal(pubkey->expiration(), 0);
@@ -697,7 +697,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
 
     secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(secring, NULL));
+    assert_true(secring->load());
     assert_non_null(key = rnp_tests_key_search(secring, "Alice <alice@rnp>"));
     /* create direct-key signature */
     sig = {};
@@ -726,7 +726,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
 
     pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-pub.pgp", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pubring, NULL));
+    assert_true(pubring->load());
     assert_non_null(pubkey = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_non_null(subpub = rnp_tests_get_key_by_id(pubring, "dd23ceb7febeff17"));
     assert_int_equal(subpub->expiration(), 0);

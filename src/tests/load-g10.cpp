@@ -38,14 +38,14 @@ TEST_F(rnp_tests, test_invalid_g10)
     // load pubring
     pub_store =
       new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    assert_true(pub_store->load());
     // trigger "Unsupported public key algorithm:" error message
     sec_store = new rnp_key_store_t(
       PGP_KEY_STORE_G10, "data/test_invalid_g10/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
     // NULL key_provider
-    assert_true(rnp_key_store_load_from_path(sec_store, NULL));
+    assert_true(sec_store->load());
 
     delete pub_store;
     delete sec_store;
@@ -63,12 +63,12 @@ TEST_F(rnp_tests, test_load_g10)
     // load pubring
     pub_store =
       new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    assert_true(pub_store->load());
     // load secring
     sec_store =
       new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
     /* check primary key and subkey */
     test_load_gpg_check_key(pub_store, sec_store, "4BE147BB22DF1E60");
@@ -81,11 +81,11 @@ TEST_F(rnp_tests, test_load_g10)
     /* another store */
     pub_store = new rnp_key_store_t(
       PGP_KEY_STORE_KBX, "data/test_stream_key_load/g10/pubring.kbx", global_ctx);
-    assert_true(rnp_key_store_load_from_path(pub_store, NULL));
+    assert_true(pub_store->load());
     sec_store = new rnp_key_store_t(
       PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
-    assert_true(rnp_key_store_load_from_path(sec_store, &key_provider));
+    assert_true(sec_store->load(&key_provider));
 
     /* dsa/eg key */
     assert_true(test_load_gpg_check_key(pub_store, sec_store, "C8A10A7D78273E10"));
