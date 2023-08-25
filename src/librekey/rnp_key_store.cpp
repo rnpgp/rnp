@@ -287,7 +287,7 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
         if (srckey->has_primary_fp() && oldkey->has_primary_fp() &&
             (srckey->primary_fp() != oldkey->primary_fp())) {
             RNP_LOG_KEY("Warning: different primary keys for subkey %s", srckey);
-            pgp_key_t *srcprim = rnp_key_store_get_key_by_fpr(keyring, srckey->primary_fp());
+            pgp_key_t *srcprim = keyring->get_key(srckey->primary_fp());
             if (srcprim && (srcprim != primary)) {
                 srcprim->remove_subkey_fp(srckey->fp());
             }
@@ -335,7 +335,7 @@ pgp_key_t *
 rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
 {
     assert(srckey->type() && srckey->version());
-    pgp_key_t *added_key = rnp_key_store_get_key_by_fpr(keyring, srckey->fp());
+    pgp_key_t *added_key = keyring->get_key(srckey->fp());
     /* we cannot merge G10 keys - so just return it */
     if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
         return added_key;
@@ -387,7 +387,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
                          pgp_key_import_status_t *status)
 {
     /* add public key */
-    pgp_key_t *exkey = rnp_key_store_get_key_by_fpr(keyring, srckey->fp());
+    pgp_key_t *exkey = keyring->get_key(srckey->fp());
     size_t     expackets = exkey ? exkey->rawpkt_count() : 0;
     try {
         pgp_key_t keycp(*srckey, pubkey);
@@ -553,21 +553,21 @@ rnp_key_store_remove_key(rnp_key_store_t *keyring, const pgp_key_t *key, bool su
 }
 
 const pgp_key_t *
-rnp_key_store_get_key_by_fpr(const rnp_key_store_t *keyring, const pgp_fingerprint_t &fpr)
+rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr) const
 {
-    auto it = keyring->keybyfp.find(fpr);
-    if (it == keyring->keybyfp.end()) {
-        return NULL;
+    auto it = keybyfp.find(fpr);
+    if (it == keybyfp.end()) {
+        return nullptr;
     }
     return &*it->second;
 }
 
 pgp_key_t *
-rnp_key_store_get_key_by_fpr(rnp_key_store_t *keyring, const pgp_fingerprint_t &fpr)
+rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr)
 {
-    auto it = keyring->keybyfp.find(fpr);
-    if (it == keyring->keybyfp.end()) {
-        return NULL;
+    auto it = keybyfp.find(fpr);
+    if (it == keybyfp.end()) {
+        return nullptr;
     }
     return &*it->second;
 }
@@ -580,7 +580,7 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
     }
 
     if (subkey->has_primary_fp()) {
-        pgp_key_t *primary = rnp_key_store_get_key_by_fpr(keyring, subkey->primary_fp());
+        pgp_key_t *primary = keyring->get_key(subkey->primary_fp());
         return primary && primary->is_primary() ? primary : NULL;
     }
 
@@ -777,7 +777,7 @@ rnp_key_store_search(rnp_key_store_t *       keyring,
 {
     // since keys are distinguished by fingerprint then just do map lookup
     if (search->type == PGP_KEY_SEARCH_FINGERPRINT) {
-        pgp_key_t *key = rnp_key_store_get_key_by_fpr(keyring, search->by.fingerprint);
+        pgp_key_t *key = keyring->get_key(search->by.fingerprint);
         if (after && (after != key)) {
             RNP_LOG("searching with invalid after param");
             return NULL;

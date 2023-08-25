@@ -535,10 +535,8 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     // same as above, for each subkey
     std::vector<uint32_t> subkey_sig_expirations;
     for (auto &sfp : key->subkey_fps()) {
-        pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
-        if (!subkey || !pbuf(&mem.dst(), subkey->fp().fingerprint, key->fp().length) ||
-            // if (!subkey || !pbuf(&mem.dst(), subkey->fp().fingerprint, PGP_FINGERPRINT_SIZE)
-            // || // from upstream during merge 2023-03-20
+        pgp_key_t *subkey = key_store->get_key(sfp);
+        if (!subkey || !pbuf(&mem.dst(), subkey->fp().fingerprint, subkey->fp().length) ||
             !pu32(&mem.dst(), mem.writeb() - 8) || // offset to keyid (part of fpr for V4)
             !pu16(&mem.dst(), 0) ||                // flags, not used by GnuPG
             !pu16(&mem.dst(), 0)) {                // RFU
@@ -638,7 +636,7 @@ rnp_key_store_kbx_write_pgp(rnp_key_store_t *key_store, pgp_key_t *key, pgp_dest
     }
 
     for (auto &sfp : key->subkey_fps()) {
-        const pgp_key_t *subkey = rnp_key_store_get_key_by_fpr(key_store, sfp);
+        const pgp_key_t *subkey = key_store->get_key(sfp);
         if (!subkey) {
             return false;
         }

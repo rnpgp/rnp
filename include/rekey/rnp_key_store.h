@@ -88,6 +88,9 @@ typedef struct rnp_key_store_t {
 
     size_t key_count() const;
 
+    pgp_key_t *      get_key(const pgp_fingerprint_t &fpr);
+    const pgp_key_t *get_key(const pgp_fingerprint_t &fpr) const;
+
     /**
      * @brief Get the signer's key for signature
      *
@@ -140,10 +143,7 @@ bool rnp_key_store_remove_key(rnp_key_store_t *, const pgp_key_t *, bool);
 
 bool rnp_key_store_get_key_grip(const pgp_key_material_t *, pgp_key_grip_t &grip);
 
-const pgp_key_t *rnp_key_store_get_key_by_fpr(const rnp_key_store_t *,
-                                              const pgp_fingerprint_t &fpr);
-pgp_key_t *      rnp_key_store_get_key_by_fpr(rnp_key_store_t *, const pgp_fingerprint_t &fpr);
-pgp_key_t *      rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
+pgp_key_t *rnp_key_store_get_primary_key(rnp_key_store_t *, const pgp_key_t *);
 pgp_key_t *rnp_key_store_search(rnp_key_store_t *, const pgp_key_search_t *, pgp_key_t *);
 
 #endif /* KEY_STORE_H_ */

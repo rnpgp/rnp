@@ -1764,7 +1764,7 @@ try {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
             // add uids, certifications and other stuff from the public key if any
-            pgp_key_t *expub = rnp_key_store_get_key_by_fpr(ffi->pubring, key.fp());
+            pgp_key_t *expub = ffi->pubring->get_key(key.fp());
             if (expub && !rnp_key_store_import_key(ffi->secring, expub, true, NULL)) {
                 return RNP_ERROR_BAD_PARAMETERS;
             }
@@ -4433,7 +4433,7 @@ try {
             FFI_LOG(handle->ffi, "Failed to get subkey at idx %zu.", idx);
             continue;
         }
-        pgp_key_t *subsec = rnp_key_store_get_key_by_fpr(handle->ffi->secring, sub->fp());
+        pgp_key_t *subsec = handle->ffi->secring->get_key(sub->fp());
         remove_key_signatures(handle->ffi, *sub, subsec, flags, sigcb, app_ctx);
     }
     /* revalidate key/subkey */
@@ -4978,14 +4978,14 @@ try {
         if (ret) {
             return ret;
         }
-        prim_pub = rnp_key_store_get_key_by_fpr(ffi->pubring, fp);
+        prim_pub = ffi->pubring->get_key(fp);
         if (!jsosub) {
             if (!gen_json_grips(results, prim_pub, NULL)) {
                 return RNP_ERROR_OUT_OF_MEMORY;
             }
             return RNP_SUCCESS;
         }
-        prim_sec = rnp_key_store_get_key_by_fpr(ffi->secring, fp);
+        prim_sec = ffi->secring->get_key(fp);
     } else {
         /* generate subkey only - find primary key via JSON  params */
         json_object *jsoparent = NULL;
@@ -5039,7 +5039,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    pgp_key_t *sub_pub = rnp_key_store_get_key_by_fpr(ffi->pubring, fp);
+    pgp_key_t *sub_pub = ffi->pubring->get_key(fp);
     bool       res = gen_json_grips(results, jsoprimary ? prim_pub : NULL, sub_pub);
     return res ? RNP_SUCCESS : RNP_ERROR_OUT_OF_MEMORY;
 }
@@ -6758,14 +6758,11 @@ FFI_GUARD
 static const pgp_key_grip_t *
 rnp_get_grip_by_fp(rnp_ffi_t ffi, const pgp_fingerprint_t &fp)
 {
-    pgp_key_t *key = NULL;
-    if (ffi->pubring) {
-        key = rnp_key_store_get_key_by_fpr(ffi->pubring, fp);
+    const pgp_key_t *key = ffi->pubring->get_key(fp);
+    if (!key) {
+        key = ffi->secring->get_key(fp);
     }
-    if (!key && ffi->secring) {
-        key = rnp_key_store_get_key_by_fpr(ffi->secring, fp);
-    }
-    return key ? &key->grip() : NULL;
+    return key ? &key->grip() : nullptr;
 }
 
 rnp_result_t

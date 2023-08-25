@@ -814,7 +814,7 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
     }
     pgp_fingerprint_t fp = {{}, static_cast<unsigned>(binlen)};
     memcpy(fp.fingerprint, keyid_bin.data(), binlen);
-    return rnp_key_store_get_key_by_fpr(keyring, fp);
+    return keyring->get_key(fp);
 }
 
 pgp_key_t *
