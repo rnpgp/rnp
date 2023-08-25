@@ -76,7 +76,7 @@ rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
         /* create subkey */
         pgp_key_t skey(*tskey, pkey);
         /* add it to the storage */
-        return rnp_key_store_add_key(keyring, &skey);
+        return keyring->add_key(skey);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
         RNP_LOG_KEY_PKT("failed to create subkey %s", tskey->subkey);
@@ -96,7 +96,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
         /* temporary disable key validation */
         keyring->disable_validation = true;
         /* add key to the storage before subkeys */
-        addkey = rnp_key_store_add_key(keyring, &key);
+        addkey = keyring->add_key(key);
     } catch (const std::exception &e) {
         keyring->disable_validation = false;
         RNP_LOG_KEY_PKT("failed to add key %s", tkey->key);

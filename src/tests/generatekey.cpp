@@ -1020,8 +1020,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         assert_true(pgp_generate_primary_key(desc, true, sec, pub, PGP_KEY_STORE_GPG));
 
         // add to our rings
-        assert_true(rnp_key_store_add_key(pubring, &pub));
-        assert_true(rnp_key_store_add_key(secring, &sec));
+        assert_true(pubring->add_key(pub));
+        assert_true(secring->add_key(sec));
         // retrieve back from our rings (for later)
         primary_pub = rnp_tests_get_key_by_grip(pubring, pub.grip());
         primary_sec = rnp_tests_get_key_by_grip(secring, pub.grip());
@@ -1216,8 +1216,8 @@ TEST_F(rnp_tests, test_generated_key_sigs)
         ssig->hashed_data[10] ^= 0xff;
 
         // add to our rings
-        assert_true(rnp_key_store_add_key(pubring, &pub));
-        assert_true(rnp_key_store_add_key(secring, &sec));
+        assert_true(pubring->add_key(pub));
+        assert_true(secring->add_key(sec));
         // retrieve back from our rings
         sub_pub = rnp_tests_get_key_by_grip(pubring, pub.grip());
         sub_sec = rnp_tests_get_key_by_grip(secring, pub.grip());

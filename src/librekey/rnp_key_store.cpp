@@ -267,60 +267,60 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
     return true;
 }
 
-static pgp_key_t *
-rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t *oldkey)
+pgp_key_t *
+rnp_key_store_t::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
 {
     pgp_key_t *primary = NULL;
     if (oldkey) {
-        primary = rnp_key_store_get_primary_key(keyring, oldkey);
+        primary = rnp_key_store_get_primary_key(this, oldkey);
     }
     if (!primary) {
-        primary = rnp_key_store_get_primary_key(keyring, srckey);
+        primary = rnp_key_store_get_primary_key(this, &srckey);
     }
 
     if (oldkey) {
         /* check for the weird case when same subkey has different primary keys */
-        if (srckey->has_primary_fp() && oldkey->has_primary_fp() &&
-            (srckey->primary_fp() != oldkey->primary_fp())) {
-            RNP_LOG_KEY("Warning: different primary keys for subkey %s", srckey);
-            pgp_key_t *srcprim = keyring->get_key(srckey->primary_fp());
+        if (srckey.has_primary_fp() && oldkey->has_primary_fp() &&
+            (srckey.primary_fp() != oldkey->primary_fp())) {
+            RNP_LOG_KEY("Warning: different primary keys for subkey %s", &srckey);
+            pgp_key_t *srcprim = get_key(srckey.primary_fp());
             if (srcprim && (srcprim != primary)) {
-                srcprim->remove_subkey_fp(srckey->fp());
+                srcprim->remove_subkey_fp(srckey.fp());
             }
         }
         /* in case we already have key let's merge it in */
-        if (!oldkey->merge(*srckey, primary)) {
-            RNP_LOG_KEY("failed to merge subkey %s", srckey);
+        if (!oldkey->merge(srckey, primary)) {
+            RNP_LOG_KEY("failed to merge subkey %s", &srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             return NULL;
         }
     } else {
         try {
-            keyring->keys.emplace_back();
-            oldkey = &keyring->keys.back();
-            keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
-            *oldkey = pgp_key_t(*srckey);
+            keys.emplace_back();
+            oldkey = &keys.back();
+            keybyfp[srckey.fp()] = std::prev(keys.end());
+            *oldkey = pgp_key_t(srckey);
             if (primary) {
                 primary->link_subkey_fp(*oldkey);
             }
         } catch (const std::exception &e) {
-            RNP_LOG_KEY("key %s copying failed", srckey);
+            RNP_LOG_KEY("key %s copying failed", &srckey);
             RNP_LOG_KEY("primary key is %s", primary);
             RNP_LOG("%s", e.what());
             if (oldkey) {
-                keyring->keys.pop_back();
-                keyring->keybyfp.erase(srckey->fp());
+                keys.pop_back();
+                keybyfp.erase(srckey.fp());
             }
-            return NULL;
+            return nullptr;
         }
     }
 
     /* validate all added keys if not disabled */
-    if (!keyring->disable_validation && !oldkey->validated()) {
-        oldkey->validate_subkey(primary, keyring->secctx);
+    if (!disable_validation && !oldkey->validated()) {
+        oldkey->validate_subkey(primary, secctx);
     }
-    if (!oldkey->refresh_data(primary, keyring->secctx)) {
-        RNP_LOG_KEY("Failed to refresh subkey %s data", srckey);
+    if (!oldkey->refresh_data(primary, secctx)) {
+        RNP_LOG_KEY("Failed to refresh subkey %s data", &srckey);
         RNP_LOG_KEY("primary key is %s", primary);
     }
     return oldkey;
@@ -328,50 +328,50 @@ rnp_key_store_add_subkey(rnp_key_store_t *keyring, pgp_key_t *srckey, pgp_key_t 
 
 /* add a key to keyring */
 pgp_key_t *
-rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *srckey)
+rnp_key_store_t::add_key(pgp_key_t &srckey)
 {
-    assert(srckey->type() && srckey->version());
-    pgp_key_t *added_key = keyring->get_key(srckey->fp());
+    assert(srckey.type() && srckey.version());
+    pgp_key_t *added_key = get_key(srckey.fp());
     /* we cannot merge G10 keys - so just return it */
-    if (added_key && (srckey->format == PGP_KEY_STORE_G10)) {
+    if (added_key && (srckey.format == PGP_KEY_STORE_G10)) {
         return added_key;
     }
     /* different processing for subkeys */
-    if (srckey->is_subkey()) {
-        return rnp_key_store_add_subkey(keyring, srckey, added_key);
+    if (srckey.is_subkey()) {
+        return add_subkey(srckey, added_key);
     }
 
     if (added_key) {
-        if (!added_key->merge(*srckey)) {
-            RNP_LOG_KEY("failed to merge key %s", srckey);
+        if (!added_key->merge(srckey)) {
+            RNP_LOG_KEY("failed to merge key %s", &srckey);
             return NULL;
         }
     } else {
         try {
-            keyring->keys.emplace_back();
-            added_key = &keyring->keys.back();
-            keyring->keybyfp[srckey->fp()] = std::prev(keyring->keys.end());
-            *added_key = pgp_key_t(*srckey);
+            keys.emplace_back();
+            added_key = &keys.back();
+            keybyfp[srckey.fp()] = std::prev(keys.end());
+            *added_key = pgp_key_t(srckey);
             /* primary key may be added after subkeys, so let's handle this case correctly */
-            if (!rnp_key_store_refresh_subkey_grips(keyring, added_key)) {
+            if (!rnp_key_store_refresh_subkey_grips(this, added_key)) {
                 RNP_LOG_KEY("failed to refresh subkey grips for %s", added_key);
             }
         } catch (const std::exception &e) {
-            RNP_LOG_KEY("key %s copying failed", srckey);
+            RNP_LOG_KEY("key %s copying failed", &srckey);
             RNP_LOG("%s", e.what());
             if (added_key) {
-                keyring->keys.pop_back();
-                keyring->keybyfp.erase(srckey->fp());
+                keys.pop_back();
+                keybyfp.erase(srckey.fp());
             }
             return NULL;
         }
     }
 
     /* validate all added keys if not disabled or already validated */
-    if (!keyring->disable_validation && !added_key->validated()) {
-        added_key->revalidate(*keyring);
-    } else if (!added_key->refresh_data(keyring->secctx)) {
-        RNP_LOG_KEY("Failed to refresh key %s data", srckey);
+    if (!disable_validation && !added_key->validated()) {
+        added_key->revalidate(*this);
+    } else if (!added_key->refresh_data(secctx)) {
+        RNP_LOG_KEY("Failed to refresh key %s data", &srckey);
     }
     return added_key;
 }
@@ -388,7 +388,7 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     try {
         pgp_key_t keycp(*srckey, pubkey);
         keyring->disable_validation = true;
-        exkey = rnp_key_store_add_key(keyring, &keycp);
+        exkey = keyring->add_key(keycp);
         keyring->disable_validation = false;
         if (!exkey) {
             RNP_LOG("failed to add key to the keyring");
@@ -439,7 +439,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
         }
 
         size_t expackets = key->rawpkt_count();
-        key = rnp_key_store_add_key(keyring, &tmpkey);
+        key = keyring->add_key(tmpkey);
         if (!key) {
             RNP_LOG("Failed to add key with imported sig to the keyring");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -474,7 +474,7 @@ rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
         }
 
         size_t expackets = key->rawpkt_count();
-        key = rnp_key_store_add_key(keyring, &tmpkey);
+        key = keyring->add_key(tmpkey);
         if (!key) {
             RNP_LOG("Failed to add key with imported sig to the keyring");
             return PGP_SIG_IMPORT_STATUS_UNKNOWN;

@@ -932,7 +932,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         key.set_rawpkt(
           pgp_rawpacket_t((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
         key.format = PGP_KEY_STORE_G10;
-        if (!rnp_key_store_add_key(key_store, &key)) {
+        if (!key_store->add_key(key)) {
             return false;
         }
         return true;
