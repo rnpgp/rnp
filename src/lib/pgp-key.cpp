@@ -126,29 +126,6 @@ pgp_decrypt_seckey(const pgp_key_t &              key,
     }
 }
 
-pgp_key_t *
-pgp_sig_get_signer(const pgp_subsig_t &sig, rnp_key_store_t *keyring, pgp_key_provider_t *prov)
-{
-    pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
-    /* if we have fingerprint let's check it */
-    if (sig.sig.has_keyfp()) {
-        ctx.search.by.fingerprint = sig.sig.keyfp();
-        ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
-    } else if (sig.sig.has_keyid()) {
-        ctx.search.by.keyid = sig.sig.keyid();
-        ctx.search.type = PGP_KEY_SEARCH_KEYID;
-    } else {
-        RNP_LOG("No way to search for the signer.");
-        return NULL;
-    }
-
-    pgp_key_t *key = rnp_key_store_search(keyring, &ctx.search, NULL);
-    if (key || !prov) {
-        return key;
-    }
-    return pgp_request_key(prov, &ctx);
-}
-
 static const id_str_pair ss_rr_code_map[] = {
   {PGP_REVOCATION_NO_REASON, "No reason specified"},
   {PGP_REVOCATION_SUPERSEDED, "Key is superseded"},

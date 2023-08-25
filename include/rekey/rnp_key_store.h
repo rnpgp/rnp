@@ -83,6 +83,15 @@ typedef struct rnp_key_store_t {
     rnp_key_store_t &operator=(rnp_key_store_t &&) = delete;
     rnp_key_store_t(const rnp_key_store_t &src) = delete;
     rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
+
+    /**
+     * @brief Get the signer's key for signature
+     *
+     * @param sig signature
+     * @param prov key provider to request needed key.
+     * @return pointer to the key or nullptr if signer's key was not found.
+     */
+    pgp_key_t *get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov = nullptr);
 } rnp_key_store_t;
 
 bool rnp_key_store_load_from_path(rnp_key_store_t *, const pgp_key_provider_t *key_provider);
@@ -110,15 +119,6 @@ pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
                                     pgp_key_t *,
                                     bool,
                                     pgp_key_import_status_t *);
-
-/**
- * @brief Get signer's key from key store.
- *
- * @param store populated key store, cannot be NULL.
- * @param sig signature, cannot be NULL.
- * @return pointer to pgp_key_t structure if key was found or NULL otherwise.
- */
-pgp_key_t *rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig);
 
 pgp_sig_import_status_t rnp_key_store_import_key_signature(rnp_key_store_t *      keyring,
                                                            pgp_key_t *            key,

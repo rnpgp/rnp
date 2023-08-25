@@ -416,25 +416,6 @@ rnp_key_store_import_key(rnp_key_store_t *        keyring,
     }
 }
 
-pgp_key_t *
-rnp_key_store_get_signer_key(rnp_key_store_t *store, const pgp_signature_t *sig)
-{
-    pgp_key_search_t search;
-    // prefer using the issuer fingerprint when available
-    if (sig->has_keyfp()) {
-        search.by.fingerprint = sig->keyfp();
-        search.type = PGP_KEY_SEARCH_FINGERPRINT;
-        return rnp_key_store_search(store, &search, NULL);
-    }
-    // fall back to key id search
-    if (sig->has_keyid()) {
-        search.by.keyid = sig->keyid();
-        search.type = PGP_KEY_SEARCH_KEYID;
-        return rnp_key_store_search(store, &search, NULL);
-    }
-    return NULL;
-}
-
 static pgp_sig_import_status_t
 rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
                                       pgp_key_t *            key,
@@ -443,7 +424,7 @@ rnp_key_store_import_subkey_signature(rnp_key_store_t *      keyring,
     if ((sig->type() != PGP_SIG_SUBKEY) && (sig->type() != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
     }
-    pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, sig);
+    pgp_key_t *primary = keyring->get_signer(*sig);
     if (!primary || !key->has_primary_fp()) {
         RNP_LOG("No primary grip or primary key");
         return PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
@@ -526,7 +507,7 @@ rnp_key_store_import_signature(rnp_key_store_t *        keyring,
         return NULL;
     }
 
-    pgp_key_t *res_key = rnp_key_store_get_signer_key(keyring, sig);
+    pgp_key_t *res_key = keyring->get_signer(*sig);
     if (!res_key || !res_key->is_primary()) {
         *status = PGP_SIG_IMPORT_STATUS_UNKNOWN_KEY;
         return NULL;
@@ -609,7 +590,7 @@ rnp_key_store_get_primary_key(rnp_key_store_t *keyring, const pgp_key_t *subkey)
             continue;
         }
 
-        pgp_key_t *primary = rnp_key_store_get_signer_key(keyring, &subsig.sig);
+        pgp_key_t *primary = keyring->get_signer(subsig.sig);
         if (primary && primary->is_primary()) {
             return primary;
         }
@@ -821,6 +802,29 @@ rnp_key_store_search(rnp_key_store_t *       keyring,
         return rnp_key_matches_search(&key, search);
     });
     return (it == keyring->keys.end()) ? NULL : &(*it);
+}
+
+pgp_key_t *
+rnp_key_store_t::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov)
+{
+    pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
+    /* if we have fingerprint let's check it */
+    if (sig.has_keyfp()) {
+        ctx.search.by.fingerprint = sig.keyfp();
+        ctx.search.type = PGP_KEY_SEARCH_FINGERPRINT;
+    } else if (sig.has_keyid()) {
+        ctx.search.by.keyid = sig.keyid();
+        ctx.search.type = PGP_KEY_SEARCH_KEYID;
+    } else {
+        RNP_LOG("No way to search for the signer.");
+        return nullptr;
+    }
+
+    pgp_key_t *key = rnp_key_store_search(this, &ctx.search, NULL);
+    if (key || !prov) {
+        return key;
+    }
+    return pgp_request_key(prov, &ctx);
 }
 
 rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format,
