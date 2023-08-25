@@ -61,7 +61,11 @@ typedef enum pgp_sig_import_status_t {
 
 typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pgp_key_fp_map_t;
 
-typedef struct rnp_key_store_t {
+class rnp_key_store_t {
+  private:
+    pgp_key_t *add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
+
+  public:
     std::string            path;
     pgp_key_store_format_t format;
     rnp::SecurityContext & secctx;
@@ -119,16 +123,13 @@ typedef struct rnp_key_store_t {
      * @return pointer to the key or nullptr if signer's key was not found.
      */
     pgp_key_t *get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov = nullptr);
-} rnp_key_store_t;
 
-/**
- * @brief Add key to the keystore, copying it.
- *
- * @param keyring allocated keyring, cannot be NULL.
- * @param key key to be added, cannot be NULL.
- * @return pointer to the added key or NULL if failed.
- */
-pgp_key_t *rnp_key_store_add_key(rnp_key_store_t *keyring, pgp_key_t *key);
+    /**
+     * @brief Add key to the keystore, copying it.
+     * @return pointer to the added key or nullptr if failed.
+     */
+    pgp_key_t *add_key(pgp_key_t &key);
+};
 
 pgp_key_t *rnp_key_store_import_key(rnp_key_store_t *,
                                     pgp_key_t *,
