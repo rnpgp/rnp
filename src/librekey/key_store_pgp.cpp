@@ -114,7 +114,9 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
         if (!rnp_key_store_add_transferable_subkey(keyring, &subkey, addkey)) {
             RNP_LOG("Failed to add subkey to key store.");
             keyring->disable_validation = false;
-            goto error;
+            /* during key addition all fields are copied so will be cleaned below */
+            keyring->remove_key(*addkey, false);
+            return false;
         }
     }
 
@@ -122,10 +124,6 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
     keyring->disable_validation = false;
     addkey->revalidate(*keyring);
     return true;
-error:
-    /* during key addition all fields are copied so will be cleaned below */
-    rnp_key_store_remove_key(keyring, addkey, false);
-    return false;
 }
 
 rnp_result_t
