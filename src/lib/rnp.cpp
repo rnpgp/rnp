@@ -4349,7 +4349,7 @@ signature_needs_removal(rnp_ffi_t ffi, const pgp_key_t &key, pgp_subsig_t &sig, 
         }
     }
     /* unknown signer */
-    pgp_key_t *signer = pgp_sig_get_signer(sig, ffi->pubring, &ffi->key_provider);
+    pgp_key_t *signer = ffi->pubring->get_signer(sig.sig, &ffi->key_provider);
     if (!signer && (flags & RNP_KEY_SIGNATURE_UNKNOWN_KEY)) {
         return true;
     }
@@ -6374,22 +6374,22 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!sig->sig->validity.validated) {
-        pgp_key_t *signer =
-          pgp_sig_get_signer(*sig->sig, sig->ffi->pubring, &sig->ffi->key_provider);
+    auto ssig = sig->sig;
+    if (!ssig->validity.validated) {
+        pgp_key_t *signer = sig->ffi->pubring->get_signer(ssig->sig, &sig->ffi->key_provider);
         if (!signer) {
             return RNP_ERROR_KEY_NOT_FOUND;
         }
-        signer->validate_sig(*sig->key, *sig->sig, sig->ffi->context);
+        signer->validate_sig(*sig->key, *ssig, sig->ffi->context);
     }
 
-    if (!sig->sig->validity.validated) {
+    if (!ssig->validity.validated) {
         return RNP_ERROR_VERIFICATION_FAILED;
     }
-    if (sig->sig->validity.expired) {
+    if (ssig->validity.expired) {
         return RNP_ERROR_SIGNATURE_EXPIRED;
     }
-    return sig->sig->valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
+    return ssig->valid() ? RNP_SUCCESS : RNP_ERROR_SIGNATURE_INVALID;
 }
 FFI_GUARD
 
