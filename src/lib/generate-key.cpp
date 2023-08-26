@@ -28,7 +28,6 @@
 #include <string.h>
 
 #include <rekey/rnp_key_store.h>
-#include <librekey/key_store_pgp.h>
 #include <librekey/key_store_g10.h>
 #include <librepgp/stream-packet.h>
 #include "crypto.h"
