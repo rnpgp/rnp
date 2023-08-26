@@ -1726,7 +1726,7 @@ try {
             FFI_LOG(ffi, "Failed to init/check dearmor.");
             return ret;
         }
-        ret = rnp_key_store_pgp_read_key_from_src(tmp_store, input->src, skipbad);
+        ret = tmp_store.load_pgp_key(input->src, skipbad);
         if (ret) {
             return ret;
         }

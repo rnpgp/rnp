@@ -127,9 +127,7 @@ rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_ke
 }
 
 rnp_result_t
-rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
-                                    pgp_source_t &   src,
-                                    bool             skiperrors)
+rnp_key_store_t::load_pgp_key(pgp_source_t &src, bool skiperrors)
 {
     pgp_transferable_key_t key;
     rnp_result_t           ret = process_pgp_key_auto(src, key, true, skiperrors);
@@ -140,8 +138,8 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
 
     /* check whether we have primary key */
     if (key.key.tag != PGP_PKT_RESERVED) {
-        return rnp_key_store_add_transferable_key(&keyring, &key) ? RNP_SUCCESS :
-                                                                    RNP_ERROR_BAD_STATE;
+        return rnp_key_store_add_transferable_key(this, &key) ? RNP_SUCCESS :
+                                                                RNP_ERROR_BAD_STATE;
     }
 
     /* we just skipped some unexpected packets and read nothing */
@@ -149,7 +147,7 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
         return RNP_SUCCESS;
     }
 
-    return rnp_key_store_add_transferable_subkey(&keyring, &key.subkeys.front(), NULL) ?
+    return rnp_key_store_add_transferable_subkey(this, &key.subkeys.front(), NULL) ?
              RNP_SUCCESS :
              RNP_ERROR_BAD_STATE;
 }
