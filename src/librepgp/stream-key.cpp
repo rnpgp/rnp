@@ -47,7 +47,6 @@
 #include "crypto.h"
 #include "crypto/signatures.h"
 #include "crypto/mem.h"
-#include "../librekey/key_store_pgp.h"
 #include "str-utils.h"
 #include <set>
 #include <algorithm>
