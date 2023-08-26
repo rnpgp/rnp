@@ -79,7 +79,7 @@ rnp_key_store_t::load(const pgp_key_provider_t *key_provider)
                 continue;
             }
             // G10 may fail to read one file, so ignore it!
-            if (!rnp_key_store_g10_from_src(this, &src, key_provider)) {
+            if (!load_g10(src, key_provider)) {
                 RNP_LOG("Can't parse file: %s", apath.c_str()); // TODO: %S ?
             }
             src_close(&src);
@@ -108,7 +108,7 @@ rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
     case PGP_KEY_STORE_KBX:
         return load_kbx(src, key_provider);
     case PGP_KEY_STORE_G10:
-        return rnp_key_store_g10_from_src(this, &src, key_provider);
+        return load_g10(src, key_provider);
     default:
         RNP_LOG("Unsupported load from memory for key-store format: %d", format);
     }

@@ -119,6 +119,11 @@ class rnp_key_store_t {
     bool load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
 
     /**
+     * @brief Load keystore in g10 format.
+     */
+    bool load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+
+    /**
      * @brief Write keystore to the path.
      */
     bool write();
