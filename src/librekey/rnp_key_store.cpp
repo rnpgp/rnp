@@ -110,7 +110,7 @@ rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
     switch (format) {
     case PGP_KEY_STORE_GPG:
-        return rnp_key_store_pgp_read_from_src(this, &src) == RNP_SUCCESS;
+        return !load_pgp(src);
     case PGP_KEY_STORE_KBX:
         return rnp_key_store_kbx_from_src(this, &src, key_provider);
     case PGP_KEY_STORE_G10:
