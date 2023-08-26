@@ -1757,6 +1757,14 @@ pgp_key_t::write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid)
     }
 }
 
+std::vector<uint8_t>
+pgp_key_t::write_vec() const
+{
+    rnp::MemoryDest dst;
+    write(dst.dst());
+    return dst.to_vector();
+}
+
 /* look only for primary userids */
 #define PGP_UID_PRIMARY ((uint32_t) -2)
 /* look for any uid, except PGP_UID_NONE) */
