@@ -57,7 +57,8 @@ typedef enum pgp_sig_import_status_t {
 
 typedef std::unordered_map<pgp_fingerprint_t, std::list<pgp_key_t>::iterator> pgp_key_fp_map_t;
 
-class rnp_key_store_t {
+namespace rnp {
+class KeyStore {
   private:
     pgp_key_t *             add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
     pgp_sig_import_status_t import_subkey_signature(pgp_key_t &            key,
@@ -74,17 +75,17 @@ class rnp_key_store_t {
     pgp_key_fp_map_t                         keybyfp;
     std::vector<std::unique_ptr<kbx_blob_t>> blobs;
 
-    ~rnp_key_store_t();
-    rnp_key_store_t(rnp::SecurityContext &ctx)
+    ~KeyStore();
+    KeyStore(rnp::SecurityContext &ctx)
         : path(""), format(PGP_KEY_STORE_UNKNOWN), secctx(ctx){};
-    rnp_key_store_t(pgp_key_store_format_t format,
-                    const std::string &    path,
-                    rnp::SecurityContext & ctx);
+    KeyStore(pgp_key_store_format_t format,
+             const std::string &    path,
+             rnp::SecurityContext & ctx);
     /* make sure we use only empty constructor */
-    rnp_key_store_t(rnp_key_store_t &&src) = delete;
-    rnp_key_store_t &operator=(rnp_key_store_t &&) = delete;
-    rnp_key_store_t(const rnp_key_store_t &src) = delete;
-    rnp_key_store_t &operator=(const rnp_key_store_t &) = delete;
+    KeyStore(KeyStore &&src) = delete;
+    KeyStore &operator=(KeyStore &&) = delete;
+    KeyStore(const KeyStore &src) = delete;
+    KeyStore &operator=(const KeyStore &) = delete;
 
     /**
      * @brief Try to load key store from path.
@@ -233,5 +234,6 @@ class rnp_key_store_t {
 
     pgp_key_t *search(const pgp_key_search_t &search, pgp_key_t *after = nullptr);
 };
+} // namespace rnp
 
 #endif /* KEY_STORE_H_ */

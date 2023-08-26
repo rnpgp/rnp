@@ -36,8 +36,9 @@
 #include "types.h"
 #include "pgp-key.h"
 
+namespace rnp {
 bool
-rnp_key_store_t::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
+KeyStore::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
 {
     try {
         /* create subkey */
@@ -53,7 +54,7 @@ rnp_key_store_t::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t
 }
 
 bool
-rnp_key_store_t::add_ts_key(pgp_transferable_key_t &tkey)
+KeyStore::add_ts_key(pgp_transferable_key_t &tkey)
 {
     pgp_key_t *addkey = nullptr;
 
@@ -94,7 +95,7 @@ rnp_key_store_t::add_ts_key(pgp_transferable_key_t &tkey)
 }
 
 rnp_result_t
-rnp_key_store_t::load_pgp_key(pgp_source_t &src, bool skiperrors)
+KeyStore::load_pgp_key(pgp_source_t &src, bool skiperrors)
 {
     pgp_transferable_key_t key;
     rnp_result_t           ret = process_pgp_key_auto(src, key, true, skiperrors);
@@ -117,7 +118,7 @@ rnp_key_store_t::load_pgp_key(pgp_source_t &src, bool skiperrors)
 }
 
 rnp_result_t
-rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
+KeyStore::load_pgp(pgp_source_t &src, bool skiperrors)
 {
     /* check whether we have transferable subkey in source */
     if (is_subkey_pkt(stream_pkt_type(src))) {
@@ -147,10 +148,11 @@ rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
         return RNP_ERROR_BAD_PARAMETERS;
     }
 }
+} // namespace rnp
 
 namespace {
 bool
-do_write(rnp_key_store_t &key_store, pgp_dest_t &dst, bool secret)
+do_write(rnp::KeyStore &key_store, pgp_dest_t &dst, bool secret)
 {
     for (auto &key : key_store.keys) {
         if (key.is_secret() != secret) {
@@ -185,9 +187,11 @@ do_write(rnp_key_store_t &key_store, pgp_dest_t &dst, bool secret)
 }
 } // namespace
 
+namespace rnp {
 bool
-rnp_key_store_t::write_pgp(pgp_dest_t &dst)
+KeyStore::write_pgp(pgp_dest_t &dst)
 {
     // two separate passes (public keys, then secret keys)
     return do_write(*this, dst, false) && do_write(*this, dst, true);
 }
+} // namespace rnp

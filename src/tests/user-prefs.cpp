@@ -57,7 +57,7 @@ find_subsig(const pgp_key_t *key, const char *userid)
 TEST_F(rnp_tests, test_load_user_prefs)
 {
     auto pubring =
-      new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
+      new rnp::KeyStore(PGP_KEY_STORE_GPG, "data/keyrings/1/pubring.gpg", global_ctx);
     assert_true(pubring->load());
     assert_int_equal(pubring->key_count(), 7);
 

@@ -104,7 +104,7 @@ load_generated_g10_key(pgp_key_t *           dst,
     assert(pubkey);
 
     // this would be better on the stack but the key store does not allow it
-    std::unique_ptr<rnp_key_store_t> key_store(new (std::nothrow) rnp_key_store_t(ctx));
+    std::unique_ptr<rnp::KeyStore> key_store(new (std::nothrow) rnp::KeyStore(ctx));
     if (!key_store) {
         return false;
     }

@@ -995,8 +995,8 @@ TEST_F(rnp_tests, generatekeyECDSA_explicitlySetUnknownDigest_ShouldFail)
  */
 TEST_F(rnp_tests, test_generated_key_sigs)
 {
-    auto       pubring = new rnp_key_store_t(global_ctx);
-    auto       secring = new rnp_key_store_t(global_ctx);
+    auto       pubring = new rnp::KeyStore(global_ctx);
+    auto       secring = new rnp::KeyStore(global_ctx);
     pgp_key_t *primary_pub = NULL, *primary_sec = NULL;
     pgp_key_t *sub_pub = NULL, *sub_sec = NULL;
 
