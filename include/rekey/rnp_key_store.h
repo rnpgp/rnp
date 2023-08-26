@@ -101,6 +101,15 @@ class rnp_key_store_t {
     bool load(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
 
     /**
+     * @brief Load all keys from the source, assuming openpgp format.
+     *
+     * @param src source to load keys from.
+     * @param skiperrors ignore key parsing errors, allowing to skip malformed/unsupported
+     * keys.
+     */
+    rnp_result_t load_pgp(pgp_source_t &src, bool skiperrors = false);
+
+    /**
      * @brief Write key store to the path.
      */
     bool write();

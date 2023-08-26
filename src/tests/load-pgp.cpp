@@ -44,7 +44,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 
     // load pubring in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/2/pubring.gpg"));
-    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    assert_rnp_success(key_store->load_pgp(src));
     src_close(&src);
     assert_int_equal(1, key_store->key_count());
 
@@ -66,7 +66,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     key_store = new rnp_key_store_t(global_ctx);
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/4/secring.pgp"));
-    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    assert_rnp_success(key_store->load_pgp(src));
     src_close(&src);
     assert_int_equal(1, key_store->key_count());
 
@@ -106,7 +106,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
 
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
-    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    assert_rnp_success(key_store->load_pgp(src));
     src_close(&src);
     assert_int_equal(7, key_store->key_count());
 
@@ -134,7 +134,7 @@ check_pgp_keyring_counts(const char *          path,
 
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, path));
-    assert_rnp_success(rnp_key_store_pgp_read_from_src(key_store, &src));
+    assert_rnp_success(key_store->load_pgp(src));
     src_close(&src);
 
     // count primary keys first
@@ -441,7 +441,7 @@ static bool
 load_keystore(rnp_key_store_t *keystore, const char *fname)
 {
     pgp_source_t src = {};
-    bool res = !init_file_src(&src, fname) && !rnp_key_store_pgp_read_from_src(keystore, &src);
+    bool         res = !init_file_src(&src, fname) && !keystore->load_pgp(src);
     src_close(&src);
     return res;
 }

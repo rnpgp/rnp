@@ -1731,7 +1731,7 @@ try {
             return ret;
         }
     } else {
-        ret = rnp_key_store_pgp_read_from_src(&tmp_store, &input->src, skipbad);
+        ret = tmp_store.load_pgp(input->src, skipbad);
         if (ret) {
             return ret;
         }
