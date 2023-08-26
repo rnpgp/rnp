@@ -429,7 +429,7 @@ rnp_key_store_kbx_from_src(rnp_key_store_t *         key_store,
                 rnp::MemorySource blsrc(pgp_blob.image().data() + pgp_blob.keyblock_offset(),
                                         pgp_blob.keyblock_length(),
                                         false);
-                if (rnp_key_store_pgp_read_from_src(key_store, &blsrc.src())) {
+                if (key_store->load_pgp(blsrc.src())) {
                     return false;
                 }
             }

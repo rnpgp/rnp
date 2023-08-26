@@ -155,29 +155,28 @@ rnp_key_store_pgp_read_key_from_src(rnp_key_store_t &keyring,
 }
 
 rnp_result_t
-rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, bool skiperrors)
+rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
 {
     /* check whether we have transferable subkey in source */
-    if (is_subkey_pkt(stream_pkt_type(*src))) {
+    if (is_subkey_pkt(stream_pkt_type(src))) {
         pgp_transferable_subkey_t tskey;
-        rnp_result_t              ret = process_pgp_subkey(*src, tskey, skiperrors);
+        rnp_result_t              ret = process_pgp_subkey(src, tskey, skiperrors);
         if (ret) {
             return ret;
         }
-        return rnp_key_store_add_transferable_subkey(keyring, &tskey, NULL) ?
-                 RNP_SUCCESS :
-                 RNP_ERROR_BAD_STATE;
+        return rnp_key_store_add_transferable_subkey(this, &tskey, NULL) ? RNP_SUCCESS :
+                                                                           RNP_ERROR_BAD_STATE;
     }
 
     /* process armored or raw transferable key packets sequence(s) */
     try {
         pgp_key_sequence_t keys;
-        rnp_result_t       ret = process_pgp_keys(*src, keys, skiperrors);
+        rnp_result_t       ret = process_pgp_keys(src, keys, skiperrors);
         if (ret) {
             return ret;
         }
         for (auto &key : keys.keys) {
-            if (!rnp_key_store_add_transferable_key(keyring, &key)) {
+            if (!rnp_key_store_add_transferable_key(this, &key)) {
                 return RNP_ERROR_BAD_STATE;
             }
         }

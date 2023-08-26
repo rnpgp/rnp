@@ -52,7 +52,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         rnp_key_store_t *ks = new rnp_key_store_t(global_ctx);
 
         assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
-        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &src));
+        assert_rnp_success(ks->load_pgp(src));
         src_close(&src);
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
@@ -129,7 +129,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
         pgp_rawpacket_t &pkt = key->rawpkt();
 
         assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
-        assert_rnp_success(rnp_key_store_pgp_read_from_src(ks, &memsrc));
+        assert_rnp_success(ks->load_pgp(memsrc));
         src_close(&memsrc);
 
         // grab the first key
