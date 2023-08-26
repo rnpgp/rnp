@@ -59,11 +59,4 @@
 #include <librepgp/stream-common.h>
 #include <librepgp/stream-key.h>
 
-bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
-                                           pgp_transferable_subkey_t *tskey,
-                                           pgp_key_t *                pkey);
-
-bool rnp_key_store_add_transferable_key(rnp_key_store_t *       keyring,
-                                        pgp_transferable_key_t *tkey);
-
 #endif /* KEY_STORE_PGP_H_ */

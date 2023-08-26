@@ -68,61 +68,59 @@ __RCSID("$NetBSD: keyring.c,v 1.50 2011/06/25 00:37:44 agc Exp $");
 #include "pgp-key.h"
 
 bool
-rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
-                                      pgp_transferable_subkey_t *tskey,
-                                      pgp_key_t *                pkey)
+rnp_key_store_t::add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey)
 {
     try {
         /* create subkey */
-        pgp_key_t skey(*tskey, pkey);
+        pgp_key_t skey(tskey, pkey);
         /* add it to the storage */
-        return keyring->add_key(skey);
+        return add_key(skey);
     } catch (const std::exception &e) {
         RNP_LOG("%s", e.what());
-        RNP_LOG_KEY_PKT("failed to create subkey %s", tskey->subkey);
+        RNP_LOG_KEY_PKT("failed to create subkey %s", tskey.subkey);
         RNP_LOG_KEY("primary key is %s", pkey);
         return false;
     }
 }
 
 bool
-rnp_key_store_add_transferable_key(rnp_key_store_t *keyring, pgp_transferable_key_t *tkey)
+rnp_key_store_t::add_ts_key(pgp_transferable_key_t &tkey)
 {
-    pgp_key_t *addkey = NULL;
+    pgp_key_t *addkey = nullptr;
 
     /* create key from transferable key */
     try {
-        pgp_key_t key(*tkey);
+        pgp_key_t key(tkey);
         /* temporary disable key validation */
-        keyring->disable_validation = true;
+        disable_validation = true;
         /* add key to the storage before subkeys */
-        addkey = keyring->add_key(key);
+        addkey = add_key(key);
     } catch (const std::exception &e) {
-        keyring->disable_validation = false;
-        RNP_LOG_KEY_PKT("failed to add key %s", tkey->key);
+        disable_validation = false;
+        RNP_LOG_KEY_PKT("failed to add key %s", tkey.key);
         return false;
     }
 
     if (!addkey) {
-        keyring->disable_validation = false;
+        disable_validation = false;
         RNP_LOG("Failed to add key to key store.");
         return false;
     }
 
     /* add subkeys */
-    for (auto &subkey : tkey->subkeys) {
-        if (!rnp_key_store_add_transferable_subkey(keyring, &subkey, addkey)) {
+    for (auto &subkey : tkey.subkeys) {
+        if (!add_ts_subkey(subkey, addkey)) {
             RNP_LOG("Failed to add subkey to key store.");
-            keyring->disable_validation = false;
+            disable_validation = false;
             /* during key addition all fields are copied so will be cleaned below */
-            keyring->remove_key(*addkey, false);
+            remove_key(*addkey, false);
             return false;
         }
     }
 
     /* now validate/refresh the whole key with subkeys */
-    keyring->disable_validation = false;
-    addkey->revalidate(*keyring);
+    disable_validation = false;
+    addkey->revalidate(*this);
     return true;
 }
 
@@ -138,8 +136,7 @@ rnp_key_store_t::load_pgp_key(pgp_source_t &src, bool skiperrors)
 
     /* check whether we have primary key */
     if (key.key.tag != PGP_PKT_RESERVED) {
-        return rnp_key_store_add_transferable_key(this, &key) ? RNP_SUCCESS :
-                                                                RNP_ERROR_BAD_STATE;
+        return add_ts_key(key) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
     }
 
     /* we just skipped some unexpected packets and read nothing */
@@ -147,9 +144,7 @@ rnp_key_store_t::load_pgp_key(pgp_source_t &src, bool skiperrors)
         return RNP_SUCCESS;
     }
 
-    return rnp_key_store_add_transferable_subkey(this, &key.subkeys.front(), NULL) ?
-             RNP_SUCCESS :
-             RNP_ERROR_BAD_STATE;
+    return add_ts_subkey(key.subkeys.front()) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
 }
 
 rnp_result_t
@@ -162,8 +157,7 @@ rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
         if (ret) {
             return ret;
         }
-        return rnp_key_store_add_transferable_subkey(this, &tskey, NULL) ? RNP_SUCCESS :
-                                                                           RNP_ERROR_BAD_STATE;
+        return add_ts_subkey(tskey) ? RNP_SUCCESS : RNP_ERROR_BAD_STATE;
     }
 
     /* process armored or raw transferable key packets sequence(s) */
@@ -174,7 +168,7 @@ rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
             return ret;
         }
         for (auto &key : keys.keys) {
-            if (!rnp_key_store_add_transferable_key(this, &key)) {
+            if (!add_ts_key(key)) {
                 return RNP_ERROR_BAD_STATE;
             }
         }
