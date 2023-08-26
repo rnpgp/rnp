@@ -130,7 +130,9 @@ typedef struct pgp_userid_t {
 
 #define PGP_UID_NONE ((uint32_t) -1)
 
-class rnp_key_store_t;
+namespace rnp {
+class KeyStore;
+}
 
 /* describes a user's key */
 struct pgp_key_t {
@@ -158,7 +160,7 @@ struct pgp_key_t {
     uint64_t        valid_till_{}; /* date till which key is/was valid */
 
     pgp_subsig_t *latest_uid_selfcert(uint32_t uid);
-    void          validate_primary(rnp_key_store_t &keyring);
+    void          validate_primary(rnp::KeyStore &keyring);
     void          merge_validity(const pgp_validity_t &src);
     uint64_t      valid_till_common(bool expiry) const;
     bool          write_sec_pgp(pgp_dest_t &       dst,
@@ -331,7 +333,7 @@ struct pgp_key_t {
      * @param keyring keyring, which will be searched for subkeys. Pass NULL to skip subkeys.
      * @return void, but error may be checked via dst.werr
      */
-    void write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring = NULL) const;
+    void write_xfer(pgp_dest_t &dst, const rnp::KeyStore *keyring = NULL) const;
     /**
      * @brief Export key with subkey as it is required by Autocrypt (5-packet sequence: key,
      * uid, sig, subkey, sig).
@@ -451,9 +453,9 @@ struct pgp_key_t {
 
     void validate_self_signatures(const rnp::SecurityContext &ctx);
     void validate_self_signatures(pgp_key_t &primary, const rnp::SecurityContext &ctx);
-    void validate(rnp_key_store_t &keyring);
+    void validate(rnp::KeyStore &keyring);
     void validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx);
-    void revalidate(rnp_key_store_t &keyring);
+    void revalidate(rnp::KeyStore &keyring);
     void mark_valid();
     /**
      * @brief Fill common signature parameters, assuming that current key is a signing one.

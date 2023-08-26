@@ -48,7 +48,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     // load our keyring and do some quick checks
     {
         pgp_source_t src = {};
-        auto         ks = new rnp_key_store_t(global_ctx);
+        auto         ks = new rnp::KeyStore(global_ctx);
 
         assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
         assert_rnp_success(ks->load_pgp(src));
@@ -124,7 +124,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
     // confirm that packets[0] is no longer encrypted
     {
         pgp_source_t     memsrc = {};
-        auto             ks = new rnp_key_store_t(global_ctx);
+        auto             ks = new rnp::KeyStore(global_ctx);
         pgp_rawpacket_t &pkt = key->rawpkt();
 
         assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));

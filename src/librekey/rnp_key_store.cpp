@@ -58,8 +58,9 @@
 #include "str-utils.h"
 #endif
 
+namespace rnp {
 bool
-rnp_key_store_t::load(const pgp_key_provider_t *key_provider)
+KeyStore::load(const pgp_key_provider_t *key_provider)
 {
     pgp_source_t src = {};
 
@@ -100,7 +101,7 @@ rnp_key_store_t::load(const pgp_key_provider_t *key_provider)
 }
 
 bool
-rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
     switch (format) {
     case PGP_KEY_STORE_GPG:
@@ -117,7 +118,7 @@ rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 }
 
 bool
-rnp_key_store_t::write()
+KeyStore::write()
 {
     bool       rc;
     pgp_dest_t keydst = {};
@@ -188,7 +189,7 @@ rnp_key_store_t::write()
 }
 
 bool
-rnp_key_store_t::write(pgp_dest_t &dst)
+KeyStore::write(pgp_dest_t &dst)
 {
     switch (format) {
     case PGP_KEY_STORE_GPG:
@@ -203,7 +204,7 @@ rnp_key_store_t::write(pgp_dest_t &dst)
 }
 
 void
-rnp_key_store_t::clear()
+KeyStore::clear()
 {
     keybyfp.clear();
     keys.clear();
@@ -211,13 +212,14 @@ rnp_key_store_t::clear()
 }
 
 size_t
-rnp_key_store_t::key_count() const
+KeyStore::key_count() const
 {
     return keys.size();
 }
 
-static bool
-rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
+namespace {
+bool
+rnp_key_store_refresh_subkey_grips(KeyStore *keyring, pgp_key_t *key)
 {
     if (key->is_subkey()) {
         RNP_LOG("wrong argument");
@@ -260,9 +262,10 @@ rnp_key_store_refresh_subkey_grips(rnp_key_store_t *keyring, pgp_key_t *key)
 
     return true;
 }
+} // namespace
 
 pgp_key_t *
-rnp_key_store_t::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
+KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
 {
     pgp_key_t *primary = NULL;
     if (oldkey) {
@@ -322,7 +325,7 @@ rnp_key_store_t::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
 
 /* add a key to keyring */
 pgp_key_t *
-rnp_key_store_t::add_key(pgp_key_t &srckey)
+KeyStore::add_key(pgp_key_t &srckey)
 {
     assert(srckey.type() && srckey.version());
     pgp_key_t *added_key = get_key(srckey.fp());
@@ -371,7 +374,7 @@ rnp_key_store_t::add_key(pgp_key_t &srckey)
 }
 
 pgp_key_t *
-rnp_key_store_t::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *status)
+KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *status)
 {
     /* add public key */
     pgp_key_t *exkey = get_key(srckey.fp());
@@ -404,7 +407,7 @@ rnp_key_store_t::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_statu
 }
 
 pgp_sig_import_status_t
-rnp_key_store_t::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
+KeyStore::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &sig)
 {
     if ((sig.type() != PGP_SIG_SUBKEY) && (sig.type() != PGP_SIG_REV_SUBKEY)) {
         return PGP_SIG_IMPORT_STATUS_UNKNOWN;
@@ -442,7 +445,7 @@ rnp_key_store_t::import_subkey_signature(pgp_key_t &key, const pgp_signature_t &
 }
 
 pgp_sig_import_status_t
-rnp_key_store_t::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
+KeyStore::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
 {
     if (key.is_subkey()) {
         return import_subkey_signature(key, sig);
@@ -475,7 +478,7 @@ rnp_key_store_t::import_signature(pgp_key_t &key, const pgp_signature_t &sig)
 }
 
 pgp_key_t *
-rnp_key_store_t::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status)
+KeyStore::import_signature(const pgp_signature_t &sig, pgp_sig_import_status_t *status)
 {
     pgp_sig_import_status_t tmp_status = PGP_SIG_IMPORT_STATUS_UNKNOWN;
     if (!status) {
@@ -498,7 +501,7 @@ rnp_key_store_t::import_signature(const pgp_signature_t &sig, pgp_sig_import_sta
 }
 
 bool
-rnp_key_store_t::remove_key(const pgp_key_t &key, bool subkeys)
+KeyStore::remove_key(const pgp_key_t &key, bool subkeys)
 {
     auto it = keybyfp.find(key.fp());
     if (it == keybyfp.end()) {
@@ -534,7 +537,7 @@ rnp_key_store_t::remove_key(const pgp_key_t &key, bool subkeys)
 }
 
 const pgp_key_t *
-rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr) const
+KeyStore::get_key(const pgp_fingerprint_t &fpr) const
 {
     auto it = keybyfp.find(fpr);
     if (it == keybyfp.end()) {
@@ -544,7 +547,7 @@ rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr) const
 }
 
 pgp_key_t *
-rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr)
+KeyStore::get_key(const pgp_fingerprint_t &fpr)
 {
     auto it = keybyfp.find(fpr);
     if (it == keybyfp.end()) {
@@ -554,7 +557,7 @@ rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr)
 }
 
 pgp_key_t *
-rnp_key_store_t::get_subkey(const pgp_key_t &key, size_t idx)
+KeyStore::get_subkey(const pgp_key_t &key, size_t idx)
 {
     if (idx >= key.subkey_count()) {
         return nullptr;
@@ -563,7 +566,7 @@ rnp_key_store_t::get_subkey(const pgp_key_t &key, size_t idx)
 }
 
 pgp_key_t *
-rnp_key_store_t::primary_key(const pgp_key_t &subkey)
+KeyStore::primary_key(const pgp_key_t &subkey)
 {
     if (!subkey.is_subkey()) {
         return nullptr;
@@ -589,7 +592,7 @@ rnp_key_store_t::primary_key(const pgp_key_t &subkey)
 }
 
 pgp_key_t *
-rnp_key_store_t::search(const pgp_key_search_t &search, pgp_key_t *after)
+KeyStore::search(const pgp_key_search_t &search, pgp_key_t *after)
 {
     // since keys are distinguished by fingerprint then just do map lookup
     if (search.type == PGP_KEY_SEARCH_FINGERPRINT) {
@@ -620,7 +623,7 @@ rnp_key_store_t::search(const pgp_key_search_t &search, pgp_key_t *after)
 }
 
 pgp_key_t *
-rnp_key_store_t::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov)
+KeyStore::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov)
 {
     pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
     /* if we have fingerprint let's check it */
@@ -642,9 +645,9 @@ rnp_key_store_t::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov
     return pgp_request_key(prov, &ctx);
 }
 
-rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format,
-                                 const std::string &    _path,
-                                 rnp::SecurityContext & ctx)
+KeyStore::KeyStore(pgp_key_store_format_t _format,
+                   const std::string &    _path,
+                   rnp::SecurityContext & ctx)
     : secctx(ctx)
 {
     if (_format == PGP_KEY_STORE_UNKNOWN) {
@@ -655,7 +658,8 @@ rnp_key_store_t::rnp_key_store_t(pgp_key_store_format_t _format,
     path = _path;
 }
 
-rnp_key_store_t::~rnp_key_store_t()
+KeyStore::~KeyStore()
 {
     clear();
 }
+} // namespace rnp

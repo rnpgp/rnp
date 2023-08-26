@@ -1681,7 +1681,7 @@ pgp_key_t::write(pgp_dest_t &dst) const
 }
 
 void
-pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp_key_store_t *keyring) const
+pgp_key_t::write_xfer(pgp_dest_t &dst, const rnp::KeyStore *keyring) const
 {
     write(dst);
     if (dst.werr) {
@@ -2150,7 +2150,7 @@ pgp_key_t::validate_self_signatures(pgp_key_t &primary, const rnp::SecurityConte
 }
 
 void
-pgp_key_t::validate_primary(rnp_key_store_t &keyring)
+pgp_key_t::validate_primary(rnp::KeyStore &keyring)
 {
     /* validate signatures if needed */
     validate_self_signatures(keyring.secctx);
@@ -2261,7 +2261,7 @@ pgp_key_t::validate_subkey(pgp_key_t *primary, const rnp::SecurityContext &ctx)
 }
 
 void
-pgp_key_t::validate(rnp_key_store_t &keyring)
+pgp_key_t::validate(rnp::KeyStore &keyring)
 {
     validity_.reset();
     if (!is_subkey()) {
@@ -2276,7 +2276,7 @@ pgp_key_t::validate(rnp_key_store_t &keyring)
 }
 
 void
-pgp_key_t::revalidate(rnp_key_store_t &keyring)
+pgp_key_t::revalidate(rnp::KeyStore &keyring)
 {
     if (is_subkey()) {
         pgp_key_t *primary = keyring.primary_key(*this);

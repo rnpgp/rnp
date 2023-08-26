@@ -41,7 +41,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 #endif
 {
     rnp::SecurityContext ctx;
-    rnp_key_store_t      ks(ctx);
+    rnp::KeyStore        ks(ctx);
     pgp_source_t         memsrc = {};
 
     init_mem_src(&memsrc, data, size, false);

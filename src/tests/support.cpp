@@ -761,7 +761,7 @@ check_json_pkt_type(json_object *pkt, int tag)
 }
 
 pgp_key_t *
-rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_key_t *after)
+rnp_tests_get_key_by_id(rnp::KeyStore *keyring, const std::string &keyid, pgp_key_t *after)
 {
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
@@ -777,7 +777,7 @@ rnp_tests_get_key_by_id(rnp_key_store_t *keyring, const std::string &keyid, pgp_
 }
 
 pgp_key_t *
-rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip)
+rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip)
 {
     if (!keyring || grip.empty() || !rnp::is_hex(grip)) {
         return NULL;
@@ -791,7 +791,7 @@ rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip)
 }
 
 pgp_key_t *
-rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
+rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip)
 {
     if (!keyring) {
         return NULL;
@@ -802,7 +802,7 @@ rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip)
 }
 
 pgp_key_t *
-rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
+rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid)
 {
     if (!keyring || keyid.empty() || !rnp::is_hex(keyid)) {
         return NULL;
@@ -818,7 +818,7 @@ rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid)
 }
 
 pgp_key_t *
-rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid)
+rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid)
 {
     if (!keyring || uid.empty()) {
         return NULL;
@@ -1206,7 +1206,7 @@ ripemd160_enabled()
 }
 
 bool
-test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id)
+test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id)
 {
     pgp_key_t *key = rnp_tests_get_key_by_id(pub, id);
     if (!key) {
