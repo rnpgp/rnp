@@ -160,7 +160,7 @@ key_store_add(rnp_key_store_t *keyring, const char *keypath)
 
     assert_rnp_success(init_file_src(&keysrc, keypath));
     assert_rnp_success(process_pgp_key(keysrc, tkey, false));
-    assert_true(rnp_key_store_add_transferable_key(keyring, &tkey));
+    assert_true(keyring->add_ts_key(tkey));
     src_close(&keysrc);
 }
 
