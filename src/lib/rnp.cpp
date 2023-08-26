@@ -4427,7 +4427,7 @@ try {
 
     /* process subkeys */
     for (size_t idx = 0; key->is_primary() && (idx < key->subkey_count()); idx++) {
-        pgp_key_t *sub = pgp_key_get_subkey(key, handle->ffi->pubring, idx);
+        pgp_key_t *sub = handle->ffi->pubring->get_subkey(*key, idx);
         if (!sub) {
             FFI_LOG(handle->ffi, "Failed to get subkey at idx %zu.", idx);
             continue;

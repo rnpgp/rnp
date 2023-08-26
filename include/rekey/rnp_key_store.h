@@ -152,6 +152,15 @@ class rnp_key_store_t {
     const pgp_key_t *get_key(const pgp_fingerprint_t &fpr) const;
 
     /**
+     * @brief Get the key's subkey by its index
+     *
+     * @param key primary key
+     * @param idx index of the subkey
+     * @return pointer to the subkey or nullptr if subkey was found
+     */
+    pgp_key_t *get_subkey(const pgp_key_t &key, size_t idx);
+
+    /**
      * @brief Get the signer's key for signature
      *
      * @param sig signature
