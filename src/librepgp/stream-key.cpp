@@ -91,7 +91,7 @@ rnp_result_t
 transferable_subkey_from_key(pgp_transferable_subkey_t &dst, const pgp_key_t &key)
 {
     try {
-        auto              vec = rnp_key_to_vec(key);
+        auto              vec = key.write_vec();
         rnp::MemorySource mem(vec);
         return process_pgp_subkey(mem.src(), dst, false);
     } catch (const std::exception &e) {
@@ -119,7 +119,7 @@ rnp_result_t
 transferable_key_from_key(pgp_transferable_key_t &dst, const pgp_key_t &key)
 {
     try {
-        auto              vec = rnp_key_to_vec(key);
+        auto              vec = key.write_vec();
         rnp::MemorySource mem(vec);
         return process_pgp_key(mem.src(), dst, false);
     } catch (const std::exception &e) {

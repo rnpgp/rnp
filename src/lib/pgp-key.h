@@ -342,7 +342,10 @@ struct pgp_key_t {
      * @return true on success or false otherwise
      */
     bool write_autocrypt(pgp_dest_t &dst, pgp_key_t &sub, uint32_t uid);
-
+    /**
+     * @brief Write key to vector.
+     */
+    std::vector<uint8_t> write_vec() const;
     /**
      * @brief Get the latest valid self-signature with information about the primary key for
      *        the specified uid (including the special cases). It could be userid certification

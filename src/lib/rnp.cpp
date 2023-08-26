@@ -7407,7 +7407,7 @@ FFI_GUARD
 static rnp_result_t
 key_to_bytes(pgp_key_t *key, uint8_t **buf, size_t *buf_len)
 {
-    auto vec = rnp_key_to_vec(*key);
+    auto vec = key->write_vec();
     *buf = (uint8_t *) calloc(1, vec.size());
     if (!*buf) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -8138,7 +8138,7 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    auto              vec = rnp_key_to_vec(*key);
+    auto              vec = key->write_vec();
     rnp::MemorySource mem(vec);
     return rnp_dump_src_to_json(&mem.src(), flags, result);
 }
