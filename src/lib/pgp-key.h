@@ -607,16 +607,6 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
                                   const pgp_password_provider_t &,
                                   const pgp_password_ctx_t &);
 
-/**
- * @brief Get the key's subkey by its index
- *
- * @param key primary key
- * @param store key store which will be searched for subkeys
- * @param idx index of the subkey
- * @return pointer to the subkey or NULL if subkey not found
- */
-pgp_key_t *pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx);
-
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
 bool pgp_key_set_expiration(pgp_key_t *                    key,
