@@ -334,14 +334,12 @@ TEST_F(rnp_tests, test_stream_file)
 
 TEST_F(rnp_tests, test_stream_signatures)
 {
-    rnp_key_store_t *pubring;
-    rnp_key_store_t *secring;
-    pgp_signature_t  sig;
-    pgp_source_t     sigsrc;
-    pgp_key_t *      key = NULL;
+    pgp_signature_t sig;
+    pgp_source_t    sigsrc;
+    pgp_key_t *     key = NULL;
 
     /* load keys */
-    pubring = new rnp_key_store_t(
+    auto pubring = new rnp_key_store_t(
       PGP_KEY_STORE_GPG, "data/test_stream_signatures/pub.asc", global_ctx);
     assert_true(pubring->load());
     /* load signature */
@@ -368,7 +366,7 @@ TEST_F(rnp_tests, test_stream_signatures)
     /* now let's create signature and sign file */
 
     /* load secret key */
-    secring = new rnp_key_store_t(
+    auto secring = new rnp_key_store_t(
       PGP_KEY_STORE_GPG, "data/test_stream_signatures/sec.asc", global_ctx);
     assert_true(secring->load());
     assert_non_null(key = secring->get_signer(sig));
@@ -1088,8 +1086,8 @@ TEST_F(rnp_tests, test_stream_key_signatures)
 static bool
 validate_key_sigs(const char *path, rnp::SecurityContext &global_ctx)
 {
-    rnp_key_store_t *pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, path, global_ctx);
-    bool             valid = pubring->load();
+    auto pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, path, global_ctx);
+    bool valid = pubring->load();
     for (auto &key : pubring->keys) {
         key.validate(*pubring);
         valid = valid && key.valid();
@@ -1101,7 +1099,7 @@ validate_key_sigs(const char *path, rnp::SecurityContext &global_ctx)
 TEST_F(rnp_tests, test_stream_key_signature_validate)
 {
     /* v3 public key */
-    rnp_key_store_t *pubring =
+    auto pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, "data/keyrings/4/rsav3-p.asc", global_ctx);
     assert_true(pubring->load());
     assert_int_equal(pubring->key_count(), 1);
@@ -1475,10 +1473,9 @@ TEST_F(rnp_tests, test_stream_814_dearmor_double_free)
 
 TEST_F(rnp_tests, test_stream_825_dearmor_blank_line)
 {
-    rnp_key_store_t *keystore = NULL;
-    pgp_source_t     src = {};
+    pgp_source_t src = {};
 
-    keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
+    auto keystore = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
     assert_rnp_success(
       init_file_src(&src, "data/test_stream_armor/extra_line_before_trailer.asc"));
     assert_true(keystore->load(src));

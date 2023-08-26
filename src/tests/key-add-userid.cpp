@@ -44,7 +44,7 @@ TEST_F(rnp_tests, test_key_add_userid)
                                    "54505a936a4a970e",
                                    "326ef111425d14a5"};
 
-    rnp_key_store_t *ks = new rnp_key_store_t(global_ctx);
+    auto ks = new rnp_key_store_t(global_ctx);
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(ks->load_pgp(src));
