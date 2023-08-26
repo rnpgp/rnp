@@ -103,11 +103,19 @@ class rnp_key_store_t {
     /**
      * @brief Load all keys from the source, assuming openpgp format.
      *
-     * @param src source to load keys from.
+     * @param src source to load the keys from.
      * @param skiperrors ignore key parsing errors, allowing to skip malformed/unsupported
-     * keys.
+     *                   keys.
      */
     rnp_result_t load_pgp(pgp_source_t &src, bool skiperrors = false);
+
+    /**
+     * @brief Load single key (including subkeys) from the source, assuming openpgp format.
+     *
+     * @param src source to load the key from.
+     * @param skiperrors ignore key parsing errors, allowing to skip malformed/unknown subkeys.
+     */
+    rnp_result_t load_pgp_key(pgp_source_t &src, bool skiperrors = false);
 
     /**
      * @brief Write key store to the path.
