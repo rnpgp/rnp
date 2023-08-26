@@ -27,6 +27,9 @@
 #ifndef RNP_KBX_BLOB_HPP
 #define RNP_KBX_BLOB_HPP
 
+#include <vector>
+#include "repgp/repgp_def.h"
+
 typedef enum : uint8_t {
     KBX_EMPTY_BLOB = 0,
     KBX_HEADER_BLOB = 1,

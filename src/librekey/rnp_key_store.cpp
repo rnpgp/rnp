@@ -46,7 +46,6 @@
 #include <rekey/rnp_key_store.h>
 #include <librepgp/stream-packet.h>
 
-#include "key_store_kbx.h"
 #include "key_store_g10.h"
 #include "kbx_blob.hpp"
 
@@ -107,7 +106,7 @@ rnp_key_store_t::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
     case PGP_KEY_STORE_GPG:
         return !load_pgp(src);
     case PGP_KEY_STORE_KBX:
-        return rnp_key_store_kbx_from_src(this, &src, key_provider);
+        return load_kbx(src, key_provider);
     case PGP_KEY_STORE_G10:
         return rnp_key_store_g10_from_src(this, &src, key_provider);
     default:
@@ -195,7 +194,7 @@ rnp_key_store_t::write(pgp_dest_t &dst)
     case PGP_KEY_STORE_GPG:
         return write_pgp(dst);
     case PGP_KEY_STORE_KBX:
-        return rnp_key_store_kbx_to_dst(this, &dst);
+        return write_kbx(dst);
     default:
         RNP_LOG("Unsupported write to memory for key-store format: %d", format);
     }
