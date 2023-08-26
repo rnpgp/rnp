@@ -127,6 +127,11 @@ class rnp_key_store_t {
      */
     bool write(pgp_dest_t &dst);
 
+    /**
+     * @brief Write key store to the dest in pgp format.
+     */
+    bool write_pgp(pgp_dest_t &dst);
+
     void clear();
 
     size_t key_count() const;

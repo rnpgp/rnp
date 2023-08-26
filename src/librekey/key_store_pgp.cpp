@@ -185,10 +185,11 @@ rnp_key_store_t::load_pgp(pgp_source_t &src, bool skiperrors)
     }
 }
 
-static bool
-do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
+namespace {
+bool
+do_write(rnp_key_store_t &key_store, pgp_dest_t &dst, bool secret)
 {
-    for (auto &key : key_store->keys) {
+    for (auto &key : key_store.keys) {
         if (key.is_secret() != secret) {
             continue;
         }
@@ -201,28 +202,29 @@ do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
             RNP_LOG("incorrect format (conversions not supported): %d", key.format);
             return false;
         }
-        key.write(*dst);
-        if (dst->werr) {
+        key.write(dst);
+        if (dst.werr) {
             return false;
         }
         for (auto &sfp : key.subkey_fps()) {
-            pgp_key_t *subkey = key_store->get_key(sfp);
+            pgp_key_t *subkey = key_store.get_key(sfp);
             if (!subkey) {
                 RNP_LOG("Missing subkey");
                 continue;
             }
-            subkey->write(*dst);
-            if (dst->werr) {
+            subkey->write(dst);
+            if (dst.werr) {
                 return false;
             }
         }
     }
     return true;
 }
+} // namespace
 
 bool
-rnp_key_store_pgp_write_to_dst(rnp_key_store_t *key_store, pgp_dest_t *dst)
+rnp_key_store_t::write_pgp(pgp_dest_t &dst)
 {
     // two separate passes (public keys, then secret keys)
-    return do_write(key_store, dst, false) && do_write(key_store, dst, true);
+    return do_write(*this, dst, false) && do_write(*this, dst, true);
 }
