@@ -554,6 +554,15 @@ rnp_key_store_t::get_key(const pgp_fingerprint_t &fpr)
 }
 
 pgp_key_t *
+rnp_key_store_t::get_subkey(const pgp_key_t &key, size_t idx)
+{
+    if (idx >= key.subkey_count()) {
+        return nullptr;
+    }
+    return get_key(key.get_subkey_fp(idx));
+}
+
+pgp_key_t *
 rnp_key_store_t::primary_key(const pgp_key_t &subkey)
 {
     if (!subkey.is_subkey()) {

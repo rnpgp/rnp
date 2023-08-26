@@ -410,7 +410,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
     pgp_key_t *subkey = NULL;
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -430,7 +430,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->valid());
     assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -448,7 +448,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(key->expired());
     assert_true(key->revoked());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     assert_false(subkey->revoked());
@@ -467,7 +467,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(key->expired());
     assert_false(key->revoked());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     assert_true(subkey->revoked());
@@ -484,7 +484,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_non_null(key = rnp_tests_get_key_by_id(pubring, "0451409669FFDE3C"));
     assert_true(key->valid());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_true(subkey->valid());
     delete pubring;
 
@@ -502,7 +502,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->valid());
     assert_false(key->expired());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_true(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -520,7 +520,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(key->valid());
     assert_true(key->expired());
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -539,7 +539,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->expired());
     assert_int_equal(key->expiration(), 100);
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -558,7 +558,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->expired());
     assert_int_equal(key->expiration(), 2000);
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -577,7 +577,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->expired());
     assert_int_equal(key->expiration(), 6);
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -597,7 +597,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_true(key->expired());
     assert_int_equal(key->expiration(), 6);
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;
@@ -616,7 +616,7 @@ TEST_F(rnp_tests, test_key_validity)
     assert_false(key->expired());
     assert_int_equal(key->expiration(), 0);
     assert_int_equal(key->subkey_count(), 1);
-    assert_non_null(subkey = pgp_key_get_subkey(key, pubring, 0));
+    assert_non_null(subkey = pubring->get_subkey(*key, 0));
     assert_false(subkey->valid());
     assert_false(subkey->expired());
     delete pubring;

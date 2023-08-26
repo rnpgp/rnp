@@ -134,17 +134,6 @@ static const id_str_pair ss_rr_code_map[] = {
   {0x00, NULL},
 };
 
-pgp_key_t *
-pgp_key_get_subkey(const pgp_key_t *key, rnp_key_store_t *store, size_t idx)
-{
-    try {
-        return store->get_key(key->get_subkey_fp(idx));
-    } catch (const std::exception &e) {
-        RNP_LOG("%s", e.what());
-        return NULL;
-    }
-}
-
 pgp_key_flags_t
 pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 {
@@ -2215,7 +2204,7 @@ pgp_key_t::validate_primary(rnp_key_store_t &keyring)
 
     /* let's check whether key has at least one valid subkey binding */
     for (size_t i = 0; i < subkey_count(); i++) {
-        pgp_key_t *sub = pgp_key_get_subkey(this, &keyring, i);
+        pgp_key_t *sub = keyring.get_subkey(*this, i);
         if (!sub) {
             continue;
         }
