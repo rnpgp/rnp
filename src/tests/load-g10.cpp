@@ -31,15 +31,13 @@
 
 TEST_F(rnp_tests, test_invalid_g10)
 {
-    rnp_key_store_t *  pub_store = NULL;
-    rnp_key_store_t *  sec_store = NULL;
     pgp_key_provider_t key_provider(rnp_key_provider_store);
     // load pubring
-    pub_store =
+    auto pub_store =
       new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
     assert_true(pub_store->load());
     // trigger "Unsupported public key algorithm:" error message
-    sec_store = new rnp_key_store_t(
+    auto sec_store = new rnp_key_store_t(
       PGP_KEY_STORE_G10, "data/test_invalid_g10/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
     assert_true(sec_store->load(&key_provider));
@@ -55,16 +53,14 @@ TEST_F(rnp_tests, test_invalid_g10)
  */
 TEST_F(rnp_tests, test_load_g10)
 {
-    rnp_key_store_t *  pub_store = NULL;
-    rnp_key_store_t *  sec_store = NULL;
     pgp_key_provider_t key_provider(rnp_key_provider_store);
 
     // load pubring
-    pub_store =
+    auto pub_store =
       new rnp_key_store_t(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
     assert_true(pub_store->load());
     // load secring
-    sec_store =
+    auto sec_store =
       new rnp_key_store_t(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
     key_provider.userdata = pub_store;
     assert_true(sec_store->load(&key_provider));

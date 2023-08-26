@@ -105,7 +105,7 @@ rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
 pgp_key_t *
 rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    rnp_key_store_t *ks = (rnp_key_store_t *) userdata;
+    auto ks = (rnp_key_store_t *) userdata;
 
     for (pgp_key_t *key = ks->search(ctx->search); key; key = ks->search(ctx->search, key)) {
         if (key->is_secret() == ctx->secret) {

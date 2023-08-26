@@ -172,10 +172,7 @@ key_check(rnp_key_store_t *keyring, const std::string &keyid, bool valid, bool e
 
 TEST_F(rnp_tests, test_forged_key_validate)
 {
-    rnp_key_store_t *pubring;
-    pgp_key_t *      key = NULL;
-
-    pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
+    auto pubring = new rnp_key_store_t(PGP_KEY_STORE_GPG, "", global_ctx);
 
     /* load valid dsa-eg key */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub.pgp");
@@ -191,7 +188,7 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
     /* load dsa-eg key with forged key material */
     key_store_add(pubring, DATA_PATH "dsa-eg-pub-forged-material.pgp");
-    key = rnp_tests_get_key_by_id(pubring, "C8A10A7D78273E10");
+    pgp_key_t *key = rnp_tests_get_key_by_id(pubring, "C8A10A7D78273E10");
     assert_null(key);
     /* malformed key material causes keyid change */
     key = rnp_tests_get_key_by_id(pubring, "C258AB3B54097B9B");
@@ -348,17 +345,15 @@ TEST_F(rnp_tests, test_forged_key_validate)
 
 TEST_F(rnp_tests, test_key_validity)
 {
-    rnp_key_store_t *pubring;
-    pgp_key_t *      key = NULL;
-
     /* Case1:
      * Keys: Alice [pub]
      * Alice is signed by Basil, but without the Basil's key.
      * Result: Alice [valid]
      */
-    pubring =
+    auto pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "case1/pubring.gpg", global_ctx);
     assert_true(pubring->load());
+    pgp_key_t *key = NULL;
     assert_non_null(key = rnp_tests_key_search(pubring, "Alice <alice@rnp>"));
     assert_true(key->valid());
     assert_false(key->expired());
@@ -625,7 +620,7 @@ TEST_F(rnp_tests, test_key_validity)
 TEST_F(rnp_tests, test_key_expiry_direct_sig)
 {
     /* this test was mainly used to generate test data for cases 10-12 in test_key_validity */
-    rnp_key_store_t *secring =
+    auto secring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-sec.pgp", global_ctx);
     assert_true(secring->load());
     pgp_key_t *key = NULL;
@@ -655,7 +650,7 @@ TEST_F(rnp_tests, test_key_expiry_direct_sig)
     assert_false(key->valid());
     assert_true(key->expired());
 
-    rnp_key_store_t *pubring =
+    auto pubring =
       new rnp_key_store_t(PGP_KEY_STORE_GPG, KEYSIG_PATH "alice-sub-pub.pgp", global_ctx);
     assert_true(pubring->load());
     pgp_key_t *pubkey = NULL;
