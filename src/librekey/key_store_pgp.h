@@ -78,6 +78,4 @@ bool rnp_key_store_add_transferable_subkey(rnp_key_store_t *          keyring,
 bool rnp_key_store_add_transferable_key(rnp_key_store_t *       keyring,
                                         pgp_transferable_key_t *tkey);
 
-std::vector<uint8_t> rnp_key_to_vec(const pgp_key_t &key);
-
 #endif /* KEY_STORE_PGP_H_ */

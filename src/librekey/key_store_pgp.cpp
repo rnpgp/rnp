@@ -188,14 +188,6 @@ rnp_key_store_pgp_read_from_src(rnp_key_store_t *keyring, pgp_source_t *src, boo
     }
 }
 
-std::vector<uint8_t>
-rnp_key_to_vec(const pgp_key_t &key)
-{
-    rnp::MemoryDest dst;
-    key.write(dst.dst());
-    return dst.to_vector();
-}
-
 static bool
 do_write(rnp_key_store_t *key_store, pgp_dest_t *dst, bool secret)
 {
