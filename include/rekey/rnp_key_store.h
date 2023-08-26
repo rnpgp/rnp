@@ -114,19 +114,30 @@ class rnp_key_store_t {
     rnp_result_t load_pgp_key(pgp_source_t &src, bool skiperrors = false);
 
     /**
-     * @brief Write key store to the path.
+     * @brief Load keystore in kbx format.
+     */
+    bool load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+
+    /**
+     * @brief Write keystore to the path.
      */
     bool write();
 
     /**
-     * @brief Write key store to the dest.
+     * @brief Write keystore to the dest.
      */
     bool write(pgp_dest_t &dst);
 
     /**
-     * @brief Write key store to the dest in pgp format.
+     * @brief Write keystore to the dest in pgp format.
      */
     bool write_pgp(pgp_dest_t &dst);
+
+    /**
+     * @brief Write keystore to the dest in kbx format.
+     *
+     */
+    bool write_kbx(pgp_dest_t &dst);
 
     void clear();
 

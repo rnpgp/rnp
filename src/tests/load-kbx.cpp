@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_kbx.h"
 #include "pgp-key.h"
 
 #include "rnp_tests.h"
