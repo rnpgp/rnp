@@ -198,7 +198,7 @@ rnp_key_store_t::write(pgp_dest_t &dst)
 {
     switch (format) {
     case PGP_KEY_STORE_GPG:
-        return rnp_key_store_pgp_write_to_dst(this, &dst);
+        return write_pgp(dst);
     case PGP_KEY_STORE_KBX:
         return rnp_key_store_kbx_to_dst(this, &dst);
     default:
