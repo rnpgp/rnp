@@ -28,6 +28,7 @@
 #include "../lib/pgp-key.h"
 #include "../librekey/key_store_g10.h"
 #include "../librepgp/stream-common.h"
+#include "../include/rekey/rnp_key_store.h"
 #include "../lib/sec_profile.hpp"
 
 #ifdef RNP_RUN_TESTS
@@ -44,7 +45,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
     pgp_source_t         memsrc = {};
 
     init_mem_src(&memsrc, data, size, false);
-    rnp_key_store_g10_from_src(&ks, &memsrc, NULL);
+    ks.load_g10(memsrc);
     src_close(&memsrc);
 
     return 0;

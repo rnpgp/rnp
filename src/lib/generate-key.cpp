@@ -125,7 +125,7 @@ load_generated_g10_key(pgp_key_t *           dst,
 
     rnp::MemorySource  memsrc(memdst.memory(), memdst.writeb(), false);
     pgp_key_provider_t prov(rnp_key_provider_key_ptr_list, &key_ptrs);
-    if (!rnp_key_store_g10_from_src(key_store.get(), &memsrc.src(), &prov)) {
+    if (!key_store.get()->load_g10(memsrc.src(), &prov)) {
         return false;
     }
     if (key_store.get()->key_count() != 1) {
