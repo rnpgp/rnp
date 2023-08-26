@@ -36,7 +36,6 @@
 #include <inttypes.h>
 #include <cassert>
 
-#include "key_store_pgp.h"
 #include "key_store_kbx.h"
 #include "pgp-key.h"
 #include <librepgp/stream-sig.h>

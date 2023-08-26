@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
 #include "../librepgp/stream-ctx.h"
 #include "pgp-key.h"
 #include "ffi-priv-types.h"

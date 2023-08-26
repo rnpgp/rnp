@@ -24,7 +24,6 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include "../librekey/key_store_pgp.h"
 #include "../librepgp/stream-packet.h"
 #include "../librepgp/stream-sig.h"
 #include "pgp-key.h"

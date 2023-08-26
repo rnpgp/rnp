@@ -33,7 +33,6 @@
 #include "config.h"
 
 #include <librepgp/stream-packet.h>
-#include "key_store_pgp.h"
 #include "key_store_g10.h"
 
 #include "crypto/common.h"
