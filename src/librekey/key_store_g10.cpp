@@ -894,13 +894,11 @@ copy_secret_fields(pgp_key_pkt_t &dst, const pgp_key_pkt_t &src)
 }
 
 bool
-rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
-                           pgp_source_t *            src,
-                           const pgp_key_provider_t *key_provider)
+rnp_key_store_t::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
     try {
         /* read src to the memory */
-        rnp::MemorySource memsrc(*src);
+        rnp::MemorySource memsrc(src);
         /* parse secret key: fills material and sec_protection only */
         pgp_key_pkt_t seckey;
         if (!g23_parse_seckey(seckey, (uint8_t *) memsrc.memory(), memsrc.size(), NULL)) {
@@ -931,7 +929,7 @@ rnp_key_store_g10_from_src(rnp_key_store_t *         key_store,
         key.set_rawpkt(
           pgp_rawpacket_t((uint8_t *) memsrc.memory(), memsrc.size(), PGP_PKT_RESERVED));
         key.format = PGP_KEY_STORE_G10;
-        if (!key_store->add_key(key)) {
+        if (!add_key(key)) {
             return false;
         }
         return true;
