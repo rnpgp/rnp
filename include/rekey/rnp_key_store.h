@@ -155,6 +155,21 @@ class rnp_key_store_t {
     pgp_key_t *add_key(pgp_key_t &key);
 
     /**
+     * @brief Add transferable key to the keystore.
+     *
+     * @param tkey parsed key.
+     */
+    bool add_ts_key(pgp_transferable_key_t &tkey);
+
+    /**
+     * @brief Add transferable subkey to the keystore.
+     *
+     * @param tskey parsed subkey.
+     * @param pkey primary key, may be nullptr.
+     */
+    bool add_ts_subkey(const pgp_transferable_subkey_t &tskey, pgp_key_t *pkey = nullptr);
+
+    /**
      * @brief Import key to the keystore.
      *
      * @param srckey source key.
