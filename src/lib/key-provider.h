@@ -105,7 +105,7 @@ pgp_key_t *rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void 
 /** key provider callback that searches a given store
  *
  *  @param ctx
- *  @param userdata must be a pointer to rnp_key_store_t
+ *  @param userdata must be a pointer to rnp::KeyStore
  */
 pgp_key_t *rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userdata);
 

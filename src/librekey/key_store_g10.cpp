@@ -893,8 +893,9 @@ copy_secret_fields(pgp_key_pkt_t &dst, const pgp_key_pkt_t &src)
     return true;
 }
 
+namespace rnp {
 bool
-rnp_key_store_t::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
     try {
         /* read src to the memory */
@@ -938,6 +939,7 @@ rnp_key_store_t::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provi
         return false;
     }
 }
+} // namespace rnp
 
 /*
  * Write G10 S-exp to buffer

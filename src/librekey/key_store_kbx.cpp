@@ -332,6 +332,7 @@ kbx_pgp_blob_t::parse()
     return true;
 }
 
+namespace rnp {
 namespace {
 std::unique_ptr<kbx_blob_t>
 kbx_parse_blob(const uint8_t *image, size_t image_len)
@@ -379,7 +380,7 @@ kbx_parse_blob(const uint8_t *image, size_t image_len)
 } // namespace
 
 bool
-rnp_key_store_t::load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider)
 {
     try {
         rnp::MemorySource mem(src);
@@ -446,7 +447,6 @@ rnp_key_store_t::load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provi
 }
 
 namespace {
-
 bool
 pbuf(pgp_dest_t &dst, const void *buf, size_t len)
 {
@@ -478,7 +478,7 @@ pu32(pgp_dest_t &dst, uint32_t f)
 }
 
 bool
-kbx_write_header(const rnp_key_store_t &key_store, pgp_dest_t &dst)
+kbx_write_header(const KeyStore &key_store, pgp_dest_t &dst)
 {
     uint16_t flags = 0;
     uint32_t file_created_at = key_store.secctx.time();
@@ -497,9 +497,9 @@ kbx_write_header(const rnp_key_store_t &key_store, pgp_dest_t &dst)
 }
 
 bool
-kbx_write_pgp(const rnp_key_store_t &key_store, const pgp_key_t &key, pgp_dest_t &dst)
+kbx_write_pgp(const KeyStore &key_store, const pgp_key_t &key, pgp_dest_t &dst)
 {
-    rnp::MemoryDest mem(NULL, BLOB_SIZE_LIMIT);
+    MemoryDest mem(NULL, BLOB_SIZE_LIMIT);
 
     if (!pu32(mem.dst(), 0)) { // length, we don't know length of blob yet, so it's 0
         return false;
@@ -673,7 +673,7 @@ kbx_write_pgp(const rnp_key_store_t &key_store, const pgp_key_t &key, pgp_dest_t
 }
 
 bool
-kbx_write_x509(const rnp_key_store_t &key_store, pgp_dest_t &dst)
+kbx_write_x509(const KeyStore &key_store, pgp_dest_t &dst)
 {
     for (auto &blob : key_store.blobs) {
         if (blob->type() != KBX_X509_BLOB) {
@@ -688,7 +688,7 @@ kbx_write_x509(const rnp_key_store_t &key_store, pgp_dest_t &dst)
 } // namespace
 
 bool
-rnp_key_store_t::write_kbx(pgp_dest_t &dst)
+KeyStore::write_kbx(pgp_dest_t &dst)
 {
     try {
         if (!kbx_write_header(*this, dst)) {
@@ -716,3 +716,4 @@ rnp_key_store_t::write_kbx(pgp_dest_t &dst)
         return false;
     }
 }
+} // namespace rnp

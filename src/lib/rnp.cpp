@@ -604,8 +604,8 @@ ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ER
 rnp_ffi_st::rnp_ffi_st(pgp_key_store_format_t pub_fmt, pgp_key_store_format_t sec_fmt)
 {
     errs = stderr;
-    pubring = new rnp_key_store_t(pub_fmt, "", context);
-    secring = new rnp_key_store_t(sec_fmt, "", context);
+    pubring = new rnp::KeyStore(pub_fmt, "", context);
+    secring = new rnp::KeyStore(sec_fmt, "", context);
     getkeycb = NULL;
     getkeycb_ctx = NULL;
     getpasscb = NULL;
@@ -1424,7 +1424,7 @@ try {
 FFI_GUARD
 
 static rnp_result_t
-load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
+load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp::KeyStore *store)
 {
     pgp_key_provider_t        chained(rnp_key_provider_store, store);
     const pgp_key_provider_t *key_providers[] = {&chained, &ffi->key_provider, NULL};
@@ -1447,7 +1447,7 @@ load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp_key_store_t *store)
 }
 
 static bool
-key_needs_conversion(const pgp_key_t *key, const rnp_key_store_t *store)
+key_needs_conversion(const pgp_key_t *key, const rnp::KeyStore *store)
 {
     pgp_key_store_format_t key_format = key->format;
     pgp_key_store_format_t store_format = store->format;
@@ -1474,10 +1474,10 @@ do_load_keys(rnp_ffi_t              ffi,
              key_type_t             key_type)
 {
     // create a temporary key store to hold the keys
-    std::unique_ptr<rnp_key_store_t> tmp_store;
+    std::unique_ptr<rnp::KeyStore> tmp_store;
     try {
         tmp_store =
-          std::unique_ptr<rnp_key_store_t>(new rnp_key_store_t(format, "", ffi->context));
+          std::unique_ptr<rnp::KeyStore>(new rnp::KeyStore(format, "", ffi->context));
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1702,8 +1702,8 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    rnp_result_t    ret = RNP_ERROR_GENERIC;
-    rnp_key_store_t tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
+    rnp_result_t  ret = RNP_ERROR_GENERIC;
+    rnp::KeyStore tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
 
     /* check whether input is base64 */
     if (base64 && is_base64_source(input->src)) {
@@ -1885,7 +1885,7 @@ try {
 FFI_GUARD
 
 static bool
-copy_store_keys(rnp_ffi_t ffi, rnp_key_store_t *dest, rnp_key_store_t *src)
+copy_store_keys(rnp_ffi_t ffi, rnp::KeyStore *dest, rnp::KeyStore *src)
 {
     for (auto &key : src->keys) {
         if (!dest->add_key(key)) {
@@ -1903,9 +1903,9 @@ do_save_keys(rnp_ffi_t              ffi,
              key_type_t             key_type)
 {
     // create a temporary key store to hold the keys
-    rnp_key_store_t *tmp_store = NULL;
+    rnp::KeyStore *tmp_store = nullptr;
     try {
-        tmp_store = new rnp_key_store_t(format, "", ffi->context);
+        tmp_store = new rnp::KeyStore(format, "", ffi->context);
     } catch (const std::invalid_argument &e) {
         FFI_LOG(ffi, "Failed to create key store of format: %d", (int) format);
         return RNP_ERROR_BAD_PARAMETERS;
@@ -1913,7 +1913,7 @@ do_save_keys(rnp_ffi_t              ffi,
         FFI_LOG(ffi, "%s", e.what());
         return RNP_ERROR_OUT_OF_MEMORY;
     }
-    std::unique_ptr<rnp_key_store_t> tmp_store_ptr(tmp_store);
+    std::unique_ptr<rnp::KeyStore> tmp_store_ptr(tmp_store);
     // include the public keys, if desired
     if (key_type == KEY_TYPE_PUBLIC || key_type == KEY_TYPE_ANY) {
         if (!copy_store_keys(ffi, tmp_store, ffi->pubring)) {
@@ -3924,9 +3924,9 @@ try {
     }
 
     // handle flags
-    bool             armored = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
-    pgp_key_t *      key = NULL;
-    rnp_key_store_t *store = NULL;
+    bool           armored = extract_flag(flags, RNP_KEY_EXPORT_ARMORED);
+    pgp_key_t *    key = NULL;
+    rnp::KeyStore *store = nullptr;
     if (flags & RNP_KEY_EXPORT_PUBLIC) {
         extract_flag(flags, RNP_KEY_EXPORT_PUBLIC);
         key = get_key_require_public(handle);

@@ -77,8 +77,8 @@ struct rnp_symenc_handle_st {
 
 struct rnp_ffi_st {
     FILE *                  errs;
-    rnp_key_store_t *       pubring;
-    rnp_key_store_t *       secring;
+    rnp::KeyStore *         pubring;
+    rnp::KeyStore *         secring;
     rnp_get_key_cb          getkeycb;
     void *                  getkeycb_ctx;
     rnp_password_cb         getpasscb;
@@ -210,7 +210,7 @@ static_assert(RNP_LOCATOR_MAX_SIZE > MAX_ID_LENGTH, "Locator size mismatch.");
 struct rnp_identifier_iterator_st {
     rnp_ffi_t                       ffi;
     pgp_key_search_type_t           type;
-    rnp_key_store_t *               store;
+    rnp::KeyStore *                 store;
     std::list<pgp_key_t>::iterator *keyp;
     unsigned                        uididx;
     json_object *                   tbl;

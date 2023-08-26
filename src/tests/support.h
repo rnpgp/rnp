@@ -214,13 +214,13 @@ bool check_json_field_int(json_object *obj, const std::string &field, int value)
 bool check_json_field_bool(json_object *obj, const std::string &field, bool value);
 bool check_json_pkt_type(json_object *pkt, int tag);
 
-pgp_key_t *rnp_tests_get_key_by_id(rnp_key_store_t *  keyring,
+pgp_key_t *rnp_tests_get_key_by_id(rnp::KeyStore *    keyring,
                                    const std::string &keyid,
                                    pgp_key_t *        after = NULL);
-pgp_key_t *rnp_tests_get_key_by_fpr(rnp_key_store_t *keyring, const std::string &keyid);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const std::string &grip);
-pgp_key_t *rnp_tests_get_key_by_grip(rnp_key_store_t *keyring, const pgp_key_grip_t &grip);
-pgp_key_t *rnp_tests_key_search(rnp_key_store_t *keyring, const std::string &uid);
+pgp_key_t *rnp_tests_get_key_by_fpr(rnp::KeyStore *keyring, const std::string &keyid);
+pgp_key_t *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const std::string &grip);
+pgp_key_t *rnp_tests_get_key_by_grip(rnp::KeyStore *keyring, const pgp_key_grip_t &grip);
+pgp_key_t *rnp_tests_key_search(rnp::KeyStore *keyring, const std::string &uid);
 
 /* key load/reload  shortcuts */
 void reload_pubring(rnp_ffi_t *ffi);
@@ -287,7 +287,7 @@ rnp_round_up(size_t n, size_t align_to)
 /* load g10/g23 gpg key and verify that it can be
    unprotected/protected
 */
-bool test_load_gpg_check_key(rnp_key_store_t *pub, rnp_key_store_t *sec, const char *id);
+bool test_load_gpg_check_key(rnp::KeyStore *pub, rnp::KeyStore *sec, const char *id);
 
 #define MD5_FROM 1325376000
 #define SHA1_DATA_FROM 1547856000
