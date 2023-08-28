@@ -170,16 +170,14 @@ pgp_kyber_ecdh_composite_key_t::pk_alg_to_kyber_id(pgp_pubkey_alg_t pk_alg)
 {
     switch (pk_alg) {
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         return kyber_768;
     case PGP_PKA_KYBER1024_BP384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        //[[fallthrough]];
-        // case PGP_PKA_KYBER1024_X448:
         return kyber_1024;
     default:
         RNP_LOG("invalid PK alg given");
