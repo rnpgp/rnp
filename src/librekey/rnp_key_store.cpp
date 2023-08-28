@@ -616,9 +616,8 @@ KeyStore::search(const pgp_key_search_t &search, pgp_key_t *after)
     if (after) {
         it = std::next(it);
     }
-    it = std::find_if(it, keys.end(), [search](const pgp_key_t &key) {
-        return rnp_key_matches_search(&key, &search);
-    });
+    it = std::find_if(
+      it, keys.end(), [search](const pgp_key_t &key) { return key.matches(search); });
     return (it == keys.end()) ? nullptr : &(*it);
 }
 

@@ -82,17 +82,6 @@ typedef struct pgp_key_provider_t {
     pgp_key_t *request_key(const pgp_key_request_ctx_t &ctx) const;
 } pgp_key_provider_t;
 
-/** checks if a key matches search criteria
- *
- *  Note that this does not do any check on the type of key (public/secret),
- *  that is left up to the caller.
- *
- *  @param key the key to check
- *  @param search the search criteria to check against
- *  @return true if the key satisfies the search criteria, false otherwise
- **/
-bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
-
 /** key provider callback that searches a list of pgp_key_t pointers
  *
  *  @param ctx
