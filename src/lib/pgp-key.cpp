@@ -439,7 +439,7 @@ find_suitable_key(pgp_op_t            op,
                   pgp_key_provider_t *key_provider,
                   bool                no_primary)
 {
-    if (!key) {
+    if (!key || !key_provider) {
         return NULL;
     }
     bool secret = false;
@@ -462,7 +462,7 @@ find_suitable_key(pgp_op_t            op,
     pgp_key_request_ctx_t ctx(op, secret, PGP_KEY_SEARCH_FINGERPRINT);
     if (!no_primary && secret && key->is_public() && key->usable_for(op, true)) {
         ctx.search.by.fingerprint = key->fp();
-        pgp_key_t *sec = pgp_request_key(key_provider, &ctx);
+        pgp_key_t *sec = key_provider->request_key(ctx);
         if (sec && sec->usable_for(op)) {
             return sec;
         }
@@ -471,7 +471,7 @@ find_suitable_key(pgp_op_t            op,
     pgp_key_t *subkey = NULL;
     for (auto &fp : key->subkey_fps()) {
         ctx.search.by.fingerprint = fp;
-        pgp_key_t *cur = pgp_request_key(key_provider, &ctx);
+        pgp_key_t *cur = key_provider->request_key(ctx);
         if (!cur || !cur->usable_for(op)) {
             continue;
         }

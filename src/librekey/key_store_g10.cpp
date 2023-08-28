@@ -913,7 +913,7 @@ KeyStore::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider)
                 return false;
             }
 
-            const pgp_key_t *pubkey = pgp_request_key(key_provider, &req_ctx);
+            const pgp_key_t *pubkey = key_provider->request_key(req_ctx);
             if (!pubkey) {
                 return false;
             }
