@@ -123,8 +123,8 @@ load_generated_g10_key(pgp_key_t *           dst,
     // G10 needs the pubkey for copying some attributes (key version, creation time, etc)
     key_ptrs.push_back(pubkey);
 
-    rnp::MemorySource  memsrc(memdst.memory(), memdst.writeb(), false);
-    pgp_key_provider_t prov(rnp_key_provider_key_ptr_list, &key_ptrs);
+    rnp::MemorySource memsrc(memdst.memory(), memdst.writeb(), false);
+    rnp::KeyProvider  prov(rnp_key_provider_key_ptr_list, &key_ptrs);
     if (!key_store.get()->load_g10(memsrc.src(), &prov)) {
         return false;
     }

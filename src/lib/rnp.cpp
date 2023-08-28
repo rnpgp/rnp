@@ -1426,9 +1426,9 @@ FFI_GUARD
 static rnp_result_t
 load_keys_from_input(rnp_ffi_t ffi, rnp_input_t input, rnp::KeyStore *store)
 {
-    pgp_key_provider_t        chained(rnp_key_provider_store, store);
-    const pgp_key_provider_t *key_providers[] = {&chained, &ffi->key_provider, NULL};
-    const pgp_key_provider_t  key_provider(rnp_key_provider_chained, key_providers);
+    rnp::KeyProvider        chained(rnp_key_provider_store, store);
+    const rnp::KeyProvider *key_providers[] = {&chained, &ffi->key_provider, NULL};
+    const rnp::KeyProvider  key_provider(rnp_key_provider_chained, key_providers);
 
     if (!input->src_directory.empty()) {
         // load the keys
@@ -2808,10 +2808,9 @@ static pgp_write_handler_t
 pgp_write_handler(pgp_password_provider_t *pass_provider,
                   rnp_ctx_t *              rnpctx,
                   void *                   param,
-                  pgp_key_provider_t *     key_provider)
+                  rnp::KeyProvider *       key_provider)
 {
-    pgp_write_handler_t handler;
-    memset(&handler, 0, sizeof(handler));
+    pgp_write_handler_t handler{};
     handler.password_provider = pass_provider;
     handler.ctx = rnpctx;
     handler.param = param;
@@ -3340,7 +3339,7 @@ try {
     handler.password_provider = &op->ffi->pass_provider;
 
     rnp_decryption_kp_param_t kparam(op);
-    pgp_key_provider_t        kprov = {ffi_decrypt_key_provider, &kparam};
+    rnp::KeyProvider          kprov(ffi_decrypt_key_provider, &kparam);
 
     handler.key_provider = &kprov;
     handler.on_signatures = rnp_op_verify_on_signatures;

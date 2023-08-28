@@ -380,12 +380,12 @@ kbx_parse_blob(const uint8_t *image, size_t image_len)
 } // namespace
 
 bool
-KeyStore::load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load_kbx(pgp_source_t &src, const KeyProvider *key_provider)
 {
     try {
-        rnp::MemorySource mem(src);
-        size_t            has_bytes = mem.size();
-        uint8_t *         buf = (uint8_t *) mem.memory();
+        MemorySource mem(src);
+        size_t       has_bytes = mem.size();
+        uint8_t *    buf = (uint8_t *) mem.memory();
 
         if (has_bytes < BLOB_FIRST_SIZE) {
             RNP_LOG("Too few bytes for valid KBX");
@@ -425,9 +425,9 @@ KeyStore::load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider)
                     return false;
                 }
 
-                rnp::MemorySource blsrc(pgp_blob.image().data() + pgp_blob.keyblock_offset(),
-                                        pgp_blob.keyblock_length(),
-                                        false);
+                MemorySource blsrc(pgp_blob.image().data() + pgp_blob.keyblock_offset(),
+                                   pgp_blob.keyblock_length(),
+                                   false);
                 if (load_pgp(blsrc.src())) {
                     return false;
                 }

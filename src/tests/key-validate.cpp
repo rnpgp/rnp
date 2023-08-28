@@ -97,7 +97,7 @@ TEST_F(rnp_tests, test_key_validate)
 
     secring =
       new rnp::KeyStore(PGP_KEY_STORE_G10, "data/keyrings/3/private-keys-v1.d", global_ctx);
-    pgp_key_provider_t key_provider(rnp_key_provider_store, pubring);
+    rnp::KeyProvider key_provider(rnp_key_provider_store, pubring);
     assert_true(secring->load(&key_provider));
     assert_true(all_keys_valid(secring));
     delete pubring;

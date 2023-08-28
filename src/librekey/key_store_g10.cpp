@@ -895,11 +895,11 @@ copy_secret_fields(pgp_key_pkt_t &dst, const pgp_key_pkt_t &src)
 
 namespace rnp {
 bool
-KeyStore::load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load_g10(pgp_source_t &src, const KeyProvider *key_provider)
 {
     try {
         /* read src to the memory */
-        rnp::MemorySource memsrc(src);
+        MemorySource memsrc(src);
         /* parse secret key: fills material and sec_protection only */
         pgp_key_pkt_t seckey;
         if (!g23_parse_seckey(seckey, (uint8_t *) memsrc.memory(), memsrc.size(), NULL)) {

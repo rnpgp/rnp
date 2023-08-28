@@ -83,7 +83,7 @@ struct rnp_ffi_st {
     void *                  getkeycb_ctx;
     rnp_password_cb         getpasscb;
     void *                  getpasscb_ctx;
-    pgp_key_provider_t      key_provider;
+    rnp::KeyProvider        key_provider;
     pgp_password_provider_t pass_provider;
     rnp::SecurityContext    context;
 
