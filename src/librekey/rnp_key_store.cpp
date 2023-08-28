@@ -60,7 +60,7 @@
 
 namespace rnp {
 bool
-KeyStore::load(const pgp_key_provider_t *key_provider)
+KeyStore::load(const KeyProvider *key_provider)
 {
     pgp_source_t src = {};
 
@@ -101,7 +101,7 @@ KeyStore::load(const pgp_key_provider_t *key_provider)
 }
 
 bool
-KeyStore::load(pgp_source_t &src, const pgp_key_provider_t *key_provider)
+KeyStore::load(pgp_source_t &src, const KeyProvider *key_provider)
 {
     switch (format) {
     case PGP_KEY_STORE_GPG:
@@ -622,7 +622,7 @@ KeyStore::search(const pgp_key_search_t &search, pgp_key_t *after)
 }
 
 pgp_key_t *
-KeyStore::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov)
+KeyStore::get_signer(const pgp_signature_t &sig, const KeyProvider *prov)
 {
     pgp_key_request_ctx_t ctx(PGP_OP_VERIFY, false, PGP_KEY_SEARCH_UNKNOWN);
     /* if we have fingerprint let's check it */

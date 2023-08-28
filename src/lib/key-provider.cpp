@@ -33,8 +33,9 @@
 #include "utils.h"
 #include <rekey/rnp_key_store.h>
 
+namespace rnp {
 pgp_key_t *
-pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
+KeyProvider::request_key(const pgp_key_request_ctx_t &ctx) const
 {
     pgp_key_t *key = nullptr;
     if (!callback) {
@@ -49,6 +50,7 @@ pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
     }
     return key;
 }
+} // namespace rnp
 
 pgp_key_t *
 rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
@@ -65,11 +67,11 @@ rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 pgp_key_t *
 rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
-    for (pgp_key_provider_t **pprovider = (pgp_key_provider_t **) userdata;
+    for (rnp::KeyProvider **pprovider = (rnp::KeyProvider **) userdata;
          pprovider && *pprovider;
          pprovider++) {
-        pgp_key_provider_t *provider = *pprovider;
-        pgp_key_t *         key = NULL;
+        auto       provider = *pprovider;
+        pgp_key_t *key = nullptr;
         if ((key = provider->callback(ctx, provider->userdata))) {
             return key;
         }

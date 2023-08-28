@@ -649,10 +649,10 @@ bool pgp_subkey_set_expiration(pgp_key_t *                    sub,
  *  @returns key or last created subkey with desired usage flag
  *           set or NULL if not found
  */
-pgp_key_t *find_suitable_key(pgp_op_t            op,
-                             pgp_key_t *         key,
-                             pgp_key_provider_t *key_provider,
-                             bool                no_primary = false);
+pgp_key_t *find_suitable_key(pgp_op_t          op,
+                             pgp_key_t *       key,
+                             rnp::KeyProvider *key_provider,
+                             bool              no_primary = false);
 
 /*
  *  Picks up hash algorithm according to domain parameters set

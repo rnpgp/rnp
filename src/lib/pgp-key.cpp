@@ -434,10 +434,7 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
 }
 
 pgp_key_t *
-find_suitable_key(pgp_op_t            op,
-                  pgp_key_t *         key,
-                  pgp_key_provider_t *key_provider,
-                  bool                no_primary)
+find_suitable_key(pgp_op_t op, pgp_key_t *key, rnp::KeyProvider *key_provider, bool no_primary)
 {
     if (!key || !key_provider) {
         return NULL;

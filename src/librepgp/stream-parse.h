@@ -60,9 +60,9 @@ typedef void pgp_decryption_done_func_t(bool validated, void *param);
 /* handler used to return needed information during pgp source processing */
 typedef struct pgp_parse_handler_t {
     pgp_password_provider_t *password_provider; /* if NULL then default will be used */
-    pgp_key_provider_t *     key_provider; /* must be set when key is required, i.e. during
-                                              signing/verification/public key encryption and
-                                              deryption */
+    rnp::KeyProvider *       key_provider; /* must be set when key is required, i.e. during
+                                                signing/verification/public key encryption and
+                                                deryption */
     pgp_destination_func_t *dest_provider; /* called when destination stream is required */
     pgp_source_func_t *     src_provider;  /* required to provider source during the detached
                                               signature verification */

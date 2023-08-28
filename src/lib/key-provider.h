@@ -67,11 +67,13 @@ typedef struct pgp_key_request_ctx_t {
 
 typedef pgp_key_t *pgp_key_callback_t(const pgp_key_request_ctx_t *ctx, void *userdata);
 
-typedef struct pgp_key_provider_t {
+namespace rnp {
+class KeyProvider {
+  public:
     pgp_key_callback_t *callback;
     void *              userdata;
 
-    pgp_key_provider_t(pgp_key_callback_t *cb = nullptr, void *ud = nullptr)
+    KeyProvider(pgp_key_callback_t *cb = nullptr, void *ud = nullptr)
         : callback(cb), userdata(ud){};
 
     /** @brief request public or secret pgp key, according to information stored in ctx
@@ -80,7 +82,8 @@ typedef struct pgp_key_provider_t {
      *  @return a key pointer on success, or nullptr if key was not found otherwise
      **/
     pgp_key_t *request_key(const pgp_key_request_ctx_t &ctx) const;
-} pgp_key_provider_t;
+};
+} // namespace rnp
 
 /** key provider callback that searches a list of pgp_key_t pointers
  *
@@ -99,8 +102,8 @@ pgp_key_t *rnp_key_provider_store(const pgp_key_request_ctx_t *ctx, void *userda
 /** key provider that calls other key providers
  *
  *  @param ctx
- *  @param userdata must be an array pgp_key_provider_t pointers,
- *         ending with a NULL.
+ *  @param userdata must be an array rnp::KeyProvider pointers,
+ *         ending with a nullptr.
  */
 pgp_key_t *rnp_key_provider_chained(const pgp_key_request_ctx_t *ctx, void *userdata);
 

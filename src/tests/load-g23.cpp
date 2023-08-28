@@ -34,7 +34,7 @@
  */
 TEST_F(rnp_tests, test_load_g23)
 {
-    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
 
     /* another store */
     auto pub_store = new rnp::KeyStore(
