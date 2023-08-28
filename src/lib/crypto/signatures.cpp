@@ -196,20 +196,20 @@ signature_calculate(pgp_signature_t &     sig,
     }
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         ret = seckey.dilithium_exdsa.priv.sign(
           &ctx.rng, &material.dilithium_exdsa, hash_alg, hval, hlen);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         ret = seckey.sphincsplus.priv.sign(&ctx.rng, &material.sphincsplus, hval, hlen);
         break;
@@ -256,7 +256,7 @@ signature_validate(const pgp_signature_t &     sig,
     bool hash_alg_valid = false;
     switch (key.alg) {
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         hash_alg_valid = key.sphincsplus.pub.validate_signature_hash_requirements(hash.alg());
         break;
@@ -339,20 +339,20 @@ signature_validate(const pgp_signature_t &     sig,
         break;
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         ret =
           key.dilithium_exdsa.pub.verify(&material.dilithium_exdsa, hash.alg(), hval, hlen);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         ret = key.sphincsplus.pub.verify(&material.sphincsplus, hval, hlen);
         break;

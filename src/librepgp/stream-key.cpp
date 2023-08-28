@@ -545,7 +545,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         if (key.version == PGP_V6) {
             break; /* checksum removed for v6 and usage byte zero */
         }
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
 #endif
     case PGP_S2KU_ENCRYPTED: {
         /* calculate and check sum16 of the cleartext */
@@ -658,14 +658,14 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
 #endif
 #if defined(ENABLE_PQC)
         case PGP_PKA_KYBER768_X25519:
-            [[fallthrough]];
-        // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
+        // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER768_P256:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER1024_P384:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER768_BP256:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER1024_BP384:
             tmpbuf.resize(pgp_kyber_ecdh_composite_private_key_t::encoded_size(key.alg));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
@@ -676,14 +676,14 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
               pgp_kyber_ecdh_composite_private_key_t(tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
         case PGP_PKA_DILITHIUM3_ED25519:
-            [[fallthrough]];
-        // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
+        // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM3_P256:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_P384:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM3_BP256:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_BP384:
             tmpbuf.resize(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(key.alg));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
@@ -694,7 +694,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
               tmpbuf.data(), tmpbuf.size(), key.alg);
             break;
         case PGP_PKA_SPHINCSPLUS_SHA2:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case PGP_PKA_SPHINCSPLUS_SHAKE: {
             uint8_t param;
             if (!body.get(param)) {
@@ -844,31 +844,31 @@ write_secret_key_mpis(pgp_packet_body_t &body, pgp_key_pkt_t &key)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         body.add(key.material.kyber_ecdh.priv.get_encoded());
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         body.add(key.material.dilithium_exdsa.priv.get_encoded());
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         body.add_byte((uint8_t) key.material.sphincsplus.priv.param());
         body.add(key.material.sphincsplus.priv.get_encoded());
@@ -1029,28 +1029,28 @@ forget_secret_key_fields(pgp_key_material_t *key)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         key->dilithium_exdsa.priv.secure_clear();
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         key->sphincsplus.priv.secure_clear();
         break;
@@ -1403,9 +1403,9 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     }
     switch (ver) {
     case PGP_V2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V3:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V4:
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -1517,14 +1517,14 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         tmpbuf.resize(pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
@@ -1534,14 +1534,14 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         material.kyber_ecdh.pub = pgp_kyber_ecdh_composite_public_key_t(tmpbuf, alg);
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         tmpbuf.resize(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
@@ -1551,7 +1551,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         uint8_t param;
         if (!pkt.get(param)) {
@@ -1717,31 +1717,31 @@ pgp_key_pkt_t::make_alg_spec_fields_for_public_key(pgp_packet_body_t &hbody)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         hbody.add(material.kyber_ecdh.pub.get_encoded());
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         hbody.add(material.dilithium_exdsa.pub.get_encoded());
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         hbody.add_byte((uint8_t) material.sphincsplus.pub.param());
         hbody.add(material.sphincsplus.pub.get_encoded());
