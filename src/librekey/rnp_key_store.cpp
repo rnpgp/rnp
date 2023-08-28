@@ -642,7 +642,7 @@ KeyStore::get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov)
     if (key || !prov) {
         return key;
     }
-    return pgp_request_key(prov, &ctx);
+    return prov->request_key(ctx);
 }
 
 KeyStore::KeyStore(pgp_key_store_format_t _format,

@@ -71,8 +71,15 @@ typedef struct pgp_key_provider_t {
     pgp_key_callback_t *callback;
     void *              userdata;
 
-    pgp_key_provider_t(pgp_key_callback_t *cb = NULL, void *ud = NULL)
+    pgp_key_provider_t(pgp_key_callback_t *cb = nullptr, void *ud = nullptr)
         : callback(cb), userdata(ud){};
+
+    /** @brief request public or secret pgp key, according to information stored in ctx
+     *  @param ctx information about the request - which operation requested the key, which
+     *search criteria should be used and whether secret or public key is needed
+     *  @return a key pointer on success, or nullptr if key was not found otherwise
+     **/
+    pgp_key_t *request_key(const pgp_key_request_ctx_t &ctx) const;
 } pgp_key_provider_t;
 
 /** checks if a key matches search criteria
@@ -85,15 +92,6 @@ typedef struct pgp_key_provider_t {
  *  @return true if the key satisfies the search criteria, false otherwise
  **/
 bool rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search);
-
-/** @brief request public or secret pgp key, according to information stored in ctx
- *  @param ctx information about the request - which operation requested the key, which search
- *  criteria should be used and whether secret or public key is needed
- *  @param key pointer to the key structure will be stored here on success
- *  @return a key pointer on success, or NULL if key was not found otherwise
- **/
-pgp_key_t *pgp_request_key(const pgp_key_provider_t *   provider,
-                           const pgp_key_request_ctx_t *ctx);
 
 /** key provider callback that searches a list of pgp_key_t pointers
  *
