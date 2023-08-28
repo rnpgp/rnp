@@ -412,17 +412,17 @@ exdsa_gen_keypair_native(rnp::RNG *            rng,
         alg = PGP_PKA_EDDSA;
         break;
     case PGP_CURVE_NIST_P_256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_NIST_P_384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_NIST_P_521:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP512:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_P256K1:
         alg = PGP_PKA_ECDSA;
         break;

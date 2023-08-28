@@ -1243,14 +1243,14 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
         uint8_t wrapped_key_len = 0;
         material.kyber_ecdh.composite_ciphertext.resize(
@@ -1316,14 +1316,14 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         pktbody.add(material.kyber_ecdh.composite_ciphertext);
         pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()));

@@ -338,18 +338,18 @@ sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
     case PGP_PKA_SPHINCSPLUS_SHA2:
         switch (sphincsplus_param) {
         case sphincsplus_simple_128s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_128f:
             if (hash_alg != PGP_HASH_SHA256) {
                 return false;
             }
             break;
         case sphincsplus_simple_192s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_192f:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_256s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_256f:
             if (hash_alg != PGP_HASH_SHA512) {
                 return false;
@@ -360,18 +360,18 @@ sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         switch (sphincsplus_param) {
         case sphincsplus_simple_128s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_128f:
             if (hash_alg != PGP_HASH_SHA3_256) {
                 return false;
             }
             break;
         case sphincsplus_simple_192s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_192f:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_256s:
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         case sphincsplus_simple_256f:
             if (hash_alg != PGP_HASH_SHA3_512) {
                 return false;

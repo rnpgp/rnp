@@ -828,20 +828,20 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         dst_print_vec(
           dst, "dilithium-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         dst_print_vec(dst, "sphincs+ sig", material.sphincsplus.sig, ctx->dump_mpi);
         break;
@@ -950,14 +950,14 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         dst_print_vec(dst,
                       "kyber-ecdh encoded pubkey",
@@ -965,14 +965,14 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                       ctx->dump_mpi);
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         dst_print_vec(dst,
                       "dilithium-ecdsa/eddsa encodced pubkey",
@@ -980,7 +980,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
                       ctx->dump_mpi);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         dst_print_vec(dst,
                       "sphincs+ encoded pubkey",
@@ -1161,14 +1161,14 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         dst_print_vec(dst,
                       "kyber-ecdh composite ciphertext",
@@ -1988,19 +1988,19 @@ stream_dump_signature_pkt_json(rnp_dump_ctx_t *       ctx,
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         /* TODO */
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         /* TODO */
         break;
@@ -2126,31 +2126,31 @@ stream_dump_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object *pkt)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         // TODO
         break;
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         /* TODO */
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         /* TODO */
         break;
@@ -2292,14 +2292,14 @@ stream_dump_pk_session_key_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_obj
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         // TODO
         break;

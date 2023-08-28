@@ -50,9 +50,9 @@ signature_hash_key(const pgp_key_pkt_t &key, rnp::Hash &hash)
 {
     switch (key.version) {
     case PGP_V2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V3:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V4: {
         uint8_t hdr[3] = {0x99, 0x00, 0x00};
         if (key.hashed_data) {
@@ -1450,13 +1450,13 @@ pgp_signature_t::parse(pgp_packet_body_t &pkt)
     rnp_result_t res;
     switch (ver) {
     case PGP_V2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V3:
         res = parse_v2v3(pkt);
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_V6:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
 #endif
     case PGP_V4:
         res = parse_v4up(pkt);
@@ -1546,9 +1546,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         if (version < PGP_V4) {
             RNP_LOG("Warning! v3 EdDSA signature.");
         }
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_ECDSA:
     case PGP_PKA_SM2:
     case PGP_PKA_ECDH:
@@ -1575,14 +1573,14 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         material.dilithium_exdsa.sig.resize(
           pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
@@ -1593,7 +1591,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
         }
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         uint8_t param;
         if (!pkt.get(param)) {
@@ -1627,9 +1625,9 @@ pgp_signature_t::write(pgp_dest_t &dst) const
 {
     switch (version) {
     case PGP_V2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V3:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V4:
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -1700,19 +1698,19 @@ pgp_signature_t::write_material(const pgp_signature_material_t &material)
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         pktbody.add(material.dilithium_exdsa.sig);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         pktbody.add_byte((uint8_t) material.sphincsplus.param);
         pktbody.add(material.sphincsplus.sig);
@@ -1738,9 +1736,9 @@ pgp_signature_t::fill_hashed_data()
     /* we don't have a need to write v2-v3 signatures */
     switch (version) {
     case PGP_V2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V3:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_V4:
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)

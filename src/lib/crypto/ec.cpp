@@ -199,17 +199,17 @@ is_generic_prime_curve(pgp_curve_t curve)
 {
     switch (curve) {
     case PGP_CURVE_NIST_P_256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_NIST_P_384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_NIST_P_521:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_BP512:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_CURVE_P256K1:
         return true;
     default:

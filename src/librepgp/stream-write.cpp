@@ -722,14 +722,14 @@ encrypted_add_recipient(pgp_write_handler_t *handler,
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         ret = userkey->material().kyber_ecdh.pub.encrypt(
           &handler->ctx->ctx->rng, &material.kyber_ecdh, enckey.data(), enckey_len);
