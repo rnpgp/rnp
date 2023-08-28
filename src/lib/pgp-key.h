@@ -348,6 +348,15 @@ struct pgp_key_t {
      * @brief Write key to vector.
      */
     std::vector<uint8_t> write_vec() const;
+    /** checks if a key matches search criteria
+     *
+     *  Note that this does not do any check on the type of key (public/secret),
+     *  that is left up to the caller.
+     *
+     *  @param search the search criteria to check against
+     *  @return true if the key satisfies the search criteria, false otherwise
+     **/
+    bool matches(const pgp_key_search_t &search) const;
     /**
      * @brief Get the latest valid self-signature with information about the primary key for
      *        the specified uid (including the special cases). It could be userid certification

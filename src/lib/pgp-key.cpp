@@ -1753,6 +1753,28 @@ pgp_key_t::write_vec() const
     return dst.to_vector();
 }
 
+bool
+pgp_key_t::matches(const pgp_key_search_t &search) const
+{
+    switch (search.type) {
+    case PGP_KEY_SEARCH_KEYID:
+        return (keyid() == search.by.keyid) || (search.by.keyid == pgp_key_id_t({}));
+    case PGP_KEY_SEARCH_FINGERPRINT:
+        return fp() == search.by.fingerprint;
+    case PGP_KEY_SEARCH_GRIP:
+        return grip() == search.by.grip;
+    case PGP_KEY_SEARCH_USERID:
+        if (has_uid(search.by.userid)) {
+            return true;
+        }
+        break;
+    default:
+        assert(false);
+        break;
+    }
+    return false;
+}
+
 /* look only for primary userids */
 #define PGP_UID_PRIMARY ((uint32_t) -2)
 /* look for any uid, except PGP_UID_NONE) */

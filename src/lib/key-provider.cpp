@@ -33,31 +33,6 @@
 #include "utils.h"
 #include <rekey/rnp_key_store.h>
 
-bool
-rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
-{
-    if (!key) {
-        return false;
-    }
-    switch (search->type) {
-    case PGP_KEY_SEARCH_KEYID:
-        return (key->keyid() == search->by.keyid) || (search->by.keyid == pgp_key_id_t({}));
-    case PGP_KEY_SEARCH_FINGERPRINT:
-        return key->fp() == search->by.fingerprint;
-    case PGP_KEY_SEARCH_GRIP:
-        return key->grip() == search->by.grip;
-    case PGP_KEY_SEARCH_USERID:
-        if (key->has_uid(search->by.userid)) {
-            return true;
-        }
-        break;
-    default:
-        assert(false);
-        break;
-    }
-    return false;
-}
-
 pgp_key_t *
 pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
 {
@@ -69,7 +44,7 @@ pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
         return nullptr;
     }
     // confirm that the key actually matches the search criteria
-    if (!rnp_key_matches_search(key, &ctx.search) && key->is_secret() == ctx.secret) {
+    if (!key->matches(ctx.search) && key->is_secret() == ctx.secret) {
         return nullptr;
     }
     return key;
@@ -80,7 +55,7 @@ rnp_key_provider_key_ptr_list(const pgp_key_request_ctx_t *ctx, void *userdata)
 {
     std::vector<pgp_key_t *> *key_list = (std::vector<pgp_key_t *> *) userdata;
     for (auto key : *key_list) {
-        if (rnp_key_matches_search(key, &ctx->search) && (key->is_secret() == ctx->secret)) {
+        if (key->matches(ctx->search) && (key->is_secret() == ctx->secret)) {
             return key;
         }
     }
