@@ -52,9 +52,7 @@ get_short_cmd(int ch)
     case 'l':
         return CMD_LIST_KEYS;
     case 'h':
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     default:
         return CMD_HELP;
     }

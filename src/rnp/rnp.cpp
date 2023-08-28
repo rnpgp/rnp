@@ -307,9 +307,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
         break;
     case CMD_CLEARSIGN:
         cfg.set_bool(CFG_CLEARTEXT, true);
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     case CMD_SIGN:
         cfg.set_bool(CFG_NEEDSSECKEY, true);
         cfg.set_bool(CFG_SIGN_NEEDED, true);
@@ -326,9 +324,7 @@ setcmd(rnp_cfg &cfg, int cmd, const char *arg)
     case CMD_VERIFY:
         /* single verify will discard output, decrypt will not */
         cfg.set_bool(CFG_NO_OUTPUT, true);
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     case CMD_VERIFY_CAT:
         newcmd = CMD_PROCESS;
         break;
@@ -607,9 +603,7 @@ set_short_option(rnp_cfg &cfg, int ch, const char *arg)
         cfg.set_bool(CFG_KEYSTORE_DISABLED, true);
         break;
     case 'h':
-#if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-        [[fallthrough]];
-#endif
+        FALLTHROUGH_STATEMENT;
     default:
         return setcmd(cfg, CMD_HELP, optarg);
     }

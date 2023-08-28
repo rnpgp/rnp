@@ -209,30 +209,30 @@ pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg)
 
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         return PGP_KF_ENCRYPT;
 
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         return pgp_key_flags_t(PGP_KF_SIGN | PGP_KF_CERTIFY | PGP_KF_AUTH);
 #endif
@@ -2783,11 +2783,11 @@ pgp_key_material_t::curve() const
 {
     switch (alg) {
     case PGP_PKA_ECDH:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_ECDSA:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_EDDSA:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SM2:
         return ec.curve;
 #if defined(ENABLE_CRYPTO_REFRESH)
@@ -2815,16 +2815,16 @@ pgp_key_material_t::bits() const
     case PGP_PKA_ELGAMAL_ENCRYPT_OR_SIGN:
         return 8 * mpi_bytes(&eg.y);
     case PGP_PKA_ECDH:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_ECDSA:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_EDDSA:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_ED25519:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_X25519:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
 #endif
     case PGP_PKA_SM2: {
         /* handle ecc cases */
@@ -2833,29 +2833,29 @@ pgp_key_material_t::bits() const
     }
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
-        [[fallthrough]];
-    // TODO add case PGP_PKA_KYBER1024_X448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO add case PGP_PKA_KYBER1024_X448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         return 8 * kyber_ecdh.pub.get_encoded().size(); /* public key length */
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
-    // TODO: add case PGP_PKA_DILITHIUM5_ED448: [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
+    // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         return 8 * dilithium_exdsa.pub.get_encoded().size(); /* public key length*/
     case PGP_PKA_SPHINCSPLUS_SHA2:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         return 8 * sphincsplus.pub.get_encoded().size(); /* public key length */
 #endif

@@ -142,16 +142,14 @@ pgp_dilithium_exdsa_composite_key_t::pk_alg_to_dilithium_id(pgp_pubkey_alg_t pk_
 {
     switch (pk_alg) {
     case PGP_PKA_DILITHIUM3_ED25519:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_P256:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM3_BP256:
         return dilithium_L3;
     case PGP_PKA_DILITHIUM5_BP384:
-        [[fallthrough]];
+        FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_P384:
-        //[[fallthrough]];
-        // case PGP_PKA_DILITHIUM5_ED448:
         return dilithium_L5;
     default:
         RNP_LOG("invalid PK alg given");

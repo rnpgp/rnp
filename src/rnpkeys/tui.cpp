@@ -311,7 +311,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
 #if defined(ENABLE_CRYPTO_REFRESH)
         case 21: {
             cfg.set_str(CFG_KG_V6_KEY, "true");
-            [[fallthrough]];
+            FALLTHROUGH_STATEMENT;
         }
 #endif
         case 22: {
