@@ -44,7 +44,7 @@ pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
         return nullptr;
     }
     // confirm that the key actually matches the search criteria
-    if (!key->matches(ctx.search) && key->is_secret() == ctx.secret) {
+    if (!key->matches(ctx.search) || (key->is_secret() != ctx.secret)) {
         return nullptr;
     }
     return key;
