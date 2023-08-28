@@ -5863,7 +5863,7 @@ get_key_require_public(rnp_key_handle_t handle)
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
         request.search.by.fingerprint = handle->sec->fp();
-        handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
+        handle->pub = handle->ffi->key_provider.request_key(request);
         if (handle->pub) {
             return handle->pub;
         }
@@ -5871,7 +5871,7 @@ get_key_require_public(rnp_key_handle_t handle)
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
         request.search.by.keyid = handle->sec->keyid();
-        handle->pub = pgp_request_key(&handle->ffi->key_provider, &request);
+        handle->pub = handle->ffi->key_provider.request_key(request);
     }
     return handle->pub;
 }
@@ -5893,7 +5893,7 @@ get_key_require_secret(rnp_key_handle_t handle)
         // try fingerprint
         request.search.type = PGP_KEY_SEARCH_FINGERPRINT;
         request.search.by.fingerprint = handle->pub->fp();
-        handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
+        handle->sec = handle->ffi->key_provider.request_key(request);
         if (handle->sec) {
             return handle->sec;
         }
@@ -5901,7 +5901,7 @@ get_key_require_secret(rnp_key_handle_t handle)
         // try keyid
         request.search.type = PGP_KEY_SEARCH_KEYID;
         request.search.by.keyid = handle->pub->keyid();
-        handle->sec = pgp_request_key(&handle->ffi->key_provider, &request);
+        handle->sec = handle->ffi->key_provider.request_key(request);
     }
     return handle->sec;
 }

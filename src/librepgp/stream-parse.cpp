@@ -874,11 +874,11 @@ signed_validate_signature(pgp_source_signed_param_t &param, pgp_signature_info_t
         return;
     }
     /* Get the public key */
-    pgp_key_t *key = pgp_request_key(param.handler->key_provider, &keyctx);
+    pgp_key_t *key = param.handler->key_provider->request_key(keyctx);
     if (!key) {
         /* fallback to secret key */
         keyctx.secret = true;
-        if (!(key = pgp_request_key(param.handler->key_provider, &keyctx))) {
+        if (!(key = param.handler->key_provider->request_key(keyctx))) {
             RNP_LOG("signer's key not found");
             sinfo.no_signer = true;
             return;
@@ -2408,7 +2408,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
 #endif
 
             /* Get the key if any */
-            pgp_key_t *seckey = pgp_request_key(handler->key_provider, &keyctx);
+            pgp_key_t *seckey = handler->key_provider->request_key(keyctx);
             if (!seckey) {
                 pubidx++;
                 continue;

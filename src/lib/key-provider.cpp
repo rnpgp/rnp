@@ -59,18 +59,18 @@ rnp_key_matches_search(const pgp_key_t *key, const pgp_key_search_t *search)
 }
 
 pgp_key_t *
-pgp_request_key(const pgp_key_provider_t *provider, const pgp_key_request_ctx_t *ctx)
+pgp_key_provider_t::request_key(const pgp_key_request_ctx_t &ctx) const
 {
-    pgp_key_t *key = NULL;
-    if (!provider || !provider->callback || !ctx) {
-        return NULL;
+    pgp_key_t *key = nullptr;
+    if (!callback) {
+        return key;
     }
-    if (!(key = provider->callback(ctx, provider->userdata))) {
-        return NULL;
+    if (!(key = callback(&ctx, userdata))) {
+        return nullptr;
     }
     // confirm that the key actually matches the search criteria
-    if (!rnp_key_matches_search(key, &ctx->search) && key->is_secret() == ctx->secret) {
-        return NULL;
+    if (!rnp_key_matches_search(key, &ctx.search) && key->is_secret() == ctx.secret) {
+        return nullptr;
     }
     return key;
 }
