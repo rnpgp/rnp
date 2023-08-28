@@ -90,12 +90,12 @@ class KeyStore {
     /**
      * @brief Try to load key store from path.
      */
-    bool load(const pgp_key_provider_t *key_provider = nullptr);
+    bool load(const KeyProvider *key_provider = nullptr);
 
     /**
      * @brief Try to load key store from source.
      */
-    bool load(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+    bool load(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
     /**
      * @brief Load all keys from the source, assuming openpgp format.
@@ -117,12 +117,12 @@ class KeyStore {
     /**
      * @brief Load keystore in kbx format.
      */
-    bool load_kbx(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+    bool load_kbx(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
     /**
      * @brief Load keystore in g10 format.
      */
-    bool load_g10(pgp_source_t &src, const pgp_key_provider_t *key_provider = nullptr);
+    bool load_g10(pgp_source_t &src, const KeyProvider *key_provider = nullptr);
 
     /**
      * @brief Write keystore to the path.
@@ -168,7 +168,7 @@ class KeyStore {
      * @param prov key provider to request needed key.
      * @return pointer to the key or nullptr if signer's key was not found.
      */
-    pgp_key_t *get_signer(const pgp_signature_t &sig, pgp_key_provider_t *prov = nullptr);
+    pgp_key_t *get_signer(const pgp_signature_t &sig, const KeyProvider *prov = nullptr);
 
     /**
      * @brief Add key to the keystore, copying it.

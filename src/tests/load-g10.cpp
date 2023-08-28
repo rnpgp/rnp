@@ -31,7 +31,7 @@
 
 TEST_F(rnp_tests, test_invalid_g10)
 {
-    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
     // load pubring
     auto pub_store =
       new rnp::KeyStore(PGP_KEY_STORE_KBX, "data/keyrings/3/pubring.kbx", global_ctx);
@@ -53,7 +53,7 @@ TEST_F(rnp_tests, test_invalid_g10)
  */
 TEST_F(rnp_tests, test_load_g10)
 {
-    pgp_key_provider_t key_provider(rnp_key_provider_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store);
 
     // load pubring
     auto pub_store =

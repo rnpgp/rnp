@@ -39,7 +39,7 @@ TEST_F(rnp_tests, key_grip)
 
     auto sec_store = new rnp::KeyStore(
       PGP_KEY_STORE_G10, "data/test_stream_key_load/g10/private-keys-v1.d", global_ctx);
-    pgp_key_provider_t key_provider(rnp_key_provider_store, pub_store);
+    rnp::KeyProvider key_provider(rnp_key_provider_store, pub_store);
     assert_true(sec_store->load(&key_provider));
 
     const pgp_key_t *key = NULL;

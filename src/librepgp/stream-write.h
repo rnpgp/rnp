@@ -35,11 +35,11 @@
 #include "stream-ctx.h"
 
 typedef struct pgp_write_handler_t {
-    pgp_password_provider_t *password_provider;
-    pgp_key_provider_t *     key_provider;
-    rnp_ctx_t *              ctx;
+    pgp_password_provider_t *password_provider{};
+    rnp::KeyProvider *       key_provider{};
+    rnp_ctx_t *              ctx{};
 
-    void *param;
+    void *param{};
 } pgp_write_handler_t;
 
 /** @brief sign the input data, producing attached, detached or cleartext signature.
