@@ -63,6 +63,7 @@ class KeyStore {
     pgp_key_t *             add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey);
     pgp_sig_import_status_t import_subkey_signature(pgp_key_t &            key,
                                                     const pgp_signature_t &sig);
+    bool                    refresh_subkey_grips(pgp_key_t &key);
 
   public:
     std::string            path;
