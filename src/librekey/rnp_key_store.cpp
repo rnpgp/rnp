@@ -217,16 +217,15 @@ KeyStore::key_count() const
     return keys.size();
 }
 
-namespace {
 bool
-rnp_key_store_refresh_subkey_grips(KeyStore *keyring, pgp_key_t *key)
+KeyStore::refresh_subkey_grips(pgp_key_t &key)
 {
-    if (key->is_subkey()) {
+    if (key.is_subkey()) {
         RNP_LOG("wrong argument");
         return false;
     }
 
-    for (auto &skey : keyring->keys) {
+    for (auto &skey : keys) {
         bool found = false;
 
         /* if we have primary_grip then we also added to subkey_grips */
@@ -240,11 +239,11 @@ rnp_key_store_refresh_subkey_grips(KeyStore *keyring, pgp_key_t *key)
             if (subsig.sig.type() != PGP_SIG_SUBKEY) {
                 continue;
             }
-            if (subsig.sig.has_keyfp() && (key->fp() == subsig.sig.keyfp())) {
+            if (subsig.sig.has_keyfp() && (key.fp() == subsig.sig.keyfp())) {
                 found = true;
                 break;
             }
-            if (subsig.sig.has_keyid() && (key->keyid() == subsig.sig.keyid())) {
+            if (subsig.sig.has_keyid() && (key.keyid() == subsig.sig.keyid())) {
                 found = true;
                 break;
             }
@@ -252,7 +251,7 @@ rnp_key_store_refresh_subkey_grips(KeyStore *keyring, pgp_key_t *key)
 
         if (found) {
             try {
-                key->link_subkey_fp(skey);
+                key.link_subkey_fp(skey);
             } catch (const std::exception &e) {
                 RNP_LOG("%s", e.what());
                 return false;
@@ -262,7 +261,6 @@ rnp_key_store_refresh_subkey_grips(KeyStore *keyring, pgp_key_t *key)
 
     return true;
 }
-} // namespace
 
 pgp_key_t *
 KeyStore::add_subkey(pgp_key_t &srckey, pgp_key_t *oldkey)
@@ -350,7 +348,7 @@ KeyStore::add_key(pgp_key_t &srckey)
             keybyfp[srckey.fp()] = std::prev(keys.end());
             *added_key = pgp_key_t(srckey);
             /* primary key may be added after subkeys, so let's handle this case correctly */
-            if (!rnp_key_store_refresh_subkey_grips(this, added_key)) {
+            if (!refresh_subkey_grips(*added_key)) {
                 RNP_LOG_KEY("failed to refresh subkey grips for %s", added_key);
             }
         } catch (const std::exception &e) {
