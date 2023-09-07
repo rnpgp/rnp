@@ -6175,6 +6175,35 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_get_revoker_count(rnp_key_handle_t handle, size_t *count)
+try {
+    if (!handle || !count) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *count = key->revoker_count();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_get_revoker_at(rnp_key_handle_t handle, size_t idx, char **revoker)
+try {
+    if (!handle || !revoker) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if (!key || (idx >= key->revoker_count())) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return ret_fingerprint(key->get_revoker(idx), revoker);
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_get_revocation_signature(rnp_key_handle_t handle, rnp_signature_handle_t *sig)
 try {
     if (!handle || !sig) {

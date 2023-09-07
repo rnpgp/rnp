@@ -1527,6 +1527,27 @@ RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
                                               rnp_signature_handle_t *sig);
 
 /**
+ * @brief Get number of the designated revokers for the key. Designated revoker is a key, which
+ * is allowed to revoke this key.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param count number of designated revokers will be stored here.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_get_revoker_count(rnp_key_handle_t key, size_t *count);
+
+/**
+ * @brief Get the fingerprint of designated revoker's key, based on it's index.
+ *
+ * @param key key handle, cannot be NULL.
+ * @param idx zero-based index.
+ * @param revoker on success hex-encoded revoker's key fingerprint will be stored here. Must be
+ * later freed via rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_get_revoker_at(rnp_key_handle_t key, size_t idx, char **revoker);
+
+/**
  * @brief Get key's revocation signature handle, if any.
  *
  * @param key key handle
