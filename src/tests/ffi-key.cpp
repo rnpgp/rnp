@@ -4798,6 +4798,24 @@ TEST_F(rnp_tests, test_ffi_designated_revokers)
     /* Key with 2 designated revokers and 2 revocations */
     assert_true(load_keys_gpg(ffi, path_for("ecc-p256-desigrevoked-2-revs.pgp")));
     assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &key));
+    /* Check designated revokers */
+    size_t count = 0;
+    assert_rnp_failure(rnp_key_get_revoker_count(NULL, &count));
+    assert_rnp_failure(rnp_key_get_revoker_count(key, NULL));
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 2);
+    char *revoker = NULL;
+    assert_rnp_failure(rnp_key_get_revoker_at(NULL, 0, &revoker));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, 0, NULL));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, 2, &revoker));
+    assert_rnp_failure(rnp_key_get_revoker_at(key, (size_t) -1, &revoker));
+    assert_rnp_success(rnp_key_get_revoker_at(key, 0, &revoker));
+    assert_string_equal(revoker, "21FC68274AAE3B5DE39A4277CC786278981B0728");
+    rnp_buffer_destroy(revoker);
+    assert_rnp_success(rnp_key_get_revoker_at(key, 1, &revoker));
+    assert_string_equal(revoker, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A");
+    rnp_buffer_destroy(revoker);
+    /* Check key validity */
     assert_true(check_key_valid(key, true));
     assert_true(check_key_revoked(key, false));
     rnp_key_handle_destroy(key);

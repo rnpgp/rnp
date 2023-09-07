@@ -206,6 +206,8 @@ struct pgp_key_t {
     void                clear_revokes();
     void                add_revoker(const pgp_fingerprint_t &revoker);
     bool                has_revoker(const pgp_fingerprint_t &revoker) const;
+    size_t              revoker_count() const;
+    const pgp_fingerprint_t &get_revoker(size_t idx) const;
 
     const pgp_key_pkt_t &pkt() const;
     pgp_key_pkt_t &      pkt();
