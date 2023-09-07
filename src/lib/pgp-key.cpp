@@ -1170,6 +1170,21 @@ pgp_key_t::has_revoker(const pgp_fingerprint_t &revoker) const
     return false;
 }
 
+size_t
+pgp_key_t::revoker_count() const
+{
+    return revokers_.size();
+}
+
+const pgp_fingerprint_t &
+pgp_key_t::get_revoker(size_t idx) const
+{
+    if (idx >= revokers_.size()) {
+        throw std::out_of_range("idx");
+    }
+    return revokers_[idx];
+}
+
 const pgp_key_pkt_t &
 pgp_key_t::pkt() const
 {
