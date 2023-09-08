@@ -38,16 +38,11 @@ env:
   LANG: C.UTF-8
   LC_ALL: C.UTF-8
   LC_LANG: C.UTF-8
-  CMAKE_VER: '3.20.6-2'
-  BUILD_MODE: normal
-  GPG_VERSION: stable
-  SUDO: ""
-  USE_STATIC_DEPENDENCIES: yes
   RNP_LOG_CONSOLE: 1
 
 jobs:
   tests:
-    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG stable]
+    name: ${{ matrix.image.container }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }}; GnuPG system-shipped]
     runs-on: ubuntu-latest
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     timeout-minutes: 120
@@ -55,84 +50,57 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { container: 'i386/debian:11',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
-          - { container: 'i386/debian:11',  cpu: 'i386',   arch: 'ia32',   backend: 'openssl' }
-          - { container: 'amd64/debian:11', cpu: 'x86_64', arch: 'x64',    backend: 'botan'   }
-          - { container: 'amd64/debian:11', cpu: 'x86_64', arch: 'x64',    backend: 'openssl' }
-          - { container: 'i386/debian:10',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
+          - { container: 'debian-11-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
+          - { container: 'debian-11-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'openssl' }
+          - { container: 'debian-11-amd64', cpu: 'x86_64', arch: 'x64',    backend: 'botan'   }
+          - { container: 'debian-11-amd64', cpu: 'x86_64', arch: 'x64',    backend: 'openssl' }
+          - { container: 'debian-10-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
 
-    container: ${{ matrix.image.container }}
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}-${{ matrix.env.CC }}
 
     env: ${{ matrix.env }}
     steps:
-      - name: Install prerequisites
-        run: |
-          apt update
-          apt -y install git sudo wget
-
-      - name: Setup environment
-        shell: bash
-        # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
-        run: |
-          set -x
-          echo IMAGE=${{ matrix.image.container }} >> $GITHUB_ENV
-          echo CPU=${{ matrix.image.cpu }} >> $GITHUB_ENV
-          echo CRYPTO_BACKEND=${{ matrix.image.backend }} >> $GITHUB_ENV
-          echo "SUDO=sudo" >> $GITHUB_ENV
-          useradd rnpuser
-          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
-          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
-
       - name: Checkout on x86_x64
-        if: env.CPU == 'x86_64'
+        if: matrix.image.CPU == 'x86_64'
         uses: actions/checkout@v3
         with:
           submodules: true
 
       - name: Checkout on i386
-        if: env.CPU == 'i386'
+        if: matrix.image.CPU == 'i386'
         uses: actions/checkout@v1
         with:
           submodules: true
 
-      - name: Install cmake
-        run: |
-          wget -nv https://github.com/xpack-dev-tools/cmake-xpack/releases/download/v${{ env.CMAKE_VER }}/xpack-cmake-${{ env.CMAKE_VER }}-linux-${{ matrix.image.arch }}.tar.gz
-          tar -zxf xpack-cmake-${{ env.CMAKE_VER }}-linux-${{ matrix.image.arch }}.tar.gz --directory /usr/local --strip-components=1 --skip-old-files
-
-      - name: Setup noncacheable dependencies
+      - name: Setup environment
         shell: bash
+        # rnpuser is only needed for rnpkeys_generatekey_verifykeyHomeDirNoPermission test
         run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
 
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        if: env.CPU == 'x86_64'
-        with:
-          path: ${{github.workspace}}/${{ env.CACHE_DIR }}
-          key: ${{ matrix.image.container }}-${{ matrix.env.CC }}-${{ matrix.image.backend }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/debian.yml') }}
-
-      - name: Setup cacheable dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        shell: bash
+      - name: Configure
         run: |
-          set -euxo pipefail
-          ci/install_cacheable_dependencies.sh
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=ON                             \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DCMAKE_BUILD_TYPE=Release                         .
 
-      - name: Build and Test
-        shell: bash
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test
         run: |
-          set -x
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
-          exec su rnpuser -c ci/run.sh
+          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
 
       - name: Package
-        run: |
-          set -x
-          cd ${LOCAL_BUILDS}/rnp-build
-          cpack -G DEB -D CPACK_DEBIAN_PACKAGE_SHLIBDEPS_PRIVATE_DIRS="${BOTAN_INSTALL}/lib;${JSONC_INSTALL}/lib;${GPG_INSTALL}/lib"
+        run: cpack -G DEB -B debian --config build/CPackConfig.cmake
