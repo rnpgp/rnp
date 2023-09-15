@@ -54,17 +54,25 @@ struct rnp_signature_handle_st {
 
 struct rnp_recipient_handle_st {
     rnp_ffi_t        ffi;
-    uint8_t          keyid[PGP_KEY_ID_SIZE];
+    pgp_key_id_t     keyid;
     pgp_pubkey_alg_t palg;
+
+    rnp_recipient_handle_st() : ffi(NULL), palg(PGP_PKA_NOTHING)
+    {
+    }
 };
 
 struct rnp_symenc_handle_st {
     rnp_ffi_t           ffi;
-    pgp_symm_alg_t      alg;
-    pgp_hash_alg_t      halg;
-    pgp_s2k_specifier_t s2k_type;
+    pgp_symm_alg_t      alg{};
+    pgp_hash_alg_t      halg{};
+    pgp_s2k_specifier_t s2k_type{};
     uint32_t            iterations;
-    pgp_aead_alg_t      aalg;
+    pgp_aead_alg_t      aalg{};
+
+    rnp_symenc_handle_st() : ffi(NULL), iterations(0)
+    {
+    }
 };
 
 struct rnp_ffi_st {
@@ -177,13 +185,11 @@ struct rnp_op_verify_st {
     bool           require_all_sigs{};
     bool           allow_hidden{};
     /* recipient/symenc information */
-    rnp_recipient_handle_t recipients{};
-    size_t                 recipient_count{};
-    rnp_recipient_handle_t used_recipient{};
-    rnp_symenc_handle_t    symencs{};
-    size_t                 symenc_count{};
-    rnp_symenc_handle_t    used_symenc{};
-    size_t                 encrypted_layers{};
+    std::vector<rnp_recipient_handle_st> recipients;
+    rnp_recipient_handle_t               used_recipient{};
+    std::vector<rnp_symenc_handle_st>    symencs;
+    rnp_symenc_handle_t                  used_symenc{};
+    size_t                               encrypted_layers{};
 
     ~rnp_op_verify_st();
 };
