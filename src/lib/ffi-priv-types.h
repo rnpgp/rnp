@@ -173,7 +173,7 @@ struct rnp_op_verify_st {
     /* these fields are filled after operation execution */
     rnp_op_verify_signature_t signatures{};
     size_t                    signature_count{};
-    char *                    filename{};
+    std::string               filename;
     uint32_t                  file_mtime{};
     /* encryption information */
     bool           encrypted{};

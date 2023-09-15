@@ -3147,7 +3147,7 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
     }
     *dst = &(op->output->dst);
     *closedst = false;
-    op->filename = filename ? strdup(filename) : NULL;
+    op->filename = filename ? std::string(filename) : "";
     op->file_mtime = mtime;
     return true;
 }
@@ -3419,14 +3419,7 @@ try {
     if (mtime) {
         *mtime = op->file_mtime;
     }
-    if (filename) {
-        if (op->filename) {
-            *filename = strdup(op->filename);
-        } else {
-            *filename = NULL;
-        }
-    }
-    return RNP_SUCCESS;
+    return filename ? ret_str_value(op->filename.c_str(), filename) : RNP_SUCCESS;
 }
 FFI_GUARD
 
@@ -3643,7 +3636,6 @@ FFI_GUARD
 rnp_op_verify_st::~rnp_op_verify_st()
 {
     delete[] signatures;
-    free(filename);
     delete used_recipient;
     delete used_symenc;
 }
