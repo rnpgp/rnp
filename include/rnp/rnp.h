@@ -139,6 +139,11 @@ typedef uint32_t rnp_result_t;
 #define RNP_VERIFY_ALLOW_HIDDEN_RECIPIENT (1U << 2)
 
 /**
+ * Revocation key flags.
+ */
+#define RNP_REVOKER_SENSITIVE (1U << 0)
+
+/**
  * Key feature flags.
  */
 #define RNP_KEY_FEATURE_MDC (1U << 0)
@@ -1525,6 +1530,48 @@ RNP_API rnp_result_t rnp_key_get_signature_count(rnp_key_handle_t key, size_t *c
 RNP_API rnp_result_t rnp_key_get_signature_at(rnp_key_handle_t        key,
                                               size_t                  idx,
                                               rnp_signature_handle_t *sig);
+
+/**
+ * @brief Create new direct-key signature over the target, issued by signer. It may be
+ *        customized via the rnp_signature_set_* calls, and finalized via the
+ *        rnp_signature_sign() call.
+ *
+ * @param signer signing key, must be secret, and must exist in the keyring up to the
+ *               rnp_signature_sign() call. Cannot be NULL.
+ * @param target target key for which signature should be made. May be NULL, then signature
+ *               over the signer (self-signature) will be made.
+ *
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failued.
+ */
+RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        signer,
+                                                     rnp_key_handle_t        target,
+                                                     rnp_signature_handle_t *sig);
+
+/**
+ * @brief Add designated revoker subpacket to the signature. See RFC 4880, section 5.2.3.15.
+ *        Only single revoker could be set - subsequent calls would overwrite the previous one.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param revoker revoker's key.
+ * @param flags additional flags. The following flag is currently supported:
+ *              RNP_REVOKER_SENSITIVE: information about the revocation key should be
+ *                considered as sensitive. See RFC for the details.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_revoker(rnp_signature_handle_t sig,
+                                                   rnp_key_handle_t       revoker,
+                                                   uint32_t               flags);
+
+/**
+ * @brief Finalize populating and sign signature, created with one of the
+ *        rnp_key_*_signature_create functions, and add it to the corresponding key.
+ *
+ * @param sig signature handle.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_sign(rnp_signature_handle_t sig);
 
 /**
  * @brief Get number of the designated revokers for the key. Designated revoker is a key, which

@@ -6175,6 +6175,132 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_key_direct_signature_create(rnp_key_handle_t        signer,
+                                rnp_key_handle_t        target,
+                                rnp_signature_handle_t *sig)
+try {
+    if (!signer || !sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!target) {
+        target = signer;
+    }
+    pgp_key_t *sigkey = get_key_require_secret(signer);
+    pgp_key_t *tgkey = get_key_prefer_public(target);
+    if (!sigkey || !tgkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!tgkey->is_primary()) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
+    if (!*sig) {
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+    try {
+        pgp_signature_t sigpkt;
+        sigkey->sign_init(signer->ffi->rng(),
+                          sigpkt,
+                          DEFAULT_PGP_HASH_ALG,
+                          signer->ffi->context.time(),
+                          sigkey->version());
+        sigpkt.set_type(PGP_SIG_DIRECT);
+        (*sig)->sig = new pgp_subsig_t(sigpkt);
+        (*sig)->ffi = signer->ffi;
+        (*sig)->key = tgkey;
+        (*sig)->own_sig = true;
+        (*sig)->new_sig = true;
+    } catch (const std::exception &e) {
+        FFI_LOG(signer->ffi, "%s", e.what());
+        free(*sig);
+        *sig = NULL;
+        return RNP_ERROR_OUT_OF_MEMORY;
+    }
+
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_revoker(rnp_signature_handle_t sig,
+                              rnp_key_handle_t       revoker,
+                              uint32_t               flags)
+try {
+    if (!sig || !revoker) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    bool sensitive = extract_flag(flags, RNP_REVOKER_SENSITIVE);
+    if (flags) {
+        FFI_LOG(sig->ffi, "Unsupported flags: %" PRIu32, flags);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto key = get_key_prefer_public(revoker);
+    if (!key) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_revoker(*key, sensitive);
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_sign(rnp_signature_handle_t sig)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    auto &sigpkt = sig->sig->sig;
+    /* Get signer and target */
+    auto signer = sig->ffi->secring->get_signer(sigpkt);
+    if (!signer) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    /* Unlock if needed */
+    rnp::KeyLocker seclock(*signer);
+    if (signer->is_locked() && !signer->unlock(sig->ffi->pass_provider)) {
+        FFI_LOG(sig->ffi, "Failed to unlock secret key");
+        return RNP_ERROR_BAD_PASSWORD;
+    }
+    /* Sign */
+    if (sigpkt.type() == PGP_SIG_DIRECT) {
+        signer->sign_direct(sig->key->pkt(), sigpkt, sig->ffi->context);
+    } else {
+        FFI_LOG(sig->ffi, "Not yet supported signature type.");
+        return RNP_ERROR_BAD_STATE;
+    }
+    /* Add to the keyring(s) */
+    pgp_subsig_t *newsig = NULL;
+    pgp_key_t *   key = sig->ffi->secring->get_key(sig->key->fp());
+    if (key) {
+        newsig = &key->add_sig(sigpkt, PGP_UID_NONE, true);
+        key->refresh_data(sig->ffi->context);
+    }
+    key = sig->ffi->pubring->get_key(sig->key->fp());
+    if (key) {
+        newsig = &key->add_sig(sigpkt, PGP_UID_NONE, true);
+        key->refresh_data(sig->ffi->context);
+    }
+    /* Should not happen but let's check */
+    if (!newsig) {
+        return RNP_ERROR_BAD_STATE;
+    }
+    /* Replace owned sig with pointer to the key's one */
+    delete sig->sig;
+    sig->sig = newsig;
+    sig->own_sig = false;
+    sig->new_sig = false;
+
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_key_get_revoker_count(rnp_key_handle_t handle, size_t *count)
 try {
     if (!handle || !count) {
