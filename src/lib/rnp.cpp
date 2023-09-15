@@ -554,6 +554,24 @@ ret_str_value(const char *str, char **res)
     return RNP_SUCCESS;
 }
 
+static rnp_result_t
+ret_fingerprint(const pgp_fingerprint_t &fp, char **res)
+{
+    return hex_encode_value(fp.fingerprint, fp.length, res);
+}
+
+static rnp_result_t
+ret_keyid(const pgp_key_id_t &keyid, char **res)
+{
+    return hex_encode_value(keyid.data(), keyid.size(), res);
+}
+
+static rnp_result_t
+ret_grip(const pgp_key_grip_t &grip, char **res)
+{
+    return hex_encode_value(grip.data(), grip.size(), res);
+}
+
 static uint32_t
 ffi_exception(FILE *fp, const char *func, const char *msg, uint32_t ret = RNP_ERROR_GENERIC)
 {
@@ -6329,8 +6347,7 @@ try {
         *result = NULL;
         return RNP_SUCCESS;
     }
-    pgp_key_id_t keyid = handle->sig->sig.keyid();
-    return hex_encode_value(keyid.data(), keyid.size(), result);
+    return ret_keyid(handle->sig->sig.keyid(), result);
 }
 FFI_GUARD
 
@@ -6347,8 +6364,7 @@ try {
         *result = NULL;
         return RNP_SUCCESS;
     }
-    pgp_fingerprint_t keyfp = handle->sig->sig.keyfp();
-    return hex_encode_value(keyfp.fingerprint, keyfp.length, result);
+    return ret_fingerprint(handle->sig->sig.keyfp(), result);
 }
 FFI_GUARD
 
@@ -6734,9 +6750,7 @@ try {
     if (!handle || !fprint) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    const pgp_fingerprint_t &fp = get_key_prefer_public(handle)->fp();
-    return hex_encode_value(fp.fingerprint, fp.length, fprint);
+    return ret_fingerprint(get_key_prefer_public(handle)->fp(), fprint);
 }
 FFI_GUARD
 
@@ -6746,9 +6760,7 @@ try {
     if (!handle || !keyid) {
         return RNP_ERROR_NULL_POINTER;
     }
-
-    pgp_key_t *key = get_key_prefer_public(handle);
-    return hex_encode_value(key->keyid().data(), key->keyid().size(), keyid);
+    return ret_keyid(get_key_prefer_public(handle)->keyid(), keyid);
 }
 FFI_GUARD
 
@@ -6759,8 +6771,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    const pgp_key_grip_t &kgrip = get_key_prefer_public(handle)->grip();
-    return hex_encode_value(kgrip.data(), kgrip.size(), grip);
+    return ret_grip(get_key_prefer_public(handle)->grip(), grip);
 }
 FFI_GUARD
 
@@ -6797,7 +6808,7 @@ try {
         *grip = NULL;
         return RNP_SUCCESS;
     }
-    return hex_encode_value(pgrip->data(), pgrip->size(), grip);
+    return ret_grip(*pgrip, grip);
 }
 FFI_GUARD
 
@@ -6816,8 +6827,7 @@ try {
         *fprint = NULL;
         return RNP_SUCCESS;
     }
-    const pgp_fingerprint_t &fp = key->primary_fp();
-    return hex_encode_value(fp.fingerprint, fp.length, fprint);
+    return ret_fingerprint(key->primary_fp(), fprint);
 }
 FFI_GUARD
 
