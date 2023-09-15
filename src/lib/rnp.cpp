@@ -3088,35 +3088,28 @@ rnp_op_verify_on_signatures(const std::vector<pgp_signature_info_t> &sigs, void 
 
     try {
         /* in case we have multiple signed layers */
-        delete[] op->signatures;
-        op->signatures = new rnp_op_verify_signature_st[sigs.size()];
+        op->signatures_.resize(sigs.size());
+
+        size_t i = 0;
+        for (const auto &sinfo : sigs) {
+            auto &res = op->signatures_[i++];
+            /* sinfo.sig may be NULL */
+            if (sinfo.sig) {
+                res.sig_pkt = *sinfo.sig;
+            }
+
+            if (sinfo.unknown) {
+                res.verify_status = RNP_ERROR_SIGNATURE_UNKNOWN;
+            } else if (sinfo.valid) {
+                res.verify_status = sinfo.expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
+            } else {
+                res.verify_status =
+                  sinfo.no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
+            }
+            res.ffi = op->ffi;
+        }
     } catch (const std::exception &e) {
         FFI_LOG(op->ffi, "%s", e.what());
-        return;
-    }
-    op->signature_count = sigs.size();
-
-    size_t i = 0;
-    for (const auto &sinfo : sigs) {
-        rnp_op_verify_signature_t res = &op->signatures[i++];
-        /* sinfo.sig may be NULL */
-        if (sinfo.sig) {
-            try {
-                res->sig_pkt = *sinfo.sig;
-            } catch (const std::exception &e) {
-                FFI_LOG(op->ffi, "%s", e.what());
-            }
-        }
-
-        if (sinfo.unknown) {
-            res->verify_status = RNP_ERROR_SIGNATURE_UNKNOWN;
-        } else if (sinfo.valid) {
-            res->verify_status = sinfo.expired ? RNP_ERROR_SIGNATURE_EXPIRED : RNP_SUCCESS;
-        } else {
-            res->verify_status =
-              sinfo.no_signer ? RNP_ERROR_KEY_NOT_FOUND : RNP_ERROR_SIGNATURE_INVALID;
-        }
-        res->ffi = op->ffi;
     }
 }
 
@@ -3368,8 +3361,8 @@ try {
     }
     /* Allow to require all signatures be valid */
     if (op->require_all_sigs && !ret) {
-        for (size_t i = 0; i < op->signature_count; i++) {
-            if (op->signatures[i].verify_status) {
+        for (auto &sig : op->signatures_) {
+            if (sig.verify_status) {
                 ret = RNP_ERROR_SIGNATURE_INVALID;
                 break;
             }
@@ -3390,7 +3383,7 @@ try {
         return RNP_ERROR_NULL_POINTER;
     }
 
-    *count = op->signature_count;
+    *count = op->signatures_.size();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3401,11 +3394,11 @@ try {
     if (!op || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (idx >= op->signature_count) {
+    if (idx >= op->signatures_.size()) {
         FFI_LOG(op->ffi, "Invalid signature index: %zu", idx);
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    *sig = &op->signatures[idx];
+    *sig = &op->signatures_[idx];
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3635,7 +3628,6 @@ FFI_GUARD
 
 rnp_op_verify_st::~rnp_op_verify_st()
 {
-    delete[] signatures;
     delete used_recipient;
     delete used_symenc;
 }

@@ -171,10 +171,9 @@ struct rnp_op_verify_st {
     rnp_output_t output{};
     rnp_ctx_t    rnpctx{};
     /* these fields are filled after operation execution */
-    rnp_op_verify_signature_t signatures{};
-    size_t                    signature_count{};
-    std::string               filename;
-    uint32_t                  file_mtime{};
+    std::vector<rnp_op_verify_signature_st> signatures_;
+    std::string                             filename;
+    uint32_t                                file_mtime{};
     /* encryption information */
     bool           encrypted{};
     bool           mdc{};
