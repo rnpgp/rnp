@@ -4744,6 +4744,22 @@ TEST_F(rnp_tests, test_ffi_designated_revokers)
     assert_string_equal(sigtype, "key revocation");
     rnp_buffer_destroy(sigtype);
     assert_int_equal(rnp_signature_is_valid(sig, 0), RNP_ERROR_KEY_NOT_FOUND);
+    /* Check for empty designated revoker */
+    char *revoker = NULL;
+    assert_rnp_failure(rnp_signature_get_revoker(NULL, &revoker));
+    assert_rnp_failure(rnp_signature_get_revoker(sig, NULL));
+    assert_rnp_success(rnp_signature_get_revoker(sig, &revoker));
+    assert_int_equal(strcmp(revoker, ""), 0);
+    rnp_buffer_destroy(revoker);
+    rnp_signature_handle_destroy(sig);
+    /* Now not empty */
+    assert_rnp_success(rnp_key_get_signature_at(key, 1, &sig));
+    assert_rnp_success(rnp_signature_get_type(sig, &sigtype));
+    assert_string_equal(sigtype, "direct");
+    rnp_buffer_destroy(sigtype);
+    assert_rnp_success(rnp_signature_get_revoker(sig, &revoker));
+    assert_int_equal(strcmp(revoker, "21FC68274AAE3B5DE39A4277CC786278981B0728"), 0);
+    rnp_buffer_destroy(revoker);
     rnp_signature_handle_destroy(sig);
     rnp_key_handle_destroy(key);
     /* Load revoker's key and recheck */
@@ -4804,7 +4820,6 @@ TEST_F(rnp_tests, test_ffi_designated_revokers)
     assert_rnp_failure(rnp_key_get_revoker_count(key, NULL));
     assert_rnp_success(rnp_key_get_revoker_count(key, &count));
     assert_int_equal(count, 2);
-    char *revoker = NULL;
     assert_rnp_failure(rnp_key_get_revoker_at(NULL, 0, &revoker));
     assert_rnp_failure(rnp_key_get_revoker_at(key, 0, NULL));
     assert_rnp_failure(rnp_key_get_revoker_at(key, 2, &revoker));

@@ -6394,6 +6394,20 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_revoker(rnp_signature_handle_t handle, char **revoker)
+try {
+    if (!handle || !revoker) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    auto &sig = handle->sig->sig;
+    if (!sig.has_revoker()) {
+        return ret_str_value("", revoker);
+    }
+    return ret_fingerprint(sig.revoker(), revoker);
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags)
 try {
     if (!sig) {

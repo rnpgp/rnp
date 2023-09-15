@@ -1676,6 +1676,18 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
                                               rnp_key_handle_t *     key);
 
 /**
+ * @brief Get fingerprint of the designated revocation key, if it is available. See
+ *        section 5.2.3.15 of the RFC 4880 for the details.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param revoker on success hex-encoded revocation key fingerprint will be stored here, if
+ *                available. Otherwise empty string will be stored. Must be freed via
+ *                rnp_buffer_destroy().
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_revoker(rnp_signature_handle_t sig, char **revoker);
+
+/**
  * @brief Get signature validity, revalidating it if didn't before.
  *
  * @param sig key/userid signature handle
