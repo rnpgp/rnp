@@ -46,10 +46,20 @@ struct rnp_uid_handle_st {
 };
 
 struct rnp_signature_handle_st {
-    rnp_ffi_t        ffi;
+    rnp_ffi_t ffi;
+    /**
+     * @brief Key to which this signature belongs, if available.
+     */
     const pgp_key_t *key;
     pgp_subsig_t *   sig;
-    bool             own_sig;
+    /**
+     * @brief sig pointer is owned by structure and should be deallocated.
+     */
+    bool own_sig;
+    /**
+     * @brief This is a new signature, which is being populated.
+     */
+    bool new_sig;
 };
 
 struct rnp_recipient_handle_st {
