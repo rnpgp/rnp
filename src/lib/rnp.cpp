@@ -3153,26 +3153,25 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
 }
 
 static void
-recipient_handle_from_pk_sesskey(rnp_recipient_handle_t  handle,
-                                 const pgp_pk_sesskey_t &sesskey)
+recipient_handle_from_pk_sesskey(rnp_recipient_handle_st &handle,
+                                 const pgp_pk_sesskey_t & sesskey)
 {
-    static_assert(sizeof(handle->keyid) == PGP_KEY_ID_SIZE, "Keyid size mismatch");
-    memcpy(handle->keyid, sesskey.key_id.data(), PGP_KEY_ID_SIZE);
-    handle->palg = sesskey.alg;
+    handle.keyid = sesskey.key_id;
+    handle.palg = sesskey.alg;
 }
 
 static void
-symenc_handle_from_sk_sesskey(rnp_symenc_handle_t handle, const pgp_sk_sesskey_t &sesskey)
+symenc_handle_from_sk_sesskey(rnp_symenc_handle_st &handle, const pgp_sk_sesskey_t &sesskey)
 {
-    handle->alg = sesskey.alg;
-    handle->halg = sesskey.s2k.hash_alg;
-    handle->s2k_type = sesskey.s2k.specifier;
+    handle.alg = sesskey.alg;
+    handle.halg = sesskey.s2k.hash_alg;
+    handle.s2k_type = sesskey.s2k.specifier;
     if (sesskey.s2k.specifier == PGP_S2KS_ITERATED_AND_SALTED) {
-        handle->iterations = pgp_s2k_decode_iterations(sesskey.s2k.iterations);
+        handle.iterations = pgp_s2k_decode_iterations(sesskey.s2k.iterations);
     } else {
-        handle->iterations = 1;
+        handle.iterations = 1;
     }
-    handle->aalg = sesskey.aalg;
+    handle.aalg = sesskey.aalg;
 }
 
 static void
@@ -3186,28 +3185,17 @@ rnp_verify_on_recipients(const std::vector<pgp_pk_sesskey_t> &recipients,
         return;
     }
     if (!recipients.empty()) {
-        op->recipients =
-          (rnp_recipient_handle_t) calloc(recipients.size(), sizeof(*op->recipients));
-        if (!op->recipients) {
-            FFI_LOG(op->ffi, "allocation failed");
-            return;
-        }
+        op->recipients.resize(recipients.size());
         for (size_t i = 0; i < recipients.size(); i++) {
-            recipient_handle_from_pk_sesskey(&op->recipients[i], recipients[i]);
+            recipient_handle_from_pk_sesskey(op->recipients[i], recipients[i]);
         }
     }
-    op->recipient_count = recipients.size();
     if (!passwords.empty()) {
-        op->symencs = (rnp_symenc_handle_t) calloc(passwords.size(), sizeof(*op->symencs));
-        if (!op->symencs) {
-            FFI_LOG(op->ffi, "allocation failed");
-            return;
-        }
+        op->symencs.resize(passwords.size());
         for (size_t i = 0; i < passwords.size(); i++) {
-            symenc_handle_from_sk_sesskey(&op->symencs[i], passwords[i]);
+            symenc_handle_from_sk_sesskey(op->symencs[i], passwords[i]);
         }
     }
-    op->symenc_count = passwords.size();
 }
 
 static void
@@ -3219,21 +3207,19 @@ rnp_verify_on_decryption_start(pgp_pk_sesskey_t *pubenc, pgp_sk_sesskey_t *symen
         return;
     }
     if (pubenc) {
-        op->used_recipient = (rnp_recipient_handle_t) calloc(1, sizeof(*op->used_recipient));
+        op->used_recipient = new (std::nothrow) rnp_recipient_handle_st();
         if (!op->used_recipient) {
-            FFI_LOG(op->ffi, "allocation failed");
             return;
         }
-        recipient_handle_from_pk_sesskey(op->used_recipient, *pubenc);
+        recipient_handle_from_pk_sesskey(*op->used_recipient, *pubenc);
         return;
     }
     if (symenc) {
-        op->used_symenc = (rnp_symenc_handle_t) calloc(1, sizeof(*op->used_symenc));
+        op->used_symenc = new (std::nothrow) rnp_symenc_handle_st();
         if (!op->used_symenc) {
-            FFI_LOG(op->ffi, "allocation failed");
             return;
         }
-        symenc_handle_from_sk_sesskey(op->used_symenc, *symenc);
+        symenc_handle_from_sk_sesskey(*op->used_symenc, *symenc);
         return;
     }
     FFI_LOG(op->ffi, "Warning! Both pubenc and symenc are NULL.");
@@ -3507,7 +3493,7 @@ try {
     if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *count = op->recipient_count;
+    *count = op->recipients.size();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3531,7 +3517,7 @@ try {
     if (!op || !recipient) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (idx >= op->recipient_count) {
+    if (idx >= op->recipients.size()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     *recipient = &op->recipients[idx];
@@ -3545,9 +3531,7 @@ try {
     if (!recipient || !keyid) {
         return RNP_ERROR_NULL_POINTER;
     }
-    static_assert(sizeof(recipient->keyid) == PGP_KEY_ID_SIZE,
-                  "rnp_recipient_handle_t.keyid size mismatch");
-    return hex_encode_value(recipient->keyid, PGP_KEY_ID_SIZE, keyid);
+    return ret_keyid(recipient->keyid, keyid);
 }
 FFI_GUARD
 
@@ -3567,7 +3551,7 @@ try {
     if (!op || !count) {
         return RNP_ERROR_NULL_POINTER;
     }
-    *count = op->symenc_count;
+    *count = op->symencs.size();
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -3589,7 +3573,7 @@ try {
     if (!op || !symenc) {
         return RNP_ERROR_NULL_POINTER;
     }
-    if (idx >= op->symenc_count) {
+    if (idx >= op->symencs.size()) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     *symenc = &op->symencs[idx];
@@ -3660,10 +3644,8 @@ rnp_op_verify_st::~rnp_op_verify_st()
 {
     delete[] signatures;
     free(filename);
-    free(recipients);
-    free(used_recipient);
-    free(symencs);
-    free(used_symenc);
+    delete used_recipient;
+    delete used_symenc;
 }
 
 rnp_result_t
