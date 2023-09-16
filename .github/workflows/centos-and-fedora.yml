@@ -1,5 +1,4 @@
 name: centos-and-fedora
-
 on:
   push:
     branches:
@@ -34,161 +33,184 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  CORES: 2
+  RNP_LOG_CONSOLE: 1
   CODECOV_TOKEN: dbecf176-ea3f-4832-b743-295fd71d0fad
 
-#
-# Dependencies that are created during packaging
-#
-#      OS           botan   botan repository  json-c               json-c repository
-# ----------------------------------------------------------------------------
-#   CentOS 7        2.16.0   ribose            json-c12 (0.12.1)   ribose
-#   CentOS 8        2.16.0   ribose            0.13.1              el8
-#   CentOS 9        2.19.3   el9               0.14                el9
-#   Fedora 35       2.18.2   fc35              0.15                fc35
-#   Fedora 36       2.19.1   fc36              0.15                fc36
-#
 jobs:
   tests:
+    name: ${{ matrix.image.name }} [CC ${{ matrix.env.CC }}; backend ${{ matrix.image.backend }} ${{ matrix.image.botan_ver }}; gpg ${{ matrix.image.gpg_ver }}; build ${{ matrix.env.BUILD_MODE }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
     runs-on: ubuntu-latest
-    if: "!contains(github.event.head_commit.message, 'skip ci')"
-    container: ${{ matrix.image.container }}
-    timeout-minutes: 70
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
         env:
-          - { CC: gcc,   CXX: g++,     BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
+          - { CC: gcc,   CXX: g++,     BUILD_MODE: normal,   SHARED_LIBS: on  }
 #   normal --> Release build; sanitize --> Debug build so theoretically test conditions are different
-#         - { CC: clang, CXX: clang++, BUILD_MODE: normal,   USE_STATIC_DEPENDENCIES: yes }
-          - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, USE_STATIC_DEPENDENCIES: yes }
+#         - { CC: clang, CXX: clang++, BUILD_MODE: normal   }
+          - { CC: clang, CXX: clang++, BUILD_MODE: sanitize, SHARED_LIBS: on   }
 
-# Should you add a new OS/version please consider adding its default version of botan2 and json-c to this test matrix
+# All cotainers have gpg stable and lts installed
+# centos-8-amd64 has botan 2.18.2 installed
+# fedora-35-amd64 has botan 3.1.1  installed
+# Any other version has to be built explicitly !
+# Pls refer to https://github.com/rnpgp/rnp-ci-containers#readme for more image details
         image:
-          - { name: 'CentOS 7',  container: 'centos:7',                      gpg_ver: stable, backend: Botan,   botan_ver: 2.16.0, locale: en_US.UTF-8 }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   botan_ver: 2.16.0, locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: Botan,   botan_ver: 2.19.3, locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.18.2, locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,   botan_ver: 2.19.1, locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: Botan,   botan_ver: 3.0.0,  locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: stable, backend: Botan,   sm2: Off,          locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: lts,    backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         gpg_ver: 2.3.1,  backend: Botan,   sm2: On,           locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: On,          locale: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', gpg_ver: stable, backend: OpenSSL, idea: Off,         locale: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     gpg_ver: stable, backend: OpenSSL,                    locale: C.UTF-8     }
+          - { name: 'CentOS 7',  container: 'centos-7-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'stable' }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: '2.18.2',   sm2: On,  gpg_ver: 'lts'    }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'Botan', botan_ver: '2.18.2',   sm2: Off, gpg_ver: 'stable' }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'Botan', botan_ver: 'system',             gpg_ver: 'stable' }
+          - { name: 'Fedora 35', container: 'fedora-35-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'system' }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: '3.1.1',              gpg_ver: 'system' }
+# Tests against gpg head fails
+#          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'system',             gpg_ver: 'head'   }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'Botan', botan_ver: 'head',             gpg_ver: 'system'   }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64',  backend: 'OpenSSL',           gpg_ver: 'lts'    }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: On, gpg_ver: 'stable' }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64',  backend: 'OpenSSL', idea: Off,gpg_ver: 'stable' }
+          - { name: 'Fedora 35', container: 'fedora-35-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64', backend: 'OpenSSL',           gpg_ver: 'system' }
 
-
+# There is some ABI incompatibility between llvm-7, bitan shared library from ribose repo and sanitizer
+# So we are enforving static lib for sanitizers on CentOS 7
+        exclude:
+          - image: { name: 'CentOS 7', container: 'centos-7-amd64', gpg_ver: stable, backend: Botan, botan_ver: 'system'  }
+            env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: on  }
         include:
-          # Coverage report for Botan backend
-          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: Botan, sm2: On, locale: C.UTF-8 }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+          - image: { name: 'CentOS 7', container: 'centos-7-amd64', gpg_ver: stable, backend: Botan, botan_ver: 'system'  }
+            env:   { CC: clang, CXX: clang++, BUILD_MODE: sanitize,   SHARED_LIBS: off  }
+          # Coverage report for Botan 2.x backend
+          - image: { name: 'CentOS 8', container: 'centos-8-amd64', gpg_ver: stable, backend: Botan, botan_ver: '2.18.2'  }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+          # Coverage report for Botan 3.x backend
+          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: Botan, botan_ver: '3.1.1' }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for OpenSSL 1.1.1 backend
-          - image: { name: 'CentOS 8', container: 'tgagor/centos:stream8', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8        }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+          - image: { name: 'CentOS 8', container: 'centos-8-amd64', gpg_ver: stable, backend: OpenSSL  }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for OpenSSL 3.0 backend
-          - image: { name: 'Fedora 36', container: 'fedora:36', gpg_ver: stable, backend: OpenSSL, locale: C.UTF-8                   }
-            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage , RNP_TESTS: ".*", USE_STATIC_DEPENDENCIES: yes                         }
+          - image: { name: 'CentOS 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
     env: ${{ matrix.env }}
-    name: ${{ matrix.image.name }} ${{ matrix.image.backend }} [test mode ${{ matrix.env.BUILD_MODE }}; CC ${{ matrix.env.CC }}; GnuPG ${{ matrix.image.gpg_ver }}; SM2 ${{ matrix.image.sm2 }}; IDEA ${{ matrix.image.idea }}]
     steps:
-      - name: Install prerequisites for prerequisites
-        if: matrix.image.container == 'centos:7'
-        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
-
-      - name: Install prerequisites
-        run:  yum -y install git sudo
-
-      - name: Setup environment
-        run: |
-          set -o errexit -o pipefail -o noclobber -o nounset
-          echo LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo LC_ALL=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo LC_LANG=${{ matrix.image.locale }} >> $GITHUB_ENV
-          echo GPG_VERSION=${{ matrix.image.gpg_ver }} >> $GITHUB_ENV
-          echo ENABLE_SM2=${{ matrix.image.sm2 }} >> $GITHUB_ENV
-          echo ENABLE_IDEA=${{ matrix.image.idea }} >> $GITHUB_ENV
-          backend=${{ matrix.image.backend }}
-          backend="$(echo "${backend:-}" | tr '[:upper:]' '[:lower:]')"
-          echo CRYPTO_BACKEND="$backend" >> $GITHUB_ENV
-          echo BOTAN_VERSION=${{ matrix.image.botan_ver }} >> $GITHUB_ENV
-          useradd rnpuser
-          echo -e "rnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
-          echo -e "rnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
-
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: true
 
-      - name: Setup noncacheable dependencies
-        run: |
-          . ci/gha/setup-env.inc.sh
-          exec su rnpuser -c ci/install_noncacheable_dependencies.sh
-
-      - name: Cache
-        id: cache
-        uses: actions/cache@v3
-        with:
-          path: ${{ env.CACHE_DIR }}
-          key: ${{ matrix.image.container }}-${{ matrix.image.backend }}-${{ matrix.env.BUILD_MODE }}-${{ matrix.env.CC }}-${{ matrix.image.gpg_ver }}-${{ matrix.image.sm2 }}-${{ matrix.image.idea }}-${{ hashFiles('ci/**') }}-${{ hashFiles('.github/workflows/centos-and-fedora.yml') }}
-
-      - name: Adjust folder ownership
+      - name: Setup environment
         run: |
           set -o errexit -o pipefail -o noclobber -o nounset
+
+          /opt/tools/tools.sh select_crypto_backend_for_gha ${{ matrix.image.backend }}
+          /opt/tools/tools.sh select_gpg_version_for_gha ${{ matrix.image.gpg_ver }}
+          /opt/tools/tools.sh select_botan_version_for_gha ${{ matrix.image.botan_ver }}
+
+          echo "ENABLE_SM2=${{ matrix.image.sm2 }}" >> $GITHUB_ENV
+          echo "ENABLE_IDEA=${{ matrix.image.idea }}" >> $GITHUB_ENV
+
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
+
+          useradd rnpuser
+          printf "\nrnpuser\tALL=(ALL)\tNOPASSWD:\tALL" > /etc/sudoers.d/rnpuser
+          printf "\nrnpuser\tsoft\tnproc\tunlimited\n" > /etc/security/limits.d/30-rnpuser.conf
+
+      # Need to build HEAD version since it is always different
+      - name: Build gpg head
+        if:   matrix.image.gpg_ver == 'head'
+        run:  /opt/tools/tools.sh build_and_install_gpg head
+
+      - name: Build botan head
+        if:   matrix.image.botan_ver == 'head'
+        run:  /opt/tools/tools.sh build_and_install_botan head
+
+      - name: Configure
+        run: |
+          set -o errexit -o pipefail -o noclobber -o nounset
+
+          [[ "${{ env.BUILD_MODE }}" = "coverage" ]] && cov_opt=(-DENABLE_COVERAGE=yes)
+          [[ "${{ env.BUILD_MODE }}" = "sanitize" ]] && san_opt=(-DENABLE_SANITIZERS=yes)
+
+          [ -n "$ENABLE_SM2" ] && sm2_opt=(-DENABLE_SM2="$ENABLE_SM2")
+          [ -n "$ENABLE_IDEA" ] && idea_opt=(-DENABLE_IDEA="$ENABLE_IDEA")
+
+          cmake -B build                                           \
+                -DBUILD_SHARED_LIBS=${{ env.SHARED_LIBS }}         \
+                -DDOWNLOAD_GTEST=ON                                \
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
+                ${sm2_opt:-} ${idea_opt:-} ${cov_opt:-} ${san_opt:-} .
+
+      - name: Build
+        run: cmake --build build --parallel ${{ env.CORES }}
+
+      - name: Test
+        run: |
+          mkdir -p "build/Testing/Temporary"
+          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          export PATH="$PWD/build/src/lib:$PATH"
           chown -R rnpuser:rnpuser $PWD
+          exec su rnpuser -c "ctest --parallel ${{ env.CORES }} --test-dir build --output-on-failure"
 
-      - name: Setup cacheable dependencies
-        if: steps.cache.outputs.cache-hit != 'true'
-        run: exec su rnpuser -c ci/install_cacheable_dependencies.sh
+      - name: Coverage
+        if: env.BUILD_MODE == 'coverage'
+        run: |
+          curl https://keybase.io/codecovsecurity/pgp_keys.asc | gpg --no-default-keyring --keyring trustedkeys.gpg --import # One-time step
+          curl -Os https://uploader.codecov.io/latest/linux/codecov
+          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM
+          curl -Os https://uploader.codecov.io/latest/linux/codecov.SHA256SUM.sig
+          gpgv codecov.SHA256SUM.sig codecov.SHA256SUM
+          shasum -a 256 -c codecov.SHA256SUM
+          chmod +x codecov
+          find "build" -type f -name '*.gcno' -exec gcov -p {} +
+          ./codecov
 
-      - name: Build and Test
-        run: exec su rnpuser -c ci/run.sh
+      - name: Install
+        if: env.BUILD_MODE != 'coverage' && env.SHARED_LIBS == 'on'
+        run: cmake --install build
 
       - name: Checkout shell test framework
+        if: env.BUILD_MODE != 'coverage' && env.SHARED_LIBS == 'on'
         uses: actions/checkout@v3
         with:
           repository: kward/shunit2
           path: ci/tests/shunit2
 
       - name: Run additional ci tests
-        run:  ci/tests/ci-tests.sh
+        if: env.BUILD_MODE != 'coverage' && env.SHARED_LIBS == 'on'
+        run:  RNP_INSTALL=/usr/local ci/tests/ci-tests.sh
 
   package-source:
     runs-on: ubuntu-latest
-    container: ${{ matrix.env.container }}
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
     timeout-minutes: 30
+#    needs: tests
     strategy:
       fail-fast: false
       matrix:
-        env:
-          - { name: 'CentOS 7',  container: 'centos:7',                      LC_ALL: en_US.UTF-8 }
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         LC_ALL: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9', LC_ALL: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                     LC_ALL: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                     LC_ALL: C.UTF-8     }
-    name: Package ${{ matrix.env.name }} SRPM
-    env:  ${{ matrix.env }}
+        image:
+          - { name: 'CentOS 7',  container: 'centos-7-amd64'  }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64'  }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64'  }
+          - { name: 'Fedora 35', container: 'fedora-35-amd64' }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64' }
+
+    name: Package ${{ matrix.image.name }} SRPM
 
     steps:
-      - name: Install prerequisites for prerequisites
-        if: matrix.env.container == 'centos:7'
-        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
-
-      - name: Install prerequisites
-        run:  yum -y install git sudo rpm-build
+      - name: Install rpm tools
+        run:  yum -y install rpm-build
 
       - name: Checkout
         uses: actions/checkout@v3
         with:
           submodules: true
-
-      - name: Setup noncacheable dependencies
-        run: |
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
 
       - name: Configure
         run: cmake -B build -DBUILD_SHARED_LIBS=ON -DBUILD_TESTING=OFF
@@ -199,7 +221,7 @@ jobs:
       - name: Upload SRPM
         uses: actions/upload-artifact@v3
         with:
-          name: 'SRPM ${{ matrix.env.name }}'
+          name: 'SRPM ${{ matrix.image.name }}'
           path: 'build/SRPM/*.src.rpm'
           retention-days: 5
 
@@ -212,50 +234,34 @@ jobs:
 
   package:
     runs-on: ubuntu-latest
-    needs: package-source
-    container: ${{ matrix.env.container }}
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
     timeout-minutes: 30
+    needs: package-source
     strategy:
       fail-fast: false
       matrix:
-        env:
-          - { name: 'CentOS 7',  container: 'centos:7',                                                               LC_ALL: en_US.UTF-8 }
-# CXXFLAGS environment setting resolves dual ABI issues caused by BOTAN libraries with the version of GCC installed at 'tgagor/centos:stream8'
-# https://gcc.gnu.org/onlinedocs/gcc-5.2.0/libstdc++/manual/manual/using_dual_abi.html
-          - { name: 'CentOS 8',  container: 'tgagor/centos:stream8',         CXXFLAGS: -D_GLIBCXX_USE_CXX11_ABI=0,    LC_ALL: C.UTF-8     }
-          - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9',                                          LC_ALL: C.UTF-8     }
-          - { name: 'Fedora 35', container: 'fedora:35',                                                              LC_ALL: C.UTF-8     }
-          - { name: 'Fedora 36', container: 'fedora:36',                                                              LC_ALL: C.UTF-8     }
-    name: Package ${{ matrix.env.name }} RPM
-    env: ${{ matrix.env }}
-    steps:
-      - name: Install prerequisites for prerequisites
-        if: matrix.env.container == 'centos:7'
-        run:  yum -y install http://opensource.wandisco.com/centos/7/git/x86_64/wandisco-git-release-7-2.noarch.rpm
+        image:
+          - { name: 'CentOS 7',  container: 'centos-7-amd64'  }
+          - { name: 'CentOS 8',  container: 'centos-8-amd64'  }
+          - { name: 'CentOS 9',  container: 'centos-9-amd64'  }
+          - { name: 'Fedora 35', container: 'fedora-35-amd64' }
+          - { name: 'Fedora 36', container: 'fedora-36-amd64' }
 
-      - name: Install prerequisites
-        run:  yum -y install git sudo tar cpio rpm-build
+    name: Package ${{ matrix.image.name }} RPM
+    steps:
+      - name: Install rpm tools
+        run:  yum -y install rpm-build
 
       - name: Download SRPM
         uses: actions/download-artifact@v3
         with:
-          name: 'SRPM ${{ matrix.env.name }}'
+          name: 'SRPM ${{ matrix.image.name }}'
           path: ~/rpmbuild/SRPMS
 
       - name: Extract SRPM
         run: |
           rpm -i -v ~/rpmbuild/SRPMS/*.src.rpm
           tar xzf ~/rpmbuild/SOURCES/*.tar.gz --strip 1 -C ~/rpmbuild/SOURCES
-
-      - name: Setup noncacheable dependencies
-        run: |
-          cd ~/rpmbuild/SOURCES/
-          . ci/gha/setup-env.inc.sh
-          ci/install_noncacheable_dependencies.sh
-
-      - name: Permanently enable rh-ruby30
-        if: matrix.env.container == 'centos:7'
-        run: bash -c "echo \"$(cut -f 2- -d ' ' /opt/rh/rh-ruby30/enable)\"">> $GITHUB_ENV
 
       - name: Build rnp
         run: |
@@ -269,7 +275,7 @@ jobs:
       - name: Upload Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: 'RPM ${{ matrix.env.name}}'
+          name: 'RPM ${{ matrix.image.name}}'
           path: '~/rpmbuild/SOURCES/RPMS/*.rpm'
           retention-days: 5
 
@@ -280,18 +286,18 @@ jobs:
   rpm-tests:
     runs-on: ubuntu-latest
     needs: package
-    container: ${{ matrix.env.container }}
+    container: ${{ matrix.image.container }}
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        env:
+        image:
           - { name: 'CentOS 7',  container: 'centos:7'                      }
           - { name: 'CentOS 8',  container: 'tgagor/centos:stream8'         }
           - { name: 'CentOS 9',  container: 'quay.io/centos/centos:stream9' }
           - { name: 'Fedora 35', container: 'fedora:35'                     }
           - { name: 'Fedora 36', container: 'fedora:36'                     }
-    name: RPM test on ${{ matrix.env.name }}
+    name: RPM test on ${{ matrix.image.name }}
 
     steps:
       - name: Install prerequisites
@@ -303,26 +309,26 @@ jobs:
 #   ribose repo is also a source of json-c (v12 aka json-c12) for CentOS 7
 
       - name: Install ribose-packages
-        if: matrix.env.container == 'centos:7' || matrix.env.container == 'tgagor/centos:stream8'
+        if: matrix.image.container == 'centos:7' || matrix.image.container == 'tgagor/centos:stream8'
         run: |
            sudo rpm --import https://github.com/riboseinc/yum/raw/master/ribose-packages-next.pub
            sudo wget https://github.com/riboseinc/yum/raw/master/ribose.repo -O /etc/yum.repos.d/ribose.repo
 
       - name: Install epel-release
-        if: matrix.env.container == 'quay.io/centos/centos:stream9'
+        if: matrix.image.container == 'quay.io/centos/centos:stream9'
         run: |
            sudo dnf -y install 'dnf-command(config-manager)'
            sudo dnf config-manager --set-enabled crb
            sudo dnf -y install epel-release
 
       - name: Install xargs
-        if: matrix.env.container == 'fedora:35'
+        if: matrix.image.container == 'fedora:35'
         run:  sudo yum -y install findutils
 
       - name: Download rnp rpms
         uses: actions/download-artifact@v3
         with:
-          name: 'RPM ${{ matrix.env.name}}'
+          name: 'RPM ${{ matrix.image.name}}'
 
       - name: Checkout shell test framework
         uses: actions/checkout@v3
@@ -362,11 +368,11 @@ jobs:
 # Ribose repo provides json-c12-devel for CentOS7;
 # el8, el9, fr35, fr36 provide json-c-devel (version 12+)
       - name: Setup json-c12
-        if: matrix.env.container == 'centos:7'
+        if: matrix.image.container == 'centos:7'
         run: sudo yum -y install json-c12-devel
 
       - name: Setup json-c
-        if: matrix.env.container != 'centos:7'
+        if: matrix.image.container != 'centos:7'
         run: sudo yum -y install json-c-devel
 
       - name: Run packaging tests

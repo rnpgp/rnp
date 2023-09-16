@@ -50,27 +50,27 @@ jobs:
       fail-fast: false
       matrix:
         image:
-          - { container: 'debian-11-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
-          - { container: 'debian-11-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'openssl' }
-          - { container: 'debian-11-amd64', cpu: 'x86_64', arch: 'x64',    backend: 'botan'   }
-          - { container: 'debian-11-amd64', cpu: 'x86_64', arch: 'x64',    backend: 'openssl' }
-          - { container: 'debian-10-i386',  cpu: 'i386',   arch: 'ia32',   backend: 'botan'   }
+          - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'botan'   }
+          - { container: 'debian-11-i386',  cpu: 'i386',   backend: 'openssl' }
+          - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'botan'   }
+          - { container: 'debian-11-amd64', cpu: 'x86_64', backend: 'openssl' }
+          - { container: 'debian-10-i386',  cpu: 'i386',   backend: 'botan'   }
         env:
           - { CC: 'gcc',   CXX: 'g++'     }
           - { CC: 'clang', CXX: 'clang++' }
 
-    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}-${{ matrix.env.CC }}
+    container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
     env: ${{ matrix.env }}
     steps:
       - name: Checkout on x86_x64
-        if: matrix.image.CPU == 'x86_64'
+        if: matrix.image.cpu == 'x86_64'
         uses: actions/checkout@v3
         with:
           submodules: true
 
       - name: Checkout on i386
-        if: matrix.image.CPU == 'i386'
+        if: matrix.image.cpu == 'i386'
         uses: actions/checkout@v1
         with:
           submodules: true
