@@ -111,4 +111,6 @@ std::pair<pgp_dilithium_public_key_t, pgp_dilithium_private_key_t> dilithium_gen
 
 bool dilithium_hash_allowed(pgp_hash_alg_t hash_alg);
 
+pgp_hash_alg_t dilithium_default_hash_alg();
+
 #endif

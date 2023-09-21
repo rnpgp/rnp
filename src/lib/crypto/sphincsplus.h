@@ -199,4 +199,7 @@ bool sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
                               sphincsplus_parameter_t sphincsplus_param,
                               pgp_hash_alg_t          hash_alg);
 
+pgp_hash_alg_t sphincsplus_default_hash_alg(pgp_pubkey_alg_t        pk_alg,
+                                            sphincsplus_parameter_t sphincsplus_param);
+
 #endif
