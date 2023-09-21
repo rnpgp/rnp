@@ -129,3 +129,9 @@ dilithium_hash_allowed(pgp_hash_alg_t hash_alg)
         return false;
     }
 }
+
+pgp_hash_alg_t
+dilithium_default_hash_alg()
+{
+    return PGP_HASH_SHA3_256;
+}

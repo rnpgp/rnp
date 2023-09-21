@@ -384,3 +384,42 @@ sphincsplus_hash_allowed(pgp_pubkey_alg_t        pk_alg,
     }
     return true;
 }
+
+pgp_hash_alg_t
+sphincsplus_default_hash_alg(pgp_pubkey_alg_t        pk_alg,
+                             sphincsplus_parameter_t sphincsplus_param)
+{
+    switch (sphincsplus_param) {
+    case sphincsplus_simple_128s:
+        FALLTHROUGH_STATEMENT;
+    case sphincsplus_simple_128f:
+        switch (pk_alg) {
+        case PGP_PKA_SPHINCSPLUS_SHA2:
+            return PGP_HASH_SHA256;
+        case PGP_PKA_SPHINCSPLUS_SHAKE:
+            return PGP_HASH_SHA3_256;
+        default:
+            RNP_LOG("invalid parameter given");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        }
+    case sphincsplus_simple_192s:
+        FALLTHROUGH_STATEMENT;
+    case sphincsplus_simple_192f:
+        FALLTHROUGH_STATEMENT;
+    case sphincsplus_simple_256s:
+        FALLTHROUGH_STATEMENT;
+    case sphincsplus_simple_256f:
+        switch (pk_alg) {
+        case PGP_PKA_SPHINCSPLUS_SHA2:
+            return PGP_HASH_SHA512;
+        case PGP_PKA_SPHINCSPLUS_SHAKE:
+            return PGP_HASH_SHA3_512;
+        default:
+            RNP_LOG("invalid parameter given");
+            throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+        }
+    default:
+        RNP_LOG("invalid parameter given");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+}

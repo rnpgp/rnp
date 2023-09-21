@@ -520,6 +520,28 @@ find_suitable_key(pgp_op_t            op,
 pgp_hash_alg_t
 pgp_hash_adjust_alg_to_key(pgp_hash_alg_t hash, const pgp_key_pkt_t *pubkey)
 {
+#if defined(ENABLE_PQC)
+    switch (pubkey->alg) {
+    case PGP_PKA_SPHINCSPLUS_SHA2:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_SPHINCSPLUS_SHAKE:
+        return sphincsplus_default_hash_alg(pubkey->alg,
+                                            pubkey->material.sphincsplus.pub.param());
+    case PGP_PKA_DILITHIUM3_ED25519:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_P256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_P384:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM3_BP256:
+        FALLTHROUGH_STATEMENT;
+    case PGP_PKA_DILITHIUM5_BP384:
+        return dilithium_default_hash_alg();
+    default:
+        break;
+    }
+#endif
+
     if ((pubkey->alg != PGP_PKA_DSA) && (pubkey->alg != PGP_PKA_ECDSA)) {
         return hash;
     }
