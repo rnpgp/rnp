@@ -771,7 +771,11 @@ pgp_signature_t::set_keyfp(const pgp_fingerprint_t &fp)
     pgp_sig_subpkt_t &subpkt = add_subpkt(PGP_SIG_SUBPKT_ISSUER_FPR, 1 + fp.length, true);
     subpkt.parsed = true;
     subpkt.hashed = true;
+#if defined(ENABLE_CRYPTO_REFRESH)
+    subpkt.data[0] = (uint8_t) version;
+#else
     subpkt.data[0] = 4;
+#endif
     memcpy(subpkt.data + 1, fp.fingerprint, fp.length);
     subpkt.fields.issuer_fp.len = fp.length;
     subpkt.fields.issuer_fp.version = subpkt.data[0];

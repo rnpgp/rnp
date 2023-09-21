@@ -788,6 +788,10 @@ decrypt_secret_key(pgp_key_pkt_t *key, const char *password)
             }
             ret = decrypt_secret_key_v3(&crypt, decdata.data(), key->sec_data, key->sec_len);
             break;
+#if defined(ENABLE_CRYPTO_REFRESH)
+        case PGP_V6:
+            FALLTHROUGH_STATEMENT;
+#endif
         case PGP_V4:
             pgp_cipher_cfb_decrypt(&crypt, decdata.data(), key->sec_data, key->sec_len);
             ret = RNP_SUCCESS;
@@ -1037,6 +1041,9 @@ forget_secret_key_fields(pgp_key_material_t *key)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER768_BP256:
         FALLTHROUGH_STATEMENT;
+    case PGP_PKA_KYBER1024_BP384:
+        key->kyber_ecdh.priv.secure_clear();
+        break;
     case PGP_PKA_DILITHIUM3_ED25519:
         FALLTHROUGH_STATEMENT;
     // TODO: add case PGP_PKA_DILITHIUM5_ED448: FALLTHROUGH_STATEMENT;
@@ -1317,6 +1324,54 @@ pgp_key_pkt_t::~pgp_key_pkt_t()
     free(sec_data);
 }
 
+uint8_t
+pgp_key_pkt_t::s2k_specifier_len(pgp_s2k_specifier_t specifier)
+{
+    switch (specifier) {
+    case PGP_S2KS_SIMPLE:
+        return 2;
+    case PGP_S2KS_SALTED:
+        return 10;
+    case PGP_S2KS_ITERATED_AND_SALTED:
+        return 11;
+    default:
+        RNP_LOG("invalid specifier");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+}
+
+void
+pgp_key_pkt_t::make_s2k_params(pgp_packet_body_t &hbody)
+{
+    switch (sec_protection.s2k.usage) {
+    case PGP_S2KU_NONE:
+        break;
+    case PGP_S2KU_ENCRYPTED_AND_HASHED:
+    case PGP_S2KU_ENCRYPTED: {
+        hbody.add_byte(sec_protection.symm_alg);
+#if defined(ENABLE_CRYPTO_REFRESH)
+        if (version == PGP_V6) {
+            // V6 packages contain length of the following field
+            hbody.add_byte(s2k_specifier_len(sec_protection.s2k.specifier));
+        }
+#endif
+        hbody.add(sec_protection.s2k);
+        if (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) {
+            size_t blsize = pgp_block_size(sec_protection.symm_alg);
+            if (!blsize) {
+                RNP_LOG("wrong block size");
+                throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+            }
+            hbody.add(sec_protection.iv, blsize);
+        }
+        break;
+    }
+    default:
+        RNP_LOG("wrong s2k usage");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
+    }
+}
+
 void
 pgp_key_pkt_t::write(pgp_dest_t &dst)
 {
@@ -1344,27 +1399,16 @@ pgp_key_pkt_t::write(pgp_dest_t &dst)
     }
     pktbody.add_byte(sec_protection.s2k.usage);
 
-    switch (sec_protection.s2k.usage) {
-    case PGP_S2KU_NONE:
-        break;
-    case PGP_S2KU_ENCRYPTED_AND_HASHED:
-    case PGP_S2KU_ENCRYPTED: {
-        pktbody.add_byte(sec_protection.symm_alg);
-        pktbody.add(sec_protection.s2k);
-        if (sec_protection.s2k.specifier != PGP_S2KS_EXPERIMENTAL) {
-            size_t blsize = pgp_block_size(sec_protection.symm_alg);
-            if (!blsize) {
-                RNP_LOG("wrong block size");
-                throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-            }
-            pktbody.add(sec_protection.iv, blsize);
-        }
-        break;
+    pgp_packet_body_t s2k_params(tag);
+    make_s2k_params(s2k_params);
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if ((version == PGP_V6) && (sec_protection.s2k.usage != PGP_S2KU_NONE)) {
+        // V6 packages contain the count of the optional 1-byte parameters
+        pktbody.add_byte(s2k_params.size());
     }
-    default:
-        RNP_LOG("wrong s2k usage");
-        throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
-    }
+#endif
+    pktbody.add(s2k_params.data(), s2k_params.size());
+
     if (sec_len) {
         /* if key is stored on card, or exported via gpg --export-secret-subkeys, then
          * sec_data is empty */
@@ -1613,18 +1657,22 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
         case PGP_S2KU_ENCRYPTED:
         case PGP_S2KU_ENCRYPTED_AND_HASHED: {
             /* we have s2k */
+            uint8_t salg = 0;
+            if (!pkt.get(salg)) {
+                RNP_LOG("failed to read key protection (symmetric alg)");
+                return RNP_ERROR_BAD_FORMAT;
+            }
 #if defined(ENABLE_CRYPTO_REFRESH)
             if (version == PGP_V6) {
-                // V6 packages contain the count of the optional 1-byte parameters
-                uint8_t s2k_params_count;
-                if (!pkt.get(s2k_params_count)) {
-                    RNP_LOG("failed to read key protection");
+                // V6 packages contain the length of the following field
+                uint8_t s2k_specifier_len;
+                if (!pkt.get(s2k_specifier_len)) {
+                    RNP_LOG("failed to read key protection (s2k specifier length)");
                 }
             }
 #endif
-            uint8_t salg = 0;
-            if (!pkt.get(salg) || !pkt.get(sec_protection.s2k)) {
-                RNP_LOG("failed to read key protection");
+            if (!pkt.get(sec_protection.s2k)) {
+                RNP_LOG("failed to read key protection (s2k)");
                 return RNP_ERROR_BAD_FORMAT;
             }
             sec_protection.symm_alg = (pgp_symm_alg_t) salg;
