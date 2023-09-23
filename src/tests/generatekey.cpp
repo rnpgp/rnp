@@ -582,6 +582,7 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     bool   ret = false;
     int    pipefd[2] = {-1, -1};
     int    user_input_pipefd[2] = {-1, -1};
+    int    saved_stdin = -1;
     size_t rsp_len;
 
     if (pipe(pipefd) == -1) {
@@ -605,10 +606,24 @@ ask_expert_details(cli_rnp_t *ctx, rnp_cfg &ops, const char *rsp)
     }
     close(user_input_pipefd[1]);
 
-    /* Mock user-input*/
-    ctx->cfg().set_int(CFG_USERINPUTFD, user_input_pipefd[0]);
+    /* Replace stdin with our pipe */
+    saved_stdin = dup(STDIN_FILENO);
+    if (dup2(user_input_pipefd[0], STDIN_FILENO) == -1) {
+        ret = false;
+        goto end;
+    }
+
+    fprintf(stderr, "saved_stdin: %i\n", saved_stdin);
 
     if (!rnp_cmd(ctx, CMD_GENERATE_KEY, NULL)) {
+        ret = false;
+        goto end;
+    }
+    if (dup2(saved_stdin, STDIN_FILENO) == -1) {
+        ret = false;
+        goto end;
+    }
+    if (fcntl(STDIN_FILENO, F_SETFD, FD_CLOEXEC) == -1) {
         ret = false;
         goto end;
     }
@@ -619,6 +634,7 @@ end:
     if (user_input_pipefd[0]) {
         close(user_input_pipefd[0]);
     }
+    close(saved_stdin);
     return ret;
 }
 

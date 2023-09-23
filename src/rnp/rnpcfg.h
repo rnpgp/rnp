@@ -52,28 +52,27 @@
 #define CFG_RECIPIENTS "recipients"      /* list of encrypted data recipients */
 #define CFG_SIGNERS "signers"            /* list of signers */
 #define CFG_HOMEDIR "homedir"            /* home directory - folder with keyrings and so on */
-#define CFG_KEYFILE "keyfile"     /* path to the file with key(s), used instead of keyring */
-#define CFG_PASSFD "pass-fd"      /* password file descriptor */
-#define CFG_PASSWD "password"     /* password as command-line constant */
-#define CFG_PASSWORDC "passwordc" /* number of passwords for symmetric encryption */
-#define CFG_USERINPUTFD "user-input-fd" /* user input file descriptor */
-#define CFG_NUMTRIES "numtries"         /* number of password request tries, or 'unlimited' */
-#define CFG_EXPIRATION "expiration"     /* signature expiration time */
-#define CFG_CREATION "creation"         /* signature validity start */
-#define CFG_CIPHER "cipher"             /* symmetric encryption algorithm as string */
-#define CFG_HASH "hash"                 /* hash algorithm used, string like 'SHA1'*/
-#define CFG_WEAK_HASH "weak-hash"       /* allow weak algorithms */
-#define CFG_S2K_ITER "s2k-iter"         /* number of S2K hash iterations to perform */
-#define CFG_S2K_MSEC "s2k-msec"         /* number of milliseconds S2K should target */
-#define CFG_ENCRYPT_PK "encrypt_pk"     /* public key should be used during encryption */
-#define CFG_ENCRYPT_SK "encrypt_sk"     /* password encryption should be used */
-#define CFG_IO_RESS "ress"              /* results stream */
-#define CFG_NUMBITS "numbits"           /* number of bits in generated key */
-#define CFG_EXPERT "expert"             /* expert key generation mode */
-#define CFG_ZLEVEL "zlevel"             /* compression level: 0..9 (0 for no compression) */
-#define CFG_ZALG "zalg"                 /* compression algorithm: zip, zlib or bzip2 */
-#define CFG_AEAD "aead"                 /* if nonzero then AEAD enryption mode, int */
-#define CFG_AEAD_CHUNK "aead_chunk"     /* AEAD chunk size bits, int from 0 to 56 */
+#define CFG_KEYFILE "keyfile"       /* path to the file with key(s), used instead of keyring */
+#define CFG_PASSFD "pass-fd"        /* password file descriptor */
+#define CFG_PASSWD "password"       /* password as command-line constant */
+#define CFG_PASSWORDC "passwordc"   /* number of passwords for symmetric encryption */
+#define CFG_NUMTRIES "numtries"     /* number of password request tries, or 'unlimited' */
+#define CFG_EXPIRATION "expiration" /* signature expiration time */
+#define CFG_CREATION "creation"     /* signature validity start */
+#define CFG_CIPHER "cipher"         /* symmetric encryption algorithm as string */
+#define CFG_HASH "hash"             /* hash algorithm used, string like 'SHA1'*/
+#define CFG_WEAK_HASH "weak-hash"   /* allow weak algorithms */
+#define CFG_S2K_ITER "s2k-iter"     /* number of S2K hash iterations to perform */
+#define CFG_S2K_MSEC "s2k-msec"     /* number of milliseconds S2K should target */
+#define CFG_ENCRYPT_PK "encrypt_pk" /* public key should be used during encryption */
+#define CFG_ENCRYPT_SK "encrypt_sk" /* password encryption should be used */
+#define CFG_IO_RESS "ress"          /* results stream */
+#define CFG_NUMBITS "numbits"       /* number of bits in generated key */
+#define CFG_EXPERT "expert"         /* expert key generation mode */
+#define CFG_ZLEVEL "zlevel"         /* compression level: 0..9 (0 for no compression) */
+#define CFG_ZALG "zalg"             /* compression algorithm: zip, zlib or bzip2 */
+#define CFG_AEAD "aead"             /* if nonzero then AEAD enryption mode, int */
+#define CFG_AEAD_CHUNK "aead_chunk" /* AEAD chunk size bits, int from 0 to 56 */
 #define CFG_KEYSTORE_DISABLED \
     "disable_keystore"              /* indicates whether keystore must be initialized */
 #define CFG_FORCE "force"           /* force command to succeed operation */
