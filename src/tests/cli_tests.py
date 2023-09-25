@@ -333,8 +333,6 @@ def rnp_genkey_pqc(userid, algo_cli_nr, pswd=PASSWORD):
     #os.close(algo_pipe)
     if ret != 0:
         raise_err('pqc key generation failed', err)
-    else:
-        print("genkey PQC successful")
 
 def rnp_params_insert_z(params, pos, z):
     if z:
@@ -4478,11 +4476,8 @@ class Encryption(unittest.TestCase):
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
         ALGO = [25, 27, 28, 29, 30, 31, 32, 33, 34,]
         # Generate multiple keys and import to GnuPG
-        print("starting pqc sign / encrypt tests")
         for uid, algo in zip(USERIDS, ALGO):
-            print("    generating pqc key...")
             rnp_genkey_pqc(uid, algo, 'testpw')
-            print("    ... done")
 
         #gpg_import_pubring()
         #gpg_import_secring()
@@ -4508,7 +4503,6 @@ class Encryption(unittest.TestCase):
 
 
             remove_files(dst, dec)
-        print("finished pqc sign / encrypt tests")
 
     def test_encryption_weird_userids_special_1(self):
         uid = WEIRD_USERID_SPECIAL_CHARS
