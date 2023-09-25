@@ -329,12 +329,14 @@ def rnp_genkey_rsa(userid, bits=2048, pswd=PASSWORD):
         raise_err('rsa key generation failed', err)
 
 def rnp_genkey_pqc(userid, algo_cli_nr, pswd=PASSWORD):
-    pipe = algo_pipe = pipe(algo_cli_nr)
-    ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', 'test',
-                                  '--notty', '--userid', userid, '--generate-key'], pipe)
-    os.close(pipe)
+    algo_pipe = str(algo_cli_nr)
+    ret, _, err = run_proc(RNPK, ['--homedir', RNPDIR, '--password', pswd,
+                                  '--notty', '--userid', userid, '--generate-key', '--expert'], algo_pipe)
+    #os.close(algo_pipe)
     if ret != 0:
         raise_err('pqc key generation failed', err)
+    else:
+        print("genkey PQC successful")
 
 def rnp_params_insert_z(params, pos, z):
     if z:
@@ -405,6 +407,7 @@ def rnp_encrypt_and_sign_file(src, dst, recipients, encrpswd, signers, signpswd,
     os.close(pipe)
     if ret != 0:
         raise_err('rnp encrypt-and-sign failed', err)
+
 
 def rnp_decrypt_file(src, dst, password = PASSWORD):
     pipe = pswd_pipe(password)
@@ -4613,68 +4616,44 @@ class Encryption(unittest.TestCase):
 
             remove_files(dst, dec)
 
-
-    def test_encryption_and_signing_pqc(self):
+    """ zzz_ prefix makes it the last test. This is a workaround against a gnupg import error with the
+    pqc keys in other member function tests that follow this one.
+    """
+    def test_zzz_encryption_and_signing_pqc(self):
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
         ALGO = [25, 27, 28, 29, 30, 31, 32, 33, 34,]
-        AEAD_C = list_upto(rnp_supported_ciphers(True), Encryption.RUNS)
         # Generate multiple keys and import to GnuPG
+        print("starting pqc sign / encrypt tests")
         for uid, algo in zip(USERIDS, ALGO):
+            print("    generating pqc key...")
             rnp_genkey_pqc(uid, algo, 'testpw')
+            print("    ... done")
 
-        gpg_import_pubring()
-        gpg_import_secring()
+        #gpg_import_pubring()
+        #gpg_import_secring()
 
-        SIGNERS = list_upto(range(1, len(USERIDS) + 1), Encryption.RUNS)
-        KEYPSWD = tuple((t1, t2) for t1 in range(1, len(USERIDS) + 1)
-                        for t2 in range(len(PASSWORDS) + 1))
-        KEYPSWD = list_upto(KEYPSWD, Encryption.RUNS)
-        AEADS = self.fill_aeads(Encryption.RUNS)
-        ZS = list_upto([None, [None, 0]], Encryption.RUNS)
 
         src, dst, dec = reg_workfiles('cleartext', '.txt', '.rnp', '.dec')
         # Generate random file of required size
         random_text(src, 65500)
 
-        for i in range(0, Encryption.RUNS):
-            signers = USERIDS[i]
+        for i in range(0, len(USERIDS)):
+            signers = [USERIDS[i]]
             #signpswd = KEYPASS[:SIGNERS[i]]
             #keynum, pswdnum = KEYPSWD[i]
-            recipients = USERIDS[i]
-            passwords = PASSWORDS[:pswdnum]
-            aead = AEADS[i]
-            z = ZS[i]
-            cipher = AEAD_C[i]
-            first_pass = aead is None and ((pswdnum > 1) or ((pswdnum == 1) and (keynum > 0)))
-            try_gpg = self.gpg_supports(aead)
+            recipients = [USERIDS[i]]
+            passwords = [] # SKESK for v6 not yet supported
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
-                                      signpswd, aead, cipher, z)
+                                      ['testpw'])
             # Decrypt file with each of the keys, we have different password for each key
-            for pswd in KEYPASS[:keynum]:
-                if not first_pass and try_gpg:
-                    gpg_decrypt_file(dst, dec, pswd)
-                    gpg_agent_clear_cache()
-                    remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
-                remove_files(dec)
+            rnp_decrypt_file(dst, dec, 'testpw')
+            remove_files(dec)
 
-            # GPG decrypts only with first password, see T3795
-            if first_pass and try_gpg:
-                gpg_decrypt_file(dst, dec, PASSWORDS[0])
-                gpg_agent_clear_cache()
-                remove_files(dec)
 
-            # Decrypt file with each of the passwords
-            for pswd in PASSWORDS[:pswdnum]:
-                if not first_pass and try_gpg:
-                    gpg_decrypt_file(dst, dec, pswd)
-                    gpg_agent_clear_cache()
-                    remove_files(dec)
-                rnp_decrypt_file(dst, dec, '\n'.join([pswd] * 5))
-                remove_files(dec)
 
             remove_files(dst, dec)
+        print("finished pqc sign / encrypt tests")
 
     def test_encryption_weird_userids_special_1(self):
         uid = WEIRD_USERID_SPECIAL_CHARS
