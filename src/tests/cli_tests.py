@@ -4620,9 +4620,11 @@ class Encryption(unittest.TestCase):
     def test_zzz_encryption_and_signing_pqc(self):
         USERIDS = ['enc-sign25@rnp', 'enc-sign27@rnp', 'enc-sign28@rnp', 'enc-sign29@rnp', 'enc-sign30@rnp','enc-sign31@rnp','enc-sign32@rnp','enc-sign33@rnp','enc-sign34@rnp']
         ALGO = [25, 27, 28, 29, 30, 31, 32, 33, 34,]
+        passwds = [ ]
+        for x in range(len(ALGO)): passwds.append('testpw' if x % 1 == 0 else '')
         # Generate multiple keys and import to GnuPG
-        for uid, algo in zip(USERIDS, ALGO):
-            rnp_genkey_pqc(uid, algo, 'testpw')
+        for uid, algo, passwd in zip(USERIDS, ALGO, passwds):
+            rnp_genkey_pqc(uid, algo, passwd)
 
         #gpg_import_pubring()
         #gpg_import_secring()
@@ -4638,11 +4640,12 @@ class Encryption(unittest.TestCase):
             #keynum, pswdnum = KEYPSWD[i]
             recipients = [USERIDS[i]]
             passwords = [] # SKESK for v6 not yet supported
+            signerpws = [passwds[i]]
 
             rnp_encrypt_and_sign_file(src, dst, recipients, passwords, signers,
-                                      ['testpw'])
+                                      signerpws)
             # Decrypt file with each of the keys, we have different password for each key
-            rnp_decrypt_file(dst, dec, 'testpw')
+            rnp_decrypt_file(dst, dec, passwds[i])
             remove_files(dec)
 
 
