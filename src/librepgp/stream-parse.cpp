@@ -1548,8 +1548,8 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         - The payload following any v6 PKESK or v6 SKESK packet MUST be a v2 SEIPD.
         - implementations MUST NOT precede a v2 SEIPD payload with either v3 PKESK or v4
        SKESK packets. */
-    if ((param->is_v2_seipd() && !(sesskey->version == PGP_PKSK_V6)) ||
-        (param->auth_type == rnp::AuthType::MDC && !(sesskey->version == PGP_PKSK_V3))) {
+    if ((param->is_v2_seipd() && (sesskey->version != PGP_PKSK_V6)) ||
+        (param->auth_type == rnp::AuthType::MDC && (sesskey->version != PGP_PKSK_V3))) {
         RNP_LOG("Attempt to mix SEIPD v1 with PKESK v6 or SEIPD v2 with PKESK v3");
         return false;
     }
