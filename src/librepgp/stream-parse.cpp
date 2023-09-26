@@ -1681,7 +1681,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
     if (sesskey->version == PGP_PKSK_V3) {
         /* Check algorithm and key length */
         if (!pgp_is_sa_supported(sesskey->salg)) {
-            RNP_LOG("Unsupported symmetric algorithm %" PRIu8, sesskey->salg);
+            RNP_LOG("Unsupported symmetric algorithm %d", (int) sesskey->salg);
             return false;
         }
 
