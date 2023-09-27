@@ -1184,8 +1184,8 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
                                                         const char *      keyserver);
 
 /** Set the generated key version to v6.
- * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
- * time.
+ *  NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ *        time.
  *
  * @param op pointer to opaque key generation context.
  * @return RNP_SUCCESS or error code if failed.
@@ -1193,8 +1193,8 @@ RNP_API rnp_result_t rnp_op_generate_set_pref_keyserver(rnp_op_generate_t op,
 RNP_API rnp_result_t rnp_op_generate_set_v6_key(rnp_op_generate_t op);
 
 /** Set the SPHINCS+ parameter set
- * NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
- * time.
+ *  NOTE: This is an experimantal feature and this function can be replaced (or removed) at any
+ *        time.
  *
  * @param op pointer to opaque key generation context.
  * @param param string, representing the SHPINCS+ parameter set.
@@ -3017,9 +3017,9 @@ RNP_API rnp_result_t rnp_op_encrypt_add_recipient(rnp_op_encrypt_t op, rnp_key_h
 
 /**
  * @brief Enables the creation of PKESK v6 (instead of v3) which results in the use of SEIPDv2.
- * The actually created version depends on the capabilities of the list of recipients.
- * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
- * time.
+ *        The actually created version depends on the capabilities of the list of recipients.
+ *        NOTE: This is an experimental feature and this function can be replaced (or removed)
+ *        at any time.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
  * @return RNP_SUCCESS or errorcode if failed.
@@ -3040,7 +3040,8 @@ RNP_API rnp_result_t rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
 
 /**
  * @brief Set hash function used for signature calculation. Makes sense if encrypt-and-sign is
- * used. To set hash function for each signature separately use rnp_op_sign_signature_set_hash.
+ *        used. To set hash function for each signature separately use
+ *        rnp_op_sign_signature_set_hash.
  *
  * @param op opaque encrypting context. Must be allocated and initialized.
  * @param hash hash algorithm to be used as NULL-terminated string. Following values are
@@ -3167,7 +3168,8 @@ RNP_API rnp_result_t rnp_op_encrypt_set_flags(rnp_op_encrypt_t op, uint32_t flag
  *
  * @param op opaque encrypted context. Must be allocated and initialized
  * @param filename file name as NULL-terminated string. May be empty string. Value "_CONSOLE"
- * may have specific processing (see RFC 4880 for the details), depending on implementation.
+ *                 may have specific processing (see RFC 4880 for the details), depending on
+ *                 implementation.
  * @return RNP_SUCCESS on success, or any other value on error
  */
 RNP_API rnp_result_t rnp_op_encrypt_set_file_name(rnp_op_encrypt_t op, const char *filename);
@@ -3201,7 +3203,8 @@ RNP_API rnp_result_t rnp_op_encrypt_destroy(rnp_op_encrypt_t op);
  */
 RNP_API rnp_result_t rnp_decrypt(rnp_ffi_t ffi, rnp_input_t input, rnp_output_t output);
 
-/** retrieve the raw data for a public key
+/**
+ *  @brief retrieve the raw data for a public key
  *
  *  This will always be PGP packets and will never include ASCII armor.
  *
@@ -3214,7 +3217,8 @@ RNP_API rnp_result_t rnp_get_public_key_data(rnp_key_handle_t handle,
                                              uint8_t **       buf,
                                              size_t *         buf_len);
 
-/** retrieve the raw data for a secret key
+/**
+ *  @brief retrieve the raw data for a secret key
  *
  *  If this is a G10 key, this will be the s-expr data. Otherwise, it will
  *  be PGP packets.
