@@ -69,6 +69,13 @@
         RNP_LOG_FD(fp, __VA_ARGS__); \
     } while (0)
 
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH) != defined(ENABLE_CRYPTO_REFRESH)
+#error "Invalid defines combination."
+#endif
+#if defined(RNP_EXPERIMENTAL_PQC) != defined(ENABLE_PQC)
+#error "Invalid defines combination."
+#endif
+
 static pgp_key_t *get_key_require_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_prefer_public(rnp_key_handle_t handle);
 static pgp_key_t *get_key_require_secret(rnp_key_handle_t handle);
@@ -2592,21 +2599,19 @@ try {
 }
 FFI_GUARD
 
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
 rnp_result_t
 rnp_op_encrypt_enable_pkesk_v6(rnp_op_encrypt_t op)
 try {
-#if defined(ENABLE_CRYPTO_REFRESH)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
 
     op->rnpctx.enable_pkesk_v6 = true;
     return RNP_SUCCESS;
-#else
-    return RNP_ERROR_NOT_IMPLEMENTED;
-#endif
 }
 FFI_GUARD
+#endif
 
 rnp_result_t
 rnp_op_encrypt_add_signature(rnp_op_encrypt_t         op,
@@ -5672,26 +5677,24 @@ try {
 }
 FFI_GUARD
 
+#if defined(RNP_EXPERIMENTAL_CRYPTO_REFRESH)
 rnp_result_t
 rnp_op_generate_set_v6_key(rnp_op_generate_t op)
 try {
-#if defined(ENABLE_CRYPTO_REFRESH)
     if (!op) {
         return RNP_ERROR_NULL_POINTER;
     }
     op->pgp_version = PGP_V6;
     return RNP_SUCCESS;
-#else
-    return RNP_ERROR_NOT_IMPLEMENTED;
-#endif
 }
 FFI_GUARD
+#endif
 
+#if defined(RNP_EXPERIMENTAL_CRYPTO_PQC)
 rnp_result_t
 rnp_op_generate_set_sphincsplus_param(rnp_op_generate_t op, const char *param_cstr)
 try {
-#if defined(ENABLE_PQC)
-    if (!op) {
+    if (!op || !param_cstr) {
         return RNP_ERROR_NULL_POINTER;
     }
 
@@ -5716,11 +5719,9 @@ try {
 
     op->crypto.sphincsplus.param = param;
     return RNP_SUCCESS;
-#else
-    return RNP_ERROR_NOT_IMPLEMENTED;
-#endif
 }
 FFI_GUARD
+#endif
 
 rnp_result_t
 rnp_op_generate_execute(rnp_op_generate_t op)

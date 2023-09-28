@@ -464,12 +464,24 @@ foreach (prop LINK_LIBRARIES INTERFACE_LINK_LIBRARIES INCLUDE_DIRECTORIES INTERF
 
 endforeach()
 
+set(EXPERIMENTAL_FEATURES "")
+if (ENABLE_CRYPTO_REFRESH)
+  set(EXPERIMENTAL_FEATURES "${EXPERIMENTAL_FEATURES}\n#define RNP_EXPERIMENTAL_CRYPTO_REFRESH\n")
+endif()
+if(ENABLE_PQC)
+  set(EXPERIMENTAL_FEATURES "${EXPERIMENTAL_FEATURES}\n#define RNP_EXPERIMENTAL_PQC\n")
+endif()
+if(NOT EXPERIMENTAL_FEATURES STREQUAL "")
+  message(WARNING "One or more experimental features are enabled. Use it on your own risk.")
+endif()
+
 generate_export_header(librnp
   BASE_NAME rnp
   EXPORT_MACRO_NAME RNP_API
   EXPORT_FILE_NAME rnp/rnp_export.h
   STATIC_DEFINE RNP_STATIC
   INCLUDE_GUARD_NAME RNP_EXPORT
+  CUSTOM_CONTENT_FROM_VARIABLE EXPERIMENTAL_FEATURES
 )
 
 # This has precedence and can cause some confusion when the binary
