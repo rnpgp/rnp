@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2023, [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -32,6 +32,7 @@
 #include <time.h>
 #include "rnp/rnp.h"
 #include "rnp/rnp_err.h"
+#include "rnp/rnpcpp.hpp"
 #include "config.h"
 #include "rnpcfg.h"
 #include "json.h"
