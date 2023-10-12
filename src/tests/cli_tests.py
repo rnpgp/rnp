@@ -4073,6 +4073,43 @@ class Misc(unittest.TestCase):
         self.assertNotRegex(err, r'(?s)^.*Warning: missing or malformed CRC line.*$')
         self.assertNotRegex(err, r'(?s)^.*wrong armor trailer.*$')
 
+    def test_default_v5_key(self):
+        RNP2 = RNPDIR + '2'
+        os.mkdir(RNP2, 0o700)
+        # Import v5 key
+        ret, out, _ = run_proc(RNPK, ['--homedir', RNP2, '--import', data_path('test_stream_key_load/v5-rsa-sec.asc')])
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*sec.*b856a4197113d431.*v5_rsa.*$')
+        # Attempt to sign using the default key
+        ret, out, err = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '--armor', '--sign'], 'Hello')
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Default key not found.*$')
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP MESSAGE.*$')
+        ret, _, err = run_proc(RNP, ['--homedir', RNP2, '--verify'], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*$')
+        # Attempt to sign cleartext using the default key
+        ret, out, err = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '--clearsign'], 'Hello\n')
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Default key not found.*$')
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP SIGNED MESSAGE.*$')
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP SIGNATURE.*$')
+        ret, _, err = run_proc(RNP, ['--homedir', RNP2, '--verify', '-'], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*$')
+        self.assertNotRegex(err, r'(?s)^.*Warning: missing or malformed CRC line.*$')
+        self.assertNotRegex(err, r'(?s)^.*wrong armor trailer.*$')
+        # Attempt to encrypt using the default key
+        ret, out, err = run_proc(RNP, ['--homedir', RNP2, '--armor', '--encrypt'], 'Hello')
+        self.assertEqual(ret, 0)
+        self.assertNotRegex(err, r'(?s)^.*Default key not found.*$')
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP MESSAGE.*$')
+        ret, out, _ = run_proc(RNP, ['--homedir', RNP2, '--password', PASSWORD, '--decrypt'], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*Hello.*$')
+
+        shutil.rmtree(RNP2, ignore_errors=True)
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
