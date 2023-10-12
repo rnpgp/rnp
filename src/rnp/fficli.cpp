@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019-2021, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2019-2021, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -1737,22 +1737,10 @@ done:
 }
 
 static bool
-key_matches_string(rnp_key_handle_t handle, const std::string &str)
+key_matches_string(rnpffi::Key &key, const std::string &str)
 {
-    bool   matches = false;
-    char * id = NULL;
-    size_t idlen = 0;
-#ifndef RNP_USE_STD_REGEX
-    regex_t r = {};
-#else
-    std::regex re;
-#endif
-    size_t uid_count = 0;
-    bool   boolres = false;
-
     if (str.empty()) {
-        matches = true;
-        goto done;
+        return true;
     }
     if (rnp::is_hex(str) && (str.length() >= RNP_KEYID_SIZE)) {
         std::string hexstr = rnp::strip_hex(str);
@@ -1760,131 +1748,87 @@ key_matches_string(rnp_key_handle_t handle, const std::string &str)
 
         /* check whether it's key id */
         if ((len == RNP_KEYID_SIZE * 2) || (len == RNP_KEYID_SIZE)) {
-            if (rnp_key_get_keyid(handle, &id)) {
-                goto done;
+            auto keyid = key.keyid();
+            if (keyid.size() < len) {
+                return false;
             }
-            if ((idlen = strlen(id)) < len) {
-                goto done;
+            if (!strncasecmp(hexstr.c_str(), keyid.c_str() + keyid.size() - len, len)) {
+                return true;
             }
-            if (strncasecmp(hexstr.c_str(), id + idlen - len, len) == 0) {
-                matches = true;
-                goto done;
-            }
-            rnp_buffer_destroy(id);
-            id = NULL;
         }
 
         /* check fingerprint */
-        size_t fp_size = RNP_FP_V4_SIZE;
-#if defined(ENABLE_CRYPTO_REFRESH)
-        uint32_t key_version;
-        rnp_key_get_version(handle, &key_version);
-
-        if (key_version == RNP_PGP_VER_6) {
-            fp_size = RNP_FP_V6_SIZE;
-        }
-#endif
-        if (len == fp_size * 2) {
-            if (rnp_key_get_fprint(handle, &id)) {
-                goto done;
-            }
-            if (strlen(id) != len) {
-                goto done;
-            }
-            if (strncasecmp(hexstr.c_str(), id, len) == 0) {
-                matches = true;
-                goto done;
-            }
-            rnp_buffer_destroy(id);
-            id = NULL;
+        auto keyfp = key.fprint();
+        if ((len == keyfp.size()) && !strncasecmp(hexstr.c_str(), keyfp.c_str(), len)) {
+            return true;
         }
 
         /* check grip */
-        if (len == RNP_GRIP_SIZE * 2) {
-            if (rnp_key_get_grip(handle, &id)) {
-                goto done;
+        auto grip = key.grip();
+        if (len == grip.size()) {
+            if (!strncasecmp(hexstr.c_str(), grip.c_str(), len)) {
+                return true;
             }
-            if (strlen(id) != len) {
-                goto done;
-            }
-            if (strncasecmp(hexstr.c_str(), id, len) == 0) {
-                matches = true;
-                goto done;
-            }
-            rnp_buffer_destroy(id);
-            id = NULL;
         }
         /* let then search for hex userid */
     }
 
     /* no need to check for userid over the subkey */
-    if (rnp_key_is_sub(handle, &boolres) || boolres) {
-        goto done;
+    if (key.is_sub()) {
+        return false;
     }
-    if (rnp_key_get_uid_count(handle, &uid_count) || (uid_count == 0)) {
-        goto done;
+    auto uid_count = key.uid_count();
+    if (!uid_count) {
+        return false;
     }
 
 #ifndef RNP_USE_STD_REGEX
+    regex_t r = {};
     /* match on full name or email address as a NOSUB, ICASE regexp */
     if (regcomp(&r, cli_rnp_unescape_for_regcomp(str).c_str(), REG_EXTENDED | REG_ICASE) !=
         0) {
-        goto done;
+        return false;
     }
 #else
+    std::regex re;
     try {
         re.assign(str, std::regex_constants::ECMAScript | std::regex_constants::icase);
     } catch (const std::exception &e) {
         ERR_MSG("Invalid regular expression : %s, error %s.", str.c_str(), e.what());
-        goto done;
+        return false;
     }
 #endif
 
+    bool matches = false;
     for (size_t idx = 0; idx < uid_count; idx++) {
-        if (rnp_key_get_uid_at(handle, idx, &id)) {
-            goto regdone;
-        }
+        auto uid = key.uid_at(idx);
 #ifndef RNP_USE_STD_REGEX
-        if (regexec(&r, id, 0, NULL, 0) == 0) {
+        if (regexec(&r, uid.c_str(), 0, NULL, 0) == 0) {
             matches = true;
-            goto regdone;
+            break;
         }
 #else
-        if (std::regex_search(id, re)) {
+        if (std::regex_search(uid, re)) {
             matches = true;
-            goto regdone;
+            break;
         }
 #endif
-        rnp_buffer_destroy(id);
-        id = NULL;
     }
-
-regdone:
 #ifndef RNP_USE_STD_REGEX
     regfree(&r);
 #endif
-done:
-    rnp_buffer_destroy(id);
     return matches;
 }
 
 static bool
-key_matches_flags(rnp_key_handle_t key, int flags)
+key_matches_flags(rnpffi::Key &key, int flags)
 {
     /* check whether secret key search is requested */
-    bool secret = false;
-    if (rnp_key_have_secret(key, &secret)) {
-        return false;
-    }
-    if ((flags & CLI_SEARCH_SECRET) && !secret) {
+    if ((flags & CLI_SEARCH_SECRET) && !key.secret()) {
         return false;
     }
     /* check whether no subkeys allowed */
-    bool subkey = false;
-    if (rnp_key_is_sub(key, &subkey)) {
-        return false;
-    }
-    if (!subkey) {
+    if (!key.is_sub()) {
         return true;
     }
     if (!(flags & CLI_SEARCH_SUBKEYS)) {
@@ -1895,15 +1839,7 @@ key_matches_flags(rnp_key_handle_t key, int flags)
         return true;
     }
 
-    char *grip = NULL;
-    if (rnp_key_get_primary_grip(key, &grip)) {
-        return false;
-    }
-    if (!grip) {
-        return true;
-    }
-    rnp_buffer_destroy(grip);
-    return false;
+    return key.primary_grip().empty();
 }
 
 void
@@ -1969,40 +1905,32 @@ cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
                              const std::string &            str,
                              int                            flags)
 {
-    bool                      res = false;
-    rnp_identifier_iterator_t it = NULL;
-    rnp_key_handle_t          handle = NULL;
-    const char *              fp = NULL;
+    rnpffi::FFI ffi(rnp->ffi, false);
 
     /* iterate through the keys */
-    if (rnp_identifier_iterator_create(rnp->ffi, &it, "fingerprint")) {
+    auto it = ffi.iterator_create("fingerprint");
+    if (!it) {
         return false;
     }
 
-    while (!rnp_identifier_iterator_next(it, &fp)) {
-        if (!fp) {
-            break;
-        }
-        if (rnp_locate_key(rnp->ffi, "fingerprint", fp, &handle) || !handle) {
-            goto done;
-        }
-        if (!key_matches_flags(handle, flags) || !key_matches_string(handle, str)) {
-            rnp_key_handle_destroy(handle);
+    std::string fp;
+    while (it->next(fp)) {
+        auto key = ffi.locate_key("fingerprint", fp);
+        if (!key) {
             continue;
         }
-        if (!add_key_to_array(rnp->ffi, keys, handle, flags)) {
-            rnp_key_handle_destroy(handle);
-            goto done;
+        if (!key_matches_flags(*key, flags) || !key_matches_string(*key, str)) {
+            continue;
         }
+        if (!add_key_to_array(rnp->ffi, keys, key->handle(), flags)) {
+            return false;
+        }
+        key->release();
         if (flags & CLI_SEARCH_FIRST_ONLY) {
-            res = true;
-            goto done;
+            return true;
         }
     }
-    res = !keys.empty();
-done:
-    rnp_identifier_iterator_destroy(it);
-    return res;
+    return !keys.empty();
 }
 
 bool
