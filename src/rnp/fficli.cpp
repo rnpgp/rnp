@@ -783,46 +783,34 @@ cli_rnp_t::load_keyrings(bool loadsecret)
 void
 cli_rnp_t::set_defkey()
 {
-    rnp_identifier_iterator_t it = NULL;
-    rnp_key_handle_t          handle = NULL;
-    const char *              grip = NULL;
-
     cfg_.unset(CFG_KR_DEF_KEY);
-    if (rnp_identifier_iterator_create(ffi, &it, "grip")) {
+
+    rnpffi::FFI ffiobj(ffi, false);
+    auto        it = ffiobj.iterator_create("fingerprint");
+    if (!it) {
         ERR_MSG("failed to create key iterator");
         return;
     }
 
-    while (!rnp_identifier_iterator_next(it, &grip)) {
-        bool is_subkey = false;
-        bool is_secret = false;
-
-        if (!grip) {
-            break;
-        }
-        if (rnp_locate_key(ffi, "grip", grip, &handle)) {
-            ERR_MSG("failed to locate key");
+    std::string fp;
+    while (it->next(fp)) {
+        auto key = ffiobj.locate_key("fingerprint", fp);
+        if (!key) {
+            ERR_MSG("failed to locate key %s", fp.c_str());
             continue;
         }
-        if (rnp_key_is_sub(handle, &is_subkey) || is_subkey) {
-            goto next;
+        if (!key->is_primary()) {
+            continue;
         }
-        if (rnp_key_have_secret(handle, &is_secret)) {
-            goto next;
-        }
+        bool is_secret = key->secret();
         if (!cfg_.has(CFG_KR_DEF_KEY) || is_secret) {
-            cfg_.set_str(CFG_KR_DEF_KEY, grip);
+            cfg_.set_str(CFG_KR_DEF_KEY, fp);
             /* if we have secret primary key then use it as default */
             if (is_secret) {
-                break;
+                return;
             }
         }
-    next:
-        rnp_key_handle_destroy(handle);
-        handle = NULL;
     }
-    rnp_key_handle_destroy(handle);
-    rnp_identifier_iterator_destroy(it);
 }
 
 bool
