@@ -155,7 +155,7 @@ print_keys_info(cli_rnp_t *rnp, FILE *fp, const char *filter)
     int  flags = CLI_SEARCH_SUBKEYS_AFTER | (psecret ? CLI_SEARCH_SECRET : 0);
     std::vector<rnp_key_handle_t> keys;
 
-    if (!cli_rnp_keys_matching_string(rnp, keys, filter ? filter : "", flags)) {
+    if (!rnp->keys_matching(keys, filter ? filter : "", flags)) {
         fprintf(fp, "Key(s) not found.\n");
         return false;
     }

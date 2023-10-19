@@ -69,8 +69,7 @@ generate_test_key(const char *keystore, const char *userid, const char *hash, co
     if (rnp_get_secret_key_count(rnp.ffi, &keycount) || (keycount != 2)) {
         goto done;
     }
-    if (!cli_rnp_keys_matching_string(
-          &rnp, keys, userid ? userid : "", CLI_SEARCH_SUBKEYS_AFTER)) {
+    if (!rnp.keys_matching(keys, userid ? userid : "", CLI_SEARCH_SUBKEYS_AFTER)) {
         goto done;
     }
     if (keys.size() != 2) {
