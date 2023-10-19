@@ -1947,6 +1947,26 @@ cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> & keys,
     return !keys.empty();
 }
 
+std::unique_ptr<rnpffi::Key>
+cli_rnp_t::key_matching(const std::string &str, int flags, size_t *count)
+{
+    std::vector<rnp_key_handle_t> keys;
+
+    keys_matching(keys, str, flags);
+    if (count) {
+        *count = keys.size();
+    }
+    if (keys.size() == 1) {
+        auto res = new (std::nothrow) rnpffi::Key(keys[0]);
+        if (!res) {
+            rnp_key_handle_destroy(keys[0]);
+        }
+        return std::unique_ptr<rnpffi::Key>(res);
+    }
+    clear_key_handles(keys);
+    return std::unique_ptr<rnpffi::Key>(nullptr);
+}
+
 static bool
 rnp_cfg_set_ks_info(rnp_cfg &cfg)
 {

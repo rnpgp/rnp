@@ -156,6 +156,18 @@ class cli_rnp_t {
     bool keys_matching(std::vector<rnp_key_handle_t> & keys,
                        const std::vector<std::string> &strs,
                        int                             flags);
+
+    /**
+     * @brief Find exactly one key, matching set of flags and search string.
+     *
+     * @param str search string, see keys_matching() for the details.
+     * @param flags flags, see keys_matching() for the details.
+     * @param count if non-nullptr, number of found keys with be stored here.
+     * @return pointer to the key object if only single key was found, or nullptr otherwise.
+     */
+    std::unique_ptr<rnpffi::Key> key_matching(const std::string &str,
+                                              int                flags,
+                                              size_t *           count = nullptr);
 };
 
 typedef enum cli_search_flags_t {
