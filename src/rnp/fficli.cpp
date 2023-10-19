@@ -910,8 +910,7 @@ bool
 cli_rnp_t::fix_cv25519_subkey(const std::string &key, bool checkonly)
 {
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(
-          this, keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
+    if (!keys_matching(keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
         ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
         return false;
     }
@@ -1004,8 +1003,7 @@ bool
 cli_rnp_t::set_key_expire(const std::string &key)
 {
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(
-          this, keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
+    if (!keys_matching(keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
         ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
         return false;
     }
@@ -1038,7 +1036,7 @@ cli_rnp_t::add_new_subkey(const std::string &key)
         return false;
     }
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(this, keys, key, CLI_SEARCH_SECRET)) {
+    if (!keys_matching(keys, key, CLI_SEARCH_SECRET)) {
         ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
         return false;
     }
@@ -1888,29 +1886,28 @@ error:
 }
 
 bool
-cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
-                             std::vector<rnp_key_handle_t> &keys,
-                             const std::string &            str,
-                             int                            flags)
+cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> &keys,
+                         const std::string &            str,
+                         int                            flags)
 {
-    rnpffi::FFI ffi(rnp->ffi, false);
+    rnpffi::FFI ffiobj(ffi, false);
 
     /* iterate through the keys */
-    auto it = ffi.iterator_create("fingerprint");
+    auto it = ffiobj.iterator_create("fingerprint");
     if (!it) {
         return false;
     }
 
     std::string fp;
     while (it->next(fp)) {
-        auto key = ffi.locate_key("fingerprint", fp);
+        auto key = ffiobj.locate_key("fingerprint", fp);
         if (!key) {
             continue;
         }
         if (!key_matches_flags(*key, flags) || !key_matches_string(*key, str)) {
             continue;
         }
-        if (!add_key_to_array(rnp->ffi, keys, key->handle(), flags)) {
+        if (!add_key_to_array(ffi, keys, key->handle(), flags)) {
             return false;
         }
         key->release();
@@ -1922,38 +1919,32 @@ cli_rnp_keys_matching_string(cli_rnp_t *                    rnp,
 }
 
 bool
-cli_rnp_keys_matching_strings(cli_rnp_t *                     rnp,
-                              std::vector<rnp_key_handle_t> & keys,
-                              const std::vector<std::string> &strs,
-                              int                             flags)
+cli_rnp_t::keys_matching(std::vector<rnp_key_handle_t> & keys,
+                         const std::vector<std::string> &strs,
+                         int                             flags)
 {
-    bool res = false;
     clear_key_handles(keys);
 
     for (const std::string &str : strs) {
-        if (!cli_rnp_keys_matching_string(rnp, keys, str, flags & ~CLI_SEARCH_DEFAULT)) {
+        if (!keys_matching(keys, str, flags & ~CLI_SEARCH_DEFAULT)) {
             ERR_MSG("Cannot find key matching \"%s\"", str.c_str());
-            goto done;
+            clear_key_handles(keys);
+            return false;
         }
     }
 
     /* search for default key */
     if (keys.empty() && (flags & CLI_SEARCH_DEFAULT)) {
-        if (rnp->defkey().empty()) {
+        if (defkey().empty()) {
             ERR_MSG("No userid or default key for operation");
-            goto done;
+            return false;
         }
-        cli_rnp_keys_matching_string(rnp, keys, rnp->defkey(), flags & ~CLI_SEARCH_DEFAULT);
+        keys_matching(keys, defkey(), flags & ~CLI_SEARCH_DEFAULT);
         if (keys.empty()) {
             ERR_MSG("Default key not found");
         }
     }
-    res = !keys.empty();
-done:
-    if (!res) {
-        clear_key_handles(keys);
-    }
-    return res;
+    return !keys.empty();
 }
 
 static bool
@@ -2159,7 +2150,7 @@ cli_rnp_export_keys(cli_rnp_t *rnp, const char *filter)
     int                           flags = secret ? CLI_SEARCH_SECRET : 0;
     std::vector<rnp_key_handle_t> keys;
 
-    if (!cli_rnp_keys_matching_string(rnp, keys, filter ? filter : std::string(), flags)) {
+    if (!rnp->keys_matching(keys, filter ? filter : std::string(), flags)) {
         ERR_MSG("Key(s) matching '%s' not found.", filter);
         return false;
     }
@@ -2206,7 +2197,7 @@ bool
 cli_rnp_export_revocation(cli_rnp_t *rnp, const char *key)
 {
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(rnp, keys, key, 0)) {
+    if (!rnp->keys_matching(keys, key, 0)) {
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
@@ -2239,7 +2230,7 @@ bool
 cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
 {
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(rnp, keys, key, CLI_SEARCH_SUBKEYS)) {
+    if (!rnp->keys_matching(keys, key, CLI_SEARCH_SUBKEYS)) {
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
@@ -2287,7 +2278,7 @@ cli_rnp_revoke_key(cli_rnp_t *rnp, const char *key)
             goto done;
         }
         clear_key_handles(keys);
-        if (!cli_rnp_keys_matching_string(rnp, keys, grip, CLI_SEARCH_SUBKEYS_AFTER)) {
+        if (!rnp->keys_matching(keys, grip, CLI_SEARCH_SUBKEYS_AFTER)) {
             ERR_MSG("Failed to search for revoked key.");
             rnp_buffer_destroy(grip);
             goto done;
@@ -2306,7 +2297,7 @@ bool
 cli_rnp_remove_key(cli_rnp_t *rnp, const char *key)
 {
     std::vector<rnp_key_handle_t> keys;
-    if (!cli_rnp_keys_matching_string(rnp, keys, key, CLI_SEARCH_SUBKEYS)) {
+    if (!rnp->keys_matching(keys, key, CLI_SEARCH_SUBKEYS)) {
         ERR_MSG("Key matching '%s' not found.", key);
         return false;
     }
@@ -2644,11 +2635,10 @@ cli_rnp_sign(const rnp_cfg &cfg, cli_rnp_t *rnp, rnp_input_t input, rnp_output_t
 
     /* signing keys */
     signers = cfg.get_list(CFG_SIGNERS);
-    if (!cli_rnp_keys_matching_strings(rnp,
-                                       signkeys,
-                                       signers,
-                                       CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT |
-                                         CLI_SEARCH_SUBKEYS | CLI_SEARCH_FIRST_ONLY)) {
+    if (!rnp->keys_matching(signkeys,
+                            signers,
+                            CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT | CLI_SEARCH_SUBKEYS |
+                              CLI_SEARCH_FIRST_ONLY)) {
         ERR_MSG("Failed to build signing keys list");
         goto done;
     }
@@ -2748,11 +2738,10 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
     /* adding encrypting keys if pk-encryption is used */
     if (cfg.get_bool(CFG_ENCRYPT_PK)) {
         std::vector<std::string> keynames = cfg.get_list(CFG_RECIPIENTS);
-        if (!cli_rnp_keys_matching_strings(rnp,
-                                           enckeys,
-                                           keynames,
-                                           CLI_SEARCH_DEFAULT | CLI_SEARCH_SUBKEYS |
-                                             CLI_SEARCH_FIRST_ONLY)) {
+        if (!rnp->keys_matching(enckeys,
+                                keynames,
+                                CLI_SEARCH_DEFAULT | CLI_SEARCH_SUBKEYS |
+                                  CLI_SEARCH_FIRST_ONLY)) {
             ERR_MSG("Failed to build recipients key list");
             goto done;
         }
@@ -2781,11 +2770,10 @@ cli_rnp_encrypt_and_sign(const rnp_cfg &cfg,
 
         /* signing keys */
         std::vector<std::string> keynames = cfg.get_list(CFG_SIGNERS);
-        if (!cli_rnp_keys_matching_strings(rnp,
-                                           signkeys,
-                                           keynames,
-                                           CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT |
-                                             CLI_SEARCH_SUBKEYS | CLI_SEARCH_FIRST_ONLY)) {
+        if (!rnp->keys_matching(signkeys,
+                                keynames,
+                                CLI_SEARCH_SECRET | CLI_SEARCH_DEFAULT | CLI_SEARCH_SUBKEYS |
+                                  CLI_SEARCH_FIRST_ONLY)) {
             ERR_MSG("Failed to build signing keys list");
             goto done;
         }
