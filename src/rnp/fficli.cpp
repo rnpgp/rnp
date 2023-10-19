@@ -814,189 +814,144 @@ cli_rnp_t::set_defkey()
 }
 
 bool
-cli_rnp_t::is_cv25519_subkey(rnp_key_handle_t handle)
+cli_rnp_t::is_cv25519_subkey(rnpffi::Key &key)
 {
-    bool primary = false;
-    if (rnp_key_is_primary(handle, &primary)) {
-        ERR_MSG("Error: failed to check for subkey.");
-        return false;
-    }
-    if (primary) {
-        return false;
-    }
-    char *alg = NULL;
-    if (rnp_key_get_alg(handle, &alg)) {
-        ERR_MSG("Error: failed to check key's alg.");
-        return false;
-    }
-    bool ecdh = !strcmp(alg, RNP_ALGNAME_ECDH);
-    rnp_buffer_destroy(alg);
-    if (!ecdh) {
-        return false;
-    }
-    char *curve = NULL;
-    if (rnp_key_get_curve(handle, &curve)) {
-        ERR_MSG("Error: failed to check key's curve.");
-        return false;
-    }
-    bool cv25519 = !strcmp(curve, "Curve25519");
-    rnp_buffer_destroy(curve);
-    return cv25519;
-}
-
-bool
-cli_rnp_t::get_protection(rnp_key_handle_t handle,
-                          std::string &    hash,
-                          std::string &    cipher,
-                          size_t &         iterations)
-{
-    bool prot = false;
-    if (rnp_key_is_protected(handle, &prot)) {
-        ERR_MSG("Error: failed to check key's protection.");
-        return false;
-    }
-    if (!prot) {
-        hash = "";
-        cipher = "";
-        iterations = 0;
-        return true;
-    }
-
-    char *val = NULL;
     try {
-        if (rnp_key_get_protection_hash(handle, &val)) {
-            ERR_MSG("Error: failed to retrieve key's protection hash.");
+        if (key.is_primary()) {
             return false;
         }
-        hash = val;
-        rnp_buffer_destroy(val);
-        if (rnp_key_get_protection_cipher(handle, &val)) {
-            ERR_MSG("Error: failed to retrieve key's protection cipher.");
+        if (strcmp(key.alg().c_str(), RNP_ALGNAME_ECDH)) {
             return false;
         }
-        cipher = val;
-        rnp_buffer_destroy(val);
-        if (rnp_key_get_protection_iterations(handle, &iterations)) {
-            ERR_MSG("Error: failed to retrieve key's protection iterations.");
-            return false;
-        }
-        return true;
-    } catch (const std::exception &e) {
-        ERR_MSG("Error: failed to retrieve key's properties: %s", e.what());
-        rnp_buffer_destroy(val);
+        return !strcmp(key.curve().c_str(), "Curve25519");
+    } catch (const rnpffi::ffi_exception &e) {
+        ERR_MSG("FFI call error: %s.", e.func());
         return false;
     }
 }
 
 bool
-cli_rnp_t::check_cv25519_bits(rnp_key_handle_t key, char *prot_password, bool &tweaked)
+cli_rnp_t::get_protection(rnpffi::Key &key,
+                          std::string &hash,
+                          std::string &cipher,
+                          size_t &     iterations)
+{
+    try {
+        if (!key.is_protected()) {
+            hash = "";
+            cipher = "";
+            iterations = 0;
+            return true;
+        }
+        hash = key.protection_hash();
+        cipher = key.protection_cipher();
+        iterations = key.protection_iterations();
+        return true;
+    } catch (const rnpffi::ffi_exception &e) {
+        ERR_MSG("FFI call error: %s", e.func());
+        return false;
+    }
+}
+
+bool
+cli_rnp_t::check_cv25519_bits(rnpffi::Key &key, rnpffi::String &prot_password, bool &tweaked)
 {
     /* unlock key first to check whether bits are tweaked */
-    if (prot_password && rnp_key_unlock(key, prot_password)) {
+    if (prot_password.c_str() && !key.unlock(prot_password.str())) {
         ERR_MSG("Error: failed to unlock key. Did you specify valid password?");
         return false;
     }
-    rnp_result_t ret = rnp_key_25519_bits_tweaked(key, &tweaked);
-    if (ret) {
+    bool res = false;
+    try {
+        tweaked = key.is_25519_bits_tweaked();
+        res = true;
+    } catch (...) {
         ERR_MSG("Error: failed to check whether key's bits are tweaked.");
     }
-    if (prot_password) {
-        rnp_key_lock(key);
+    if (prot_password.c_str()) {
+        key.lock();
     }
-    return !ret;
+    return res;
 }
 
 bool
-cli_rnp_t::fix_cv25519_subkey(const std::string &key, bool checkonly)
+cli_rnp_t::fix_cv25519_subkey(const std::string &str, bool checkonly)
 {
-    std::vector<rnp_key_handle_t> keys;
-    if (!keys_matching(keys, key, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS)) {
-        ERR_MSG("Secret keys matching '%s' not found.", key.c_str());
+    size_t keys = 0;
+    auto   key = key_matching(str, CLI_SEARCH_SECRET | CLI_SEARCH_SUBKEYS, &keys);
+    if (!keys) {
+        ERR_MSG("Secret keys matching '%s' not found.", str.c_str());
         return false;
     }
-    bool        res = false;
+    if (keys > 1) {
+        ERR_MSG(
+          "Ambiguous input: too many keys found for '%s'. Did you use keyid or fingerprint?",
+          str.c_str());
+        return false;
+    }
+    cli_rnp_print_key_info(userio_out, ffi, key->handle(), true, false);
+    if (!is_cv25519_subkey(*key)) {
+        ERR_MSG("Error: specified key is not Curve25519 ECDH subkey.");
+        return false;
+    }
+
     std::string prot_hash;
     std::string prot_cipher;
     size_t      prot_iterations;
-    char *      prot_password = NULL;
-    bool        tweaked = false;
-
-    if (keys.size() > 1) {
-        ERR_MSG(
-          "Ambiguous input: too many keys found for '%s'. Did you use keyid or fingerprint?",
-          key.c_str());
-        goto done;
-    }
-    cli_rnp_print_key_info(userio_out, ffi, keys[0], true, false);
-    if (!is_cv25519_subkey(keys[0])) {
-        ERR_MSG("Error: specified key is not Curve25519 ECDH subkey.");
-        goto done;
+    if (!get_protection(*key, prot_hash, prot_cipher, prot_iterations)) {
+        return false;
     }
 
-    if (!get_protection(keys[0], prot_hash, prot_cipher, prot_iterations)) {
-        goto done;
-    }
-
-    if (!prot_hash.empty() &&
-        (rnp_request_password(ffi, keys[0], "unprotect", &prot_password) || !prot_password)) {
+    rnpffi::String prot_password(true);
+    rnpffi::FFI    ffiobj(ffi, false);
+    if (!prot_hash.empty() && (!ffiobj.request_password(*key, "unprotect", prot_password) ||
+                               !prot_password.c_str())) {
         ERR_MSG("Error: failed to obtain protection password.");
-        goto done;
+        return false;
     }
 
-    if (!check_cv25519_bits(keys[0], prot_password, tweaked)) {
-        goto done;
+    bool tweaked = false;
+    if (!check_cv25519_bits(*key, prot_password, tweaked)) {
+        return false;
     }
 
     if (checkonly) {
         fprintf(userio_out,
                 tweaked ? "Cv25519 key bits are set correctly and do not require fixing.\n" :
                           "Warning: Cv25519 key bits need fixing.\n");
-        res = tweaked;
-        goto done;
+        return tweaked;
     }
 
     if (tweaked) {
         ERR_MSG("Warning: key's bits are fixed already, no action is required.");
-        res = true;
-        goto done;
+        return true;
     }
 
     /* now unprotect so we can tweak bits */
     if (!prot_hash.empty()) {
-        if (rnp_key_unprotect(keys[0], prot_password)) {
+        if (!key->unprotect(prot_password.str())) {
             ERR_MSG("Error: failed to unprotect key. Did you specify valid password?");
-            goto done;
+            return false;
         }
-        if (rnp_key_unlock(keys[0], NULL)) {
+        if (!key->unlock()) {
             ERR_MSG("Error: failed to unlock key.");
-            goto done;
+            return false;
         }
     }
 
     /* tweak key bits and protect back */
-    if (rnp_key_25519_bits_tweak(keys[0])) {
+    if (!key->do_25519_bits_tweak()) {
         ERR_MSG("Error: failed to tweak key's bits.");
-        goto done;
+        return false;
     }
 
-    if (!prot_hash.empty() && rnp_key_protect(keys[0],
-                                              prot_password,
-                                              prot_cipher.c_str(),
-                                              NULL,
-                                              prot_hash.c_str(),
-                                              prot_iterations)) {
+    if (!prot_hash.empty() &&
+        !key->protect(prot_password.str(), prot_cipher, prot_hash, prot_iterations)) {
         ERR_MSG("Error: failed to protect key back.");
-        goto done;
+        return false;
     }
 
-    res = cli_rnp_save_keyrings(this);
-done:
-    clear_key_handles(keys);
-    if (prot_password) {
-        rnp_buffer_clear(prot_password, strlen(prot_password) + 1);
-        rnp_buffer_destroy(prot_password);
-    }
-    return res;
+    return cli_rnp_save_keyrings(this);
 }
 
 bool
