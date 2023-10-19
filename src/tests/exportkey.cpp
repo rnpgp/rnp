@@ -51,8 +51,7 @@ TEST_F(rnp_tests, rnpkeys_exportkey_verifyUserId)
     assert_int_equal(keycount, 2);
 
     std::vector<rnp_key_handle_t> keys;
-    assert_true(
-      cli_rnp_keys_matching_string(&rnp, keys, getenv_logname(), CLI_SEARCH_SUBKEYS_AFTER));
+    assert_true(rnp.keys_matching(keys, getenv_logname(), CLI_SEARCH_SUBKEYS_AFTER));
     assert_int_equal(keys.size(), 2);
     clear_key_handles(keys);
 
