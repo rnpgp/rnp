@@ -91,6 +91,7 @@ class pgp_dilithium_exdsa_composite_private_key_t
                                                 pgp_pubkey_alg_t            pk_alg);
     pgp_dilithium_exdsa_composite_private_key_t &operator=(
       const pgp_dilithium_exdsa_composite_private_key_t &other);
+    pgp_dilithium_exdsa_composite_private_key_t(const pgp_dilithium_exdsa_composite_private_key_t &other);
     pgp_dilithium_exdsa_composite_private_key_t() = default;
 
     rnp_result_t sign(rnp::RNG *                       rng,
