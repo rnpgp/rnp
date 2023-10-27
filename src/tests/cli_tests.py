@@ -3037,10 +3037,10 @@ class Misc(unittest.TestCase):
     def test_backend_version(self):
         BOTAN_BACKEND_VERSION = r'(?s)^.*.' \
         'Backend: Botan.*' \
-        'Backend version: ([a-zA-z\.0-9]+).*$'
+        'Backend version: ([a-zA-Z\\.0-9]+).*$'
         OPENSSL_BACKEND_VERSION = r'(?s)^.*' \
         'Backend: OpenSSL.*' \
-        'Backend version: ([a-zA-z\.0-9]+).*$'
+        'Backend version: ([a-zA-Z\\.0-9]+).*$'
         # Run without parameters and make sure it matches
         ret, out, _ = run_proc(RNP, [])
         self.assertNotEqual(ret, 0)
