@@ -104,7 +104,7 @@ find_path(BOTAN_INCLUDE_DIR
 # find the library
 if(MSVC)
   find_library(BOTAN_LIBRARY
-    NAMES botan
+    NAMES botan ${_names}
     HINTS
       ${_hints_lib}
     ${_no_def_path}
