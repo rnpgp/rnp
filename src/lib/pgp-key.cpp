@@ -3164,10 +3164,10 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
 #if defined(ENABLE_CRYPTO_REFRESH)
         // TODO: if GnuPG would ever support v6, check whether this works correctly.
         case PGP_PKA_ED25519:
-            hash->add(key->ed25519.pub);
+            hash->add(ed25519.pub);
             break;
         case PGP_PKA_X25519:
-            hash->add(key->x25519.pub);
+            hash->add(x25519.pub);
             break;
 #endif
 #if defined(ENABLE_PQC)
@@ -3181,7 +3181,7 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
         case PGP_PKA_KYBER768_BP256:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_KYBER1024_BP384:
-            hash->add(key->kyber_ecdh.pub.get_encoded());
+            hash->add(kyber_ecdh.pub.get_encoded());
             break;
         case PGP_PKA_DILITHIUM3_ED25519:
             FALLTHROUGH_STATEMENT;
@@ -3193,12 +3193,12 @@ pgp_key_material_t::get_grip(pgp_key_grip_t &grip) const
         case PGP_PKA_DILITHIUM3_BP256:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_DILITHIUM5_BP384:
-            hash->add(key->dilithium_exdsa.pub.get_encoded());
+            hash->add(dilithium_exdsa.pub.get_encoded());
             break;
         case PGP_PKA_SPHINCSPLUS_SHA2:
             FALLTHROUGH_STATEMENT;
         case PGP_PKA_SPHINCSPLUS_SHAKE:
-            hash->add(key->sphincsplus.pub.get_encoded());
+            hash->add(sphincsplus.pub.get_encoded());
             break;
 #endif
         default:
