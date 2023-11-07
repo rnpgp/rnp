@@ -1152,6 +1152,9 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
     }
     alg = (pgp_pubkey_alg_t) bt;
 
+    /* symmetric algorithm */
+    salg = PGP_SA_UNKNOWN;
+
     /* raw signature material */
     if (!pkt.left()) {
         RNP_LOG("No encrypted material");
