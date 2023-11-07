@@ -75,7 +75,8 @@ KMAC256::counter() const
 std::vector<uint8_t>
 KMAC256::fixedInfo(pgp_pubkey_alg_t alg_id)
 {
-    std::vector<uint8_t> result(static_cast<uint8_t>(alg_id));
+    std::vector<uint8_t> result;
+    result.push_back(static_cast<uint8_t>(alg_id));
     return result;
 }
 
