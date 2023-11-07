@@ -1229,7 +1229,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519: {
-        uint8_t bt = 0;
+        uint8_t                bt = 0;
         const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
         material.x25519.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
         if (!pkt.get(material.x25519.eph_key.data(), material.x25519.eph_key.size())) {
@@ -1334,11 +1334,11 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         pktbody.add(material.eg.m);
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
-    case PGP_PKA_X25519:
-    {
+    case PGP_PKA_X25519: {
         uint8_t enc_sesskey_length_offset = ((version == PGP_PKSK_V3) ? 1 : 0);
         pktbody.add(material.x25519.eph_key);
-        pktbody.add_byte(static_cast<uint8_t>(material.x25519.enc_sess_key.size() + enc_sesskey_length_offset));
+        pktbody.add_byte(static_cast<uint8_t>(material.x25519.enc_sess_key.size() +
+                                              enc_sesskey_length_offset));
         if (version == PGP_PKSK_V3) {
             pktbody.add_byte(salg); /* added as plaintext */
         }

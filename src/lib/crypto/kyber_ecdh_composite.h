@@ -92,7 +92,8 @@ class pgp_kyber_ecdh_composite_private_key_t : public pgp_kyber_ecdh_composite_k
                                            pgp_pubkey_alg_t            pk_alg);
     pgp_kyber_ecdh_composite_private_key_t &operator=(
       const pgp_kyber_ecdh_composite_private_key_t &other);
-    pgp_kyber_ecdh_composite_private_key_t(const pgp_kyber_ecdh_composite_private_key_t &other);
+    pgp_kyber_ecdh_composite_private_key_t(
+      const pgp_kyber_ecdh_composite_private_key_t &other);
     pgp_kyber_ecdh_composite_private_key_t() = default;
 
     rnp_result_t decrypt(rnp::RNG *                        rng,

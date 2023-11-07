@@ -244,7 +244,8 @@ pgp_dilithium_exdsa_composite_private_key_t::operator=(
     return *this;
 }
 
-pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_private_key_t(const pgp_dilithium_exdsa_composite_private_key_t &other)
+pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_private_key_t(
+  const pgp_dilithium_exdsa_composite_private_key_t &other)
 {
     *this = other;
 }
