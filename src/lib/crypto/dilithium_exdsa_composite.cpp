@@ -244,6 +244,11 @@ pgp_dilithium_exdsa_composite_private_key_t::operator=(
     return *this;
 }
 
+pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_private_key_t(const pgp_dilithium_exdsa_composite_private_key_t &other)
+{
+    *this = other;
+}
+
 pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_private_key_t(
   std::vector<uint8_t> const &exdsa_key_encoded,
   std::vector<uint8_t> const &dilithium_key_encoded,
