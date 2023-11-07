@@ -1062,11 +1062,6 @@ pgp_pk_sesskey_t::write(pgp_dest_t &dst) const
     }
 #endif
     pktbody.add_byte(alg);
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
-        pktbody.add_byte(salg); /* added as plaintext */
-    }
-#endif
     pktbody.add(material_buf.data(), material_buf.size());
     pktbody.write(dst);
 }
@@ -1157,16 +1152,6 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
     }
     alg = (pgp_pubkey_alg_t) bt;
 
-#if defined(ENABLE_CRYPTO_REFRESH)
-    if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
-        if (!pkt.get(bt)) {
-            RNP_LOG("failed to get salg");
-            return RNP_ERROR_BAD_FORMAT;
-        }
-    }
-    salg = (pgp_symm_alg_t) bt;
-#endif
-
     /* raw signature material */
     if (!pkt.left()) {
         RNP_LOG("No encrypted material");
@@ -1189,7 +1174,7 @@ pgp_pk_sesskey_t::parse(pgp_source_t &src)
 }
 
 bool
-pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
+pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material)
 {
     pgp_packet_body_t pkt(material_buf.data(), material_buf.size());
     switch (alg) {
@@ -1241,6 +1226,7 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
     }
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519: {
+        uint8_t bt = 0;
         const ec_curve_desc_t *ec_desc = get_curve_desc(PGP_CURVE_25519);
         material.x25519.eph_key.resize(BITS_TO_BYTES(ec_desc->bitlen));
         if (!pkt.get(material.x25519.eph_key.data(), material.x25519.eph_key.size())) {
@@ -1251,6 +1237,15 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
         if (!pkt.get(enc_sesskey_len)) {
             RNP_LOG("failed to parse X25519 PKESK (enc sesskey length)");
             return false;
+        }
+        /* get plaintext salg if PKESKv3 */
+        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to get salg");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            enc_sesskey_len -= 1;
+            salg = (pgp_symm_alg_t) bt;
         }
         material.x25519.enc_sess_key.resize(enc_sesskey_len);
         if (!pkt.get(material.x25519.enc_sess_key.data(), enc_sesskey_len)) {
@@ -1272,12 +1267,21 @@ pgp_pk_sesskey_t::parse_material(pgp_encrypted_material_t &material) const
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384: {
         uint8_t wrapped_key_len = 0;
+        uint8_t bt = 0;
         material.kyber_ecdh.composite_ciphertext.resize(
           pgp_kyber_ecdh_encrypted_t::composite_ciphertext_size(alg));
         if (!pkt.get(material.kyber_ecdh.composite_ciphertext.data(),
                      material.kyber_ecdh.composite_ciphertext.size())) {
             RNP_LOG("failed to get kyber-ecdh ciphertext");
             return false;
+        }
+        /* get plaintext salg if PKESKv3 */
+        if ((version == PGP_PKSK_V3) && !do_encrypt_pkesk_v3_alg_id(alg)) {
+            if (!pkt.get(bt)) {
+                RNP_LOG("failed to get salg");
+                return RNP_ERROR_BAD_FORMAT;
+            }
+            salg = (pgp_symm_alg_t) bt;
         }
         if (!pkt.get(wrapped_key_len)) {
             RNP_LOG("failed to get kyber-ecdh wrapped session key length");
@@ -1328,10 +1332,16 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         break;
 #if defined(ENABLE_CRYPTO_REFRESH)
     case PGP_PKA_X25519:
+    {
+        uint8_t enc_sesskey_length_offset = ((version == PGP_PKSK_V3) ? 1 : 0);
         pktbody.add(material.x25519.eph_key);
-        pktbody.add_byte(static_cast<uint8_t>(material.x25519.enc_sess_key.size()));
+        pktbody.add_byte(static_cast<uint8_t>(material.x25519.enc_sess_key.size() + enc_sesskey_length_offset));
+        if (version == PGP_PKSK_V3) {
+            pktbody.add_byte(salg); /* added as plaintext */
+        }
         pktbody.add(material.x25519.enc_sess_key);
         break;
+    }
 #endif
 #if defined(ENABLE_PQC)
     case PGP_PKA_KYBER768_X25519:
@@ -1345,6 +1355,9 @@ pgp_pk_sesskey_t::write_material(const pgp_encrypted_material_t &material)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         pktbody.add(material.kyber_ecdh.composite_ciphertext);
+        if (version == PGP_PKSK_V3) {
+            pktbody.add_byte(salg); /* added as plaintext */
+        }
         pktbody.add_byte(static_cast<uint8_t>(material.kyber_ecdh.wrapped_sesskey.size()));
         pktbody.add(material.kyber_ecdh.wrapped_sesskey);
         break;
