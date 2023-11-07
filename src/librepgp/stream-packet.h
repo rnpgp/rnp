@@ -182,7 +182,7 @@ typedef struct pgp_pk_sesskey_t {
      * @param material on success parsed material will be stored here.
      * @return true on success or false otherwise. May also throw an exception.
      */
-    bool parse_material(pgp_encrypted_material_t &material) const;
+    bool parse_material(pgp_encrypted_material_t &material);
     /**
      * @brief Write encrypted material to the material_buf.
      * @param material populated encrypted material.
