@@ -261,6 +261,11 @@ pgp_kyber_ecdh_composite_private_key_t::operator=(
     return *this;
 }
 
+pgp_kyber_ecdh_composite_private_key_t::pgp_kyber_ecdh_composite_private_key_t(const pgp_kyber_ecdh_composite_private_key_t &other)
+{
+    *this = other;
+}
+
 size_t
 pgp_kyber_ecdh_composite_private_key_t::encoded_size(pgp_pubkey_alg_t pk_alg)
 {
