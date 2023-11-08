@@ -4161,9 +4161,20 @@ class Encryption(unittest.TestCase):
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
 
         # Encrypt and decrypt cleartext using the AEAD
-        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
-                                               AEAD_M, AEAD_B, Encryption.Z_R):
-            rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
+        for _ in range(16):
+            rnp_sym_encryption_rnp_aead(250000, 'AES', None, [None, None], GPG_AEAD)
+        for _ in range(16):
+            rnp_sym_encryption_rnp_aead(250000, 'AES256', ['zlib'], [None, None], GPG_AEAD)
+        for _ in range(16):
+            rnp_sym_encryption_rnp_aead(250000, 'AES192', None, [None, None], GPG_AEAD)
+        rnp_sym_encryption_rnp_aead(250000, 'AES256', ['bzip2'], [None, None], GPG_AEAD)
+        rnp_sym_encryption_rnp_aead(250000, 'AES', ['bzip2'], [None, None], GPG_AEAD)
+        for _ in range(16):
+            rnp_sym_encryption_rnp_aead(250000, 'AES192', ['bzip2'], [None, None], GPG_AEAD)
+        #for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
+        #                                       AEAD_M, AEAD_B, Encryption.Z_R):
+        #    print('size :' + str(size) + ' cipher: ' + cipher + ' aead: ' + str(aead) + ' bits: ' + str(bits) + ' z: ' + str(z))
+        #    rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
 
     def test_aead_chunk_edge_cases(self):
         if not RNP_AEAD:

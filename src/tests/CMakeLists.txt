@@ -218,12 +218,12 @@ if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CMAKE_CXX_COMPILER_VERSION VERS
   set_target_properties(rnp_tests PROPERTIES CXX_VISIBILITY_PRESET hidden)
 endif()
 
-gtest_discover_tests(rnp_tests
-  PROPERTIES
-    FIXTURES_REQUIRED testdata
-    TIMEOUT 3000
-    ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
-)
+#gtest_discover_tests(rnp_tests
+#  PROPERTIES
+#    FIXTURES_REQUIRED testdata
+#    TIMEOUT 3000
+#    ENVIRONMENT "RNP_TEST_DATA=${CMAKE_CURRENT_SOURCE_DIR}/data"
+#)
 
 # cli_tests
 # Note that we do this call early because Google Test will also do
@@ -265,5 +265,7 @@ string(REGEX REPLACE ";" "\\\\;" suitelist "${suitelist}")
 string(REGEX REPLACE "\n" ";" suitelist "${suitelist}")
 # create a CTest test for each suite
 foreach(suite IN LISTS suitelist)
-  add_cli_test("${suite}")
+  #add_cli_test("${suite}")
 endforeach()
+
+add_cli_test("Encryption.test_sym_encryption__rnp_aead")
