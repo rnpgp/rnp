@@ -228,6 +228,7 @@ is_pgp_source(pgp_source_t &src)
 static bool
 partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
+    RNP_LOG("partial %p start: %zu", src, len);
     if (src->eof) {
         *readres = 0;
         return true;
@@ -242,6 +243,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     size_t write = 0;
     while (len > 0) {
         if (!param->pleft && param->last) {
+            RNP_LOG("partial finish: %zu", write);
             // we have the last chunk
             *readres = write;
             return true;
@@ -249,22 +251,30 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         if (!param->pleft) {
             // reading next chunk
             if (!stream_read_partial_chunk_len(param->readsrc, &read, &param->last)) {
+                RNP_LOG("partial chunk len failure");
                 return false;
             }
+            RNP_LOG("partial new chunk: %zu %d", read, (int) param->last);
             param->psize = read;
             param->pleft = read;
         }
 
         if (!param->pleft) {
+            RNP_LOG("partial zero chunk");
             *readres = write;
             return true;
         }
 
         read = param->pleft > len ? len : param->pleft;
+        RNP_LOG("partial reading %zu from %p (%d)",
+                read,
+                param->readsrc,
+                (int) param->readsrc->type);
         if (!src_read(param->readsrc, buf, read, &read)) {
             RNP_LOG("failed to read data chunk");
             return false;
         }
+        RNP_LOG("partial read %zu", read);
         if (!read) {
             RNP_LOG("unexpected eof");
             *readres = write;
@@ -276,6 +286,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         param->pleft -= read;
     }
 
+    RNP_LOG("partial end of cycle");
     *readres = write;
     return true;
 }
@@ -294,6 +305,7 @@ static rnp_result_t
 init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t &hdr)
 {
     pgp_source_partial_param_t *param;
+    RNP_LOG("initializing partial src %p reading from %p", src, readsrc);
     if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -325,9 +337,13 @@ literal_src_read(pgp_source_t *src, void *buf, size_t len, size_t *read)
 {
     pgp_source_literal_param_t *param = (pgp_source_literal_param_t *) src->param;
     if (!param) {
+        RNP_LOG("here");
         return false;
     }
-    return src_read(param->pkt.readsrc, buf, len, read);
+    RNP_LOG("reading %zu bytes from literal.", len);
+    auto res = src_read(param->pkt.readsrc, buf, len, read);
+    RNP_LOG("read %zu bytes from literal.", *read);
+    return res;
 }
 
 static void
@@ -349,6 +365,7 @@ literal_src_close(pgp_source_t *src)
 static bool
 compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
+    RNP_LOG("starting %p compressed read: %zu", src, len);
     pgp_source_compressed_param_t *param = (pgp_source_compressed_param_t *) src->param;
     if (!param) {
         return false;
@@ -375,16 +392,22 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         while ((param->z.avail_out > 0) && (!param->zend)) {
             if (param->z.avail_in == 0) {
                 size_t read = 0;
+                RNP_LOG("reading %zu from %p (%d)",
+                        sizeof(param->in),
+                        param->pkt.readsrc,
+                        (int) param->pkt.readsrc->type);
                 if (!src_read(param->pkt.readsrc, param->in, sizeof(param->in), &read)) {
                     RNP_LOG("failed to read data");
                     return false;
                 }
+                RNP_LOG("read %zu from underlying", read);
                 param->z.next_in = param->in;
                 param->z.avail_in = read;
                 param->inlen = read;
                 param->inpos = 0;
             }
             int ret = inflate(&param->z, Z_SYNC_FLUSH);
+            RNP_LOG("called inflate: %d", ret);
             if (ret == Z_STREAM_END) {
                 param->zend = true;
                 if (param->z.avail_in > 0) {
@@ -403,6 +426,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         }
         param->inpos = param->z.next_in - param->in;
         *readres = len - param->z.avail_out;
+        RNP_LOG("returning decompressed: %zu", *readres);
         return true;
     }
 #ifdef HAVE_BZLIB_H
@@ -610,7 +634,9 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
 
     if (!chunkend && !lastchunk) {
         param->chunkin += read;
+        RNP_LOG("calling pgp_cipher_aead_update() with %zu", read);
         res = pgp_cipher_aead_update(&param->decrypt, param->cache, param->cache, read);
+        RNP_LOG("done");
         if (res) {
             param->cachelen = read;
         }
@@ -622,8 +648,10 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
             src_skip(param->pkt.readsrc, tagread - taglen);
         }
 
+        RNP_LOG("calling pgp_cipher_aead_finish() with %zu", read + tagread - taglen);
         res = pgp_cipher_aead_finish(
           &param->decrypt, param->cache, param->cache, read + tagread - taglen);
+        RNP_LOG("done");
         if (!res) {
             RNP_LOG("failed to finalize aead chunk");
             return res;
@@ -637,10 +665,12 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         chunkidx++;
     }
 
+    RNP_LOG("calling encrypted_start_aead_chunk() with %zu and %d", chunkidx, lastchunk);
     if (!(res = encrypted_start_aead_chunk(param, chunkidx, lastchunk))) {
         RNP_LOG("failed to start aead chunk");
         return res;
     }
+    RNP_LOG("done");
 
     if (lastchunk) {
         if (tagread > 0) {
@@ -648,8 +678,10 @@ encrypted_src_read_aead_part(pgp_source_encrypted_param_t *param)
         }
 
         size_t off = read + tagread - taglen;
+        RNP_LOG("calling pgp_cipher_aead_finish() with %zu", taglen);
         res = pgp_cipher_aead_finish(
           &param->decrypt, param->cache + off, param->cache + off, taglen);
+        RNP_LOG("done");
         if (!res) {
             RNP_LOG("wrong last chunk");
             return res;
@@ -670,6 +702,7 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
     pgp_source_encrypted_param_t *param = (pgp_source_encrypted_param_t *) src->param;
     size_t                        cbytes;
     size_t                        left = len;
+    RNP_LOG("started aead read");
 
     do {
         /* check whether we have something in the cache */
@@ -691,9 +724,11 @@ encrypted_src_read_aead(pgp_source_t *src, void *buf, size_t len, size_t *read)
         }
 
         /* read something into cache */
+        RNP_LOG("reading aead part...");
         if (!encrypted_src_read_aead_part(param)) {
             return false;
         }
+        RNP_LOG("read aead part");
     } while ((left > 0) && (param->cachelen > 0));
 
     *read = len - left;
@@ -2022,6 +2057,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
     uint8_t                        alg;
     int                            zret;
 
+    RNP_LOG("initializing compressed src %p read from %p", src, readsrc);
     if (!init_src_common(src, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2082,6 +2118,7 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     errcode = RNP_SUCCESS;
 finish:
+    RNP_LOG("finished compressed init: %d", (int) errcode);
     if (errcode != RNP_SUCCESS) {
         src_close(src);
     }
@@ -2338,6 +2375,7 @@ encrypted_read_packet_data(pgp_source_encrypted_param_t *param)
 static rnp_result_t
 init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *readsrc)
 {
+    RNP_LOG("initializing encrypted src %p reading from %p", src, readsrc);
     if (!init_src_common(src, 0)) {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
@@ -2464,7 +2502,9 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
             goto finish;
         }
 
+        RNP_LOG("trying password %s", password.data());
         int intres = encrypted_try_password(param, password.data());
+        RNP_LOG("password tried: %d", intres);
         if (intres > 0) {
             have_key = true;
         } else if (intres < 0) {
@@ -2491,6 +2531,7 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     }
     errcode = RNP_SUCCESS;
 finish:
+    RNP_LOG("finished encrypted initialisation: %d", (int) errcode);
     if (errcode != RNP_SUCCESS) {
         src_close(src);
     }
@@ -2712,6 +2753,7 @@ init_packet_sequence(pgp_processing_ctx_t &ctx, pgp_source_t &src)
     pgp_source_t *lsrc = &src;
     size_t        srcnum = ctx.sources.size();
 
+    RNP_LOG("here");
     while (1) {
         uint8_t ptag = 0;
         if (!src_peek_eq(lsrc, &ptag, 1)) {
@@ -2848,6 +2890,10 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     bool                 closeout = true;
     uint8_t *            readbuf = NULL;
 
+    RNP_LOG("here");
+    RNP_LOG("encrypted_src_read_cfb: %p", encrypted_src_read_aead);
+    RNP_LOG("compressed_src_read: %p", compressed_src_read);
+    RNP_LOG("partial_pkt_src_read: %p", partial_pkt_src_read);
     ctx.handler = *handler;
     /* Building readers sequence. Checking whether it is binary data */
     if (is_pgp_source(src)) {
@@ -2918,19 +2964,23 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
             mtime = param->hdr.timestamp;
         }
 
+        RNP_LOG("here: %s", filename);
         if (!handler->dest_provider ||
             !handler->dest_provider(handler, &outdest, &closeout, filename, mtime)) {
             res = RNP_ERROR_WRITE;
+            RNP_LOG("here");
             goto finish;
         }
 
         /* reading the input */
+        RNP_LOG("starting reading");
         while (!decsrc->eof) {
             size_t read = 0;
             if (!src_read(decsrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
                 res = RNP_ERROR_GENERIC;
                 break;
             }
+            RNP_LOG("read raw bytes: %zu", read);
             if (!read) {
                 continue;
             }
@@ -2961,6 +3011,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
     }
 
 finish:
+    RNP_LOG("finished processing: %x", (int) res);
     free(readbuf);
     return res;
 }

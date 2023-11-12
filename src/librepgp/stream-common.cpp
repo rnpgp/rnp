@@ -55,16 +55,18 @@ bool
 src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
     size_t              left = len;
-    size_t              read;
+    size_t              read = 0;
     pgp_source_cache_t *cache = src->cache;
     bool                readahead = cache ? cache->readahead : false;
 
     if (src->error) {
+        RNP_LOG("read error");
         return false;
     }
 
     if (src->eof || (len == 0)) {
         *readres = 0;
+        RNP_LOG("read eof");
         return true;
     }
 
@@ -96,11 +98,14 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             // If there is no cache or chunk is larger then read directly
             if (!src->read(src, buf, left, &read)) {
                 src->error = 1;
+                RNP_LOG("here");
                 return false;
             }
+            // RNP_LOG("here: %p %zu", src->read, read);
             if (!read) {
                 src->eof = 1;
                 len = len - left;
+                RNP_LOG("here: %zu", len);
                 goto finish;
             }
             left -= read;
@@ -109,11 +114,14 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             // Try to fill the cache to avoid small reads
             if (!src->read(src, &cache->buf[0], sizeof(cache->buf), &read)) {
                 src->error = 1;
+                RNP_LOG("here");
                 return false;
             }
+            // RNP_LOG("here: %p %zu", src->read, read);
             if (!read) {
                 src->eof = 1;
                 len = len - left;
+                RNP_LOG("here: %zu", len);
                 goto finish;
             } else if (read < left) {
                 memcpy(buf, &cache->buf[0], read);
@@ -133,6 +141,7 @@ finish:
     if (src->knownsize && (src->readb == src->size)) {
         src->eof = 1;
     }
+    //RNP_LOG("read bytes: %zu", len);
     *readres = len;
     return true;
 }
@@ -386,6 +395,7 @@ file_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     if (rres < 0) {
         return false;
     }
+    RNP_LOG("%zu from %zu", (size_t) rres, len);
     *readres = rres;
     return true;
 }

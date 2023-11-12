@@ -3132,14 +3132,17 @@ rnp_verify_dest_provider(pgp_parse_handler_t *handler,
                          const char *         filename,
                          uint32_t             mtime)
 {
+    RNP_LOG("here");
     rnp_op_verify_t op = (rnp_op_verify_t) handler->param;
     if (!op->output) {
+        RNP_LOG("here");
         return false;
     }
     *dst = &(op->output->dst);
     *closedst = false;
     op->filename = filename ? std::string(filename) : "";
     op->file_mtime = mtime;
+    RNP_LOG("here");
     return true;
 }
 
