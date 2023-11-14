@@ -488,6 +488,7 @@ pgp_cipher_aead_init(pgp_crypt_t *  crypt,
         RNP_LOG("failed to get update granularity");
         return false;
     }
+    RNP_LOG("initialized aead %p, granularity %zu.", crypt->aead.obj, crypt->aead.granularity);
 
     return true;
 }
@@ -548,10 +549,12 @@ pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
         return false;
     }
 
+    RNP_LOG("calling botan_cipher_update() on %p with %zu.", crypt->aead.obj, len);
     if (botan_cipher_update(crypt->aead.obj, 0, out, len, &outwr, in, len, &inread) != 0) {
         RNP_LOG("aead update failed");
         return false;
     }
+    RNP_LOG("done");
 
     if ((outwr != len) || (inread != len)) {
         RNP_LOG("wrong aead usage");
@@ -564,7 +567,9 @@ pgp_cipher_aead_update(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 void
 pgp_cipher_aead_reset(pgp_crypt_t *crypt)
 {
+    RNP_LOG("calling botan_cipher_reset() on %p.", crypt->aead.obj);
     botan_cipher_reset(crypt->aead.obj);
+    RNP_LOG("done");
 }
 
 bool
@@ -578,7 +583,7 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
     if (crypt->aead.decrypt) {
         size_t datalen = len - crypt->aead.taglen;
         /* for decryption we should have tag for the final update call */
-        RNP_LOG("calling botan_cipher_update() with %zu.", len);
+        RNP_LOG("calling botan_cipher_update() on %p with %zu.", crypt->aead.obj, len);
         res =
           botan_cipher_update(crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread);
         RNP_LOG("done: res %d, consumed %zu, written %zu", res, inread, outwr);
@@ -618,6 +623,7 @@ void
 pgp_cipher_aead_destroy(pgp_crypt_t *crypt)
 {
     if (crypt->aead.obj) {
+        RNP_LOG("calling botan_cipher_destroy() on %p", crypt->aead.obj);
         botan_cipher_destroy(crypt->aead.obj);
     }
     memset(crypt, 0x0, sizeof(*crypt));

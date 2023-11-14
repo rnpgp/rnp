@@ -228,7 +228,7 @@ is_pgp_source(pgp_source_t &src)
 static bool
 partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
-    RNP_LOG("partial %p start: %zu", src, len);
+    // RNP_LOG("partial %p start: %zu", src, len);
     if (src->eof) {
         *readres = 0;
         return true;
@@ -243,7 +243,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     size_t write = 0;
     while (len > 0) {
         if (!param->pleft && param->last) {
-            RNP_LOG("partial finish: %zu", write);
+            // RNP_LOG("partial finish: %zu", write);
             // we have the last chunk
             *readres = write;
             return true;
@@ -254,13 +254,13 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
                 RNP_LOG("partial chunk len failure");
                 return false;
             }
-            RNP_LOG("partial new chunk: %zu %d", read, (int) param->last);
+            // RNP_LOG("partial new chunk: %zu %d", read, (int) param->last);
             param->psize = read;
             param->pleft = read;
         }
 
         if (!param->pleft) {
-            RNP_LOG("partial zero chunk");
+            // RNP_LOG("partial zero chunk");
             *readres = write;
             return true;
         }
@@ -274,7 +274,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             RNP_LOG("failed to read data chunk");
             return false;
         }
-        RNP_LOG("partial read %zu", read);
+        // RNP_LOG("partial read %zu", read);
         if (!read) {
             RNP_LOG("unexpected eof");
             *readres = write;
@@ -286,7 +286,7 @@ partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         param->pleft -= read;
     }
 
-    RNP_LOG("partial end of cycle");
+    // RNP_LOG("partial end of cycle");
     *readres = write;
     return true;
 }
