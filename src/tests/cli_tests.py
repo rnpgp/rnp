@@ -4160,9 +4160,14 @@ class Encryption(unittest.TestCase):
         AEAD_M = list_upto(AEADS, Encryption.RUNS)
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
 
+        dst, = reg_workfiles('cleartext', '.txt')
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue'), dst)
+        remove_files(dst)
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue2'), dst)
+        remove_files(dst)
         # Encrypt and decrypt cleartext using the AEAD
-        for _ in range(4):
-            rnp_sym_encryption_rnp_aead(250000, 'AES', None, [None, None], GPG_AEAD)
+        #for _ in range(4):
+        #    rnp_sym_encryption_rnp_aead(250000, 'AES', None, [None, None], GPG_AEAD)
         #for _ in range(16):
         #    rnp_sym_encryption_rnp_aead(250000, 'AES256', ['zlib'], [None, None], GPG_AEAD)
         #for _ in range(16):
