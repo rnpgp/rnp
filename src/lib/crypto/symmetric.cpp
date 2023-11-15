@@ -582,10 +582,12 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
 
     if (crypt->aead.decrypt) {
         size_t datalen = len - crypt->aead.taglen;
+        std::vector<uint8_t> invec(in, in + len);
+        std::vector<uint8_t> outvec(len);
         /* for decryption we should have tag for the final update call */
         RNP_LOG("calling botan_cipher_update() on %p with %zu.", crypt->aead.obj, len);
         res =
-          botan_cipher_update(crypt->aead.obj, flags, out, datalen, &outwr, in, len, &inread);
+          botan_cipher_update(crypt->aead.obj, flags, outvec.data(), outvec.size(), &outwr, invec.data(), invec.size(), &inread);
         RNP_LOG("done: res %d, consumed %zu, written %zu", res, inread, outwr);
         if (res != 0) {
             if (res != BOTAN_FFI_ERROR_BAD_MAC) {
@@ -593,6 +595,7 @@ pgp_cipher_aead_finish(pgp_crypt_t *crypt, uint8_t *out, const uint8_t *in, size
             }
             return false;
         }
+        memcpy(out, outvec.data(), datalen);
 
         if ((outwr != datalen) || (inread != len)) {
             RNP_LOG("wrong decrypt aead finish usage");
