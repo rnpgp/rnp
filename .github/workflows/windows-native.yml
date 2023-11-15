@@ -139,6 +139,7 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
+                           -DENABLE_SANITIZERS=yes     \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
@@ -152,6 +153,7 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
+                           -DENABLE_SANITIZERS=yes     \
                            -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
                            -DCRYPTO_BACKEND=${{ matrix.backend }}      \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .

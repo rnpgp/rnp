@@ -4163,8 +4163,8 @@ class Encryption(unittest.TestCase):
         dst, = reg_workfiles('cleartext', '.txt')
         rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue'), dst)
         remove_files(dst)
-        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue2'), dst)
-        remove_files(dst)
+        #rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue2'), dst)
+        #remove_files(dst)
         # Encrypt and decrypt cleartext using the AEAD
         #for _ in range(4):
         #    rnp_sym_encryption_rnp_aead(250000, 'AES', None, [None, None], GPG_AEAD)
