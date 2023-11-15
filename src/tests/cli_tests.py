@@ -4162,7 +4162,7 @@ class Encryption(unittest.TestCase):
 
         # Encrypt and decrypt cleartext using the AEAD
         for _ in range(4):
-            rnp_sym_encryption_rnp_aead(250000, 'AES', [None, 0], [None, None], GPG_AEAD)
+            rnp_sym_encryption_rnp_aead(250000, 'AES', None, [None, None], GPG_AEAD)
         #for _ in range(16):
         #    rnp_sym_encryption_rnp_aead(250000, 'AES256', ['zlib'], [None, None], GPG_AEAD)
         #for _ in range(16):

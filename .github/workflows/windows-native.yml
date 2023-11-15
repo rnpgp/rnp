@@ -172,4 +172,4 @@ jobs:
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C Release -V
