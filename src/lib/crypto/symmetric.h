@@ -118,12 +118,14 @@ struct pgp_crypt_aead_param_t {
 
 /** pgp_crypt_t */
 typedef struct pgp_crypt_t {
+    uint8_t dummy1[40000];
     union {
         struct pgp_crypt_cfb_param_t cfb;
 #if defined(ENABLE_AEAD)
         struct pgp_crypt_aead_param_t aead;
 #endif
     };
+    uint8_t dummy2[40000];
 
     pgp_symm_alg_t alg;
     size_t         blocksize;
