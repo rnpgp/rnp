@@ -172,11 +172,14 @@ endif()
 
 # sanitizers
 if (ENABLE_SANITIZERS)
-  if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR "Sanitizers have only been tested with the clang compiler.")
+  if (MSVC)
+    add_compile_options(/fsanitize=address /fsanitize=fuzzer /Zi)
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-fsanitize=leak,address,undefined -fno-omit-frame-pointer -fno-common -O1)
+    link_libraries(-fsanitize=leak,address,undefined)
+  else()
+    message(FATAL_ERROR "Sanitizers have only been tested with the Clang compiler or Microsoft Visual Studio.")
   endif()
-  add_compile_options(-fsanitize=leak,address,undefined -fno-omit-frame-pointer -fno-common -O1)
-  link_libraries(-fsanitize=leak,address,undefined)
 endif()
 
 # adoc for man generation
