@@ -27,12 +27,17 @@ def set_workdir(dir):
     WORKDIR = dir
 
 def is_windows():
-    return sys.platform.startswith('win') or sys.platform.startswith('msys')
+    # This will be true both for native Windows and MSYS
+    return sys.platform.startswith('win')
+
+def is_msys():
+    return 'MSYSTEM' in os.environ
 
 def path_for_gpg(path):
     # GPG built for mingw/msys doesn't work with Windows paths
-    if re.match(r'^[a-z]:[\\\/].*', path.lower()):
-        path = '/' + path[0] + '/' + path[3:].replace('\\', '/')
+    if is_msys():
+        if re.match(r'^[a-z]:[\\\/].*', path.lower()):
+            path = '/' + path[0] + '/' + path[3:].replace('\\', '/')
     return path
 
 def raise_err(msg, log = None):
@@ -100,7 +105,7 @@ def rnp_file_path(relpath, check = True):
 
 def run_proc_windows(proc, params, stdin=None):
     exe = os.path.basename(proc)
-    # test special quote cases 
+    # test special quote cases
     params = list(map(lambda st: st.replace('"', '\\"'), params))
     # We need to escape empty parameters/ones with spaces with quotes
     params = tuple(map(lambda st: st if (st and not any(x in st for x in [' ','\r','\t'])) else '"%s"' % st, [exe] + params))
@@ -176,9 +181,9 @@ def run_proc_windows(proc, params, stdin=None):
     err = file_text(stderr_path).replace('\r\n', '\n')
     os.unlink(stdout_path)
     os.unlink(stderr_path)
-    if stdin: 
+    if stdin:
         os.unlink(stdin_path)
-    if passfo: 
+    if passfo:
         os.unlink(pass_path)
     logging.debug(err.strip())
     logging.debug(out.strip())

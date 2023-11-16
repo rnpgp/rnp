@@ -27,6 +27,7 @@ on:
   push:
     branches:
       - main
+      - maxirmx-2147-windows-ci
       - 'release/**'
     paths-ignore:
       - '/*.sh'
@@ -125,7 +126,7 @@ jobs:
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
         # s2k_iteration_tuning test (src/tests/cipher.cpp)
-        # It looks like cl on Win32 does not provide robust response
+        # It looks like clang on Win32 does not provide robust response
         if: matrix.arch.name == 'Win32' && matrix.toolset == 'ClangCL'
         shell: bash
         run: echo CXXFLAGS="-DS2K_MINIMUM_TUNING_RATIO=4" >> $GITHUB_ENV
