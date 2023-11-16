@@ -61,6 +61,7 @@ env:
   VCPKG_DIR: C:/vcpkg
   VCPKG_DEFAULT_BINARY_CACHE: ${{github.workspace}}\cache
   RNP_TEST_DATA: ${{github.workspace}}\src\tests\data
+  LANG: en_US.UTF-8
 
 jobs:
   build_and_test:
@@ -170,7 +171,7 @@ jobs:
         # ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests -C Debug --output-on-failure
         # ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
         run: |
-          set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
+          set PATH=${{ env.VCPKG_DIR_U }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
           mkdir "build\Testing\Temporary"
           copy "cmake\CTestCostData.txt" "build\Testing\Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
