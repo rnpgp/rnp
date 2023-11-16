@@ -17,10 +17,11 @@ class CLIError(Exception):
         self.message = message
         self.log = log
         logging.info(self.message)
-        logging.debug(self.log.strip())
+        if self.log:
+            logging.debug(self.log.strip())
 
     def __str__(self):
-        return self.message + '\n' + self.log
+        return self.message + ('\n' + self.log.strip() if self.log else '')
 
 def set_workdir(dir):
     global WORKDIR
