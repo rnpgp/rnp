@@ -503,6 +503,8 @@ typedef struct rnp_selfsig_cert_info_t {
      *        At some point we should get rid of it.
      */
     void populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig);
+    void populate(pgp_signature_t &sig);
+    void populate(pgp_userid_pkt_t &uid);
 } rnp_selfsig_cert_info_t;
 
 typedef struct rnp_selfsig_binding_info_t {

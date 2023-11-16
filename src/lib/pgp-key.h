@@ -574,6 +574,23 @@ struct pgp_key_t {
                         pgp_signature_t &     sig,
                         rnp::SecurityContext &ctx);
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+    /**
+     * @brief Add a direct-key self signature
+     *        Note: secret key must be unlocked before calling this function.
+     *
+     * @param cert certification parameters.
+     * @param hash hash algorithm to use during signing. See sign_init() for more details.
+     * @param ctx  security context.
+     * @param pubkey if non-NULL then the direct-key signature will be added to this key as
+     *               well.
+     */
+    void add_direct_sig(rnp_selfsig_cert_info_t &cert,
+                        pgp_hash_alg_t           hash,
+                        rnp::SecurityContext &   ctx,
+                        pgp_key_t *              pubkey = nullptr);
+#endif
+
     /**
      * @brief Add and certify userid.
      *        Note: secret key must be unlocked before calling this function.

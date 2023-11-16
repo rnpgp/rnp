@@ -2542,6 +2542,35 @@ pgp_key_t::sign_subkey_binding(pgp_key_t &           sub,
     }
 }
 
+#if defined(ENABLE_CRYPTO_REFRESH)
+void
+pgp_key_t::add_direct_sig(rnp_selfsig_cert_info_t &cert,
+                          pgp_hash_alg_t           hash,
+                          rnp::SecurityContext &   ctx,
+                          pgp_key_t *              pubkey)
+{
+    // We only support modifying v4 and newer keys
+    if (pkt().version < PGP_V4) {
+        RNP_LOG("adding a direct-key sig to V2/V3 key is not supported");
+        throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
+    }
+
+    pgp_signature_t sig;
+    sign_init(ctx.rng, sig, hash, ctx.time(), pkt().version);
+    sig.set_type(PGP_SIG_DIRECT);
+    cert.populate(sig);
+    sign_direct(pkt_, sig, ctx);
+
+    add_sig(sig, PGP_UID_NONE);
+    refresh_data(ctx);
+    if (!pubkey) {
+        return;
+    }
+    pubkey->add_sig(sig, PGP_UID_NONE);
+    pubkey->refresh_data(ctx);
+}
+#endif
+
 void
 pgp_key_t::add_uid_cert(rnp_selfsig_cert_info_t &cert,
                         pgp_hash_alg_t           hash,
