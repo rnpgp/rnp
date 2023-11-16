@@ -164,13 +164,13 @@ jobs:
           cmake --build build --config "Release" --parallel ${{ env.CORES }}
 
       - name: Test
-        shell: bash
+        shell: cmd
         # Sometimes  running cli_tests in parallel causes instability [???]
         # ctest --test-dir build -R cli_tests -C Debug --output-on-failure
         # ctest --parallel ${{ env.CORES }} --test-dir build -R rnp_tests -C Debug --output-on-failure
         # ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
         run: |
-          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          mkdir -p "build/Testing/Temporary"
-          cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
+          set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
+          mkdir "build\Testing\Temporary"
+          copy "cmake\CTestCostData.txt" "build\Testing\Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
