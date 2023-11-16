@@ -9,6 +9,7 @@ import sys
 import tempfile
 import time
 import unittest
+import random
 from platform import architecture
 
 from cli_common import (file_text, find_utility, is_windows, list_upto,
@@ -47,6 +48,8 @@ RNP_IDEA = True
 RNP_BLOWFISH = True
 RNP_CAST5 = True
 RNP_RIPEMD160 = True
+# Botan may cause AV during OCB decryption in certain cases, see https://github.com/randombit/botan/issues/3812
+RNP_BOTAN_OCB_AV = False
 
 if sys.version_info >= (3,):
     unichr = chr
@@ -861,6 +864,7 @@ def gpg_check_features():
 
 def rnp_check_features():
     global RNP_TWOFISH, RNP_BRAINPOOL, RNP_AEAD, RNP_AEAD_EAX, RNP_AEAD_OCB, RNP_AEAD_OCB_AES, RNP_IDEA, RNP_BLOWFISH, RNP_CAST5, RNP_RIPEMD160
+    global RNP_BOTAN_OCB_AV
     ret, out, _ = run_proc(RNP, ['--version'])
     if ret != 0:
         raise_err('Failed to get RNP version.')
@@ -869,6 +873,14 @@ def rnp_check_features():
     RNP_AEAD_OCB = re.match(r'(?s)^.*AEAD:.*OCB.*', out) is not None
     RNP_AEAD = RNP_AEAD_EAX or RNP_AEAD_OCB
     RNP_AEAD_OCB_AES = RNP_AEAD_OCB and re.match(r'(?s)^.*Backend.*OpenSSL.*', out) is not None
+    # Botan OCB crash
+    if re.match(r'(?s)^.*Backend.*Botan.*', out):
+        match = re.match(r'(?s)^.*Backend version: ([\d]+)\.([\d]+)\.([\d]+).*$', out)
+        ver = [int(match.group(1)), int(match.group(2)), int(match.group(3))]
+        if ver <= [2, 19, 3]:
+            RNP_BOTAN_OCB_AV = True
+        if (ver >= [3, 0, 0]) and (ver <= [3, 2, 0]):
+            RNP_BOTAN_OCB_AV = True
     # Twofish
     RNP_TWOFISH = re.match(r'(?s)^.*Encryption:.*TWOFISH.*', out) is not None
     # Brainpool curves
@@ -887,6 +899,7 @@ def rnp_check_features():
     print('RNP_AEAD_EAX: ' + str(RNP_AEAD_EAX))
     print('RNP_AEAD_OCB: ' + str(RNP_AEAD_OCB))
     print('RNP_AEAD_OCB_AES: ' + str(RNP_AEAD_OCB_AES))
+    print('RNP_BOTAN_OCB_AV: ' + str(RNP_BOTAN_OCB_AV))
 
 def setup(loglvl):
     # Setting up directories.
@@ -4120,11 +4133,24 @@ class Encryption(unittest.TestCase):
         AEAD_C = list_upto(CIPHERS, Encryption.RUNS)
         AEAD_M = list_upto(AEADS, Encryption.RUNS)
         AEAD_B = list_upto([None, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16], Encryption.RUNS)
+        SIZES = Encryption.SIZES_R
+        random.shuffle(SIZES)
 
         # Encrypt and decrypt cleartext using the AEAD
-        for size, cipher, aead, bits, z in zip(Encryption.SIZES_R, AEAD_C,
+        for size, cipher, aead, bits, z in zip(SIZES, AEAD_C,
                                                AEAD_M, AEAD_B, Encryption.Z_R):
+            if RNP_BOTAN_OCB_AV and (aead == 'ocb') and (size > 30000):
+                continue
             rnp_sym_encryption_rnp_aead(size, cipher, z, [aead, bits], GPG_AEAD)
+
+    def test_sym_encrypted__rnp_aead_botan_crash(self):
+        if RNP_BOTAN_OCB_AV:
+            return
+        dst, = reg_workfiles('cleartext', '.txt')
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue'), dst)
+        remove_files(dst)
+        rnp_decrypt_file(data_path('test_messages/message.aead-windows-issue2'), dst)
+        remove_files(dst)                                                 
 
     def test_aead_chunk_edge_cases(self):
         if not RNP_AEAD:
