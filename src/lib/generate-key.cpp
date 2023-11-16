@@ -425,6 +425,12 @@ pgp_generate_primary_key(rnp_keygen_primary_desc_t &desc,
 
         pgp_key_t sec(secpkt);
         pgp_key_t pub(secpkt, true);
+#if defined(ENABLE_CRYPTO_REFRESH)
+        // for v6 packets, a direct-key sig is mandatory.
+        if (sec.version() == PGP_V6) {
+            sec.add_direct_sig(desc.cert, desc.crypto.hash_alg, *desc.crypto.ctx, &pub);
+        }
+#endif
         sec.add_uid_cert(desc.cert, desc.crypto.hash_alg, *desc.crypto.ctx, &pub);
 
         switch (secformat) {
