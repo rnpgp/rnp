@@ -1814,18 +1814,41 @@ pgp_signature_t::fill_hashed_data()
 }
 
 void
-rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig)
+rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid)
 {
-    /* populate signature */
-    sig.set_type(PGP_CERT_POSITIVE);
+    uid.tag = PGP_PKT_USER_ID;
+    uid.uid_len = userid.size();
+    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
+        RNP_LOG("alloc failed");
+        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
+    }
+    memcpy(uid.uid, userid.data(), uid.uid_len);
+}
+
+void
+rnp_selfsig_cert_info_t::populate(pgp_signature_t &sig)
+{
     if (key_expiration) {
         sig.set_key_expiration(key_expiration);
     }
-    if (key_flags) {
-        sig.set_key_flags(key_flags);
-    }
     if (primary) {
         sig.set_primary_uid(true);
+    }
+#if defined(ENABLE_CRYPTO_REFRESH)
+    if ((sig.version == PGP_V6) && (sig.type() != PGP_SIG_DIRECT)) {
+        /* only set key expiraton and primary uid for v6 self-signatures
+         * since most information is stored in the direct-key signature of the primary key.
+         */
+
+        if (key_flags && (sig.type() == PGP_SIG_SUBKEY)) {
+            /* for v6 subkeys signatures we also add the key flags */
+            sig.set_key_flags(key_flags);
+        }
+        return;
+    }
+#endif
+    if (key_flags) {
+        sig.set_key_flags(key_flags);
     }
     if (!prefs.symm_algs.empty()) {
         sig.set_preferred_symm_algs(prefs.symm_algs);
@@ -1842,12 +1865,12 @@ rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig)
     if (!prefs.key_server.empty()) {
         sig.set_key_server(prefs.key_server);
     }
-    /* populate uid */
-    uid.tag = PGP_PKT_USER_ID;
-    uid.uid_len = userid.size();
-    if (!(uid.uid = (uint8_t *) malloc(uid.uid_len))) {
-        RNP_LOG("alloc failed");
-        throw rnp::rnp_exception(RNP_ERROR_OUT_OF_MEMORY);
-    }
-    memcpy(uid.uid, userid.data(), uid.uid_len);
+}
+
+void
+rnp_selfsig_cert_info_t::populate(pgp_userid_pkt_t &uid, pgp_signature_t &sig)
+{
+    sig.set_type(PGP_CERT_POSITIVE);
+    populate(sig);
+    populate(uid);
 }
