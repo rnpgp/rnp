@@ -41,6 +41,11 @@ def path_for_gpg(path):
             path = '/' + path[0] + '/' + path[3:].replace('\\', '/')
     return path
 
+def home_dir_name():
+    if is_windows() and not is_msys():
+        return 'USERPROFILE'
+    return 'HOME'
+
 def raise_err(msg, log = None):
     raise CLIError(msg, log)
 

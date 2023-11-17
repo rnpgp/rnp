@@ -58,14 +58,14 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  VCPKG_DIR: C:\vcpkg
+  VCPKG_DIR: C:\\vcpkg
   VCPKG_DEFAULT_BINARY_CACHE: ${{github.workspace}}\cache
   RNP_TEST_DATA: ${{github.workspace}}\src\tests\data
   LANG: en_US.UTF-8
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
+    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitize ${{ matrix.mode.sanitize }}]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -76,6 +76,7 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'off']
         use_cmake_prefix_path: [ 'on', 'off' ]
+        mode: [ { build: 'Release', sanitize: 'OFF' } ]
         include:
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
@@ -87,6 +88,12 @@ jobs:
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
+          - arch:  { name: 'x64',  triplet: 'x64-windows' }
+            toolset:                'v142'
+            backend:                'botan'
+            use_cmake_prefix_path:  'off'
+            shared_libs:            'off'
+            mode: [ { build: 'Debug', sanitize: 'ON' } ]
 
     steps:
       - name: Checkout
@@ -99,7 +106,7 @@ jobs:
       - name: vcpkg parameters
         run: |
           vcpkg version >> vcpkg.version
-          mkdir -p ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
+          mkdir ${{ env.VCPKG_DEFAULT_BINARY_CACHE }}
 
       - name: vcpkg cache
         uses: actions/cache@v3
@@ -112,6 +119,7 @@ jobs:
         run: |
           dir_u=$(cygpath -u  ${{ env.VCPKG_DIR }})
           echo "VCPKG_DIR_U=$dir_u" >> $GITHUB_ENV
+          echo CORES="$(nproc --all)" >> $GITHUB_ENV
           vcpkg install --triplet ${{ matrix.arch.triplet }} bzip2 zlib json-c getopt dirent ${{ matrix.backend }}
 
       - name: Set OPENSSL_ROOT_DIR
@@ -134,35 +142,35 @@ jobs:
 
       - name: Configure using vpkg toolchain file
         if: matrix.use_cmake_prefix_path != 'on'
-        shell: bash
+        shell: cmd
         run: |
-          echo CORES="$(nproc --all)" >> $GITHUB_ENV
-          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 16 2019"  \
-                           -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
-                           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
+          set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
+          cmake -B build   -G "Visual Studio 16 2019"  ^
+                           -A ${{ matrix.arch.name }}  ^
+                           -T ${{ matrix.toolset }}    ^
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} ^
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}       ^
+                           -DENABLE_SANITIZERS=${{ matrix.mode.sanitize }} ^
+                           -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}\scripts\buildsystems\vcpkg.cmake .
 
       - name: Configure using CMake prefix path
         if: matrix.use_cmake_prefix_path == 'on'
-        shell: bash
+        shell: cmd
         run: |
-          echo CORES="$(nproc --all)" >> $GITHUB_ENV
-          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake -B build   -G "Visual Studio 16 2019"  \
-                           -A ${{ matrix.arch.name }}  \
-                           -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
-                           -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
+          set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
+          cmake -B build   -G "Visual Studio 16 2019"  ^
+                           -A ${{ matrix.arch.name }}  ^
+                           -T ${{ matrix.toolset }}    ^
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} ^
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}       ^
+                           -DENABLE_SANITIZERS=${{ matrix.mode.sanitize }} ^
+                           -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }} .
 
       - name: Build
-        shell: bash
+        shell: cmd
         run: |
-          export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake --build build --config "Release" --parallel ${{ env.CORES }}
+          set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
+          cmake --build build --config ${{ matrix.mode.build }} --parallel ${{ env.CORES }}
 
       - name: Test
         shell: cmd
@@ -174,4 +182,4 @@ jobs:
           set PATH=${{ env.VCPKG_DIR }}\installed\${{ matrix.arch.triplet }}\bin;%PATH%
           mkdir "build\Testing\Temporary"
           copy "cmake\CTestCostData.txt" "build\Testing\Temporary"
-          ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+          ctest --parallel ${{ env.CORES }} --test-dir build -C ${{ matrix.mode.build }} --output-on-failure

@@ -11,8 +11,8 @@ import time
 import unittest
 from platform import architecture
 
-from cli_common import (file_text, find_utility, is_windows, list_upto,
-                        path_for_gpg, pswd_pipe, raise_err, random_text,
+from cli_common import (file_text, find_utility, is_windows, home_dir_name,
+                        list_upto, path_for_gpg, pswd_pipe, raise_err, random_text,
                         run_proc, decode_string_escape, CONSOLE_ENCODING,
                         set_workdir)
 from gnupg import GnuPG as GnuPG
@@ -94,22 +94,22 @@ AT_EXAMPLE = '@example.com'
 # Keyrings
 PUBRING = 'pubring.gpg'
 SECRING = 'secring.gpg'
-PUBRING_1 = 'keyrings/1/pubring.gpg'
-SECRING_1 = 'keyrings/1/secring.gpg'
-KEYRING_DIR_1 = 'keyrings/1'
-KEYRING_DIR_3 = 'keyrings/3'
-SECRING_G10 = 'test_stream_key_load/g10'
-KEY_ALICE_PUB = 'test_key_validity/alice-pub.asc'
-KEY_ALICE_SUB_PUB = 'test_key_validity/alice-sub-pub.pgp'
-KEY_ALICE_SEC = 'test_key_validity/alice-sec.asc'
-KEY_ALICE_SUB_SEC = 'test_key_validity/alice-sub-sec.pgp'
+PUBRING_1 = os.path.join('keyrings','1', 'pubring.gpg')
+SECRING_1 = os.path.join('keyrings', '1', 'secring.gpg')
+KEYRING_DIR_1 = os.path.join('keyrings', '1')
+KEYRING_DIR_3 = os.path.join('keyrings', '3')
+SECRING_G10 = os.path.join('test_stream_key_load', 'g10')
+KEY_ALICE_PUB = os.path.join('test_key_validity', 'alice-pub.asc')
+KEY_ALICE_SUB_PUB = os.path.join('test_key_validity', 'alice-sub-pub.pgp')
+KEY_ALICE_SEC = os.path.join('test_key_validity', 'alice-sec.asc')
+KEY_ALICE_SUB_SEC = os.path.join('test_key_validity', 'alice-sub-sec.pgp')
 KEY_ALICE = 'Alice <alice@rnp>'
-KEY_25519_NOTWEAK_SEC = 'test_key_edge_cases/key-25519-non-tweaked-sec.asc'
+KEY_25519_NOTWEAK_SEC = os.path.join('test_key_edge_cases', 'key-25519-non-tweaked-sec.asc')
 
 # Messages
-MSG_TXT = 'test_messages/message.txt'
-MSG_ES_25519 = 'test_messages/message.txt.enc-sign-25519'
-MSG_SIG_CRCR = 'test_messages/message.text-sig-crcr.sig'
+MSG_TXT = os.path.join('test_messages', 'message.txt')
+MSG_ES_25519 = os.path.join('test_messages', 'message.txt.enc-sign-25519')
+MSG_SIG_CRCR = os.path.join('test_messages', 'message.text-sig-crcr.sig')
 
 # Extensions
 EXT_SIG = '.txt.sig'
@@ -908,7 +908,7 @@ def setup(loglvl):
     os.environ["RNP_LOG_CONSOLE"] = "1"
 
     GPGDIR = os.path.join(WORKDIR, '.gpg')
-    GPGHOME = path_for_gpg(GPGDIR) if is_windows() else GPGDIR
+    GPGHOME = path_for_gpg(GPGDIR)
     GPG = os.getenv('RNP_TESTS_GPG_PATH') or find_utility('gpg')
     GPGCONF = os.getenv('RNP_TESTS_GPGCONF_PATH') or find_utility('gpgconf')
     gpg_check_features()
@@ -2674,10 +2674,10 @@ class Misc(unittest.TestCase):
         self.assertNotRegex(err, RE_KEYSTORE_INFO)
 
     def test_no_home_dir(self):
-        home = os.environ['HOME']
-        del os.environ['HOME']
+        home = os.environ[home_dir_name()]
+        del os.environ[home_dir_name()]
         ret, _, err = run_proc(RNP, ['-v', 'non-existing.pgp'])
-        os.environ['HOME'] = home
+        os.environ[home_dir_name()] = home
         self.assertEqual(ret, 2, 'failed to run without HOME env variable')
         self.assertRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
         self.assertRegex(err, RE_KEYSTORE_INFO)
@@ -2810,7 +2810,7 @@ class Misc(unittest.TestCase):
         # Encrypt file and make sure it's name is stored in literal data packet
         ret, out, _ = run_proc(RNP, ['-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, r'(?s)^.*literal data packet.*mode b.*created \d+.*name="source.txt".*$')
         remove_files(enc)
@@ -2824,35 +2824,35 @@ class Misc(unittest.TestCase):
         # Encrypt file, using empty name
         ret, out, _ = run_proc(RNP, ['--set-filename', '', '-c', src, '--password', 'password'])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt stdin, making sure empty name is stored
         ret, out, _ = run_proc(RNP, ['-c', '--password', 'password', '--output', enc], 'Data from stdin')
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt stdin, setting the file name
         ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', '--password', 'password', '--output', enc], 'Data from stdin')
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, HELLO_FNAME)
         remove_files(enc)
         # Encrypt env, making sure empty name is stored
-        ret, out, _ = run_proc(RNP, ['-c', 'env:HOME', '--password', 'password', '--output', enc])
+        ret, out, _ = run_proc(RNP, ['-c', 'env:' + home_dir_name(), '--password', 'password', '--output', enc])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, EMPTY_FNAME)
         remove_files(enc)
         # Encrypt env, setting the file name
-        ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', 'env:HOME', '--password', 'password', '--output', enc])
+        ret, out, _ = run_proc(RNP, ['--set-filename', 'hello', '-c', 'env:' + home_dir_name(), '--password', 'password', '--output', enc])
         self.assertEqual(ret, 0)
-        ret, out, err = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
+        ret, out, _ = run_proc(GPG, ['--homedir', GPGHOME, GPG_LOOPBACK, '--passphrase', 'password', '--list-packets', enc])
         self.assertEqual(ret, 0)
         self.assertRegex(out, HELLO_FNAME)
         remove_files(enc)
@@ -2870,8 +2870,8 @@ class Misc(unittest.TestCase):
         EMPTY_HOME = r'(?s)^.*Keyring directory .* is empty.*rnpkeys.*GnuPG.*'
 
         os.rename(RNPDIR, RNPDIR + '-old')
-        home = os.environ['HOME']
-        os.environ['HOME'] = WORKDIR
+        home = os.environ[home_dir_name()]
+        os.environ[home_dir_name()] = WORKDIR
         try:
             self.assertFalse(os.path.isdir(RNPDIR), '.rnp directory should not exists')
             src, enc, dec = reg_workfiles('source', '.txt', EXT_PGP, '.dec')
@@ -2932,13 +2932,13 @@ class Misc(unittest.TestCase):
                 # Attempt ro run with non-writable HOME
                 newhome = os.path.join(WORKDIR, 'new')
                 os.mkdir(newhome, 0o400)
-                os.environ['HOME'] = newhome
+                os.environ[home_dir_name()] = newhome
                 ret, out, err = run_proc(RNPK, ['--import', data_path(KEY_ALICE_PUB)])
                 self.assertEqual(ret, 1)
                 self.assertRegex(err, r'(?s)^.*Home directory \'.*new\' does not exist or is not writable!')
                 self.assertRegex(err, RE_KEYSTORE_INFO)
                 self.assertIn(WORKDIR, err)
-                os.environ['HOME'] = WORKDIR
+                os.environ[home_dir_name()] = WORKDIR
                 shutil.rmtree(newhome, ignore_errors=True)
                 # Attempt to load keyring with invalid permissions
                 os.chmod(os.path.join(RNPDIR, PUBRING), 0o000)
@@ -2988,7 +2988,7 @@ class Misc(unittest.TestCase):
             self.assertIn(WORKDIR, err, 'wrong key import output')
             self.assertRegex(out, SEC_IMPORT, 'wrong secret key import output')
         finally:
-            os.environ['HOME'] = home
+            os.environ[home_dir_name()] = home
             shutil.rmtree(RNPDIR, ignore_errors=True)
             os.rename(RNPDIR + '-old', RNPDIR)
             clear_workfiles()
@@ -3151,8 +3151,8 @@ class Misc(unittest.TestCase):
 
     def test_eddsa_small_x(self):
         os.rename(RNPDIR, RNPDIR + '-old')
-        home = os.environ['HOME']
-        os.environ['HOME'] = WORKDIR
+        home = os.environ[home_dir_name()]
+        os.environ[home_dir_name()] = WORKDIR
         try:
             self.assertFalse(os.path.isdir(RNPDIR), '.rnp directory should not exists')
             src, sig, ver = reg_workfiles('source', '.txt', EXT_PGP, '.dec')
@@ -3176,10 +3176,10 @@ class Misc(unittest.TestCase):
             self.assertRegex(err, r'(?s)^.*Good signature made .*using EdDSA key 7bc55b9bdce36e18.*$')
             # verify back with GnuPG
             os.remove(ver)
-            gpg_import_pubring(data_path('test_key_edge_cases/key-eddsa-small-x-pub.asc'))
+            gpg_import_pubring(data_path(os.path.join('test_key_edge_cases', 'key-eddsa-small-x-pub.asc')))
             gpg_verify_file(sig, ver, 'eddsa_small_x')
         finally:
-            os.environ['HOME'] = home
+            os.environ[home_dir_name()] = home
             shutil.rmtree(RNPDIR, ignore_errors=True)
             os.rename(RNPDIR + '-old', RNPDIR)
             clear_workfiles()

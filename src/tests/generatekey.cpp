@@ -426,15 +426,15 @@ TEST_F(rnp_tests, rnpkeys_generatekey_verifykeyHomeDirOption)
     assert_true(setup_cli_rnp_common(&rnp, RNP_KEYSTORE_GPG, NULL, NULL));
 
     /* Pubring and secring should not exist yet */
-    assert_false(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
-    assert_false(path_rnp_file_exists(".rnp/secring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp", "pubring.gpg", NULL));
+    assert_false(path_rnp_file_exists(".rnp", "secring.gpg", NULL));
 
     /* Ensure the key was generated. */
     assert_true(generate_test_key(RNP_KEYSTORE_GPG, NULL, "SHA256", NULL));
 
     /* Pubring and secring should now exist */
-    assert_true(path_rnp_file_exists(".rnp/pubring.gpg", NULL));
-    assert_true(path_rnp_file_exists(".rnp/secring.gpg", NULL));
+    assert_true(path_rnp_file_exists(".rnp", "pubring.gpg", NULL));
+    assert_true(path_rnp_file_exists(".rnp", "secring.gpg", NULL));
 
     /* Loading keyrings and checking whether they have correct key */
     assert_true(rnp.load_keyrings(true));

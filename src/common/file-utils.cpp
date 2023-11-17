@@ -329,7 +329,7 @@ empty(const std::string &path)
 std::string
 HOME(const std::string &sdir)
 {
-    const char *home = getenv("HOME");
+    const char *home = getenv(HOME_DIR_ENV);
     if (!home) {
         return "";
     }

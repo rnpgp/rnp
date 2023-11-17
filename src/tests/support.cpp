@@ -132,7 +132,8 @@ vpaths_concat(char *buffer, size_t buffer_size, const char *first, va_list ap)
     while ((s = va_arg(ap, const char *))) {
         length += strlen(s) + 1;
         assert_true(length < buffer_size);
-        strncat(buffer, "/", buffer_size - 1);
+
+        strncat(buffer, PATH_SEPARATOR, buffer_size - 1);
         strncat(buffer, s, buffer_size - 1);
     }
 }
@@ -485,7 +486,7 @@ setup_rnp_cfg(rnp_cfg &cfg, const char *ks_format, const char *homedir, int *pip
     /* setup keyring paths */
     if (homedir == NULL) {
         /* if we use default homedir then we append '.rnp' and create directory as well */
-        homedir = getenv("HOME");
+        homedir = getenv(HOME_DIR_ENV);
         paths_concat(homepath, sizeof(homepath), homedir, ".rnp", NULL);
         if (!rnp_dir_exists(homepath)) {
             path_mkdir(0700, homepath, NULL);
