@@ -154,11 +154,11 @@ set(RNP_TEST_SOURCES
   )
 
 if(ENABLE_CRYPTO_REFRESH)
-  list(APPEND RNP_TEST_SOURCES 
+  list(APPEND RNP_TEST_SOURCES
     hkdf.cpp)
 endif()
 if(ENABLE_PQC)
-  list(APPEND RNP_TEST_SOURCES 
+  list(APPEND RNP_TEST_SOURCES
     pqc.cpp)
 endif()
 
@@ -167,7 +167,7 @@ add_executable(rnp_tests ${RNP_TEST_SOURCES})
 if(MSVC)
   find_package(WindowsSDK)
   GetUMWindowsSDKLibraryDir(WIN_LIBRARY_DIR)
-  message (STATUS "WIN_LIBRARY_DIR: ${WIN_LIBRARY_DIR}")
+  message (STATUS "Using Windows SDK library directory: ${WIN_LIBRARY_DIR}")
   find_library(SHLWAPI_LIBRARY
     PATHS
        ${WIN_LIBRARY_DIR}

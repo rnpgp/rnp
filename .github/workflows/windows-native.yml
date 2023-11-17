@@ -63,7 +63,7 @@ env:
 
 jobs:
   build_and_test:
-    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}]
+    name: Windows-2019 [arch ${{ matrix.arch.name }}, toolset ${{ matrix.toolset }}, backend ${{ matrix.backend }}, build shared libs ${{ matrix.shared_libs }}, use CMake prefix path ${{ matrix.use_cmake_prefix_path }}, sanitizers ${{ matrix.sanitizers }}]
     runs-on: windows-2019
     if: "!contains(github.event.head_commit.message, 'skip ci')"
     strategy:
@@ -74,17 +74,26 @@ jobs:
         backend: [ 'botan', 'openssl' ]
         shared_libs: [ 'off']
         use_cmake_prefix_path: [ 'on', 'off' ]
+        sanitizers: [ 'off' ]
         include:
+          - arch:  { name: 'x64',    triplet: 'x64-windows' }
+            toolset:                'v142'
+            backend:                'botan'
+            use_cmake_prefix_path:  'off'
+            shared_libs:            'off'
+            sanitizers:             'on'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'ClangCL'
             backend:                'botan'
             use_cmake_prefix_path:  'on'
             shared_libs:            'off'
+            sanitizers:             'off'
           - arch:  { name: 'Win32',  triplet: 'x86-windows' }
             toolset:                'v142'
             backend:                'openssl'
             use_cmake_prefix_path:  'off'
             shared_libs:            'off'
+            sanitizers:             'off'
 
     steps:
       - name: Checkout
@@ -140,8 +149,9 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}}            \
+                           -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}                  \
                            -DCMAKE_TOOLCHAIN_FILE=${{ env.VCPKG_DIR }}/scripts/buildsystems/vcpkg.cmake .
 
       - name: Configure using CMake prefix path
@@ -153,15 +163,16 @@ jobs:
           cmake -B build   -G "Visual Studio 16 2019"  \
                            -A ${{ matrix.arch.name }}  \
                            -T ${{ matrix.toolset }}    \
-                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}} \
-                           -DCRYPTO_BACKEND=${{ matrix.backend }}      \
+                           -DBUILD_SHARED_LIBS=${{ matrix.shared_libs}}            \
+                           -DENABLE_SANITIZERS=${{ matrix.sanitizers }} \
+                           -DCRYPTO_BACKEND=${{ matrix.backend }}                  \
                            -DCMAKE_PREFIX_PATH=${{ env.VCPKG_DIR }}/installed/${{ matrix.arch.triplet }} .
 
       - name: Build
         shell: bash
         run: |
           export PATH=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin:$PATH
-          cmake --build build --config "Release" --parallel ${{ env.CORES }}
+          cmake --build build --parallel ${{ env.CORES }} --config Release
 
       - name: Test
         shell: bash
@@ -174,3 +185,8 @@ jobs:
           mkdir -p "build/Testing/Temporary"
           cp "cmake/CTestCostData.txt" "build/Testing/Temporary"
           ctest --parallel ${{ env.CORES }} --test-dir build -C Release --output-on-failure
+
+# Local build hints:
+# cmd /k "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Auxiliary\Build\vcvars64.bat"
+# cmake -B build -G "Visual Studio 16 2019" -A x64 -T v142 -DENABLE_SANITIZERS=OFF -DBUILD_SHARED_LIBS=OFF -DCRYPTO_BACKEND=botan -DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake .
+# set PATH=C:\vcpkg\installed\x64-windows\bin;%PATH%
