@@ -128,8 +128,16 @@ else()
   message(FATAL_ERROR "Invalid crypto backend: ${CRYPTO_BACKEND}")
 endif()
 
-# set warning flags at the top level
-if(NOT MSVC)
+if(MSVC)
+  # This works both for MSVC and CL on Windows
+  # Recent version of MSVC toolset issues c++17 deprecation warning even if we use /std:c++11
+  add_compile_definitions(
+    _CRT_SECURE_NO_WARNINGS
+    _CRT_NONSTDC_NO_DEPRECATE
+    _SILENCE_CXX17_C_HEADER_DEPRECATION_WARNING
+  )
+else(MSVC)
+  # set warning flags at the top level
   add_compile_options(
     -Wall -Wextra
     -Wunreachable-code -Wpointer-arith
@@ -142,16 +150,6 @@ if(NOT MSVC)
     -Wno-unused-parameter
     -Wno-missing-field-initializers
   )
-endif(NOT MSVC)
-
-# This works both for MSVC and CL on Windows
-# Recent version of MSVC toolset issues c++17 deprecation warning even if we use /std:c++11
-if(MSVC)
-  add_compile_definitions(
-    _CRT_SECURE_NO_WARNINGS
-    _CRT_NONSTDC_NO_DEPRECATE
-    _SILENCE_CXX17_C_HEADER_DEPRECATION_WARNING
-  )
 endif(MSVC)
 
 # set a few other things at the top level to prevent incompatibilities
@@ -161,28 +159,32 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 add_definitions(-D_GNU_SOURCE)
 
-if (ENABLE_COVERAGE OR ENABLE_SANITIZERS)
+if((ENABLE_COVERAGE OR ENABLE_SANITIZERS) AND NOT GENERATOR_IS_MULTI_CONFIG)
   message("Forcing build type to Debug (for code coverage or sanitizers).")
   set(CMAKE_BUILD_TYPE Debug CACHE STRING "Build type. Forced to Debug." FORCE)
-endif()
+endif((ENABLE_COVERAGE OR ENABLE_SANITIZERS) AND NOT GENERATOR_IS_MULTI_CONFIG)
 
 # coverage
-if (ENABLE_COVERAGE)
-  if (NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+if(ENABLE_COVERAGE)
+  if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     message(FATAL_ERROR "Coverage has only been tested with the GNU compiler.")
   endif()
   add_compile_options(--coverage -O0)
   link_libraries(--coverage)
-endif()
+endif(ENABLE_COVERAGE)
 
 # sanitizers
-if (ENABLE_SANITIZERS)
-  if (NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-    message(FATAL_ERROR "Sanitizers have only been tested with the clang compiler.")
+if(ENABLE_SANITIZERS)
+  if(MSVC)
+    add_compile_options(/fsanitize=address /Zi "$<$<CONFIG:Release>:/MT>" "$<$<CONFIG:Debug>:/MTd>")
+    add_link_options(/INCREMENTAL:NO /DEBUG)
+  elseif (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+    add_compile_options(-fsanitize=leak,address,undefined -fno-omit-frame-pointer -fno-common -O1)
+    link_libraries(-fsanitize=leak,address,undefined)
+  else()
+    message(FATAL_ERROR "Sanitizers have only been tested with the Clang compiler or Microsoft Visual Studio.")
   endif()
-  add_compile_options(-fsanitize=leak,address,undefined -fno-omit-frame-pointer -fno-common -O1)
-  link_libraries(-fsanitize=leak,address,undefined)
-endif()
+endif(ENABLE_SANITIZERS)
 
 # adoc for man generation
 if (ENABLE_DOC)
