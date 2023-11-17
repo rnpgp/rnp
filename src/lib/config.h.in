@@ -77,7 +77,7 @@
 
 /* do not use the statement for old MSVC versions */
 #if (!defined(_MSVC_LANG) || _MSVC_LANG >= 201703L)
-# define FALLTHROUGH_STATEMENT [[fallthrough]];
+# define FALLTHROUGH_STATEMENT [[fallthrough]]
 #else
 # define FALLTHROUGH_STATEMENT
 #endif
