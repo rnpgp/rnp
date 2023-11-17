@@ -145,9 +145,14 @@ if(NOT MSVC)
 endif(NOT MSVC)
 
 # This works both for MSVC and CL on Windows
-if(WIN32)
-  add_compile_definitions(_CRT_SECURE_NO_WARNINGS _CRT_NONSTDC_NO_DEPRECATE)
-endif(WIN32)
+# Recent version of MSVC toolset issues c++17 deprecation warning even if we use /std:c++11
+if(MSVC)
+  add_compile_definitions(
+    _CRT_SECURE_NO_WARNINGS
+    _CRT_NONSTDC_NO_DEPRECATE
+    _SILENCE_CXX17_C_HEADER_DEPRECATION_WARNING
+  )
+endif(MSVC)
 
 # set a few other things at the top level to prevent incompatibilities
 set(CMAKE_C_STANDARD 99)
