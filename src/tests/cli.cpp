@@ -838,7 +838,13 @@ TEST_F(rnp_tests, test_cli_dump)
 
 TEST_F(rnp_tests, test_cli_logname)
 {
+    // getenv function is not required to be thread-safe.
+    // Another call to getenv, as well as a call to the POSIX functions setenv(), unsetenv(),
+    // and putenv() may invalidate the pointer returned by a previous call or modify the string
+    // obtained from a previous call.
     char *      logname = getenv("LOGNAME");
+    std::string saved_logname(logname ? logname : "");
+
     char *      user = getenv("USER");
     std::string testname(user ? user : "user");
     testname.append("-test-user");
@@ -851,7 +857,7 @@ TEST_F(rnp_tests, test_cli_logname)
     }
 
     if (logname) {
-        setenv("LOGNAME", logname, 1);
+        setenv("LOGNAME", saved_logname.c_str(), 1);
     } else {
         unsetenv("LOGNAME");
     }
