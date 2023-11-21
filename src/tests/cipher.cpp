@@ -1011,3 +1011,89 @@ TEST_F(rnp_tests, test_brainpool_enabled)
     assert_false(supported);
 #endif
 }
+
+#if defined(CRYPTO_BACKEND_BOTAN)
+TEST_F(rnp_tests, test_windows_botan_crash)
+{
+    /* Reproducer for https://github.com/randombit/botan/issues/3812 . Related CLI test
+     * test_sym_encrypted__rnp_aead_botan_crash */
+
+    auto data = file_to_vec("data/test_messages/message.aead-windows-issue-botan");
+    /* First 32 bytes are encrypted key as it was extracted from the OpenPGP stream, so
+     * skipping. */
+    uint8_t *idx = data.data() + 32;
+    uint8_t  bufbin[64] = {0};
+    uint8_t  outbuf[32768] = {0};
+    size_t   outsz = sizeof(outbuf);
+    size_t   written = 0;
+    size_t   read = 0;
+    size_t   diff = 0;
+
+    /* Now the data which exposes a possible crash */
+    struct botan_cipher_struct *cipher = NULL;
+    assert_int_equal(botan_cipher_init(&cipher, "AES-128/OCB", BOTAN_CIPHER_INIT_FLAG_DECRYPT),
+                     0);
+
+    const char *key2 = "417835a476bc5958b18d41fb00cf682d";
+    assert_int_equal(rnp::hex_decode(key2, bufbin, 16), 16);
+    assert_int_equal(botan_cipher_set_key(cipher, bufbin, 16), 0);
+
+    const char *ad2 = "d40107020c0000000000000000";
+    assert_int_equal(rnp::hex_decode(ad2, bufbin, 13), 13);
+    assert_int_equal(botan_cipher_set_associated_data(cipher, bufbin, 13), 0);
+
+    const char *nonce2 = "005dbbbe0088f9d17ca2d8d464920f";
+    assert_int_equal(rnp::hex_decode(nonce2, bufbin, 15), 15);
+    assert_int_equal(botan_cipher_start(cipher, bufbin, 15), 0);
+
+    assert_int_equal(
+      botan_cipher_update(cipher, 0, outbuf, outsz, &written, idx, 32736, &read), 0);
+    diff = 32736 - read;
+    idx += read;
+
+    assert_int_equal(
+      botan_cipher_update(cipher, 0, outbuf, outsz, &written, idx, diff + 32736, &read), 0);
+    idx += read;
+    diff = diff + 32736 - read;
+
+    assert_int_equal(
+      botan_cipher_update(cipher, 0, outbuf, outsz, &written, idx, diff + 32736, &read), 0);
+    idx += read;
+    diff = diff + 32736 - read;
+
+    assert_int_equal(
+      botan_cipher_update(cipher, 0, outbuf, outsz, &written, idx, diff + 32736, &read), 0);
+    idx += read;
+    diff = diff + 32736 - read;
+
+    uint32_t ver_major = botan_version_major();
+    uint32_t ver_minor = botan_version_minor();
+    uint32_t ver_patch = botan_version_patch();
+    uint32_t ver = (ver_major << 16) | (ver_minor << 8) | ver_patch;
+    uint32_t ver_2_19_3 = (2 << 16) | (19 << 8) | 3;
+    uint32_t ver_3_2_0 = (3 << 16) | (2 << 8);
+    bool     check = true;
+    /* Currently AV happens with versions up to 2.19.3 and 3.2.0 */
+    if ((ver_major == 2) && (ver <= ver_2_19_3)) {
+        check = false;
+    }
+    if ((ver_major == 3) && (ver <= ver_3_2_0)) {
+        check = false;
+    }
+
+    if (check) {
+        assert_int_equal(botan_cipher_update(cipher,
+                                             BOTAN_CIPHER_UPDATE_FLAG_FINAL,
+                                             outbuf,
+                                             outsz,
+                                             &written,
+                                             idx,
+                                             diff + 25119,
+                                             &read),
+                         0);
+    }
+
+    assert_int_equal(botan_cipher_reset(cipher), 0);
+    assert_int_equal(botan_cipher_destroy(cipher), 0);
+}
+#endif
