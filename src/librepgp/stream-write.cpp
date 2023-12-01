@@ -150,6 +150,9 @@ typedef struct pgp_dest_signed_param_t {
     uint8_t       clr_buf[CT_BUF_LEN]; /* buffer to hold partial line data */
     size_t        clr_buflen;          /* number of bytes in buffer */
 
+    pgp_literal_hdr_t lhdr{}; /* literal packet header, needed for v5 sigs */
+    bool              has_lhdr = false;
+
     pgp_dest_signed_param_t() = default;
     ~pgp_dest_signed_param_t() = default;
 } pgp_dest_signed_param_t;
@@ -1315,7 +1318,8 @@ signed_fill_signature(pgp_dest_signed_param_t &param,
         throw rnp::rnp_exception(RNP_ERROR_BAD_PASSWORD);
     }
     /* calculate the signature */
-    signature_calculate(sig, signer.key->material(), *listh->clone(), *param.ctx->ctx);
+    auto hdr = param.has_lhdr ? &param.lhdr : NULL;
+    signature_calculate(sig, signer.key->material(), *listh->clone(), *param.ctx->ctx, hdr);
 }
 
 static rnp_result_t
@@ -1433,6 +1437,14 @@ signed_dst_update(pgp_dest_t *dst, const void *buf, size_t len)
 {
     pgp_dest_signed_param_t *param = (pgp_dest_signed_param_t *) dst->param;
     param->hashes.add(buf, len);
+}
+
+static void
+signed_dst_set_literal_hdr(pgp_dest_t &src, const pgp_literal_hdr_t &hdr)
+{
+    auto param = static_cast<pgp_dest_signed_param_t *>(src.param);
+    param->lhdr = hdr;
+    param->has_lhdr = true;
 }
 
 static rnp_result_t
@@ -1856,13 +1868,27 @@ literal_dst_close(pgp_dest_t *dst, bool discard)
     dst->param = NULL;
 }
 
+static void
+build_literal_hdr(const rnp_ctx_t &ctx, pgp_literal_hdr_t &hdr)
+{
+    /* content type - forcing binary now */
+    hdr.format = 'b';
+    /* filename */
+    size_t flen = ctx.filename.size();
+    if (flen > 255) {
+        RNP_LOG("filename too long, truncating");
+        flen = 255;
+    }
+    hdr.fname_len = flen;
+    memcpy(hdr.fname, ctx.filename.c_str(), flen);
+    /* timestamp */
+    hdr.timestamp = ctx.filemtime;
+}
+
 static rnp_result_t
-init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writedst)
+init_literal_dst(pgp_literal_hdr_t &hdr, pgp_dest_t *dst, pgp_dest_t *writedst)
 {
     pgp_dest_packet_param_t *param;
-    rnp_result_t             ret = RNP_ERROR_GENERIC;
-    size_t                   flen = 0;
-    uint8_t                  buf[4];
 
     if (!init_dst_common(dst, sizeof(*param))) {
         return RNP_ERROR_OUT_OF_MEMORY;
@@ -1880,32 +1906,23 @@ init_literal_dst(pgp_write_handler_t *handler, pgp_dest_t *dst, pgp_dest_t *writ
     /* initializing partial length or indeterminate packet, writing header */
     if (!init_streamed_packet(param, writedst)) {
         RNP_LOG("failed to init streamed packet");
-        ret = RNP_ERROR_BAD_PARAMETERS;
-        goto finish;
+        literal_dst_close(dst, true);
+        return RNP_ERROR_BAD_PARAMETERS;
     }
     /* content type - forcing binary now */
-    buf[0] = (uint8_t) 'b';
-    /* filename */
-    flen = handler->ctx->filename.size();
-    if (flen > 255) {
-        RNP_LOG("filename too long, truncating");
-        flen = 255;
-    }
-    buf[1] = (uint8_t) flen;
+    uint8_t buf[4] = {0};
+    buf[0] = hdr.format;
+    /* filename length */
+    buf[1] = hdr.fname_len;
     dst_write(param->writedst, buf, 2);
-    if (flen) {
-        dst_write(param->writedst, handler->ctx->filename.c_str(), flen);
+    /* filename */
+    if (hdr.fname_len) {
+        dst_write(param->writedst, hdr.fname, hdr.fname_len);
     }
     /* timestamp */
-    write_uint32(buf, handler->ctx->filemtime);
+    write_uint32(buf, hdr.timestamp);
     dst_write(param->writedst, buf, 4);
-    ret = RNP_SUCCESS;
-finish:
-    if (ret != RNP_SUCCESS) {
-        literal_dst_close(dst, true);
-    }
-
-    return ret;
+    return RNP_SUCCESS;
 }
 
 static rnp_result_t
@@ -2008,11 +2025,24 @@ rnp_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t *dst)
 
     /* pushing literal data stream, if not detached/cleartext signature */
     if (!ctx.no_wrap && !ctx.detached && !ctx.clearsign) {
-        if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
+        pgp_literal_hdr_t hdr{};
+        build_literal_hdr(ctx, hdr);
+
+        if ((ret = init_literal_dst(hdr, &dests[destc], &dests[destc - 1]))) {
             goto finish;
         }
+        signed_dst_set_literal_hdr(dests[destc - 1], hdr);
         wstream = &dests[destc];
         destc++;
+    }
+
+    if (ctx.clearsign) {
+        /* See https://dev.gnupg.org/T6615 for the details */
+        pgp_literal_hdr_t hdr{};
+        hdr.format = 't';
+        hdr.fname_len = 0;
+        hdr.timestamp = 0;
+        signed_dst_set_literal_hdr(dests[destc - 1], hdr);
     }
 
     /* process source with streams stack */
@@ -2079,9 +2109,17 @@ rnp_encrypt_sign_src(pgp_write_handler_t *handler, pgp_source_t *src, pgp_dest_t
 
     /* pushing literal data stream */
     if (!ctx.no_wrap) {
-        if ((ret = init_literal_dst(handler, &dests[destc], &dests[destc - 1]))) {
+        pgp_literal_hdr_t hdr{};
+        build_literal_hdr(ctx, hdr);
+
+        if ((ret = init_literal_dst(hdr, &dests[destc], &dests[destc - 1]))) {
             goto finish;
         }
+
+        if (sstream) {
+            signed_dst_set_literal_hdr(*sstream, hdr);
+        }
+
         destc++;
     }
 
@@ -2123,8 +2161,11 @@ rnp_wrap_src(pgp_source_t &src, pgp_dest_t &dst, const std::string &filename, ui
     ctx.filemtime = modtime;
     handler.ctx = &ctx;
 
-    pgp_dest_t   literal = {};
-    rnp_result_t ret = init_literal_dst(&handler, &literal, &dst);
+    pgp_dest_t        literal = {};
+    pgp_literal_hdr_t hdr{};
+    build_literal_hdr(ctx, hdr);
+
+    rnp_result_t ret = init_literal_dst(hdr, &literal, &dst);
     if (ret) {
         goto done;
     }
