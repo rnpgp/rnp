@@ -1624,19 +1624,19 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
     bool require_armor = false;
     /* check whether we already have armored stream */
     if (input->src.type == PGP_STREAM_ARMORED) {
-        if (!src_eof(&input->src)) {
+        if (!input->src.eof()) {
             /* be ready for the case of damaged armoring */
-            return src_error(&input->src) ? RNP_ERROR_READ : RNP_SUCCESS;
+            return input->src.error() ? RNP_ERROR_READ : RNP_SUCCESS;
         }
         /* eof - probably next we have another armored message */
-        src_close(&input->src);
+        input->src.close();
         rnp_input_st *base = (rnp_input_st *) input->app_ctx;
         *input = std::move(*base);
         delete base;
         /* we should not mix armored data with binary */
         require_armor = true;
     }
-    if (src_eof(&input->src)) {
+    if (input->src.eof()) {
         return RNP_ERROR_EOF;
     }
     /* check whether input is armored only if base64 is not forced */
@@ -2013,7 +2013,7 @@ rnp_input_st::rnp_input_st() : reader(NULL), closer(NULL), app_ctx(NULL)
 rnp_input_st &
 rnp_input_st::operator=(rnp_input_st &&input)
 {
-    src_close(&src);
+    src.close();
     src = std::move(input.src);
     memset(&input.src, 0, sizeof(input.src));
     reader = input.reader;
@@ -2029,7 +2029,7 @@ rnp_input_st::operator=(rnp_input_st &&input)
 rnp_input_st::~rnp_input_st()
 {
     bool armored = src.type == PGP_STREAM_ARMORED;
-    src_close(&src);
+    src.close();
     if (armored) {
         rnp_input_t armored = (rnp_input_t) app_ctx;
         delete armored;

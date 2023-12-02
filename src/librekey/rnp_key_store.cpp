@@ -83,7 +83,7 @@ KeyStore::load(const KeyProvider *key_provider)
             if (!load_g10(src, key_provider)) {
                 RNP_LOG("Can't parse file: %s", apath.c_str()); // TODO: %S ?
             }
-            src_close(&src);
+            src.close();
         }
         rnp_closedir(dir);
         return true;
@@ -96,7 +96,7 @@ KeyStore::load(const KeyProvider *key_provider)
     }
 
     bool rc = load(src, key_provider);
-    src_close(&src);
+    src.close();
     return rc;
 }
 
