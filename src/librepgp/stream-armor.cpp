@@ -1159,6 +1159,9 @@ is_armored_source(pgp_source_t *src)
         return false;
     }
     buf[read - 1] = 0;
+    if (!!strstr((char *) buf, ST_CLEAR_BEGIN)) {
+        return false;
+    }
     return !!strstr((char *) buf, ST_ARMOR_BEGIN);
 }
 
