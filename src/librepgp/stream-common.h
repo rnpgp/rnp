@@ -87,6 +87,21 @@ typedef struct pgp_source_t {
     unsigned eof : 1;       /* end of data as reported by read and empty cache */
     unsigned knownsize : 1; /* whether size of the data is known */
     unsigned error : 1;     /* there were reading error */
+
+    /** @brief Check whether source could be an armored source
+     *  @return true if source could be an armored data or false otherwise
+     **/
+    bool is_armored();
+
+    /** @brief Check whether source is cleartext signed
+     *  @return true if source could be a cleartext signed data or false otherwise
+     **/
+    bool is_cleartext();
+
+    /** @brief Check whether source is base64-encoded
+     *  @return true if source could be a base64-encoded data or false otherwise
+     **/
+    bool is_base64();
 } pgp_source_t;
 
 /** @brief helper function to allocate memory for source's cache and param

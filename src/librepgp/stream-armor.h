@@ -85,29 +85,11 @@ pgp_armored_msg_t rnp_armor_guess_type(pgp_source_t *src);
  **/
 pgp_armored_msg_t rnp_armored_get_type(pgp_source_t *src);
 
-/* @brief Check whether source could be an armored source
- * @param src initialized source with some data
- * @return true if source could be an armored data or false otherwise
- **/
-bool is_armored_source(pgp_source_t *src);
-
 /* @brief Check whether destination is armored
  * @param dest initialized destination
  * @return true if destination is armored or false otherwise
  **/
 bool is_armored_dest(pgp_dest_t *dst);
-
-/* @brief Check whether source is cleartext signed
- * @param src initialized source with some data
- * @return true if source could be a cleartext signed data or false otherwise
- **/
-bool is_cleartext_source(pgp_source_t *src);
-
-/** @brief Check whether source is base64-encoded
- *  @param src initialized source with some data
- *  @return true if source could be a base64-encoded data or false otherwise
- **/
-bool is_base64_source(pgp_source_t &src);
 
 /** Set line length for armoring
  *

@@ -2555,7 +2555,7 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     }
     src->param = param;
 
-    cleartext = is_cleartext_source(readsrc);
+    cleartext = readsrc->is_cleartext();
     param->readsrc = readsrc;
     param->handler = handler;
     param->cleartext = cleartext;
@@ -2854,10 +2854,10 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         res = init_packet_sequence(ctx, src);
     } else {
         /* Trying armored or cleartext data */
-        if (is_cleartext_source(&src)) {
+        if (src.is_cleartext()) {
             /* Initializing cleartext message */
             res = init_cleartext_sequence(ctx, src);
-        } else if (is_armored_source(&src)) {
+        } else if (src.is_armored()) {
             /* Initializing armored message */
             res = init_armored_sequence(ctx, src);
         } else {

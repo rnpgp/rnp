@@ -1558,7 +1558,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     ctx->stream_pkts = 0;
     ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
-    if (is_cleartext_source(src)) {
+    if (src->is_cleartext()) {
         dst_printf(dst, ":cleartext signed data\n");
         if (!stream_skip_cleartext(src)) {
             RNP_LOG("malformed cleartext signed data");
@@ -1572,7 +1572,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     bool         armored = false;
     bool         indent = false;
     rnp_result_t ret = RNP_ERROR_GENERIC;
-    if (is_armored_source(src)) {
+    if (src->is_armored()) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
             return ret;
@@ -2658,14 +2658,14 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
     ctx->stream_pkts = 0;
     ctx->failures = 0;
     /* check whether source is cleartext - then skip till the signature */
-    if (is_cleartext_source(src)) {
+    if (src->is_cleartext()) {
         if (!stream_skip_cleartext(src)) {
             RNP_LOG("malformed cleartext signed data");
             return RNP_ERROR_BAD_FORMAT;
         }
     }
     /* check whether source is armored */
-    if (is_armored_source(src)) {
+    if (src->is_armored()) {
         if ((ret = init_armored_src(&armorsrc, src))) {
             RNP_LOG("failed to parse armored data");
             return ret;
