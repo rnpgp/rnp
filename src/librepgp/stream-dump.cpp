@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018-2020, [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2018-2020, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -1244,7 +1244,7 @@ stream_dump_get_aead_hdr(pgp_source_t *src, pgp_aead_hdr_t *hdr)
         return false;
     }
     bool res = get_aead_src_hdr(&memsrc, hdr);
-    src_close(&memsrc);
+    memsrc.close();
     return res;
 }
 
@@ -1339,7 +1339,7 @@ stream_dump_compressed(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     dst_printf(dst, "Decompressed contents:\n");
     ret = stream_dump_packets_raw(ctx, &zsrc, dst);
 
-    src_close(&zsrc);
+    zsrc.close();
     indent_dest_decrease(dst);
     return ret;
 }
@@ -1365,16 +1365,16 @@ stream_dump_literal(pgp_source_t *src, pgp_dest_t *dst)
     dst_print_time(dst, "timestamp", lhdr.timestamp);
 
     ret = RNP_SUCCESS;
-    while (!src_eof(&lsrc)) {
+    while (!lsrc.eof()) {
         size_t read = 0;
-        if (!src_read(&lsrc, readbuf, sizeof(readbuf), &read)) {
+        if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             break;
         }
     }
 
     dst_printf(dst, "data bytes: %lu\n", (unsigned long) lsrc.readb);
-    src_close(&lsrc);
+    lsrc.close();
     indent_dest_decrease(dst);
     return ret;
 }
@@ -1397,7 +1397,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     char         smsg[128] = {0};
     rnp_result_t ret = RNP_ERROR_GENERIC;
 
-    if (src_eof(src)) {
+    if (src->eof()) {
         return RNP_SUCCESS;
     }
 
@@ -1408,7 +1408,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         return RNP_SUCCESS;
     }
 
-    while (!src_eof(src)) {
+    while (!src->eof()) {
         pgp_packet_hdr_t hdr = {};
         size_t           off = src->readb;
         rnp_result_t     hdrret = stream_peek_packet_hdr(src, &hdr);
@@ -1437,7 +1437,7 @@ stream_dump_packets_raw(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
             }
 
             dst_printf(dst, ":off %zu: packet contents ", off + hdr.hdr_len);
-            if (!src_peek(src, msg, rlen, &rlen)) {
+            if (!src->peek(msg, rlen, &rlen)) {
                 dst_printf(dst, "- failed to read\n");
             } else {
                 rlen -= hdr.hdr_len;
@@ -1535,18 +1535,18 @@ stream_skip_cleartext(pgp_source_t *src)
     size_t siglen = strlen(ST_SIG_BEGIN);
     char * hdrpos;
 
-    while (!src_eof(src)) {
-        if (!src_peek(src, buf, sizeof(buf) - 1, &read) || (read <= siglen)) {
+    while (!src->eof()) {
+        if (!src->peek(buf, sizeof(buf) - 1, &read) || (read <= siglen)) {
             return false;
         }
         buf[read] = '\0';
 
         if ((hdrpos = strstr(buf, ST_SIG_BEGIN))) {
             /* +1 here is to skip \n on the beginning of ST_SIG_BEGIN */
-            src_skip(src, hdrpos - buf + 1);
+            src->skip(hdrpos - buf + 1);
             return true;
         }
-        src_skip(src, read - siglen + 1);
+        src->skip(read - siglen + 1);
     }
     return false;
 }
@@ -1582,7 +1582,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         dst_printf(dst, ":armored input\n");
     }
 
-    if (src_eof(src)) {
+    if (src->eof()) {
         dst_printf(dst, ":empty input\n");
         ret = RNP_SUCCESS;
         goto finish;
@@ -1598,7 +1598,7 @@ stream_dump_packets(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
     ret = stream_dump_packets_raw(ctx, src, &wrdst);
 finish:
     if (armored) {
-        src_close(&armorsrc);
+        armorsrc.close();
     }
     if (indent) {
         dst_close(&wrdst, false);
@@ -2445,7 +2445,7 @@ stream_dump_compressed_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object 
         ret = RNP_ERROR_OUT_OF_MEMORY;
     }
 done:
-    src_close(&zsrc);
+    zsrc.close();
     return ret;
 }
 
@@ -2472,9 +2472,9 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
         goto done;
     }
 
-    while (!src_eof(&lsrc)) {
+    while (!lsrc.eof()) {
         size_t read = 0;
-        if (!src_read(&lsrc, readbuf, sizeof(readbuf), &read)) {
+        if (!lsrc.read(readbuf, sizeof(readbuf), &read)) {
             ret = RNP_ERROR_READ;
             goto done;
         }
@@ -2485,7 +2485,7 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
     }
     ret = RNP_SUCCESS;
 done:
-    src_close(&lsrc);
+    lsrc.close();
     return ret;
 }
 
@@ -2532,7 +2532,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
     }
     rnp::JSONObject pktswrap(pkts);
 
-    if (src_eof(src)) {
+    if (src->eof()) {
         *jso = pktswrap.release();
         return RNP_SUCCESS;
     }
@@ -2544,7 +2544,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
         return RNP_SUCCESS;
     }
 
-    while (!src_eof(src)) {
+    while (!src->eof()) {
         json_object *pkt = json_object_new_object();
         if (!pkt) {
             return RNP_ERROR_OUT_OF_MEMORY;
@@ -2562,7 +2562,7 @@ stream_dump_raw_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object
             if (!hdr.pkt_len || (rlen > 2048 + hdr.hdr_len)) {
                 rlen = 2048 + hdr.hdr_len;
             }
-            if (!src_peek(src, buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
+            if (!src->peek(buf, rlen, &rlen) || (rlen < hdr.hdr_len)) {
                 return RNP_ERROR_READ;
             }
             if (!json_add_hex(pkt, "raw", buf + hdr.hdr_len, rlen - hdr.hdr_len)) {
@@ -2674,13 +2674,13 @@ stream_dump_packets_json(rnp_dump_ctx_t *ctx, pgp_source_t *src, json_object **j
         src = &armorsrc;
     }
 
-    if (src_eof(src)) {
+    if (src->eof()) {
         ret = RNP_ERROR_NOT_ENOUGH_DATA;
     } else {
         ret = stream_dump_raw_packets_json(ctx, src, jso);
     }
     if (armored) {
-        src_close(&armorsrc);
+        armorsrc.close();
     }
     return ret;
 }
