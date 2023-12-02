@@ -809,8 +809,8 @@ init_armored_src(pgp_source_t *src, pgp_source_t *readsrc, bool noheaders)
     param->readsrc = readsrc;
     param->noheaders = noheaders;
     src->param = param;
-    src->read = armored_src_read;
-    src->close = armored_src_close;
+    src->raw_read = armored_src_read;
+    src->raw_close = armored_src_close;
     src->type = PGP_STREAM_ARMORED;
 
     /* base64 data only */

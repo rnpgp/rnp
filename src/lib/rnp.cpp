@@ -2152,8 +2152,8 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
     src->param = obj;
-    src->read = input_reader_bounce;
-    src->close = input_closer_bounce;
+    src->raw_read = input_reader_bounce;
+    src->raw_close = input_closer_bounce;
     src->type = PGP_STREAM_MEMORY;
     *input = obj;
     return RNP_SUCCESS;

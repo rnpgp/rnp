@@ -94,7 +94,7 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     while (left > 0) {
         if (left > sizeof(cache->buf) || !readahead || !cache) {
             // If there is no cache or chunk is larger then read directly
-            if (!src->read(src, buf, left, &read)) {
+            if (!src->raw_read(src, buf, left, &read)) {
                 src->error = 1;
                 return false;
             }
@@ -107,7 +107,7 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             buf = (uint8_t *) buf + read;
         } else {
             // Try to fill the cache to avoid small reads
-            if (!src->read(src, &cache->buf[0], sizeof(cache->buf), &read)) {
+            if (!src->raw_read(src, &cache->buf[0], sizeof(cache->buf), &read)) {
                 src->error = 1;
                 return false;
             }
@@ -186,7 +186,7 @@ src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
         if (src->knownsize && (src->readb + read > src->size)) {
             read = src->size - src->readb;
         }
-        if (!src->read(src, &cache->buf[cache->len], read, &read)) {
+        if (!src->raw_read(src, &cache->buf[cache->len], read, &read)) {
             src->error = 1;
             return false;
         }
@@ -254,8 +254,8 @@ rnp_result_t
 src_finish(pgp_source_t *src)
 {
     rnp_result_t res = RNP_SUCCESS;
-    if (src->finish) {
-        res = src->finish(src);
+    if (src->raw_finish) {
+        res = src->raw_finish(src);
     }
 
     return res;
@@ -282,8 +282,8 @@ src_eof(pgp_source_t *src)
 void
 src_close(pgp_source_t *src)
 {
-    if (src->close) {
-        src->close(src);
+    if (src->raw_close) {
+        src->raw_close(src);
     }
 
     if (src->cache) {
@@ -412,8 +412,8 @@ init_fd_src(pgp_source_t *src, int fd, uint64_t *size)
 
     pgp_source_file_param_t *param = (pgp_source_file_param_t *) src->param;
     param->fd = fd;
-    src->read = file_src_read;
-    src->close = file_src_close;
+    src->raw_read = file_src_read;
+    src->raw_close = file_src_close;
     src->type = PGP_STREAM_FILE;
     src->size = size ? *size : 0;
     src->knownsize = !!size;
@@ -471,8 +471,8 @@ init_stdin_src(pgp_source_t *src)
 
     param = (pgp_source_file_param_t *) src->param;
     param->fd = 0;
-    src->read = file_src_read;
-    src->close = file_src_close;
+    src->raw_read = file_src_read;
+    src->raw_close = file_src_close;
     src->type = PGP_STREAM_STDIN;
 
     return RNP_SUCCESS;
@@ -540,9 +540,9 @@ init_mem_src(pgp_source_t *src, const void *mem, size_t len, bool free)
     param->len = len;
     param->pos = 0;
     param->free = free;
-    src->read = mem_src_read;
-    src->close = mem_src_close;
-    src->finish = NULL;
+    src->raw_read = mem_src_read;
+    src->raw_close = mem_src_close;
+    src->raw_finish = NULL;
     src->size = len;
     src->knownsize = 1;
     src->type = PGP_STREAM_MEMORY;
@@ -560,7 +560,7 @@ rnp_result_t
 init_null_src(pgp_source_t *src)
 {
     memset(src, 0, sizeof(*src));
-    src->read = null_src_read;
+    src->raw_read = null_src_read;
     src->type = PGP_STREAM_NULL;
     src->error = true;
     return RNP_SUCCESS;

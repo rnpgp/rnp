@@ -1722,7 +1722,7 @@ TEST_F(rnp_tests, test_stream_cache)
 
     init_src_common(&src, 0);
     int8_t *buf = (int8_t *) src.cache->buf;
-    src.read = src_reader_generator;
+    src.raw_read = src_reader_generator;
     size_t len = sizeof(src.cache->buf);
 
     // empty cache, pos=0

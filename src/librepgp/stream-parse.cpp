@@ -307,8 +307,8 @@ init_partial_pkt_src(pgp_source_t *src, pgp_source_t *readsrc, pgp_packet_hdr_t 
     param->last = false;
     param->readsrc = readsrc;
 
-    src->read = partial_pkt_src_read;
-    src->close = partial_pkt_src_close;
+    src->raw_read = partial_pkt_src_read;
+    src->raw_close = partial_pkt_src_close;
     src->type = PGP_STREAM_PARLEN_PACKET;
 
     if (param->psize < PGP_PARTIAL_PKT_FIRST_PART_MIN_SIZE) {
@@ -1931,8 +1931,8 @@ init_literal_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     param = (pgp_source_literal_param_t *) src->param;
     param->pkt.readsrc = readsrc;
-    src->read = literal_src_read;
-    src->close = literal_src_close;
+    src->raw_read = literal_src_read;
+    src->raw_close = literal_src_close;
     src->type = PGP_STREAM_LITERAL;
 
     /* Reading packet length/checking whether it is partial */
@@ -2028,8 +2028,8 @@ init_compressed_src(pgp_source_t *src, pgp_source_t *readsrc)
 
     param = (pgp_source_compressed_param_t *) src->param;
     param->pkt.readsrc = readsrc;
-    src->read = compressed_src_read;
-    src->close = compressed_src_close;
+    src->raw_read = compressed_src_read;
+    src->raw_close = compressed_src_close;
     src->type = PGP_STREAM_COMPRESSED;
 
     /* Reading packet length/checking whether it is partial */
@@ -2349,8 +2349,8 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
     param->pkt.readsrc = readsrc;
     param->handler = handler;
 
-    src->close = encrypted_src_close;
-    src->finish = encrypted_src_finish;
+    src->raw_close = encrypted_src_close;
+    src->raw_finish = encrypted_src_finish;
     src->type = PGP_STREAM_ENCRYPTED;
 
     /* Read the packet-related information */
@@ -2359,13 +2359,13 @@ init_encrypted_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t
         goto finish;
     }
 
-    src->read = (!param->use_cfb()
+    src->raw_read = (!param->use_cfb()
 #ifdef ENABLE_CRYPTO_REFRESH
-                 || param->is_v2_seipd()
+                     || param->is_v2_seipd()
 #endif
-                   ) ?
-                  encrypted_src_read_aead :
-                  encrypted_src_read_cfb;
+                       ) ?
+                      encrypted_src_read_aead :
+                      encrypted_src_read_cfb;
 
     /* Obtaining the symmetric key */
     if (!handler->password_provider) {
@@ -2560,9 +2560,9 @@ init_signed_src(pgp_parse_handler_t *handler, pgp_source_t *src, pgp_source_t *r
     param->handler = handler;
     param->cleartext = cleartext;
     param->stripped_crs = 0;
-    src->read = cleartext ? cleartext_src_read : signed_src_read;
-    src->close = signed_src_close;
-    src->finish = signed_src_finish;
+    src->raw_read = cleartext ? cleartext_src_read : signed_src_read;
+    src->raw_close = signed_src_close;
+    src->raw_finish = signed_src_finish;
     src->type = cleartext ? PGP_STREAM_CLEARTEXT : PGP_STREAM_SIGNED;
 
     /* we need key provider to validate signatures */

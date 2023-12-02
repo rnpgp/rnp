@@ -73,9 +73,10 @@ typedef struct pgp_source_cache_t {
 } pgp_source_cache_t;
 
 typedef struct pgp_source_t {
-    pgp_source_read_func_t *  read;
-    pgp_source_finish_func_t *finish;
-    pgp_source_close_func_t * close;
+    pgp_source_read_func_t *raw_read; /* Raw read/finish/close function. To be later refactored
+                                         to virtual rnp::Source::raw_read()/finish()/close() */
+    pgp_source_finish_func_t *raw_finish;
+    pgp_source_close_func_t * raw_close;
     pgp_stream_type_t         type;
 
     uint64_t size;  /* size of the data if available, see knownsize */
