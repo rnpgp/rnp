@@ -1922,7 +1922,7 @@ process_stream_sequence(pgp_source_t *src,
     }
 
     /* processing source stream */
-    while (!src->eof) {
+    while (!src->eof_) {
         size_t read = 0;
         if (!src_read(src, readbuf.get(), PGP_INPUT_CACHE_SIZE, &read)) {
             RNP_LOG("failed to read from source");
