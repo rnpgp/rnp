@@ -8316,7 +8316,9 @@ try {
     }
 
     pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
-    if (is_armored_source(&input->src)) {
+    if (is_cleartext_source(&input->src)) {
+        msgtype = PGP_ARMORED_CLEARTEXT;
+    } else if (is_armored_source(&input->src)) {
         msgtype = rnp_armored_get_type(&input->src);
     } else {
         msgtype = rnp_armor_guess_type(&input->src);
