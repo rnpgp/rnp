@@ -4023,6 +4023,17 @@ class Misc(unittest.TestCase):
         clear_workfiles()
         shutil.rmtree(RNP2, ignore_errors=True)
 
+    def test_armored_detection_on_cleartext(self):
+        ret, out, err = run_proc(RNP, ['--keyfile', data_path(SECRING_1), '--password', PASSWORD, '--clearsign'], 'Hello\n')
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP SIGNED MESSAGE.*$')
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP SIGNATURE.*$')
+        ret, _, err = run_proc(RNP, ['--keyfile', data_path(PUBRING_1), '--verify', '-'], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*Good signature made.*$')
+        self.assertNotRegex(err, r'(?s)^.*Warning: missing or malformed CRC line.*$')
+        self.assertNotRegex(err, r'(?s)^.*wrong armor trailer.*$')
+
 class Encryption(unittest.TestCase):
     '''
         Things to try later:
