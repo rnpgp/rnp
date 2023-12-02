@@ -1640,7 +1640,7 @@ rnp_input_dearmor_if_needed(rnp_input_t input, bool noheaders = false)
         return RNP_ERROR_EOF;
     }
     /* check whether input is armored only if base64 is not forced */
-    if (!noheaders && !is_armored_source(&input->src)) {
+    if (!noheaders && !input->src.is_armored()) {
         return require_armor ? RNP_ERROR_BAD_FORMAT : RNP_SUCCESS;
     }
 
@@ -1713,7 +1713,7 @@ try {
     rnp::KeyStore tmp_store(PGP_KEY_STORE_GPG, "", ffi->context);
 
     /* check whether input is base64 */
-    if (base64 && is_base64_source(input->src)) {
+    if (base64 && input->src.is_base64()) {
         ret = rnp_input_dearmor_if_needed(input, true);
         if (ret) {
             return ret;
@@ -8423,9 +8423,9 @@ try {
     }
 
     pgp_armored_msg_t msgtype = PGP_ARMORED_UNKNOWN;
-    if (is_cleartext_source(&input->src)) {
+    if (input->src.is_cleartext()) {
         msgtype = PGP_ARMORED_CLEARTEXT;
-    } else if (is_armored_source(&input->src)) {
+    } else if (input->src.is_armored()) {
         msgtype = rnp_armored_get_type(&input->src);
     } else {
         msgtype = rnp_armor_guess_type(&input->src);

@@ -808,7 +808,7 @@ TEST_F(rnp_tests, test_stream_key_load_errors)
 
     for (size_t i = 0; i < sizeof(key_files) / sizeof(char *); i++) {
         assert_rnp_success(init_file_src(&fsrc, key_files[i]));
-        if (is_armored_source(&fsrc)) {
+        if (fsrc.is_armored()) {
             assert_rnp_success(init_armored_src(&armorsrc, &fsrc));
             assert_rnp_success(read_mem_src(&memsrc, &armorsrc));
             src_close(&armorsrc);

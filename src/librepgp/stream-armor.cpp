@@ -1151,41 +1151,41 @@ armored_dst_set_line_length(pgp_dest_t *dst, size_t llen)
 }
 
 bool
-is_armored_source(pgp_source_t *src)
+pgp_source_t::is_armored()
 {
-    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
-    size_t  read = 0;
-
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
-        return false;
-    }
-    buf[read - 1] = 0;
-    if (!!strstr((char *) buf, ST_CLEAR_BEGIN)) {
-        return false;
-    }
-    return !!strstr((char *) buf, ST_ARMOR_BEGIN);
-}
-
-bool
-is_cleartext_source(pgp_source_t *src)
-{
-    uint8_t buf[ARMORED_PEEK_BUF_SIZE];
-    size_t  read = 0;
-
-    if (!src_peek(src, buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
-        return false;
-    }
-    buf[read - 1] = 0;
-    return !!strstr((char *) buf, ST_CLEAR_BEGIN);
-}
-
-bool
-is_base64_source(pgp_source_t &src)
-{
-    char   buf[128];
+    char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
     size_t read = 0;
 
-    if (!src_peek(&src, buf, sizeof(buf), &read) || (read < 4)) {
+    if (!src_peek(this, buf, sizeof(buf), &read) || (read < strlen(ST_ARMOR_BEGIN) + 1)) {
+        return false;
+    }
+    buf[read - 1] = 0;
+    if (!!strstr(buf, ST_CLEAR_BEGIN)) {
+        return false;
+    }
+    return !!strstr(buf, ST_ARMOR_BEGIN);
+}
+
+bool
+pgp_source_t::is_cleartext()
+{
+    char   buf[ARMORED_PEEK_BUF_SIZE] = {0};
+    size_t read = 0;
+
+    if (!src_peek(this, buf, sizeof(buf), &read) || (read < strlen(ST_CLEAR_BEGIN))) {
+        return false;
+    }
+    buf[read - 1] = 0;
+    return !!strstr(buf, ST_CLEAR_BEGIN);
+}
+
+bool
+pgp_source_t::is_base64()
+{
+    char   buf[128] = {0};
+    size_t read = 0;
+
+    if (!src_peek(this, buf, sizeof(buf), &read) || (read < 4)) {
         return false;
     }
     return is_base64_line(buf, read);
@@ -1242,7 +1242,7 @@ ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
     /* Do not dearmor already armored stream */
     bool already = readsrc_.type == PGP_STREAM_ARMORED;
     /* Check for base64 source: no multiple streams allowed */
-    if (!already && (flags & AllowBase64) && (is_base64_source(readsrc))) {
+    if (!already && (flags & AllowBase64) && (readsrc.is_base64())) {
         auto res = init_armored_src(&src_, &readsrc_, true);
         if (res) {
             RNP_LOG("Failed to parse base64 data.");
@@ -1252,7 +1252,7 @@ ArmoredSource::ArmoredSource(pgp_source_t &readsrc, uint32_t flags)
         return;
     }
     /* Check for armored source */
-    if (!already && is_armored_source(&readsrc)) {
+    if (!already && readsrc.is_armored()) {
         auto res = init_armored_src(&src_, &readsrc_);
         if (res) {
             RNP_LOG("Failed to parse armored data.");
