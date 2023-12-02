@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017-2020 [Ribose Inc](https://www.ribose.com).
+ * Copyright (c) 2017-2020, 2023 [Ribose Inc](https://www.ribose.com).
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modification,
@@ -52,25 +52,24 @@
 #include <memory>
 
 bool
-src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
+pgp_source_t::read(void *buf, size_t len, size_t *readres)
 {
-    size_t              left = len;
-    size_t              read;
-    pgp_source_cache_t *cache = src->cache;
-    bool                readahead = cache ? cache->readahead : false;
+    size_t left = len;
+    size_t read;
+    bool   readahead = cache ? cache->readahead : false;
 
-    if (src->error) {
+    if (error_) {
         return false;
     }
 
-    if (src->eof || (len == 0)) {
+    if (eof_ || (len == 0)) {
         *readres = 0;
         return true;
     }
 
     // Do not read more then available if source size is known
-    if (src->knownsize && (src->readb + len > src->size)) {
-        len = src->size - src->readb;
+    if (knownsize && (readb + len > size)) {
+        len = size - readb;
         left = len;
         readahead = false;
     }
@@ -94,12 +93,12 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     while (left > 0) {
         if (left > sizeof(cache->buf) || !readahead || !cache) {
             // If there is no cache or chunk is larger then read directly
-            if (!src->raw_read(src, buf, left, &read)) {
-                src->error = 1;
+            if (!raw_read(this, buf, left, &read)) {
+                error_ = 1;
                 return false;
             }
             if (!read) {
-                src->eof = 1;
+                eof_ = true;
                 len = len - left;
                 goto finish;
             }
@@ -107,12 +106,12 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
             buf = (uint8_t *) buf + read;
         } else {
             // Try to fill the cache to avoid small reads
-            if (!src->raw_read(src, &cache->buf[0], sizeof(cache->buf), &read)) {
-                src->error = 1;
+            if (!raw_read(this, &cache->buf[0], sizeof(cache->buf), &read)) {
+                error_ = true;
                 return false;
             }
             if (!read) {
-                src->eof = 1;
+                eof_ = true;
                 len = len - left;
                 goto finish;
             } else if (read < left) {
@@ -129,32 +128,43 @@ src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
     }
 
 finish:
-    src->readb += len;
-    if (src->knownsize && (src->readb == src->size)) {
-        src->eof = 1;
+    readb += len;
+    if (knownsize && (readb == size)) {
+        eof_ = true;
     }
     *readres = len;
     return true;
 }
 
 bool
-src_read_eq(pgp_source_t *src, void *buf, size_t len)
+src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
-    size_t res = 0;
-    return src_read(src, buf, len, &res) && (res == len);
+    return src->read(buf, len, readres);
 }
 
 bool
-src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
+pgp_source_t::read_eq(void *buf, size_t len)
 {
-    pgp_source_cache_t *cache = src->cache;
-    if (src->error) {
+    size_t res = 0;
+    return read(buf, len, &res) && (res == len);
+}
+
+bool
+src_read_eq(pgp_source_t *src, void *buf, size_t len)
+{
+    return src->read_eq(buf, len);
+}
+
+bool
+pgp_source_t::peek(void *buf, size_t len, size_t *peeked)
+{
+    if (error_) {
         return false;
     }
     if (!cache || (len > sizeof(cache->buf))) {
         return false;
     }
-    if (src->eof) {
+    if (eof_) {
         *peeked = 0;
         return true;
     }
@@ -162,8 +172,8 @@ src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
     size_t read = 0;
     bool   readahead = cache->readahead;
     // Do not read more then available if source size is known
-    if (src->knownsize && (src->readb + len > src->size)) {
-        len = src->size - src->readb;
+    if (knownsize && (readb + len > size)) {
+        len = size - readb;
         readahead = false;
     }
 
@@ -183,11 +193,11 @@ src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
 
     while (cache->len < len) {
         read = readahead ? sizeof(cache->buf) - cache->len : len - cache->len;
-        if (src->knownsize && (src->readb + read > src->size)) {
-            read = src->size - src->readb;
+        if (knownsize && (readb + read > size)) {
+            read = size - readb;
         }
-        if (!src->raw_read(src, &cache->buf[cache->len], read, &read)) {
-            src->error = 1;
+        if (!raw_read(this, &cache->buf[cache->len], read, &read)) {
+            error_ = true;
             return false;
         }
         if (!read) {
@@ -210,39 +220,51 @@ src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
 }
 
 bool
-src_peek_eq(pgp_source_t *src, void *buf, size_t len)
+src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
+{
+    return src->peek(buf, len, peeked);
+}
+
+bool
+pgp_source_t::peek_eq(void *buf, size_t len)
 {
     size_t res = 0;
-    return src_peek(src, buf, len, &res) && (res == len);
+    return peek(buf, len, &res) && (res == len);
+}
+
+bool
+src_peek_eq(pgp_source_t *src, void *buf, size_t len)
+{
+    return src->peek_eq(buf, len);
 }
 
 void
-src_skip(pgp_source_t *src, size_t len)
+pgp_source_t::skip(size_t len)
 {
-    if (src->cache && (src->cache->len - src->cache->pos >= len)) {
-        src->readb += len;
-        src->cache->pos += len;
+    if (cache && (cache->len - cache->pos >= len)) {
+        readb += len;
+        cache->pos += len;
         return;
     }
 
     size_t  res = 0;
     uint8_t sbuf[16];
     if (len < sizeof(sbuf)) {
-        (void) src_read(src, sbuf, len, &res);
+        (void) read(sbuf, len, &res);
         return;
     }
-    if (src_eof(src)) {
+    if (eof()) {
         return;
     }
 
     void *buf = calloc(1, std::min((size_t) PGP_INPUT_CACHE_SIZE, len));
     if (!buf) {
-        src->error = 1;
+        error_ = true;
         return;
     }
 
-    while (len && !src_eof(src)) {
-        if (!src_read(src, buf, std::min((size_t) PGP_INPUT_CACHE_SIZE, len), &res)) {
+    while (len && !eof()) {
+        if (!read(buf, std::min((size_t) PGP_INPUT_CACHE_SIZE, len), &res)) {
             break;
         }
         len -= res;
@@ -250,70 +272,101 @@ src_skip(pgp_source_t *src, size_t len)
     free(buf);
 }
 
+void
+src_skip(pgp_source_t *src, size_t len)
+{
+    src->skip(len);
+}
+
+rnp_result_t
+pgp_source_t::finish()
+{
+    return raw_finish ? raw_finish(this) : RNP_SUCCESS;
+}
+
 rnp_result_t
 src_finish(pgp_source_t *src)
 {
-    rnp_result_t res = RNP_SUCCESS;
-    if (src->raw_finish) {
-        res = src->raw_finish(src);
-    }
+    return src->finish();
+}
 
-    return res;
+bool
+pgp_source_t::error() const
+{
+    return error_;
 }
 
 bool
 src_error(const pgp_source_t *src)
 {
-    return src->error;
+    return src->error();
+}
+
+bool
+pgp_source_t::eof()
+{
+    if (eof_) {
+        return true;
+    }
+    /* Error on stream read is NOT considered as eof. See error(). */
+    uint8_t check;
+    size_t  read = 0;
+    return peek(&check, 1, &read) && (read == 0);
 }
 
 bool
 src_eof(pgp_source_t *src)
 {
-    if (src->eof) {
-        return true;
+    return src->eof();
+}
+
+void
+pgp_source_t::close()
+{
+    if (raw_close) {
+        raw_close(this);
     }
-    /* Error on stream read is NOT considered as eof. See src_error(). */
-    uint8_t check;
-    size_t  read = 0;
-    return src_peek(src, &check, 1, &read) && (read == 0);
+
+    if (cache) {
+        free(cache);
+        cache = NULL;
+    }
 }
 
 void
 src_close(pgp_source_t *src)
 {
-    if (src->raw_close) {
-        src->raw_close(src);
-    }
-
-    if (src->cache) {
-        free(src->cache);
-        src->cache = NULL;
-    }
+    src->close();
 }
 
 bool
-src_skip_eol(pgp_source_t *src)
+pgp_source_t::skip_eol()
 {
     uint8_t eol[2];
     size_t  read;
 
-    if (!src_peek(src, eol, 2, &read) || !read) {
+    if (!peek(eol, 2, &read) || !read) {
         return false;
     }
     if (eol[0] == '\n') {
-        src_skip(src, 1);
+        skip(1);
         return true;
     }
     if ((read == 2) && (eol[0] == '\r') && (eol[1] == '\n')) {
-        src_skip(src, 2);
+        skip(2);
         return true;
     }
     return false;
 }
 
 bool
-src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
+src_skip_eol(pgp_source_t *src)
+{
+    return src->skip_eol();
+}
+
+bool
+pgp_source_t::peek_line(char *buf, size_t len, size_t *readres)
 {
     size_t scan_pos = 0;
     size_t inc = 64;
@@ -325,7 +378,7 @@ src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
         inc = inc * 2;
 
         /* inefficient, each time we again read from the beginning */
-        if (!src_peek(src, buf, to_peek, readres)) {
+        if (!peek(buf, to_peek, readres)) {
             return false;
         }
 
@@ -345,6 +398,12 @@ src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
         }
     } while (scan_pos < len);
     return false;
+}
+
+bool
+src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
+{
+    return src->peek_line(buf, len, readres);
 }
 
 bool
@@ -562,7 +621,7 @@ init_null_src(pgp_source_t *src)
     memset(src, 0, sizeof(*src));
     src->raw_read = null_src_read;
     src->type = PGP_STREAM_NULL;
-    src->error = true;
+    src->error_ = true;
     return RNP_SUCCESS;
 }
 
@@ -601,7 +660,7 @@ file_to_mem_src(pgp_source_t *src, const char *filename)
     }
 
     res = read_mem_src(src, &fsrc);
-    src_close(&fsrc);
+    fsrc.close();
 
     return res;
 }
@@ -1177,8 +1236,8 @@ dst_write_src(pgp_source_t *src, pgp_dest_t *dst, uint64_t limit)
         size_t   read;
         uint64_t totalread = 0;
 
-        while (!src->eof) {
-            if (!src_read(src, readbuf, bufsize, &read)) {
+        while (!src->eof_) {
+            if (!src->read(readbuf, bufsize, &read)) {
                 res = RNP_ERROR_GENERIC;
                 break;
             }

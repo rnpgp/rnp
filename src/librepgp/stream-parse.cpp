@@ -228,7 +228,7 @@ is_pgp_source(pgp_source_t &src)
 static bool
 partial_pkt_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
 {
-    if (src->eof) {
+    if (src->eof_) {
         *readres = 0;
         return true;
     }
@@ -354,7 +354,7 @@ compressed_src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
         return false;
     }
 
-    if (src->eof || param->zend) {
+    if (src->eof_ || param->zend) {
         *readres = 0;
         return true;
     }
@@ -709,7 +709,7 @@ encrypted_src_read_cfb(pgp_source_t *src, void *buf, size_t len, size_t *readres
         return false;
     }
 
-    if (src->eof) {
+    if (src->eof_) {
         *readres = 0;
         return true;
     }
@@ -2890,7 +2890,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
             goto finish;
         }
 
-        while (!datasrc.eof) {
+        while (!datasrc.eof_) {
             size_t read = 0;
             if (!src_read(&datasrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
                 res = RNP_ERROR_GENERIC;
@@ -2925,7 +2925,7 @@ process_pgp_source(pgp_parse_handler_t *handler, pgp_source_t &src)
         }
 
         /* reading the input */
-        while (!decsrc->eof) {
+        while (!decsrc->eof_) {
             size_t read = 0;
             if (!src_read(decsrc, readbuf, PGP_INPUT_CACHE_SIZE, &read)) {
                 res = RNP_ERROR_GENERIC;
