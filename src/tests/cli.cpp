@@ -773,7 +773,7 @@ TEST_F(rnp_tests, test_cli_rnpkeys_genkey)
     assert_rnp_success(init_file_src(&src, GENKEYS "/pubring.gpg"));
     assert_true(keystore->load(src));
     assert_int_equal(keystore->key_count(), 34);
-    src_close(&src);
+    src.close();
     assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit@rnp", 4294967295),
                      1);
     assert_int_equal(key_expiration_check(keystore, "expiration_max_32bit_h@rnp", 4294965600),
