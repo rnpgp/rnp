@@ -276,7 +276,7 @@ size_t get_partial_pkt_len(uint8_t blen);
  *  @param pktlen packet length will be stored here on success. Cannot be NULL.
  *  @return true on success or false if there is read error or packet length is ill-formed
  **/
-bool stream_read_pkt_len(pgp_source_t *src, size_t *pktlen);
+bool stream_read_pkt_len(pgp_source_t &src, size_t *pktlen);
 
 /** @brief Read partial packet chunk length.
  *

@@ -46,7 +46,7 @@ LLVMFuzzerTestOneInput(const uint8_t *data, size_t size)
 
     init_mem_src(&memsrc, data, size, false);
     ks.load_g10(memsrc);
-    src_close(&memsrc);
+    memsrc.close();
 
     return 0;
 }

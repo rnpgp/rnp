@@ -760,7 +760,7 @@ file_equals(const char *filename, const void *data, size_t len)
     }
 
     res = (msrc.size == len) && !memcmp(mem_src_get_memory(&msrc), data, len);
-    src_close(&msrc);
+    msrc.close();
     return res;
 }
 
@@ -911,8 +911,8 @@ test_ffi_check_recovered()
     res = (msrc1.size == msrc2.size) &&
           !memcmp(mem_src_get_memory(&msrc1), mem_src_get_memory(&msrc2), msrc1.size);
 finish:
-    src_close(&msrc1);
-    src_close(&msrc2);
+    msrc1.close();
+    msrc2.close();
     return res;
 }
 
