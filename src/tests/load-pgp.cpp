@@ -44,7 +44,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
     // load pubring in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/2/pubring.gpg"));
     assert_rnp_success(key_store->load_pgp(src));
-    src_close(&src);
+    src.close();
     assert_int_equal(1, key_store->key_count());
 
     // find the key by keyid
@@ -66,7 +66,7 @@ TEST_F(rnp_tests, test_load_v3_keyring_pgp)
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/4/secring.pgp"));
     assert_rnp_success(key_store->load_pgp(src));
-    src_close(&src);
+    src.close();
     assert_int_equal(1, key_store->key_count());
 
     key = rnp_tests_get_key_by_id(key_store, "7D0BC10E933404C9");
@@ -106,7 +106,7 @@ TEST_F(rnp_tests, test_load_v4_keyring_pgp)
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/pubring.gpg"));
     assert_rnp_success(key_store->load_pgp(src));
-    src_close(&src);
+    src.close();
     assert_int_equal(7, key_store->key_count());
 
     // find the key by keyid
@@ -134,7 +134,7 @@ check_pgp_keyring_counts(const char *          path,
     // load it in to the key store
     assert_rnp_success(init_file_src(&src, path));
     assert_rnp_success(key_store->load_pgp(src));
-    src_close(&src);
+    src.close();
 
     // count primary keys first
     unsigned total_primary_count = 0;
@@ -423,7 +423,7 @@ load_transferable_key(pgp_transferable_key_t *key, const char *fname)
 {
     pgp_source_t src = {};
     bool         res = !init_file_src(&src, fname) && !process_pgp_key(src, *key, false);
-    src_close(&src);
+    src.close();
     return res;
 }
 
@@ -432,7 +432,7 @@ load_transferable_subkey(pgp_transferable_subkey_t *key, const char *fname)
 {
     pgp_source_t src = {};
     bool         res = !init_file_src(&src, fname) && !process_pgp_subkey(src, *key, false);
-    src_close(&src);
+    src.close();
     return res;
 }
 
@@ -441,7 +441,7 @@ load_keystore(rnp::KeyStore *keystore, const char *fname)
 {
     pgp_source_t src = {};
     bool         res = !init_file_src(&src, fname) && !keystore->load_pgp(src);
-    src_close(&src);
+    src.close();
     return res;
 }
 

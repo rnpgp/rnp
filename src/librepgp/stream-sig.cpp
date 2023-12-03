@@ -1158,7 +1158,7 @@ pgp_signature_t::set_embedded_sig(const pgp_signature_t &esig)
     pgp_rawpacket_t   esigpkt(esig);
     rnp::MemorySource mem(esigpkt.raw);
     size_t            len = 0;
-    stream_read_pkt_len(&mem.src(), &len);
+    stream_read_pkt_len(mem.src(), &len);
     if (!len || (len > 0xffff) || (len >= esigpkt.raw.size())) {
         RNP_LOG("wrong pkt len");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);

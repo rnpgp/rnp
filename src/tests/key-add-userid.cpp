@@ -48,7 +48,7 @@ TEST_F(rnp_tests, test_key_add_userid)
 
     assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
     assert_rnp_success(ks->load_pgp(src));
-    src_close(&src);
+    src.close();
 
     // locate our key
     assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[0]));
@@ -163,7 +163,7 @@ TEST_F(rnp_tests, test_key_add_userid)
     // read from the saved packets
     assert_rnp_success(init_mem_src(&src, mem_dest_get_memory(&dst), dst.writeb, false));
     assert_rnp_success(ks->load_pgp(src));
-    src_close(&src);
+    src.close();
     dst_close(&dst, true);
     assert_non_null(key = rnp_tests_get_key_by_id(ks, keyids[0]));
 

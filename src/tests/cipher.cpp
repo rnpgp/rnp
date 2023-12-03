@@ -792,7 +792,7 @@ read_key_pkt(pgp_key_pkt_t *key, const char *path)
         return false;
     }
     bool res = !key->parse(src);
-    src_close(&src);
+    src.close();
     return res;
 }
 

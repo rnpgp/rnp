@@ -52,7 +52,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
         assert_rnp_success(init_file_src(&src, "data/keyrings/1/secring.gpg"));
         assert_rnp_success(ks->load_pgp(src));
-        src_close(&src);
+        src.close();
 
         for (size_t i = 0; i < ARRAY_SIZE(keyids); i++) {
             pgp_key_t *key = NULL;
@@ -129,7 +129,7 @@ TEST_F(rnp_tests, test_key_protect_load_pgp)
 
         assert_rnp_success(init_mem_src(&memsrc, pkt.raw.data(), pkt.raw.size(), false));
         assert_rnp_success(ks->load_pgp(memsrc));
-        src_close(&memsrc);
+        memsrc.close();
 
         // grab the first key
         pgp_key_t *reloaded_key = NULL;
@@ -302,7 +302,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_rnp_success(
       init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
     assert_rnp_success(skeypkt->parse(memsrc));
-    src_close(&memsrc);
+    memsrc.close();
     assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
@@ -310,7 +310,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_rnp_success(
       init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
     assert_rnp_success(ssubpkt->parse(memsrc));
-    src_close(&memsrc);
+    memsrc.close();
     assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
@@ -342,7 +342,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_rnp_success(
       init_mem_src(&memsrc, skey.rawpkt().raw.data(), skey.rawpkt().raw.size(), false));
     assert_rnp_success(skeypkt->parse(memsrc));
-    src_close(&memsrc);
+    memsrc.close();
     assert_int_not_equal(memcmp(raw_skey, skeypkt->sec_data, 32), 0);
     assert_int_equal(skeypkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete skeypkt;
@@ -350,7 +350,7 @@ TEST_F(rnp_tests, test_key_protect_sec_data)
     assert_rnp_success(
       init_mem_src(&memsrc, ssub.rawpkt().raw.data(), ssub.rawpkt().raw.size(), false));
     assert_rnp_success(ssubpkt->parse(memsrc));
-    src_close(&memsrc);
+    memsrc.close();
     assert_int_not_equal(memcmp(raw_ssub, ssubpkt->sec_data, 32), 0);
     assert_int_equal(ssubpkt->sec_protection.s2k.specifier, PGP_S2KS_ITERATED_AND_SALTED);
     delete ssubpkt;
