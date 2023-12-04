@@ -193,39 +193,6 @@ typedef struct pgp_source_t {
  **/
 bool init_src_common(pgp_source_t *src, size_t paramsize);
 
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_read(pgp_source_t *src, void *buf, size_t len, size_t *read);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_read_eq(pgp_source_t *src, void *buf, size_t len);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_peek(pgp_source_t *src, void *buf, size_t len, size_t *read);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_peek_eq(pgp_source_t *src, void *buf, size_t len);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-void src_skip(pgp_source_t *src, size_t len);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-rnp_result_t src_finish(pgp_source_t *src);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_error(const pgp_source_t *src);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_eof(pgp_source_t *src);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-void src_close(pgp_source_t *src);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_skip_eol(pgp_source_t *src);
-
-/** @brief To be removed once codebase is refactored to use pgp_source_t methods. */
-bool src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *read);
-
 /** @brief init file source
  *  @param src pre-allocated source structure
  *  @param path path to the file
