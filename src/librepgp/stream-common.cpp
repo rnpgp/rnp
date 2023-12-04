@@ -137,22 +137,10 @@ finish:
 }
 
 bool
-src_read(pgp_source_t *src, void *buf, size_t len, size_t *readres)
-{
-    return src->read(buf, len, readres);
-}
-
-bool
 pgp_source_t::read_eq(void *buf, size_t len)
 {
     size_t res = 0;
     return read(buf, len, &res) && (res == len);
-}
-
-bool
-src_read_eq(pgp_source_t *src, void *buf, size_t len)
-{
-    return src->read_eq(buf, len);
 }
 
 bool
@@ -220,22 +208,10 @@ pgp_source_t::peek(void *buf, size_t len, size_t *peeked)
 }
 
 bool
-src_peek(pgp_source_t *src, void *buf, size_t len, size_t *peeked)
-{
-    return src->peek(buf, len, peeked);
-}
-
-bool
 pgp_source_t::peek_eq(void *buf, size_t len)
 {
     size_t res = 0;
     return peek(buf, len, &res) && (res == len);
-}
-
-bool
-src_peek_eq(pgp_source_t *src, void *buf, size_t len)
-{
-    return src->peek_eq(buf, len);
 }
 
 void
@@ -272,34 +248,16 @@ pgp_source_t::skip(size_t len)
     free(buf);
 }
 
-void
-src_skip(pgp_source_t *src, size_t len)
-{
-    src->skip(len);
-}
-
 rnp_result_t
 pgp_source_t::finish()
 {
     return raw_finish ? raw_finish(this) : RNP_SUCCESS;
 }
 
-rnp_result_t
-src_finish(pgp_source_t *src)
-{
-    return src->finish();
-}
-
 bool
 pgp_source_t::error() const
 {
     return error_;
-}
-
-bool
-src_error(const pgp_source_t *src)
-{
-    return src->error();
 }
 
 bool
@@ -314,12 +272,6 @@ pgp_source_t::eof()
     return peek(&check, 1, &read) && (read == 0);
 }
 
-bool
-src_eof(pgp_source_t *src)
-{
-    return src->eof();
-}
-
 void
 pgp_source_t::close()
 {
@@ -331,12 +283,6 @@ pgp_source_t::close()
         free(cache);
         cache = NULL;
     }
-}
-
-void
-src_close(pgp_source_t *src)
-{
-    src->close();
 }
 
 bool
@@ -357,12 +303,6 @@ pgp_source_t::skip_eol()
         return true;
     }
     return false;
-}
-
-bool
-src_skip_eol(pgp_source_t *src)
-{
-    return src->skip_eol();
 }
 
 bool
@@ -398,12 +338,6 @@ pgp_source_t::peek_line(char *buf, size_t len, size_t *readres)
         }
     } while (scan_pos < len);
     return false;
-}
-
-bool
-src_peek_line(pgp_source_t *src, char *buf, size_t len, size_t *readres)
-{
-    return src->peek_line(buf, len, readres);
 }
 
 bool
