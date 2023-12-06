@@ -842,15 +842,12 @@ finish:
 }
 
 /** @brief Write message header to the dst. */
-static bool
+static void
 armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
 {
     const char *str = finish ? ST_ARMOR_END : ST_ARMOR_BEGIN;
     dst_write(param->writedst, str, strlen(str));
     switch (param->type) {
-    case PGP_ARMORED_MESSAGE:
-        str = "MESSAGE";
-        break;
     case PGP_ARMORED_PUBLIC_KEY:
         str = "PUBLIC KEY BLOCK";
         break;
@@ -860,15 +857,13 @@ armor_write_message_header(pgp_dest_armored_param_t *param, bool finish)
     case PGP_ARMORED_SIGNATURE:
         str = "SIGNATURE";
         break;
-    case PGP_ARMORED_CLEARTEXT:
-        str = "SIGNED MESSAGE";
-        break;
+    case PGP_ARMORED_MESSAGE:
     default:
-        return false;
+        str = "MESSAGE";
+        break;
     }
     dst_write(param->writedst, str, strlen(str));
     dst_write(param->writedst, ST_DASHES, strlen(ST_DASHES));
-    return true;
 }
 
 static void
@@ -1058,9 +1053,7 @@ armored_dst_finish(pgp_dest_t *dst)
     armor_write_eol(param);
 
     /* writing armor header */
-    if (!armor_write_message_header(param, true)) {
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    armor_write_message_header(param, true);
     armor_write_eol(param);
     return param->writedst->werr;
 }
@@ -1114,11 +1107,7 @@ init_armored_dst(pgp_dest_t *dst, pgp_dest_t *writedst, pgp_armored_msg_t msgtyp
     param->eol[1] = CH_LF;
     param->llen = 76; /* must be multiple of 4 */
     /* armor header */
-    if (!armor_write_message_header(param, false)) {
-        RNP_LOG("unknown data type");
-        armored_dst_close(dst, true);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
+    armor_write_message_header(param, false);
     armor_write_eol(param);
     /* empty line */
     armor_write_eol(param);
