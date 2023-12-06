@@ -2224,6 +2224,18 @@ class Misc(unittest.TestCase):
         remove_files(dec)
         self.assertEqual(ret, 0)
         self.assertRegex(err, R_CRC)
+        # 1-byte message
+        ret, out, _ = run_proc(RNP, ['--enarmor'], '1')
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*BEGIN PGP MESSAGE.*MQ==.*=LrpI.*')
+        ret, out, _ = run_proc(RNP, ['--dearmor'], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(out, r'(?s)^.*1.*')
+        # Charset and other headers
+        ret, _, err = run_proc(RNP, ['--dearmor', data_path('test_stream_armor/misc_headers.asc'), '--output', dec], out)
+        self.assertEqual(ret, 0)
+        self.assertRegex(err, r'(?s)^.*unknown header \'Unknown: Unknown\'.*')
+        remove_files(dec)
 
     def test_rnpkeys_lists(self):
         KEYRING_1 = data_path(KEYRING_DIR_1)
