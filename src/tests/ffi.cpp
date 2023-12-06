@@ -3393,6 +3393,20 @@ TEST_F(rnp_tests, test_ffi_rnp_guess_contents)
     assert_string_equal(msgt, "unknown");
     rnp_buffer_destroy(msgt);
     rnp_input_destroy(input);
+
+    const char *msg1 = "-----BEGIN PGP PGP";
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) msg1, strlen(msg1), false));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_string_equal(msgt, "unknown");
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
+
+    const char *msg2 = "-----BEGIN PGP PGP PGP PGP PGP PGP PGP";
+    assert_rnp_success(rnp_input_from_memory(&input, (uint8_t *) msg2, strlen(msg2), false));
+    assert_rnp_success(rnp_guess_contents(input, &msgt));
+    assert_string_equal(msgt, "unknown");
+    rnp_buffer_destroy(msgt);
+    rnp_input_destroy(input);
 }
 
 TEST_F(rnp_tests, test_ffi_literal_filename)

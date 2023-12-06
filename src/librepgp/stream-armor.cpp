@@ -566,9 +566,6 @@ armor_str_to_data_type(const char *str, size_t len)
     if (str_equals(str, len, "BEGIN PGP SIGNATURE")) {
         return PGP_ARMORED_SIGNATURE;
     }
-    if (str_equals(str, len, "BEGIN PGP SIGNED MESSAGE")) {
-        return PGP_ARMORED_CLEARTEXT;
-    }
     return PGP_ARMORED_UNKNOWN;
 }
 
