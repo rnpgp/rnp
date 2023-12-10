@@ -2794,9 +2794,8 @@ class Misc(unittest.TestCase):
     def test_no_home_dir(self):
         del os.environ['HOME']
         ret, _, err = run_proc(RNP, ['-v', 'non-existing.pgp'])
-        self.assertEqual(ret, 2, 'failed to run without HOME env variable')
-        self.assertRegex(err, r'(?s)^.*Home directory .* does not exist or is not writable!')
-        self.assertRegex(err, RE_KEYSTORE_INFO)
+        self.assertEqual(ret, 1, 'failed to run without HOME env variable')
+        self.assertRegex(err, r'(?s)^.*can\'t stat \'non-existing.pgp\'')
 
     def test_exit_codes(self):
         ret, _, _ = run_proc(RNP, ['--homedir', RNPDIR, '--help'])
