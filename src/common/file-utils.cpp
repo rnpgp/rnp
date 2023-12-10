@@ -42,6 +42,7 @@
 #include "str-utils.h"
 #include <algorithm>
 #ifdef _WIN32
+#include <Shlobj.h>
 #include <random> // for rnp_mkstemp
 #define CATCH_AND_RETURN(v) \
     catch (...)             \
@@ -51,6 +52,7 @@
     }
 #else
 #include <string.h>
+#include <pwd.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #include <fcntl.h>
@@ -329,10 +331,33 @@ empty(const std::string &path)
 std::string
 HOME(const std::string &sdir)
 {
-    const char *home = getenv("HOME");
-    if (!home) {
-        return "";
+    const char *home;
+#ifdef _WIN32
+    wchar_t  wcsidlprf[MAX_PATH];
+    wchar_t *wuserprf;
+
+    wuserprf = _wgetenv(L"USERPROFILE");
+
+    if (wuserprf != NULL) {
+        home = wstr_to_utf8(wuserprf).c_str();
+    } else if (SHGetFolderPathW(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT, wcsidlprf) ==
+               S_OK) {
+        home = wstr_to_utf8(wcsidlprf).c_str();
+    } else {
+        home = "";
     }
+#else
+    home = getenv("HOME");
+    if (!home) {
+        struct passwd *pwd;
+        pwd = getpwuid(getuid());
+        if (pwd != NULL) {
+            home = pwd->pw_dir;
+        } else {
+            home = "";
+        }
+    }
+#endif
     return sdir.empty() ? home : append(home, sdir);
 }
 
