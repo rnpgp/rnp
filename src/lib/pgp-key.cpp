@@ -720,9 +720,10 @@ pgp_userid_t::has_sig(const pgp_sig_id_t &id) const
 }
 
 void
-pgp_userid_t::add_sig(const pgp_sig_id_t &sig)
+pgp_userid_t::add_sig(const pgp_sig_id_t &sig, bool begin)
 {
-    sigs_.push_back(sig);
+    size_t idx = begin ? 0 : sigs_.size();
+    sigs_.insert(sigs_.begin() + idx, sig);
 }
 
 void
@@ -941,18 +942,29 @@ pgp_key_t::replace_sig(const pgp_sig_id_t &id, const pgp_signature_t &newsig)
 }
 
 pgp_subsig_t &
-pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid)
+pgp_key_t::add_sig(const pgp_signature_t &sig, size_t uid, bool begin)
 {
     const pgp_sig_id_t sigid = sig.get_id();
     sigs_map_.erase(sigid);
     pgp_subsig_t &res = sigs_map_.emplace(std::make_pair(sigid, sig)).first->second;
     res.uid = uid;
-    sigs_.push_back(sigid);
     if (uid == PGP_UID_NONE) {
-        keysigs_.push_back(sigid);
-    } else {
-        uids_[uid].add_sig(sigid);
+        size_t idx = begin ? 0 : keysigs_.size();
+        sigs_.insert(sigs_.begin() + idx, sigid);
+        keysigs_.insert(keysigs_.begin() + idx, sigid);
+        return res;
     }
+
+    /* Calculate correct position in sigs_ */
+    size_t idx = keysigs_.size();
+    for (size_t u = 0; u < uid; u++) {
+        idx += uids_[u].sig_count();
+    }
+    if (!begin) {
+        idx += uids_[uid].sig_count();
+    }
+    sigs_.insert(sigs_.begin() + idx, sigid);
+    uids_[uid].add_sig(sigid, begin);
     return res;
 }
 
