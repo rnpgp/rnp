@@ -1215,6 +1215,18 @@ pgp_signature_t::revoker() const noexcept
     return res;
 }
 
+void
+pgp_signature_t::set_revoker(const pgp_key_t &revoker, bool sensitive)
+{
+    auto &fp = revoker.fp();
+    auto &subpkt = add_subpkt(PGP_SIG_SUBPKT_REVOCATION_KEY, fp.length + 2, true);
+    subpkt.hashed = true;
+    subpkt.data[0] = sensitive ? 0xC0 : 0x80;
+    subpkt.data[1] = revoker.alg();
+    memcpy(subpkt.data + 2, fp.fingerprint, fp.length);
+    subpkt.parse();
+}
+
 pgp_sig_subpkt_t &
 pgp_signature_t::add_subpkt(pgp_sig_subpacket_type_t type, size_t datalen, bool reuse)
 {

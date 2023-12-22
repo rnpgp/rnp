@@ -347,6 +347,13 @@ typedef struct pgp_signature_t {
     pgp_fingerprint_t revoker() const noexcept;
 
     /**
+     * @brief Set the revocation key.
+     *
+     * @param revoker revoker's key packet.
+     */
+    void set_revoker(const pgp_key_t &revoker, bool sensitive = false);
+
+    /**
      * @brief Add subpacket of the specified type to v4 signature
      * @param type type of the subpacket
      * @param datalen length of the subpacket body
