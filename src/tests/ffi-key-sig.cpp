@@ -1629,3 +1629,129 @@ TEST_F(rnp_tests, test_ffi_key_import_invalid_issuer)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_add_revoker_signature)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-2subs-sec.asc"));
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-pub.asc"));
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/ecc-p384-pub.asc"));
+    rnp_key_handle_t key = NULL;
+    /* Locate key and make sure it doesn't have designated revokers */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-25519", &key));
+    size_t count = 10;
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 0);
+    /* Add designated revoker */
+    rnp_key_handle_t revoker = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p256", &revoker));
+    rnp_signature_handle_t newsig = NULL;
+    /* Create signature, including edge cases checks */
+    assert_rnp_failure(rnp_key_direct_signature_create(NULL, NULL, &newsig));
+    assert_rnp_failure(rnp_key_direct_signature_create(key, key, NULL));
+    assert_rnp_failure(rnp_key_direct_signature_create(revoker, key, &newsig));
+    assert_rnp_success(rnp_key_direct_signature_create(key, NULL, &newsig));
+    /* Set revoker, including edge cases */
+    assert_rnp_failure(rnp_key_signature_set_revoker(NULL, revoker, 0));
+    assert_rnp_failure(rnp_key_signature_set_revoker(newsig, NULL, 0));
+    assert_rnp_failure(rnp_key_signature_set_revoker(newsig, revoker, 0x33));
+    assert_rnp_success(rnp_key_signature_set_revoker(newsig, revoker, 0));
+    assert_rnp_success(rnp_key_signature_set_revoker(newsig, revoker, RNP_REVOKER_SENSITIVE));
+    /* Attempt to validate non-finished signature */
+    assert_rnp_failure(rnp_signature_is_valid(newsig, 0));
+    /* Populate signature */
+    assert_rnp_failure(rnp_key_signature_sign(NULL));
+    assert_int_equal(rnp_key_signature_sign(newsig), RNP_ERROR_BAD_PASSWORD);
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "wrong1");
+    assert_int_equal(rnp_key_signature_sign(newsig), RNP_ERROR_BAD_PASSWORD);
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    /* Check signature and key properties */
+    char *revfp = NULL;
+    assert_rnp_success(rnp_signature_get_revoker(newsig, &revfp));
+    assert_string_equal(revfp, "B54FDEBBB673423A5D0AA54423674F21B2441527");
+    rnp_buffer_destroy(revfp);
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_key_get_revoker_at(key, 0, &revfp));
+    assert_string_equal(revfp, "B54FDEBBB673423A5D0AA54423674F21B2441527");
+    rnp_buffer_destroy(revfp);
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    /* Attempt to sign already populated  signature */
+    assert_rnp_failure(rnp_key_signature_set_revoker(newsig, revoker, 0));
+    assert_rnp_failure(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    /* Make sure that newly added signature is first of the key's signatures */
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_rnp_failure(rnp_key_signature_sign(newsig));
+    char *type = NULL;
+    assert_rnp_success(rnp_signature_get_type(newsig, &type));
+    assert_string_equal(type, "direct");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_signature_get_revoker(newsig, &revfp));
+    assert_string_equal(revfp, "B54FDEBBB673423A5D0AA54423674F21B2441527");
+    rnp_buffer_destroy(revfp);
+    rnp_signature_handle_destroy(newsig);
+    /* Export key and make sure signature is exported */
+    auto keydata = export_key(key, true);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(revoker);
+    rnp_ffi_t newffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    assert_rnp_success(rnp_locate_key(newffi, "userid", "ecc-25519", &key));
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 1);
+    assert_rnp_success(rnp_key_get_revoker_at(key, 0, &revfp));
+    assert_string_equal(revfp, "B54FDEBBB673423A5D0AA54423674F21B2441527");
+    rnp_buffer_destroy(revfp);
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_rnp_success(rnp_signature_get_type(newsig, &type));
+    assert_string_equal(type, "direct");
+    rnp_buffer_destroy(type);
+    assert_rnp_success(rnp_signature_get_revoker(newsig, &revfp));
+    assert_string_equal(revfp, "B54FDEBBB673423A5D0AA54423674F21B2441527");
+    rnp_buffer_destroy(revfp);
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+    /* Reload keyrings and make sure data is saved */
+    assert_rnp_success(rnp_unload_keys(newffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET));
+    rnp_ffi_destroy(newffi);
+    /* Add second designated revoker and make sure it works */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-25519", &key));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p384", &revoker));
+    assert_rnp_success(rnp_key_direct_signature_create(key, NULL, &newsig));
+    assert_rnp_success(rnp_key_signature_set_revoker(newsig, revoker, 0));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    assert_rnp_success(rnp_signature_get_revoker(newsig, &revfp));
+    assert_string_equal(revfp, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A");
+    rnp_buffer_destroy(revfp);
+    assert_rnp_success(rnp_key_get_revoker_count(key, &count));
+    assert_int_equal(count, 2);
+    assert_rnp_success(rnp_key_get_revoker_at(key, 0, &revfp));
+    assert_string_equal(revfp, "AB25CBA042DD924C3ACC3ED3242A3AA5EA85F44A");
+    rnp_buffer_destroy(revfp);
+    assert_rnp_success(rnp_signature_is_valid(newsig, 0));
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(revoker);
+    /* Attempt to add designatured revoker to subkey */
+    rnp_key_handle_t subkey = NULL;
+    assert_rnp_success(
+      rnp_locate_key(ffi, "fingerprint", "6D207DCC0AC281DBFC285785573436C231AE6338", &subkey));
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-p384", &revoker));
+    assert_rnp_failure(rnp_key_direct_signature_create(subkey, NULL, &newsig));
+    rnp_key_handle_destroy(revoker);
+    /* Standard doesn't seem to answer whether subkey should be allowed here */
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-25519", &key));
+    assert_rnp_success(rnp_key_direct_signature_create(key, NULL, &newsig));
+    assert_rnp_success(rnp_key_signature_set_revoker(newsig, subkey, 0));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+    rnp_key_handle_destroy(subkey);
+    /* Check v5 key */
+
+    rnp_ffi_destroy(ffi);
+}
