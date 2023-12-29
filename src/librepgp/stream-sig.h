@@ -279,6 +279,11 @@ typedef struct pgp_signature_t {
      */
     pgp_revocation_type_t revocation_code() const;
 
+    /**
+     * @brief Check whether signature has revocation reason and code subpacket.
+     */
+    bool has_revocation_reason() const;
+
     /** @brief Set the revocation reason and code for key/subkey revocation signature. See the
      *         RFC 4880, 5.2.3.24 for the detailed explanation.
      */

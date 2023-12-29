@@ -1077,6 +1077,12 @@ pgp_signature_t::revocation_code() const
     return subpkt ? subpkt->fields.revocation_reason.code : PGP_REVOCATION_NO_REASON;
 }
 
+bool
+pgp_signature_t::has_revocation_reason() const
+{
+    return get_subpkt(PGP_SIG_SUBPKT_REVOCATION_REASON);
+}
+
 void
 pgp_signature_t::set_revocation_reason(pgp_revocation_type_t code, const std::string &reason)
 {
