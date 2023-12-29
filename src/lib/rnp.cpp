@@ -6534,6 +6534,37 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_revocation_reason(rnp_signature_handle_t sig, char **code, char **reason)
+{
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    std::string rcode;
+    std::string rreason;
+    if (sig->sig->sig.has_revocation_reason()) {
+        rcode = id_str_pair::lookup(revocation_code_map, sig->sig->sig.revocation_code(), "");
+        rreason = sig->sig->sig.revocation_reason();
+    }
+    if (code) {
+        rnp_result_t ret = ret_str_value("", code);
+        if (ret) {
+            return ret;
+        }
+    }
+    if (reason) {
+        rnp_result_t ret = ret_str_value("", reason);
+        if (ret) {
+            if (code) {
+                free(*code);
+                *code = NULL;
+            }
+            return ret;
+        }
+    }
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
 rnp_signature_is_valid(rnp_signature_handle_t sig, uint32_t flags)
 try {
     if (!sig) {

@@ -1735,6 +1735,21 @@ RNP_API rnp_result_t rnp_signature_get_signer(rnp_signature_handle_t sig,
 RNP_API rnp_result_t rnp_signature_get_revoker(rnp_signature_handle_t sig, char **revoker);
 
 /**
+ * @brief Get revocation reason data, if it is available in the signature.
+ *
+ * @param sig signature handle, cannot be NULL.
+ * @param code string with revocation code will be stored here, if not NULL. See description of
+ *             function rnp_key_revoke() for possible values. If information is not available,
+ *             empty string will be stored here.
+ * @param reason revocation reason will be stored here, if available. Otherwise empty string
+ *               will be stored here. May be NULL if this information is not needed.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_signature_get_revocation_reason(rnp_signature_handle_t sig,
+                                                         char **                code,
+                                                         char **                reason);
+
+/**
  * @brief Get signature validity, revalidating it if didn't before.
  *
  * @param sig key/userid signature handle
