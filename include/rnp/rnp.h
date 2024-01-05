@@ -1550,6 +1550,45 @@ RNP_API rnp_result_t rnp_key_direct_signature_create(rnp_key_handle_t        sig
                                                      rnp_signature_handle_t *sig);
 
 /**
+ * @brief Create new key or subkey revocation signature. It may be
+ *        customized via the rnp_signature_set_* calls, and finalized via the
+ *        rnp_signature_sign() call.
+ *
+ * @param signer revoker's key, must be secret, and must exist in the keyring up to the
+ *               rnp_signature_sign() call. Cannot be NULL.
+ * @param target target key for which signature should be made. May be NULL, then signer will
+ *               revoke itself.
+ *
+ * @param sig on success signature handle will be stored here. It is initialized with current
+ *            creation time, default hash algorithm and version. Cannot be NULL.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_revocation_signature_create(rnp_key_handle_t        signer,
+                                                         rnp_key_handle_t        target,
+                                                         rnp_signature_handle_t *sig);
+
+/**
+ * @brief Set hash algorithm, used during signing.
+ *
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param hash hash algorithm name, i.e. "SHA256" or others.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_hash(rnp_signature_handle_t sig, const char *hash);
+
+/**
+ * @brief Set revocation reason and code for the revocation signature.
+ *        See `rnp_key_revoke()` for the details.
+ * @param sig editable key signature handle, i.e. created with rnp_key_*_signature_create().
+ * @param code revocation reason code. Could be NULL, then default one will be set.
+ * @param reason human-readable reason for revocation. Could be NULL or empty string.
+ * @return RNP_SUCCESS or error code if failed.
+ */
+RNP_API rnp_result_t rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
+                                                             const char *           code,
+                                                             const char *           reason);
+
+/**
  * @brief Add designated revoker subpacket to the signature. See RFC 4880, section 5.2.3.15.
  *        Only single revoker could be set - subsequent calls would overwrite the previous one.
  *

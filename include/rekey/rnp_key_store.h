@@ -178,6 +178,20 @@ class KeyStore {
     pgp_key_t *add_key(pgp_key_t &key);
 
     /**
+     * @brief Add signature of the specific key to the keystore, revalidating and refresing
+     * key's data. Currently supports only direct-key or subkey binding signature.
+     *
+     * @param keyfp key's fingerprint.
+     * @param sig signature packet.
+     * @param front set to true if signature should be added to the beggining of the signature
+     * list.
+     * @return pgp_subsig_t*
+     */
+    pgp_subsig_t *add_key_sig(const pgp_fingerprint_t &keyfp,
+                              const pgp_signature_t &  sig,
+                              bool                     front);
+
+    /**
      * @brief Add transferable key to the keystore.
      *
      * @param tkey parsed key.

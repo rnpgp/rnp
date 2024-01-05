@@ -4080,6 +4080,27 @@ rnp_key_get_revoker(rnp_key_handle_t key)
     return get_key_require_secret(key);
 }
 
+static bool
+fill_revocation_reason(rnp_ffi_t     ffi,
+                       pgp_revoke_t &revinfo,
+                       const char *  code,
+                       const char *  reason)
+{
+    revinfo = {};
+    if (code && !str_to_revocation_type(code, &revinfo.code)) {
+        FFI_LOG(ffi, "Wrong revocation code: %s", code);
+        return false;
+    }
+    if (revinfo.code > PGP_REVOCATION_RETIRED) {
+        FFI_LOG(ffi, "Wrong key revocation code: %d", (int) revinfo.code);
+        return false;
+    }
+    if (reason) {
+        revinfo.reason = reason;
+    }
+    return true;
+}
+
 static rnp_result_t
 rnp_key_get_revocation(rnp_ffi_t        ffi,
                        pgp_key_t *      key,
@@ -4098,21 +4119,8 @@ rnp_key_get_revocation(rnp_ffi_t        ffi,
         return RNP_ERROR_BAD_PARAMETERS;
     }
     pgp_revoke_t revinfo = {};
-    if (code && !str_to_revocation_type(code, &revinfo.code)) {
-        FFI_LOG(ffi, "Wrong revocation code: %s", code);
+    if (!fill_revocation_reason(ffi, revinfo, code, reason)) {
         return RNP_ERROR_BAD_PARAMETERS;
-    }
-    if (revinfo.code > PGP_REVOCATION_RETIRED) {
-        FFI_LOG(ffi, "Wrong key revocation code: %d", (int) revinfo.code);
-        return RNP_ERROR_BAD_PARAMETERS;
-    }
-    if (reason) {
-        try {
-            revinfo.reason = reason;
-        } catch (const std::exception &e) {
-            FFI_LOG(ffi, "%s", e.what());
-            return RNP_ERROR_OUT_OF_MEMORY;
-        }
     }
     /* unlock the secret key if needed */
     rnp::KeyLocker revlock(*revoker);
@@ -6174,11 +6182,12 @@ try {
 }
 FFI_GUARD
 
-rnp_result_t
-rnp_key_direct_signature_create(rnp_key_handle_t        signer,
-                                rnp_key_handle_t        target,
-                                rnp_signature_handle_t *sig)
-try {
+static rnp_result_t
+create_key_signature(rnp_key_handle_t        signer,
+                     rnp_key_handle_t        target,
+                     rnp_signature_handle_t *sig,
+                     pgp_sig_type_t          type)
+{
     if (!signer || !sig) {
         return RNP_ERROR_NULL_POINTER;
     }
@@ -6190,8 +6199,19 @@ try {
     if (!sigkey || !tgkey) {
         return RNP_ERROR_BAD_PARAMETERS;
     }
-    if (!tgkey->is_primary()) {
-        return RNP_ERROR_BAD_PARAMETERS;
+    switch (type) {
+    case PGP_SIG_DIRECT:
+        if (!tgkey->is_primary()) {
+            return RNP_ERROR_BAD_PARAMETERS;
+        }
+        break;
+    case PGP_SIG_REV_KEY:
+        if (!tgkey->is_primary()) {
+            type = PGP_SIG_REV_SUBKEY;
+        }
+        break;
+    default:
+        return RNP_ERROR_NOT_IMPLEMENTED;
     }
     *sig = (rnp_signature_handle_t) calloc(1, sizeof(**sig));
     if (!*sig) {
@@ -6204,7 +6224,7 @@ try {
                           DEFAULT_PGP_HASH_ALG,
                           signer->ffi->context.time(),
                           sigkey->version());
-        sigpkt.set_type(PGP_SIG_DIRECT);
+        sigpkt.set_type(type);
         (*sig)->sig = new pgp_subsig_t(sigpkt);
         (*sig)->ffi = signer->ffi;
         (*sig)->key = tgkey;
@@ -6217,6 +6237,57 @@ try {
         return RNP_ERROR_OUT_OF_MEMORY;
     }
 
+    return RNP_SUCCESS;
+}
+
+rnp_result_t
+rnp_key_direct_signature_create(rnp_key_handle_t        signer,
+                                rnp_key_handle_t        target,
+                                rnp_signature_handle_t *sig)
+try {
+    return create_key_signature(signer, target, sig, PGP_SIG_DIRECT);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_revocation_signature_create(rnp_key_handle_t        signer,
+                                    rnp_key_handle_t        target,
+                                    rnp_signature_handle_t *sig)
+try {
+    return create_key_signature(signer, target, sig, PGP_SIG_REV_KEY);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_hash(rnp_signature_handle_t sig, const char *hash)
+try {
+    if (!sig || !hash) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!sig->new_sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    if (!str_to_hash_alg(hash, &sig->sig->sig.halg)) {
+        FFI_LOG(sig->ffi, "Invalid hash: %s", hash);
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_signature_set_revocation_reason(rnp_signature_handle_t sig,
+                                        const char *           code,
+                                        const char *           reason)
+try {
+    if (!sig) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_revoke_t revinfo = {};
+    if (!fill_revocation_reason(sig->ffi, revinfo, code, reason)) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    sig->sig->sig.set_revocation_reason(revinfo.code, revinfo.reason);
     return RNP_SUCCESS;
 }
 FFI_GUARD
@@ -6268,31 +6339,30 @@ try {
         return RNP_ERROR_BAD_PASSWORD;
     }
     /* Sign */
-    if (sigpkt.type() == PGP_SIG_DIRECT) {
+    switch (sigpkt.type()) {
+    case PGP_SIG_DIRECT:
         signer->sign_direct(sig->key->pkt(), sigpkt, sig->ffi->context);
-    } else {
+        break;
+    case PGP_SIG_REV_KEY:
+        signer->sign_direct(sig->key->pkt(), sigpkt, sig->ffi->context);
+        break;
+    case PGP_SIG_REV_SUBKEY:
+        signer->sign_binding(sig->key->pkt(), sigpkt, sig->ffi->context);
+        break;
+    default:
         FFI_LOG(sig->ffi, "Not yet supported signature type.");
         return RNP_ERROR_BAD_STATE;
     }
     /* Add to the keyring(s) */
-    pgp_subsig_t *newsig = NULL;
-    pgp_key_t *   key = sig->ffi->secring->get_key(sig->key->fp());
-    if (key) {
-        newsig = &key->add_sig(sigpkt, PGP_UID_NONE, true);
-        key->refresh_data(sig->ffi->context);
-    }
-    key = sig->ffi->pubring->get_key(sig->key->fp());
-    if (key) {
-        newsig = &key->add_sig(sigpkt, PGP_UID_NONE, true);
-        key->refresh_data(sig->ffi->context);
-    }
+    pgp_subsig_t *secsig = sig->ffi->secring->add_key_sig(sig->key->fp(), sigpkt, true);
+    pgp_subsig_t *pubsig = sig->ffi->pubring->add_key_sig(sig->key->fp(), sigpkt, true);
     /* Should not happen but let's check */
-    if (!newsig) {
+    if (!secsig && !pubsig) {
         return RNP_ERROR_BAD_STATE;
     }
     /* Replace owned sig with pointer to the key's one */
     delete sig->sig;
-    sig->sig = newsig;
+    sig->sig = pubsig ? pubsig : secsig;
     sig->own_sig = false;
     sig->new_sig = false;
 
@@ -6546,13 +6616,13 @@ rnp_signature_get_revocation_reason(rnp_signature_handle_t sig, char **code, cha
         rreason = sig->sig->sig.revocation_reason();
     }
     if (code) {
-        rnp_result_t ret = ret_str_value("", code);
+        rnp_result_t ret = ret_str_value(rcode.c_str(), code);
         if (ret) {
             return ret;
         }
     }
     if (reason) {
-        rnp_result_t ret = ret_str_value("", reason);
+        rnp_result_t ret = ret_str_value(rreason.c_str(), reason);
         if (ret) {
             if (code) {
                 free(*code);

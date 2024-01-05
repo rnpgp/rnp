@@ -381,6 +381,39 @@ KeyStore::add_key(pgp_key_t &srckey)
     return added_key;
 }
 
+pgp_subsig_t *
+KeyStore::add_key_sig(const pgp_fingerprint_t &keyfp, const pgp_signature_t &sig, bool front)
+{
+    pgp_key_t *key = get_key(keyfp);
+    if (!key) {
+        return NULL;
+    }
+
+    bool       desig_rev = false;
+    pgp_key_t *signer = get_signer(sig);
+    switch (sig.type()) {
+    case PGP_SIG_REV_KEY:
+        desig_rev = signer && (signer->fp() != key->fp());
+        break;
+    case PGP_SIG_REV_SUBKEY:
+        desig_rev = signer && (signer->fp() != key->primary_fp());
+        break;
+    default:
+        break;
+    }
+    /* Add to the keyring(s) */
+    pgp_subsig_t &newsig = key->add_sig(sig, PGP_UID_NONE, front);
+    if (desig_rev) {
+        key->validate_desig_revokes(*this);
+    }
+    if (key->is_primary()) {
+        key->refresh_data(secctx);
+    } else {
+        key->refresh_data(primary_key(*key), secctx);
+    }
+    return &newsig;
+}
+
 pgp_key_t *
 KeyStore::import_key(pgp_key_t &srckey, bool pubkey, pgp_key_import_status_t *status)
 {
