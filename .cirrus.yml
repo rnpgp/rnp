@@ -23,7 +23,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 freebsd_instance:
-  image: freebsd-12-3-release-amd64
+  image: freebsd-13-2-release-amd64
 
 task:
   name: build
