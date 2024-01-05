@@ -1106,6 +1106,16 @@ check_key_revoked(rnp_key_handle_t key, bool revoked)
     return rev == revoked;
 }
 
+bool
+check_key_locked(rnp_key_handle_t key, bool locked)
+{
+    bool lock = !locked;
+    if (rnp_key_is_locked(key, &lock)) {
+        return false;
+    }
+    return lock == locked;
+}
+
 uint32_t
 get_key_expiry(rnp_key_handle_t key)
 {
@@ -1160,6 +1170,18 @@ check_key_fp(rnp_key_handle_t key, const std::string &expected)
 }
 
 bool
+check_key_revreason(rnp_key_handle_t key, const char *reason)
+{
+    char *rstr = NULL;
+    if (rnp_key_get_revocation_reason(key, &rstr)) {
+        return false;
+    }
+    bool res = !strcmp(rstr, reason);
+    rnp_buffer_destroy(rstr);
+    return res;
+}
+
+bool
 check_has_key(rnp_ffi_t ffi, const std::string &id, bool secret, bool valid)
 {
     rnp_key_handle_t key = NULL;
@@ -1194,6 +1216,60 @@ check_has_key(rnp_ffi_t ffi, const std::string &id, bool secret, bool valid)
     res = res && check_key_valid(key, valid);
     rnp_key_handle_destroy(key);
     return res;
+}
+
+bool
+check_sig_hash(rnp_signature_handle_t sig, const char *hash)
+{
+    char *sighash = NULL;
+    if (rnp_signature_get_hash_alg(sig, &sighash)) {
+        return false;
+    }
+    bool res = !strcmp(sighash, hash);
+    rnp_buffer_destroy(sighash);
+    return res;
+}
+
+bool
+check_sig_type(rnp_signature_handle_t sig, const char *type)
+{
+    char *sigtype = NULL;
+    if (rnp_signature_get_type(sig, &sigtype)) {
+        return false;
+    }
+    bool res = !strcmp(sigtype, type);
+    rnp_buffer_destroy(sigtype);
+    return res;
+}
+
+bool
+check_sig_revreason(rnp_signature_handle_t sig, const char *revcode, const char *revreason)
+{
+    char *sigcode = NULL;
+    char *sigreason = NULL;
+    if (rnp_signature_get_revocation_reason(sig, &sigcode, &sigreason)) {
+        return false;
+    }
+    bool res = !strcmp(sigcode, revcode) && !strcmp(sigreason, revreason);
+    rnp_buffer_destroy(sigcode);
+    rnp_buffer_destroy(sigreason);
+    return res;
+}
+
+rnp_key_handle_t
+get_key_by_fp(rnp_ffi_t ffi, const char *fp)
+{
+    rnp_key_handle_t key = NULL;
+    rnp_locate_key(ffi, "fingerprint", fp, &key);
+    return key;
+}
+
+rnp_key_handle_t
+get_key_by_uid(rnp_ffi_t ffi, const char *uid)
+{
+    rnp_key_handle_t key = NULL;
+    rnp_locate_key(ffi, "userid", uid, &key);
+    return key;
 }
 
 rnp_key_handle_t

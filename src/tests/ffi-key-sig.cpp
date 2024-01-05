@@ -1755,3 +1755,230 @@ TEST_F(rnp_tests, test_ffi_add_revoker_signature)
 
     rnp_ffi_destroy(ffi);
 }
+
+TEST_F(rnp_tests, test_ffi_create_revocation_signature)
+{
+    rnp_ffi_t ffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&ffi, "GPG", "GPG"));
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-2subs-sec.asc"));
+    assert_true(import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-sec.asc"));
+    rnp_key_handle_t key = NULL;
+    assert_rnp_success(rnp_locate_key(ffi, "userid", "ecc-25519", &key));
+    /* Create self revocation */
+    rnp_signature_handle_t newsig = NULL;
+    assert_rnp_failure(rnp_key_revocation_signature_create(NULL, key, &newsig));
+    assert_rnp_failure(rnp_key_revocation_signature_create(key, key, NULL));
+    assert_rnp_failure(rnp_key_revocation_signature_create(key, NULL, NULL));
+    assert_rnp_success(rnp_key_revocation_signature_create(key, NULL, &newsig));
+    const char *revcode = "compromised";
+    const char *revreason = "custom revocation reason";
+    const char *hash = "SHA512";
+    assert_rnp_failure(rnp_key_signature_set_hash(NULL, hash));
+    assert_rnp_failure(rnp_key_signature_set_hash(newsig, NULL));
+    assert_rnp_failure(rnp_key_signature_set_hash(newsig, "wrong"));
+    assert_rnp_success(rnp_key_signature_set_hash(newsig, hash));
+    assert_rnp_failure(rnp_key_signature_set_revocation_reason(NULL, revcode, revreason));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, NULL, NULL));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, NULL, "wrong reason"));
+    assert_rnp_failure(rnp_key_signature_set_revocation_reason(newsig, "wrong code", NULL));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, revcode, revreason));
+    assert_rnp_failure(rnp_key_signature_sign(newsig));
+    rnp_ffi_set_pass_provider(ffi, ffi_string_password_provider, (void *) "password");
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    /* Check signature parameters */
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_true(check_sig_hash(newsig, hash));
+    assert_true(check_sig_type(newsig, "key revocation"));
+    char *sigcode = NULL;
+    char *sigreason = NULL;
+    /* Some edge cases of the new function */
+    assert_rnp_failure(rnp_signature_get_revocation_reason(NULL, &sigcode, &sigreason));
+    assert_rnp_success(rnp_signature_get_revocation_reason(newsig, &sigcode, NULL));
+    assert_string_equal(sigcode, revcode);
+    rnp_buffer_destroy(sigcode);
+    assert_rnp_success(rnp_signature_get_revocation_reason(newsig, NULL, &sigreason));
+    assert_string_equal(sigreason, revreason);
+    rnp_buffer_destroy(sigreason);
+    assert_true(check_sig_revreason(newsig, revcode, revreason));
+    rnp_signature_handle_destroy(newsig);
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    bool compromised = false;
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    /* Export key and make sure data is saved */
+    auto keydata = export_key(key, true);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_t newffi = NULL;
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    assert_rnp_success(rnp_locate_key(newffi, "userid", "ecc-25519", &key));
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_true(check_sig_type(newsig, "key revocation"));
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+    /* Create revocation for other key, using the designated revoker */
+    rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET);
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-sec.asc"));
+    assert_true(
+      import_pub_keys(ffi, "data/test_stream_key_load/ecc-p256-desig-rev-1-pub.asc"));
+    key = get_key_by_uid(ffi, "ecc-p256");
+    rnp_key_handle_t revoker = get_key_by_uid(ffi, "ecc-25519");
+    assert_true(check_key_locked(revoker, true));
+    assert_true(check_key_revoked(key, false));
+    assert_rnp_success(rnp_key_revocation_signature_create(revoker, key, &newsig));
+    assert_rnp_success(rnp_key_signature_set_hash(newsig, hash));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, revcode, revreason));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    assert_true(check_key_locked(revoker, true));
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(revoker);
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    /* Export/import and check */
+    keydata = export_key(key);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    assert_true(import_all_keys(newffi, "data/test_stream_key_load/ecc-25519-pub.asc"));
+    key = get_key_by_uid(ffi, "ecc-p256");
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_true(check_sig_type(newsig, "key revocation"));
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+    /* Create self subkey revocation */
+    rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET);
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-p256-sec.asc"));
+    key = get_key_by_uid(ffi, "ecc-p256");
+    rnp_key_handle_t subkey = get_key_by_fp(ffi, "40E608AFBC8D62CDCC08904F37E285E9E9851491");
+    assert_rnp_success(rnp_key_revocation_signature_create(key, subkey, &newsig));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    assert_true(check_key_revoked(subkey, true));
+    assert_true(check_key_revreason(subkey, "No reason specified"));
+    assert_rnp_success(rnp_key_is_compromised(subkey, &compromised));
+    assert_false(compromised);
+    rnp_signature_handle_destroy(newsig);
+    assert_rnp_success(rnp_key_get_signature_at(subkey, 0, &newsig));
+    assert_true(check_sig_type(newsig, "subkey revocation"));
+    assert_rnp_success(rnp_signature_get_revocation_reason(newsig, &sigcode, &sigreason));
+    assert_string_equal(sigcode, "");
+    assert_string_equal(sigreason, "");
+    rnp_buffer_destroy(sigcode);
+    rnp_buffer_destroy(sigreason);
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(subkey);
+    /* Export and recheck */
+    keydata = export_key(key);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    subkey = get_key_by_fp(newffi, "40E608AFBC8D62CDCC08904F37E285E9E9851491");
+    assert_true(check_key_revoked(subkey, true));
+    assert_true(check_key_revreason(subkey, "No reason specified"));
+    assert_rnp_success(rnp_key_is_compromised(subkey, &compromised));
+    assert_false(compromised);
+    rnp_key_handle_destroy(subkey);
+    rnp_ffi_destroy(newffi);
+    /* Revoke other key using subkey as revoker with designated revoker */
+    rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET);
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-2subs-sec.asc"));
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-p256-subkey-revoker.asc"));
+    key = get_key_by_uid(ffi, "ecc-p256");
+    revoker = get_key_by_fp(ffi, "6D207DCC0AC281DBFC285785573436C231AE6338");
+    assert_rnp_success(rnp_key_revocation_signature_create(revoker, key, &newsig));
+    assert_rnp_success(rnp_key_signature_set_hash(newsig, hash));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, revcode, revreason));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    rnp_key_handle_destroy(revoker);
+    /* Export and recheck */
+    keydata = export_key(key);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    key = get_key_by_uid(ffi, "ecc-p256");
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+    /* Attempt to revoke primary key using the subkey without designated revoker */
+    key = get_key_by_uid(ffi, "ecc-25519");
+    revoker = get_key_by_fp(ffi, "6D207DCC0AC281DBFC285785573436C231AE6338");
+    assert_rnp_success(rnp_key_revocation_signature_create(revoker, key, &newsig));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, revcode, revreason));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    assert_true(check_key_revoked(key, false));
+    rnp_key_handle_destroy(revoker);
+    /* Export and recheck */
+    keydata = export_key(key);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    key = get_key_by_uid(newffi, "ecc-25519");
+    assert_true(check_key_revoked(key, false));
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+    /* Attempt to revoke primary key using the subkey with designated revoker */
+    rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET);
+    assert_true(
+      import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-subkey-revoker.asc"));
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-2subs-sec.asc"));
+    key = get_key_by_uid(ffi, "ecc-25519");
+    revoker = get_key_by_fp(ffi, "6D207DCC0AC281DBFC285785573436C231AE6338");
+    assert_rnp_success(rnp_key_revocation_signature_create(revoker, key, &newsig));
+    assert_rnp_success(rnp_key_signature_set_revocation_reason(newsig, revcode, revreason));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    rnp_signature_handle_destroy(newsig);
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    rnp_key_handle_destroy(revoker);
+    /* Export and recheck */
+    keydata = export_key(key);
+    rnp_key_handle_destroy(key);
+    assert_rnp_success(rnp_ffi_create(&newffi, "GPG", "GPG"));
+    assert_true(import_all_keys(newffi, keydata.data(), keydata.size()));
+    key = get_key_by_uid(newffi, "ecc-25519");
+    assert_true(check_key_revoked(key, true));
+    assert_true(check_key_revreason(key, revreason));
+    assert_rnp_success(rnp_key_is_compromised(key, &compromised));
+    assert_true(compromised);
+    rnp_key_handle_destroy(key);
+    rnp_ffi_destroy(newffi);
+    /* Attempt to revoke signing subkey using itself as revoker */
+    rnp_unload_keys(ffi, RNP_KEY_UNLOAD_PUBLIC | RNP_KEY_UNLOAD_SECRET);
+    assert_true(import_all_keys(ffi, "data/test_stream_key_load/ecc-25519-2subs-sec.asc"));
+    key = get_key_by_fp(ffi, "6D207DCC0AC281DBFC285785573436C231AE6338");
+    assert_rnp_success(rnp_key_revocation_signature_create(key, NULL, &newsig));
+    assert_rnp_success(rnp_key_signature_sign(newsig));
+    assert_true(check_key_revoked(key, false));
+    rnp_signature_handle_destroy(newsig);
+    assert_rnp_success(rnp_key_get_signature_at(key, 0, &newsig));
+    assert_true(check_sig_type(newsig, "subkey revocation"));
+    assert_rnp_success(rnp_signature_get_revocation_reason(newsig, &sigcode, &sigreason));
+    assert_string_equal(sigcode, "");
+    assert_string_equal(sigreason, "");
+    rnp_buffer_destroy(sigcode);
+    rnp_buffer_destroy(sigreason);
+    rnp_signature_handle_destroy(newsig);
+    rnp_key_handle_destroy(key);
+
+    rnp_ffi_destroy(ffi);
+}

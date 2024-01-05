@@ -249,6 +249,7 @@ void dump_key_stdout(rnp_key_handle_t key, bool secret = false);
 /* some shortcuts for less code */
 bool     check_key_valid(rnp_key_handle_t key, bool validity);
 bool     check_key_revoked(rnp_key_handle_t key, bool revoked);
+bool     check_key_locked(rnp_key_handle_t key, bool locked);
 uint32_t get_key_expiry(rnp_key_handle_t key);
 size_t   get_key_uids(rnp_key_handle_t key);
 bool     check_sub_valid(rnp_key_handle_t key, size_t idx, bool validity);
@@ -263,10 +264,19 @@ void     check_loaded_keys(const char *                    format,
                            bool                            secret);
 bool     check_key_grip(rnp_key_handle_t key, const std::string &expected);
 bool     check_key_fp(rnp_key_handle_t key, const std::string &expected);
+bool     check_key_revreason(rnp_key_handle_t key, const char *reason);
 bool     check_has_key(rnp_ffi_t          ffi,
                        const std::string &id,
                        bool               secret = false,
                        bool               valid = true);
+bool     check_sig_hash(rnp_signature_handle_t sig, const char *hash);
+bool     check_sig_type(rnp_signature_handle_t sig, const char *type);
+bool     check_sig_revreason(rnp_signature_handle_t sig,
+                             const char *           revcode,
+                             const char *           revreason);
+
+rnp_key_handle_t get_key_by_fp(rnp_ffi_t ffi, const char *fp);
+rnp_key_handle_t get_key_by_uid(rnp_ffi_t ffi, const char *uid);
 
 /* create bogus key handle with NULL pub/sec keys */
 rnp_key_handle_t bogus_key_handle(rnp_ffi_t ffi);
