@@ -72,7 +72,7 @@ backend_version()
     if (version[0]) {
         return version;
     }
-    const char *reg = "OpenSSL (([0-9]\\.[0-9]\\.[0-9])[a-z]*(-beta[0-9])*(-dev)*) ";
+    const char *reg = "OpenSSL (([0-9]\\.[0-9]\\.[0-9])[a-z]*(-[a-z0-9]+)*) ";
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     regmatch_t     matches[5];
@@ -84,7 +84,9 @@ backend_version()
             return "unknown";
         }
     }
-    if (regexec(&r, ver, 5, matches, 0) != 0) {
+    int res = regexec(&r, ver, 5, matches, 0);
+    if (res != 0) {
+        RNP_LOG("regexec() failed on %s: %d", ver, res);
         return "unknown";
     }
     assert(sizeof(version) > matches[1].rm_eo - matches[1].rm_so);
@@ -95,6 +97,7 @@ backend_version()
     std::smatch       result;
     std::string       ver = OpenSSL_version(OPENSSL_VERSION);
     if (!std::regex_search(ver, result, re)) {
+        RNP_LOG("std::regex_search failed on \"%s\"", ver.c_str());
         return "unknown";
     }
     assert(sizeof(version) > result[1].str().size());

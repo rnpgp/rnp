@@ -244,6 +244,13 @@ function(add_cli_test suite)
     "RNP_TESTS_GPG_PATH=${GPG_EXECUTABLE}"
     "RNP_TESTS_GPGCONF_PATH=${GPGCONF_EXECUTABLE}"
   )
+  if (CRYPTO_BACKEND_OPENSSL)
+    get_filename_component(ossl_root "${OPENSSL_INCLUDE_DIR}" DIRECTORY)
+    list(APPEND _env
+      "RNP_TESTS_OPENSSL_ROOT=${ossl_root}"
+    )
+  endif()
+
   set_tests_properties(${_test_name} PROPERTIES
     TIMEOUT 3000
     FIXTURES_REQUIRED testdata
