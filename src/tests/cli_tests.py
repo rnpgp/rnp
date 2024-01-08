@@ -3067,28 +3067,33 @@ class Misc(unittest.TestCase):
         if not match:
             match = re.match(OPENSSL_BACKEND_VERSION, out)
             backend_prog = 'openssl'
-            openssl_root = os.getenv('OPENSSL_ROOT_DIR')
+            openssl_root = os.getenv('RNP_TESTS_OPENSSL_ROOT')
         else:
             openssl_root = None
         self.assertTrue(match)
         # check there is no unexpected output
         self.assertNotRegex(err, r'(?is)^.*Unsupported.*$')
         self.assertNotRegex(err, r'(?is)^.*pgp_sa_to_openssl_string.*$')
+        self.assertNotRegex(err, r'(?is)^.*unknown.*$')
 
         # In case when there are several openssl installations
         # testing environment is supposed to point to the right one
         # through OPENSSL_ROOT_DIR environment variable
+        if is_windows():
+            backend_prog += '.exe'
+        backend_prog_ext = None
         if openssl_root is not None:
-            backen_prog_ext = shutil.which(backend_prog, path = openssl_root + '/bin')
+            backend_prog_ext = shutil.which(backend_prog, path = openssl_root + '/bin')
         else:
         # In all other cases
         # check that botan or openssl executable binary exists in PATH
-            backen_prog_ext = shutil.which(backend_prog)
+            backend_prog_ext = shutil.which(backend_prog)
 
-        if backen_prog_ext is not None:
-            ret, out, _ = run_proc(backen_prog_ext, ['version'])
-            self.assertEqual(ret, 0)
-            self.assertIn(match.group(1), out)
+        if backend_prog_ext is None:
+            return
+        ret, out, _ = run_proc(backend_prog_ext, ['version'])
+        self.assertEqual(ret, 0)
+        self.assertIn(match.group(1), out)
 
     def test_help_message(self):
         # rnp help message
