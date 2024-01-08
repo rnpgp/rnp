@@ -130,6 +130,7 @@ jobs:
         run: |
           echo OPENSSL_ROOT_DIR=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }} >> $GITHUB_ENV
           echo OPENSSL_MODULES=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }}/bin >> $GITHUB_ENV
+          echo RNP_TESTS_OPENSSL_ROOT=${{ env.VCPKG_DIR_U }}/installed/${{ matrix.arch.triplet }} >> $GITHUB_ENV
 
       - name: Adjust settings for s2k_iteration_tuning test
         # This step adjusts s2k_iteration_tuning threshold for
