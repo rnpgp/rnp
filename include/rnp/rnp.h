@@ -2838,7 +2838,7 @@ RNP_API rnp_result_t rnp_input_from_stdin(rnp_input_t *input);
  *
  * @param input pointer to the input opaque structure
  * @param buf memory buffer. Could not be NULL.
- * @param buf_len number of bytes available to read from buf
+ * @param buf_len number of bytes available to read from buf, cannot be zero.
  * @param do_copy if true then the buffer will be copied internally. If
  *        false then the application should ensure that the buffer
  *        is valid and not modified during the lifetime of this object.
