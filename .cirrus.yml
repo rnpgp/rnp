@@ -31,9 +31,9 @@ task:
   skip: "!changesInclude('.cirrus.yml') && changesIncludeOnly('/*.sh', '/.*', '/_*', 'Brewfile', 'docs/**', '**.adoc', '**.md', '**.nix', 'flake.lock', '.github/**') || $CIRRUS_CHANGE_MESSAGE =~ '.*skip ci.*'"
   env:
     matrix:
-      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: openssl, CRYPTO_LIB_INSTALL: openssl, SHARED_LIBS: on   }
-      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: botan,   CRYPTO_LIB_INSTALL: botan2,  SHARED_LIBS: on   }
-      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: botan,   CRYPTO_LIB_INSTALL: botan2,  SHARED_LIBS: off  }
+      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: openssl, CRYPTO_LIB_INSTALL: openssl, SHARED_LIBS: on,  RNP_LOG_CONSOLE: 1 }
+      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: botan,   CRYPTO_LIB_INSTALL: botan2,  SHARED_LIBS: on,  RNP_LOG_CONSOLE: 1 }
+      - { CIRRUS_CLONE_SUBMODULES: true, CRYPTO_BACKEND: botan,   CRYPTO_LIB_INSTALL: botan2,  SHARED_LIBS: off, RNP_LOG_CONSOLE: 1 }
 
   dependencies_script: |
     pkg install -y gcc cmake pkgconf googletest gnupg $CRYPTO_LIB_INSTALL json-c rubygem-asciidoctor
