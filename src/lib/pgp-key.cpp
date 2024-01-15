@@ -288,6 +288,26 @@ update_sig_expiration(pgp_signature_t *      dst,
     }
 }
 
+static bool
+update_sig_features(pgp_signature_t *      dst,
+                    const pgp_signature_t *src,
+                    pgp_key_feature_t flags)
+{
+    try {
+        *dst = *src;
+        pgp_sig_subpkt_t *oldFeatures =
+          dst->get_subpkt(PGP_SIG_SUBPKT_FEATURES);
+        if (oldFeatures) {
+          dst->remove_subpkt(oldFeatures);
+        }
+        dst->set_key_features(flags);
+        return true;
+    } catch (const std::exception &e) {
+        RNP_LOG("%s", e.what());
+        return false;
+    }
+}
+
 bool
 pgp_key_set_expiration(pgp_key_t *                    key,
                        pgp_key_t *                    seckey,
@@ -431,6 +451,94 @@ pgp_subkey_set_expiration(pgp_key_t *                    sub,
         RNP_LOG("%s", e.what());
         return false;
     }
+}
+
+/* Based on the code from pgp_key_set_expiration. */
+bool
+pgp_key_set_features(pgp_key_t *                    key,
+                     pgp_key_t *                    seckey,
+                     pgp_key_feature_t              flags,
+                     const pgp_password_provider_t &prov,
+                     rnp::SecurityContext &         ctx)
+{
+    if (!key->is_primary()) {
+        RNP_LOG("Not a primary key");
+        return false;
+    }
+
+    std::vector<pgp_sig_id_t> sigs;
+    /* update features for the latest direct-key signature and self-signature for each userid
+     */
+    pgp_subsig_t *sig = key->latest_selfsig(PGP_UID_NONE);
+    if (sig) {
+        sigs.push_back(sig->sigid);
+    }
+    for (size_t uid = 0; uid < key->uid_count(); uid++) {
+        sig = key->latest_selfsig(uid);
+        if (sig) {
+            sigs.push_back(sig->sigid);
+        }
+    }
+    if (sigs.empty()) {
+        RNP_LOG("No valid self-signature(s)");
+        return false;
+    }
+
+    rnp::KeyLocker seclock(*seckey);
+    for (const auto &sigid : sigs) {
+        pgp_subsig_t &sig = key->get_sig(sigid);
+        /* update signature and re-sign it */
+
+        if (sig.is_cert() && !key->is_self_cert(sig)) {
+          // Features subpacket appears only in self-signatures.
+          continue;
+        }
+
+        /* unlock secret key if needed */
+        if (seckey->is_locked() && !seckey->unlock(prov)) {
+            RNP_LOG("Failed to unlock secret key");
+            return false;
+        }
+
+        pgp_signature_t newsig;
+        pgp_sig_id_t    oldsigid = sigid;
+        if (!update_sig_features(&newsig, &sig.sig, flags)) {
+            return false;
+        }
+
+        try {
+            if (sig.is_cert()) {
+                if (sig.uid >= key->uid_count()) {
+                    RNP_LOG("uid not found");
+                    return false;
+                }
+                seckey->sign_cert(key->pkt(), key->get_uid(sig.uid).pkt, newsig, ctx);
+            } else {
+                /* direct-key signature case */
+                seckey->sign_direct(key->pkt(), newsig, ctx);
+            }
+            /* replace signature, first for secret key since it may be replaced in public */
+            if (seckey->has_sig(oldsigid)) {
+                seckey->replace_sig(oldsigid, newsig);
+            }
+            if (key != seckey) {
+                key->replace_sig(oldsigid, newsig);
+            }
+        } catch (const std::exception &e) {
+            RNP_LOG("failed to calculate or add signature: %s", e.what());
+            return false;
+        }
+    }
+
+    if (!seckey->refresh_data(ctx)) {
+        RNP_LOG("Failed to refresh seckey data.");
+        return false;
+    }
+    if ((key != seckey) && !key->refresh_data(ctx)) {
+        RNP_LOG("Failed to refresh key data.");
+        return false;
+    }
+    return true;
 }
 
 pgp_key_t *

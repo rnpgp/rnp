@@ -622,6 +622,12 @@ pgp_key_pkt_t *pgp_decrypt_seckey(const pgp_key_t &,
 
 pgp_key_flags_t pgp_pk_alg_capabilities(pgp_pubkey_alg_t alg);
 
+bool pgp_key_set_features(pgp_key_t *                    key,
+                          pgp_key_t *                    seckey,
+                          pgp_key_feature_t              flags,
+                          const pgp_password_provider_t &prov,
+                          rnp::SecurityContext &         ctx);
+
 bool pgp_key_set_expiration(pgp_key_t *                    key,
                             pgp_key_t *                    signer,
                             uint32_t                       expiry,

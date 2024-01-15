@@ -6301,6 +6301,20 @@ try {
 FFI_GUARD
 
 rnp_result_t
+rnp_signature_get_features(rnp_signature_handle_t handle, uint64_t *features)
+try {
+    if (!handle || !features) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    if (!handle->sig) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    *features = handle->sig->sig.key_get_features();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
 rnp_signature_get_keyid(rnp_signature_handle_t handle, char **result)
 try {
     if (!handle || !result) {
@@ -6937,6 +6951,40 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
     *result = key->expiration();
+    return RNP_SUCCESS;
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_set_features(rnp_key_handle_t key, uint64_t features)
+try {
+    if (!key) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+
+    pgp_key_t *pkey = get_key_prefer_public(key);
+    if (!pkey) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+    pgp_key_t *skey = get_key_require_secret(key);
+    if (!skey) {
+        FFI_LOG(key->ffi, "Secret key required.");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!pkey->is_primary()) {
+        FFI_LOG(key->ffi, "Function only usable with primary keys.");
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    if (!pgp_key_set_features(
+          pkey, skey, (pgp_key_feature_t)features, key->ffi->pass_provider, key->ffi->context)) {
+        return RNP_ERROR_GENERIC;
+    }
+    pkey->revalidate(*key->ffi->pubring);
+    if (pkey != skey) {
+        skey->revalidate(*key->ffi->secring);
+    }
     return RNP_SUCCESS;
 }
 FFI_GUARD

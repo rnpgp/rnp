@@ -1614,6 +1614,9 @@ RNP_API rnp_result_t rnp_signature_get_creation(rnp_signature_handle_t sig, uint
 RNP_API rnp_result_t rnp_signature_get_expiration(rnp_signature_handle_t sig,
                                                   uint32_t *             expires);
 
+RNP_API rnp_result_t rnp_signature_get_features(rnp_signature_handle_t sig,
+                                                uint64_t *             features);
+
 /** Get signer's key id from the signature.
  *  Note: if key id is not available from the signature then NULL value will
  *        be stored to result.
@@ -1949,6 +1952,8 @@ RNP_API rnp_result_t rnp_key_get_expiration(rnp_key_handle_t key, uint32_t *resu
  * @return RNP_SUCCESS or error code on failure.
  */
 RNP_API rnp_result_t rnp_key_set_expiration(rnp_key_handle_t key, uint32_t expiry);
+
+RNP_API rnp_result_t rnp_key_set_features(rnp_key_handle_t key, uint64_t features);
 
 /**
  * @brief Check whether public key is valid. This includes checks of the self-signatures,
