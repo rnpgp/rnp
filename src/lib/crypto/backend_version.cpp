@@ -110,6 +110,9 @@ backend_version()
 
 #if defined(ENABLE_IDEA) || defined(ENABLE_CAST5) || defined(ENABLE_BLOWFISH) || \
   (defined(ENABLE_RIPEMD160) && OPENSSL_VERSION_NUMBER < 0x30000070L)
+#if !defined(CRYPTO_BACKEND_OPENSSL3_LEGACY)
+#error "OpenSSL doesn't have legacy provider, however one of the features enables it's load."
+#endif
 #define OPENSSL_LOAD_LEGACY
 #endif
 
