@@ -72,7 +72,7 @@ backend_version()
     if (version[0]) {
         return version;
     }
-    const char *reg = "OpenSSL (([0-9]\\.[0-9]\\.[0-9])[a-z]*(-[a-z0-9]+)*) ";
+    const char *reg = "OpenSSL (([0-9]+\\.[0-9]+\\.[0-9]+)[a-z]*(-[a-z0-9]+)*) ";
 #ifndef RNP_USE_STD_REGEX
     static regex_t r;
     regmatch_t     matches[5];
