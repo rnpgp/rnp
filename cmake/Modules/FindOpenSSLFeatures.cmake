@@ -139,7 +139,7 @@ else(WIN32 AND NOT MINGW)
   set(FOF "build/findopensslfeatures")
 endif(WIN32 AND NOT MINGW)
 
-foreach(feature "hashes" "ciphers" "curves" "publickey")
+foreach(feature "hashes" "ciphers" "curves" "publickey" "providers")
   execute_process(
     COMMAND "${FOF}" "${feature}"
     WORKING_DIRECTORY "${_fossl_work_dir}"
@@ -160,7 +160,7 @@ foreach(feature "hashes" "ciphers" "curves" "publickey")
   list(APPEND OPENSSL_SUPPORTED_FEATURES ${OPENSSL_SUPPORTED_${feature_up}})
 endforeach()
 
-message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey.")
+message(STATUS "Fetched OpenSSL features: ${hashes_len} hashes, ${ciphers_len} ciphers, ${curves_len} curves, ${publickey_len} publickey, ${providers_len} providers.")
 
 function(OpenSSLHasFeature FEATURE VARIABLE)
   string(TOUPPER ${FEATURE} _feature_up)

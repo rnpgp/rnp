@@ -4,6 +4,9 @@
 #include <openssl/ec.h>
 #include <openssl/objects.h>
 #include <openssl/evp.h>
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+#include <openssl/provider.h>
+#endif
 
 int
 list_curves()
@@ -100,10 +103,31 @@ list_publickey()
 }
 
 int
+list_providers()
+{
+    printf("default\n");
+#if OPENSSL_VERSION_NUMBER >= 0x30000000L
+    const char *known_names[] = {"legacy", "fips"};
+    for (size_t i = 0; i < sizeof(known_names) / sizeof(known_names[0]); i++) {
+        OSSL_PROVIDER *prov = OSSL_PROVIDER_load(NULL, known_names[i]);
+        if (prov) {
+            printf("%s\n", known_names[i]);
+            OSSL_PROVIDER_unload(prov);
+        }
+    }
+#else
+    /* OpenSSL < 3.0 includes all legacy algorithms in the default provider */
+    printf("legacy\n");
+#endif
+    return 0;
+}
+
+int
 main(int argc, char *argv[])
 {
     if (argc != 2) {
-        fprintf(stderr, "Usage: opensslfeatures [curves|hashes|ciphers|publickey]\n");
+        fprintf(stderr,
+                "Usage: opensslfeatures [curves|hashes|ciphers|publickey|providers]\n");
         return 1;
     }
     if (!strcmp(argv[1], "hashes")) {
@@ -117,6 +141,9 @@ main(int argc, char *argv[])
     }
     if (!strcmp(argv[1], "publickey")) {
         return list_publickey();
+    }
+    if (!strcmp(argv[1], "providers")) {
+        return list_providers();
     }
     fprintf(stderr, "Unknown command: %s\n", argv[1]);
     return 1;
