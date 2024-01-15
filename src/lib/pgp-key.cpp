@@ -289,16 +289,13 @@ update_sig_expiration(pgp_signature_t *      dst,
 }
 
 static bool
-update_sig_features(pgp_signature_t *      dst,
-                    const pgp_signature_t *src,
-                    pgp_key_feature_t flags)
+update_sig_features(pgp_signature_t *dst, const pgp_signature_t *src, pgp_key_feature_t flags)
 {
     try {
         *dst = *src;
-        pgp_sig_subpkt_t *oldFeatures =
-          dst->get_subpkt(PGP_SIG_SUBPKT_FEATURES);
+        pgp_sig_subpkt_t *oldFeatures = dst->get_subpkt(PGP_SIG_SUBPKT_FEATURES);
         if (oldFeatures) {
-          dst->remove_subpkt(oldFeatures);
+            dst->remove_subpkt(oldFeatures);
         }
         dst->set_key_features(flags);
         return true;
@@ -490,8 +487,8 @@ pgp_key_set_features(pgp_key_t *                    key,
         /* update signature and re-sign it */
 
         if (sig.is_cert() && !key->is_self_cert(sig)) {
-          // Features subpacket appears only in self-signatures.
-          continue;
+            // Features subpacket appears only in self-signatures.
+            continue;
         }
 
         /* unlock secret key if needed */

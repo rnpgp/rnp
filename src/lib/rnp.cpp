@@ -6977,8 +6977,11 @@ try {
         return RNP_ERROR_BAD_PARAMETERS;
     }
 
-    if (!pgp_key_set_features(
-          pkey, skey, (pgp_key_feature_t)features, key->ffi->pass_provider, key->ffi->context)) {
+    if (!pgp_key_set_features(pkey,
+                              skey,
+                              (pgp_key_feature_t) features,
+                              key->ffi->pass_provider,
+                              key->ffi->context)) {
         return RNP_ERROR_GENERIC;
     }
     pkey->revalidate(*key->ffi->pubring);
