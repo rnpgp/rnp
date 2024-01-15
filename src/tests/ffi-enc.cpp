@@ -178,15 +178,16 @@ TEST_F(rnp_tests, test_ffi_encrypt_pass)
         assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
         assert_rnp_failure(
           rnp_op_encrypt_add_password(op, "pass2", "SHA256", 12345, "TWOFISH"));
-        assert_rnp_success(
-          rnp_op_encrypt_add_password(op, "pass2", "SHA256", 12345, "BLOWFISH"));
+        const char *alg = blowfish_enabled() ? "BLOWFISH" : "AES256";
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SHA256", 12345, alg));
     } else if (!sm2_enabled() && twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
         assert_rnp_success(
           rnp_op_encrypt_add_password(op, "pass2", "SHA256", 12345, "TWOFISH"));
     } else if (sm2_enabled() && !twofish_enabled()) {
         assert_rnp_failure(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
-        assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "BLOWFISH"));
+        const char *alg = blowfish_enabled() ? "BLOWFISH" : "AES256";
+        assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, alg));
     } else {
         assert_rnp_success(rnp_op_encrypt_add_password(op, "pass2", "SM3", 12345, "TWOFISH"));
     }
