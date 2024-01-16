@@ -92,8 +92,12 @@ jobs:
           - image: { name: 'CentOS 8', container: 'centos-8-amd64', gpg_ver: stable, backend: OpenSSL  }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
           # Coverage report for OpenSSL 3.0 backend
-          - image: { name: 'CentOS 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL }
+          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL }
             env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on  }
+          # Coverage report for OpenSSL 3.0 backend with disabled algos
+          - image: { name: 'Fedora 36', container: 'fedora-36-amd64', gpg_ver: stable, backend: OpenSSL }
+            env:   { CC: gcc, CXX: g++, BUILD_MODE: coverage,   SHARED_LIBS: on, idea: Off, sm2: Off, two: Off, blow: Off, rmd: Off  }
+
 
     container: ghcr.io/rnpgp/ci-rnp-${{ matrix.image.container }}
 
@@ -114,6 +118,9 @@ jobs:
 
           echo "ENABLE_SM2=${{ matrix.image.sm2 }}" >> $GITHUB_ENV
           echo "ENABLE_IDEA=${{ matrix.image.idea }}" >> $GITHUB_ENV
+          echo "ENABLE_TWOFISH=${{ matrix.image.two }}" >> $GITHUB_ENV
+          echo "ENABLE_BLOWFISH=${{ matrix.image.blow }}" >> $GITHUB_ENV
+          echo "ENABLE_RIPEMD160=${{ matrix.image.rmd }}" >> $GITHUB_ENV
 
           echo CORES="$(nproc --all)" >> $GITHUB_ENV
 
@@ -139,13 +146,16 @@ jobs:
 
           [ -n "$ENABLE_SM2" ] && sm2_opt=(-DENABLE_SM2="$ENABLE_SM2")
           [ -n "$ENABLE_IDEA" ] && idea_opt=(-DENABLE_IDEA="$ENABLE_IDEA")
+          [ -n "$ENABLE_TWOFISH" ] && two_opt=(-DENABLE_TWOFISH="$ENABLE_TWOFISH")
+          [ -n "$ENABLE_BLOWFISH" ] && blow_opt=(-DENABLE_BLOWFISH="$ENABLE_BLOWFISH")
+          [ -n "$ENABLE_RIPEMD160" ] && rmd_opt=(-DENABLE_RIPEMD160="$ENABLE_RIPEMD160")
 
           cmake -B build                                           \
                 -DBUILD_SHARED_LIBS=${{ env.SHARED_LIBS }}         \
                 -DDOWNLOAD_GTEST=ON                                \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DCRYPTO_BACKEND=${{ matrix.image.backend }}       \
-                ${sm2_opt:-} ${idea_opt:-} ${cov_opt:-} ${san_opt:-} .
+                ${sm2_opt:-} ${idea_opt:-} ${two_opt:-} ${blow_opt:-} ${rmd_opt:-} ${cov_opt:-} ${san_opt:-} .
 
       - name: Build
         run: cmake --build build --parallel ${{ env.CORES }}
