@@ -69,6 +69,8 @@ TEST_F(rnp_tests, test_key_add_userid)
     selfsig0.key_flags = 0x2;
     selfsig0.key_expiration = base_expiry;
     selfsig0.primary = false;
+    auto curtime = global_ctx.time();
+    global_ctx.set_time(curtime > SHA1_KEY_FROM ? SHA1_KEY_FROM - 100 : 0);
     key->add_uid_cert(selfsig0, PGP_HASH_SHA1, global_ctx);
     // attempt to add sha1-signed uid and make sure it succeeds now and fails after the cutoff
     // date in 2024
