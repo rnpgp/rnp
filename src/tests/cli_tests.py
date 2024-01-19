@@ -4862,12 +4862,16 @@ class EncryptElgamal(Encrypt):
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
         # DSA 1024 key uses SHA-1 as hash but verification would succeed till 2024
+        if sign_key_size == 1024:
+            return
         self._encrypt_decrypt(self.gpg, self.rnp)
 
     def do_test_decrypt(self, sign_key_size, enc_key_size):
         pfx = EncryptElgamal.key_pfx(sign_key_size, enc_key_size)
         self.operation_key_location = tuple((key_path(pfx, False), key_path(pfx, True)))
         self.rnp.userid = self.gpg.userid = pfx + AT_EXAMPLE
+        if sign_key_size == 1024:
+            return
         self._encrypt_decrypt(self.rnp, self.gpg)
 
     def test_encrypt_P1024_1024(self): self.do_test_encrypt(1024, 1024)
@@ -4878,11 +4882,7 @@ class EncryptElgamal(Encrypt):
     def test_decrypt_P2048_2048(self): self.do_test_decrypt(2048, 2048)
     def test_decrypt_P1234_1234(self): self.do_test_decrypt(1234, 1234)
 
-    def test_generate_elgamal_key1024_in_gpg_and_encrypt(self):
-        cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1024, 1024, self.gpg.userid)
-        self.operation_key_gencmd = cmd
-        # Will not fail till 2024 since 1024-bit DSA key uses SHA-1 as hash.
-        self._encrypt_decrypt(self.gpg, self.rnp)
+    # 1024-bit key generation test was removed since it uses SHA1, which is not allowed for key signatures since Jan 19, 2024.
 
     def test_generate_elgamal_key1536_in_gpg_and_encrypt(self):
         cmd = EncryptElgamal.GPG_GENERATE_DSA_ELGAMAL_PATTERN.format(1536, 1536, self.gpg.userid)
