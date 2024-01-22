@@ -150,6 +150,7 @@ ask_curve_name(FILE *input_fp)
     return result;
 }
 
+#if defined(ENABLE_PQC)
 static std::string
 ask_sphincsplus_param_name(FILE *input_fp)
 {
@@ -191,6 +192,7 @@ ask_sphincsplus_param_name(FILE *input_fp)
 
     return result;
 }
+#endif
 
 static long
 ask_rsa_bitlen(FILE *input_fp)

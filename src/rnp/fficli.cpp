@@ -1371,7 +1371,18 @@ cli_rnp_print_key_info(FILE *fp, rnp_ffi_t ffi, rnp_key_handle_t key, bool psecr
     /* key algorithm */
     char *alg = NULL;
     (void) rnp_key_get_alg(key, &alg);
-    fprintf(fp, "%s ", cli_rnp_normalize_key_alg(alg));
+    fprintf(fp, "%s", cli_rnp_normalize_key_alg(alg));
+#if defined(ENABLE_PQC)
+    // in case of a SPHINCS+ key, also print the parameter set
+    char *param;
+    rnp_result_t res = rnp_key_sphincsplus_get_param(key, &param);
+    if(res == RNP_SUCCESS)
+    {
+        fprintf(fp, "-%s", param);
+        rnp_buffer_destroy(param);
+    }
+#endif
+    fprintf(fp, " ");
     /* key id */
     char *keyid = NULL;
     (void) rnp_key_get_keyid(key, &keyid);
