@@ -148,20 +148,20 @@ static const id_str_pair pubkey_alg_map[] = {
   {PGP_PKA_X25519, "X25519"},
 #endif
 #if defined(ENABLE_PQC)
-  {PGP_PKA_KYBER768_X25519, "Kyber768 + X25519"},
+  {PGP_PKA_KYBER768_X25519, "ML-KEM-768 + X25519"},
   //{PGP_PKA_KYBER1024_X448, "Kyber1024 + X448"},
-  {PGP_PKA_KYBER768_P256, "Kyber768 + NIST P-256"},
-  {PGP_PKA_KYBER1024_P384, "Kyber1024 + NIST P-384"},
-  {PGP_PKA_KYBER768_BP256, "Kyber768 + Brainpool256"},
-  {PGP_PKA_KYBER1024_BP384, "Kyber1024 + Brainpool384"},
-  {PGP_PKA_DILITHIUM3_ED25519, "Dilithium3 + ED25519"},
+  {PGP_PKA_KYBER768_P256, "ML-KEM-768 + NIST P-256"},
+  {PGP_PKA_KYBER1024_P384, "ML-KEM-1024 + NIST P-384"},
+  {PGP_PKA_KYBER768_BP256, "ML-KEM-768 + Brainpool256"},
+  {PGP_PKA_KYBER1024_BP384, "ML-KEM-1024 + Brainpool384"},
+  {PGP_PKA_DILITHIUM3_ED25519, "ML-DSA-65 + ED25519"},
   //{PGP_PKA_DILITHIUM5_ED448, "Dilithium + X448"},
-  {PGP_PKA_DILITHIUM3_P256, "Dilithium3 + NIST P-256"},
-  {PGP_PKA_DILITHIUM5_P384, "Dilithium5 + NIST P-384"},
-  {PGP_PKA_DILITHIUM3_BP256, "Dilithium3 + Brainpool256"},
-  {PGP_PKA_DILITHIUM5_BP384, "Dilithium5 + Brainpool384"},
-  {PGP_PKA_SPHINCSPLUS_SHA2, "SPHINCS+-SHA2"},
-  {PGP_PKA_SPHINCSPLUS_SHAKE, "SPHINCS+-SHAKE"},
+  {PGP_PKA_DILITHIUM3_P256, "ML-DSA-65 + NIST P-256"},
+  {PGP_PKA_DILITHIUM5_P384, "ML-DSA-87 + NIST P-384"},
+  {PGP_PKA_DILITHIUM3_BP256, "ML-DSA-65 + Brainpool256"},
+  {PGP_PKA_DILITHIUM5_BP384, "ML-DSA-87 + Brainpool384"},
+  {PGP_PKA_SPHINCSPLUS_SHA2, "SLH-DSA-SHA2"},
+  {PGP_PKA_SPHINCSPLUS_SHAKE, "SLH-DSA-SHAKE"},
 #endif
   {0x00, NULL},
 };
@@ -838,12 +838,12 @@ stream_dump_signature_pkt(rnp_dump_ctx_t *ctx, pgp_signature_t *sig, pgp_dest_t 
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         dst_print_vec(
-          dst, "dilithium-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
+          dst, "mldsa-ecdsa/eddsa sig", material.dilithium_exdsa.sig, ctx->dump_mpi);
         break;
     case PGP_PKA_SPHINCSPLUS_SHA2:
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
-        dst_print_vec(dst, "sphincs+ sig", material.sphincsplus.sig, ctx->dump_mpi);
+        dst_print_vec(dst, "slhdsa sig", material.sphincsplus.sig, ctx->dump_mpi);
         break;
 #endif
     default:
@@ -963,7 +963,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         dst_print_vec(dst,
-                      "kyber-ecdh encoded pubkey",
+                      "mlkem-ecdh encoded pubkey",
                       key.material.kyber_ecdh.pub.get_encoded(),
                       ctx->dump_mpi);
         break;
@@ -978,7 +978,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_DILITHIUM5_BP384:
         dst_print_vec(dst,
-                      "dilithium-ecdsa/eddsa encodced pubkey",
+                      "mldsa-ecdsa/eddsa encodced pubkey",
                       key.material.dilithium_exdsa.pub.get_encoded(),
                       ctx->dump_mpi);
         break;
@@ -986,7 +986,7 @@ stream_dump_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *dst)
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         dst_print_vec(dst,
-                      "sphincs+ encoded pubkey",
+                      "slhdsa encoded pubkey",
                       key.material.sphincsplus.pub.get_encoded(),
                       ctx->dump_mpi);
         break;
@@ -1181,11 +1181,11 @@ stream_dump_pk_session_key(rnp_dump_ctx_t *ctx, pgp_source_t *src, pgp_dest_t *d
         FALLTHROUGH_STATEMENT;
     case PGP_PKA_KYBER1024_BP384:
         dst_print_vec(dst,
-                      "kyber-ecdh composite ciphertext",
+                      "mlkem-ecdh composite ciphertext",
                       material.kyber_ecdh.composite_ciphertext,
                       ctx->dump_mpi);
         dst_print_vec(dst,
-                      "kyber-ecdh wrapped session key",
+                      "mlkem-ecdh wrapped session key",
                       material.kyber_ecdh.wrapped_sesskey,
                       ctx->dump_mpi);
         break;

@@ -668,7 +668,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         case PGP_PKA_KYBER1024_BP384:
             tmpbuf.resize(pgp_kyber_ecdh_composite_private_key_t::encoded_size(key.alg));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse kyber-ecdh secret key data");
+                RNP_LOG("failed to parse mkem-ecdh secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
             key.material.kyber_ecdh.priv =
@@ -686,7 +686,7 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         case PGP_PKA_DILITHIUM5_BP384:
             tmpbuf.resize(pgp_dilithium_exdsa_composite_private_key_t::encoded_size(key.alg));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse dilithium-ecdsa/eddsa secret key data");
+                RNP_LOG("failed to parse mldsa-ecdsa/eddsa secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
             key.material.dilithium_exdsa.priv = pgp_dilithium_exdsa_composite_private_key_t(
@@ -697,12 +697,12 @@ parse_secret_key_mpis(pgp_key_pkt_t &key, const uint8_t *mpis, size_t len)
         case PGP_PKA_SPHINCSPLUS_SHAKE: {
             uint8_t param;
             if (!body.get(param)) {
-                RNP_LOG("failed to parse sphincs+ secret key data");
+                RNP_LOG("failed to parse SLH-DSA secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
             tmpbuf.resize(sphincsplus_privkey_size((sphincsplus_parameter_t) param));
             if (!body.get(tmpbuf.data(), tmpbuf.size())) {
-                RNP_LOG("failed to parse sphincs+ secret key data");
+                RNP_LOG("failed to parse SLH-DSA secret key data");
                 return RNP_ERROR_BAD_FORMAT;
             }
             key.material.sphincsplus.priv =
@@ -1597,7 +1597,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     case PGP_PKA_KYBER1024_BP384:
         tmpbuf.resize(pgp_kyber_ecdh_composite_public_key_t::encoded_size(alg));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse kyber-ecdh public key data");
+            RNP_LOG("failed to parse mlkem-ecdh public key data");
             return RNP_ERROR_BAD_FORMAT;
         }
         material.kyber_ecdh.pub = pgp_kyber_ecdh_composite_public_key_t(tmpbuf, alg);
@@ -1614,7 +1614,7 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     case PGP_PKA_DILITHIUM5_BP384:
         tmpbuf.resize(pgp_dilithium_exdsa_composite_public_key_t::encoded_size(alg));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse dilithium-ecdsa/eddsa public key data");
+            RNP_LOG("failed to parse mldsa-ecdsa/eddsa public key data");
             return RNP_ERROR_BAD_FORMAT;
         }
         material.dilithium_exdsa.pub = pgp_dilithium_exdsa_composite_public_key_t(tmpbuf, alg);
@@ -1624,12 +1624,12 @@ pgp_key_pkt_t::parse(pgp_source_t &src)
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         uint8_t param;
         if (!pkt.get(param)) {
-            RNP_LOG("failed to parse sphincs+ public key data");
+            RNP_LOG("failed to parse SLH-DSA public key data");
             return RNP_ERROR_BAD_FORMAT;
         }
         tmpbuf.resize(sphincsplus_pubkey_size((sphincsplus_parameter_t) param));
         if (!pkt.get(tmpbuf.data(), tmpbuf.size())) {
-            RNP_LOG("failed to parse sphincs+ public key data");
+            RNP_LOG("failed to parse SLH-DSA public key data");
             return RNP_ERROR_BAD_FORMAT;
         }
         material.sphincsplus.pub =
