@@ -289,6 +289,7 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
 #if defined(ENABLE_PQC)
+          "\t(24) Ed25519 + (ML-KEM-768 + X25519), v4 key\n"
           "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
           "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
           "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
@@ -369,6 +370,11 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         }
 #endif
 #if defined(ENABLE_PQC)
+        case 24:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_ED25519);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            break;
         case 25:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_ED25519);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
