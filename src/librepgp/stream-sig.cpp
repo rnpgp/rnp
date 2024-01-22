@@ -1650,7 +1650,7 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
           pgp_dilithium_exdsa_signature_t::composite_signature_size(palg));
         if (!pkt.get(material.dilithium_exdsa.sig.data(),
                      material.dilithium_exdsa.sig.size())) {
-            RNP_LOG("failed to get dilithium-ecdsa/eddsa signature");
+            RNP_LOG("failed to get mldsa-ecdsa/eddsa signature");
             return false;
         }
         break;
@@ -1659,14 +1659,14 @@ pgp_signature_t::parse_material(pgp_signature_material_t &material) const
     case PGP_PKA_SPHINCSPLUS_SHAKE: {
         uint8_t param;
         if (!pkt.get(param)) {
-            RNP_LOG("failed to parse sphincs+ signature data");
+            RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
         material.sphincsplus.param = (sphincsplus_parameter_t) param;
         material.sphincsplus.sig.resize(
           sphincsplus_signature_size(material.sphincsplus.param));
         if (!pkt.get(material.sphincsplus.sig.data(), material.sphincsplus.sig.size())) {
-            RNP_LOG("failed to parse sphincs+ signature data");
+            RNP_LOG("failed to parse SLH-DSA signature data");
             return false;
         }
         break;

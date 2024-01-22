@@ -36,7 +36,7 @@ void
 pgp_dilithium_exdsa_composite_key_t::initialized_or_throw() const
 {
     if (!is_initialized()) {
-        RNP_LOG("Trying to use uninitialized dilithium-ecdsa/eddsa key");
+        RNP_LOG("Trying to use uninitialized mldsa-ecdsa/eddsa key");
         throw rnp::rnp_exception(RNP_ERROR_BAD_STATE);
     }
 }
@@ -54,7 +54,7 @@ pgp_dilithium_exdsa_composite_key_t::gen_keypair(rnp::RNG *                 rng,
 
     res = ec_key_t::generate_exdsa_key_pair(rng, &exdsa_key_pair, curve);
     if (res != RNP_SUCCESS) {
-        RNP_LOG("generating dilithium exdsa composite key failed when generating exdsa key");
+        RNP_LOG("generating mldsa exdsa composite key failed when generating exdsa key");
         return res;
     }
 
@@ -203,7 +203,7 @@ pgp_dilithium_exdsa_composite_public_key_t::pgp_dilithium_exdsa_composite_public
     if (exdsa_curve_pubkey_size(pk_alg_to_curve_id(pk_alg)) != exdsa_key_encoded.size() ||
         dilithium_pubkey_size(pk_alg_to_dilithium_id(pk_alg)) !=
           dilithium_key_encoded.size()) {
-        RNP_LOG("exdsa or dilithium key length mismatch");
+        RNP_LOG("exdsa or mldsa key length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
     is_initialized_ = true;
@@ -259,7 +259,7 @@ pgp_dilithium_exdsa_composite_private_key_t::pgp_dilithium_exdsa_composite_priva
     if (exdsa_curve_privkey_size(pk_alg_to_curve_id(pk_alg)) != exdsa_key_encoded.size() ||
         dilithium_privkey_size(pk_alg_to_dilithium_id(pk_alg)) !=
           dilithium_key_encoded.size()) {
-        RNP_LOG("exdsa or dilithium key length mismatch");
+        RNP_LOG("exdsa or mldsa key length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
@@ -283,7 +283,7 @@ pgp_dilithium_exdsa_composite_private_key_t::parse_component_keys(
   std::vector<uint8_t> key_encoded)
 {
     if (key_encoded.size() != encoded_size(pk_alg_)) {
-        RNP_LOG("Dilithium composite key format invalid: length mismatch");
+        RNP_LOG("ML-DSA composite key format invalid: length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
@@ -366,7 +366,7 @@ pgp_dilithium_exdsa_composite_public_key_t::parse_component_keys(
   std::vector<uint8_t> key_encoded)
 {
     if (key_encoded.size() != encoded_size(pk_alg_)) {
-        RNP_LOG("Dilithium composite key format invalid: length mismatch");
+        RNP_LOG("ML-DSA composite key format invalid: length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
@@ -406,7 +406,7 @@ pgp_dilithium_exdsa_composite_public_key_t::verify(const pgp_dilithium_exdsa_sig
     std::vector<uint8_t> exdsa_sig;
 
     if (sig->sig.size() != sig->composite_signature_size(pk_alg_)) {
-        RNP_LOG("invalid signature size for dilithium exdsa composite algorithm %d", pk_alg_);
+        RNP_LOG("invalid signature size for mldsa exdsa composite algorithm %d", pk_alg_);
         return RNP_ERROR_VERIFICATION_FAILED;
     }
 
