@@ -1948,6 +1948,18 @@ RNP_API rnp_result_t rnp_key_get_default_key(rnp_key_handle_t  primary_key,
  */
 RNP_API rnp_result_t rnp_key_get_alg(rnp_key_handle_t key, char **alg);
 
+/** Get a SPHINCS+ key's parameter string
+ *
+ * @param key key handle
+ * @param alg string with parameter name will be stored here. You must free it using the
+ *            rnp_buffer_destroy() function.
+ * @return RNP_SUCCESS or error code if failed.
+ * NOTE: This is an experimental feature and this function can be replaced (or removed) at any
+ * time.
+ */
+RNP_API rnp_result_t rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param);
+
+
 /** Get number of bits in the key. For EC-based keys it will return size of the curve.
  *
  * @param key key handle
