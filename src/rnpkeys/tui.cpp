@@ -247,15 +247,15 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
 #if defined(ENABLE_PQC)
-          "\t(25) (Dilithium3 + Ed25519) + (Kyber768 + X25519)\n"
-          "\t(27) (Dilithium3 + ECDSA-NIST-P-256) + (Kyber768 + ECDH-NIST-P-256)\n"
-          "\t(28) (Dilithium5 + ECDSA-NIST-P-384) + (Kyber1024 + ECDH-NIST-P-384)\n"
-          "\t(29) (Dilithium3 + ECDSA-brainpoolP256r1) + (Kyber768 + ECDH-brainpoolP256r1)\n"
-          "\t(30) (Dilithium5 + ECDSA-brainpoolP384r1) + (Kyber1024 + ECDH-brainpoolP384r1)\n"
-          "\t(31) SPHINCS+-SHA2-128f + (Kyber768 + X25519)\n"
-          "\t(32) SPHINCS+-SHAKE-128f + (Kyber768 + X25519)\n"
-          "\t(33) SPHINCS+-SHA2-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
-          "\t(34) SPHINCS+-SHAKE-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
+          "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
+          "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
+          "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
+          "\t(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)\n"
+          "\t(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)\n"
+          "\t(31) SLH-DSA-SHA2-128f + (ML-KEM-768 + X25519)\n"
+          "\t(32) SLH-DSA-SHAKE-128f + (ML-KEM-768 + X25519)\n"
+          "\t(33) SLH-DSA-SHA2-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
+          "\t(34) SLH-DSA-SHAKE-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
 #endif
           "\t(99) SM2\n"
           "> ");
@@ -422,12 +422,12 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
 #if defined(ENABLE_PQC)
-               "\t(25) Kyber768 + X25519\n"
-               "\t(26) Kyber1024 + X448\n"
-               "\t(27) Kyber768 + ECDH-NIST-P-256\n"
+               "\t(25) ML-KEN-768 + X25519\n"
+               "\t(26) ML-KEM1024 + X448\n"
+               "\t(27) ML-KEN-768 + ECDH-NIST-P-256\n"
                "\t(28) Kyber1024 + ECDH-NIST-P-384\n"
-               "\t(29) Kyber768 + ECDH-brainpoolP256r1\n"
-               "\t(30) Kyber1024 + ECDH-brainpoolP384r1\n"
+               "\t(29) ML-KEN-768 + ECDH-brainpoolP256r1\n"
+               "\t(30) ML-KEM1024 + ECDH-brainpoolP384r1\n"
 #endif
                "\t(99) SM2"
                "> ");
