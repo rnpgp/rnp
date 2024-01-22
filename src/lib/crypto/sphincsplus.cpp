@@ -74,7 +74,7 @@ rnp_sphincsplus_alg_to_hashfunc(pgp_pubkey_alg_t alg)
     case PGP_PKA_SPHINCSPLUS_SHAKE:
         return sphinscplus_shake256;
     default:
-        RNP_LOG("invalid sphincs+ alg id");
+        RNP_LOG("invalid SLH-DSA alg id");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
@@ -88,7 +88,7 @@ rnp_sphincsplus_hashfunc_to_alg(sphincsplus_hash_func_t hashfunc)
     case sphinscplus_shake256:
         return PGP_PKA_SPHINCSPLUS_SHAKE;
     default:
-        RNP_LOG("invalid sphincs+ hashfunc");
+        RNP_LOG("invalid SLH-DSA hashfunc");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
@@ -301,7 +301,7 @@ sphincsplus_pubkey_size(sphincsplus_parameter_t param)
     case sphincsplus_simple_256f:
         return 64;
     default:
-        RNP_LOG("invalid sphincs+ parameter identifier");
+        RNP_LOG("invalid SLH-DSA parameter identifier");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
@@ -323,7 +323,7 @@ sphincsplus_signature_size(sphincsplus_parameter_t param)
     case sphincsplus_simple_256f:
         return 49856;
     default:
-        RNP_LOG("invalid sphincs+ parameter identifier");
+        RNP_LOG("invalid SLH-DSA parameter identifier");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 }
