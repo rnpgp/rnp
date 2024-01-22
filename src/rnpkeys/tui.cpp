@@ -150,6 +150,48 @@ ask_curve_name(FILE *input_fp)
     return result;
 }
 
+static std::string
+ask_sphincsplus_param_name(FILE *input_fp)
+{
+    std::vector<std::string> params = {"128f",
+        "128s",
+        "192f",
+        "192s",
+        "256f",
+        "256s"};
+    std::vector<std::string> add_info = {"ML-KEM-768 + X25519",
+        "ML-KEM-768 + X25519",
+        "ML-KEM-1024 + ECDH-NIST-P-384",
+        "ML-KEM-1024 + ECDH-NIST-P-384",
+        "ML-KEM-1024 + ECDH-NIST-P-384",
+        "ML-KEM-1024 + ECDH-NIST-P-384"};
+
+    const size_t pcount = params.size();
+    if (!pcount) {
+        return NULL;
+    }
+    bool        ok = false;
+    std::string result = "";
+    int         attempts = 0;
+    do {
+        if (!check_attempts(attempts)) {
+            return NULL;
+        }
+        printf("Please select which SLH-DSA parameter set you want. In parenthesis, the correspondingly chosen encryption subkey is shown:\n");
+        for (size_t i = 0; i < pcount; i++) {
+            printf("\t(%zu) %s (%s)\n", i + 1, params[i].c_str(), add_info[i].c_str());
+        }
+        printf("(default %s)> ", params[0].c_str());
+        long val = 0;
+        ok = rnp_secure_get_long_from_fd(input_fp, val) && (val > 0) && (val <= (long) pcount);
+        if (ok) {
+            result = params[val - 1];
+        }
+    } while (!ok);
+
+    return result;
+}
+
 static long
 ask_rsa_bitlen(FILE *input_fp)
 {
@@ -247,15 +289,14 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
           "\t(23) ED25519 + X25519 (v6 key) \n"
 #endif
 #if defined(ENABLE_PQC)
-          "\t(25) (Dilithium3 + Ed25519) + (Kyber768 + X25519)\n"
-          "\t(27) (Dilithium3 + ECDSA-NIST-P-256) + (Kyber768 + ECDH-NIST-P-256)\n"
-          "\t(28) (Dilithium5 + ECDSA-NIST-P-384) + (Kyber1024 + ECDH-NIST-P-384)\n"
-          "\t(29) (Dilithium3 + ECDSA-brainpoolP256r1) + (Kyber768 + ECDH-brainpoolP256r1)\n"
-          "\t(30) (Dilithium5 + ECDSA-brainpoolP384r1) + (Kyber1024 + ECDH-brainpoolP384r1)\n"
-          "\t(31) SPHINCS+-SHA2-128f + (Kyber768 + X25519)\n"
-          "\t(32) SPHINCS+-SHAKE-128f + (Kyber768 + X25519)\n"
-          "\t(33) SPHINCS+-SHA2-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
-          "\t(34) SPHINCS+-SHAKE-256f + (Kyber1024 + ECDH-NIST-P-384)\n"
+          "\t(24) Ed25519 + (ML-KEM-768 + X25519), v4 key\n"
+          "\t(25) (ML-DSA-65 + Ed25519) + (ML-KEM-768 + X25519)\n"
+          "\t(27) (ML-DSA-65 + ECDSA-NIST-P-256) + (ML-KEM-768 + ECDH-NIST-P-256)\n"
+          "\t(28) (ML-DSA-87 + ECDSA-NIST-P-384) + (ML-KEM-1024 + ECDH-NIST-P-384)\n"
+          "\t(29) (ML-DSA-65 + ECDSA-brainpoolP256r1) + (ML-KEM-768 + ECDH-brainpoolP256r1)\n"
+          "\t(30) (ML-DSA-87 + ECDSA-brainpoolP384r1) + (ML-KEM-1024 + ECDH-brainpoolP384r1)\n"
+          "\t(31) SLH-DSA-SHA2 + MLKEM-ECDH Composite\n"
+          "\t(32) SLH-DSA-SHAKE + MLKEM-ECDH Composite\n"
 #endif
           "\t(99) SM2\n"
           "> ");
@@ -329,6 +370,11 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
         }
 #endif
 #if defined(ENABLE_PQC)
+        case 24:
+            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_ED25519);
+            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+            break;
         case 25:
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_DILITHIUM3_ED25519);
             cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
@@ -360,33 +406,47 @@ rnpkeys_ask_generate_params(rnp_cfg &cfg, FILE *input_fp)
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
         case 31:
+        {
+            std::string param = ask_sphincsplus_param_name(input_fp);
+            if (param == "") {
+                return false;
+            }
+            if(param == "128f" || param == "128s")
+            {
+                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA256);
+            }
+            else
+            {
+                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA512);
+            }
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHA2);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "128f");
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, param);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
+        }
         case 32:
+        {
+            std::string param = ask_sphincsplus_param_name(input_fp);
+            if (param == "") {
+                return false;
+            }
+            if(param == "128f" || param == "128s")
+            {
+                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
+                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
+            }
+            else
+            {
+                cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
+                cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
+            }
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_256);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER768_X25519);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "128f");
+            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, param);
             cfg.set_str(CFG_KG_V6_KEY, "true");
             break;
-        case 33:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHA2);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA512);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "256f");
-            cfg.set_str(CFG_KG_V6_KEY, "true");
-            break;
-        case 34:
-            cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SPHINCSPLUS_SHAKE);
-            cfg.set_str(CFG_KG_HASH, RNP_ALGNAME_SHA3_512);
-            cfg.set_str(CFG_KG_SUBKEY_ALG, RNP_ALGNAME_KYBER1024_P384);
-            cfg.set_str(CFG_KG_PRIMARY_SPHINCSPLUS_PARAM, "256f");
-            cfg.set_str(CFG_KG_V6_KEY, "true");
-            break;
+        }
 #endif
         case 99: {
             cfg.set_str(CFG_KG_PRIMARY_ALG, RNP_ALGNAME_SM2);
@@ -422,12 +482,12 @@ rnpkeys_ask_generate_params_subkey(rnp_cfg &cfg, FILE *input_fp)
                "\t(19) ECDSA\n"
                "\t(22) EDDSA\n"
 #if defined(ENABLE_PQC)
-               "\t(25) Kyber768 + X25519\n"
-               "\t(26) Kyber1024 + X448\n"
-               "\t(27) Kyber768 + ECDH-NIST-P-256\n"
+               "\t(25) ML-KEN-768 + X25519\n"
+               "\t(26) ML-KEM1024 + X448\n"
+               "\t(27) ML-KEN-768 + ECDH-NIST-P-256\n"
                "\t(28) Kyber1024 + ECDH-NIST-P-384\n"
-               "\t(29) Kyber768 + ECDH-brainpoolP256r1\n"
-               "\t(30) Kyber1024 + ECDH-brainpoolP384r1\n"
+               "\t(29) ML-KEN-768 + ECDH-brainpoolP256r1\n"
+               "\t(30) ML-KEM1024 + ECDH-brainpoolP384r1\n"
 #endif
                "\t(99) SM2"
                "> ");

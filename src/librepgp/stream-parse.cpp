@@ -1673,7 +1673,7 @@ encrypted_try_key(pgp_source_encrypted_param_t *param,
         err = keymaterial->kyber_ecdh.priv.decrypt(
           &ctx.rng, decbuf.data(), &declen, &encmaterial.kyber_ecdh);
         if (err != RNP_SUCCESS) {
-            RNP_LOG("Kyber ECC decryption failure");
+            RNP_LOG("ML-KEM + ECC decryption failure");
             return false;
         }
         break;

@@ -279,7 +279,7 @@ void
 pgp_kyber_ecdh_composite_private_key_t::parse_component_keys(std::vector<uint8_t> key_encoded)
 {
     if (key_encoded.size() != encoded_size(pk_alg_)) {
-        RNP_LOG("Kyber composite key format invalid: length mismatch");
+        RNP_LOG("ML-KEM composite key format invalid: length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
@@ -476,7 +476,7 @@ void
 pgp_kyber_ecdh_composite_public_key_t::parse_component_keys(std::vector<uint8_t> key_encoded)
 {
     if (key_encoded.size() != encoded_size(pk_alg_)) {
-        RNP_LOG("Kyber composite key format invalid: length mismatch");
+        RNP_LOG("ML-KEM composite key format invalid: length mismatch");
         throw rnp::rnp_exception(RNP_ERROR_BAD_PARAMETERS);
     }
 
