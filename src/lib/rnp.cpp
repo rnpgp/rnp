@@ -220,6 +220,17 @@ static const id_str_pair hash_alg_map[] = {{PGP_HASH_MD5, RNP_ALGNAME_MD5},
                                            {PGP_HASH_SM3, RNP_ALGNAME_SM3},
                                            {0, NULL}};
 
+#if defined(ENABLE_PQC)
+static const id_str_pair sphincsplus_params_map[] = {
+    {sphincsplus_simple_128s, "128s"},
+    {sphincsplus_simple_128f, "128f"},
+    {sphincsplus_simple_192s, "192s"},
+    {sphincsplus_simple_192f, "192f"},
+    {sphincsplus_simple_256s, "256s"},
+    {sphincsplus_simple_256f, "256f"},
+    {0, NULL}};
+#endif
+
 static const id_str_pair s2k_type_map[] = {
   {PGP_S2KS_SIMPLE, "Simple"},
   {PGP_S2KS_SALTED, "Salted"},
@@ -6780,6 +6791,25 @@ try {
     }
     pgp_key_t *key = get_key_prefer_public(handle);
     return get_map_value(pubkey_alg_map, key->alg(), alg);
+}
+FFI_GUARD
+
+rnp_result_t
+rnp_key_sphincsplus_get_param(rnp_key_handle_t handle, char **param)
+try {
+#if defined(ENABLE_PQC)
+    if (!handle || !param) {
+        return RNP_ERROR_NULL_POINTER;
+    }
+    pgp_key_t *key = get_key_prefer_public(handle);
+    if(key->alg() != PGP_PKA_SPHINCSPLUS_SHA2 && key->alg() != PGP_PKA_SPHINCSPLUS_SHAKE) {
+        return RNP_ERROR_BAD_PARAMETERS;
+    }
+
+    return get_map_value(sphincsplus_params_map, key->material().sphincsplus.pub.param(), param);
+#else
+    return RNP_ERROR_NOT_IMPLEMENTED;
+#endif
 }
 FFI_GUARD
 
