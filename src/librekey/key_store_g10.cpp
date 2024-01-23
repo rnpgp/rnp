@@ -261,7 +261,7 @@ lookup_var(const sexp_list_t *list, const std::string &name) noexcept
         }
         return r;
     };
-    auto r3 = std::find_if(list->begin(), list->end(), match);
+    auto r3 = std::find_if(list->begin(), list->end(), std::move(match));
     if (r3 == list->end())
         RNP_LOG("Haven't got variable '%s'", name.c_str());
     else
