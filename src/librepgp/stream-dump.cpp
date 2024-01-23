@@ -2480,7 +2480,7 @@ stream_dump_literal_json(pgp_source_t *src, json_object *pkt)
         return ret;
     }
     ret = RNP_ERROR_OUT_OF_MEMORY;
-    auto lhdr = get_literal_src_hdr(lsrc);
+    auto &lhdr = get_literal_src_hdr(lsrc);
     if (!json_add(pkt, "format", (char *) &lhdr.format, 1) ||
         !json_add(pkt, "filename", (char *) lhdr.fname, lhdr.fname_len) ||
         !json_add(pkt, "timestamp", (uint64_t) lhdr.timestamp)) {
