@@ -2829,7 +2829,7 @@ pgp_key_t::merge(const pgp_key_t &src)
     if (is_secret_key_pkt(srckey.key.tag) && !is_secret_key_pkt(dstkey.key.tag)) {
         pgp_key_pkt_t tmp = dstkey.key;
         dstkey.key = srckey.key;
-        srckey.key = tmp;
+        srckey.key = std::move(tmp);
         /* no subkey processing here - they are separated from the main key */
     }
 
@@ -2891,7 +2891,7 @@ pgp_key_t::merge(const pgp_key_t &src, pgp_key_t *primary)
     if (is_secret_key_pkt(srckey.subkey.tag) && !is_secret_key_pkt(dstkey.subkey.tag)) {
         pgp_key_pkt_t tmp = dstkey.subkey;
         dstkey.subkey = srckey.subkey;
-        srckey.subkey = tmp;
+        srckey.subkey = std::move(tmp);
     }
 
     if (transferable_subkey_merge(dstkey, srckey)) {
