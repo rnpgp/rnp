@@ -1074,7 +1074,7 @@ pgp_key_t::del_uid(size_t idx)
         }
         newsigs.push_back(id);
     }
-    sigs_ = newsigs;
+    sigs_ = std::move(newsigs);
     uids_.erase(uids_.begin() + idx);
     /* update uids */
     if (idx == uids_.size()) {
