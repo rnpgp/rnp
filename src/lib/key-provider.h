@@ -59,9 +59,8 @@ typedef struct pgp_key_request_ctx_t {
     pgp_key_request_ctx_t(pgp_op_t              anop = PGP_OP_UNKNOWN,
                           bool                  sec = false,
                           pgp_key_search_type_t tp = PGP_KEY_SEARCH_UNKNOWN)
-        : op(anop), secret(sec)
+        : op(anop), secret(sec), search(tp)
     {
-        search.type = tp;
     }
 } pgp_key_request_ctx_t;
 
