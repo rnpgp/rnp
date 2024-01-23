@@ -3027,7 +3027,7 @@ cli_rnp_process_file(cli_rnp_t *rnp)
             goto done;
         }
         if (src.empty()) {
-            src = in;
+            src = std::move(in);
             /* cannot fail as we checked for extension previously */
             strip_extension(src);
         }
