@@ -563,7 +563,8 @@ rnp_result_t
 read_mem_src(pgp_source_t *src, pgp_source_t *readsrc)
 {
     pgp_dest_t   dst;
-    rnp_result_t ret;
+    rnp_result_t ret = RNP_ERROR_GENERIC;
+    size_t       sz = 0;
 
     if ((ret = init_mem_dest(&dst, NULL, 0))) {
         return ret;
@@ -573,30 +574,11 @@ read_mem_src(pgp_source_t *src, pgp_source_t *readsrc)
         goto done;
     }
 
-    if ((ret = init_mem_src(src, mem_dest_own_memory(&dst), dst.writeb, true))) {
-        goto done;
-    }
-
-    ret = RNP_SUCCESS;
+    sz = dst.writeb;
+    ret = init_mem_src(src, mem_dest_own_memory(&dst), sz, true);
 done:
     dst_close(&dst, true);
     return ret;
-}
-
-rnp_result_t
-file_to_mem_src(pgp_source_t *src, const char *filename)
-{
-    pgp_source_t fsrc = {};
-    rnp_result_t res = RNP_ERROR_GENERIC;
-
-    if ((res = init_file_src(&fsrc, filename))) {
-        return res;
-    }
-
-    res = read_mem_src(src, &fsrc);
-    fsrc.close();
-
-    return res;
 }
 
 const void *

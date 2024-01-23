@@ -749,21 +749,6 @@ TEST_F(rnp_tests, test_ffi_add_userid)
     rnp_ffi_destroy(ffi);
 }
 
-static bool
-file_equals(const char *filename, const void *data, size_t len)
-{
-    pgp_source_t msrc = {};
-    bool         res = false;
-
-    if (file_to_mem_src(&msrc, filename)) {
-        return false;
-    }
-
-    res = (msrc.size == len) && !memcmp(mem_src_get_memory(&msrc), data, len);
-    msrc.close();
-    return res;
-}
-
 static void
 test_ffi_init_sign_file_input(rnp_input_t *input, rnp_output_t *output)
 {
@@ -893,29 +878,6 @@ test_ffi_check_signatures(rnp_op_verify_t *verify)
     rnp_buffer_destroy(hname);
 }
 
-static bool
-test_ffi_check_recovered()
-{
-    pgp_source_t msrc1 = {};
-    pgp_source_t msrc2 = {};
-    bool         res = false;
-
-    if (file_to_mem_src(&msrc1, "recovered")) {
-        return false;
-    }
-
-    if (file_to_mem_src(&msrc2, "plaintext")) {
-        goto finish;
-    }
-
-    res = (msrc1.size == msrc2.size) &&
-          !memcmp(mem_src_get_memory(&msrc1), mem_src_get_memory(&msrc2), msrc1.size);
-finish:
-    msrc1.close();
-    msrc2.close();
-    return res;
-}
-
 TEST_F(rnp_tests, test_ffi_signatures_memory)
 {
     rnp_ffi_t       ffi = NULL;
@@ -1025,7 +987,7 @@ TEST_F(rnp_tests, test_ffi_signatures)
     output = NULL;
     assert_rnp_success(rnp_ffi_destroy(ffi));
     // check output
-    assert_true(test_ffi_check_recovered());
+    assert_true(file_to_vec("recovered") == file_to_vec("plaintext"));
 }
 
 TEST_F(rnp_tests, test_ffi_signatures_detached_memory)
@@ -3652,7 +3614,7 @@ TEST_F(rnp_tests, test_ffi_aead_params)
     rnp_output_destroy(output);
     output = NULL;
     // compare the decrypted file
-    assert_true(file_equals("decrypted", plaintext, strlen(plaintext)));
+    assert_string_equal(file_to_str("decrypted").c_str(), plaintext);
     rnp_unlink("decrypted");
 
     // final cleanup

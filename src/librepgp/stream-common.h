@@ -228,13 +228,6 @@ rnp_result_t init_null_src(pgp_source_t *src);
  **/
 rnp_result_t read_mem_src(pgp_source_t *src, pgp_source_t *readsrc);
 
-/** @brief init memory source with contents of the specified file
- *  @param src pre-allocated source structure
- *  @param filename name of the file
- *  @return RNP_SUCCESS or error code
- **/
-rnp_result_t file_to_mem_src(pgp_source_t *src, const char *filename);
-
 /** @brief get memory from the memory source
  *  @param src initialized memory source
  *  @param own transfer ownership of the memory
