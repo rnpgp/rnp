@@ -1201,6 +1201,7 @@ pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
     creation_time = src.creation_time;
     alg = src.alg;
     v3_days = src.v3_days;
+    v5_pub_len = src.v5_pub_len;
     hashed_len = src.hashed_len;
     hashed_data = NULL;
     if (src.hashed_data) {
@@ -1214,6 +1215,8 @@ pgp_key_pkt_t::pgp_key_pkt_t(const pgp_key_pkt_t &src, bool pubonly)
     if (pubonly) {
         forget_secret_key_fields(&material);
         sec_len = 0;
+        v5_s2k_len = 0;
+        v5_sec_len = 0;
         sec_data = NULL;
         sec_protection = {};
         return;
@@ -1245,6 +1248,8 @@ pgp_key_pkt_t::pgp_key_pkt_t(pgp_key_pkt_t &&src)
     material = src.material;
     forget_secret_key_fields(&src.material);
     sec_len = src.sec_len;
+    v5_s2k_len = src.v5_s2k_len;
+    v5_sec_len = src.v5_sec_len;
     sec_data = src.sec_data;
     src.sec_data = NULL;
     sec_protection = src.sec_protection;
